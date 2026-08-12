@@ -7,9 +7,18 @@
 // grow this file.
 
 import {
+  SHIPMENTS,
   ShipmentStatus,
   TripPodFileType,
   TripPodStatus,
+  type ShipmentCusWorkspaceDetail,
+  type ShipmentCusWorkspaceListResponse,
+  type ShipmentCusFinanceConfirmationCreateInput,
+  type ShipmentCusDocumentCustodyUpdateInput,
+  type ShipmentCusLockInput,
+  type ShipmentCusReopenRequestInput,
+  type ShipmentCusContainerLineUpdateInput,
+  type ShipmentCusContainerLineUpdateResult,
   type ShipmentAccountingLockSummary,
 } from '@tingting/shared';
 import { api } from '../lib/api';
@@ -535,22 +544,11 @@ export async function saveShipmentContainers(
 export async function saveShipmentCarrierAllocations(
   id: number,
   body: { expectedVersion: number; carrierAllocations: ShipmentCarrierAllocationGroup[] },
+  idempotencyKey?: string,
 ): Promise<ShipmentCarrierAllocationResponse> {
   return api.post<ShipmentCarrierAllocationResponse>(`/shipments/${id}/carrier-allocations`, body, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
   });
-}
-
-export async function activateShipmentAccountingLock(
-  id: number,
-  body: { expectedVersion: number; billingDocumentId: number; reason: string },
-) {
-  const idempotencyKey = crypto.randomUUID();
-  return api.post<{ lock: ShipmentAccountingLock; replayed: boolean }>(
-    `/shipments/${id}/accounting-lock`,
-    { ...body, idempotencyKey },
-    { headers: { 'Idempotency-Key': idempotencyKey } },
-  );
 }
 
 export async function listOperationalSites(customerId: number): Promise<OperationalSite[]> {
@@ -708,6 +706,96 @@ export async function listShipments(params?: {
   if (params?.q) query.set('q', params.q);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);
+}
+
+export interface ShipmentCusWorkspaceFilters {
+  page?: number;
+  limit?: number;
+  searchSuffix?: string;
+  transportDateFrom?: string;
+  transportDateTo?: string;
+  bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
+}
+
+export async function listCusShipmentWorkspace(
+  filters: ShipmentCusWorkspaceFilters = {},
+): Promise<ShipmentCusWorkspaceListResponse> {
+  const query = new URLSearchParams();
+  if (filters.page != null) query.set('page', String(filters.page));
+  if (filters.limit != null) query.set('limit', String(filters.limit));
+  if (filters.searchSuffix) query.set('searchSuffix', filters.searchSuffix);
+  if (filters.transportDateFrom) query.set('transportDateFrom', filters.transportDateFrom);
+  if (filters.transportDateTo) query.set('transportDateTo', filters.transportDateTo);
+  if (filters.bucket) query.set('bucket', filters.bucket);
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return api.get<ShipmentCusWorkspaceListResponse>(`${SHIPMENTS.CUS_WORKSPACE_LIST}${suffix}`);
+}
+
+export async function getCusShipmentWorkspaceDetail(
+  shipmentId: number,
+): Promise<ShipmentCusWorkspaceDetail> {
+  return api.get<ShipmentCusWorkspaceDetail>(SHIPMENTS.CUS_WORKSPACE_DETAIL(shipmentId));
+}
+
+export async function updateCusShipmentDocumentCustody(
+  shipmentId: number,
+  body: ShipmentCusDocumentCustodyUpdateInput,
+  idempotencyKey?: string,
+) {
+  return api.post<{ version: number }>(
+    SHIPMENTS.CUS_WORKSPACE_DOCUMENT_CUSTODY(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function updateCusShipmentContainerLine(
+  shipmentId: number,
+  containerId: number,
+  body: ShipmentCusContainerLineUpdateInput,
+  idempotencyKey?: string,
+): Promise<ShipmentCusContainerLineUpdateResult> {
+  return api.post<ShipmentCusContainerLineUpdateResult>(
+    SHIPMENTS.CUS_WORKSPACE_CONTAINER_LINE(shipmentId, containerId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function confirmCusShipmentFinance(
+  shipmentId: number,
+  body: ShipmentCusFinanceConfirmationCreateInput,
+  idempotencyKey?: string,
+) {
+  return api.post<{ confirmationId: number; checksum: string; replayed: boolean }>(
+    SHIPMENTS.CUS_WORKSPACE_FINANCE_CONFIRM(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function lockCusShipment(
+  shipmentId: number,
+  body: ShipmentCusLockInput,
+  idempotencyKey?: string,
+) {
+  return api.post<{ replayed: boolean }>(
+    SHIPMENTS.CUS_WORKSPACE_LOCK(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function requestCusShipmentReopen(
+  shipmentId: number,
+  body: ShipmentCusReopenRequestInput,
+  idempotencyKey?: string,
+) {
+  return api.post<{ replayed: boolean }>(
+    SHIPMENTS.CUS_WORKSPACE_REOPEN_REQUEST(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
 }
 
 /** Dispatch the shipment → linked trip. Carries slice-2 preDispatchWarnings. */

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
 import { animate, utils, spring } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
-import { useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
+import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { usePressAnimation } from '../hooks/animations/usePressAnimation';
 import { Tooltip } from './shared/Tooltip';
 import { Sparkline } from '../design-system/Sparkline';
@@ -72,11 +73,13 @@ export function useConfirmShortcuts(opts: {
   isOpen: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
+  overlayToken?: number | null;
 }) {
-  const { isOpen, onConfirm, onCancel } = opts;
+  const { isOpen, onConfirm, onCancel, overlayToken } = opts;
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
+      if (overlayToken != null && !isTopOverlayToken(overlayToken)) return;
       if (e.key === 'Escape' && onCancel) {
         e.preventDefault();
         onCancel();
@@ -97,7 +100,7 @@ export function useConfirmShortcuts(opts: {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onConfirm, onCancel]);
+  }, [isOpen, onConfirm, onCancel, overlayToken]);
 }
 
 /* ─── KPI Metric Card ───────────────────────────────────────────────────── */
@@ -460,12 +463,12 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 540 }: ModalProps) {
-  useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose });
+  const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const { visible, handleClose } = useAnimatedOverlay({
+  const { visible, handleClose, overlayToken } = useAnimatedOverlay({
     overlayRef,
     contentRef,
     isOpen,
@@ -473,6 +476,8 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
     entrance: overlayEntrance,
     exit: overlayExit,
   });
+  useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
+  useFocusTrap(contentRef, visible && isOpen);
 
   if (!portalTarget) return null;
 
@@ -486,6 +491,7 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
         onClick={handleClose}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
       >
         <div
           ref={contentRef}
@@ -494,8 +500,8 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
           onClick={(e) => e.stopPropagation()}
         >
           <div className="modal__head">
-            <h3 className="modal__title">{title}</h3>
-            <Tooltip label="Đóng (Esc)">
+            <h3 id={titleId} className="modal__title">{title}</h3>
+            <Tooltip label="Đóng (Esc)" side="bottom">
               <button
                 className="btn btn--ghost btn--icon btn--sm modal__close"
                 onClick={handleClose}
@@ -535,12 +541,12 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic }: DrawerProps) {
-  useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose });
+  const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLElement>(null);
 
-  const { visible, handleClose } = useAnimatedOverlay({
+  const { visible, handleClose, overlayToken } = useAnimatedOverlay({
     overlayRef,
     contentRef: asideRef,
     isOpen,
@@ -570,6 +576,8 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
       });
     },
   });
+  useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
+  useFocusTrap(asideRef, visible && isOpen);
 
   if (!portalTarget) return null;
 
@@ -587,17 +595,18 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
           className={`drawer ${className}`.trim()}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={titleId}
           aria-hidden={!isOpen}
         >
           <header className="drawer__head">
             <div className="drawer__heading">
               {headerGraphic}
               <div style={{ minWidth: 0 }}>
-                <h2 className="drawer__title">{title}</h2>
+                <h2 id={titleId} className="drawer__title">{title}</h2>
                 {subtitle && <p className="drawer__subtitle">{subtitle}</p>}
               </div>
             </div>
-            <Tooltip label="Đóng (Esc)">
+            <Tooltip label="Đóng (Esc)" side="bottom">
               <button
                 className="drawer__close"
                 onClick={handleClose}

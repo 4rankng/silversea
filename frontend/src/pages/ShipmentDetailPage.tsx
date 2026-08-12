@@ -6,99 +6,25 @@ import {
 import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, SelectField, TextField } from '../design-system';
+import { EmptyState } from '../design-system';
 import {
   SHIPMENT_STATUS_LABELS,
   SHIPMENT_DOCUMENT_TYPE_LABELS,
   type ShipmentStatus,
-  type ShipmentDocumentType,
   Role,
 } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
-  activateShipmentAccountingLock,
   type ShipmentDetail as ShipmentDetailData,
-  type ShipmentPodReviewItem,
   type ShipmentCarrierAllocationGroup,
 } from '../api/shipmentClient';
-import { financialClient } from '../api/financialClient';
-import type { BillingDocument } from '@tingting/shared';
 import { ShipmentCoordinationPanel } from '../components/shipment/ShipmentCoordinationPanel';
 import { TripPodReviewPanel } from '../components/shipment/TripPodReviewPanel';
 import { CarrierAllocationSummary } from '../components/shipment/CarrierAllocationSummary';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
-
-// ─── Types (local; see ShipmentsPage for the rationale) ──────────────────────
-
-interface Shipment {
-  id: number;
-  shipmentCode: string | null;
-  customerId: number;
-  // Joined from customers.name by getShipmentDetail. Nullable (leftJoin).
-  customerName: string | null;
-  status: ShipmentStatus;
-  bookingRef: string | null;
-  blNumber: string | null;
-  expectedDeliveryDate: string | null;
-  pickupLocation: string | null;
-  deliveryLocation: string | null;
-  contactName: string | null;
-  contactPhone: string | null;
-  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
-  cargoMode?: 'FCL' | 'LCL' | null;
-  factoryName: string | null;
-  shippingLineName: string | null;
-  customsCutoffAt: string | null;
-  closingAt: string | null;
-  plannedReturnAt: string | null;
-  cargoWeightKg: string | null;
-  cargoVolumeCbm: string | null;
-  packageCount: number | null;
-  packageType: string | null;
-  operationalNotes: string | null;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface ShipmentContainer {
-  id: number;
-  shipmentId: number;
-  containerTypeId: number | null;
-  containerNumber: string | null;
-  sealNumber: string | null;
-  cargoWeightKg: string | null;
-  notes: string | null;
-}
-
-interface ShipmentDocument {
-  id: number;
-  shipmentId: number;
-  type: ShipmentDocumentType;
-  storageKey: string;
-  createdAt: string;
-}
-
-interface ShipmentDeclaration {
-  id: number;
-  shipmentId: number;
-  declarationNumber: string | null;
-  issuedAt: string | null;
-  scope: 'SINGLE' | 'SHARED';
-  note: string | null;
-}
-
-interface ShipmentStatusHistoryRow {
-  id: number;
-  shipmentId: number;
-  fromStatus: ShipmentStatus | null;
-  toStatus: ShipmentStatus;
-  reason: string | null;
-  changedAt: string;
-}
 
 const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
   NEW: 'shipment-detail__dot--draft',
@@ -171,11 +97,6 @@ export default function ShipmentDetailPage() {
   const [data, setData] = useState<ShipmentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [debitNotes, setDebitNotes] = useState<BillingDocument[]>([]);
-  const [selectedDebitNoteId, setSelectedDebitNoteId] = useState('');
-  const [lockReasonInput, setLockReasonInput] = useState('Đã phát hành Debit Note và chốt công nợ với khách hàng.');
-  const [lockSubmitting, setLockSubmitting] = useState(false);
-  const [lockMessage, setLockMessage] = useState<string | null>(null);
 
   // Stale-response guard: when navigating from /shipments/1 to /shipments/2
   // while the first request is in flight, the first response must NOT
@@ -213,44 +134,6 @@ export default function ShipmentDetailPage() {
 
   useEffect(() => { void fetchDetail(); }, [fetchDetail]);
 
-  useEffect(() => {
-    if (user?.role !== Role.ACCOUNTANT || !data || data.accountingLock) return;
-    let cancelled = false;
-    void financialClient.listBillingDocuments('CUSTOMER', data.shipment.customerId, 'DEBIT_NOTE')
-      .then((documents) => {
-        if (cancelled) return;
-        const eligible = documents.filter((document) => (
-          ['SENT', 'PENDING_CONFIRM', 'CONFIRMED', 'PARTIAL_PAID', 'PAID'].includes(document.debitNoteStatus ?? '')
-          && (document.authorityState ?? 'CURRENT') === 'CURRENT'
-        ));
-        setDebitNotes(eligible);
-        setSelectedDebitNoteId((current) => current || (eligible[0] ? String(eligible[0].id) : ''));
-      })
-      .catch(() => {
-        if (!cancelled) setLockMessage('Không thể tải danh sách Debit Note đã phát hành.');
-      });
-    return () => { cancelled = true; };
-  }, [data, user?.role]);
-
-  const handleAccountingLock = useCallback(async () => {
-    if (!data || !selectedDebitNoteId || !lockReasonInput.trim()) return;
-    setLockSubmitting(true);
-    setLockMessage(null);
-    try {
-      await activateShipmentAccountingLock(data.shipment.id, {
-        expectedVersion: data.shipment.version,
-        billingDocumentId: Number(selectedDebitNoteId),
-        reason: lockReasonInput.trim(),
-      });
-      await fetchDetail();
-      setLockMessage('Đã khóa lô. Mọi thay đổi vận hành hiện đã bị vô hiệu hóa.');
-    } catch (reason) {
-      setLockMessage(reason instanceof Error ? reason.message : 'Không thể khóa lô.');
-    } finally {
-      setLockSubmitting(false);
-    }
-  }, [data, fetchDetail, lockReasonInput, selectedDebitNoteId]);
-
   if (loading) {
     return (
       <div className="shipment-detail shipment-detail--loading">
@@ -285,7 +168,7 @@ export default function ShipmentDetailPage() {
     .filter((assignment) => assignment.shipmentContainerId != null)
     .map((assignment) => [assignment.shipmentContainerId as number, assignment]));
   const lockReason = accountingLock
-    ? `Đã khóa bởi Kế toán${accountingLock.activatedByName ? ` ${accountingLock.activatedByName}` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
+    ? `Khóa lô do CUS${accountingLock.activatedByName ? ` (${accountingLock.activatedByName})` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
     : null;
 
   return (
@@ -303,7 +186,7 @@ export default function ShipmentDetailPage() {
           accountingLock ? (
             <button type="button" className="btn btn--secondary shipment-detail__operate" disabled title={lockReason ?? undefined}>
               <ClipboardPenLine size={18} aria-hidden="true" />
-              Đã khóa bởi Kế toán
+              Đã khóa bởi CUS
             </button>
           ) : (
             <Link
@@ -386,45 +269,6 @@ export default function ShipmentDetailPage() {
             emptyLabel="Chưa có dữ liệu gán nhà xe cho lô hàng này."
           />
         </section>
-
-        {user?.role === Role.ACCOUNTANT && !accountingLock && (
-          <section className="shipment-detail__card" aria-labelledby="accounting-lock-title">
-            <h3 id="accounting-lock-title" className="shipment-detail__section-title">
-              Khóa lô sau khi xuất Debit Note
-            </h3>
-            <p>Khóa lô sẽ vô hiệu hóa toàn bộ chỉnh sửa vận hành. Các sai lệch sau đó phải xử lý bằng chứng từ điều chỉnh.</p>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <SelectField
-                label="Debit Note đã phát hành"
-                value={selectedDebitNoteId}
-                onChange={(event) => setSelectedDebitNoteId(event.target.value)}
-                disabled={lockSubmitting}
-              >
-                <option value="">— Chọn Debit Note —</option>
-                {debitNotes.map((document) => (
-                  <option key={document.id} value={document.id}>
-                    Debit Note #{document.id} · {document.rangeFrom} – {document.rangeTo}
-                  </option>
-                ))}
-              </SelectField>
-              <TextField
-                label="Lý do khóa"
-                value={lockReasonInput}
-                onChange={(event) => setLockReasonInput(event.target.value)}
-                disabled={lockSubmitting}
-              />
-              {lockMessage && <p role="status" style={{ margin: 0 }}>{lockMessage}</p>}
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => void handleAccountingLock()}
-                disabled={lockSubmitting || !selectedDebitNoteId || !lockReasonInput.trim()}
-              >
-                {lockSubmitting ? 'Đang khóa…' : 'Khóa lô'}
-              </button>
-            </div>
-          </section>
-        )}
 
         {canSeePodReview && (
           <TripPodReviewPanel

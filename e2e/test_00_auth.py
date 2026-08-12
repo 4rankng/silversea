@@ -37,7 +37,7 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
         results.fail('TC-0004', 'Login DRIVER', f'Expected /my-trips, got {page.url}')
     page.close()
 
-    # TC-0004b: Login as FORWARDER → /my-forwarder-trips
+    # TC-0004b: Login as OPS → /my-orders
     page = ctx.new_page()
     page.goto(f'{BASE_URL}/login')
     page.wait_for_load_state('networkidle')
@@ -46,10 +46,10 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0004b', 'Login FORWARDER → /my-forwarder-trips')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0004b', 'Login OPS → /my-orders')
     else:
-        results.fail('TC-0004b', 'Login FORWARDER', f'Expected /my-forwarder-trips, got {page.url}')
+        results.fail('TC-0004b', 'Login OPS', f'Expected /my-orders, got {page.url}')
     page.close()
 
     # TC-0006: Logout
@@ -180,14 +180,14 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
         results.fail('TC-0022', '404 catch-all', f'Expected /dashboard, got {page.url}')
     page.close()
 
-    # TC-0034: FORWARDER → /my-forwarder-trips
+    # TC-0034: OPS → /my-orders
     page = ctx.new_page()
     ctx.login_as('forwarder', page)
     page.wait_for_load_state('networkidle')
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0034', 'FORWARDER → /my-forwarder-trips')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0034', 'OPS → /my-orders')
     else:
-        results.fail('TC-0034', 'FORWARDER portal', f'Expected /my-forwarder-trips, got {page.url}')
+        results.fail('TC-0034', 'OPS portal', f'Expected /my-orders, got {page.url}')
     page.close()
 
     # TC-0035: FORWARDER → /dashboard → redirect
@@ -197,8 +197,8 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/dashboard')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0035', 'FORWARDER → /dashboard → redirect')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0035', 'OPS → /dashboard → redirect')
     else:
         results.fail('TC-0035', 'FORWARDER dashboard redirect', f'Got {page.url}')
     page.close()
@@ -210,8 +210,8 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/finance')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0036', 'FORWARDER → /finance → redirect')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0036', 'OPS → /finance → redirect')
     else:
         results.fail('TC-0036', 'FORWARDER finance redirect', f'Got {page.url}')
     page.close()
@@ -223,8 +223,8 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/my-trips')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0037', 'FORWARDER → /my-trips → redirect')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0037', 'OPS → /my-trips → redirect')
     else:
         results.fail('TC-0037', 'FORWARDER driver redirect', f'Got {page.url}')
     page.close()
@@ -255,14 +255,15 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
         results.fail('TC-0039', 'DRIVER forwarder redirect', f'Got {page.url}')
     page.close()
 
-    # TC-0040: FORWARDER → GET /api/trips → 403
+    # TC-0040: OPS gets the read-only trip catalog but cannot create trips
     api_fwd = ApiClient()
     api_fwd.login('giaonhan', 'Abc123')
     resp = api_fwd.get('/api/trips')
-    if resp.get('status') == 403:
-        results.pass_('TC-0040', 'FORWARDER → GET /api/trips → 403')
+    create_resp = api_fwd.post('/api/trips', {})
+    if resp.get('status') == 200 and create_resp.get('status') == 403:
+        results.pass_('TC-0040', 'OPS trip catalog is read-only')
     else:
-        results.fail('TC-0040', 'FORWARDER API access', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-0040', 'OPS API access', f'GET={resp.get("status")}, POST={create_resp.get("status")}')
 
     # TC-0042: 404 catch-all for FORWARDER
     page = ctx.new_page()
@@ -271,22 +272,26 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/page-khong-ton-tai')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/my-forwarder-trips' in page.url:
-        results.pass_('TC-0042', '404 catch-all FORWARDER → /my-forwarder-trips')
+    if '/my-orders' in page.url:
+        results.pass_('TC-0042', '404 catch-all OPS → /my-orders')
     else:
         results.fail('TC-0042', '404 catch-all FORWARDER', f'Got {page.url}')
     page.close()
 
     # ── Sidebar verification ──
-    # TC-0041: FORWARDER sidebar has only "Chuyến đi"
+    # TC-0041: OPS sidebar exposes only its three operational workflows
     page = ctx.new_page()
     ctx.login_as('forwarder', page)
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(500)
     sidebar_items = page.locator('.sidebar-item, [class*="sidebar-item"]').all()
     visible_items = [item.inner_text().strip() for item in sidebar_items if item.is_visible()]
-    if len(visible_items) >= 1 and any('Chuyến đi' in t for t in visible_items):
-        results.pass_('TC-0041', f'FORWARDER sidebar: {len(visible_items)} items')
+    expected_ops_items = ('Lệnh giao nhận', 'Yêu cầu Tạm ứng', 'Phiếu thanh toán / Hoàn ứng')
+    forbidden_office_items = ('Tài chính', 'Đội xe', 'Cấu hình')
+    if all(any(label in item for item in visible_items) for label in expected_ops_items) and not any(
+        label in item for item in visible_items for label in forbidden_office_items
+    ):
+        results.pass_('TC-0041', f'OPS sidebar: {len(visible_items)} rendered items')
     else:
         results.fail('TC-0041', 'FORWARDER sidebar', f'Found items: {visible_items}')
     ctx.screenshot(page, 'TC-0041_forwarder_sidebar')

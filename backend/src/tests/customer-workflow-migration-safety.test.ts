@@ -133,6 +133,9 @@ describe('customer workflow migration safety', () => {
     const { readFile } = await import('node:fs/promises');
     const migrationSql = await readFile(new URL('../../drizzle/0000_flexible-baseline.sql', import.meta.url), 'utf8');
     const orderExchangeSql = await readFile(new URL('../../drizzle/0003_majestic_clea.sql', import.meta.url), 'utf8');
+    const cusCloseoutSql = await readFile(new URL('../../drizzle/0004_tranquil_chronomancer.sql', import.meta.url), 'utf8');
+    const prevSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0003_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
+    const nextSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0004_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
       entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
     };
@@ -141,11 +144,34 @@ describe('customer workflow migration safety', () => {
       { idx: 1, tag: '0001_backfill_shipment_readiness' },
       { idx: 2, tag: '0002_carrier_readiness_authorities' },
       { idx: 3, tag: '0003_majestic_clea' },
+      { idx: 4, tag: '0004_tranquil_chronomancer' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
     assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_started_at" timestamp with time zone/);
     assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_completed_at" timestamp with time zone/);
     assert.doesNotMatch(orderExchangeSql, /DROP|NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
+    assert.match(cusCloseoutSql, /CREATE TABLE "shipment_container_charge_facts"/);
+    assert.match(cusCloseoutSql, /CREATE TABLE "shipment_document_custody_facts"/);
+    assert.match(cusCloseoutSql, /CREATE TABLE "shipment_recovery_facts"/);
+    assert.match(cusCloseoutSql, /CREATE UNIQUE INDEX "shipment_accounting_locks_active_shipment_uniq_idx"/);
+    assert.doesNotMatch(cusCloseoutSql, /ALTER TABLE "trip_expenses" ALTER COLUMN "settlement_method"/);
+    assert.doesNotMatch(cusCloseoutSql, /DROP INDEX "ledger_forwarder_settlement_once_idx"/);
+
+    const prevLedgerIndex = ((prevSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;
+    const nextLedgerIndex = ((nextSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;
+    assert.equal(prevLedgerIndex?.ledger_forwarder_settlement_once_idx?.where, "\"ledger\".\"txn_type\" = 'FORWARDER_SETTLEMENT'");
+    assert.equal(nextLedgerIndex?.ledger_forwarder_settlement_once_idx?.where, "\"ledger\".\"txn_type\" = 'FORWARDER_SETTLEMENT'");
+
+    const prevTripExpenses = ((prevSnapshot['tables'] as Record<string, unknown>)?.['public.trip_expenses'] as Record<string, unknown>)?.['columns'] as Record<string, Record<string, unknown>>;
+    const nextTripExpenses = ((nextSnapshot['tables'] as Record<string, unknown>)?.['public.trip_expenses'] as Record<string, unknown>)?.['columns'] as Record<string, Record<string, unknown>>;
+    assert.equal(prevTripExpenses?.settlement_method?.default, "'FORWARDER_ADVANCE'");
+    assert.equal(nextTripExpenses?.settlement_method?.default, "'FORWARDER_ADVANCE'");
+
+    const nextFulfillments = ((nextSnapshot['tables'] as Record<string, unknown>)?.['public.shipment_fulfillments'] as Record<string, unknown>)?.['columns'] as Record<string, Record<string, unknown>>;
+    const nextRecoveryFacts = (nextSnapshot['tables'] as Record<string, unknown>)?.['public.shipment_recovery_facts'];
+    assert.ok(nextFulfillments?.planned_external_carrier_vehicle_id);
+    assert.ok(nextFulfillments?.planned_vehicle_plate_number);
+    assert.ok(nextRecoveryFacts);
   });
 });

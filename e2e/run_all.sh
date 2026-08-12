@@ -63,7 +63,7 @@ echo "✅ Servers ready (frontend :$FRONTEND_PORT, backend :$BACKEND_PORT)"
 # Determine which suites to run
 SUITES=()
 if [ $# -eq 0 ]; then
-    for i in $(seq 0 17); do
+    for i in $(seq 0 19); do
         SUITES+=("$(printf '%02d' $i)")
     done
 else

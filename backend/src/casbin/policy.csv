@@ -111,6 +111,7 @@ p, ACCOUNTANT, recoverable_costs, read
 p, ACCOUNTANT, recoverable_costs, write
 p, MANAGER, recoverable_costs, read
 p, MANAGER, recoverable_costs, write
+p, OPS, recoverable_costs, read
 p, ACCOUNTANT, treasury, read
 p, ACCOUNTANT, treasury, write
 p, MANAGER, treasury, read

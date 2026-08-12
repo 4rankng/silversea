@@ -37,6 +37,18 @@ export const TRIPS = {
   EXPENSE_REJECT: (tripId: number, eid: number) => `/trips/${tripId}/expenses/${eid}/reject`,
 } as const;
 
+export const SHIPMENTS = {
+  CUS_WORKSPACE_LIST: '/shipments/cus-workspace',
+  CUS_WORKSPACE_DETAIL: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}`,
+  CUS_WORKSPACE_CONTAINER_LINE: (shipmentId: number, containerId: number) => `/shipments/cus-workspace/${shipmentId}/containers/${containerId}`,
+  CUS_WORKSPACE_FINANCE_CONFIRM: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/finance-confirmations`,
+  CUS_WORKSPACE_DOCUMENT_CUSTODY: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/document-custody`,
+  CUS_WORKSPACE_LOCK: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/lock`,
+  CUS_WORKSPACE_REOPEN_REQUEST: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests`,
+  CUS_WORKSPACE_REOPEN_DECISION: (shipmentId: number, actionId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests/${actionId}/decision`,
+  RECOVERY_FACTS: (shipmentId: number) => `/shipments/${shipmentId}/recovery-facts`,
+} as const;
+
 // ─── Tracking (live GPS vehicle positions) ────────────────────────────────────
 // Live fleet positions joined to active IN_TRANSIT trips. Mounted on the trips
 // router so it inherits trips-read RBAC; cached server-side via Redis and the

@@ -34,7 +34,7 @@ const createdNotifIds: number[] = [];
 let clerkUserId: number;
 let handlerUserId: number;
 
-async function mkUser(role: 'CLERK' | 'FORWARDER', tag: string) {
+async function mkUser(role: 'CUS' | 'OPS', tag: string) {
   const [u] = await db.insert(s.users).values({
     username: `m103-${role}-${suffix}-${tag}-${createdUserIds.length}`,
     passwordHash: 'x', role, status: 'ACTIVE',
@@ -55,8 +55,8 @@ async function mkShipment() {
 
 before(async () => {
   initNotificationService();
-  clerkUserId = (await mkUser('CLERK', 'clerk')).id;
-  handlerUserId = (await mkUser('FORWARDER', 'handler')).id;
+  clerkUserId = (await mkUser('CUS', 'clerk')).id;
+  handlerUserId = (await mkUser('OPS', 'handler')).id;
 });
 
 after(async () => {

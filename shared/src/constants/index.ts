@@ -43,6 +43,19 @@ export enum ShipmentStatus {
   CANCELED = 'CANCELED',
 }
 
+export enum ShipmentCusBucket {
+  NEW = 'NEW',
+  RUNNING = 'RUNNING',
+  PENDING_LOCK = 'PENDING_LOCK',
+  LOCKED = 'LOCKED',
+}
+
+export enum ShipmentDocumentCustody {
+  OPS_HOLDING = 'OPS_HOLDING',
+  SUBMITTED_TO_ACCOUNTING = 'SUBMITTED_TO_ACCOUNTING',
+  SENT_TO_CUSTOMER = 'SENT_TO_CUSTOMER',
+}
+
 /** Shipment document types — mirrors `shipment_document_type` PG enum. */
 export enum ShipmentDocumentType {
   BOOKING = 'BOOKING',
@@ -161,6 +174,19 @@ export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
   [ShipmentStatus.COMPLETED]: 'Hoàn thành',
   [ShipmentStatus.CANCELED]: 'Đã hủy',
+};
+
+export const SHIPMENT_CUS_BUCKET_LABELS: Record<ShipmentCusBucket, string> = {
+  [ShipmentCusBucket.NEW]: 'Mới tạo',
+  [ShipmentCusBucket.RUNNING]: 'Đang chạy',
+  [ShipmentCusBucket.PENDING_LOCK]: 'Chờ khóa',
+  [ShipmentCusBucket.LOCKED]: 'Đã khóa',
+};
+
+export const SHIPMENT_DOCUMENT_CUSTODY_LABELS: Record<ShipmentDocumentCustody, string> = {
+  [ShipmentDocumentCustody.OPS_HOLDING]: 'Ops đang giữ',
+  [ShipmentDocumentCustody.SUBMITTED_TO_ACCOUNTING]: 'Đã nộp Kế toán',
+  [ShipmentDocumentCustody.SENT_TO_CUSTOMER]: 'Đã gửi Khách',
 };
 
 export function canonicalShipmentStatus(status: ShipmentStatus | string | null | undefined): ShipmentStatus | null {

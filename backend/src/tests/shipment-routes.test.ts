@@ -34,7 +34,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { and, eq, inArray } from 'drizzle-orm';
 
-import { db } from '../db';
+import { client, db } from '../db';
 import * as s from '../db/schema';
 import { Role, ShipmentStatus, ShipmentDocumentType } from '@tingting/shared';
 import { config } from '../config';
@@ -44,6 +44,7 @@ import { cacheInvalidate } from '../lib/redis';
 import shipmentRoutes from '../routes/shipments';
 import configRoutes from '../routes/config';
 import financialRoutes from '../routes/financial';
+import recoverableCostRoutes from '../routes/recoverable-costs';
 import salaryRoutes from '../routes/salary';
 import { authMiddleware } from '../middleware/auth';
 import { auditLogMiddleware } from '../middleware/audit';
@@ -64,6 +65,7 @@ const createdBusinessUnitIds: number[] = [];
 const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdBillingDocumentIds: number[] = [];
 
 // Tokens minted in `before`; roled users are created on demand so the test is
 // hermetic against a fresh CI DB.
@@ -71,6 +73,7 @@ let adminToken: string;
 let managerToken: string;
 let accountantToken: string;
 let clerkToken: string;
+let dispatcherToken: string;
 let customerToken: string;
 let driverToken: string;
 let forwarderToken: string;
@@ -83,6 +86,7 @@ let adminUserId: number;
 let managerUserId: number;
 let accountantUserId: number;
 let clerkUserId: number;
+let dispatcherUserId: number;
 let driverUserId: number;
 let clerkBusinessUnitId: number;
 let secondaryClerkBusinessUnitId: number;
@@ -128,6 +132,24 @@ async function mkCustomer() {
     .returning();
   createdCustomerIds.push(c.id);
   return c;
+}
+
+async function createScopedCusSession(scopedCustomerId?: number) {
+  const user = await mkUser(`sr-cus-scope-${suffix}-${createdUserIds.length}`, Role.CUS);
+  if (scopedCustomerId != null) {
+    await db.insert(s.userCustomerLinks).values({
+      userId: user.id,
+      customerId: scopedCustomerId,
+    });
+  }
+  return {
+    user,
+    token: sign({
+      ...user,
+      customerId: scopedCustomerId ?? null,
+      customerIds: scopedCustomerId == null ? [] : [scopedCustomerId],
+    }),
+  };
 }
 
 async function mkCatalogs() {
@@ -230,6 +252,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api/recoverable-costs', authMiddleware, casbinAuthz('recoverable_costs'), recoverableCostRoutes);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);
   app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
@@ -249,6 +272,7 @@ before(async () => {
   const manager = await mkUser(`sr-manager-${suffix}`, Role.MANAGER);
   const accountant = await mkUser(`sr-acct-${suffix}`, Role.ACCOUNTANT);
   const clerk = await mkUser(`sr-clerk-${suffix}`, Role.CUS);
+  const dispatcher = await mkUser(`sr-dispatcher-${suffix}`, Role.DISPATCHER);
   const customer = await mkUser(`sr-cust-${suffix}`, Role.CUSTOMER);
   const driver = await mkUser(`sr-driver-${suffix}`, Role.DRIVER);
   const forwarder = await mkUser(`sr-fwd-${suffix}`, Role.OPS);
@@ -257,6 +281,7 @@ before(async () => {
   managerToken = sign(manager);
   accountantToken = sign(accountant);
   clerkToken = sign(clerk);
+  dispatcherToken = sign(dispatcher);
   customerToken = sign(customer);
   driverToken = sign(driver);
   forwarderToken = sign(forwarder);
@@ -264,6 +289,7 @@ before(async () => {
   managerUserId = manager.id;
   accountantUserId = accountant.id;
   clerkUserId = clerk.id;
+  dispatcherUserId = dispatcher.id;
   driverUserId = driver.id;
 
   const customerRow = await mkCustomer();
@@ -349,7 +375,29 @@ after(async () => {
         await tx.delete(s.tripLegs).where(inArray(s.tripLegs.tripId, createdTripIds));
         await tx.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
       }
+      if (createdBillingDocumentIds.length > 0) {
+        await tx.delete(s.billingDocumentRecoverableClaims)
+          .where(inArray(s.billingDocumentRecoverableClaims.documentId, createdBillingDocumentIds));
+        await tx.delete(s.billingDocumentTripClaims)
+          .where(inArray(s.billingDocumentTripClaims.documentId, createdBillingDocumentIds));
+        await tx.delete(s.billingDocumentLines)
+          .where(inArray(s.billingDocumentLines.documentId, createdBillingDocumentIds));
+        await tx.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdBillingDocumentIds));
+      }
       if (createdShipmentIds.length > 0) {
+        await tx.delete(s.shipmentContainerChargeFacts)
+          .where(inArray(s.shipmentContainerChargeFacts.shipmentId, createdShipmentIds));
+        await tx.delete(s.shipmentRecoveryFacts)
+          .where(inArray(s.shipmentRecoveryFacts.shipmentId, createdShipmentIds));
+        await tx.delete(s.shipmentDocumentCustodyFacts)
+          .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, createdShipmentIds));
+        await tx.delete(s.shipmentAccountingLocks)
+          .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
+        await tx.delete(s.governanceActions)
+          .where(and(
+            eq(s.governanceActions.subjectType, 'SHIPMENT'),
+            inArray(s.governanceActions.subjectId, createdShipmentIds),
+          ));
         await tx.delete(s.notifications).where(and(
           eq(s.notifications.type, 'SHIPMENT_HANDOFF'),
           eq(s.notifications.relatedEntityType, 'shipments'),
@@ -368,6 +416,9 @@ after(async () => {
         await tx.delete(s.shipmentDocuments)
           .where(inArray(s.shipmentDocuments.shipmentId, createdShipmentIds));
         await tx.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      }
+      if (createdCustomerIds.length > 0) {
+        await tx.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds));
       }
       if (createdContainerTypeIds.length > 0) {
         await tx.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
@@ -608,6 +659,257 @@ async function createReadyDirectCloseFixture() {
     },
   ]);
   return { shipment, trip };
+}
+
+async function createCusWorkspaceLockFixture() {
+  const accepted = await createAcceptedFulfillmentFixture();
+  const [baseShipment] = await db.select().from(s.shipments)
+    .where(eq(s.shipments.id, accepted.shipment.id))
+    .limit(1);
+  assert.ok(baseShipment, 'accepted fulfillment fixture must persist the shipment');
+  const [shipment] = await db.update(s.shipments).set({
+    status: ShipmentStatus.COMPLETED,
+    updatedAt: new Date(),
+  }).where(eq(s.shipments.id, baseShipment.id)).returning();
+  const [container] = await db.select().from(s.shipmentContainers)
+    .where(eq(s.shipmentContainers.shipmentId, shipment.id))
+    .limit(1);
+  assert.ok(container, 'accepted fulfillment fixture must create a shipment container');
+  const [trip] = await db.insert(s.trips).values({
+    tripCode: `SR-CUS-LOCK-${suffix}-${createdTripIds.length}`.slice(0, 50),
+    customerId,
+    routeId,
+    departureDate: '2026-08-03',
+    shipmentId: shipment.id,
+    fulfillmentId: accepted.fulfillmentId,
+    status: ShipmentStatus.COMPLETED,
+    carrierType: 'OWN',
+    revenue: '40000000',
+    revenueOriginal: '40000000',
+    revenueEmptyReturn: '40000000',
+  }).returning();
+  createdTripIds.push(trip.id);
+  const [posting] = await db.insert(s.tripFinancialPostings).values({
+    tripId: trip.id,
+    version: 1,
+    tripVersion: trip.version,
+    reason: 'TRIP_COMPLETED',
+    effectiveAt: new Date('2026-08-03T12:00:00.000Z'),
+  }).returning();
+  const periodDate = new Date(Date.UTC(1900, 0, 1 + shipment.id));
+  const rangeFrom = periodDate.toISOString().slice(0, 10);
+  const rangeTo = rangeFrom;
+  const issuedAt = new Date(`${rangeFrom}T02:00:00.000Z`);
+  const [document] = await db.insert(s.billingDocuments).values({
+    type: 'DEBIT_NOTE',
+    entityType: 'CUSTOMER',
+    entityId: customerId,
+    entityName: `CUS Workspace Customer ${suffix}`,
+    rangeFrom,
+    rangeTo,
+    totalInclVat: '1000000',
+    debitNoteStatus: 'SENT',
+    issuedAt,
+  }).returning();
+  createdBillingDocumentIds.push(document.id);
+  const { postingChecksum } = await import('../services/billingDocument.service');
+  await db.insert(s.billingDocumentTripClaims).values({
+    documentId: document.id,
+    tripId: trip.id,
+    financialPostingId: posting.id,
+    financialPostingVersion: posting.version,
+    postingChecksum: postingChecksum(posting),
+    rangeFrom: document.rangeFrom,
+    rangeTo: document.rangeTo,
+    createdBy: accountantUserId,
+  });
+  return {
+    shipment,
+    container,
+    trip,
+    document,
+  };
+}
+
+async function createExternalCarrierFixture(name?: string) {
+  const carrierName = name ?? `CUS Carrier ${suffix}-${createdCustomerIds.length}`;
+  const plateToken = `${Date.now()}${Math.floor(Math.random() * 100)}`.slice(-5);
+  const [carrier] = await db.insert(s.customers).values({
+    name: carrierName,
+    isCarrier: true,
+    status: 'ACTIVE',
+  }).returning();
+  createdCustomerIds.push(carrier.id);
+  const [vehicle] = await db.insert(s.carrierFleetVehicles).values({
+    carrierId: carrier.id,
+    licensePlate: `51H-${plateToken}`,
+    normalizedPlate: `51H${plateToken}`,
+    isActive: true,
+    createdBy: adminUserId,
+    updatedBy: adminUserId,
+  }).returning();
+  return { carrier, vehicle };
+}
+
+function buildRecoverySourceVersion(expense: {
+  updatedAt: Date;
+  approvalStatus: string;
+  sellAmount: string;
+}) {
+  return `expense:${expense.updatedAt.toISOString()}:${expense.approvalStatus}:${Number(expense.sellAmount)}`;
+}
+
+async function getCusWorkspaceDetail(shipmentId: number, token: string) {
+  const detail = await testFetch(`/cus-workspace/${shipmentId}`, { token });
+  assert.equal(detail.status, 200);
+  return detail.data as {
+    summary: {
+      id: number;
+      version: number;
+      debitNote: { billingDocumentId: number | null };
+      activeLock: { id: number } | null;
+      accountingConfirmation: {
+        confirmationId: number | null;
+        checksum: string | null;
+        status: string;
+      };
+    };
+    containers: Array<{
+      id: number;
+      shipmentVersion: number;
+      factVersion: number;
+      externalCarrierId: number | null;
+      externalCarrierVehicleId: number | null;
+      carrierName: string | null;
+      plateNumber: string | null;
+      inboundCharges: { transport: { amount: string | null }; handling: { amount: string | null } };
+      outboundCharges: { transport: { amount: string | null } };
+    }>;
+  };
+}
+
+async function confirmFinanceViaRoute(shipmentId: number, idempotencyKey?: string) {
+  const detail = await getCusWorkspaceDetail(shipmentId, accountantToken);
+  const result = await testFetch(`/cus-workspace/${shipmentId}/finance-confirmations`, {
+    method: 'POST',
+    token: accountantToken,
+    idempotencyKey,
+    body: {
+      expectedVersion: detail.summary.version,
+      billingDocumentId: detail.summary.debitNote.billingDocumentId,
+      reason: 'Kế toán xác nhận số liệu workspace.',
+    },
+  });
+  return { detail, result };
+}
+
+async function lockShipmentViaRoute(shipmentId: number, idempotencyKey?: string) {
+  const detail = await getCusWorkspaceDetail(shipmentId, clerkToken);
+  const result = await testFetch(`/cus-workspace/${shipmentId}/lock`, {
+    method: 'POST',
+    token: clerkToken,
+    idempotencyKey,
+    body: {
+      expectedVersion: detail.summary.version,
+      confirmationId: detail.summary.accountingConfirmation.confirmationId,
+      confirmationChecksum: detail.summary.accountingConfirmation.checksum,
+      reason: 'CUS khóa lô theo xác nhận kế toán.',
+      acknowledged: true,
+    },
+  });
+  return { detail, result };
+}
+
+async function createRecoverableExpenseFixture(options: {
+  withContainer?: boolean;
+  shipmentId?: number;
+  shipmentContainerId?: number | null;
+  tripId?: number;
+} = {}) {
+  const actorUser = await mkUser(`sr-recovery-${suffix}-${createdUserIds.length}`, Role.OPS);
+  const actor = {
+    userId: actorUser.id,
+    username: actorUser.username ?? String(actorUser.id),
+    email: null,
+    fullName: `Recovery ${actorUser.id}`,
+    role: Role.OPS,
+  };
+
+  let shipmentId = options.shipmentId ?? null;
+  let shipmentContainerId = options.shipmentContainerId ?? null;
+  let tripId = options.tripId ?? null;
+
+  if (shipmentId == null) {
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId,
+      routeId,
+      shipmentCode: `REC-${suffix}-${createdShipmentIds.length}`.slice(0, 50),
+      responsibleUnitId: clerkBusinessUnitId,
+      status: ShipmentStatus.COMPLETED,
+      closingAt: new Date('2026-08-01T08:00:00.000Z'),
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    shipmentId = shipment.id;
+  }
+
+  if (options.withContainer && shipmentContainerId == null) {
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerNumber: `REC-CONT-${suffix}-${createdShipmentIds.length}`.slice(0, 50),
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerId = container.id;
+  }
+
+  if (tripId == null) {
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `REC-TRIP-${suffix}-${createdTripIds.length}`.slice(0, 50),
+      customerId,
+      routeId,
+      shipmentId,
+      status: ShipmentStatus.COMPLETED,
+      departureDate: '2026-08-01',
+    }).returning();
+    createdTripIds.push(trip.id);
+    tripId = trip.id;
+  }
+
+  let tripContainerId: number | null = null;
+  if (shipmentContainerId != null) {
+    const [tripContainer] = await db.insert(s.tripContainers).values({
+      tripId,
+      sourceShipmentId: shipmentId,
+      sourceShipmentContainerId: shipmentContainerId,
+      sourceShipmentVersion: 1,
+      containerNumber: `REC-CONT-${suffix}-${tripId}`.slice(0, 50),
+      createdBy: actor.userId,
+    }).returning();
+    tripContainerId = tripContainer.id;
+  }
+
+  const [expense] = await db.insert(s.tripExpenses).values({
+    tripId,
+    tripContainerId,
+    expenseType: 'OTHER',
+    buyAmount: '1000',
+    sellAmount: '1000',
+    recoverablePrincipalAmount: '1000',
+    serviceFeeAmount: '0',
+    approvalStatus: 'APPROVED',
+    approvedAt: new Date('2026-08-02T08:00:00.000Z'),
+    approvedBy: actor.userId,
+  }).returning();
+
+  return {
+    actor,
+    shipmentId,
+    shipmentContainerId,
+    tripId,
+    expense,
+    sourceVersion: buildRecoverySourceVersion(expense),
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -990,6 +1292,1058 @@ describe('POST /', () => {
       body: { customerId: 0 },
     });
     assert.equal(r.status, 400);
+  });
+});
+
+describe('GET /cus-workspace', () => {
+  test('returns derived CUS rows and enforces 4-5 alphanumeric suffix search', async () => {
+    const shipment = await mkShipmentViaService({
+      bookingRef: `BOOK-${suffix}-Ab12X`.slice(0, 50),
+      expectedDeliveryDate: '2026-08-11',
+      cargoMode: 'FCL',
+    });
+    const declaration = await testFetch(`/${shipment.id}/declarations`, {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        declarationNumber: 'TK-9zX4',
+        issuedAt: '2026-08-11T09:00:00.000Z',
+        scope: 'SHARED',
+      },
+    });
+    assert.equal(declaration.status, 201);
+
+    for (const validSuffix of ['aB12x', '9Zx4']) {
+      const ok = await testFetch(`/cus-workspace?searchSuffix=${validSuffix}&page=1&limit=20`, { token: adminToken });
+      assert.equal(ok.status, 200);
+      const row = ok.data.items.find((item: { id: number }) => item.id === shipment.id);
+      assert.ok(row, `CUS workspace includes the shipment for ${validSuffix}`);
+      assert.equal(row.bucket, 'NEW');
+      assert.equal(row.action.kind, 'LOCK');
+    }
+
+    for (const invalidSuffix of ['A12', 'ABC123', 'AB$1']) {
+      const invalid = await testFetch(`/cus-workspace?searchSuffix=${encodeURIComponent(invalidSuffix)}`, { token: adminToken });
+      assert.equal(invalid.status, 400);
+      assert.match(invalid.data.error, /4-5 ký tự chữ hoặc số/i);
+    }
+  });
+
+  test('returns the CUS workspace detail envelope', async () => {
+    const shipment = await mkShipmentViaService({
+      expectedDeliveryDate: '2026-08-11',
+      cargoMode: 'FCL',
+    });
+
+    const detail = await testFetch(`/cus-workspace/${shipment.id}`, { token: adminToken });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.summary.id, shipment.id);
+    assert.ok(Array.isArray(detail.data.containers));
+    assert.equal(typeof detail.data.dataState.hasExplicitDocumentCustody, 'boolean');
+    assert.equal(typeof detail.data.dataState.hasExplicitRecoveryFacts, 'boolean');
+  });
+
+  test('derives customer totals and loss only from attributable current Debit Note lines, never manual proposals', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    await db.update(s.trips).set({ totalCost: '45000000' }).where(eq(s.trips.id, fixture.trip.id));
+    await db.insert(s.billingDocumentLines).values([
+      {
+        documentId: fixture.document.id,
+        sourceType: 'TRIP',
+        sourceId: fixture.trip.id,
+        lineType: 'FREIGHT',
+        typeLabel: 'Cước có hóa đơn',
+        unit: 'chuyến',
+        description: 'Cước vận chuyển',
+        baseAmount: '40000000',
+        grossAmount: '40000000',
+        netAmount: '37037037',
+        taxAmount: '2962963',
+        vatTreatment: 'STANDARD',
+        vatRate: '0.08',
+        sortOrder: 0,
+      },
+      {
+        documentId: fixture.document.id,
+        sourceType: 'TRIP',
+        sourceId: fixture.trip.id,
+        lineType: 'SERVICE_FEE',
+        typeLabel: 'Khoản không hóa đơn',
+        unit: 'lần',
+        description: 'Khoản miễn VAT',
+        baseAmount: '2000000',
+        grossAmount: '2000000',
+        netAmount: '2000000',
+        taxAmount: '0',
+        vatTreatment: 'EXEMPT',
+        vatRate: '0',
+        sortOrder: 1,
+      },
+    ]);
+    await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: fixture.shipment.id,
+      shipmentContainerId: fixture.container.id,
+      outboundTransportAmount: '999000000',
+      createdBy: adminUserId,
+      updatedBy: adminUserId,
+    });
+
+    const detail = await testFetch(`/cus-workspace/${fixture.shipment.id}`, { token: adminToken });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.summary.finance.customerInvoiceTotal, '40000000');
+    assert.equal(detail.data.summary.finance.customerNoInvoiceTotal, '2000000');
+    assert.equal(detail.data.summary.finance.customerChargeTotalsAvailable, true);
+    assert.equal(detail.data.summary.finance.customerTotalsAuthority, 'BILLING_DOCUMENT');
+    assert.equal(detail.data.summary.finance.totalCost, '45000000');
+    assert.equal(detail.data.summary.finance.isLoss, true);
+    assert.equal(detail.data.containers[0].outboundCharges.transport.amount, '999000000');
+    assert.equal(detail.data.containers[0].outboundCharges.authority, 'MANUAL_PROPOSAL');
+
+    await db.insert(s.billingDocumentLines).values({
+      documentId: fixture.document.id,
+      sourceType: 'ADHOC',
+      sourceId: null,
+      lineType: 'ADHOC',
+      typeLabel: 'Điều chỉnh chung',
+      unit: 'lần',
+      description: 'Không thể phân bổ cho một lô',
+      baseAmount: '500000',
+      grossAmount: '500000',
+      netAmount: '500000',
+      taxAmount: '0',
+      vatTreatment: 'EXEMPT',
+      vatRate: '0',
+      sortOrder: 2,
+    });
+    const withAdhoc = await testFetch(`/cus-workspace/${fixture.shipment.id}`, { token: adminToken });
+    assert.equal(withAdhoc.status, 200);
+    assert.equal(withAdhoc.data.summary.finance.customerChargeTotalsAvailable, false);
+    assert.equal(withAdhoc.data.summary.finance.customerTotalsAuthority, 'UNAVAILABLE');
+    assert.equal(withAdhoc.data.summary.finance.customerInvoiceTotal, null);
+    assert.equal(withAdhoc.data.summary.finance.isLoss, null);
+  });
+
+  test('DISPATCHER can read the CUS workspace detail', async () => {
+    const shipment = await mkShipmentViaService({
+      expectedDeliveryDate: '2026-08-11',
+      cargoMode: 'FCL',
+    });
+
+    const detail = await testFetch(`/cus-workspace/${shipment.id}`, { token: dispatcherToken });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.summary.id, shipment.id);
+  });
+
+  test('fails closed for an unlinked CUS and keeps pagination accurate over 500+ scoped rows', async (t) => {
+    const unlinked = await createScopedCusSession();
+    const empty = await testFetch('/cus-workspace?page=1&limit=20', { token: unlinked.token });
+    assert.equal(empty.status, 200);
+    assert.equal(empty.data.total, 0);
+    assert.equal(empty.data.items.length, 0);
+
+    const scopedCustomer = await mkCustomer();
+    const scoped = await createScopedCusSession(scopedCustomer.id);
+    const values = Array.from({ length: 505 }, (_, index) => ({
+      customerId: scopedCustomer.id,
+      responsibleUnitId: clerkBusinessUnitId,
+      shipmentCode: `BULK-${suffix}-${index}`.slice(0, 50),
+      bookingRef: `BULK-BOOK-${index}`.slice(0, 50),
+      status: ShipmentStatus.PENDING_DATE,
+      expectedDeliveryDate: '2026-08-11',
+      createdBy: adminUserId,
+      updatedBy: adminUserId,
+    }));
+    for (let offset = 0; offset < values.length; offset += 100) {
+      const inserted = await db.insert(s.shipments).values(values.slice(offset, offset + 100)).returning({ id: s.shipments.id });
+      createdShipmentIds.push(...inserted.map((row) => row.id));
+    }
+
+    const pageOne = await testFetch('/cus-workspace?page=1&limit=20&bucket=NEW', { token: scoped.token });
+    const pageTwentySix = await testFetch('/cus-workspace?page=26&limit=20&bucket=NEW', { token: scoped.token });
+    assert.equal(pageOne.status, 200);
+    assert.equal(pageTwentySix.status, 200);
+    assert.equal(pageOne.data.total, 505);
+    assert.equal(pageOne.data.totalPages, 26);
+    assert.equal(pageOne.data.items.length, 20);
+    assert.equal(pageTwentySix.data.items.length, 5);
+
+    const measurePage = async (limit: number) => {
+      const statements: string[] = [];
+      const originalDebug = client.options.debug;
+      client.options.debug = (_connection: number, query: string) => {
+        statements.push(query);
+        if (typeof originalDebug === 'function') originalDebug(_connection, query, [], []);
+      };
+      const startedAt = performance.now();
+      try {
+        const response = await testFetch(`/cus-workspace?page=1&limit=${limit}&bucket=NEW`, { token: scoped.token });
+        return {
+          response,
+          durationMs: performance.now() - startedAt,
+          queryCount: statements.filter((query) => !/^(begin|commit)/i.test(query.trim())).length,
+        };
+      } finally {
+        client.options.debug = originalDebug;
+      }
+    };
+
+    const singleRow = await measurePage(1);
+    const twentyRows = await measurePage(20);
+    assert.equal(singleRow.response.status, 200);
+    assert.equal(twentyRows.response.status, 200);
+    assert.equal(
+      twentyRows.queryCount,
+      singleRow.queryCount,
+      `expected fixed query count, got one=${singleRow.queryCount} twenty=${twentyRows.queryCount}`,
+    );
+    assert.ok(twentyRows.queryCount <= 20, `expected <= 20 SQL statements, got ${twentyRows.queryCount}`);
+    t.diagnostic(`CUS workspace page: rows=20 total=${twentyRows.response.data.total} sqlStatements=${twentyRows.queryCount} durationMs=${twentyRows.durationMs.toFixed(2)}`);
+  });
+
+  test('denies a CUS user from reading another customer shipment by guessed id', async () => {
+    const otherCustomer = await mkCustomer();
+    const foreignShipment = await mkShipmentViaService({
+      customerId: otherCustomer.id,
+      responsibleUnitId: clerkBusinessUnitId,
+      cargoMode: 'FCL',
+    });
+    const denied = await testFetch(`/cus-workspace/${foreignShipment.id}`, { token: clerkToken });
+    assert.equal(denied.status, 404);
+  });
+});
+
+describe('POST /cus-workspace/:id/containers/:containerId', () => {
+  test('rejects unsafe proposal amounts before writing any charge fact', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+    const invalidCases = [
+      { outboundCharges: { transportAmount: '-1' } },
+      { outboundCharges: { handlingAmount: '1.5' } },
+      { outboundCharges: { incidentalAmount: 'NaN' } },
+      { inboundCharges: { transportAmount: '1000000000000000' } },
+      { inboundCharges: { handlingAmount: 1 } },
+    ];
+
+    for (const chargeInput of invalidCases) {
+      const response = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+        method: 'POST',
+        token: clerkToken,
+        body: {
+          expectedShipmentVersion: line.shipmentVersion,
+          expectedFactVersion: line.factVersion,
+          ...chargeInput,
+        },
+      });
+      assert.equal(response.status, 400);
+    }
+
+    const facts = await db.select({ id: s.shipmentContainerChargeFacts.id })
+      .from(s.shipmentContainerChargeFacts)
+      .where(eq(s.shipmentContainerChargeFacts.shipmentContainerId, container.id));
+    assert.equal(facts.length, 0);
+  });
+
+  test('DISPATCHER updates a pre-dispatch line with an existing external carrier and inbound charges', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const { carrier, vehicle } = await createExternalCarrierFixture();
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const update = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        externalCarrierVehicleId: vehicle.id,
+        inboundCharges: {
+          transportAmount: '123000',
+          handlingAmount: '45000',
+        },
+      },
+    });
+
+    assert.equal(update.status, 200);
+    assert.equal(update.data.line.externalCarrierId, carrier.id);
+    assert.equal(update.data.line.externalCarrierVehicleId, vehicle.id);
+    assert.equal(update.data.line.plateNumber, vehicle.licensePlate);
+    assert.equal(update.data.line.inboundCharges.transport.amount, '123000');
+    assert.equal(update.data.line.factVersion, 1);
+
+    const reloaded = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
+    const persisted = reloaded.containers.find((item) => item.id === container.id);
+    assert.equal(persisted?.externalCarrierId, carrier.id);
+    assert.equal(persisted?.externalCarrierVehicleId, vehicle.id);
+    assert.equal(persisted?.plateNumber, vehicle.licensePlate);
+    assert.equal(persisted?.inboundCharges.transport.amount, '123000');
+  });
+
+  test('CUS can create an inline external carrier, and idempotent replay does not duplicate it', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+    const carrierName = `Nhà xe mới ${suffix}-${Date.now()}`;
+    const idempotencyKey = `cus-inline-carrier-${Date.now()}`;
+
+    const first = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'EXTERNAL',
+        newExternalCarrier: {
+          name: carrierName,
+          plateNumber: '51H-123.45',
+        },
+        outboundCharges: {
+          transportAmount: '999000',
+        },
+      },
+    });
+    const replay = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'EXTERNAL',
+        newExternalCarrier: {
+          name: carrierName,
+          plateNumber: '51H-123.45',
+        },
+        outboundCharges: {
+          transportAmount: '999000',
+        },
+      },
+    });
+
+    assert.equal(first.status, 200);
+    assert.equal(replay.status, 200);
+    assert.equal(replay.data.line.externalCarrierId, first.data.line.externalCarrierId);
+    assert.equal(replay.data.line.externalCarrierVehicleId, first.data.line.externalCarrierVehicleId);
+    assert.equal(replay.data.line.plateNumber, '51H-123.45');
+    assert.equal(first.data.line.outboundCharges.transport.amount, '999000');
+
+    const [carrierCount, vehicleCount] = await Promise.all([
+      db.select({ value: s.customers.id }).from(s.customers)
+        .where(and(eq(s.customers.name, carrierName), eq(s.customers.isCarrier, true), eq(s.customers.status, 'ACTIVE'))),
+      db.select({ value: s.carrierFleetVehicles.id }).from(s.carrierFleetVehicles)
+        .where(eq(s.carrierFleetVehicles.carrierId, first.data.line.externalCarrierId)),
+    ]);
+    assert.equal(carrierCount.length, 1);
+    assert.equal(vehicleCount.length, 1);
+    createdCustomerIds.push(first.data.line.externalCarrierId);
+  });
+
+  test('CUS reuses an existing active external carrier vehicle without mutating it', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const carrierName = `Nhà xe tái sử dụng ${suffix}-${Date.now()}`;
+    const { carrier, vehicle } = await createExternalCarrierFixture(carrierName);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const update = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'EXTERNAL',
+        newExternalCarrier: {
+          name: carrierName,
+          plateNumber: vehicle.licensePlate,
+        },
+      },
+    });
+
+    assert.equal(update.status, 200);
+    assert.equal(update.data.line.externalCarrierId, carrier.id);
+    assert.equal(update.data.line.externalCarrierVehicleId, vehicle.id);
+    assert.equal(update.data.line.plateNumber, vehicle.licensePlate);
+
+    const [rows] = await Promise.all([
+      db.select({
+        id: s.carrierFleetVehicles.id,
+        licensePlate: s.carrierFleetVehicles.licensePlate,
+        isActive: s.carrierFleetVehicles.isActive,
+      }).from(s.carrierFleetVehicles)
+        .where(eq(s.carrierFleetVehicles.carrierId, carrier.id)),
+    ]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]?.id, vehicle.id);
+    assert.equal(rows[0]?.licensePlate, vehicle.licensePlate);
+    assert.equal(rows[0]?.isActive, true);
+  });
+
+  test('CUS cannot resurrect an inactive external carrier vehicle through inline creation', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const carrierName = `Nhà xe ngưng hoạt động ${suffix}-${Date.now()}`;
+    const { carrier, vehicle } = await createExternalCarrierFixture(carrierName);
+    await db.update(s.carrierFleetVehicles).set({
+      isActive: false,
+      updatedBy: adminUserId,
+      updatedAt: new Date('2026-08-10T10:00:00.000Z'),
+    }).where(eq(s.carrierFleetVehicles.id, vehicle.id));
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'EXTERNAL',
+        newExternalCarrier: {
+          name: carrierName,
+          plateNumber: vehicle.licensePlate,
+        },
+      },
+    });
+
+    assert.equal(denied.status, 409);
+    assert.match(denied.data.error, /không còn hiệu lực|liên hệ admin|quản lý/i);
+
+    const [persistedVehicle] = await db.select({
+      id: s.carrierFleetVehicles.id,
+      licensePlate: s.carrierFleetVehicles.licensePlate,
+      isActive: s.carrierFleetVehicles.isActive,
+      updatedBy: s.carrierFleetVehicles.updatedBy,
+    }).from(s.carrierFleetVehicles)
+      .where(eq(s.carrierFleetVehicles.id, vehicle.id))
+      .limit(1);
+    assert.ok(persistedVehicle);
+    assert.equal(persistedVehicle.isActive, false);
+    assert.equal(persistedVehicle.licensePlate, vehicle.licensePlate);
+    assert.equal(persistedVehicle.updatedBy, adminUserId);
+
+    const vehicleRows = await db.select({ id: s.carrierFleetVehicles.id }).from(s.carrierFleetVehicles)
+      .where(eq(s.carrierFleetVehicles.carrierId, carrier.id));
+    assert.equal(vehicleRows.length, 1);
+  });
+
+  test('rejects stale container line updates', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const first = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        outboundCharges: {
+          transportAmount: '100000',
+        },
+      },
+    });
+    assert.equal(first.status, 200);
+
+    const stale = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        outboundCharges: {
+          transportAmount: '110000',
+        },
+      },
+    });
+    assert.equal(stale.status, 409);
+    assert.match(stale.data.error, /vừa thay đổi/i);
+  });
+
+  test('rejects container-line writes when the shipment is locked', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${fixture.container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: locked.detail.summary.version + 1,
+        expectedFactVersion: 0,
+        outboundCharges: {
+          transportAmount: '200000',
+        },
+      },
+    });
+    assert.equal(denied.status, 409);
+    assert.match(denied.data.error, /khóa/i);
+  });
+
+  test('rejects operational rewrites after a trip already exists', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === fixture.container.id);
+    assert.ok(line);
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${fixture.container.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        expectedFactVersion: line.factVersion,
+        carrierType: 'OWN',
+      },
+    });
+    assert.equal(denied.status, 409);
+    assert.match(denied.data.error, /điều xe/i);
+  });
+
+  test('denies ACCOUNTANT from writing a container line', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        expectedShipmentVersion: fixture.shipment.version,
+        expectedFactVersion: 0,
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe('POST /cus-workspace/:id/document-custody', () => {
+  test('CUS updates document custody and idempotent replay returns the same fact', async () => {
+    const shipment = await mkShipmentViaService({ cargoMode: 'FCL' });
+    const detail = await getCusWorkspaceDetail(shipment.id, clerkToken);
+    const idempotencyKey = `cus-custody-${Date.now()}`;
+    const first = await testFetch(`/cus-workspace/${shipment.id}/document-custody`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: detail.summary.version,
+        status: 'SUBMITTED_TO_ACCOUNTING',
+        note: 'Đã giao chứng từ cho kế toán.',
+      },
+    });
+    const replay = await testFetch(`/cus-workspace/${shipment.id}/document-custody`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: detail.summary.version,
+        status: 'SUBMITTED_TO_ACCOUNTING',
+        note: 'Đã giao chứng từ cho kế toán.',
+      },
+    });
+    assert.equal(first.status, 201);
+    assert.equal(replay.status, 201);
+    assert.equal(replay.data.fact.id, first.data.fact.id);
+    assert.equal(replay.data.fact.status, 'SUBMITTED_TO_ACCOUNTING');
+  });
+
+  test('rejects document custody updates when the shipment is locked', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/document-custody`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: locked.result.data.lock ? locked.detail.summary.version + 1 : locked.detail.summary.version,
+        status: 'SUBMITTED_TO_ACCOUNTING',
+      },
+    });
+    assert.equal(denied.status, 409);
+  });
+
+  test('denies ACCOUNTANT from updating document custody', async () => {
+    const shipment = await mkShipmentViaService();
+    const denied = await testFetch(`/cus-workspace/${shipment.id}/document-custody`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        expectedShipmentVersion: shipment.version,
+        status: 'SUBMITTED_TO_ACCOUNTING',
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+
+  test('denies a CUS user from writing document custody for another customer shipment', async () => {
+    const otherCustomer = await mkCustomer();
+    const foreignShipment = await mkShipmentViaService({
+      customerId: otherCustomer.id,
+      responsibleUnitId: clerkBusinessUnitId,
+    });
+    const denied = await testFetch(`/cus-workspace/${foreignShipment.id}/document-custody`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: foreignShipment.version,
+        status: 'SUBMITTED_TO_ACCOUNTING',
+      },
+    });
+    assert.equal(denied.status, 404);
+  });
+});
+
+describe('POST /cus-workspace/:id/finance-confirmations', () => {
+  test('ACCOUNTANT confirms finance and idempotent replay preserves the confirmation', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const idempotencyKey = `cus-finance-confirm-${Date.now()}`;
+    const first = await confirmFinanceViaRoute(fixture.shipment.id, idempotencyKey);
+    const replay = await confirmFinanceViaRoute(fixture.shipment.id, idempotencyKey);
+    assert.equal(first.result.status, 201);
+    assert.equal(replay.result.status, 201);
+    assert.equal(replay.result.data.confirmation.confirmationId, first.result.data.confirmation.confirmationId);
+    assert.equal(replay.result.data.confirmation.status, 'CONFIRMED');
+  });
+
+  test('rejects stale finance confirmation requests', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, accountantToken);
+    const stale = await testFetch(`/cus-workspace/${fixture.shipment.id}/finance-confirmations`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        expectedVersion: detail.summary.version + 1,
+        billingDocumentId: detail.summary.debitNote.billingDocumentId,
+        reason: 'Xác nhận trễ.',
+      },
+    });
+    assert.equal(stale.status, 409);
+  });
+
+  test('denies CUS from confirming finance', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/finance-confirmations`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedVersion: fixture.shipment.version,
+        billingDocumentId: fixture.document.id,
+        reason: 'Không hợp lệ.',
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe('POST /cus-workspace/:id/lock', () => {
+  test('CUS locks after confirmation and idempotent replay preserves the lock', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const body = {
+      expectedVersion: detail.summary.version,
+      confirmationId: detail.summary.accountingConfirmation.confirmationId,
+      confirmationChecksum: detail.summary.accountingConfirmation.checksum,
+      reason: 'CUS khóa lô theo xác nhận kế toán.',
+      acknowledged: true,
+    };
+    const idempotencyKey = `cus-lock-${Date.now()}`;
+    const first = await testFetch(`/cus-workspace/${fixture.shipment.id}/lock`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body,
+    });
+    const replay = await testFetch(`/cus-workspace/${fixture.shipment.id}/lock`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body,
+    });
+    assert.equal(first.status, 201);
+    assert.equal(replay.status, 201);
+    assert.equal(replay.data.lock.id, first.data.lock.id);
+  });
+
+  test('rejects locking with a stale confirmation checksum', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    await db.update(s.tripFinancialPostings).set({
+      effectiveAt: new Date('2026-08-05T03:00:00.000Z'),
+    }).where(eq(s.tripFinancialPostings.tripId, fixture.trip.id));
+    const denied = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(denied.result.status, 409);
+    assert.match(denied.result.data.error, /xác nhận kế toán hiện tại không còn hợp lệ|nguồn tài chính đã thay đổi|nguồn hạch toán của debit note đã thay đổi/i);
+  });
+
+  test('denies ACCOUNTANT from locking the shipment', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/lock`, {
+      method: 'POST',
+      token: accountantToken,
+      body: {
+        expectedVersion: fixture.shipment.version,
+        confirmationId: 1,
+        confirmationChecksum: 'x',
+        reason: 'Không hợp lệ.',
+        acknowledged: true,
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe('POST /cus-workspace/:id/reopen-requests', () => {
+  test('CUS requests reopen and idempotent replay preserves the same action', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+    const freshDetail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const idempotencyKey = `cus-reopen-${Date.now()}`;
+    const first = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: freshDetail.summary.version,
+        activeLockId: Number(freshDetail.summary.activeLock?.id),
+        reason: 'Cần điều chỉnh sau khóa.',
+      },
+    });
+    const replay = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
+      method: 'POST',
+      token: clerkToken,
+      idempotencyKey,
+      body: {
+        expectedShipmentVersion: freshDetail.summary.version,
+        activeLockId: Number(freshDetail.summary.activeLock?.id),
+        reason: 'Cần điều chỉnh sau khóa.',
+      },
+    });
+    assert.equal(first.status, 201);
+    assert.equal(replay.status, 201);
+    assert.equal(replay.data.action.id, first.data.action.id);
+  });
+
+  test('denies DISPATCHER from requesting reopen', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        expectedShipmentVersion: fixture.shipment.version,
+        activeLockId: 1,
+        reason: 'Không hợp lệ.',
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe('POST /cus-workspace/:id/reopen-requests/:actionId/decision', () => {
+  test('ADMIN approves a reopen request', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const request = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: detail.summary.version,
+        activeLockId: Number(detail.summary.activeLock?.id),
+        reason: 'Cần mở khóa để chỉnh sửa.',
+      },
+    });
+    assert.equal(request.status, 201);
+
+    const decision = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/${request.data.action.id}/decision`, {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        expectedVersion: request.data.action.version,
+        decision: 'APPROVE',
+        reason: 'ADMIN chấp thuận mở khóa.',
+      },
+    });
+    assert.equal(decision.status, 200);
+    assert.equal(decision.data.status, 'APPROVED');
+  });
+
+  test('rejects stale reopen decisions', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const request = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: detail.summary.version,
+        activeLockId: Number(detail.summary.activeLock?.id),
+        reason: 'Cần mở khóa để chỉnh sửa.',
+      },
+    });
+    assert.equal(request.status, 201);
+
+    const stale = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/${request.data.action.id}/decision`, {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        expectedVersion: request.data.action.version + 1,
+        decision: 'APPROVE',
+        reason: 'ADMIN chấp thuận mở khóa.',
+      },
+    });
+    assert.equal(stale.status, 409);
+  });
+
+  test('denies MANAGER from deciding a reopen request', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const denied = await testFetch(`/cus-workspace/${fixture.shipment.id}/reopen-requests/999999/decision`, {
+      method: 'POST',
+      token: managerToken,
+      body: {
+        expectedVersion: 1,
+        decision: 'REJECT',
+        reason: 'Không hợp lệ.',
+      },
+    });
+    assert.equal(denied.status, 403);
+  });
+});
+
+describe('GET /api/recoverable-costs', () => {
+  test('OPS can list recoverable costs and receives sourceVersion', async () => {
+    const fixture = await createRecoverableExpenseFixture();
+    const result = await apiFetch('/api/recoverable-costs?page=1&limit=20', { token: forwarderToken });
+    assert.equal(result.status, 200);
+    const row = result.data.items.find((item: { id: number }) => item.id === fixture.expense.id);
+    assert.ok(row);
+    assert.equal(typeof row.sourceVersion, 'string');
+    assert.equal(row.sourceVersion, fixture.sourceVersion);
+  });
+});
+
+describe('POST /:id/recovery-facts', () => {
+  test('OPS records shipment recovery and idempotent replay preserves the fact', async () => {
+    const fixture = await createRecoverableExpenseFixture({ withContainer: true });
+    const idempotencyKey = `shipment-recovery-${Date.now()}`;
+    const first = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      idempotencyKey,
+      body: {
+        expenseId: fixture.expense.id,
+        expectedExpenseVersion: fixture.expense.version,
+        expectedSourceVersion: fixture.sourceVersion,
+        expectedRecoveryVersion: 0,
+        kind: 'DEPOSIT',
+        recoveredAmount: '400',
+        status: 'PARTIAL',
+        waiverReason: null,
+      },
+    });
+    const replay = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      idempotencyKey,
+      body: {
+        expenseId: fixture.expense.id,
+        expectedExpenseVersion: fixture.expense.version,
+        expectedSourceVersion: fixture.sourceVersion,
+        expectedRecoveryVersion: 0,
+        kind: 'DEPOSIT',
+        recoveredAmount: '400',
+        status: 'PARTIAL',
+        waiverReason: null,
+      },
+    });
+    assert.equal(first.status, 201);
+    assert.equal(replay.status, 201);
+    assert.equal(replay.data.fact.id, first.data.fact.id);
+    assert.equal(replay.data.fact.version, 1);
+    assert.equal(replay.data.fact.shipmentContainerId, fixture.shipmentContainerId);
+  });
+
+  test('rejects stale recovery updates', async () => {
+    const fixture = await createRecoverableExpenseFixture();
+    const created = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      body: {
+        expenseId: fixture.expense.id,
+        expectedExpenseVersion: fixture.expense.version,
+        expectedSourceVersion: fixture.sourceVersion,
+        expectedRecoveryVersion: 0,
+        kind: 'REPAIR',
+        recoveredAmount: '0',
+        status: 'OPEN',
+        waiverReason: null,
+      },
+    });
+    assert.equal(created.status, 201);
+
+    const stale = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      body: {
+        expenseId: fixture.expense.id,
+        expectedExpenseVersion: fixture.expense.version,
+        expectedSourceVersion: fixture.sourceVersion,
+        expectedRecoveryVersion: 0,
+        kind: 'REPAIR',
+        recoveredAmount: '1000',
+        status: 'RECOVERED',
+        waiverReason: null,
+      },
+    });
+    assert.equal(stale.status, 409);
+    assert.match(stale.data.error, /thu hồi vừa thay đổi/i);
+  });
+
+  test('does not expose a recovery fact whose expense source version is stale', async () => {
+    const fixture = await createRecoverableExpenseFixture({ withContainer: true });
+    const created = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      body: {
+        expenseId: fixture.expense.id,
+        expectedExpenseVersion: fixture.expense.version,
+        expectedSourceVersion: fixture.sourceVersion,
+        expectedRecoveryVersion: 0,
+        kind: 'REPAIR',
+        recoveredAmount: '0',
+        status: 'OPEN',
+        waiverReason: null,
+      },
+    });
+    assert.equal(created.status, 201);
+    await db.update(s.tripExpenses).set({
+      updatedAt: new Date(fixture.expense.updatedAt.getTime() + 1000),
+    }).where(eq(s.tripExpenses.id, fixture.expense.id));
+
+    const detail = await testFetch(`/cus-workspace/${fixture.shipmentId}`, { token: adminToken });
+    assert.equal(detail.status, 200);
+    const container = detail.data.containers.find((row: { id: number }) => row.id === fixture.shipmentContainerId);
+    assert.ok(container);
+    assert.deepEqual(container.recoveryFacts, []);
+    assert.equal(container.repairRecoveryPending, false);
+    assert.equal(detail.data.summary.finance.hasPendingRecovery, false);
+  });
+
+  test('rejects recovery writes when the shipment is locked', async () => {
+    const fixture = await createCusWorkspaceLockFixture();
+    const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
+    assert.equal(confirmed.result.status, 201);
+    const locked = await lockShipmentViaRoute(fixture.shipment.id);
+    assert.equal(locked.result.status, 201);
+    const [tripContainer] = await db.insert(s.tripContainers).values({
+      tripId: fixture.trip.id,
+      sourceShipmentId: fixture.shipment.id,
+      sourceShipmentContainerId: fixture.container.id,
+      sourceShipmentVersion: 1,
+      containerNumber: `LOCK-REC-${suffix}`.slice(0, 50),
+      createdBy: adminUserId,
+    }).returning();
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: fixture.trip.id,
+      tripContainerId: tripContainer.id,
+      expenseType: 'OTHER',
+      buyAmount: '1000',
+      sellAmount: '1000',
+      recoverablePrincipalAmount: '1000',
+      serviceFeeAmount: '0',
+      approvalStatus: 'APPROVED',
+      approvedAt: new Date('2026-08-02T08:00:00.000Z'),
+      approvedBy: adminUserId,
+    }).returning();
+
+    const denied = await testFetch(`/${fixture.shipment.id}/recovery-facts`, {
+      method: 'POST',
+      token: forwarderToken,
+      body: {
+        expenseId: expense.id,
+        expectedExpenseVersion: expense.version,
+        expectedSourceVersion: buildRecoverySourceVersion(expense),
+        expectedRecoveryVersion: 0,
+        kind: 'DEPOSIT',
+        recoveredAmount: '0',
+        status: 'OPEN',
+        waiverReason: null,
+      },
+    });
+    assert.equal(denied.status, 409);
+    assert.match(denied.data.error, /khóa/i);
+  });
+
+  test('denies CUS and ACCOUNTANT from recording shipment recovery', async () => {
+    const fixture = await createRecoverableExpenseFixture();
+    const body = {
+      expenseId: fixture.expense.id,
+      expectedExpenseVersion: fixture.expense.version,
+      expectedSourceVersion: fixture.sourceVersion,
+      expectedRecoveryVersion: 0,
+      kind: 'DEPOSIT',
+      recoveredAmount: '0',
+      status: 'OPEN',
+      waiverReason: null,
+    };
+    const cusDenied = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: clerkToken,
+      body,
+    });
+    const accountantDenied = await testFetch(`/${fixture.shipmentId}/recovery-facts`, {
+      method: 'POST',
+      token: accountantToken,
+      body,
+    });
+    assert.equal(cusDenied.status, 403);
+    assert.equal(accountantDenied.status, 403);
   });
 });
 

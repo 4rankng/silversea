@@ -72,7 +72,7 @@ describe('forwarder admin settlement ops completion summaries', () => {
   before(async () => {
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const users = await db.insert(s.users).values([
-      { username: `fwd-admin-${suffix}`, passwordHash: 'x', fullName: 'Ops tổng hợp', role: 'FORWARDER' },
+      { username: `fwd-admin-${suffix}`, passwordHash: 'x', fullName: 'Ops tổng hợp', role: 'OPS' },
       { username: `kt-admin-${suffix}`, passwordHash: 'x', fullName: 'Kế toán tổng hợp', role: 'ACCOUNTANT' },
     ]).returning();
     [forwarderId, accountantId] = users.map((row) => row.id);

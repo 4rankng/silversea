@@ -20,9 +20,9 @@ DEMO_ACCOUNTS = {
     'admin':     {'identifier': 'admin',    'password': 'Abc123', 'role': 'ADMIN',     'home': '/dashboard'},
     'manager':   {'identifier': 'giamdoc',  'password': 'Abc123', 'role': 'MANAGER',   'home': '/dashboard'},
     'accountant':{'identifier': 'ketoan',   'password': 'Abc123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
-    'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CLERK',      'home': '/clerk/shipments'},
+    'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CUS',        'home': '/clerk/shipments'},
     'driver':    {'identifier': 'laixe',    'password': 'Abc123', 'role': 'DRIVER',     'home': '/my-trips'},
-    'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'FORWARDER',  'home': '/my-forwarder-trips'},
+    'forwarder': {'identifier': 'giaonhan', 'password': 'Abc123', 'role': 'OPS',        'home': '/my-orders'},
     'customer':  {
         # Use a run-scoped local fixture. A database rebuild intentionally
         # preserves old user rows but clears their discarded customer links,

@@ -4,6 +4,30 @@ import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
 
 type AnimScope = ReturnType<typeof createScope>;
+type OverlayToken = number;
+
+let nextOverlayToken = 0;
+const overlayTokenStack: OverlayToken[] = [];
+
+export function registerOverlayToken(): OverlayToken {
+  const token = ++nextOverlayToken;
+  overlayTokenStack.push(token);
+  return token;
+}
+
+export function unregisterOverlayToken(token: OverlayToken): void {
+  const index = overlayTokenStack.lastIndexOf(token);
+  if (index >= 0) {
+    overlayTokenStack.splice(index, 1);
+    return;
+  }
+  overlayTokenStack.pop();
+}
+
+export function isTopOverlayToken(token: OverlayToken | null | undefined): boolean {
+  if (token == null) return false;
+  return overlayTokenStack[overlayTokenStack.length - 1] === token;
+}
 
 /**
  * Entrance callback — runs inside a `createScope().add()` block.
@@ -57,12 +81,16 @@ export function useAnimatedOverlay({
 }: UseAnimatedOverlayOptions): {
   visible: boolean;
   handleClose: () => void;
+  overlayToken: OverlayToken | null;
 } {
   const scopeRef = useRef<AnimScope | null>(null);
   const isClosingRef = useRef(false);
   const closeGenRef = useRef(0);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const overlayTokenRef = useRef<OverlayToken | null>(null);
   const [visible, setVisible] = useState(false);
   const [wasOpen, setWasOpen] = useState(false);
+  const [overlayToken, setOverlayToken] = useState<OverlayToken | null>(null);
   const prefersReduced = usePrefersReducedMotion();
 
   // Keep callbacks in refs so effects don't re-run on identity changes
@@ -74,6 +102,9 @@ export function useAnimatedOverlay({
   // Track isOpen transitions — open: mount DOM; close: run exit animation then unmount
   useEffect(() => {
     if (isOpen && !wasOpen) {
+      restoreFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
       setVisible(true);
       setWasOpen(true);
       isClosingRef.current = false;
@@ -82,6 +113,9 @@ export function useAnimatedOverlay({
       setWasOpen(false);
       const overlay = overlayRef.current;
       const content = contentRef.current;
+      const restoreTarget = restoreFocusRef.current;
+      restoreFocusRef.current = null;
+      if (restoreTarget?.isConnected) requestAnimationFrame(() => restoreTarget.focus());
 
       if (prefersReduced || !overlay || !content) {
         setVisible(false);
@@ -100,6 +134,29 @@ export function useAnimatedOverlay({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are stable; intentionally mirrors original Drawer/ConfirmDialog deps
   }, [isOpen, wasOpen, prefersReduced]);
+
+  useEffect(() => {
+    if (!visible) {
+      if (overlayTokenRef.current != null) {
+        unregisterOverlayToken(overlayTokenRef.current);
+        overlayTokenRef.current = null;
+      }
+      setOverlayToken((current) => (current == null ? current : null));
+      return;
+    }
+
+    if (overlayTokenRef.current == null) {
+      overlayTokenRef.current = registerOverlayToken();
+      setOverlayToken(overlayTokenRef.current);
+    }
+
+    return () => {
+      if (overlayTokenRef.current != null) {
+        unregisterOverlayToken(overlayTokenRef.current);
+        overlayTokenRef.current = null;
+      }
+    };
+  }, [visible]);
 
   // Entrance animation when DOM is mounted (visible && wasOpen)
   useEffect(() => {
@@ -143,5 +200,5 @@ export function useAnimatedOverlay({
     onClose();
   }, [onClose]);
 
-  return { visible, handleClose };
+  return { visible, handleClose, overlayToken };
 }

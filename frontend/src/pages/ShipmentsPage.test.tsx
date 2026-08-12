@@ -1,578 +1,529 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
-import { MemoryRouter, useLocation } from 'react-router-dom';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { ShipmentStatus } from '@tingting/shared';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ShipmentCusBucket,
+  ShipmentDocumentCustody,
+  type ShipmentCusWorkspaceListItem,
+} from '@tingting/shared';
 
-const shipmentsPageCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-// vi.hoisted runs before vi.mock's factory is invoked, so the mock fn is
-// accessible inside the factory. (Vitest hoists vi.mock above all top-level
-// declarations — referencing a plain const from the factory throws
-// ReferenceError.)
-const { apiGet, apiPut, authState } = vi.hoisted(() => ({
+const { apiGet, apiPost } = vi.hoisted(() => ({
   apiGet: vi.fn(),
-  apiPut: vi.fn(),
-  authState: { role: 'ACCOUNTANT' },
+  apiPost: vi.fn(),
 }));
 
 vi.mock('../lib/api', () => ({
-  api: { get: apiGet, put: apiPut },
-  ApiError: class ApiError extends Error {
-    status: number;
-    constructor(status: number, _body: unknown, message: string) {
-      super(message);
-      this.status = status;
-    }
-  },
-}));
-
-// Mock usePageAnimations — it depends on browser animation APIs that aren't
-// available in jsdom. We only need the rootRef passthrough.
-vi.mock('../hooks/animations', () => ({
-  usePageAnimations: () => ({ rootRef: { current: null } }),
-}));
-
-vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { role: authState.role } }),
+  api: { get: apiGet, post: apiPost },
+  ApiError: class ApiError extends Error {},
 }));
 
 import ShipmentsPage from './ShipmentsPage';
 
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <ShipmentsPage />
-      <CurrentPath />
-    </MemoryRouter>,
-  );
+const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+
+const row: ShipmentCusWorkspaceListItem = {
+  id: 1,
+  version: 3,
+  bucket: ShipmentCusBucket.PENDING_LOCK,
+  bucketLabel: 'Chờ khóa',
+  customerName: 'Công ty Silver Sea',
+  factoryName: 'Nhà máy Hải Phòng',
+  billOrBookNumber: 'BILL-12345',
+  declarationNumber: 'TK-54321',
+  shippingLineName: 'Maersk',
+  routeName: 'Hải Phòng → Hà Nội',
+  isCombined: false,
+  direction: 'IMPORT' as const,
+  containerSummary: '2x40HC',
+  weightKg: '25000',
+  volumeCbm: '52.5',
+  transportDate: '2026-08-12',
+  note: 'Giao buổi sáng',
+  finance: {
+    customerInvoiceTotal: '12000000',
+    customerNoInvoiceTotal: '1500000',
+    totalCost: '14000000',
+    isLoss: true,
+    hasPendingRecovery: true,
+    customerChargeTotalsAvailable: true,
+    totalCostAvailable: true,
+  },
+  debitNote: {
+    available: true,
+    billingDocumentId: 44,
+    documentNumber: 'DN-2026-0044',
+    issuedAt: '2026-08-12T01:00:00.000Z',
+    debitNoteStatus: 'ISSUED',
+    disabledReason: null,
+  },
+  documentCustody: {
+    status: ShipmentDocumentCustody.SUBMITTED_TO_ACCOUNTING,
+    label: 'Đã nộp Kế toán',
+    available: true,
+    editable: true,
+  },
+  accountingConfirmation: {
+    status: 'CONFIRMED' as const,
+    billingDocumentId: 44,
+    confirmationId: 71,
+    checksum: 'checksum-71',
+    confirmedAt: '2026-08-12T01:30:00.000Z',
+    confirmedByName: 'Kế toán',
+  },
+  activeLock: null,
+  action: {
+    kind: 'LOCK' as const,
+    label: 'Khóa lô',
+    enabled: true,
+    disabledReason: null,
+  },
+};
+
+const zeroComponent = {
+  amount: '0',
+  invoiceNumber: null,
+  repairRecoveryPending: false,
+  available: true,
+};
+
+const detail = {
+  summary: row,
+  containers: [{
+    id: 10,
+    ordinal: 1,
+    containerNumber: 'MSKU1234567',
+    containerTypeId: 2,
+    containerTypeLabel: '40HC',
+    carrierType: 'EXTERNAL' as const,
+    externalCarrierId: 8,
+    externalCarrierVehicleId: 18,
+    carrierName: 'Nhà xe An Phát',
+    plateNumber: '15C-123.45',
+    liftSiteId: 31,
+    liftSite: 'Cảng Đình Vũ',
+    dropoffSiteId: 32,
+    dropoffSite: 'Bãi Tân Vũ',
+    closeOrReturnAt: '2026-08-12T02:30:00.000Z',
+    outboundCharges: {
+      transport: { ...zeroComponent, amount: '5000000' },
+      handling: { ...zeroComponent, amount: '700000' },
+      incidental: zeroComponent,
+      total: '5700000',
+      available: true,
+    },
+    inboundCharges: {
+      transport: { ...zeroComponent, amount: '3600000' },
+      handling: { ...zeroComponent, amount: '500000' },
+      incidental: zeroComponent,
+      total: '4100000',
+      available: true,
+    },
+    passThroughChargesGrouped: {
+      csht: zeroComponent,
+      lift: { ...zeroComponent, amount: '350000', invoiceNumber: 'HD-001' },
+      dropoff: zeroComponent,
+      other: { ...zeroComponent, amount: '900000', repairRecoveryPending: true },
+      total: '1250000',
+      available: true,
+    },
+    passThroughCharges: [],
+    recoveryFacts: [],
+    repairRecoveryPending: true,
+    permissions: {
+      carrierEditable: true,
+      plateEditable: true,
+      containerTypeEditable: true,
+      liftSiteEditable: true,
+      dropoffSiteEditable: true,
+      closeOrReturnTimeEditable: true,
+      outboundEditable: true,
+      inboundEditable: true,
+      passThroughEditable: false,
+    },
+    shipmentVersion: 3,
+    factVersion: 1,
+    relatedTripVersion: 2,
+  }],
+  selectors: {
+    containerTypes: [{ id: 2, code: '40HC', name: 'Container 40HC', label: '40HC · Container 40HC' }],
+    operationalSites: [
+      { id: 31, siteType: 'WAREHOUSE' as const, code: 'DV', name: 'Cảng Đình Vũ', label: 'DV · Cảng Đình Vũ' },
+      { id: 32, siteType: 'WAREHOUSE' as const, code: 'TV', name: 'Bãi Tân Vũ', label: 'TV · Bãi Tân Vũ' },
+    ],
+    externalCarriers: [{ id: 8, name: 'Nhà xe An Phát', shortName: 'An Phát', label: 'Nhà xe An Phát' }],
+    carrierVehicles: [{ id: 18, carrierId: 8, licensePlate: '15C-123.45', label: '15C-123.45' }],
+  },
+  dataState: {
+    hasExplicitDocumentCustody: true,
+    hasExplicitRecoveryFacts: true,
+    hasAuthoritativeChargeBreakdown: true,
+  },
+};
+
+function listResponse(items = [row]) {
+  return { page: 1, limit: 20, total: items.length, totalPages: items.length ? 1 : 0, items };
 }
 
-function CurrentPath() {
-  const location = useLocation();
-  return <span hidden data-testid="current-path">{location.pathname}</span>;
+function renderPage(path = '/shipments') {
+  return render(<MemoryRouter initialEntries={[path]}><ShipmentsPage /></MemoryRouter>);
 }
 
-// Page title appears in BOTH the breadcrumb trail AND the PageHeader <h1>.
-// Query the <h1> specifically to disambiguate.
-function pageTitleH1() {
-  return document.querySelector('h1.page-title');
+function masterRow(): HTMLTableRowElement {
+  const element = document.querySelector('tr.cus-master-row');
+  if (!(element instanceof HTMLTableRowElement)) throw new Error('shipment master row not rendered');
+  return element;
 }
 
-// The page renders two parallel surfaces — a desktop <table> and a mobile
-// card list — that CSS shows/hides by viewport. jsdom doesn't compute CSS
-// layout, so both stay in the DOM. Scope row-level queries to one surface to
-// avoid "multiple elements" errors. The desktop surface is the canonical
-// list view, so prefer it.
-function desktopSurface() {
-  const el = document.querySelector('.shipments-page__desktop');
-  if (!el) throw new Error('desktop surface not rendered');
-  return within(el as HTMLElement);
-}
-
-// The toolbar is the third shared surface. Lifecycle KPI labels collide with
-// filter-pill text, so filter-pill
-// assertions must scope to the toolbar.
-function toolbar() {
-  const el = document.querySelector('.shipments-page__toolbar');
-  if (!el) throw new Error('toolbar not rendered');
-  return within(el as HTMLElement);
-}
-
-function mobileSurface() {
-  const el = document.querySelector('.shipments-page__mobile');
-  if (!el) throw new Error('mobile surface not rendered');
-  return within(el as HTMLElement);
-}
-
-describe('ShipmentsPage — shipment manifest workspace', () => {
+describe('ShipmentsPage — CUS closeout workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
-    apiPut.mockReset();
-    authState.role = 'ACCOUNTANT';
-    const stored: Record<string, string> = {};
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      value: {
-        getItem: (key: string) => stored[key] ?? null,
-        setItem: (key: string, value: string) => { stored[key] = value; },
-        removeItem: (key: string) => { delete stored[key]; },
-        clear: () => { Object.keys(stored).forEach((key) => delete stored[key]); },
-      },
-    });
+    apiPost.mockReset();
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
+    ));
+    apiPost.mockResolvedValue({ replayed: false });
   });
 
-  it('renders the page header and toolbar', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments');
-    expect(pageTitleH1()?.textContent).toBe('Quản lý Lô hàng');
-    // Filter pills render the catalogue. Scope to the toolbar — KPI labels
-    // lifecycle labels would otherwise collide.
-    const tb = toolbar();
-    expect(tb.getByText(/Tất cả/)).toBeTruthy();
-    expect(tb.getByText('Chờ chốt lịch')).toBeTruthy();
-    expect(tb.getByText('Sẵn sàng điều xe')).toBeTruthy();
-    expect(tb.getByText('Đã điều xe')).toBeTruthy();
-    expect(tb.getByText('Đang chạy')).toBeTruthy();
-    expect(tb.getByText('Chờ duyệt phí')).toBeTruthy();
-    expect(tb.getByText('Hoàn thành')).toBeTruthy();
-    expect(tb.queryByText('Đã hủy')).toBeNull();
-    expect(tb.getByRole('button', { name: /Tất cả/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(tb.getByRole('button', { name: /^Chờ chốt lịch/ }).getAttribute('aria-pressed')).toBe('false');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
+  it('renders the active CUS tab and disabled combined-invoice placeholder', async () => {
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Quản lý lô hàng' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Tất cả lô hàng/ }).getAttribute('aria-selected')).toBe('true');
+    expect((screen.getByRole('tab', { name: 'Hóa đơn kết hợp' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByLabelText('4-5 ký tự cuối Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
   });
 
-  it('shows create only to shipment operators', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    authState.role = 'ADMIN';
-    const { unmount } = renderAt('/shipments');
-    expect(screen.getByRole('link', { name: /Tạo lô hàng/i }).getAttribute('href')).toBe('/shipments/new');
-    unmount();
+  it('rejects invalid suffixes locally and sends the exact mixed-case alphanumeric suffix', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    const input = screen.getByLabelText('4-5 ký tự cuối Bill/Book hoặc tờ khai');
 
-    authState.role = 'ACCOUNTANT';
-    renderAt('/shipments');
-    expect(screen.queryByRole('link', { name: /Tạo lô hàng/i })).toBeNull();
+    fireEvent.change(input, { target: { value: 'A12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    expect(screen.getByRole('alert').textContent).toContain('Nhập đúng 4-5 ký tự chữ hoặc số');
+
+    fireEvent.change(input, { target: { value: 'AB$1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    expect(screen.getByRole('alert').textContent).toContain('Nhập đúng 4-5 ký tự chữ hoặc số');
+
+    fireEvent.change(input, { target: { value: 'ABC123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    expect(screen.getByRole('alert').textContent).toContain('Nhập đúng 4-5 ký tự chữ hoặc số');
+
+    fireEvent.change(input, { target: { value: 'aB12C' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tìm kiếm' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
   });
 
-  it('removes the redundant breadcrumb from the phone layout', () => {
-    expect(shipmentsPageCss).toMatch(
-      /@media \(max-width: 640px\)[\s\S]*?\.shipments-page__crumbs\s*\{\s*display:\s*none;/,
-    );
+  it('shows grouped master evidence, full currency, and non-color-only risk signals', async () => {
+    renderPage();
+    const table = await screen.findByRole('table');
+    const surface = within(table);
+    expect(surface.getByText('Tài chính')).toBeTruthy();
+    expect(surface.getByText('Có hóa đơn')).toBeTruthy();
+    expect(surface.getByText('Không hóa đơn')).toBeTruthy();
+    expect(surface.getByText('Tổng chi')).toBeTruthy();
+    expect(surface.getByText('12.000.000')).toBeTruthy();
+    expect(surface.getByText('14.000.000')).toBeTruthy();
+    expect(surface.getByText('Loại hàng')).toBeTruthy();
+    expect(surface.getByText('Nhập')).toBeTruthy();
+    expect(surface.queryByText('Nhập · Đơn lẻ')).toBeNull();
+    expect(surface.getAllByText('Lỗ')).toHaveLength(2);
+    expect(surface.getByText('Còn tiền treo')).toBeTruthy();
+    expect(surface.getByText(/Đã xác nhận:/)).toBeTruthy();
+    expect((surface.getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(false);
+
+    const mobileList = document.querySelector('.cus-mobile-list');
+    expect(mobileList).not.toBeNull();
+    const mobileSurface = within(mobileList as HTMLElement);
+    expect(mobileSurface.getByText('Loại hàng')).toBeTruthy();
+    expect(mobileSurface.getByText('Nhập')).toBeTruthy();
+    expect(mobileSurface.queryByText('Nhập · Đơn lẻ')).toBeNull();
   });
 
-  it('keeps narrow-screen controls reachable and touch friendly', () => {
-    expect(shipmentsPageCss).toMatch(
-      /\.shipments-page__mobile \.ds-pagination__controls\s*\{[\s\S]*?overflow-x:\s*auto;/,
-    );
-    expect(shipmentsPageCss).toMatch(
-      /\.shipments-page__filters \.filter-pill\s*\{[\s\S]*?min-height:\s*44px;/,
-    );
-  });
+  it('offers independently persisted optional ledger columns', async () => {
+    window.localStorage.removeItem('silversea:cus-shipments:columns:v2');
+    renderPage();
+    await screen.findByRole('table');
 
-  it('gives advanced filters their own toolbar row before controls can collide', () => {
-    expect(shipmentsPageCss).toMatch(
-      /grid-template-areas:\s*[\s\S]*?"filters filters"[\s\S]*?"advanced advanced"[\s\S]*?"actions actions";/,
-    );
-    expect(shipmentsPageCss).toMatch(
-      /@media \(max-width: 1100px\)[\s\S]*?grid-template-areas:\s*[\s\S]*?"actions"[\s\S]*?"filters"[\s\S]*?"advanced";/,
-    );
-  });
+    // Radix opens a dropdown from either pointer interaction or its keyboard
+    // contract. Using ArrowDown keeps this assertion independent of jsdom's
+    // incomplete PointerEvent implementation.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cột hiển thị' }), { key: 'ArrowDown' });
+    const containerColumn = await screen.findByRole('menuitemcheckbox', { name: 'Container & lịch' });
+    const recordsColumn = screen.getByRole('menuitemcheckbox', { name: 'Hồ sơ & xác nhận' });
+    expect(containerColumn.getAttribute('data-state')).toBe('checked');
+    expect(recordsColumn.getAttribute('data-state')).toBe('checked');
 
-  it('renders the actual expected delivery date instead of an earlier milestone', async () => {
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 1,
-        shipmentCode: 'SHP-2608-00001',
-        customerId: 7,
-        customerName: 'Công ty TNHH Long Minh',
-        status: ShipmentStatus.PENDING_EXPENSE_APPROVAL,
-        bookingRef: 'BK-1',
-        blNumber: 'BL-1',
-        expectedDeliveryDate: '2026-08-15',
-        closingAt: '2026-08-05T08:00:00Z',
-        pickupLocation: null,
-        deliveryLocation: null,
-        contactName: null,
-        contactPhone: null,
-        version: 1,
-        createdAt: '2026-08-01T00:00:00Z',
-        updatedAt: '2026-08-01T00:00:00Z',
-      }],
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    await waitFor(() => expect(desktop.getByText('15/8/2026')).toBeTruthy());
-    expect(desktop.queryByText('5/8/2026')).toBeNull();
-  });
-
-  it('renders the empty state when the API returns no shipments', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments');
-    // Both surfaces show an empty state; assert against the desktop one.
-    await waitFor(() => expect(desktopSurface().getByText(/Chưa có lô hàng nào/)).toBeTruthy());
-    // The api client prepends API_BASE ('/api') at fetch time, so the
-    // call-site path must be '/shipments' (NOT '/api/shipments') — otherwise
-    // the request goes to /api/api/shipments and 404s in production.
-    expect(apiGet).toHaveBeenCalledWith(expect.stringMatching(/^\/shipments\?/));
-  });
-
-  it('renders the list rows when the API returns shipments', async () => {
-    apiGet.mockResolvedValue({
-      items: [
-        {
-          id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
-          status: ShipmentStatus.NEW, bookingRef: 'BK-1', blNumber: 'BL-1',
-          expectedDeliveryDate: '2026-08-01', pickupLocation: null,
-          deliveryLocation: null, contactName: null, contactPhone: null,
-          version: 1, createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
-        },
-        {
-          id: 2, shipmentCode: 'SHP-2607-00002', customerId: 9, customerName: 'Công ty TNHH XYZ Logistik',
-          status: ShipmentStatus.DISPATCHED, bookingRef: null, blNumber: 'BL-2',
-          expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-          contactName: null, contactPhone: null,
-          version: 3, createdAt: '2026-07-25T00:00:00Z', updatedAt: '2026-07-25T00:00:00Z',
-        },
-      ],
-      total: 2, page: 1, limit: 20,
-    });
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    await waitFor(() => expect(desktop.getByText('SHP-2607-00001')).toBeTruthy());
-    expect(desktop.getByText('SHP-2607-00002')).toBeTruthy();
-    // Customer name renders (joined from customers.name by the backend).
-    // Guards against regressing to the meaningless "KH #id" label.
-    expect(desktop.getByText('Công ty CP Vận tải ABC')).toBeTruthy();
-    // Status labels render in the row pills. Scoped to the desktop table to
-    // avoid colliding with the mobile card pills.
-    expect(desktop.getAllByText('Chờ chốt lịch').length).toBeGreaterThanOrEqual(1);
-    expect(desktop.getAllByText('Đã điều xe').length).toBeGreaterThanOrEqual(1);
-    expect(desktop.getByText((_, element) => Boolean(
-      element?.classList.contains('shipments-page__td--date')
-      && element.textContent?.includes('1/8/2026'),
-    ))).toBeTruthy();
-  });
-
-  it('uses neutral business labels when shipment and customer names are unavailable', async () => {
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 801,
-        shipmentCode: null,
-        customerId: 7,
-        customerName: null,
-        status: ShipmentStatus.NEW,
-        bookingRef: null,
-        blNumber: null,
-        expectedDeliveryDate: null,
-        pickupLocation: null,
-        deliveryLocation: null,
-        contactName: null,
-        contactPhone: null,
-        version: 1,
-        createdAt: '2026-08-01T00:00:00Z',
-        updatedAt: '2026-08-01T00:00:00Z',
-      }],
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    await waitFor(() => expect(desktop.getByText('Chưa có mã lô hàng')).toBeTruthy());
-    expect(desktop.getByText('Chưa có tên khách hàng')).toBeTruthy();
-    expect(desktop.queryByText('#801')).toBeNull();
-    expect(desktop.queryByText('#7')).toBeNull();
-  });
-
-  it('keeps pagination available on the mobile list', async () => {
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 1, shipmentCode: 'SHP-2607-00001', customerId: 7, customerName: 'Công ty CP Vận tải ABC',
-        status: ShipmentStatus.NEW, bookingRef: 'BK-1', blNumber: 'BL-1',
-        expectedDeliveryDate: null, pickupLocation: 'Cảng Cát Lái',
-        deliveryLocation: 'Kho Bình Dương', contactName: null, contactPhone: null,
-        version: 1, createdAt: '', updatedAt: '',
-      }],
-      total: 21, page: 1, limit: 20,
-    });
-
-    renderAt('/shipments');
-    const mobile = mobileSurface();
-    await waitFor(() => expect(mobile.getByText('SHP-2607-00001')).toBeTruthy());
-    expect(mobile.getByRole('button', { name: /Trang sau/i })).toBeTruthy();
-  });
-
-  it('renders the error message when the API call fails', async () => {
-    apiGet.mockRejectedValue(new Error('network down'));
-    renderAt('/shipments');
-    await waitFor(() => expect(screen.getByText(/Không thể tải danh sách lô hàng/)).toBeTruthy());
-    expect(desktopSurface().queryByText('Chưa có lô hàng nào')).toBeNull();
-  });
-
-  it('passes the status filter through to the API as a query param', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments?status=PENDING_EXPENSE_APPROVAL');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    const callArg = apiGet.mock.calls[0][0] as string;
-    expect(callArg).toMatch(/status=PENDING_EXPENSE_APPROVAL/);
-  });
-
-  it('passes the page number through to the API', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 3, limit: 20 });
-    renderAt('/shipments?page=3');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    const callArg = apiGet.mock.calls[0][0] as string;
-    expect(callArg).toMatch(/page=3/);
-  });
-
-  it('falls back safely for invalid status and page URL values', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments?status=UNKNOWN&page=2abc');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    const callArg = apiGet.mock.calls[0][0] as string;
-    expect(callArg).toMatch(/page=1/);
-    expect(callArg).not.toMatch(/status=/);
-  });
-
-  it('ignores a stale response after the status filter changes', async () => {
-    let resolveFirst!: (value: unknown) => void;
-    let resolveSecond!: (value: unknown) => void;
-    const first = new Promise((resolve) => { resolveFirst = resolve; });
-    const second = new Promise((resolve) => { resolveSecond = resolve; });
-    apiGet
-      .mockImplementationOnce(() => first)
-      .mockImplementationOnce(() => second);
-
-    renderAt('/shipments');
-    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(1));
-    fireEvent.click(toolbar().getByText('Chờ duyệt phí'));
-    await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
-
-    await act(async () => {
-      resolveSecond({
-        items: [{
-          id: 2, shipmentCode: 'SHP-FRESH', customerId: 1, customerName: 'Khách hàng mới',
-          status: ShipmentStatus.PENDING_EXPENSE_APPROVAL, bookingRef: null, blNumber: null,
-          expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-          contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
-        }],
-        total: 1, page: 1, limit: 20,
-      });
-      await second;
-    });
-    await waitFor(() => expect(desktopSurface().getByText('SHP-FRESH')).toBeTruthy());
-
-    await act(async () => {
-      resolveFirst({
-        items: [{
-          id: 1, shipmentCode: 'SHP-STALE', customerId: 1, customerName: 'Khách hàng cũ',
-          status: ShipmentStatus.NEW, bookingRef: null, blNumber: null,
-          expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-          contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
-        }],
-        total: 1, page: 1, limit: 20,
-      });
-      await first;
-    });
-
-    expect(desktopSurface().getByText('SHP-FRESH')).toBeTruthy();
-    expect(desktopSurface().queryByText('SHP-STALE')).toBeNull();
-  });
-
-  it('passes q to the server and renders the returned matches', async () => {
-    apiGet.mockResolvedValue({
-      items: [
-        { id: 2, shipmentCode: 'SHP-BBB', customerId: 1, customerName: 'KH Beta', status: ShipmentStatus.NEW,
-          bookingRef: 'BK-2', blNumber: 'BL-XYZ', expectedDeliveryDate: null,
-          pickupLocation: null, deliveryLocation: null, contactName: null,
-          contactPhone: null, version: 1, createdAt: '', updatedAt: '' },
-      ],
-      total: 1, page: 1, limit: 20,
-    });
-    renderAt('/shipments?q=XYZ');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    expect(apiGet.mock.calls[0][0]).toMatch(/q=XYZ/);
-    const desktop = desktopSurface();
-    await waitFor(() => expect(desktop.getByText('SHP-BBB')).toBeTruthy());
-  });
-
-  it('resets the page when a status filter is clicked', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments?page=3');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    // Clicking the pending-expense pill should drop page=3 and set the canonical status.
-    fireEvent.click(toolbar().getByText('Chờ duyệt phí'));
-    await waitFor(() => {
-      const lastCall = apiGet.mock.calls.at(-1)?.[0] as string;
-      expect(lastCall).toMatch(/status=PENDING_EXPENSE_APPROVAL/);
-      expect(lastCall).not.toMatch(/page=3/);
-    });
-  });
-
-  it('shows the required operational columns by default and persists optional visibility', async () => {
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    // W4 20260805_03: 17 columns render by default (Nâng / Hạ / Kết hợp /
-    // Note thu khách are tracked separately — see QA_REPORT follow-ups).
-    for (const heading of [
-      'Lô hàng', 'Khách hàng', 'Nhà máy', 'Số B/L', 'Số Bill/Book', 'Số tờ khai',
-      'Hãng tàu', 'Tuyến đường', 'Loại hàng (Xuất/Nhập)', 'Số Cont/Số lượng',
-      'Nhà xe', 'Biển số xe', 'Ngày vận chuyển', 'Giờ đóng/trả', 'Ngày đóng/trả',
-      'Trạng thái', 'Ghi chú',
-    ]) {
-      expect(desktop.getByRole('columnheader', { name: heading })).toBeTruthy();
-    }
-
-    // The column menu is a <details>/<summary>. The summary's text also
-    // appears in the ancestor <details>'s aggregate textContent, so a text
-    // query matches twice — toggle the trigger by its class instead.
-    const columnsTrigger = document.querySelector('.shipments-page__columns-trigger') as HTMLElement;
-    expect(columnsTrigger).toBeTruthy();
-    fireEvent.click(columnsTrigger);
-    // Toggle a currently-visible column off and verify it disappears.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Số B/L' }));
-    expect(desktop.queryByRole('columnheader', { name: 'Số B/L' })).toBeNull();
-    expect(JSON.parse(window.localStorage.getItem('silversea:shipments:columns:v1') ?? '[]')).not.toContain('blNumber');
-  });
-
-  it('marks pending shipments without a delivery date with an explicit warning', async () => {
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 81, shipmentCode: 'SHP-MISSING', customerId: 7, customerName: 'Khách hàng A',
-        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
-        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
-      }],
-      total: 1, page: 1, limit: 20,
-    });
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    await waitFor(() => expect(desktop.getByText('SHP-MISSING')).toBeTruthy());
-    expect(desktop.getByText('Thiếu ngày vận chuyển')).toBeTruthy();
-    expect(desktop.getByText('SHP-MISSING').closest('tr')?.classList.contains('is-missing-date')).toBe(true);
-  });
-
-  it('lets a clerk select and save the transport date inline with one click', async () => {
-    authState.role = 'CLERK';
-    const row = {
-      id: 91, shipmentCode: 'SHP-EDIT', customerId: 7, customerName: 'Khách hàng B',
-      status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
-      expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-      contactName: null, contactPhone: null, version: 4, createdAt: '', updatedAt: '',
-    };
-    apiGet.mockResolvedValue({ items: [row], total: 1, page: 1, limit: 20 });
-    apiPut.mockResolvedValue({ ...row, expectedDeliveryDate: '2026-08-18', version: 5, changeMode: 'DIRECT', changeRequestId: null });
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    const dateButton = await desktop.findByRole('button', { name: /Thiếu ngày vận chuyển/ });
-    fireEvent.click(dateButton);
-    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-EDIT');
-    fireEvent.change(input, { target: { value: '2026-08-18' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/91', {
-      expectedVersion: 4,
-      expectedDeliveryDate: '2026-08-18',
+    fireEvent.click(containerColumn);
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('silversea:cus-shipments:columns:v2') ?? '{}')).toEqual({
+      wide: ['records'],
+      compact: ['records'],
     }));
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã cập nhật ngày vận chuyển'));
-    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
   });
 
-  it('keeps date actions on the list for mouse and keyboard interaction', async () => {
-    authState.role = 'CLERK';
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 92, shipmentCode: 'SHP-CANCEL', customerId: 7, customerName: 'Khách hàng B',
-        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
-        expectedDeliveryDate: '2026-08-04', pickupLocation: null, deliveryLocation: null,
-        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
-      }],
-      total: 1, page: 1, limit: 20,
-    });
+  it('keeps the current column choice when browser storage is unavailable', async () => {
+    const setItem = window.localStorage.setItem;
+    window.localStorage.setItem = vi.fn(() => { throw new Error('Storage unavailable'); });
+    renderPage();
+    await screen.findByRole('table');
 
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    const desktopDate = await desktop.findByRole('button', { name: '4/8/2026' });
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Cột hiển thị' }), { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Container & lịch' }));
+    await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Container & lịch' })).toBeNull());
 
-    fireEvent.keyDown(desktopDate, { key: ' ' });
-    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
-
-    fireEvent.keyDown(desktopDate, { key: 'Enter' });
-    expect(desktop.getByLabelText('Ngày vận chuyển của SHP-CANCEL')).toBeTruthy();
-    fireEvent.click(desktop.getByRole('button', { name: 'Hủy chỉnh sửa ngày vận chuyển' }));
-    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
-    expect(desktop.queryByLabelText('Ngày vận chuyển của SHP-CANCEL')).toBeNull();
-
-    const mobile = mobileSurface();
-    const mobileAction = mobile.getByRole('button', { name: 'Đổi ngày vận chuyển' });
-    fireEvent.keyDown(mobileAction, { key: 'Enter' });
-    fireEvent.click(mobileAction);
-    expect(mobile.getByLabelText('Ngày vận chuyển')).toBeTruthy();
-    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+    window.localStorage.setItem = setItem;
   });
 
-  it('retains the inline editor and entered date when the update fails', async () => {
-    authState.role = 'CLERK';
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 93, shipmentCode: 'SHP-CONFLICT', customerId: 7, customerName: 'Khách hàng C',
-        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
-        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-        contactName: null, contactPhone: null, version: 4, createdAt: '', updatedAt: '',
-      }],
-      total: 1, page: 1, limit: 20,
-    });
-    apiPut.mockRejectedValue(new Error('Dữ liệu đã thay đổi, vui lòng tải lại'));
+  it('renders the drawer custody control in card composition', async () => {
+    class CardLayoutObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe() {
+        this.callback([{ contentRect: { width: 759 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    const originalResizeObserver = window.ResizeObserver;
+    window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
 
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    fireEvent.click(await desktop.findByRole('button', { name: /Thiếu ngày vận chuyển/ }));
-    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-CONFLICT') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: '2026-08-18' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByRole('combobox', { name: /Trạng thái phơi phiếu/ })).toBeTruthy();
 
-    await waitFor(() => expect(desktop.getByRole('alert').textContent).toContain('Dữ liệu đã thay đổi'));
-    expect(input.value).toBe('2026-08-18');
-    expect(screen.getByTestId('current-path').textContent).toBe('/shipments');
+    window.ResizeObserver = originalResizeObserver;
   });
 
-  it('announces a requested change without implying a direct update', async () => {
-    authState.role = 'CLERK';
-    const row = {
-      id: 94, shipmentCode: 'SHP-REQUESTED', customerId: 7, customerName: 'Khách hàng D',
-      status: ShipmentStatus.DISPATCHED, bookingRef: null, blNumber: null,
-      expectedDeliveryDate: '2026-08-04', pickupLocation: null, deliveryLocation: null,
-      contactName: null, contactPhone: null, version: 2, createdAt: '', updatedAt: '',
-    };
-    apiGet.mockResolvedValue({ items: [row], total: 1, page: 1, limit: 20 });
-    apiPut.mockResolvedValue({ ...row, changeMode: 'REQUESTED', changeRequestId: 15 });
+  it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
+    apiGet.mockResolvedValueOnce(listResponse([{
+      ...row,
+      debitNote: {
+        ...row.debitNote,
+        billingDocumentId: null,
+      },
+      accountingConfirmation: {
+        status: 'UNAVAILABLE' as const,
+        billingDocumentId: null,
+        confirmationId: null,
+        checksum: null,
+        confirmedAt: null,
+        confirmedByName: null,
+      },
+    }]));
 
-    renderAt('/shipments');
-    const desktop = desktopSurface();
-    fireEvent.click(await desktop.findByRole('button', { name: '4/8/2026' }));
-    const input = desktop.getByLabelText('Ngày vận chuyển của SHP-REQUESTED');
-    fireEvent.change(input, { target: { value: '2026-08-19' } });
-    fireEvent.click(desktop.getByRole('button', { name: 'Lưu ngày vận chuyển' }));
-
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Đã gửi yêu cầu đổi ngày vận chuyển'));
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
+    expect(within(table).queryByText('Chờ xác nhận')).toBeNull();
   });
 
-  it('falls back to default columns when browser storage is unavailable', async () => {
-    Object.defineProperty(window, 'localStorage', {
-      configurable: true,
-      value: {
-        getItem: () => { throw new Error('storage disabled'); },
-        setItem: () => { throw new Error('storage disabled'); },
-        removeItem: () => undefined,
-        clear: () => undefined,
+  it('shows the reason for a disabled consequential action without relying on a tooltip', async () => {
+    apiGet.mockResolvedValueOnce(listResponse([{
+      ...row,
+      action: {
+        kind: 'LOCK' as const,
+        label: 'Khóa lô',
+        enabled: false,
+        disabledReason: 'Xác nhận Kế toán đã hết hiệu lực.',
+      },
+    }]));
+
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeTruthy();
+    expect((within(table).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('loads container detail lazily and renders all three grouped charge sections', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    const rowElement = masterRow();
+    expect(rowElement.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(rowElement);
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
+    expect(rowElement.getAttribute('aria-expanded')).toBe('true');
+    expect(await screen.findByText('MSKU1234567')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Cước đầu ra' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Cước đầu vào' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Phí chi hộ' })).toBeTruthy();
+    expect(screen.getAllByText('Chưa thu hồi sửa chữa').length).toBeGreaterThan(0);
+
+    fireEvent.keyDown(rowElement, { key: 'Enter' });
+    expect(rowElement.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.keyDown(rowElement, { key: ' ' });
+    expect(rowElement.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('saves only the server-permitted container fields with optimistic versions', async () => {
+    apiPost.mockResolvedValueOnce({
+      line: {
+        ...detail.containers[0],
+        plateNumber: '15C-999.99',
+        shipmentVersion: 4,
+        factVersion: 2,
       },
     });
-    apiGet.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRow());
 
-    renderAt('/shipments');
-    await waitFor(() => expect(apiGet).toHaveBeenCalled());
-    expect(desktopSurface().getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
-    // W4 20260805_03: Số B/L is now default-visible.
-    expect(desktopSurface().getByRole('columnheader', { name: 'Số B/L' })).toBeTruthy();
+    const plate = await screen.findByLabelText('Biển số xe');
+    fireEvent.change(plate, { target: { value: '15C-999.99' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu container' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers/10',
+      expect.objectContaining({
+        expectedShipmentVersion: 3,
+        expectedFactVersion: 1,
+        plateNumber: '15C-999.99',
+      }),
+      expect.any(Object),
+    ));
   });
 
-  it('keeps the inline date control read-only for accountants', async () => {
-    apiGet.mockResolvedValue({
-      items: [{
-        id: 101, shipmentCode: 'SHP-READONLY', customerId: 7, customerName: 'Khách hàng C',
-        status: ShipmentStatus.PENDING_DATE, bookingRef: null, blNumber: null,
-        expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
-        contactName: null, contactPhone: null, version: 1, createdAt: '', updatedAt: '',
-      }],
-      total: 1, page: 1, limit: 20,
+  it('creates a new external carrier through the container workflow', async () => {
+    apiPost.mockResolvedValueOnce({
+      line: {
+        ...detail.containers[0],
+        carrierName: 'Nhà xe Tân Cảng',
+        plateNumber: '51D-888.99',
+        shipmentVersion: 4,
+      },
     });
-    renderAt('/shipments');
-    await waitFor(() => expect(desktopSurface().getByText('SHP-READONLY')).toBeTruthy());
-    expect(desktopSurface().queryByTitle('Chọn hoặc cập nhật ngày vận chuyển')).toBeNull();
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRow());
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nhập nhà xe mới' }));
+    fireEvent.change(screen.getByLabelText('Tên nhà xe mới'), { target: { value: 'Nhà xe Tân Cảng' } });
+    fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '51D-888.99' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu container' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers/10',
+      expect.objectContaining({
+        expectedShipmentVersion: 3,
+        expectedFactVersion: 1,
+        carrierType: 'EXTERNAL',
+        newExternalCarrier: {
+          name: 'Nhà xe Tân Cảng',
+          plateNumber: '51D-888.99',
+        },
+      }),
+      expect.any(Object),
+    ));
+    const payload = apiPost.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(payload.externalCarrierId).toBeUndefined();
+    expect(payload.externalCarrierVehicleId).toBeUndefined();
+    expect(payload.plateNumber).toBeUndefined();
+  });
+
+  it('renders locked container detail without active inputs or save controls', async () => {
+    const lockedRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      bucket: ShipmentCusBucket.LOCKED,
+      bucketLabel: 'Đã khóa',
+      activeLock: {
+        id: 91,
+        billingDocumentId: 44,
+        activatedAt: '2026-08-12T02:00:00.000Z',
+        activatedByName: 'CUS',
+        reason: 'Đã chốt lô',
+      },
+      action: { kind: 'REQUEST_REOPEN', label: 'Đề nghị điều chỉnh', enabled: true, disabledReason: null },
+    };
+    const lockedDetail = {
+      ...detail,
+      summary: lockedRow,
+      containers: detail.containers.map((line) => ({
+        ...line,
+        permissions: Object.fromEntries(Object.keys(line.permissions).map((key) => [key, false])) as typeof line.permissions,
+      })),
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(lockedDetail) : Promise.resolve(listResponse([lockedRow]))
+    ));
+
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRow());
+    expect(await screen.findByText('15C-123.45')).toBeTruthy();
+    expect(screen.queryByLabelText('Biển số xe')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu container' })).toBeNull();
+  });
+
+  it('confirms the consequential lock action and closes the dialog after success', async () => {
+    renderPage();
+    const table = await screen.findByRole('table');
+    fireEvent.click(within(table).getByRole('button', { name: 'Khóa lô' }));
+    expect(masterRow().getAttribute('aria-expanded')).toBe('false');
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/chế độ chỉ đọc/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Khóa lô' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/lock',
+      expect.objectContaining({ expectedVersion: 3 }),
+      expect.any(Object),
+    ));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('reuses the same idempotency key for a retried lock action and rotates after success', async () => {
+    const randomUUID = vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
+      .mockReturnValueOnce('00000000-0000-4000-8000-000000000002');
+    apiPost.mockRejectedValueOnce(new Error('Mất kết nối'));
+
+    renderPage();
+    const table = await screen.findByRole('table');
+    fireEvent.click(within(table).getByRole('button', { name: 'Khóa lô' }));
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Khóa lô' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    const firstKey = (apiPost.mock.calls[0]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
+    expect(firstKey).toBe('00000000-0000-4000-8000-000000000001');
+    expect(screen.getByText('Mất kết nối')).toBeTruthy();
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Khóa lô' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(2));
+    const secondKey = (apiPost.mock.calls[1]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
+    expect(secondKey).toBe(firstKey);
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    fireEvent.click(within(await screen.findByRole('table')).getByRole('button', { name: 'Khóa lô' }));
+    const secondDialog = await screen.findByRole('dialog');
+    fireEvent.click(within(secondDialog).getByRole('button', { name: 'Khóa lô' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(3));
+    const thirdKey = (apiPost.mock.calls[2]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
+    expect(thirdKey).toBe('00000000-0000-4000-8000-000000000002');
+    expect(thirdKey).not.toBe(firstKey);
+    expect(randomUUID).toHaveBeenCalledTimes(2);
+    randomUUID.mockRestore();
+  });
+
+  it('uses a fixed-width wrapping ledger and container-aware card mode', () => {
+    expect(css).toMatch(/\.cus-master-scroll\s*\{[\s\S]*?overflow-x:\s*clip;/);
+    expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-cell-stack\s*\{[\s\S]*?display:\s*grid;/);
+    expect(css).not.toMatch(/\.cus-master-table\s*\{[\s\S]*?min-width:\s*2300px;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-master-scroll\s*\{\s*display:\s*none;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-list\s*\{[\s\S]*?display:\s*grid;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-toolbar\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/padding:\s*16px 0 max\(16px, env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/);
+    expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button/);
   });
 });

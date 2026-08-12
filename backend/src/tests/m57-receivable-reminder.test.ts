@@ -77,7 +77,7 @@ function findWeekday(startDate: string, weekday: number): string {
 }
 
 async function mkUser(
-  role: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'CLERK' | 'CUSTOMER',
+  role: 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'CUS' | 'CUSTOMER',
   opts: { customerId?: number | null; status?: 'ACTIVE' | 'INACTIVE' } = {},
 ) {
   const [u] = await db.insert(s.users).values({

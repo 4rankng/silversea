@@ -1,10 +1,11 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import bcrypt from 'bcryptjs';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { FORWARDER_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS, Role } from '@tingting/shared';
 import { seed } from '../seed';
 import { customers as customerSeedRows, drivers as driverSeedRows, trucks as fleetTruckSeedRows } from '../seed/data';
 import { seedFleet } from '../seed/seed-fleet';
@@ -37,7 +38,7 @@ const FLEET_TRAILER_PLATES = [...new Set(
 const FLEET_TRUCK_PLATES = fleetTruckSeedRows.map((row) => row.plate.toUpperCase());
 const CUS_DEMO_CODE = 'CUS-DEMO';
 const CUS_DEMO_NAME = 'Đơn vị CUS Demo';
-const FORWARDER_CODES = Object.keys(FORWARDER_EXPENSE_TYPE_DEFAULTS);
+const OPS_EXPENSE_TYPE_CODES = Object.keys(OPS_EXPENSE_TYPE_DEFAULTS);
 const LIFT_EFFECTIVE_DATE = '2026-08-01';
 
 type SeedSnapshot = {
@@ -90,7 +91,7 @@ async function collectSeedSnapshot(): Promise<SeedSnapshot> {
 
   const forwarderRows = await db.select({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code })
     .from(s.forwarderExpenseTypes)
-    .where(inArray(s.forwarderExpenseTypes.code, FORWARDER_CODES));
+    .where(inArray(s.forwarderExpenseTypes.code, OPS_EXPENSE_TYPE_CODES));
 
   const customerRows = await db.select({
     id: s.customers.id,
@@ -178,9 +179,18 @@ async function collectFleetSnapshot(): Promise<FleetSnapshot> {
 async function fetchUserSnapshot(username: string): Promise<UserSnapshot> {
   const [user] = await db.select()
     .from(s.users)
-    .where(sql`lower(btrim(${s.users.username})) = ${normalizeSeedText(username)}`)
+    .where(eq(s.users.username, username))
     .limit(1);
   assert.ok(user, `expected seeded user ${username} to exist`);
+  return user;
+}
+
+async function fetchUserSnapshotById(id: number): Promise<UserSnapshot> {
+  const [user] = await db.select()
+    .from(s.users)
+    .where(eq(s.users.id, id))
+    .limit(1);
+  assert.ok(user, `expected user id=${id} to exist`);
   return user;
 }
 
@@ -189,6 +199,137 @@ after(async () => {
 });
 
 describe('seed bootstrap app-owned idempotency', () => {
+  test('full seed does not resurrect stale normalized variants and creates canonical demo users separately', async () => {
+    const cusBefore = await fetchUserSnapshot('cus');
+    const opsBefore = await fetchUserSnapshot('giaonhan');
+    const invalidPasswordHash = await bcrypt.hash('NotTheSeedPassword', 10);
+    const softDeletedAt = new Date('2026-08-01T00:00:00.000Z');
+    let createdCusId: number | null = null;
+    let createdOpsId: number | null = null;
+
+    try {
+      await db.update(s.users).set({
+        username: ' CUS ',
+        email: 'legacy-cus@example.test',
+        phone: '0199999991',
+        fullName: 'CUS legacy',
+        passwordHash: invalidPasswordHash,
+        role: sql`'CLERK'`,
+        status: 'INACTIVE',
+        deletedAt: softDeletedAt,
+      }).where(eq(s.users.id, cusBefore.id));
+      await db.update(s.users).set({
+        username: ' GIAONHAN ',
+        email: 'legacy-ops@example.test',
+        phone: '0199999992',
+        fullName: 'Giao nhận legacy',
+        passwordHash: invalidPasswordHash,
+        role: sql`'FORWARDER'`,
+        status: 'INACTIVE',
+        deletedAt: softDeletedAt,
+      }).where(eq(s.users.id, opsBefore.id));
+
+      await seed();
+
+      const cusLegacyAfterSeed = await fetchUserSnapshotById(cusBefore.id);
+      const opsLegacyAfterSeed = await fetchUserSnapshotById(opsBefore.id);
+      const cusCanonical = await fetchUserSnapshot('cus');
+      const opsCanonical = await fetchUserSnapshot('giaonhan');
+      const scopeAfterSeed = await collectSeedSnapshot();
+
+      assert.equal(cusLegacyAfterSeed.username, ' CUS ');
+      assert.equal(cusLegacyAfterSeed.email, 'legacy-cus@example.test');
+      assert.equal(cusLegacyAfterSeed.phone, '0199999991');
+      assert.equal(cusLegacyAfterSeed.fullName, 'CUS legacy');
+      assert.equal(String(cusLegacyAfterSeed.role), 'CLERK');
+      assert.equal(cusLegacyAfterSeed.status, 'INACTIVE');
+      assert.equal(cusLegacyAfterSeed.deletedAt?.toISOString(), softDeletedAt.toISOString());
+      assert.equal(await bcrypt.compare('NotTheSeedPassword', cusLegacyAfterSeed.passwordHash), true);
+
+      assert.equal(opsLegacyAfterSeed.username, ' GIAONHAN ');
+      assert.equal(opsLegacyAfterSeed.email, 'legacy-ops@example.test');
+      assert.equal(opsLegacyAfterSeed.phone, '0199999992');
+      assert.equal(opsLegacyAfterSeed.fullName, 'Giao nhận legacy');
+      assert.equal(String(opsLegacyAfterSeed.role), 'FORWARDER');
+      assert.equal(opsLegacyAfterSeed.status, 'INACTIVE');
+      assert.equal(opsLegacyAfterSeed.deletedAt?.toISOString(), softDeletedAt.toISOString());
+      assert.equal(await bcrypt.compare('NotTheSeedPassword', opsLegacyAfterSeed.passwordHash), true);
+
+      assert.notEqual(cusCanonical.id, cusBefore.id);
+      assert.equal(cusCanonical.email, 'cus@nepo.vn');
+      assert.equal(cusCanonical.phone, '0900000005');
+      assert.equal(cusCanonical.fullName, 'Nhân viên CUS Demo');
+      assert.equal(cusCanonical.role, Role.CUS);
+      assert.equal(cusCanonical.status, 'ACTIVE');
+      assert.equal(cusCanonical.deletedAt, null);
+      assert.equal(await bcrypt.compare('Abc123', cusCanonical.passwordHash), true);
+
+      assert.notEqual(opsCanonical.id, opsBefore.id);
+      assert.equal(opsCanonical.email, 'giaonhan@nepo.vn');
+      assert.equal(opsCanonical.phone, '0900000004');
+      assert.equal(opsCanonical.fullName, 'Nguyễn Văn Giao');
+      assert.equal(opsCanonical.role, Role.OPS);
+      assert.equal(opsCanonical.status, 'ACTIVE');
+      assert.equal(opsCanonical.deletedAt, null);
+      assert.equal(await bcrypt.compare('Abc123', opsCanonical.passwordHash), true);
+
+      createdCusId = cusCanonical.id;
+      createdOpsId = opsCanonical.id;
+
+      assert.ok(scopeAfterSeed.clerkBusinessUnitLinkIds.length >= 1);
+      assert.ok(scopeAfterSeed.clerkCustomerLinkIds.length >= SAMPLE_TAX_CODES.length);
+
+      await seed();
+
+      assert.deepEqual(await fetchUserSnapshot('cus'), cusCanonical);
+      assert.deepEqual(await fetchUserSnapshot('giaonhan'), opsCanonical);
+      assert.deepEqual(await fetchUserSnapshotById(cusBefore.id), cusLegacyAfterSeed);
+      assert.deepEqual(await fetchUserSnapshotById(opsBefore.id), opsLegacyAfterSeed);
+      assert.deepEqual(await collectSeedSnapshot(), scopeAfterSeed);
+    } finally {
+      const createdIds = [createdCusId, createdOpsId].filter((value): value is number => value != null);
+      if (createdIds.length > 0) {
+        await db.delete(s.userShipmentLinks).where(inArray(s.userShipmentLinks.userId, createdIds));
+        await db.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdIds));
+        await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdIds));
+      }
+      if (createdCusId != null) {
+        await db.delete(s.users).where(eq(s.users.id, createdCusId));
+      }
+      if (createdOpsId != null) {
+        await db.delete(s.users).where(eq(s.users.id, createdOpsId));
+      }
+      await db.update(s.users).set({
+        username: cusBefore.username,
+        email: cusBefore.email,
+        phone: cusBefore.phone,
+        fullName: cusBefore.fullName,
+        passwordHash: cusBefore.passwordHash,
+        role: cusBefore.role,
+        status: cusBefore.status,
+        customerId: cusBefore.customerId,
+        customerAccountType: cusBefore.customerAccountType,
+        createdAt: cusBefore.createdAt,
+        updatedAt: cusBefore.updatedAt,
+        deletedAt: cusBefore.deletedAt,
+      }).where(eq(s.users.id, cusBefore.id));
+      await db.update(s.users).set({
+        username: opsBefore.username,
+        email: opsBefore.email,
+        phone: opsBefore.phone,
+        fullName: opsBefore.fullName,
+        passwordHash: opsBefore.passwordHash,
+        role: opsBefore.role,
+        status: opsBefore.status,
+        customerId: opsBefore.customerId,
+        customerAccountType: opsBefore.customerAccountType,
+        createdAt: opsBefore.createdAt,
+        updatedAt: opsBefore.updatedAt,
+        deletedAt: opsBefore.deletedAt,
+      }).where(eq(s.users.id, opsBefore.id));
+    }
+  });
+
   test('full seed keeps the same canonical ids on repeat runs', async () => {
     await seed();
     const before = await collectSeedSnapshot();
@@ -199,7 +340,7 @@ describe('seed bootstrap app-owned idempotency', () => {
     assert.ok(before.rootTruckIds.length >= ROOT_TRUCK_PLATES.length);
     assert.ok(before.rootContainerTypeIds.length >= REFERENCE_CONTAINER_CODES.length);
     assert.ok(before.rootPortIds.length >= REFERENCE_PORT_NAMES.length);
-    assert.ok(before.forwarderExpenseTypeIds.length >= FORWARDER_CODES.length);
+    assert.ok(before.forwarderExpenseTypeIds.length >= OPS_EXPENSE_TYPE_CODES.length);
     assert.ok(before.customerSeedIds.length >= CUSTOMER_SEED_TAX_CODES.length);
     assert.ok(before.customerSeedPartnerIds.length >= CUSTOMER_SEED_TAX_CODES.length);
     assert.ok(before.sampleCustomerIds.length >= SAMPLE_TAX_CODES.length);

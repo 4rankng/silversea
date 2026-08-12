@@ -15,6 +15,7 @@ describe('O2C clean-baseline safety', () => {
       { idx: 1, tag: '0001_backfill_shipment_readiness' },
       { idx: 2, tag: '0002_carrier_readiness_authorities' },
       { idx: 3, tag: '0003_majestic_clea' },
+      { idx: 4, tag: '0004_tranquil_chronomancer' },
     ]);
   });
 

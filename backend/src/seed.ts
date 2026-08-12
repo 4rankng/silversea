@@ -46,18 +46,20 @@ export async function seed() {
   ];
 
   const existingUsers = await db.select({
+    id: schema.users.id,
     username: schema.users.username,
   }).from(schema.users);
-  const existingUsernames = new Set<string>();
+  const existingUserByUsername = new Map<string, (typeof existingUsers)[number]>();
   for (const existingUser of existingUsers) {
-    const key = normalizeSeedText(existingUser.username);
+    const key = existingUser.username;
     if (!key) continue;
-    existingUsernames.add(key);
+    existingUserByUsername.set(key, existingUser);
   }
 
   for (const user of users) {
     const canonicalUser = { ...user, status: 'ACTIVE' as const };
-    if (existingUsernames.has(normalizeSeedText(user.username))) {
+    const existingUser = existingUserByUsername.get(user.username);
+    if (existingUser) {
       continue;
     }
     await db.insert(schema.users).values(canonicalUser);

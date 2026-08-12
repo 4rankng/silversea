@@ -72,7 +72,7 @@ before(async () => {
     {
       username: `forwarder-relationship-${suffix}`,
       passwordHash: 'test-only',
-      role: 'FORWARDER',
+      role: 'OPS',
       status: 'ACTIVE',
     },
     {

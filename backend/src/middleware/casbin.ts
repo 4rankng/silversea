@@ -10,6 +10,19 @@ const ACTION_MAP: Record<string, string> = {
   DELETE: 'delete',
 };
 
+function hasRouteScopedRoleAllowance(req: Request, resource: string) {
+  if (!req.user) return false;
+  if (
+    resource === 'shipments'
+    && req.user.role === Role.OPS
+    && req.method === 'POST'
+    && /^\/\d+\/recovery-facts\/?$/.test(req.path)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Role-restriction middleware. Use when Casbin's resource-level policy
  * is too broad and specific endpoints need tighter role gating.
@@ -44,6 +57,10 @@ export function casbinAuthz(resource: string) {
     const act = ACTION_MAP[req.method] || 'read';
 
     try {
+      if (hasRouteScopedRoleAllowance(req, resource)) {
+        next();
+        return;
+      }
       const enforcer = getEnforcer();
       const allowed = await enforcer.enforce(sub, resource, act);
       if (allowed) {

@@ -47,7 +47,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(500)
     fwd_home = DEMO_ACCOUNTS['forwarder']['home']
-    if fwd_home in page.url or '/my-forwarder-trips' in page.url:
+    if fwd_home in page.url or '/my-orders' in page.url:
         resp = api_fwd.get('/api/forwarder/me/trips')
         if resp.get('status') == 200:
             results.pass_('TC-1301', 'FORWARDER accesses portal, API returns 200')
@@ -97,12 +97,13 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         results.fail('TC-1304', 'FORWARDER admin pages', f'URL: {page.url}')
     page.close()
 
-    # TC-1305: FORWARDER blocked from admin API
+    # TC-1305: OPS receives read-only trip catalog access
     resp = api_fwd.get('/api/trips')
-    if resp.get('status') in (403, 401):
-        results.pass_('TC-1305', 'FORWARDER GET /api/trips → 403')
+    create_resp = api_fwd.post('/api/trips', {})
+    if resp.get('status') == 200 and create_resp.get('status') == 403:
+        results.pass_('TC-1305', 'OPS trip catalog is read-only')
     else:
-        results.fail('TC-1305', 'FORWARDER admin API', f'Expected 403, got {resp.get("status")}')
+        results.fail('TC-1305', 'OPS trip API boundary', f'GET={resp.get("status")}, POST={create_resp.get("status")}')
 
     # TC-1306: Non-FORWARDER calls forwarder API
     api_admin = ApiClient()
@@ -133,17 +134,15 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         'button[aria-label="Tài chính"], button[aria-label="Đội xe"], '
         'button[aria-label="Cấu hình"]'
     )
-    fwd_links = page.locator(
-        'button[aria-label="Chuyến đi"], button[aria-label="Tạm ứng"], '
-        'button[aria-label="Phiếu thanh toán"]'
-    )
-    if admin_links.count() == 0 and fwd_links.count() == 3:
+    visible_navigation = [item.inner_text().strip() for item in page.locator('.sidebar-item, [class*="sidebar-item"]').all() if item.is_visible()]
+    expected_navigation = ('Lệnh giao nhận', 'Yêu cầu Tạm ứng', 'Phiếu thanh toán / Hoàn ứng')
+    if admin_links.count() == 0 and all(any(label in item for item in visible_navigation) for label in expected_navigation):
         results.pass_('TC-1308', f'FORWARDER sidebar limited (admin links: {admin_links.count()})')
     else:
         results.fail(
             'TC-1308',
             'FORWARDER sidebar limited',
-            f'admin links: {admin_links.count()}, forwarder links: {fwd_links.count()}',
+            f'admin links: {admin_links.count()}, navigation: {visible_navigation}',
         )
     ctx.screenshot(page, 'TC-1308_forwarder_sidebar')
     page.close()

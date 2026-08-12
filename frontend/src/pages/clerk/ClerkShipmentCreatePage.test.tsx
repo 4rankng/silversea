@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
+import { ReducedMotionProvider } from '../../hooks/usePrefersReducedMotion';
 
 const mocks = vi.hoisted(() => ({
   bootstrap: vi.fn(),
@@ -29,6 +30,42 @@ vi.mock('../../api/shipmentClient', () => ({
   getShipmentPricingPreview: mocks.pricingPreview,
 }));
 
+vi.mock('../../components/UI', () => ({
+  useConfirm: () => ({ confirm: vi.fn().mockResolvedValue(true), dialog: null }),
+  Modal: ({
+    isOpen,
+    onClose,
+    title,
+    children,
+  }: {
+    isOpen: boolean;
+    onClose?: () => void;
+    title?: string;
+    children: React.ReactNode;
+  }) => isOpen ? (
+    <div role="dialog" aria-label={title}>
+      {children}
+      <button type="button" onClick={onClose}>Đóng</button>
+    </div>
+  ) : null,
+  Drawer: ({
+    isOpen,
+    onClose,
+    title,
+    children,
+  }: {
+    isOpen: boolean;
+    onClose?: () => void;
+    title?: string;
+    children: React.ReactNode;
+  }) => isOpen ? (
+    <div role="dialog" aria-label={title}>
+      {children}
+      <button type="button" onClick={onClose}>Đóng</button>
+    </div>
+  ) : null,
+}));
+
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
 
 const bootstrap = {
@@ -48,17 +85,31 @@ const sites = [
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/clerk/shipments/new']}>
-      <ToastProvider>
-        <Routes>
-          <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
-          <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
-        </Routes>
-      </ToastProvider>
+      <ReducedMotionProvider>
+        <ToastProvider>
+          <Routes>
+            <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
+            <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
+          </Routes>
+        </ToastProvider>
+      </ReducedMotionProvider>
     </MemoryRouter>,
   );
 }
 
-function choose(label: string, value: string) {
+async function closeDialog(name: string | RegExp) {
+  const dialog = await screen.findByRole('dialog', { name });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name })).toBeNull());
+}
+
+async function saveCarrierAllocationDialog() {
+  const dialog = await screen.findByRole('dialog', { name: 'Gán nhà xe' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu phân bổ' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gán nhà xe' })).toBeNull());
+}
+
+async function choose(label: string, value: string) {
   const labelElement = Array.from(document.querySelectorAll('label'))
     .find((element) => element.textContent?.trim().startsWith(label));
   const labelledControl = labelElement?.htmlFor
@@ -74,10 +125,27 @@ function choose(label: string, value: string) {
   const option = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
   if (!option) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
   fireEvent.click(option);
+  return waitFor(() => {
+    expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull();
+  });
 }
 
 describe('ClerkShipmentCreatePage', () => {
   beforeEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.bootstrap.mockResolvedValue(bootstrap);
     mocks.sites.mockResolvedValue(sites);
@@ -112,21 +180,23 @@ describe('ClerkShipmentCreatePage', () => {
   it('keeps factory rules visible without automatically opening the details dialog', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
+    await choose('Khách hàng', '7');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
+    await choose('Nhà máy', '41');
     expect(screen.getByText('Gọi điện trước khi vào')).toBeTruthy();
     expect(screen.queryByRole('link', { name: /Mở vị trí trên Google Maps/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
-    expect((await screen.findAllByText('Gọi điện trước khi vào')).length).toBe(2);
-    expect(screen.getByRole('link', { name: /Mở vị trí trên Google Maps/ }).getAttribute('href')).toBe('https://maps.google.com/example');
+    const dialog = await screen.findByRole('dialog', { name: 'Nhà máy Long Minh' });
+    expect((await within(dialog).findAllByText('Gọi điện trước khi vào')).length).toBe(1);
+    expect(within(dialog).getByRole('link', { name: /Mở vị trí trên Google Maps/ }).getAttribute('href')).toBe('https://maps.google.com/example');
     expect(screen.queryByText(/theo dõi trực tiếp/i)).toBeNull();
+    await closeDialog('Nhà máy Long Minh');
   });
 
   it('saves an incomplete shipment as DRAFT', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
+    await choose('Khách hàng', '7');
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-001' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
@@ -141,7 +211,7 @@ describe('ClerkShipmentCreatePage', () => {
       .mockResolvedValueOnce({ shipmentVersion: 2, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
+    await choose('Khách hàng', '7');
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
@@ -159,23 +229,21 @@ describe('ClerkShipmentCreatePage', () => {
   it('saves every FCL container then submits the latest shipment version', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
-    choose('Tuyến đường', '11');
+    await choose('Khách hàng', '7');
+    await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
-    fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
-    fireEvent.click(screen.getByLabelText('Đóng'));
+    await choose('Nhà máy', '41');
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-FCL' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
-    choose('Loại container', '31');
+    await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
-    choose('Cảng nâng', '21');
-    choose('Cảng hạ', '22');
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
     fireEvent.click(screen.getByRole('button', { name: 'Gán nhà xe' }));
     fireEvent.click(screen.getByRole('button', { name: 'Nhà xe' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
     fireEvent.change(screen.getByLabelText("40'"), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+    await saveCarrierAllocationDialog();
     const submitButton = screen.getByRole('button', { name: /Gửi sang điều phối/ }) as HTMLButtonElement;
     await waitFor(() => expect(submitButton.disabled).toBe(false));
     fireEvent.click(submitButton);
@@ -192,6 +260,7 @@ describe('ClerkShipmentCreatePage', () => {
       }],
     }), expect.any(String));
     expect(mocks.saveContainers.mock.calls[0][1].containers[0]).toMatchObject({ containerNumber: 'MSCU6639870', shippingLineName: 'MSC', pickupPortId: 21, dropoffPortId: 22 });
+    expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
   it('persists corrected container fields before retrying a failed dispatch submit', async () => {
@@ -203,27 +272,25 @@ describe('ClerkShipmentCreatePage', () => {
       .mockResolvedValueOnce({ shipmentVersion: 3, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
-    choose('Tuyến đường', '11');
+    await choose('Khách hàng', '7');
+    await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
-    fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
-    fireEvent.click(screen.getByLabelText('Đóng'));
+    await choose('Nhà máy', '41');
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
-    choose('Loại container', '31');
+    await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
-    choose('Cảng nâng', '21');
-    choose('Cảng hạ', '22');
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
     fireEvent.click(screen.getByRole('button', { name: 'Gán nhà xe' }));
     fireEvent.click(screen.getByRole('button', { name: 'Nhà xe' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
     fireEvent.change(screen.getByLabelText("40'"), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+    await saveCarrierAllocationDialog();
 
     fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
     expect(await screen.findByRole('alert')).toBeTruthy();
-    choose('Cảng hạ', '21');
+    await choose('Cảng hạ', '21');
     fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
 
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(2));
@@ -235,6 +302,7 @@ describe('ClerkShipmentCreatePage', () => {
     });
     expect(mocks.submit.mock.calls[0][2]).not.toBe(mocks.submit.mock.calls[1][2]);
     expect(mocks.submit.mock.calls[1][1]).toMatchObject({ expectedVersion: 3 });
+    expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
   it('removes persisted FCL containers before retrying the same shipment as LCL', async () => {
@@ -248,29 +316,27 @@ describe('ClerkShipmentCreatePage', () => {
     mocks.updateShipment.mockResolvedValueOnce({ id: 90, version: 3 });
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
-    choose('Tuyến đường', '11');
+    await choose('Khách hàng', '7');
+    await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
-    fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
-    fireEvent.click(screen.getByLabelText('Đóng'));
+    await choose('Nhà máy', '41');
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-MODE-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
-    choose('Loại container', '31');
+    await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
-    choose('Cảng nâng', '21');
-    choose('Cảng hạ', '22');
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
     fireEvent.click(screen.getByRole('button', { name: 'Gán nhà xe' }));
     fireEvent.click(screen.getByRole('button', { name: 'Nhà xe' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
     fireEvent.change(screen.getByLabelText("40'"), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+    await saveCarrierAllocationDialog();
     fireEvent.click(screen.getByRole('button', { name: /Gửi sang điều phối/ }));
     expect(await screen.findByRole('alert')).toBeTruthy();
 
-    choose('Loại lô hàng', 'LCL');
-    choose('Loại hàng', '32');
-    choose('Kho lấy hàng', '42');
+    await choose('Loại lô hàng', 'LCL');
+    await choose('Loại hàng', '32');
+    await choose('Kho lấy hàng', '42');
     fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
     fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '900' } });
@@ -285,22 +351,21 @@ describe('ClerkShipmentCreatePage', () => {
     expect(mocks.saveContainers.mock.calls[1][1]).toEqual({ expectedVersion: 3, containers: [] });
     expect(mocks.submit.mock.calls[1][1]).toMatchObject({ expectedVersion: 4 });
     expect(mocks.submit.mock.calls[1][1]).not.toHaveProperty('carrierAllocations');
+    expect(await screen.findByTestId('dossier')).toBeTruthy();
     confirm.mockRestore();
   });
 
   it('submits one LCL fulfillment payload with warehouse, package count, KG and CBM', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
-    choose('Tuyến đường', '11');
+    await choose('Khách hàng', '7');
+    await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
-    fireEvent.click(screen.getByRole('button', { name: /Xem chi tiết/ }));
-    fireEvent.click(screen.getByLabelText('Đóng'));
+    await choose('Nhà máy', '41');
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-LCL' } });
-    choose('Loại lô hàng', 'LCL');
-    choose('Loại hàng', '32');
-    choose('Kho lấy hàng', '42');
+    await choose('Loại lô hàng', 'LCL');
+    await choose('Loại hàng', '32');
+    await choose('Kho lấy hàng', '42');
     fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
     fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '12' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1250' } });
@@ -312,6 +377,7 @@ describe('ClerkShipmentCreatePage', () => {
     await waitFor(() => expect(mocks.submit).toHaveBeenCalledTimes(1));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ cargoMode: 'LCL', pickupWarehouseSiteId: 42, packageType: 'Pallet', packageCount: 12, cargoWeightKg: '1250', cargoVolumeCbm: '8.5', expectedDeliveryDate: '2026-08-03' });
     expect(mocks.saveContainers).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
   it('surfaces a warning toast when "Thêm nhà máy" is clicked before a customer is selected', async () => {
@@ -335,20 +401,21 @@ describe('ClerkShipmentCreatePage', () => {
   it('opens the operational-site dialog when "Thêm nhà máy" is clicked with a customer selected', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
+    await choose('Khách hàng', '7');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     const addButton = screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0];
     fireEvent.click(addButton);
-    // The dialog renders the unique "Mã điểm vận hành" input field.
-    expect(await screen.findByLabelText('Mã điểm vận hành')).toBeTruthy();
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
+    expect(within(dialog).getByLabelText('Mã điểm vận hành')).toBeTruthy();
+    await closeDialog('Thêm nhà máy');
   });
 
   it('keeps the "Thêm nhà máy" action available after a factory is already selected', async () => {
     renderPage();
     await screen.findByText('Thông tin chung');
-    choose('Khách hàng', '7');
+    await choose('Khách hàng', '7');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    choose('Nhà máy', '41');
+    await choose('Nhà máy', '41');
     // "Xem chi tiết" should appear once a factory is picked.
     expect(screen.getByRole('button', { name: /Xem chi tiết/ })).toBeTruthy();
     // And "Thêm nhà máy" must still be available so the user can add another
@@ -356,6 +423,8 @@ describe('ClerkShipmentCreatePage', () => {
     const addButtons = screen.getAllByRole('button', { name: /Thêm nhà máy/ });
     expect(addButtons.length).toBeGreaterThan(0);
     fireEvent.click(addButtons[0]);
-    expect(await screen.findByLabelText('Mã điểm vận hành')).toBeTruthy();
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
+    expect(within(dialog).getByLabelText('Mã điểm vận hành')).toBeTruthy();
+    await closeDialog('Thêm nhà máy');
   });
 });

@@ -520,7 +520,7 @@ describe('Q23 field operations replay boundary', () => {
         body: { expectedVersion: shipmentBeforeLock.version },
       });
       assert.equal(lockedExchange.status, 409);
-      assert.match(String(lockedExchange.body.error), /Kế toán khóa/);
+      assert.match(String(lockedExchange.body.error), /CUS khóa sau khi Kế toán xác nhận/);
     } finally {
       await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipmentId));
       await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDocument.id));

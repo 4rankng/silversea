@@ -176,7 +176,7 @@ app.use('/api/salary-periods', authMiddleware, salaryPeriodsRouter);
 // Admin CRUD for salary periods (defaults, overrides) — config authz
 app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
 app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverRoutes);
-app.use('/api/forwarder/me', authMiddleware, casbinAuthz('forwarder_portal'), forwarderRoutes);
+app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
 // GPS route-DB admin (backfill + recapture) — MANAGER/ADMIN only (gps-admin action).
 app.use('/api/admin/gps', authMiddleware, casbinAuthz('gps-admin'), adminGpsRoutes);

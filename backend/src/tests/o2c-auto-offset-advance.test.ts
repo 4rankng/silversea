@@ -69,7 +69,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
   before(async () => {
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const [fwd, kt] = await db.insert(s.users).values([
-      { username: `o2c-fwd-${suffix}`, passwordHash: 'x', fullName: 'Ops O2C', role: 'FORWARDER' },
+      { username: `o2c-fwd-${suffix}`, passwordHash: 'x', fullName: 'Ops O2C', role: 'OPS' },
       { username: `o2c-kt-${suffix}`, passwordHash: 'x', fullName: 'Kế toán O2C', role: 'ACCOUNTANT' },
     ]).returning();
     forwarderId = fwd.id;
@@ -182,7 +182,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       username: `o2c-partial-${Date.now()}`,
       passwordHash: 'x',
       fullName: 'Ops tạm ứng một phần',
-      role: 'FORWARDER',
+      role: 'OPS',
     }).returning();
     ids.users.push(isolatedForwarder.id);
     await insertApprovedAdvance(200_000, new Date('2026-07-01T01:00:00Z'), isolatedForwarder.id);
@@ -242,7 +242,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       username: `o2c-concurrent-${Date.now()}`,
       passwordHash: 'x',
       fullName: 'Ops tạm ứng đồng thời',
-      role: 'FORWARDER',
+      role: 'OPS',
     }).returning();
     ids.users.push(isolatedForwarder.id);
     await insertApprovedAdvance(300_000, new Date('2026-07-02T01:00:00Z'), isolatedForwarder.id);
@@ -283,7 +283,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       username: `o2c-db-unique-${Date.now()}`,
       passwordHash: 'x',
       fullName: 'Ops khóa DB',
-      role: 'FORWARDER',
+      role: 'OPS',
     }).returning();
     ids.users.push(isolatedForwarder.id);
     await insertApprovedAdvance(300_000, new Date('2026-07-02T02:00:00Z'), isolatedForwarder.id);
@@ -334,7 +334,7 @@ describe('O2C auto advance-offset on chi hộ approval', () => {
       username: `o2c-no-advance-${Date.now()}`,
       passwordHash: 'x',
       fullName: 'Ops không tạm ứng',
-      role: 'FORWARDER',
+      role: 'OPS',
     }).returning();
     ids.users.push(isolatedForwarder.id);
     const expense = await insertExpense({

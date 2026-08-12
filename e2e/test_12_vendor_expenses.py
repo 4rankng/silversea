@@ -654,7 +654,7 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     # Browser UI Tests (TC-1260 to TC-1264)
     # ══════════════════════════════════════════════════════════════════
 
-    # TC-1260: Expenses page loads (ACCOUNTANT)
+    # TC-1260: Legacy expenses route converges on the unified accounting workspace
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -662,13 +662,13 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1260_expenses_page')
-    if '/expenses' in page.url:
-        results.pass_('TC-1260', 'Expenses page loads for ACCOUNTANT')
+    if '/accounting' in page.url and page.get_by_role('heading', name='Tổng Quan', exact=True).count() == 1:
+        results.pass_('TC-1260', 'Expenses route opens the accounting workspace')
     else:
         results.fail('TC-1260', 'Expenses page', f'URL={page.url}')
     page.close()
 
-    # TC-1261: Payables page loads (ACCOUNTANT)
+    # TC-1261: Legacy payables route converges on the unified accounting workspace
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -676,13 +676,13 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1261_payables_page')
-    if '/payables' in page.url:
-        results.pass_('TC-1261', 'Payables page loads for ACCOUNTANT')
+    if '/accounting' in page.url and page.get_by_text('Công nợ phải trả', exact=True).count() >= 1:
+        results.pass_('TC-1261', 'Payables route opens the accounting workspace')
     else:
         results.fail('TC-1261', 'Payables page', f'URL={page.url}')
     page.close()
 
-    # TC-1262: Suppliers page loads (ACCOUNTANT)
+    # TC-1262: Legacy suppliers route converges on the unified accounting workspace
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -690,8 +690,8 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1262_suppliers_page')
-    if '/suppliers' in page.url:
-        results.pass_('TC-1262', 'Suppliers page loads for ACCOUNTANT')
+    if '/accounting' in page.url and page.get_by_role('heading', name='Tổng Quan', exact=True).count() == 1:
+        results.pass_('TC-1262', 'Suppliers route opens the accounting workspace')
     else:
         results.fail('TC-1262', 'Suppliers page', f'URL={page.url}')
     page.close()
@@ -704,8 +704,9 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1263_mobile_expenses')
-    if '/expenses' in page.url:
-        results.pass_('TC-1263', 'Mobile expenses page renders')
+    mobile_expense_fits = page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
+    if '/accounting' in page.url and mobile_expense_fits:
+        results.pass_('TC-1263', 'Mobile accounting workspace renders from expenses route')
     else:
         results.fail('TC-1263', 'Mobile expenses', f'URL={page.url}')
     page.close()
@@ -718,8 +719,9 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1264_mobile_payables')
-    if '/payables' in page.url:
-        results.pass_('TC-1264', 'Mobile payables page renders')
+    mobile_payables_fits = page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
+    if '/accounting' in page.url and mobile_payables_fits:
+        results.pass_('TC-1264', 'Mobile accounting workspace renders from payables route')
     else:
         results.fail('TC-1264', 'Mobile payables', f'URL={page.url}')
     page.close()

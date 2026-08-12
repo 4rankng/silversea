@@ -215,7 +215,7 @@ async function createInTransitTripWithFees(
         username: `chiho-fwd-${suffix}`.slice(0, 50),
         passwordHash: 'x',
         fullName: `ChiHo forwarder ${suffix}`,
-        role: 'FORWARDER',
+        role: 'OPS',
         status: 'ACTIVE',
       }).returning();
     forwarderId = fwd.id;

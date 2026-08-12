@@ -29,7 +29,7 @@ before(async () => {
   const users = await db.insert(s.users).values([
     { username: `close-driver-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Driver', role: 'DRIVER', status: 'ACTIVE' },
     { username: `close-reviewer-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Reviewer', role: 'ACCOUNTANT', status: 'ACTIVE' },
-    { username: `close-checker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Checker', role: 'CLERK', status: 'ACTIVE' },
+    { username: `close-checker-${suffix}`.slice(0, 50), passwordHash: 'x', fullName: 'Close Checker', role: 'CUS', status: 'ACTIVE' },
   ]).returning();
   userIds = users.map((user) => user.id);
   const [customer] = await db.insert(s.customers).values({ name: `Close readiness ${suffix}` }).returning();

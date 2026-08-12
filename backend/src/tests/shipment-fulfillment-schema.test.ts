@@ -501,8 +501,8 @@ describe('dispatch workflow role matrix', () => {
     );
 
     assert.equal(await enforcer.enforce('MANAGER', 'shipment_fulfillments', 'write'), true);
-    assert.equal(await enforcer.enforce('CLERK', 'shipment_fulfillments', 'write'), false);
-    assert.equal(await enforcer.enforce('CLERK', 'epod_review', 'write'), true);
+    assert.equal(await enforcer.enforce('CUS', 'shipment_fulfillments', 'write'), false);
+    assert.equal(await enforcer.enforce('CUS', 'epod_review', 'write'), true);
     assert.equal(await enforcer.enforce('ACCOUNTANT', 'epod_review', 'read'), true);
     assert.equal(await enforcer.enforce('ACCOUNTANT', 'epod_review', 'write'), false);
     assert.equal(await enforcer.enforce('DRIVER', 'driver_fulfillments', 'write'), true);

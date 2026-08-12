@@ -25,6 +25,7 @@ from helpers import *  # noqa: E402,F403
 TITLE = "17-dispatch-persisted-chain"
 RUN_SUFFIX = uuid.uuid4().hex[:8].upper()
 BOOKING_PREFIX = f"E2E-LM-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{RUN_SUFFIX}"
+SEARCH_SUFFIX = f"{int(RUN_SUFFIX, 16) % 100_000:05d}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 _ACTIVE_FLEET_FIXTURE: dict[str, int | None] | None = None
@@ -125,10 +126,12 @@ def login_api(role_key: str) -> ApiClient:
     return api
 
 
-def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str, str]:
+def bootstrap_master_data_fixture(driver_id: int) -> tuple[int, str, str, str, int]:
     global _ACTIVE_FLEET_FIXTURE
     truck_plate = f"E2E-{RUN_SUFFIX}"
     trailer_plate = f"E2E-TR-{RUN_SUFFIX}"
+    customer_name = f"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH E2E {RUN_SUFFIX}"
+    customer_tax_code = f"99{int(RUN_SUFFIX, 16) % 100_000_000:08d}"
     script = r"""
 import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from './src/db';
@@ -143,16 +146,9 @@ const now = new Date();
 
 async function main() {
 await seedCustomers();
-const [customerExisting] = await db.select({ id: s.customers.id })
-  .from(s.customers)
-  .where(and(
-    isNull(s.customers.deletedAt),
-    eq(s.customers.taxCode, '2300540419'),
-  ))
-  .limit(1);
 const customerValues = {
-  name: 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
-  taxCode: '2300540419',
+  name: __CUSTOMER_NAME__,
+  taxCode: __CUSTOMER_TAX_CODE__,
   contactPerson: 'Ms.Vân',
   phone: '',
   contactInfo: 'longminh.logistic@gmail.com; account1@longminhbn.com.vn',
@@ -161,20 +157,13 @@ const customerValues = {
   creditLimit: '1000000000',
   updatedAt: now,
 };
-let customerId;
-if (customerExisting) {
-  customerId = customerExisting.id;
-  await db.update(s.customers)
-    .set(customerValues)
-    .where(eq(s.customers.id, customerExisting.id));
-} else {
-  const [createdCustomer] = await db.insert(s.customers).values(customerValues).returning({ id: s.customers.id });
-  customerId = createdCustomer.id;
-}
+const [createdCustomer] = await db.insert(s.customers).values(customerValues).returning({ id: s.customers.id });
+if (!createdCustomer) throw new Error('Failed to create isolated E2E customer');
+const customerId = createdCustomer.id;
 
 const [clerkUser] = await db.select({ id: s.users.id })
   .from(s.users)
-  .where(and(eq(s.users.username, 'cus'), eq(s.users.role, 'CLERK')))
+  .where(and(eq(s.users.username, 'cus'), eq(s.users.role, 'CUS')))
   .limit(1);
 if (!clerkUser) throw new Error('Seed clerk cus missing');
 await db.insert(s.userCustomerLinks)
@@ -385,6 +374,8 @@ main().then(() => {
         .replace("__DRIVER_ID__", str(driver_id))
         .replace("__TRUCK_PLATE__", json.dumps(truck_plate))
         .replace("__TRAILER_PLATE__", json.dumps(trailer_plate))
+        .replace("__CUSTOMER_NAME__", json.dumps(customer_name))
+        .replace("__CUSTOMER_TAX_CODE__", json.dumps(customer_tax_code))
     )
     result = subprocess.run(
         ["pnpm", "exec", "tsx", "-e", bootstrap_script],
@@ -417,6 +408,7 @@ main().then(() => {
             truck_id = fixture["truckId"]
             _ACTIVE_FLEET_FIXTURE = {
                 "driverId": fixture["driverId"],
+                "customerId": fixture["customerId"],
                 "originalAssignedTruckId": fixture.get("originalAssignedTruckId"),
                 "truckId": truck_id,
                 "trailerId": fixture["trailerId"],
@@ -426,7 +418,7 @@ main().then(() => {
                 f"🧱 Bootstrapped isolated Long Minh fixture with truck #{truck_id} "
                 f"for {fixture['plannedStartAt']} → {fixture['plannedEndAt']}"
             )
-            return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"], fixture["pricingRateKey"]
+            return truck_id, fixture["plannedStartAt"], fixture["plannedEndAt"], fixture["pricingRateKey"], fixture["customerId"]
     raise RuntimeError(f"master data bootstrap did not return dispatch fixture data:\n{result.stdout}")
 
 
@@ -446,6 +438,7 @@ const originalAssignedTruckId = __ORIGINAL_TRUCK_ID__;
 const truckId = __TRUCK_ID__;
 const trailerId = __TRAILER_ID__;
 const pricingTableId = __PRICING_TABLE_ID__;
+const customerId = __CUSTOMER_ID__;
 const now = new Date();
 
 async function main() {
@@ -459,6 +452,13 @@ async function main() {
     .set({ status: 'INACTIVE', deletedAt: now, updatedAt: now })
     .where(eq(s.trailers.id, trailerId));
   await db.delete(s.pricingTables).where(eq(s.pricingTables.id, pricingTableId));
+  await db.delete(s.userCustomerLinks).where(eq(s.userCustomerLinks.customerId, customerId));
+  await db.update(s.operationalSites)
+    .set({ isActive: false, deletedAt: now, updatedAt: now })
+    .where(eq(s.operationalSites.customerId, customerId));
+  await db.update(s.customers)
+    .set({ status: 'INACTIVE', deletedAt: now, updatedAt: now })
+    .where(eq(s.customers.id, customerId));
 }
 
 main().then(() => process.exit(0)).catch((error) => {
@@ -473,6 +473,7 @@ main().then(() => process.exit(0)).catch((error) => {
         .replace("__TRUCK_ID__", str(fixture["truckId"]))
         .replace("__TRAILER_ID__", str(fixture["trailerId"]))
         .replace("__PRICING_TABLE_ID__", str(fixture["pricingTableId"]))
+        .replace("__CUSTOMER_ID__", str(fixture["customerId"]))
     )
     result = subprocess.run(
         ["pnpm", "exec", "tsx", "-e", cleanup_script],
@@ -495,12 +496,12 @@ main().then(() => process.exit(0)).catch((error) => {
     _ACTIVE_FLEET_FIXTURE = None
 
 
-def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str, str]:
-    truck_id, planned_start_at, planned_end_at, pricing_rate_key = bootstrap_master_data_fixture(driver_id)
-    customers = first_items(get_with_query(admin_api, "/api/customers", {"search": "Long Minh", "page": 1, "pageSize": 25}))
+def ensure_master_data_loaded(admin_api: ApiClient, driver_id: int) -> tuple[int, str, str, str, int]:
+    truck_id, planned_start_at, planned_end_at, pricing_rate_key, customer_id = bootstrap_master_data_fixture(driver_id)
+    customers = first_items(get_with_query(admin_api, "/api/customers", {"search": RUN_SUFFIX, "page": 1, "pageSize": 25}))
     if not customers:
         raise RuntimeError("Long Minh customer missing after bootstrap")
-    return truck_id, planned_start_at, planned_end_at, pricing_rate_key
+    return truck_id, planned_start_at, planned_end_at, pricing_rate_key, customer_id
 
 
 def request_binary(api: ApiClient, path: str, *, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
@@ -610,7 +611,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1706", "Driver profile exposes assigned truck", str(driver_me_body))
         return
     driver_record_id = driver_profile["id"]
-    truck_id, planned_start_at, planned_end_at, pricing_rate_key = ensure_master_data_loaded(admin_api, driver_record_id)
+    truck_id, planned_start_at, planned_end_at, pricing_rate_key, customer_id = ensure_master_data_loaded(admin_api, driver_record_id)
     # Scope bootstrap invalidates the clerk's prior token by design.
     clerk_api = login_api("clerk")
 
@@ -618,11 +619,11 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results,
         "TC-1701",
         "Seed customers include Long Minh",
-        get_with_query(admin_api, "/api/customers", {"search": "Long Minh", "page": 1, "pageSize": 25}),
+        get_with_query(admin_api, "/api/customers", {"search": RUN_SUFFIX, "page": 1, "pageSize": 25}),
     )
     if not customers:
         return
-    customer = next((item for item in customers if item.get("taxCode") == "2300540419"), None) or pick_named(customers, "name", "Long Minh")
+    customer = next((item for item in customers if item.get("id") == customer_id), None)
     if not customer or not isinstance(customer.get("id"), int):
         results.fail("TC-1701", "Seed customers include Long Minh", str(customers[:3]))
         return
@@ -679,8 +680,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1705", "Long Minh operational site contract", str({"factory": factory, "warehouse": warehouse}))
         return
 
-    booking_ref = f"{BOOKING_PREFIX}-BOOKING"
-    bl_number = f"BL-{BOOKING_PREFIX}"
+    booking_ref = f"{BOOKING_PREFIX}-BOOKING-{SEARCH_SUFFIX}"
+    bl_number = f"BL-{BOOKING_PREFIX}-{SEARCH_SUFFIX}"
     create_payload = {
         "customerId": customer["id"],
         "routeId": route["id"],
@@ -1334,6 +1335,45 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     document_id = save_body["id"]
     results.pass_("TC-1727", "Accountant saves the Long Minh debit note", f"document#{document_id} template#{template['id']}")
 
+    issue_status, issue_body = request_json(
+        accountant_api,
+        "POST",
+        f"/api/finance/billing-documents/{document_id}/issue",
+        {
+            "expectedVersion": save_body["version"],
+            "reason": "Phát hành để xác nhận khóa lô CUS.",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-debit-issue"},
+    )
+    if issue_status != 201 or issue_body.get("status") != "PENDING_CHECK":
+        results.fail("TC-1727A", "Accountant requests governed Debit Note issue", api_failure_detail(issue_body))
+        return
+
+    checked_status, checked_body = request_json(
+        manager_api,
+        "POST",
+        f"/api/governance-actions/{issue_body['id']}/check",
+        {"expectedVersion": issue_body["version"]},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-debit-check"},
+    )
+    if checked_status != 200 or checked_body.get("status") != "PENDING_APPROVAL":
+        results.fail("TC-1727B", "Manager checks the Debit Note issue request", api_failure_detail(checked_body))
+        return
+
+    approved_status, approved_body = request_json(
+        admin_api,
+        "POST",
+        f"/api/governance-actions/{issue_body['id']}/approve",
+        {"expectedVersion": checked_body["version"]},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-debit-approve"},
+    )
+    if approved_status != 200 or approved_body.get("status") != "APPROVED":
+        results.fail("TC-1727C", "Admin approves the Debit Note issue", api_failure_detail(approved_body))
+        return
+    results.pass_("TC-1727A", "Accountant requests governed Debit Note issue", f"action#{issue_body['id']}")
+    results.pass_("TC-1727B", "Manager checks the Debit Note issue request", f"action#{issue_body['id']}")
+    results.pass_("TC-1727C", "Admin approves the Debit Note issue", f"document#{document_id}")
+
     export_status, export_headers, export_blob = request_binary(
         accountant_api,
         f"/api/finance/billing-documents/{document_id}/export?format=xlsx",
@@ -1346,6 +1386,321 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1728", "Exported workbook uses Long Minh template", detail)
         return
     results.pass_("TC-1728", "Accountant exports the saved Long Minh debit note", detail)
+
+    workspace_status, workspace_body = request_json(
+        accountant_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    workspace_summary = workspace_body.get("summary", {}) if isinstance(workspace_body, dict) else {}
+    if workspace_status != 200 or workspace_summary.get("debitNote", {}).get("billingDocumentId") != document_id:
+        results.fail("TC-1730", "Accountant reads the qualifying Debit Note in CUS workspace", api_failure_detail(workspace_body))
+        return
+
+    confirm_payload = {
+        "expectedVersion": workspace_summary["version"],
+        "billingDocumentId": document_id,
+        "reason": "Kế toán xác nhận số liệu để CUS khóa lô.",
+    }
+    confirm_status, confirm_body = request_json(
+        accountant_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/finance-confirmations",
+        confirm_payload,
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cus-finance-confirm"},
+    )
+    confirm_replay_status, confirm_replay_body = request_json(
+        accountant_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/finance-confirmations",
+        confirm_payload,
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cus-finance-confirm"},
+    )
+    confirmation = confirm_body.get("confirmation", {}) if isinstance(confirm_body, dict) else {}
+    replay_confirmation = confirm_replay_body.get("confirmation", {}) if isinstance(confirm_replay_body, dict) else {}
+    if (
+        confirm_status != 201
+        or confirm_replay_status not in (200, 201)
+        or confirmation.get("status") != "CONFIRMED"
+        or replay_confirmation.get("confirmationId") != confirmation.get("confirmationId")
+    ):
+        results.fail("TC-1730", "Accountant confirms the exact finance snapshot with replay", f"first={confirm_body}, replay={confirm_replay_body}")
+        return
+    results.pass_("TC-1730", "Accountant confirms the exact finance snapshot with replay", f"confirmation#{confirmation['confirmationId']}")
+
+    cus_detail_status, cus_detail_body = request_json(
+        clerk_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    cus_summary = cus_detail_body.get("summary", {}) if isinstance(cus_detail_body, dict) else {}
+    lock_payload = {
+        "expectedVersion": cus_summary.get("version"),
+        "confirmationId": confirmation.get("confirmationId"),
+        "confirmationChecksum": confirmation.get("checksum"),
+        "reason": "CUS đã kiểm tra và khóa lô.",
+        "acknowledged": True,
+    }
+    lock_status, lock_body = request_json(
+        clerk_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/lock",
+        lock_payload,
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cus-lock"},
+    )
+    lock_replay_status, lock_replay_body = request_json(
+        clerk_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/lock",
+        lock_payload,
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-cus-lock"},
+    )
+    lock = lock_body.get("lock", {}) if isinstance(lock_body, dict) else {}
+    replay_lock = lock_replay_body.get("lock", {}) if isinstance(lock_replay_body, dict) else {}
+    if (
+        lock_status != 201
+        or lock_replay_status not in (200, 201)
+        or not isinstance(lock.get("id"), int)
+        or replay_lock.get("id") != lock.get("id")
+    ):
+        results.fail("TC-1731", "CUS locks once and retry replays the same active lock", f"first={lock_body}, replay={lock_replay_body}")
+        return
+    results.pass_("TC-1731", "CUS locks once and retry replays the same active lock", f"lock#{lock['id']}")
+
+    locked_detail_status, locked_detail_body = request_json(
+        clerk_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    locked_summary = locked_detail_body.get("summary", {}) if isinstance(locked_detail_body, dict) else {}
+    denied_update_status, denied_update_body = request_json(
+        clerk_api,
+        "PUT",
+        f"/api/shipments/{shipment_id}",
+        {
+            "expectedVersion": locked_summary.get("version"),
+            "operationalNotes": "Không được ghi khi lô đã khóa",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-locked-write-denied"},
+    )
+    if locked_detail_status != 200 or locked_summary.get("bucket") != "LOCKED" or denied_update_status != 409:
+        results.fail("TC-1732", "Active lock is persisted and denies material shipment writes", f"detail={locked_detail_body}, update={denied_update_body}")
+        return
+
+    instructions_before = manager_api.get(f"/api/trips/{trip_id}/instructions")
+    expenses_before = accountant_api.get(f"/api/trips/{trip_id}/expenses")
+    shipment_before = clerk_api.get(f"/api/shipments/{shipment_id}")
+    shipment_before_payload = shipment_before.get("data", shipment_before)
+    guard_snapshot_before = {
+        "shipmentVersion": locked_summary.get("version"),
+        "containerCount": len(locked_detail_body.get("containers", [])),
+        "documentCount": len(shipment_before_payload.get("documents", [])),
+        "instructions": instructions_before,
+        "expenseCount": len(expenses_before.get("items", [])),
+    }
+
+    denied_container_status, _ = request_json(
+        clerk_api,
+        "PUT",
+        f"/api/shipments/{shipment_id}/containers",
+        {
+            "expectedVersion": locked_summary.get("version"),
+            "containers": [{"containerTypeId": 1, "containerNumber": "MSCU6639870"}],
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-locked-container-denied"},
+    )
+    denied_trip_status, _ = request_json(
+        manager_api,
+        "PUT",
+        f"/api/trips/{trip_id}/instructions",
+        {"notes": "Không được ghi khi lô đã khóa"},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-locked-trip-denied"},
+    )
+    denied_expense_status, _ = request_json(
+        admin_api,
+        "POST",
+        f"/api/trips/{trip_id}/expenses",
+        {
+            "expenseType": "OTHER",
+            "buyAmount": 1,
+            "sellAmount": 0,
+            "settlementMethod": "COMPANY_DIRECT",
+            "invoiceNumber": f"LOCK-{SEARCH_SUFFIX}",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-locked-expense-denied"},
+    )
+    denied_document_status, _ = request_json(
+        clerk_api,
+        "POST",
+        f"/api/shipments/{shipment_id}/documents",
+        {"type": "OTHER", "storageKey": f"e2e/locked-{BOOKING_PREFIX}.pdf"},
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-locked-document-denied"},
+    )
+    denied_upload_status, _ = request_multipart(
+        accountant_api,
+        "/api/upload",
+        fields={"trip_id": str(trip_id), "type": "OTHER"},
+        file_field="file",
+        filename=f"locked-{BOOKING_PREFIX}.png",
+        file_bytes=sample_png_bytes(),
+        content_type="image/png",
+        idempotency_key=f"{BOOKING_PREFIX}-locked-upload-denied",
+    )
+
+    locked_detail_after_status, locked_detail_after = request_json(
+        clerk_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    shipment_after = clerk_api.get(f"/api/shipments/{shipment_id}")
+    shipment_after_payload = shipment_after.get("data", shipment_after)
+    instructions_after = manager_api.get(f"/api/trips/{trip_id}/instructions")
+    expenses_after = accountant_api.get(f"/api/trips/{trip_id}/expenses")
+    guard_snapshot_after = {
+        "shipmentVersion": locked_detail_after.get("summary", {}).get("version"),
+        "containerCount": len(locked_detail_after.get("containers", [])),
+        "documentCount": len(shipment_after_payload.get("documents", [])),
+        "instructions": instructions_after,
+        "expenseCount": len(expenses_after.get("items", [])),
+    }
+    denied_statuses = {
+        "shipment": denied_update_status,
+        "container": denied_container_status,
+        "trip": denied_trip_status,
+        "expense": denied_expense_status,
+        "document": denied_document_status,
+        "upload": denied_upload_status,
+    }
+    if (
+        locked_detail_after_status != 200
+        or any(status != 409 for status in denied_statuses.values())
+        or guard_snapshot_after != guard_snapshot_before
+    ):
+        results.fail(
+            "TC-1732",
+            "Active lock denies shipment, container, trip, expense, document and upload writes",
+            f"statuses={denied_statuses}, before={guard_snapshot_before}, after={guard_snapshot_after}",
+        )
+        return
+    results.pass_(
+        "TC-1732",
+        "Active lock denies shipment, container, trip, expense, document and upload writes",
+        f"shipment#{shipment_id}, statuses={denied_statuses}",
+    )
+
+    mobile_page = ctx.new_page({"width": 390, "height": 844})
+    ctx.login_as("clerk", mobile_page)
+    search_suffix = SEARCH_SUFFIX
+    mobile_page.goto(f"{BASE_URL}/shipments?searchSuffix={search_suffix}")
+    mobile_page.wait_for_load_state("networkidle")
+    mobile_card = mobile_page.locator("article.cus-mobile-card").filter(has_text=bl_number)
+    mobile_card.get_by_role("button", name="Xem chi tiết").click()
+    mobile_page.locator('[role="dialog"]').first.wait_for(timeout=10_000)
+    reopen_trigger = mobile_page.get_by_role("button", name="Đề nghị điều chỉnh")
+    reopen_trigger.click()
+    stacked_dialogs = mobile_page.locator('[role="dialog"]')
+    stacked_dialogs.nth(1).wait_for(timeout=10_000)
+    mobile_page.keyboard.press("Escape")
+    mobile_page.wait_for_function(
+        "document.querySelectorAll('[role=\"dialog\"]').length === 1",
+        timeout=2_000,
+    )
+    focus_returned_to_action = mobile_page.evaluate(
+        "document.activeElement?.textContent?.includes('Đề nghị điều chỉnh') === true"
+    )
+    if stacked_dialogs.count() != 1 or not focus_returned_to_action:
+        results.fail(
+            "TC-1732A",
+            "Escape closes only the top mobile modal and restores its action focus",
+            f"dialogs={stacked_dialogs.count()}, focusReturned={focus_returned_to_action}",
+        )
+        mobile_page.close()
+        return
+    ctx.screenshot(mobile_page, f"TC-1732A_stacked_overlay_{shipment_id}")
+    results.pass_(
+        "TC-1732A",
+        "Escape closes only the top mobile modal and restores its action focus",
+        f"shipment#{shipment_id}",
+    )
+    mobile_page.keyboard.press("Escape")
+    mobile_page.close()
+
+    first_request_status, first_request_body = request_json(
+        clerk_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/reopen-requests",
+        {
+            "expectedShipmentVersion": locked_summary["version"],
+            "activeLockId": lock["id"],
+            "reason": "Cần điều chỉnh chứng từ sau khi đối chiếu.",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-reopen-request-reject"},
+    )
+    first_action = first_request_body.get("action", {}) if isinstance(first_request_body, dict) else {}
+    reject_status, reject_body = request_json(
+        admin_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/reopen-requests/{first_action.get('id')}/decision",
+        {
+            "expectedVersion": first_action.get("version"),
+            "decision": "REJECT",
+            "reason": "Chưa đủ bằng chứng điều chỉnh.",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-reopen-reject"},
+    )
+    if first_request_status != 201 or reject_status != 200 or reject_body.get("status") != "REJECTED":
+        results.fail("TC-1733", "CUS request can be rejected by Admin without releasing lock", f"request={first_request_body}, decision={reject_body}")
+        return
+
+    after_reject_status, after_reject_body = request_json(
+        clerk_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    after_reject_summary = after_reject_body.get("summary", {}) if isinstance(after_reject_body, dict) else {}
+    second_request_status, second_request_body = request_json(
+        clerk_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/reopen-requests",
+        {
+            "expectedShipmentVersion": after_reject_summary.get("version"),
+            "activeLockId": lock["id"],
+            "reason": "Đã bổ sung bằng chứng, đề nghị mở để đối soát.",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-reopen-request-approve"},
+    )
+    second_action = second_request_body.get("action", {}) if isinstance(second_request_body, dict) else {}
+    approve_reopen_status, approve_reopen_body = request_json(
+        admin_api,
+        "POST",
+        f"/api/shipments/cus-workspace/{shipment_id}/reopen-requests/{second_action.get('id')}/decision",
+        {
+            "expectedVersion": second_action.get("version"),
+            "decision": "APPROVE",
+            "reason": "Đủ bằng chứng, mở lô và yêu cầu đối soát lại.",
+        },
+        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-reopen-approve"},
+    )
+    if second_request_status != 201 or approve_reopen_status != 200 or approve_reopen_body.get("status") != "APPROVED":
+        results.fail("TC-1734", "Admin approves a new request and releases the active lock", f"request={second_request_body}, decision={approve_reopen_body}")
+        return
+
+    reopened_status, reopened_body = request_json(
+        clerk_api,
+        "GET",
+        f"/api/shipments/cus-workspace/{shipment_id}",
+    )
+    reopened_summary = reopened_body.get("summary", {}) if isinstance(reopened_body, dict) else {}
+    if (
+        reopened_status != 200
+        or reopened_summary.get("activeLock") is not None
+        or reopened_summary.get("accountingConfirmation", {}).get("status") != "STALE"
+        or reopened_summary.get("debitNote", {}).get("available") is not False
+    ):
+        results.fail("TC-1734", "Reopen preserves history and invalidates finance/billing authority", str(reopened_body))
+        return
+    results.pass_("TC-1733", "CUS request can be rejected by Admin without releasing lock", f"action#{first_action['id']}")
+    results.pass_("TC-1734", "Admin reopen invalidates confirmation and billing authority", f"action#{second_action['id']}")
 
     page = ctx.new_page({"width": 1440, "height": 1000})
     def proxy_api(route):

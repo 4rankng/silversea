@@ -8,8 +8,14 @@ import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import {
   activateShipmentAccountingLock,
+  confirmShipmentFinance,
+  decideShipmentReopen,
   getShipmentAccountingLockSummary,
+  getShipmentFinanceConfirmationSummary,
+  requestShipmentReopen,
+  reviewShipmentChargeProposal,
 } from '../services/shipment-accounting-lock.service';
+import { recordShipmentRecovery } from '../services/shipment-recovery.service';
 import { updateShipment } from '../services/shipment.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
 import { postingChecksum } from '../services/billingDocument.service';
@@ -24,6 +30,13 @@ const postingIds: number[] = [];
 const documentIds: number[] = [];
 const expenseIds: number[] = [];
 const userIds: number[] = [];
+const shipmentContainerIds: number[] = [];
+const recoveryFactIds: number[] = [];
+const chargeFactIds: number[] = [];
+
+function expenseSourceVersion(expense: { updatedAt: Date; approvalStatus: string; sellAmount: string }) {
+  return `expense:${expense.updatedAt.toISOString()}:${expense.approvalStatus}:${Number(expense.sellAmount)}`;
+}
 
 async function setup() {
   const setupSuffix = `${suffix}-${++setupSequence}`;
@@ -41,8 +54,51 @@ async function setup() {
     fullName: null,
     role: Role.ACCOUNTANT,
   };
+  const [ops] = await db.insert(s.users).values({
+    username: `lock-ops-${setupSuffix}`,
+    passwordHash: 'test-only',
+    role: Role.OPS,
+    status: 'ACTIVE',
+  }).returning();
+  const [admin] = await db.insert(s.users).values({
+    username: `lock-admin-${setupSuffix}`,
+    passwordHash: 'test-only',
+    role: Role.ADMIN,
+    status: 'ACTIVE',
+  }).returning();
+  userIds.push(ops.id, admin.id);
+  const opsActor: AuthUser = {
+    userId: ops.id,
+    username: ops.username,
+    email: null,
+    fullName: null,
+    role: Role.OPS,
+  };
+  const adminActor: AuthUser = {
+    userId: admin.id,
+    username: admin.username,
+    email: null,
+    fullName: null,
+    role: Role.ADMIN,
+  };
   const [customer] = await db.insert(s.customers).values({ name: `Lock customer ${setupSuffix}` }).returning();
   customerIds.push(customer.id);
+  const [cus] = await db.insert(s.users).values({
+    username: `lock-cus-${setupSuffix}`,
+    passwordHash: 'test-only',
+    role: Role.CUS,
+    status: 'ACTIVE',
+  }).returning();
+  userIds.push(cus.id);
+  const cusActor: AuthUser = {
+    userId: cus.id,
+    username: cus.username,
+    email: null,
+    fullName: null,
+    role: Role.CUS,
+    customerId: null,
+    customerIds: [customer.id],
+  };
   const [route] = await db.insert(s.routes).values({ name: `Lock route ${setupSuffix}` }).returning();
   routeIds.push(route.id);
   const [shipment] = await db.insert(s.shipments).values({
@@ -93,7 +149,34 @@ async function setup() {
     rangeTo: document.rangeTo,
     createdBy: accountant.id,
   });
-  return { actor, shipment, trip, document };
+  return { actor, cusActor, opsActor, adminActor, shipment, trip, document };
+}
+
+async function insertAdhocBillingLine(args: {
+  documentId: number;
+  amount: string;
+  description?: string;
+}) {
+  const [line] = await db.insert(s.billingDocumentLines).values({
+    documentId: args.documentId,
+    sourceType: 'ADHOC',
+    sourceId: null,
+    lineType: 'ADHOC',
+    typeLabel: 'Đề xuất CUS',
+    unit: 'lần',
+    description: args.description ?? 'Phí thủ công CUS',
+    baseAmount: args.amount,
+    amountOverride: args.amount,
+    excluded: false,
+    vatTreatment: 'EXEMPT',
+    vatRate: '0',
+    vatTreatmentVersion: 'VAT-V1',
+    netAmount: args.amount,
+    taxAmount: '0',
+    grossAmount: args.amount,
+    sortOrder: 0,
+  }).returning();
+  return line;
 }
 
 after(async () => {
@@ -102,8 +185,28 @@ after(async () => {
       eq(s.auditLogs.entityType, 'shipment-accounting-lock'),
       inArray(s.auditLogs.entityId, shipmentIds),
     ));
+    await db.delete(s.auditLogs).where(and(
+      eq(s.auditLogs.entityType, 'shipment-charge-proposal-link'),
+      inArray(s.auditLogs.entityId, shipmentIds),
+    ));
     await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds));
+    await db.delete(s.governanceActions).where(and(
+      eq(s.governanceActions.subjectType, 'SHIPMENT'),
+      inArray(s.governanceActions.subjectId, shipmentIds),
+    ));
   }
+  if (documentIds.length) {
+    await db.delete(s.notifications).where(and(
+      eq(s.notifications.relatedEntityType, 'billing_documents'),
+      inArray(s.notifications.relatedEntityId, documentIds),
+    ));
+    await db.delete(s.auditLogs).where(and(
+      eq(s.auditLogs.entityType, 'billing-document-source-change'),
+      inArray(s.auditLogs.entityId, documentIds),
+    ));
+  }
+  if (recoveryFactIds.length) await db.delete(s.shipmentRecoveryFacts).where(inArray(s.shipmentRecoveryFacts.id, recoveryFactIds));
+  if (chargeFactIds.length) await db.delete(s.shipmentContainerChargeFacts).where(inArray(s.shipmentContainerChargeFacts.id, chargeFactIds));
   if (documentIds.length) {
     await db.delete(s.billingDocumentTripClaims).where(inArray(s.billingDocumentTripClaims.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
@@ -111,6 +214,7 @@ after(async () => {
   if (expenseIds.length) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
   if (postingIds.length) await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
   if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+  if (shipmentContainerIds.length) await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, shipmentContainerIds));
   if (shipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
   if (routeIds.length) await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
   if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
@@ -119,16 +223,29 @@ after(async () => {
 });
 
 describe('shipment accounting lock', () => {
-  test('ACCOUNTANT locks a fully billed shipment and freezes shipment and trip mutations', async () => {
-    const { actor, shipment, trip, document } = await setup();
-    const activated = await activateShipmentAccountingLock({
+  test('ACCOUNTANT confirms and CUS locks a fully billed shipment, then shipment and trip mutations are frozen', async () => {
+    const { actor, cusActor, shipment, trip, document } = await setup();
+    const confirmation = await confirmShipmentFinance({
       shipmentId: shipment.id,
       input: {
         expectedVersion: shipment.version,
         billingDocumentId: document.id,
-        reason: 'Đã phát hành Debit Note và chốt công nợ tháng 07/2026.',
+        reason: 'Kế toán đã đối soát đầy đủ số liệu Debit Note tháng 07/2026.',
       },
       actor,
+    });
+    assert.equal(confirmation.replayed, false);
+    assert.equal(confirmation.confirmation.status, 'CONFIRMED');
+    const activated = await activateShipmentAccountingLock({
+      shipmentId: shipment.id,
+      input: {
+        expectedVersion: shipment.version,
+        confirmationId: Number(confirmation.confirmation.confirmationId),
+        confirmationChecksum: String(confirmation.confirmation.checksum),
+        reason: 'Đã phát hành Debit Note và chốt công nợ tháng 07/2026.',
+        acknowledged: true,
+      },
+      actor: cusActor,
     });
     assert.equal(activated.replayed, false);
     assert.equal(activated.lock.billingDocumentId, document.id);
@@ -137,6 +254,7 @@ describe('shipment accounting lock', () => {
       'activatedAt',
       'activatedByName',
       'billingDocumentId',
+      'id',
       'reason',
     ]);
     assert.equal(summary?.billingDocumentId, document.id);
@@ -158,9 +276,13 @@ describe('shipment accounting lock', () => {
       .set({ postingChecksum: '0'.repeat(64) })
       .where(eq(s.billingDocumentTripClaims.documentId, document.id));
     await assert.rejects(
-      activateShipmentAccountingLock({
+      confirmShipmentFinance({
         shipmentId: shipment.id,
-        input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Khóa công nợ.' },
+        input: {
+          expectedVersion: shipment.version,
+          billingDocumentId: document.id,
+          reason: 'Kế toán xác nhận lần đầu.',
+        },
         actor,
       }),
       /Nguồn hạch toán của Debit Note đã thay đổi/,
@@ -181,12 +303,390 @@ describe('shipment accounting lock', () => {
     }).returning();
     expenseIds.push(expense.id);
     await assert.rejects(
-      activateShipmentAccountingLock({
+      confirmShipmentFinance({
         shipmentId: shipment.id,
-        input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Khóa công nợ.' },
+        input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Xác nhận công nợ.' },
         actor,
       }),
       /chưa bao phủ đầy đủ chi phí thu lại khách hàng/,
     );
+  });
+
+  test('rejects a pending nonzero expense without creating a confirmation action', async () => {
+    const { actor, shipment, trip, document } = await setup();
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: trip.id,
+      expenseType: 'OTHER',
+      buyAmount: '100000',
+      sellAmount: '100000',
+      recoverablePrincipalAmount: '100000',
+      serviceFeeAmount: '0',
+      approvalStatus: 'PENDING',
+      note: 'Chi phí đang chờ duyệt phải chặn xác nhận',
+    }).returning();
+    expenseIds.push(expense.id);
+
+    await assert.rejects(
+      confirmShipmentFinance({
+        shipmentId: shipment.id,
+        input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Không được tạo.' },
+        actor,
+      }),
+      /phải được phê duyệt trước khi xác nhận tài chính/,
+    );
+    const actions = await db.select({ id: s.governanceActions.id }).from(s.governanceActions).where(and(
+      eq(s.governanceActions.subjectType, 'SHIPMENT'),
+      eq(s.governanceActions.subjectId, shipment.id),
+      eq(s.governanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
+    ));
+    assert.equal(actions.length, 0);
+  });
+
+  test('rejects an unbilled nonzero manual proposal without creating a confirmation action', async () => {
+    const { actor, shipment, document } = await setup();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `UNBILLED-CONT-${shipment.id}`,
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerIds.push(container.id);
+    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      outboundIncidentalAmount: '250000',
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    chargeFactIds.push(proposal.id);
+
+    await assert.rejects(
+      confirmShipmentFinance({
+        shipmentId: shipment.id,
+        input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Không được tạo.' },
+        actor,
+      }),
+      /đề xuất phí thủ công chưa có liên kết nguồn có thẩm quyền trong Debit Note/,
+    );
+    const actions = await db.select({ id: s.governanceActions.id }).from(s.governanceActions).where(and(
+      eq(s.governanceActions.subjectType, 'SHIPMENT'),
+      eq(s.governanceActions.subjectId, shipment.id),
+      eq(s.governanceActions.actionKind, 'SHIPMENT_COST_CONFIRMATION'),
+    ));
+    assert.equal(actions.length, 0);
+  });
+
+  test('links a nonzero manual proposal to an exact current Debit Note line, then confirmation and CUS lock succeed', async () => {
+    const { actor, cusActor, shipment, document } = await setup();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `LINKED-CONT-${shipment.id}`,
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerIds.push(container.id);
+    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      outboundIncidentalAmount: '250000',
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    chargeFactIds.push(proposal.id);
+    const line = await insertAdhocBillingLine({
+      documentId: document.id,
+      amount: '250000',
+      description: 'CUS đề xuất phí nâng hạ',
+    });
+
+    const reviewed = await reviewShipmentChargeProposal({
+      shipmentId: shipment.id,
+      input: {
+        decision: 'ACCEPT_LINK',
+        expectedShipmentVersion: shipment.version,
+        proposalFactId: proposal.id,
+        proposalField: 'OUTBOUND_INCIDENTAL',
+        proposalVersion: proposal.version,
+        billingDocumentId: document.id,
+        billingDocumentLineId: line.id,
+        reason: 'Đã đối chiếu và chọn đúng dòng Debit Note thủ công.',
+      },
+      actor,
+    });
+    assert.equal(reviewed.replayed, false);
+    assert.equal(reviewed.review.billingDocumentLineId, line.id);
+
+    const [reviewedShipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const confirmation = await confirmShipmentFinance({
+      shipmentId: shipment.id,
+      input: {
+        expectedVersion: reviewedShipment.version,
+        billingDocumentId: document.id,
+        reason: 'Đã bao phủ đầy đủ cả đề xuất thủ công.',
+      },
+      actor,
+    });
+    assert.equal(confirmation.confirmation.status, 'CONFIRMED');
+
+    const locked = await activateShipmentAccountingLock({
+      shipmentId: shipment.id,
+      input: {
+        expectedVersion: reviewedShipment.version,
+        confirmationId: Number(confirmation.confirmation.confirmationId),
+        confirmationChecksum: String(confirmation.confirmation.checksum),
+        reason: 'CUS khóa lô sau khi Debit Note đã bao phủ đề xuất thủ công.',
+        acknowledged: true,
+      },
+      actor: cusActor,
+    });
+    assert.equal(locked.replayed, false);
+    assert.equal(locked.lock.billingDocumentId, document.id);
+  });
+
+  test('rejects confirmation when a previously linked manual proposal changed after the Debit Note link was recorded', async () => {
+    const { actor, shipment, document } = await setup();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `STALE-CONT-${shipment.id}`,
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerIds.push(container.id);
+    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      outboundIncidentalAmount: '250000',
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    chargeFactIds.push(proposal.id);
+    const line = await insertAdhocBillingLine({
+      documentId: document.id,
+      amount: '250000',
+      description: 'CUS đề xuất phí nâng hạ',
+    });
+
+    const reviewed = await reviewShipmentChargeProposal({
+      shipmentId: shipment.id,
+      input: {
+        decision: 'ACCEPT_LINK',
+        expectedShipmentVersion: shipment.version,
+        proposalFactId: proposal.id,
+        proposalField: 'OUTBOUND_INCIDENTAL',
+        proposalVersion: proposal.version,
+        billingDocumentId: document.id,
+        billingDocumentLineId: line.id,
+        reason: 'Liên kết lần đầu.',
+      },
+      actor,
+    });
+    assert.equal(reviewed.replayed, false);
+
+    const [shipmentAfterReview] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    await db.update(s.shipmentContainerChargeFacts).set({
+      outboundIncidentalAmount: '260000',
+      updatedBy: actor.userId,
+      updatedAt: new Date('2026-08-11T10:00:00.000Z'),
+      version: 2,
+    }).where(eq(s.shipmentContainerChargeFacts.id, proposal.id));
+
+    await assert.rejects(
+      confirmShipmentFinance({
+        shipmentId: shipment.id,
+        input: {
+          expectedVersion: shipmentAfterReview.version,
+          billingDocumentId: document.id,
+          reason: 'Không được xác nhận khi nguồn đề xuất đã đổi.',
+        },
+        actor,
+      }),
+      /liên kết Debit Note của đề xuất phí thủ công không còn hiện hành/i,
+    );
+  });
+
+  test('reject decision blocks confirmation until the current manual proposal is linked again', async () => {
+    const { actor, shipment, document } = await setup();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `REJECT-CONT-${shipment.id}`,
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerIds.push(container.id);
+    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      outboundIncidentalAmount: '250000',
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    chargeFactIds.push(proposal.id);
+
+    const reviewed = await reviewShipmentChargeProposal({
+      shipmentId: shipment.id,
+      input: {
+        decision: 'REJECT',
+        expectedShipmentVersion: shipment.version,
+        proposalFactId: proposal.id,
+        proposalField: 'OUTBOUND_INCIDENTAL',
+        proposalVersion: proposal.version,
+        reason: 'Dòng Debit Note hiện tại chưa đúng nguồn, tạm từ chối.',
+      },
+      actor,
+    });
+    assert.equal(reviewed.replayed, false);
+
+    const [shipmentAfterReview] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    await assert.rejects(
+      confirmShipmentFinance({
+        shipmentId: shipment.id,
+        input: {
+          expectedVersion: shipmentAfterReview.version,
+          billingDocumentId: document.id,
+          reason: 'Không được xác nhận khi đề xuất đang bị từ chối.',
+        },
+        actor,
+      }),
+      /đã bị từ chối liên kết Debit Note/i,
+    );
+  });
+
+  test('snapshots recovery and zero-valued manual proposal identities, then recovery mutation makes confirmation stale', async () => {
+    const { actor, opsActor, shipment, trip, document } = await setup();
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerNumber: `LOCK-CONT-${shipment.id}`,
+      createdBy: actor.userId,
+    }).returning();
+    shipmentContainerIds.push(container.id);
+    const [proposal] = await db.insert(s.shipmentContainerChargeFacts).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      outboundIncidentalAmount: '0',
+      createdBy: actor.userId,
+      updatedBy: actor.userId,
+    }).returning();
+    chargeFactIds.push(proposal.id);
+    const [expense] = await db.insert(s.tripExpenses).values({
+      tripId: trip.id,
+      expenseType: 'OTHER',
+      buyAmount: '1000',
+      sellAmount: '1000',
+      recoverablePrincipalAmount: '1000',
+      serviceFeeAmount: '0',
+      approvalStatus: 'APPROVED',
+    }).returning();
+    expenseIds.push(expense.id);
+    const sourceVersion = expenseSourceVersion(expense);
+    await db.insert(s.billingDocumentRecoverableClaims).values({
+      documentId: document.id,
+      expenseId: expense.id,
+      expenseVersion: expense.version,
+      sourceVersion,
+      evidenceSnapshot: { sourceVersion },
+      createdBy: actor.userId,
+    });
+    const openFact = await recordShipmentRecovery({
+      expenseId: expense.id,
+      expectedExpenseVersion: expense.version,
+      expectedSourceVersion: sourceVersion,
+      expectedRecoveryVersion: 0,
+      kind: 'DEPOSIT',
+      recoveredAmount: '0',
+      status: 'OPEN',
+      actor: opsActor,
+    });
+    recoveryFactIds.push(openFact.id);
+    const [currentShipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const confirmation = await confirmShipmentFinance({
+      shipmentId: shipment.id,
+      input: { expectedVersion: currentShipment.version, billingDocumentId: document.id, reason: 'Đối soát nguồn.' },
+      actor,
+    });
+    const [action] = await db.select().from(s.governanceActions)
+      .where(eq(s.governanceActions.id, Number(confirmation.confirmation.confirmationId)));
+    const after = action.afterSnapshot as Record<string, unknown>;
+    assert.deepEqual(after.recoveryFacts, [{
+      id: openFact.id,
+      sourceExpenseId: expense.id,
+      version: 1,
+      sourceVersion,
+      kind: 'DEPOSIT',
+      status: 'OPEN',
+      expectedAmount: '1000',
+      recoveredAmount: '0',
+      outstandingAmount: '1000',
+    }]);
+    assert.deepEqual(after.chargeProposals, [{
+      id: proposal.id,
+      shipmentContainerId: container.id,
+      version: 1,
+      outboundTransportAmount: null,
+      outboundHandlingAmount: null,
+      outboundIncidentalAmount: '0',
+      inboundTransportAmount: null,
+      inboundHandlingAmount: null,
+    }]);
+
+    await recordShipmentRecovery({
+      expenseId: expense.id,
+      expectedExpenseVersion: expense.version,
+      expectedSourceVersion: sourceVersion,
+      expectedRecoveryVersion: openFact.version,
+      kind: 'DEPOSIT',
+      recoveredAmount: '400',
+      status: 'PARTIAL',
+      actor: opsActor,
+    });
+    assert.equal((await getShipmentFinanceConfirmationSummary(shipment.id)).status, 'STALE');
+  });
+
+  test('approved reopen invalidates confirmation and marks canonical Debit Note reconciliation authority atomically', async () => {
+    const { actor, cusActor, adminActor, shipment, document } = await setup();
+    const confirmation = await confirmShipmentFinance({
+      shipmentId: shipment.id,
+      input: { expectedVersion: shipment.version, billingDocumentId: document.id, reason: 'Kế toán xác nhận.' },
+      actor,
+    });
+    await activateShipmentAccountingLock({
+      shipmentId: shipment.id,
+      input: {
+        expectedVersion: shipment.version,
+        confirmationId: Number(confirmation.confirmation.confirmationId),
+        confirmationChecksum: String(confirmation.confirmation.checksum),
+        reason: 'CUS khóa lô.',
+        acknowledged: true,
+      },
+      actor: cusActor,
+    });
+    const [lockedShipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const lock = await getShipmentAccountingLockSummary(shipment.id);
+    const requested = await requestShipmentReopen({
+      shipmentId: shipment.id,
+      input: {
+        expectedShipmentVersion: lockedShipment.version,
+        activeLockId: lock!.id,
+        reason: 'Cần điều chỉnh nguồn sau khóa.',
+      },
+      actor: cusActor,
+    });
+    const approved = await decideShipmentReopen({
+      shipmentId: shipment.id,
+      actionId: requested.action.id,
+      input: {
+        expectedVersion: requested.action.version,
+        decision: 'APPROVE',
+        reason: 'ADMIN chấp thuận mở lại để đối soát.',
+      },
+      actor: adminActor,
+    });
+    const [updatedDocument] = await db.select().from(s.billingDocuments).where(eq(s.billingDocuments.id, document.id));
+    const [sourceChangeAudit] = await db.select().from(s.auditLogs).where(and(
+      eq(s.auditLogs.entityType, 'billing-document-source-change'),
+      eq(s.auditLogs.entityId, document.id),
+    ));
+    assert.equal(updatedDocument.authorityState, 'ADJUSTMENT_REQUIRED');
+    assert.ok(updatedDocument.authorityWarningAt);
+    assert.match(updatedDocument.authorityWarningReason ?? '', /cần đối soát lại/i);
+    assert.ok(sourceChangeAudit);
+    assert.equal((approved.applicationResult as Record<string, unknown>).invalidatedConfirmationId, confirmation.confirmation.confirmationId);
+    assert.equal((await getShipmentFinanceConfirmationSummary(shipment.id)).status, 'STALE');
+    assert.equal(await getShipmentAccountingLockSummary(shipment.id), null);
   });
 });

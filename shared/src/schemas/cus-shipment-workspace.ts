@@ -1,0 +1,396 @@
+import { z } from 'zod';
+import {
+  ShipmentCusBucket,
+  ShipmentDocumentCustody,
+} from '../constants';
+
+const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
+const proposalVndAmountSchema = z.string().regex(
+  /^(0|[1-9]\d{0,14})$/,
+  'Số tiền đề xuất phải là số nguyên VND không âm và không vượt quá 15 chữ số.',
+);
+const suffixSchema = z.string()
+  .trim()
+  .regex(/^[A-Za-z0-9]{4,5}$/, 'Chỉ được tìm theo đúng 4-5 ký tự chữ hoặc số cuối của Bill/Book hoặc tờ khai.');
+
+export const shipmentCusWorkspaceQuerySchema = z.object({
+  searchSuffix: suffixSchema.optional(),
+  transportDateFrom: z.string().date().optional(),
+  transportDateTo: z.string().date().optional(),
+  bucket: z.nativeEnum(ShipmentCusBucket).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+}).strict().refine((input) => (
+  !input.transportDateFrom
+  || !input.transportDateTo
+  || input.transportDateFrom <= input.transportDateTo
+), {
+  message: 'Ngày vận chuyển bắt đầu phải trước hoặc bằng ngày kết thúc.',
+  path: ['transportDateTo'],
+});
+
+export const shipmentCusWorkspaceFinanceSummarySchema = z.object({
+  customerInvoiceTotal: moneyStringSchema.nullable(),
+  customerNoInvoiceTotal: moneyStringSchema.nullable(),
+  totalCost: moneyStringSchema.nullable(),
+  isLoss: z.boolean().nullable(),
+  hasPendingRecovery: z.boolean(),
+  customerChargeTotalsAvailable: z.boolean(),
+  totalCostAvailable: z.boolean(),
+  customerTotalsAuthority: z.enum(['BILLING_DOCUMENT', 'UNAVAILABLE']).optional(),
+}).strict();
+
+export const shipmentCusWorkspaceDocumentCustodySchema = z.object({
+  status: z.nativeEnum(ShipmentDocumentCustody).nullable(),
+  label: z.string().nullable(),
+  available: z.boolean(),
+  editable: z.boolean(),
+}).strict();
+
+export const shipmentCusWorkspaceAccountingConfirmationSchema = z.object({
+  status: z.enum(['CONFIRMED', 'STALE', 'PENDING', 'UNAVAILABLE']),
+  confirmationId: z.number().int().positive().nullable(),
+  checksum: z.string().min(1).max(128).nullable(),
+  billingDocumentId: z.number().int().positive().nullable(),
+  confirmedAt: z.string().datetime().nullable(),
+  confirmedByName: z.string().nullable(),
+}).strict();
+
+export const shipmentCusWorkspaceActionSchema = z.object({
+  kind: z.enum(['CONFIRM_FINANCE', 'LOCK', 'REQUEST_REOPEN', 'NONE']),
+  label: z.string(),
+  enabled: z.boolean(),
+  disabledReason: z.string().nullable(),
+}).strict();
+
+export const shipmentCusWorkspaceActiveLockSchema = z.object({
+  id: z.number().int().positive(),
+  billingDocumentId: z.number().int().positive(),
+  activatedAt: z.string().datetime(),
+  activatedByName: z.string().nullable(),
+  reason: z.string(),
+}).strict();
+
+export const shipmentCusWorkspaceDebitNoteSchema = z.object({
+  available: z.boolean(),
+  billingDocumentId: z.number().int().positive().nullable(),
+  documentNumber: z.string().nullable(),
+  issuedAt: z.string().datetime().nullable(),
+  debitNoteStatus: z.string().nullable(),
+  disabledReason: z.string().nullable(),
+}).strict();
+
+export const shipmentCusWorkspaceListItemSchema = z.object({
+  id: z.number().int().positive(),
+  version: z.number().int().positive(),
+  bucket: z.nativeEnum(ShipmentCusBucket),
+  bucketLabel: z.string(),
+  customerName: z.string().nullable(),
+  factoryName: z.string().nullable(),
+  billOrBookNumber: z.string().nullable(),
+  declarationNumber: z.string().nullable(),
+  shippingLineName: z.string().nullable(),
+  routeName: z.string().nullable(),
+  isCombined: z.boolean(),
+  direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
+  containerSummary: z.string(),
+  weightKg: z.string().nullable(),
+  volumeCbm: z.string().nullable(),
+  transportDate: z.string().date().nullable(),
+  note: z.string().nullable(),
+  finance: shipmentCusWorkspaceFinanceSummarySchema,
+  debitNote: shipmentCusWorkspaceDebitNoteSchema,
+  documentCustody: shipmentCusWorkspaceDocumentCustodySchema,
+  accountingConfirmation: shipmentCusWorkspaceAccountingConfirmationSchema,
+  activeLock: shipmentCusWorkspaceActiveLockSchema.nullable(),
+  action: shipmentCusWorkspaceActionSchema,
+}).strict();
+
+export const shipmentCusWorkspacePassThroughChargeSchema = z.object({
+  expenseId: z.number().int().positive(),
+  label: z.string(),
+  amount: moneyStringSchema,
+  invoiceNumber: z.string().nullable(),
+  pendingRecovery: z.boolean(),
+}).strict();
+
+export const shipmentCusWorkspaceRecoveryFactSchema = z.object({
+  id: z.number().int().positive(),
+  version: z.number().int().positive(),
+  shipmentContainerId: z.number().int().positive().nullable(),
+  kind: z.enum(['DEPOSIT', 'REPAIR', 'OTHER']),
+  status: z.enum(['OPEN', 'PARTIAL', 'RECOVERED', 'WAIVED']),
+  expectedAmount: moneyStringSchema,
+  recoveredAmount: moneyStringSchema,
+  outstandingAmount: moneyStringSchema,
+  sourceExpenseId: z.number().int().positive().nullable(),
+  sourceVersion: z.string().nullable(),
+  waiverReason: z.string().nullable(),
+}).strict();
+
+const shipmentCusWorkspaceChargeComponentSchema = z.object({
+  amount: moneyStringSchema.nullable(),
+  invoiceNumber: z.string().nullable(),
+  repairRecoveryPending: z.boolean().default(false),
+  available: z.boolean(),
+}).strict();
+
+const shipmentCusWorkspaceChargeGroupSchema = z.object({
+  transport: shipmentCusWorkspaceChargeComponentSchema,
+  handling: shipmentCusWorkspaceChargeComponentSchema,
+  incidental: shipmentCusWorkspaceChargeComponentSchema,
+  total: moneyStringSchema.nullable(),
+  available: z.boolean(),
+  authority: z.literal('MANUAL_PROPOSAL').optional(),
+}).strict();
+
+const shipmentCusWorkspacePassThroughGroupSchema = z.object({
+  csht: shipmentCusWorkspaceChargeComponentSchema,
+  lift: shipmentCusWorkspaceChargeComponentSchema,
+  dropoff: shipmentCusWorkspaceChargeComponentSchema,
+  other: shipmentCusWorkspaceChargeComponentSchema,
+  total: moneyStringSchema.nullable(),
+  available: z.boolean(),
+  authority: z.literal('APPROVED_EXPENSE_SOURCE').optional(),
+}).strict();
+
+const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
+  carrierEditable: z.boolean(),
+  plateEditable: z.boolean(),
+  containerTypeEditable: z.boolean(),
+  liftSiteEditable: z.boolean(),
+  dropoffSiteEditable: z.boolean(),
+  closeOrReturnTimeEditable: z.boolean(),
+  outboundEditable: z.boolean(),
+  inboundEditable: z.boolean(),
+  passThroughEditable: z.boolean(),
+}).strict();
+
+export const shipmentCusWorkspaceContainerLineSchema = z.object({
+  id: z.number().int().positive(),
+  ordinal: z.number().int().positive(),
+  containerNumber: z.string().nullable(),
+  containerTypeId: z.number().int().positive().nullable(),
+  containerTypeLabel: z.string().nullable(),
+  carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
+  externalCarrierId: z.number().int().positive().nullable(),
+  externalCarrierVehicleId: z.number().int().positive().nullable(),
+  carrierName: z.string().nullable(),
+  plateNumber: z.string().nullable(),
+  liftSiteId: z.number().int().positive().nullable(),
+  liftSite: z.string().nullable(),
+  dropoffSiteId: z.number().int().positive().nullable(),
+  dropoffSite: z.string().nullable(),
+  closeOrReturnAt: z.string().datetime().nullable(),
+  outboundCharges: shipmentCusWorkspaceChargeGroupSchema,
+  inboundCharges: shipmentCusWorkspaceChargeGroupSchema,
+  passThroughChargesGrouped: shipmentCusWorkspacePassThroughGroupSchema,
+  passThroughCharges: z.array(shipmentCusWorkspacePassThroughChargeSchema),
+  recoveryFacts: z.array(shipmentCusWorkspaceRecoveryFactSchema),
+  repairRecoveryPending: z.boolean(),
+  permissions: shipmentCusWorkspaceFieldPermissionsSchema,
+  shipmentVersion: z.number().int().positive(),
+  factVersion: z.number().int().nonnegative(),
+  relatedTripVersion: z.number().int().positive().nullable(),
+}).strict();
+
+const shipmentCusWorkspaceContainerTypeOptionSchema = z.object({
+  id: z.number().int().positive(),
+  code: z.string(),
+  name: z.string(),
+  label: z.string(),
+}).strict();
+
+const shipmentCusWorkspaceOperationalSiteOptionSchema = z.object({
+  id: z.number().int().positive(),
+  siteType: z.enum(['FACTORY', 'WAREHOUSE']),
+  code: z.string(),
+  name: z.string(),
+  label: z.string(),
+}).strict();
+
+const shipmentCusWorkspaceExternalCarrierOptionSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  shortName: z.string().nullable(),
+  label: z.string(),
+}).strict();
+
+const shipmentCusWorkspaceCarrierVehicleOptionSchema = z.object({
+  id: z.number().int().positive(),
+  carrierId: z.number().int().positive(),
+  licensePlate: z.string(),
+  label: z.string(),
+}).strict();
+
+const shipmentCusWorkspaceSelectorsSchema = z.object({
+  containerTypes: z.array(shipmentCusWorkspaceContainerTypeOptionSchema),
+  operationalSites: z.array(shipmentCusWorkspaceOperationalSiteOptionSchema),
+  externalCarriers: z.array(shipmentCusWorkspaceExternalCarrierOptionSchema),
+  carrierVehicles: z.array(shipmentCusWorkspaceCarrierVehicleOptionSchema),
+}).strict();
+
+export const shipmentCusWorkspaceDetailSchema = z.object({
+  summary: shipmentCusWorkspaceListItemSchema,
+  containers: z.array(shipmentCusWorkspaceContainerLineSchema),
+  selectors: shipmentCusWorkspaceSelectorsSchema,
+  dataState: z.object({
+    hasExplicitDocumentCustody: z.boolean(),
+    hasExplicitRecoveryFacts: z.boolean(),
+    hasAuthoritativeChargeBreakdown: z.boolean(),
+  }).strict(),
+}).strict();
+
+export const shipmentCusFinanceConfirmationCreateSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  billingDocumentId: z.coerce.number().int().positive('Debit Note là bắt buộc'),
+  reason: z.string().trim().min(1, 'Lý do xác nhận là bắt buộc').max(2_000),
+}).strict();
+
+export const shipmentCusDocumentCustodyUpdateSchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+  status: z.nativeEnum(ShipmentDocumentCustody),
+  note: z.string().trim().max(500).optional().nullable(),
+}).strict();
+
+export const shipmentCusLockSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  confirmationId: z.coerce.number().int().positive('Mã xác nhận kế toán là bắt buộc'),
+  confirmationChecksum: z.string().trim().min(1, 'Mã kiểm tra xác nhận là bắt buộc').max(128),
+  reason: z.string().trim().min(1, 'Lý do khóa lô là bắt buộc').max(2_000),
+  acknowledged: z.literal(true, {
+    errorMap: () => ({ message: 'Bạn phải xác nhận trước khi khóa lô.' }),
+  }),
+}).strict();
+
+export const shipmentCusReopenRequestSchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+  activeLockId: z.coerce.number().int().positive('Mã khóa lô hiện hành là bắt buộc'),
+  reason: z.string().trim().min(1, 'Lý do đề nghị điều chỉnh là bắt buộc').max(2_000),
+}).strict();
+
+export const shipmentCusReopenDecisionSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  decision: z.enum(['APPROVE', 'REJECT']),
+  reason: z.string().trim().min(1, 'Lý do xử lý là bắt buộc').max(2_000),
+}).strict();
+
+export const shipmentCusContainerLineUpdateSchema = z.object({
+  expectedShipmentVersion: z.coerce.number().int().positive(),
+  expectedFactVersion: z.coerce.number().int().nonnegative(),
+  carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
+  externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
+  externalCarrierVehicleId: z.coerce.number().int().positive().nullable().optional(),
+  plateNumber: z.string().trim().max(20).nullable().optional(),
+  newExternalCarrier: z.object({
+    name: z.string().trim().min(1, 'Tên nhà xe là bắt buộc').max(255),
+    plateNumber: z.string().trim().min(1, 'Biển số xe là bắt buộc').max(20),
+  }).strict().optional(),
+  containerTypeId: z.coerce.number().int().positive().nullable().optional(),
+  liftSiteId: z.coerce.number().int().positive().nullable().optional(),
+  dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
+  closeOrReturnAt: z.string().datetime().nullable().optional(),
+  outboundCharges: z.object({
+    transportAmount: proposalVndAmountSchema.nullable().optional(),
+    handlingAmount: proposalVndAmountSchema.nullable().optional(),
+    incidentalAmount: proposalVndAmountSchema.nullable().optional(),
+  }).strict().optional(),
+  inboundCharges: z.object({
+    transportAmount: proposalVndAmountSchema.nullable().optional(),
+    handlingAmount: proposalVndAmountSchema.nullable().optional(),
+  }).strict().optional(),
+}).strict().superRefine((input, ctx) => {
+  if (input.newExternalCarrier && input.carrierType !== 'EXTERNAL') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['carrierType'],
+      message: 'Nhà xe mới chỉ dùng khi loại nhà xe là EXTERNAL.',
+    });
+  }
+  if (input.newExternalCarrier && input.externalCarrierId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['newExternalCarrier'],
+      message: 'Không được gửi đồng thời nhà xe hiện có và nhà xe mới.',
+    });
+  }
+  if (input.newExternalCarrier && input.externalCarrierVehicleId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['externalCarrierVehicleId'],
+      message: 'Nhà xe mới không được đi kèm xe nhà xe đã tồn tại.',
+    });
+  }
+  if (input.newExternalCarrier && input.plateNumber != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['plateNumber'],
+      message: 'Biển số của nhà xe mới phải nằm trong newExternalCarrier.',
+    });
+  }
+  if (input.carrierType === 'OWN' && input.externalCarrierId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['externalCarrierId'],
+      message: 'Xe nội bộ không được đi kèm nhà xe ngoài.',
+    });
+  }
+  if (input.carrierType === 'OWN' && input.externalCarrierVehicleId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['externalCarrierVehicleId'],
+      message: 'Xe nội bộ không được đi kèm xe nhà xe ngoài.',
+    });
+  }
+});
+
+export const shipmentCusContainerLineUpdateResultSchema = z.object({
+  line: shipmentCusWorkspaceContainerLineSchema,
+}).strict();
+
+const nonNegativeMoneyStringSchema = z.string().regex(/^(0|[1-9]\d*)$/);
+
+export const shipmentRecoveryRecordSchema = z.object({
+  expenseId: z.coerce.number().int().positive(),
+  expectedExpenseVersion: z.coerce.number().int().positive(),
+  expectedSourceVersion: z.string().trim().min(1).max(120),
+  expectedRecoveryVersion: z.coerce.number().int().nonnegative(),
+  kind: z.enum(['DEPOSIT', 'REPAIR', 'OTHER']),
+  recoveredAmount: nonNegativeMoneyStringSchema,
+  status: z.enum(['OPEN', 'PARTIAL', 'RECOVERED', 'WAIVED']),
+  waiverReason: z.string().trim().max(500).nullable().optional(),
+}).strict();
+
+export const shipmentRecoveryRecordResultSchema = z.object({
+  fact: shipmentCusWorkspaceRecoveryFactSchema,
+}).strict();
+
+export const shipmentCusWorkspaceListResponseSchema = z.object({
+  page: z.number().int().positive(),
+  limit: z.number().int().min(1).max(100),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  items: z.array(shipmentCusWorkspaceListItemSchema),
+}).strict();
+
+export type ShipmentCusWorkspaceQuery = z.infer<typeof shipmentCusWorkspaceQuerySchema>;
+export type ShipmentCusWorkspaceFinanceSummary = z.infer<typeof shipmentCusWorkspaceFinanceSummarySchema>;
+export type ShipmentCusWorkspaceDocumentCustody = z.infer<typeof shipmentCusWorkspaceDocumentCustodySchema>;
+export type ShipmentCusWorkspaceAccountingConfirmation = z.infer<typeof shipmentCusWorkspaceAccountingConfirmationSchema>;
+export type ShipmentCusWorkspaceAction = z.infer<typeof shipmentCusWorkspaceActionSchema>;
+export type ShipmentCusWorkspaceActiveLock = z.infer<typeof shipmentCusWorkspaceActiveLockSchema>;
+export type ShipmentCusWorkspaceListItem = z.infer<typeof shipmentCusWorkspaceListItemSchema>;
+export type ShipmentCusWorkspacePassThroughCharge = z.infer<typeof shipmentCusWorkspacePassThroughChargeSchema>;
+export type ShipmentCusWorkspaceRecoveryFact = z.infer<typeof shipmentCusWorkspaceRecoveryFactSchema>;
+export type ShipmentCusWorkspaceContainerLine = z.infer<typeof shipmentCusWorkspaceContainerLineSchema>;
+export type ShipmentCusWorkspaceDetail = z.infer<typeof shipmentCusWorkspaceDetailSchema>;
+export type ShipmentCusWorkspaceListResponse = z.infer<typeof shipmentCusWorkspaceListResponseSchema>;
+export type ShipmentCusFinanceConfirmationCreateInput = z.infer<typeof shipmentCusFinanceConfirmationCreateSchema>;
+export type ShipmentCusDocumentCustodyUpdateInput = z.infer<typeof shipmentCusDocumentCustodyUpdateSchema>;
+export type ShipmentCusLockInput = z.infer<typeof shipmentCusLockSchema>;
+export type ShipmentCusReopenRequestInput = z.infer<typeof shipmentCusReopenRequestSchema>;
+export type ShipmentCusReopenDecisionInput = z.infer<typeof shipmentCusReopenDecisionSchema>;
+export type ShipmentCusContainerLineUpdateInput = z.infer<typeof shipmentCusContainerLineUpdateSchema>;
+export type ShipmentCusContainerLineUpdateResult = z.infer<typeof shipmentCusContainerLineUpdateResultSchema>;
+export type ShipmentRecoveryRecordInput = z.infer<typeof shipmentRecoveryRecordSchema>;
+export type ShipmentRecoveryRecordResult = z.infer<typeof shipmentRecoveryRecordResultSchema>;

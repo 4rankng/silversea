@@ -130,7 +130,7 @@ before(async () => {
 
   const app = express();
   app.use(express.json());
-  app.use('/api/forwarder/me', authMiddleware, casbinAuthz('forwarder_portal'), forwarderRoutes);
+  app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderRoutes);
   app.use('/api', authMiddleware, catalogBootstrapRouter);
   app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
   app.use('/api', authMiddleware, casbinAuthz('financial'), financialRoutes);

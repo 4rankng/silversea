@@ -2584,6 +2584,8 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   siteSnapshot: jsonb('site_snapshot').$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
   plannedCarrierType: varchar('planned_carrier_type', { length: 20 }),
   plannedExternalCarrierId: integer('planned_external_carrier_id'),
+  plannedExternalCarrierVehicleId: integer('planned_external_carrier_vehicle_id'),
+  plannedVehiclePlateNumber: varchar('planned_vehicle_plate_number', { length: 20 }),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
   canceledBy: integer('canceled_by'),
@@ -2600,6 +2602,7 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   uniqueIndex('shipment_fulfillments_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
   index('shipment_fulfillments_shipment_idx').on(table.shipmentId),
   index('shipment_fulfillments_planned_external_carrier_idx').on(table.plannedExternalCarrierId),
+  index('shipment_fulfillments_planned_external_carrier_vehicle_idx').on(table.plannedExternalCarrierVehicleId),
   uniqueIndex('shipment_fulfillments_active_container_uniq_idx')
     .on(table.shipmentContainerId)
     .where(sql`${table.shipmentContainerId} is not null and ${table.canceledAt} is null`),
@@ -2634,6 +2637,54 @@ export const carrierFleetVehicles = pgTable('carrier_fleet_vehicles', {
     .on(table.carrierId, table.isActive),
 ]);
 
+export const shipmentContainerChargeFacts = pgTable('shipment_container_charge_facts', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentContainerId: integer('shipment_container_id').notNull(),
+  version: integer('version').notNull().default(1),
+  outboundTransportAmount: numeric('outbound_transport_amount', { precision: 15, scale: 0 }),
+  outboundHandlingAmount: numeric('outbound_handling_amount', { precision: 15, scale: 0 }),
+  outboundIncidentalAmount: numeric('outbound_incidental_amount', { precision: 15, scale: 0 }),
+  inboundTransportAmount: numeric('inbound_transport_amount', { precision: 15, scale: 0 }),
+  inboundHandlingAmount: numeric('inbound_handling_amount', { precision: 15, scale: 0 }),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('shipment_container_charge_facts_container_uniq_idx')
+    .on(table.shipmentContainerId),
+  index('shipment_container_charge_facts_shipment_idx')
+    .on(table.shipmentId, table.shipmentContainerId),
+]);
+
+export const shipmentRecoveryFacts = pgTable('shipment_recovery_facts', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentContainerId: integer('shipment_container_id'),
+  version: integer('version').notNull().default(1),
+  kind: varchar('kind', { length: 20 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('OPEN'),
+  expectedAmount: numeric('expected_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  recoveredAmount: numeric('recovered_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  outstandingAmount: numeric('outstanding_amount', { precision: 15, scale: 0 }).notNull().default('0'),
+  sourceExpenseId: integer('source_expense_id'),
+  sourceVersion: varchar('source_version', { length: 120 }),
+  waiverReason: text('waiver_reason'),
+  createdBy: integer('created_by'),
+  updatedBy: integer('updated_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shipment_recovery_facts_shipment_idx')
+    .on(table.shipmentId, table.kind, table.status),
+  index('shipment_recovery_facts_container_idx')
+    .on(table.shipmentContainerId),
+  uniqueIndex('shipment_recovery_facts_source_expense_uniq_idx')
+    .on(table.sourceExpenseId)
+    .where(sql`${table.sourceExpenseId} is not null`),
+]);
+
 // Accounting lock is orthogonal to ShipmentStatus. It freezes the shipment's
 // operational source graph after an issued Debit Note closes the debt cycle.
 // Corrections use financial adjustment/reversal authorities, never a seventh
@@ -2642,6 +2693,7 @@ export const shipmentAccountingLocks = pgTable('shipment_accounting_locks', {
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id').notNull(),
   billingDocumentId: integer('billing_document_id').notNull(),
+  confirmationActionId: integer('confirmation_action_id'),
   billingDocumentVersion: integer('billing_document_version').notNull(),
   billingPeriodSnapshot: jsonb('billing_period_snapshot').$type<{
     rangeFrom: string;
@@ -2652,9 +2704,30 @@ export const shipmentAccountingLocks = pgTable('shipment_accounting_locks', {
   reason: text('reason').notNull(),
   activatedBy: integer('activated_by').notNull(),
   activatedAt: timestamp('activated_at', { withTimezone: true }).defaultNow().notNull(),
+  releasedBy: integer('released_by'),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releaseGovernanceActionId: integer('release_governance_action_id'),
+  releaseReason: text('release_reason'),
 }, (table) => [
-  uniqueIndex('shipment_accounting_locks_shipment_uniq_idx').on(table.shipmentId),
+  uniqueIndex('shipment_accounting_locks_active_shipment_uniq_idx')
+    .on(table.shipmentId)
+    .where(sql`${table.releasedAt} is null`),
   index('shipment_accounting_locks_document_idx').on(table.billingDocumentId),
+  index('shipment_accounting_locks_confirmation_idx').on(table.confirmationActionId),
+  index('shipment_accounting_locks_release_governance_idx').on(table.releaseGovernanceActionId),
+]);
+
+export const shipmentDocumentCustodyFacts = pgTable('shipment_document_custody_facts', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentVersion: integer('shipment_version').notNull(),
+  status: varchar('status', { length: 40 }).notNull(),
+  note: text('note'),
+  changedBy: integer('changed_by').notNull(),
+  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shipment_document_custody_facts_shipment_idx')
+    .on(table.shipmentId, table.changedAt),
 ]);
 
 // Immutable, versioned proof-of-delivery submissions. Generic trip photos do

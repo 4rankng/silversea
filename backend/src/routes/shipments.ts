@@ -30,16 +30,24 @@ import { z } from 'zod';
 import {
   cancelShipmentFulfillmentSchema,
   createShipmentSchema,
+  shipmentChargeProposalReviewSchema,
   updateShipmentSchema,
   transitionShipmentStatusSchema,
   attachShipmentDocumentSchema,
   shipmentContainerBatchSchema,
   quickCreateShipmentSchema,
   submitShipmentForDispatchSchema,
-  shipmentAccountingLockSchema,
   carrierFleetVehicleSchema,
   assignShipmentCarriersSchema,
   operationalSiteSchema,
+  shipmentCusWorkspaceQuerySchema,
+  shipmentCusContainerLineUpdateSchema,
+  shipmentCusFinanceConfirmationCreateSchema,
+  shipmentCusDocumentCustodyUpdateSchema,
+  shipmentCusLockSchema,
+  shipmentCusReopenRequestSchema,
+  shipmentCusReopenDecisionSchema,
+  shipmentRecoveryRecordSchema,
 } from '@tingting/shared';
 import {
   createShipment,
@@ -60,6 +68,11 @@ import {
   replaceShipmentDocument,
   reviewShipmentChangeRequest,
 } from '../services/shipment.service';
+import {
+  getCusShipmentWorkspaceDetail,
+  listCusShipmentWorkspace,
+  updateCusShipmentContainerLine,
+} from '../services/cus-shipment-workspace.service';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
 import { registerAuditEvent } from '../services/audit-registry';
@@ -97,12 +110,20 @@ import {
 } from '../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../services/pricing.service';
 import { attachmentDisposition } from '../services/statement.service';
-import { activateShipmentAccountingLock } from '../services/shipment-accounting-lock.service';
+import {
+  activateShipmentAccountingLock,
+  confirmShipmentFinance,
+  decideShipmentReopen,
+  reviewShipmentChargeProposal,
+  requestShipmentReopen,
+  updateShipmentDocumentCustody,
+} from '../services/shipment-accounting-lock.service';
 import {
   createCarrierFleetVehicle,
   listCarrierFleetVehicles,
   updateCarrierFleetVehicle,
 } from '../services/carrier-fleet-vehicle.service';
+import { recordShipmentRecovery } from '../services/shipment-recovery.service';
 
 // Audit event registrations — matched by the audit middleware on every write.
 // Suffix-mode registrations (prefix + suffix) cover all /:id sub-paths. The
@@ -116,7 +137,13 @@ registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREA
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/carrier-allocations', AuditEvent.SHIPMENT_UPDATED);
-registerAuditEvent('POST', '/api/shipments/', '/accounting-lock', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/finance-confirmations', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/proposal-billing-links', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/containers/', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/document-custody', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/lock', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/reopen-requests', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/', '/recovery-facts', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/', '/transition', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/complete', AuditEvent.SHIPMENT_STATUS_CHANGED);
 registerAuditEvent('POST', '/api/shipments/', '/documents', AuditEvent.SHIPMENT_DOCUMENT_UPLOADED);
@@ -277,6 +304,34 @@ function sendShipmentWrite<T>(
   return res.status(envelope.status).json(envelope.body);
 }
 
+function toShipmentRecoveryFactPayload(fact: {
+  id: number;
+  version: number;
+  shipmentContainerId: number | null;
+  kind: string;
+  status: string;
+  expectedAmount: string;
+  recoveredAmount: string;
+  outstandingAmount: string;
+  sourceExpenseId: number | null;
+  sourceVersion: string | null;
+  waiverReason: string | null;
+}) {
+  return {
+    id: fact.id,
+    version: fact.version,
+    shipmentContainerId: fact.shipmentContainerId,
+    kind: fact.kind as 'DEPOSIT' | 'REPAIR' | 'OTHER',
+    status: fact.status as 'OPEN' | 'PARTIAL' | 'RECOVERED' | 'WAIVED',
+    expectedAmount: fact.expectedAmount,
+    recoveredAmount: fact.recoveredAmount,
+    outstandingAmount: fact.outstandingAmount,
+    sourceExpenseId: fact.sourceExpenseId,
+    sourceVersion: fact.sourceVersion,
+    waiverReason: fact.waiverReason,
+  };
+}
+
 // Parse a non-negative integer id from the route. Returns -1 (and a 400 from
 // the caller) on garbage input — never NaN. Centralised so every /:id handler
 // is consistent with `routes/trips.ts`.
@@ -294,6 +349,286 @@ function requireShipmentIdempotencyKey(req: Request, message: string): string {
   if (!key) throw new ApiError(400, message);
   return key;
 }
+
+router.get(
+  '/cus-workspace',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentCusWorkspaceQuerySchema.safeParse(req.query);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await listCusShipmentWorkspace(parsed.data, getUser(req)));
+  }),
+);
+
+router.get(
+  '/cus-workspace/:id',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.json(await getCusShipmentWorkspaceDetail(shipmentId, getUser(req)));
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/containers/:containerId',
+  requireRoles(Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const containerId = Number.parseInt(req.params.containerId as string, 10);
+    if (!Number.isInteger(containerId) || containerId <= 0) {
+      throw new ApiError(400, 'ID container không hợp lệ');
+    }
+    const parsed = shipmentCusContainerLineUpdateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_LINE_UPDATE,
+      { shipmentId, containerId, data: parsed.data },
+      async (tx) => {
+        const outcome = await updateCusShipmentContainerLine({
+          shipmentId,
+          containerId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/finance-confirmations',
+  requireRoles(Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusFinanceConfirmationCreateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_FINANCE_CONFIRM,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await confirmShipmentFinance({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: outcome.replayed ? 200 : 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/proposal-billing-links',
+  requireRoles(Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentChargeProposalReviewSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_PROPOSAL_BILLING_REVIEW,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await reviewShipmentChargeProposal({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: outcome.replayed ? 200 : 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/document-custody',
+  requireRoles(Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusDocumentCustodyUpdateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_DOCUMENT_CUSTODY_UPDATE,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await updateShipmentDocumentCustody({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/lock',
+  requireRoles(Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusLockSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_LOCK,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await activateShipmentAccountingLock({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: outcome.replayed ? 200 : 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/reopen-requests',
+  requireRoles(Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentCusReopenRequestSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_REOPEN_REQUEST,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const outcome = await requestShipmentReopen({
+          shipmentId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: outcome.replayed ? 200 : 201,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/cus-workspace/:id/reopen-requests/:actionId/decision',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const actionId = Number.parseInt(req.params.actionId as string, 10);
+    if (!Number.isInteger(actionId) || actionId <= 0) {
+      throw new ApiError(400, 'ID đề nghị điều chỉnh không hợp lệ');
+    }
+    const parsed = shipmentCusReopenDecisionSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_REOPEN_DECISION,
+      { shipmentId, actionId, data: parsed.data },
+      async (tx) => {
+        const outcome = await decideShipmentReopen({
+          shipmentId,
+          actionId,
+          input: parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        return {
+          body: outcome,
+          status: 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
+router.post(
+  '/:id/recovery-facts',
+  requireRoles(Role.OPS, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = shipmentRecoveryRecordSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_RECOVERY_RECORD,
+      { shipmentId, data: parsed.data },
+      async (tx) => {
+        const fact = await recordShipmentRecovery({
+          ...parsed.data,
+          actor: getUser(req),
+          transaction: tx,
+        });
+        if (fact.shipmentId !== shipmentId) {
+          throw new ApiError(409, 'Chi phí thu hồi không thuộc lô hàng trên đường dẫn yêu cầu.');
+        }
+        return {
+          body: { fact: toShipmentRecoveryFactPayload(fact) },
+          status: parsed.data.expectedRecoveryVersion === 0 ? 201 : 200,
+          auditEntityId: shipmentId,
+          auditEntityKey: `shipment-${shipmentId}`,
+        };
+      },
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
 
 // ─── GET / — paginated list ────────────────────────────────────────────────
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
@@ -535,36 +870,6 @@ router.post(
           status: 200,
           auditEntityId: shipmentId,
           auditEntityKey: assigned.shipment.shipmentCode ?? 'Lô hàng chưa có mã',
-        };
-      },
-    );
-    sendShipmentWrite(res, result);
-  }),
-);
-
-router.post(
-  '/:id/accounting-lock',
-  requireRoles(Role.ACCOUNTANT),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    const parsed = shipmentAccountingLockSchema.safeParse(req.body);
-    if (!parsed.success) throwValidation(parsed.error);
-    const { result } = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE,
-      { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await activateShipmentAccountingLock({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: outcome.replayed ? 200 : 201,
-          auditEntityId: shipmentId,
         };
       },
     );
