@@ -212,6 +212,50 @@
   font-size: var(--fs-xs);
 }
 
+.cus-action-summary {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  scrollbar-width: thin;
+}
+
+.cus-action-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 7px 13px;
+  border-right: 1px solid var(--line);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.cus-action-summary strong {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.cus-action-summary__scope {
+  background: var(--surface-2);
+  color: var(--ink-3) !important;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cus-action-summary__ready {
+  color: var(--success-text) !important;
+}
+
+.cus-action-summary__attention {
+  color: var(--warning-text) !important;
+}
+
 .cus-summary-legends,
 .cus-finance-legend,
 .cus-status-legend {
@@ -303,10 +347,12 @@
   font-size: 12px;
 }
 
-.cus-master-table__col-shipment { width: 24%; }
-.cus-master-table__col-customer-route { width: 31%; }
-.cus-master-table__col-plan { width: 17%; }
-.cus-master-table__col-finance { width: 28%; }
+.cus-master-table__col-shipment { width: 17%; }
+.cus-master-table__col-customer-route { width: 23%; }
+.cus-master-table__col-plan { width: 13%; }
+.cus-master-table__col-vehicle { width: 13%; }
+.cus-master-table__col-status { width: 18%; }
+.cus-master-table__col-finance { width: 16%; }
 
 .cus-master-table th,
 .cus-master-table td {
@@ -339,29 +385,36 @@
 }
 
 .cus-finance-evidence {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px 8px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 8px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
-.cus-finance-metric {
-  grid-column: 1;
-}
-
-.cus-finance-metric strong {
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-}
-
 .cus-finance-confirmation {
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  align-self: center;
   display: inline-flex;
+  color: var(--ink-3);
+}
+
+.cus-finance-loss,
+.cus-finance-quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cus-finance-loss {
+  color: var(--danger-text);
+}
+
+.cus-finance-loss strong {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.cus-finance-quiet {
   color: var(--ink-3);
 }
 
@@ -433,6 +486,9 @@
 }
 
 .cus-index-cell > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
   color: var(--ink-3);
@@ -442,6 +498,79 @@
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cus-operational-evidence {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 2px 5px;
+  min-width: 0;
+}
+
+.cus-operational-evidence > span:first-child {
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--success-text);
+}
+
+.cus-operational-evidence strong,
+.cus-operational-evidence > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cus-operational-evidence strong {
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
+
+.cus-operational-evidence > span:last-child {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+.cus-operational-evidence--warning > span:first-child,
+.cus-operational-evidence--warning strong {
+  color: var(--warning-text);
+}
+
+.cus-status-cell {
+  display: grid;
+  gap: 5px;
+}
+
+.cus-workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+}
+
+.cus-workflow-badge--new {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.cus-workflow-badge--running {
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+.cus-workflow-badge--pending_lock {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.cus-workflow-badge--locked {
+  background: var(--slate-5);
+  color: var(--slate-4);
 }
 
 .cus-index-cell__date {
@@ -642,6 +771,10 @@
   margin: 0;
 }
 
+.cus-mobile-card__workflow {
+  padding: 0 12px 8px;
+}
+
 .cus-workspace[data-layout='cards'] .cus-mobile-card dl {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -656,9 +789,18 @@
 
 .cus-mobile-card__action {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
   padding: 8px 12px;
   border-top: 1px solid var(--line);
+}
+
+.cus-mobile-card__action > span {
+  flex: 1;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .cus-mobile-card__action .btn {
@@ -1108,6 +1250,37 @@
   font-weight: var(--fw-semibold);
 }
 
+.cus-drawer-transport-date {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-drawer-transport-date__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.cus-drawer-transport-date input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.cus-drawer-transport-date input:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  outline-offset: 1px;
+}
+
 @media (max-width: 1180px) {
   .cus-toolbar {
     grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(140px, 1fr));
@@ -1325,11 +1498,39 @@
   }
 
   .cus-detail-facts {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cus-detail-facts__wide {
-    grid-column: 1;
+    grid-column: 1 / -1;
+  }
+
+  .cus-shipment-drawer .drawer__head {
+    gap: 10px;
+    overflow: clip;
+    padding: 16px 18px 12px;
+  }
+
+  .cus-shipment-drawer .drawer__title {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .cus-shipment-drawer .drawer__body {
+    padding: 14px 18px 80px;
+  }
+
+  .cus-shipment-drawer .cus-drawer-summary {
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+
+  .cus-shipment-drawer .cus-drawer-section {
+    padding-bottom: 12px;
+  }
+
+  .cus-shipment-drawer .cus-detail-facts > div {
+    padding: 7px 8px;
   }
 
   .cus-container__head {
@@ -1351,6 +1552,7 @@
 
   .cus-shipment-drawer .cus-container__facts input,
   .cus-shipment-drawer .cus-inline-money-field input,
+  .cus-shipment-drawer .cus-drawer-transport-date input,
   .cus-shipment-drawer .searchable-select__trigger {
     font-size: 16px;
   }

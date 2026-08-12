@@ -181,6 +181,82 @@ function sumIfAny(values: Array<string | number | null | undefined>): string | n
   return present.length === 0 ? null : sumMoney(present);
 }
 
+function businessDateNow(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function buildOperationalSummary(
+  row: ShipmentListRow,
+  support: WorkspaceSupport,
+  bucket: ShipmentCusBucket,
+  actor: AuthUser,
+): ShipmentCusWorkspaceListItem['operational'] {
+  const containers = support.containersByShipment.get(row.shipment.id) ?? [];
+  let assignedContainers = 0;
+  let externalContainers = 0;
+  let plateAssignedContainers = 0;
+  let missingCarrierContainers = 0;
+  let missingPlateContainers = 0;
+
+  for (const container of containers) {
+    const assignment = support.assignmentsByContainer.get(container.id) ?? null;
+    const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+    const plateNumber = carrierType === 'OWN'
+      ? assignment?.tripTruckPlate ?? null
+      : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
+    if (carrierType == null) {
+      missingCarrierContainers += 1;
+      continue;
+    }
+    const hasAssignedVehicle = carrierType === 'EXTERNAL'
+      ? assignment?.plannedExternalCarrierId != null || assignment?.tripExternalCarrierId != null
+      : assignment?.tripTruckId != null;
+    if (hasAssignedVehicle) assignedContainers += 1;
+    if (carrierType === 'EXTERNAL') {
+      externalContainers += 1;
+    }
+    if (!trimOrNull(plateNumber)) missingPlateContainers += 1;
+    else plateAssignedContainers += 1;
+  }
+
+  const totalContainers = containers.length;
+  const vehicleReadiness = totalContainers === 0
+    ? 'NO_CONTAINERS' as const
+    : missingCarrierContainers > 0
+      ? 'WAITING_CARRIER' as const
+      : missingPlateContainers > 0
+        ? 'WAITING_PLATE' as const
+        : 'READY' as const;
+  const scheduleReadiness = row.shipment.expectedDeliveryDate == null
+    ? 'WAITING_DATE' as const
+    : bucket === ShipmentCusBucket.NEW && row.shipment.expectedDeliveryDate < businessDateNow()
+      ? 'OVERDUE' as const
+      : 'SCHEDULED' as const;
+  const canonicalStatus = canonicalShipmentStatus(row.shipment.status);
+  const transportDateEditable = actor.role === Role.CUS
+    && support.locksByShipment.get(row.shipment.id) == null
+    && (canonicalStatus === ShipmentStatus.PENDING_DATE || canonicalStatus === ShipmentStatus.READY_FOR_DISPATCH);
+
+  return {
+    scheduleReadiness,
+    vehicleReadiness,
+    totalContainers,
+    assignedContainers,
+    externalContainers,
+    plateAssignedContainers,
+    missingCarrierContainers,
+    missingPlateContainers,
+    transportDateEditable,
+  };
+}
+
 function effectiveBillingLineAmount(line: BillingLineRow): number {
   if (line.excluded) return 0;
   if (line.grossAmount != null) return toNumber(line.grossAmount);
@@ -834,6 +910,7 @@ function buildListItem(
   const totalCost = sumMoney(trips.map((trip) => trip.totalCost));
   const bucket = deriveCusBucket(row.shipment.status, activeLock != null);
   const hasPendingRecovery = recoveryFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
+  const operational = buildOperationalSummary(row, support, bucket, actor);
   const billingLines = debitNote == null
     ? []
     : (support.billingLinesByShipment.get(row.shipment.id) ?? [])
@@ -903,6 +980,7 @@ function buildListItem(
     volumeCbm: row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm),
     transportDate: row.shipment.expectedDeliveryDate,
     note: trimOrNull(row.shipment.operationalNotes),
+    operational,
     finance: {
       customerInvoiceTotal,
       customerNoInvoiceTotal,
@@ -1162,17 +1240,39 @@ export async function listCusShipmentWorkspace(
   const confirmations = await getShipmentFinanceConfirmationSummaries(
     items.map((row) => row.shipment.id),
   );
+  const projectedItems = items.map((row) => buildListItem(
+    row,
+    support,
+    actor,
+    confirmations.get(row.shipment.id)!,
+  ));
+  const needsSchedule = projectedItems.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length;
+  const needsVehicle = projectedItems.filter((item) => (
+    item.operational.vehicleReadiness === 'WAITING_CARRIER'
+    || item.operational.vehicleReadiness === 'WAITING_PLATE'
+  )).length;
+  const waitingAccounting = projectedItems.filter((item) => (
+    item.activeLock == null
+    && (item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE')
+  )).length;
+  const readyToLock = projectedItems.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length;
+  const needsAttention = projectedItems.filter((item) => (
+    item.operational.scheduleReadiness !== 'SCHEDULED'
+    || item.operational.vehicleReadiness === 'WAITING_CARRIER'
+    || item.operational.vehicleReadiness === 'WAITING_PLATE'
+    || item.finance.isLoss === true
+    || item.finance.hasPendingRecovery
+    || item.accountingConfirmation.status === 'UNAVAILABLE'
+    || item.accountingConfirmation.status === 'STALE'
+  )).length;
+
   return {
     page: query.page,
     limit: query.limit,
     total,
     totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
-    items: items.map((row) => buildListItem(
-      row,
-      support,
-      actor,
-      confirmations.get(row.shipment.id)!,
-    )),
+    pageSummary: { needsSchedule, needsVehicle, waitingAccounting, readyToLock, needsAttention },
+    items: projectedItems,
   };
 }
 

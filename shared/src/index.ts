@@ -146,6 +146,7 @@ export {
 
 export {
   shipmentCusWorkspaceQuerySchema,
+  shipmentCusWorkspaceOperationalSummarySchema,
   shipmentCusWorkspaceFinanceSummarySchema,
   shipmentCusWorkspaceDocumentCustodySchema,
   shipmentCusWorkspaceAccountingConfirmationSchema,
@@ -169,6 +170,7 @@ export {
 } from './schemas/cus-shipment-workspace';
 export type {
   ShipmentCusWorkspaceQuery,
+  ShipmentCusWorkspaceOperationalSummary,
   ShipmentCusWorkspaceFinanceSummary,
   ShipmentCusWorkspaceDocumentCustody,
   ShipmentCusWorkspaceAccountingConfirmation,

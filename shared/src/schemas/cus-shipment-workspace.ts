@@ -40,6 +40,18 @@ export const shipmentCusWorkspaceFinanceSummarySchema = z.object({
   customerTotalsAuthority: z.enum(['BILLING_DOCUMENT', 'UNAVAILABLE']).optional(),
 }).strict();
 
+export const shipmentCusWorkspaceOperationalSummarySchema = z.object({
+  scheduleReadiness: z.enum(['WAITING_DATE', 'OVERDUE', 'SCHEDULED']),
+  vehicleReadiness: z.enum(['NO_CONTAINERS', 'WAITING_CARRIER', 'WAITING_PLATE', 'READY']),
+  totalContainers: z.number().int().nonnegative(),
+  assignedContainers: z.number().int().nonnegative(),
+  externalContainers: z.number().int().nonnegative(),
+  plateAssignedContainers: z.number().int().nonnegative(),
+  missingCarrierContainers: z.number().int().nonnegative(),
+  missingPlateContainers: z.number().int().nonnegative(),
+  transportDateEditable: z.boolean(),
+}).strict();
+
 export const shipmentCusWorkspaceDocumentCustodySchema = z.object({
   status: z.nativeEnum(ShipmentDocumentCustody).nullable(),
   label: z.string().nullable(),
@@ -98,6 +110,7 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   volumeCbm: z.string().nullable(),
   transportDate: z.string().date().nullable(),
   note: z.string().nullable(),
+  operational: shipmentCusWorkspaceOperationalSummarySchema,
   finance: shipmentCusWorkspaceFinanceSummarySchema,
   debitNote: shipmentCusWorkspaceDebitNoteSchema,
   documentCustody: shipmentCusWorkspaceDocumentCustodySchema,
@@ -370,11 +383,19 @@ export const shipmentCusWorkspaceListResponseSchema = z.object({
   limit: z.number().int().min(1).max(100),
   total: z.number().int().nonnegative(),
   totalPages: z.number().int().nonnegative(),
+  pageSummary: z.object({
+    needsSchedule: z.number().int().nonnegative(),
+    needsVehicle: z.number().int().nonnegative(),
+    waitingAccounting: z.number().int().nonnegative(),
+    readyToLock: z.number().int().nonnegative(),
+    needsAttention: z.number().int().nonnegative(),
+  }).strict(),
   items: z.array(shipmentCusWorkspaceListItemSchema),
 }).strict();
 
 export type ShipmentCusWorkspaceQuery = z.infer<typeof shipmentCusWorkspaceQuerySchema>;
 export type ShipmentCusWorkspaceFinanceSummary = z.infer<typeof shipmentCusWorkspaceFinanceSummarySchema>;
+export type ShipmentCusWorkspaceOperationalSummary = z.infer<typeof shipmentCusWorkspaceOperationalSummarySchema>;
 export type ShipmentCusWorkspaceDocumentCustody = z.infer<typeof shipmentCusWorkspaceDocumentCustodySchema>;
 export type ShipmentCusWorkspaceAccountingConfirmation = z.infer<typeof shipmentCusWorkspaceAccountingConfirmationSchema>;
 export type ShipmentCusWorkspaceAction = z.infer<typeof shipmentCusWorkspaceActionSchema>;

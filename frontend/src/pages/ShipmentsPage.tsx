@@ -2,16 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
+  CalendarCheck2,
+  CalendarClock,
   CircleCheck,
   CircleDollarSign,
-  FileMinus2,
   FileLock2,
   Loader2,
   ReceiptText,
+  Route,
   RotateCcw,
   Save,
   Search,
-  WalletCards,
+  Warehouse,
+  Truck,
   X,
 } from 'lucide-react';
 import {
@@ -37,6 +40,7 @@ import {
   requestCusShipmentReopen,
   updateCusShipmentContainerLine,
   updateCusShipmentDocumentCustody,
+  updateShipment,
 } from '../api/shipmentClient';
 import './ShipmentsPage.css';
 
@@ -47,7 +51,7 @@ const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
   [ShipmentCusBucket.NEW]: 'var(--ink-3)',
   [ShipmentCusBucket.RUNNING]: 'var(--accent)',
   [ShipmentCusBucket.PENDING_LOCK]: 'var(--warning)',
-  [ShipmentCusBucket.LOCKED]: 'var(--success)',
+  [ShipmentCusBucket.LOCKED]: 'var(--slate-4)',
 };
 type CusWorkspaceLayout = 'wide' | 'compact' | 'cards';
 
@@ -89,20 +93,21 @@ function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): s
 
 function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const confirmationIsCurrent = item.accountingConfirmation.status === 'CONFIRMED';
+  const revenue = Number(item.finance.customerInvoiceTotal ?? 0) + Number(item.finance.customerNoInvoiceTotal ?? 0);
+  const cost = Number(item.finance.totalCost ?? 0);
+  const lossAmount = item.finance.isLoss ? Math.max(0, cost - revenue) : 0;
   return (
     <div className="cus-finance-evidence">
-      <span className="cus-finance-metric" aria-label={`Thu có hóa đơn: ${formatMoney(item.finance.customerInvoiceTotal)} đồng`} title="Thu có hóa đơn">
-        <ReceiptText size={14} aria-hidden="true" />
-        <strong>{formatMoney(item.finance.customerInvoiceTotal)} ₫</strong>
-      </span>
-      <span className="cus-finance-metric" aria-label={`Thu không hóa đơn: ${formatMoney(item.finance.customerNoInvoiceTotal)} đồng`} title="Thu không hóa đơn">
-        <FileMinus2 size={14} aria-hidden="true" />
-        <strong>{formatMoney(item.finance.customerNoInvoiceTotal)} ₫</strong>
-      </span>
-      <span className="cus-finance-metric" aria-label={`Tổng chi: ${formatMoney(item.finance.totalCost)} đồng`} title="Tổng chi">
-        <WalletCards size={14} aria-hidden="true" />
-        <strong>{formatMoney(item.finance.totalCost)} ₫</strong>
-      </span>
+      {item.finance.isLoss ? (
+        <span className="cus-finance-loss" aria-label={`Lỗ ${formatMoney(String(lossAmount))} đồng`}>
+          <AlertTriangle size={15} aria-hidden="true" />
+          <strong>Lỗ {formatMoney(String(lossAmount))} ₫</strong>
+        </span>
+      ) : (
+        <span className="cus-finance-quiet" aria-label={item.finance.customerChargeTotalsAvailable ? 'Đối soát không lỗ' : 'Chưa có dữ liệu đối soát'}>
+          <CircleDollarSign size={15} aria-hidden="true" />
+        </span>
+      )}
       <span
         className={`cus-finance-confirmation cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}`}
         aria-label={accountingConfirmationLabel(item.accountingConfirmation)}
@@ -112,6 +117,56 @@ function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
           ? <CircleCheck size={15} aria-hidden="true" />
           : <AlertTriangle size={15} aria-hidden="true" />}
       </span>
+    </div>
+  );
+}
+
+const BUCKET_ICONS = {
+  [ShipmentCusBucket.NEW]: CalendarClock,
+  [ShipmentCusBucket.RUNNING]: Truck,
+  [ShipmentCusBucket.PENDING_LOCK]: FileLock2,
+  [ShipmentCusBucket.LOCKED]: CircleCheck,
+};
+
+function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  const Icon = BUCKET_ICONS[item.bucket];
+  return (
+    <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>
+      <Icon size={14} aria-hidden="true" /> {item.bucketLabel}
+    </span>
+  );
+}
+
+function ScheduleEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  const waiting = item.operational.scheduleReadiness === 'WAITING_DATE';
+  const overdue = item.operational.scheduleReadiness === 'OVERDUE';
+  const Icon = waiting || overdue ? CalendarClock : CalendarCheck2;
+  const label = waiting ? 'Chờ chốt lịch' : overdue ? 'Lịch vận chuyển đã quá hạn' : `Ngày vận chuyển ${formatDate(item.transportDate)}`;
+  return (
+    <div className={`cus-operational-evidence${waiting || overdue ? ' cus-operational-evidence--warning' : ''}`}>
+      <span title={label} aria-label={label}><Icon size={16} aria-hidden="true" /></span>
+      <strong>{waiting ? 'Chưa chốt' : formatDate(item.transportDate)}</strong>
+      <span>{item.containerSummary} · {directionLabel(item.direction)}</span>
+    </div>
+  );
+}
+
+function VehicleEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
+  const operational = item.operational;
+  const waitingCarrier = operational.vehicleReadiness === 'WAITING_CARRIER';
+  const waitingPlate = operational.vehicleReadiness === 'WAITING_PLATE';
+  const label = operational.vehicleReadiness === 'NO_CONTAINERS'
+    ? 'Chưa có container'
+    : waitingCarrier
+      ? `${operational.missingCarrierContainers} container chưa có nhà xe`
+      : waitingPlate
+        ? `${operational.missingPlateContainers} container chưa có biển số`
+        : 'Thông tin xe đã đủ';
+  return (
+    <div className={`cus-operational-evidence${waitingCarrier || waitingPlate ? ' cus-operational-evidence--warning' : ''}`}>
+      <span title={label} aria-label={label}><Truck size={16} aria-hidden="true" /></span>
+      <strong>{operational.assignedContainers}/{operational.totalContainers} đã gán xe</strong>
+      <span>{operational.plateAssignedContainers}/{operational.totalContainers} có biển số</span>
     </div>
   );
 }
@@ -599,6 +654,16 @@ interface ShipmentSignal {
 
 function deriveShipmentSignals(item: ShipmentCusWorkspaceListItem): ShipmentSignal[] {
   const signals: ShipmentSignal[] = [];
+  if (item.operational.scheduleReadiness === 'WAITING_DATE') {
+    signals.push({ key: 'schedule', label: 'Chờ chốt lịch', tone: 'warning', icon: CalendarClock });
+  } else if (item.operational.scheduleReadiness === 'OVERDUE') {
+    signals.push({ key: 'schedule-overdue', label: 'Lịch đã quá hạn', tone: 'danger', icon: CalendarClock });
+  }
+  if (item.operational.vehicleReadiness === 'WAITING_CARRIER') {
+    signals.push({ key: 'carrier', label: `Thiếu nhà xe ${item.operational.missingCarrierContainers} cont`, tone: 'warning', icon: Truck });
+  } else if (item.operational.vehicleReadiness === 'WAITING_PLATE') {
+    signals.push({ key: 'plate', label: `Thiếu BKS ${item.operational.missingPlateContainers} cont`, tone: 'warning', icon: Truck });
+  }
   if (item.finance.isLoss) {
     signals.push({ key: 'loss', label: 'Lỗ', tone: 'danger', icon: AlertTriangle });
   }
@@ -658,6 +723,8 @@ function ShipmentDetailSummary({ item }: { item: ShipmentCusWorkspaceListItem })
           <div><dt>Container</dt><dd>{item.containerSummary}</dd></div>
           <div><dt>Khối lượng</dt><dd>{formatQuantity(item.weightKg)} kg</dd></div>
           <div><dt>Thể tích</dt><dd>{formatQuantity(item.volumeCbm, 3)} CBM</dd></div>
+          <div><dt>Kết hợp</dt><dd>{item.isCombined ? 'Có kết hợp hàng' : 'Không kết hợp'}</dd></div>
+          <div><dt>Điều xe / BKS</dt><dd>{item.operational.assignedContainers}/{item.operational.totalContainers} xe · {item.operational.plateAssignedContainers}/{item.operational.totalContainers} BKS</dd></div>
         </dl>
       </section>
 
@@ -719,6 +786,8 @@ export default function ShipmentsPage() {
   const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [transportDateDraft, setTransportDateDraft] = useState('');
+  const [savingTransportDate, setSavingTransportDate] = useState(false);
   const [workspaceLayout, setWorkspaceLayout] = useState<CusWorkspaceLayout>('wide');
   const requestSequence = useRef(0);
   const idempotencyKeysRef = useRef<Record<string, string>>({});
@@ -866,6 +935,30 @@ export default function ShipmentsPage() {
     }
   };
 
+  const saveTransportDate = async (item: ShipmentCusWorkspaceListItem) => {
+    if (!transportDateDraft || transportDateDraft === item.transportDate) return;
+    setSavingTransportDate(true);
+    setError(null);
+    try {
+      await updateShipment(item.id, {
+        expectedVersion: item.version,
+        expectedDeliveryDate: transportDateDraft,
+      });
+      setNotice('Đã chốt ngày vận chuyển và cập nhật trạng thái sẵn sàng điều xe.');
+      setDetails((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+      setDrawerId(null);
+      await loadList();
+    } catch (transportDateError) {
+      setError(safeError(transportDateError, 'Không thể cập nhật ngày vận chuyển.'));
+    } finally {
+      setSavingTransportDate(false);
+    }
+  };
+
   const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen') => {
     setActionItem(item);
     setActionMode(mode);
@@ -967,6 +1060,7 @@ export default function ShipmentsPage() {
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
+  const visibleSummary = data?.pageSummary;
   const totalPages = Math.max(1, data?.totalPages ?? Math.ceil(total / PAGE_SIZE));
   const drawerItem = items.find((item) => item.id === drawerId) ?? null;
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || bucket);
@@ -983,6 +1077,10 @@ export default function ShipmentsPage() {
     bucket ? { key: 'bucket', label: SHIPMENT_CUS_BUCKET_LABELS[bucket] } : null,
   ].filter((chip): chip is { key: string; label: string } => chip != null), [bucket, dateFrom, dateTo, suffixParam]);
 
+  useEffect(() => {
+    setTransportDateDraft(drawerItem?.transportDate ?? '');
+  }, [drawerItem?.id, drawerItem?.transportDate]);
+
   return (
     <div className="shipments-page">
       <Breadcrumbs items={[{ label: 'Tổng quan', to: '/dashboard' }, { label: 'Quản lý lô hàng' }]} />
@@ -992,7 +1090,15 @@ export default function ShipmentsPage() {
         description="Theo dõi tiến độ, xử lý ngoại lệ và hoàn tất khóa lô"
       />
 
-      <section ref={workspaceRef} className="cus-workspace" data-layout={workspaceLayout} aria-labelledby="cus-workspace-title" aria-busy={loading}>
+      <section
+        ref={workspaceRef}
+        className="cus-workspace"
+        data-layout={workspaceLayout}
+        aria-labelledby="cus-workspace-title"
+        aria-busy={loading}
+        aria-hidden={drawerId != null ? true : undefined}
+        inert={drawerId != null ? true : undefined}
+      >
         <h2 id="cus-workspace-title" className="sr-only">Không gian quản lý lô hàng CUS</h2>
         <form className="cus-toolbar" onSubmit={submitSearch} noValidate>
           <div className="cus-search-field">
@@ -1078,21 +1184,23 @@ export default function ShipmentsPage() {
           </div>
         )}
 
+        {visibleSummary && (
+          <div className="cus-action-summary" aria-label="Tình trạng các lô đang hiển thị">
+            <span className="cus-action-summary__scope">Trang này</span>
+            <span><CalendarClock size={15} aria-hidden="true" /><strong>{visibleSummary.needsSchedule}</strong> chờ lịch</span>
+            <span><Truck size={15} aria-hidden="true" /><strong>{visibleSummary.needsVehicle}</strong> chờ xe/BKS</span>
+            <span><ReceiptText size={15} aria-hidden="true" /><strong>{visibleSummary.waitingAccounting}</strong> chờ Kế toán</span>
+            <span className="cus-action-summary__ready"><CircleCheck size={15} aria-hidden="true" /><strong>{visibleSummary.readyToLock}</strong> sẵn sàng khóa</span>
+            <span className="cus-action-summary__attention"><AlertTriangle size={15} aria-hidden="true" /><strong>{visibleSummary.needsAttention}</strong> cần xử lý</span>
+          </div>
+        )}
+
         <div className="cus-workspace__summary" role="status" aria-live="polite">
           <span>{resultLabel}</span>
-          <div className="cus-summary-legends">
-            <div className="cus-status-legend" aria-label="Chú thích trạng thái lô hàng">
-              {BUCKETS.map((value) => (
-                <span key={value}><StatusSwatch color={SHIPMENT_BUCKET_COLORS[value]} /> {SHIPMENT_CUS_BUCKET_LABELS[value]}</span>
-              ))}
-            </div>
-            <div className="cus-finance-legend" aria-label="Chú thích tài chính">
-              <span><ReceiptText size={13} aria-hidden="true" /> Thu có HĐ</span>
-              <span><FileMinus2 size={13} aria-hidden="true" /> Thu không HĐ</span>
-              <span><WalletCards size={13} aria-hidden="true" /> Tổng chi</span>
-              <span><CircleCheck size={13} aria-hidden="true" /> Đã xác nhận</span>
-              <span><AlertTriangle size={13} aria-hidden="true" /> Cần xử lý</span>
-            </div>
+          <div className="cus-status-legend" aria-label="Chú thích trạng thái lô hàng">
+            {BUCKETS.map((value) => (
+              <span key={value}><StatusSwatch color={SHIPMENT_BUCKET_COLORS[value]} /> {SHIPMENT_CUS_BUCKET_LABELS[value]}</span>
+            ))}
           </div>
         </div>
 
@@ -1121,6 +1229,8 @@ export default function ShipmentsPage() {
                   <col className="cus-master-table__col-shipment" />
                   <col className="cus-master-table__col-customer-route" />
                   <col className="cus-master-table__col-plan" />
+                  <col className="cus-master-table__col-vehicle" />
+                  <col className="cus-master-table__col-status" />
                   <col className="cus-master-table__col-finance" />
                 </colgroup>
                 <thead>
@@ -1128,7 +1238,9 @@ export default function ShipmentsPage() {
                     <th scope="col">Lô hàng</th>
                     <th scope="col">Khách hàng / tuyến</th>
                     <th scope="col">Kế hoạch</th>
-                    <th scope="col">Đối soát</th>
+                    <th scope="col">Điều xe</th>
+                    <th scope="col">Trạng thái / ngoại lệ</th>
+                    <th scope="col">Đối soát / hành động</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1155,19 +1267,25 @@ export default function ShipmentsPage() {
                               <span className="sr-only"> — Mở chi tiết lô hàng của {item.customerName || 'khách hàng'}</span>
                             </button>
                             <span>{item.declarationNumber ? `Tờ khai ${item.declarationNumber}` : item.shippingLineName || 'Chưa có tờ khai'}</span>
-                            <ShipmentSignals item={item} />
                           </div>
                         </td>
                         <td>
                           <div className="cus-index-cell">
                             <strong>{item.customerName || 'Chưa có khách hàng'}</strong>
-                            <span>{item.routeName || item.factoryName || 'Chưa xác định tuyến'}</span>
+                            <span title={item.factoryName || 'Chưa có nhà máy'}><Warehouse size={13} aria-hidden="true" /> {item.factoryName || 'Chưa có nhà máy'}</span>
+                            <span title={item.routeName || 'Chưa xác định tuyến'}><Route size={13} aria-hidden="true" /> {item.routeName || 'Chưa xác định tuyến'}</span>
                           </div>
                         </td>
                         <td>
-                          <div className="cus-index-cell">
-                            <strong className="cus-index-cell__date">{formatDate(item.transportDate)}</strong>
-                            <span>{item.containerSummary} · {directionLabel(item.direction)}</span>
+                          <ScheduleEvidence item={item} />
+                        </td>
+                        <td>
+                          <VehicleEvidence item={item} />
+                        </td>
+                        <td>
+                          <div className="cus-status-cell">
+                            <WorkflowBadge item={item} />
+                            <ShipmentSignals item={item} />
                           </div>
                         </td>
                         <td>
@@ -1213,16 +1331,20 @@ export default function ShipmentsPage() {
                       </button>
                     </div>
                   </header>
+                  <div className="cus-mobile-card__workflow"><WorkflowBadge item={item} /></div>
                   <ShipmentSignals item={item} />
                   <FinanceEvidence item={item} />
                   <dl>
                     <div className="cus-mobile-card__wide"><dt>Tuyến</dt><dd>{item.routeName || item.factoryName || 'Chưa xác định'}</dd></div>
                     <div><dt>Ngày vận chuyển</dt><dd>{formatDate(item.transportDate)}</dd></div>
                     <div><dt>Container</dt><dd>{item.containerSummary} · {directionLabel(item.direction)}</dd></div>
+                    <div><dt>Điều xe</dt><dd>{item.operational.assignedContainers}/{item.operational.totalContainers}</dd></div>
+                    <div><dt>Biển số</dt><dd>{item.operational.plateAssignedContainers}/{item.operational.totalContainers}</dd></div>
                   </dl>
-                  {item.action.enabled && item.action.kind !== 'NONE' && (
+                  {item.action.kind !== 'NONE' && (
                     <footer className="cus-mobile-card__action" data-row-interactive>
                       {shipmentActionButton(item, 'btn btn--primary btn--sm')}
+                      {!item.action.enabled && item.action.disabledReason && <span>{item.action.disabledReason}</span>}
                     </footer>
                   )}
                 </article>
@@ -1266,6 +1388,29 @@ export default function ShipmentsPage() {
 
           {drawerItem && (
             <div className="cus-drawer-actions">
+              <div className="cus-drawer-transport-date">
+                <label htmlFor="cus-drawer-transport-date-input">Ngày vận chuyển</label>
+                <div className="cus-drawer-transport-date__control">
+                  <input
+                    id="cus-drawer-transport-date-input"
+                    type="date"
+                    value={transportDateDraft}
+                    disabled={!drawerItem.operational.transportDateEditable || savingTransportDate}
+                    onChange={(event) => setTransportDateDraft(event.target.value)}
+                  />
+                  {drawerItem.operational.transportDateEditable && (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={!transportDateDraft || transportDateDraft === drawerItem.transportDate || savingTransportDate}
+                      onClick={() => void saveTransportDate(drawerItem)}
+                    >
+                      {savingTransportDate ? <Loader2 className="spin" size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+                      Chốt lịch
+                    </button>
+                  )}
+                </div>
+              </div>
               <label className="cus-drawer-custody">
                 <span>Phơi phiếu</span>
                 <select

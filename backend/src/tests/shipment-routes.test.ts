@@ -532,11 +532,15 @@ async function createOwnedResources() {
 async function createAcceptedFulfillmentFixture(overrides: {
   cargoMode?: 'FCL' | 'LCL';
   cargoTypeId?: number | null;
+  bookingRef?: string;
+  expectedDeliveryDate?: string;
 } = {}) {
   const shipment = await mkShipmentViaService({
     routeId,
     cargoMode: overrides.cargoMode ?? 'FCL',
     cargoTypeId: overrides.cargoTypeId ?? null,
+    bookingRef: overrides.bookingRef,
+    expectedDeliveryDate: overrides.expectedDeliveryDate,
     closingAt: '2026-08-04T08:00:00.000Z',
   });
   if ((overrides.cargoMode ?? 'FCL') === 'FCL') {
@@ -1320,6 +1324,9 @@ describe('GET /cus-workspace', () => {
       assert.ok(row, `CUS workspace includes the shipment for ${validSuffix}`);
       assert.equal(row.bucket, 'NEW');
       assert.equal(row.action.kind, 'LOCK');
+      assert.equal(row.operational.scheduleReadiness, 'OVERDUE');
+      assert.equal(typeof row.operational.totalContainers, 'number');
+      assert.equal(typeof ok.data.pageSummary.needsSchedule, 'number');
     }
 
     for (const invalidSuffix of ['A12', 'ABC123', 'AB$1']) {
@@ -1341,6 +1348,22 @@ describe('GET /cus-workspace', () => {
     assert.ok(Array.isArray(detail.data.containers));
     assert.equal(typeof detail.data.dataState.hasExplicitDocumentCustody, 'boolean');
     assert.equal(typeof detail.data.dataState.hasExplicitRecoveryFacts, 'boolean');
+  });
+
+  test('keeps a planned internal carrier pending until an actual vehicle plate exists', async () => {
+    const fixture = await createAcceptedFulfillmentFixture({
+      bookingRef: `BOOK-${suffix}-OWN9`,
+      expectedDeliveryDate: '2026-08-20',
+    });
+    const response = await testFetch('/cus-workspace?searchSuffix=OWN9&page=1&limit=20', { token: adminToken });
+    assert.equal(response.status, 200);
+    const row = response.data.items.find((item: { id: number }) => item.id === fixture.shipment.id);
+    assert.ok(row);
+    assert.equal(row.operational.vehicleReadiness, 'WAITING_PLATE');
+    assert.equal(row.operational.assignedContainers, 0);
+    assert.equal(row.operational.plateAssignedContainers, 0);
+    assert.equal(row.operational.missingPlateContainers, 1);
+    assert.equal(response.data.pageSummary.waitingAccounting, 1);
   });
 
   test('derives customer totals and loss only from attributable current Debit Note lines, never manual proposals', async () => {

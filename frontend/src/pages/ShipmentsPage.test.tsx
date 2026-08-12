@@ -9,19 +9,21 @@ import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 
-const { apiGet, apiPost } = vi.hoisted(() => ({
+const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
+  apiPut: vi.fn(),
 }));
 
 vi.mock('../lib/api', () => ({
-  api: { get: apiGet, post: apiPost },
+  api: { get: apiGet, post: apiPost, put: apiPut },
   ApiError: class ApiError extends Error {},
 }));
 
 import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 
 const row: ShipmentCusWorkspaceListItem = {
   id: 1,
@@ -41,6 +43,17 @@ const row: ShipmentCusWorkspaceListItem = {
   volumeCbm: '52.5',
   transportDate: '2026-08-12',
   note: 'Giao buổi sáng',
+  operational: {
+    scheduleReadiness: 'SCHEDULED',
+    vehicleReadiness: 'READY',
+    totalContainers: 2,
+    assignedContainers: 2,
+    externalContainers: 1,
+    plateAssignedContainers: 2,
+    missingCarrierContainers: 0,
+    missingPlateContainers: 0,
+    transportDateEditable: true,
+  },
   finance: {
     customerInvoiceTotal: '12000000',
     customerNoInvoiceTotal: '1500000',
@@ -163,7 +176,22 @@ const detail = {
 };
 
 function listResponse(items = [row]) {
-  return { page: 1, limit: 20, total: items.length, totalPages: items.length ? 1 : 0, items };
+  return {
+    page: 1,
+    limit: 20,
+    total: items.length,
+    totalPages: items.length ? 1 : 0,
+    pageSummary: {
+      needsSchedule: items.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length,
+      needsVehicle: items.filter((item) => ['WAITING_CARRIER', 'WAITING_PLATE'].includes(item.operational.vehicleReadiness)).length,
+      waitingAccounting: items.filter((item) => (
+        item.accountingConfirmation.status === 'PENDING' || item.accountingConfirmation.status === 'STALE'
+      )).length,
+      readyToLock: items.filter((item) => item.action.kind === 'LOCK' && item.action.enabled).length,
+      needsAttention: items.filter((item) => item.finance.isLoss || item.finance.hasPendingRecovery).length,
+    },
+    items,
+  };
 }
 
 function renderPage(path = '/shipments') {
@@ -186,10 +214,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    apiPut.mockReset();
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
     ));
     apiPost.mockResolvedValue({ replayed: false });
+    apiPut.mockResolvedValue({ ...row, version: 4 });
   });
 
   it('renders one focused shipment workspace without unfinished navigation', async () => {
@@ -229,15 +259,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByRole('columnheader', { name: 'Lô hàng' })).toBeTruthy();
     expect(surface.getByRole('columnheader', { name: 'Khách hàng / tuyến' })).toBeTruthy();
     expect(surface.getByRole('columnheader', { name: 'Kế hoạch' })).toBeTruthy();
-    expect(surface.getByRole('columnheader', { name: 'Đối soát' })).toBeTruthy();
-    expect(surface.queryByRole('columnheader', { name: /Trạng thái/ })).toBeNull();
+    expect(surface.getByRole('columnheader', { name: 'Điều xe' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Trạng thái / ngoại lệ' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Đối soát / hành động' })).toBeTruthy();
     expect(surface.queryByText('Có hóa đơn')).toBeNull();
     expect(surface.queryByText('Tổng chi')).toBeNull();
     expect(surface.queryByText('12.000.000')).toBeNull();
-    expect(surface.getByLabelText('Thu có hóa đơn: 12.000.000 đồng')).toBeTruthy();
-    expect(surface.getByLabelText('Thu không hóa đơn: 1.500.000 đồng')).toBeTruthy();
-    expect(surface.getByLabelText('Tổng chi: 14.000.000 đồng')).toBeTruthy();
-    expect(screen.getByLabelText('Chú thích tài chính')).toBeTruthy();
+    expect(surface.getByLabelText('Lỗ 500.000 đồng')).toBeTruthy();
+    expect(surface.getByLabelText('Thông tin xe đã đủ')).toBeTruthy();
+    expect(screen.getByLabelText('Tình trạng các lô đang hiển thị')).toBeTruthy();
     expect(screen.getByLabelText('Chú thích trạng thái lô hàng')).toBeTruthy();
     expect(surface.getByText('Lỗ')).toBeTruthy();
     expect(surface.getByText('Chờ thu hồi')).toBeTruthy();
@@ -385,6 +415,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     const table = await screen.findByRole('table');
+    expect(screen.getByLabelText('Tình trạng các lô đang hiển thị').textContent).toContain('0 chờ Kế toán');
     expect(within(table).queryByText('Chưa đủ dữ liệu xác nhận')).toBeNull();
     fireEvent.click(masterRowDetailButton());
     const drawer = await screen.findByRole('dialog');
@@ -426,6 +457,31 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('region', { name: 'Cước đầu vào' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Phí chi hộ' })).toBeTruthy();
     expect(screen.getAllByText('Chưa thu hồi sửa chữa').length).toBeGreaterThan(0);
+  });
+
+  it('lets CUS chốt lịch from the drawer through the versioned shipment update', async () => {
+    const waitingRow = {
+      ...row,
+      transportDate: null,
+      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const },
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...detail, summary: waitingRow })
+        : Promise.resolve(listResponse([waitingRow]))
+    ));
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRowDetailButton());
+    const drawer = await screen.findByRole('dialog');
+    fireEvent.change(within(drawer).getByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-14' } });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Chốt lịch' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', {
+      expectedVersion: 3,
+      expectedDeliveryDate: '2026-08-14',
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('saves only the server-permitted container fields with optimistic versions', async () => {
@@ -588,9 +644,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*max-height:/);
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-y:\s*auto;/);
     expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-master-table__col-shipment\s*\{\s*width:\s*24%;\s*\}/);
-    expect(css).toMatch(/\.cus-master-table__col-finance\s*\{\s*width:\s*28%;\s*\}/);
-    expect(css).not.toMatch(/\.cus-master-table__col-status/);
+    expect(css).toMatch(/\.cus-master-table__col-shipment\s*\{\s*width:\s*17%;\s*\}/);
+    expect(css).toMatch(/\.cus-master-table__col-finance\s*\{\s*width:\s*16%;\s*\}/);
+    expect(css).toMatch(/\.cus-master-table__col-status/);
     expect(css).not.toMatch(/\.cus-master-table__col-action/);
     expect(css).toMatch(/\.cus-index-cell\s*\{[\s\S]*?display:\s*grid;/);
     expect(css).toMatch(/\.cus-index-cell > strong,[\s\S]*?font-family:\s*var\(--font-body\);/);
@@ -606,5 +662,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/);
     expect(css).toMatch(/\.cus-detail-facts\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button|cus-mobile-card__open/);
+  });
+
+  it('uses distinct semantic colors for running and locked shipments', () => {
+    expect(source).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
+    expect(source).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
+    expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
   });
 });

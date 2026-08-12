@@ -761,6 +761,11 @@ export async function updateTripFigures(
   }));
 
   const execute = async (tx: Tx) => {
+    // Financial mutations and governed cancellation must take the shared trip
+    // authority before either path locks the parent shipment. Reversing these
+    // two locks lets a direct edit hold the shipment while cancellation holds
+    // the advisory authority, producing a PostgreSQL deadlock.
+    await lockTripFinancialAuthority(tx, [tripId]);
     await assertTripShipmentAccountingUnlocked(tx, tripId);
     let governanceAuthorized = false;
     if (governanceActionId != null) {
@@ -777,13 +782,9 @@ export async function updateTripFigures(
       });
       governanceAuthorized = true;
     }
-    await lockTripFinancialAuthority(tx, [tripId]);
     // 1. Fetch trip and check lock status
-    // Use the same controlling-row-first lock order as lifecycle transitions.
-    // This prevents a completed-trip edit from holding a customer ledger lock
-    // while cancellation holds the trip row and waits for that same ledger
-    // lock. It also makes the status/version checks below observe the committed
-    // winner before any derived financial work starts.
+    // Both paths now observe the committed winner before derived financial
+    // work begins: trip authority -> parent shipment -> trip row.
     const [trip] = await tx.select().from(s.trips)
       .where(eq(s.trips.id, tripId))
       .limit(1)
