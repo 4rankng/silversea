@@ -133,7 +133,7 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 
 - **Route/viewport:** `/shipments`, Desktop + Mobile.
 - Tìm `FX-SHP-01`, thử tìm `FX-SHP-02`, cuộn hết danh sách.
-- **Pass:** chỉ lô trong scope; mã/khách hàng/booking/trạng thái rõ; mobile không thành bảng vượt ngang.
+- **Pass:** chỉ lô trong scope; Bill/Book, khách hàng và trạng thái rõ; mobile không thành bảng vượt ngang; không lộ mã lô nội bộ.
 
 ### VIS-CSF-102 — Tạo nhanh booking trên màn hình nhỏ `[MUTATION]` · P1
 
@@ -169,7 +169,7 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 
 ### VIS-CSF-108 — Row-scope lô hàng `[READ]` · P0
 
-- **Role:** `CUSTOMER`, `CLERK`; nhập ID `FX-SHP-02` ngoài scope vào URL.
+- **Role:** `CUSTOMER`, `CLERK`; nhập numeric shipment ID ngoài scope vào URL.
 - **Pass:** 404/403/redirect an toàn; không flash tên khách khác; Network không trả payload ngoài scope.
 
 ## 5. CUS kiểm tra chi hộ

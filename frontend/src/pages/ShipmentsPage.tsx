@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
-  ChevronRight,
   CircleDollarSign,
   FileLock2,
   Loader2,
@@ -118,7 +117,7 @@ function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): s
 
 function isInteractiveRowTarget(target: EventTarget | null): boolean {
   return target instanceof Element && Boolean(target.closest(
-    'a, button, input, select, textarea, label, [role="button"], [role="menuitem"], [role="menuitemcheckbox"]',
+    'a, button, input, select, textarea, label, summary, [contenteditable="true"], [role="button"], [role="link"], [role^="menuitem"], [role="option"], [data-row-interactive]',
   ));
 }
 
@@ -1020,7 +1019,7 @@ export default function ShipmentsPage() {
         ) : (
           <>
             <div className="cus-master-scroll" role="region" aria-label="Bảng tổng hợp lô hàng" tabIndex={0}>
-              <table className={`cus-master-table cus-master-table--${workspaceLayout}`}>
+              <table className={`cus-master-table cus-master-table--${workspaceLayout} cus-master-table--columns-${desktopColumnCount}${showContainerSchedule ? ' cus-master-table--has-container' : ''}${showRecords ? ' cus-master-table--has-records' : ''}`}>
                 <colgroup>
                   <col className="cus-master-table__col-documents" />
                   <col className="cus-master-table__col-customer-route" />
@@ -1049,26 +1048,28 @@ export default function ShipmentsPage() {
                       <tr
                         key={`master-${item.id}`}
                         className={`cus-master-row${isExpanded ? ' cus-master-row--expanded' : ''}${item.finance.isLoss ? ' cus-master-row--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-master-row--pending' : ''}`}
-                        tabIndex={0}
-                        aria-expanded={isExpanded}
-                        aria-controls={`cus-detail-${item.id}`}
-                        aria-label={`${isExpanded ? 'Thu gọn' : 'Mở'} chi tiết lô hàng của ${item.customerName || 'khách hàng'}`}
                         onClick={(event) => {
                           if (isInteractiveRowTarget(event.target)) return;
-                          event.currentTarget.focus({ preventScroll: true });
                           toggleExpanded(item.id);
-                        }}
-                        onKeyDown={(event) => {
-                          if (isInteractiveRowTarget(event.target)) return;
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            toggleExpanded(item.id);
-                          }
                         }}
                       >
                         <td>
                           <dl className="cus-cell-stack">
-                            <div><dt>Bill/Book</dt><dd>{item.billOrBookNumber || '—'}</dd></div>
+                            <div>
+                              <dt>Bill/Book</dt>
+                              <dd>
+                                <button
+                                  type="button"
+                                  className="cus-row-toggle"
+                                  aria-expanded={isExpanded}
+                                  aria-controls={`cus-detail-${item.id}`}
+                                  onClick={() => toggleExpanded(item.id)}
+                                >
+                                  {item.billOrBookNumber || '—'}
+                                  <span className="sr-only"> — {isExpanded ? 'Thu gọn' : 'Mở'} chi tiết lô hàng của {item.customerName || 'khách hàng'}</span>
+                                </button>
+                              </dd>
+                            </div>
                             <div><dt>Tờ khai</dt><dd>{item.declarationNumber || '—'}</dd></div>
                             <div><dt>Hãng tàu</dt><dd>{item.shippingLineName || '—'}</dd></div>
                           </dl>
@@ -1112,6 +1113,7 @@ export default function ShipmentsPage() {
                                 <dd>
                                   <select
                                     className="cus-custody-select"
+                                    data-row-interactive
                                     value={item.documentCustody.status ?? ''}
                                     disabled={isLocked || !item.documentCustody.available || !item.documentCustody.editable}
                                     aria-label={`Trạng thái phơi phiếu của ${item.customerName || 'lô hàng'}`}
@@ -1128,7 +1130,7 @@ export default function ShipmentsPage() {
                             </dl>
                           </td>
                         )}
-                        <td className="cus-master-table__action">
+                        <td className="cus-master-table__action" data-row-interactive>
                           <div className="cus-row-action">
                             {item.action.kind === 'CONFIRM_FINANCE' ? (
                               <button type="button" className="btn btn--primary btn--sm" disabled={!item.action.enabled} onClick={() => openAction(item, 'confirm')}>
@@ -1175,9 +1177,29 @@ export default function ShipmentsPage() {
 
             <div className="cus-mobile-list" aria-label="Danh sách lô hàng trên thiết bị di động">
               {items.map((item) => (
-                <article key={item.id} className={`cus-mobile-card${item.finance.isLoss ? ' cus-mobile-card--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-mobile-card--pending' : ''}`}>
+                <article
+                  key={item.id}
+                  className={`cus-mobile-card cus-mobile-card--interactive${item.finance.isLoss ? ' cus-mobile-card--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-mobile-card--pending' : ''}`}
+                  onClick={(event) => {
+                    if (isInteractiveRowTarget(event.target)) return;
+                    openMobileDetail(item.id);
+                  }}
+                >
                   <header>
-                    <div><h3>{item.customerName || 'Chưa có khách hàng'}</h3><p>{item.billOrBookNumber || item.declarationNumber || 'Chưa có Bill/Tờ khai'}</p></div>
+                    <div>
+                      <h3>{item.customerName || 'Chưa có khách hàng'}</h3>
+                      <button
+                        type="button"
+                        className="cus-mobile-card__reference"
+                        aria-haspopup="dialog"
+                        aria-controls={`cus-detail-drawer-${item.id}`}
+                        aria-label={`Mở chi tiết lô hàng của ${item.customerName || 'khách hàng'}`}
+                        onClick={() => openMobileDetail(item.id)}
+                      >
+                        {item.billOrBookNumber || item.declarationNumber || 'Chưa có Bill/Tờ khai'}
+                        <span className="sr-only"> — Mở chi tiết lô hàng</span>
+                      </button>
+                    </div>
                     <span className={`cus-bucket cus-bucket--${item.bucket.toLowerCase()}`}>{item.bucketLabel}</span>
                   </header>
                   <ShipmentSignals item={item} />
@@ -1190,9 +1212,6 @@ export default function ShipmentsPage() {
                     <div><dt>Tổng chi</dt><dd>{item.finance.totalCostAvailable ? formatMoney(item.finance.totalCost) : 'Chưa có dữ liệu'}</dd></div>
                     <div><dt>Kế toán</dt><dd>{accountingConfirmationLabel(item.accountingConfirmation)}</dd></div>
                   </dl>
-                  <button type="button" className="btn btn--secondary cus-mobile-card__open" onClick={() => openMobileDetail(item.id)}>
-                    Xem chi tiết <ChevronRight size={17} aria-hidden="true" />
-                  </button>
                 </article>
               ))}
             </div>
@@ -1217,50 +1236,52 @@ export default function ShipmentsPage() {
         subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
         className="cus-mobile-drawer"
       >
-        {drawerId != null && detailLoadingId === drawerId && !details[drawerId] ? (
-          <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải chi tiết container…</div>
-        ) : drawerId != null && detailErrors[drawerId] ? (
-          <div className="cus-inline-error" role="alert"><span>{detailErrors[drawerId]}</span><button type="button" onClick={() => void loadDetail(drawerId, true)}>Thử lại</button></div>
-        ) : drawerId != null && details[drawerId] ? (
-          <ContainerLedger
-            detail={details[drawerId]}
-            onLineSaved={(line) => applySavedContainerLine(drawerId, line)}
-            getIdempotencyKey={getIdempotencyKey}
-            clearIdempotencyKey={clearIdempotencyKey}
-          />
-        ) : null}
+        <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
+          {drawerId != null && detailLoadingId === drawerId && !details[drawerId] ? (
+            <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải chi tiết container…</div>
+          ) : drawerId != null && detailErrors[drawerId] ? (
+            <div className="cus-inline-error" role="alert"><span>{detailErrors[drawerId]}</span><button type="button" onClick={() => void loadDetail(drawerId, true)}>Thử lại</button></div>
+          ) : drawerId != null && details[drawerId] ? (
+            <ContainerLedger
+              detail={details[drawerId]}
+              onLineSaved={(line) => applySavedContainerLine(drawerId, line)}
+              getIdempotencyKey={getIdempotencyKey}
+              clearIdempotencyKey={clearIdempotencyKey}
+            />
+          ) : null}
 
-        {drawerItem && (
-          <div className="cus-drawer-actions">
-            <label className="cus-drawer-custody">
-              <span>Phơi phiếu</span>
-              <select
-                className="cus-custody-select"
-                value={drawerItem.documentCustody.status ?? ''}
-                disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
-                aria-label={`Trạng thái phơi phiếu của ${drawerItem.customerName || 'lô hàng'}`}
-                onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
-              >
-                <option value="" disabled>Chưa xác định</option>
-                {Object.values(ShipmentDocumentCustody).map((status) => (
-                  <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>
-                ))}
-              </select>
-            </label>
-            {drawerItem.action.kind === 'CONFIRM_FINANCE' && (
-              <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'confirm')}>Xác nhận chi phí</button>
-            )}
-            {drawerItem.action.kind === 'LOCK' && (
-              <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'lock')}>Khóa lô</button>
-            )}
-            {drawerItem.action.kind === 'REQUEST_REOPEN' && (
-              <button type="button" className="btn btn--secondary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'reopen')}>Đề nghị điều chỉnh</button>
-            )}
-            {drawerItem.action.kind !== 'NONE' && !drawerItem.action.enabled && drawerItem.action.disabledReason && (
-              <span className="cus-action-unavailable">{drawerItem.action.disabledReason}</span>
-            )}
-          </div>
-        )}
+          {drawerItem && (
+            <div className="cus-drawer-actions">
+              <label className="cus-drawer-custody">
+                <span>Phơi phiếu</span>
+                <select
+                  className="cus-custody-select"
+                  value={drawerItem.documentCustody.status ?? ''}
+                  disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
+                  aria-label={`Trạng thái phơi phiếu của ${drawerItem.customerName || 'lô hàng'}`}
+                  onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
+                >
+                  <option value="" disabled>Chưa xác định</option>
+                  {Object.values(ShipmentDocumentCustody).map((status) => (
+                    <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>
+                  ))}
+                </select>
+              </label>
+              {drawerItem.action.kind === 'CONFIRM_FINANCE' && (
+                <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'confirm')}>Xác nhận chi phí</button>
+              )}
+              {drawerItem.action.kind === 'LOCK' && (
+                <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'lock')}>Khóa lô</button>
+              )}
+              {drawerItem.action.kind === 'REQUEST_REOPEN' && (
+                <button type="button" className="btn btn--secondary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'reopen')}>Đề nghị điều chỉnh</button>
+              )}
+              {drawerItem.action.kind !== 'NONE' && !drawerItem.action.enabled && drawerItem.action.disabledReason && (
+                <span className="cus-action-unavailable">{drawerItem.action.disabledReason}</span>
+              )}
+            </div>
+          )}
+        </div>
       </Drawer>
 
       <Modal

@@ -81,7 +81,6 @@ function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentD
   return {
     shipment: {
       id: shipment.id,
-      shipmentCode: shipment.shipmentCode,
       status: shipment.status,
       bookingRef: shipment.bookingRef,
       blNumber: shipment.blNumber,
@@ -209,7 +208,6 @@ router.get('/shipments', asyncHandler(async (req: Request, res: Response) => {
     ...result,
     items: result.items.map((shipment) => ({
       id: shipment.id,
-      shipmentCode: shipment.shipmentCode,
       status: shipment.status,
       bookingRef: shipment.bookingRef,
       blNumber: shipment.blNumber,

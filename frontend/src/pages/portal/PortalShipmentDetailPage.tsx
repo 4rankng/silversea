@@ -4,16 +4,58 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
 import { customerServiceFinanceClient, type CustomerVisibleEvent } from '../../api/customerServiceFinanceClient';
-import { SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS } from '@tingting/shared';
+import {
+  SHIPMENT_STATUS_LABELS,
+  SHIPMENT_DOCUMENT_TYPE_LABELS,
+  ShipmentDocumentType,
+  ShipmentStatus,
+} from '@tingting/shared';
 import { EmptyState } from '../../design-system';
 import { routes } from '../../lib/routes';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
+interface PortalShipmentDetail {
+  shipment: {
+    id: number;
+    status: ShipmentStatus;
+    bookingRef: string | null;
+    blNumber: string | null;
+    expectedDeliveryDate: string | null;
+    pickupLocation: string | null;
+    deliveryLocation: string | null;
+  };
+  containers: Array<{
+    id: number;
+    containerNumber: string | null;
+    sealNumber: string | null;
+    cargoWeightKg: string | number | null;
+  }>;
+  documents: Array<{
+    id: number;
+    type: ShipmentDocumentType;
+    expiresAt: string | null;
+    createdAt: string;
+  }>;
+  declarations: Array<{
+    id: number;
+    declarationNumber: string | null;
+    issuedAt: string | null;
+    scope: string;
+    createdAt: string;
+  }>;
+  statusHistory: Array<{
+    id: number;
+    fromStatus: ShipmentStatus | null;
+    toStatus: ShipmentStatus;
+    changedAt: string;
+  }>;
+}
+
 export default function PortalShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<PortalShipmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [eventError, setEventError] = useState<string | null>(null);
@@ -30,7 +72,7 @@ export default function PortalShipmentDetailPage() {
     setEventError(null);
     setEvents([]);
     setAcknowledgedIds(new Set());
-    api.get<any>(withCustomerScope(`/portal/shipments/${id}`, selectedCustomerId))
+    api.get<PortalShipmentDetail>(withCustomerScope(`/portal/shipments/${id}`, selectedCustomerId))
       .then((response) => {
         if (active) setData(response);
       })
@@ -63,6 +105,12 @@ export default function PortalShipmentDetailPage() {
 
   const { shipment, containers, documents, declarations, statusHistory } = data;
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
+  const bookingNumber = shipment.bookingRef?.trim() || null;
+  const billNumber = shipment.blNumber?.trim() || null;
+  const customerShipmentReference = billNumber
+    || bookingNumber
+    || declarations.find((declaration) => declaration.declarationNumber?.trim())?.declarationNumber?.trim()
+    || 'Chưa có số Bill/Book';
   const acknowledge = async () => {
     if (!selectedEvent) return;
     setAcknowledging(true);
@@ -80,7 +128,7 @@ export default function PortalShipmentDetailPage() {
       <Link to={withCustomerScope(routes.portalShipments, selectedCustomerId)} className="portal-back"><ArrowLeft size={16} /> Danh sách lô hàng</Link>
       <header className="portal-page__header">
         <span className="portal-page__eyebrow">Chi tiết lô hàng</span>
-        <h1>{shipment.shipmentCode?.trim() || 'Chưa có mã lô hàng'}</h1>
+        <h1>{customerShipmentReference}</h1>
         <p>Trạng thái hiện tại: <span className="portal-status">{SHIPMENT_STATUS_LABELS[shipment.status as keyof typeof SHIPMENT_STATUS_LABELS]}</span></p>
       </header>
 
@@ -88,8 +136,8 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Thông tin chung</h2>
           <dl className="portal-detail-grid">
-            <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
-            <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
+            <div><dt>Mã đặt chỗ</dt><dd>{bookingNumber ?? '—'}</dd></div>
+            <div><dt>Số B/L</dt><dd>{billNumber ?? '—'}</dd></div>
             <div><dt>Giao dự kiến</dt><dd>{fmt(shipment.expectedDeliveryDate)}</dd></div>
             <div><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
@@ -112,7 +160,7 @@ export default function PortalShipmentDetailPage() {
           <div className="portal-table-wrap"><table className="portal-table">
             <thead><tr><th>Số container</th><th>Seal</th><th>Trọng lượng (kg)</th></tr></thead>
             <tbody>
-              {containers.map((c: any) => (
+              {containers.map((c) => (
                 <tr key={c.id}><td>{c.containerNumber ?? '—'}</td><td>{c.sealNumber ?? '—'}</td><td>{c.cargoWeightKg ?? '—'}</td></tr>
               ))}
             </tbody>
@@ -124,7 +172,7 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Chứng từ ({documents.length})</h2>
           <div className="portal-list">
-            {documents.map((doc: any) => (
+            {documents.map((doc) => (
               <div key={doc.id} className="portal-list__row">
                 <div className="portal-list__primary">
                   <strong>
@@ -144,7 +192,7 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Tờ khai ({declarations.length})</h2>
           <div className="portal-list">
-            {declarations.map((declaration: any) => (
+            {declarations.map((declaration) => (
               <div key={declaration.id} className="portal-list__row">
                 <div className="portal-list__primary">
                   <strong>{declaration.declarationNumber?.trim() || 'Chưa có số tờ khai'}</strong>
@@ -159,11 +207,10 @@ export default function PortalShipmentDetailPage() {
       {statusHistory?.length > 0 && (
         <section className="portal-section">
           <h2>Lịch sử trạng thái</h2>
-          {statusHistory.map((h: any, i: number) => (
-            <div key={h.id || i} className="portal-list__meta" style={{ padding: '7px 0' }}>
+          {statusHistory.map((h) => (
+            <div key={h.id} className="portal-list__meta" style={{ padding: '7px 0' }}>
               <span style={{ fontWeight: 600 }}>{SHIPMENT_STATUS_LABELS[h.toStatus as keyof typeof SHIPMENT_STATUS_LABELS] ?? h.toStatus}</span>
               <span>{new Date(h.changedAt).toLocaleString('vi-VN')}</span>
-              {h.reason && <span>{h.reason}</span>}
             </div>
           ))}
         </section>

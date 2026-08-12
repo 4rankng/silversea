@@ -62,7 +62,6 @@ export interface CustomerVisibleEvent {
   title: string;
   message: string;
   occurredAt: string;
-  shipmentCode?: string;
   acknowledged: boolean;
   acknowledgedAt: string | null;
 }

@@ -1594,7 +1594,7 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     mobile_page.goto(f"{BASE_URL}/shipments?searchSuffix={search_suffix}")
     mobile_page.wait_for_load_state("networkidle")
     mobile_card = mobile_page.locator("article.cus-mobile-card").filter(has_text=bl_number)
-    mobile_card.get_by_role("button", name="Xem chi tiết").click()
+    mobile_card.locator("button.cus-mobile-card__reference").click()
     mobile_page.locator('[role="dialog"]').first.wait_for(timeout=10_000)
     reopen_trigger = mobile_page.get_by_role("button", name="Đề nghị điều chỉnh")
     reopen_trigger.click()

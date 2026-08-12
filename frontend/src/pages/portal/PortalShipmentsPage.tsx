@@ -10,11 +10,19 @@ import './PortalPages.css';
 
 interface ShipmentRow {
   id: number;
-  shipmentCode: string | null;
   status: ShipmentStatus;
   bookingRef: string | null;
   blNumber: string | null;
   expectedDeliveryDate: string | null;
+}
+
+function customerShipmentReference(shipment: Pick<ShipmentRow, 'blNumber' | 'bookingRef'>) {
+  const billNumber = shipment.blNumber?.trim() || null;
+  const bookingNumber = shipment.bookingRef?.trim() || null;
+  return {
+    primary: billNumber || bookingNumber || 'Chưa có số Bill/Book',
+    bookingNumber: billNumber ? bookingNumber : null,
+  };
 }
 
 function shipmentStatusClass(status: ShipmentStatus) {
@@ -102,29 +110,31 @@ export default function PortalShipmentsPage() {
             <strong>{total.toLocaleString('vi-VN')} lô hàng</strong>
           </div>
           <div className="portal-list">
-            {items.map((s) => (
-              <ClickableCard
-                key={s.id}
-                to={withCustomerScope(routes.portalShipmentDetail(s.id), selectedCustomerId)}
-                className={`portal-list__row portal-shipment-row portal-shipment-row--${s.status.toLowerCase()}`}
-              >
-                <div className="portal-list__primary">
-                  <strong>{s.shipmentCode?.trim() || 'Chưa có mã lô hàng'}</strong>
-                  <div className="portal-list__meta">
-                    {s.bookingRef && <span>Booking: {s.bookingRef}</span>}
-                    {s.blNumber && <span>B/L: {s.blNumber}</span>}
+            {items.map((s) => {
+              const reference = customerShipmentReference(s);
+              return (
+                <ClickableCard
+                  key={s.id}
+                  to={withCustomerScope(routes.portalShipmentDetail(s.id), selectedCustomerId)}
+                  className={`portal-list__row portal-shipment-row portal-shipment-row--${s.status.toLowerCase()}`}
+                >
+                  <div className="portal-list__primary">
+                    <strong>{reference.primary}</strong>
+                    <div className="portal-list__meta">
+                      {reference.bookingNumber && <span>Booking: {reference.bookingNumber}</span>}
+                    </div>
                   </div>
-                </div>
-                <div className="portal-list__datum">
-                  <span><CalendarClock size={15} aria-hidden="true" /> Giao dự kiến</span>
-                  <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
-                </div>
-                <div className="portal-list__aside">
-                  <span className={shipmentStatusClass(s.status)}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
-                  <ChevronRight size={18} aria-hidden="true" />
-                </div>
-              </ClickableCard>
-            ))}
+                  <div className="portal-list__datum">
+                    <span><CalendarClock size={15} aria-hidden="true" /> Giao dự kiến</span>
+                    <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
+                  </div>
+                  <div className="portal-list__aside">
+                    <span className={shipmentStatusClass(s.status)}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
+                    <ChevronRight size={18} aria-hidden="true" />
+                  </div>
+                </ClickableCard>
+              );
+            })}
           </div>
           <div className="portal-pagination">
             <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={10} onChange={setPage} />

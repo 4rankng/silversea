@@ -176,6 +176,12 @@ function masterRow(): HTMLTableRowElement {
   return element;
 }
 
+function masterRowToggle(): HTMLButtonElement {
+  const element = document.querySelector('button.cus-row-toggle');
+  if (!(element instanceof HTMLButtonElement)) throw new Error('shipment row toggle not rendered');
+  return element;
+}
+
 describe('ShipmentsPage — CUS closeout workspace', () => {
   beforeEach(() => {
     apiGet.mockReset();
@@ -233,6 +239,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByText('Còn tiền treo')).toBeTruthy();
     expect(surface.getByText(/Đã xác nhận:/)).toBeTruthy();
     expect((surface.getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(surface.getByLabelText('Trạng thái phơi phiếu của Công ty Silver Sea'));
+    expect(masterRowToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     const mobileList = document.querySelector('.cus-mobile-list');
     expect(mobileList).not.toBeNull();
@@ -289,9 +298,33 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở chi tiết lô hàng của Công ty Silver Sea' }));
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByRole('combobox', { name: /Trạng thái phơi phiếu/ })).toBeTruthy();
+
+    window.ResizeObserver = originalResizeObserver;
+  });
+
+  it('opens the mobile card by clicking the card itself instead of a separate CTA', async () => {
+    class CardLayoutObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe() {
+        this.callback([{ contentRect: { width: 759 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    const originalResizeObserver = window.ResizeObserver;
+    window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
+
+    renderPage();
+    const referenceButton = await screen.findByRole('button', { name: 'Mở chi tiết lô hàng của Công ty Silver Sea' });
+    const card = referenceButton.closest('article');
+    expect(card).not.toBeNull();
+    fireEvent.click(card as HTMLElement);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết' })).toBeNull();
+    expect(card?.getAttribute('role')).toBeNull();
 
     window.ResizeObserver = originalResizeObserver;
   });
@@ -342,20 +375,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     const rowElement = masterRow();
-    expect(rowElement.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(rowElement);
+    const rowToggle = masterRowToggle();
+    expect(rowToggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(within(rowElement).getByText('Nhà máy Hải Phòng'));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
-    expect(rowElement.getAttribute('aria-expanded')).toBe('true');
+    expect(rowToggle.getAttribute('aria-expanded')).toBe('true');
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Cước đầu ra' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Cước đầu vào' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Phí chi hộ' })).toBeTruthy();
     expect(screen.getAllByText('Chưa thu hồi sửa chữa').length).toBeGreaterThan(0);
 
-    fireEvent.keyDown(rowElement, { key: 'Enter' });
-    expect(rowElement.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.keyDown(rowElement, { key: ' ' });
-    expect(rowElement.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(rowToggle);
+    expect(rowToggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(rowToggle);
+    expect(rowToggle.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('saves only the server-permitted container fields with optimistic versions', async () => {
@@ -461,7 +495,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     const table = await screen.findByRole('table');
     fireEvent.click(within(table).getByRole('button', { name: 'Khóa lô' }));
-    expect(masterRow().getAttribute('aria-expanded')).toBe('false');
+    expect(masterRowToggle().getAttribute('aria-expanded')).toBe('false');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     const dialog = await screen.findByRole('dialog');
@@ -521,9 +555,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-master-table\s*\{[\s\S]*?min-width:\s*2300px;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-master-scroll\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-list\s*\{[\s\S]*?display:\s*grid;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-card--interactive\s*\{\s*cursor:\s*pointer;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-card__reference:focus-visible\s*\{/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-toolbar\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/padding:\s*16px 0 max\(16px, env\(safe-area-inset-bottom\)\)/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/);
-    expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button/);
+    expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button|cus-mobile-card__open/);
   });
 });

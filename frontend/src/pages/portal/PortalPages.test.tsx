@@ -67,10 +67,34 @@ describe('customer portal pages', () => {
     );
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&limit=10'));
-    expect(screen.getByText('SHP-2607-00042')).toBeTruthy();
+    expect(screen.getByText('BL-42')).toBeTruthy();
+    expect(screen.queryByText('SHP-2607-00042')).toBeNull();
     expect(screen.getByText('Giao dự kiến')).toBeTruthy();
     expect(screen.getByText('31/7/2026')).toBeTruthy();
     expect(screen.getByLabelText('Tổng số lô hàng').textContent).toContain('1');
+  });
+
+  it('uses a normalized booking once when a customer shipment has no Bill number', async () => {
+    apiGet.mockResolvedValue({
+      items: [
+        {
+          id: 43,
+          shipmentCode: 'SHP-2607-00043',
+          status: ShipmentStatus.DISPATCHED,
+          bookingRef: '  BK-43  ',
+          blNumber: '   ',
+          expectedDeliveryDate: null,
+        },
+      ],
+      total: 1,
+    });
+
+    render(<MemoryRouter><PortalShipmentsPage /></MemoryRouter>);
+
+    expect(await screen.findByText('BK-43')).toBeTruthy();
+    expect(screen.getAllByText('BK-43')).toHaveLength(1);
+    expect(screen.queryByText(/Booking:/)).toBeNull();
+    expect(screen.queryByText('SHP-2607-00043')).toBeNull();
   });
 
   it('keeps a multi-customer portal list separated by the selected legal entity', async () => {
@@ -127,7 +151,8 @@ describe('customer portal pages', () => {
     );
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/shipments/42'));
-    expect(screen.getByText('SHP-2607-00042')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'BL-42' })).toBeTruthy();
+    expect(screen.queryByText('SHP-2607-00042')).toBeNull();
   });
 
   it('keeps shipment detail usable when customer-event loading fails', async () => {
@@ -156,7 +181,8 @@ describe('customer portal pages', () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByText('SHP-2607-00042')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'BL-42' })).toBeTruthy();
+    expect(screen.queryByText('SHP-2607-00042')).toBeNull();
     expect(screen.getByText('BK-42')).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toContain('Tạm thời chưa tải được');
   });
@@ -204,6 +230,36 @@ describe('customer portal pages', () => {
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledWith('/portal/shipments/42?customerId=9');
     });
+  });
+
+  it('uses a declaration instead of an internal shipment code when Bill/Book is unavailable', async () => {
+    apiGet.mockImplementation(async (path: string) => path.includes('/customer-events') ? { items: [] } : ({
+      shipment: {
+        id: 42,
+        shipmentCode: 'SHP-2607-00042',
+        status: ShipmentStatus.DISPATCHED,
+        bookingRef: '   ',
+        blNumber: '\t',
+        expectedDeliveryDate: null,
+        pickupLocation: null,
+        deliveryLocation: null,
+      },
+      containers: [],
+      documents: [],
+      declarations: [{ id: 8, declarationNumber: '  TK-778899  ', issuedAt: null, scope: 'SHIPMENT', createdAt: '2026-08-12T00:00:00.000Z' }],
+      statusHistory: [],
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/portal/shipments/42']}>
+        <Routes>
+          <Route path="/portal/shipments/:id" element={<PortalShipmentDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'TK-778899' })).toBeTruthy();
+    expect(screen.queryByText('SHP-2607-00042')).toBeNull();
   });
 
   it('PortalDebitNotesPage calls the row-scoped portal debit-note endpoint', async () => {

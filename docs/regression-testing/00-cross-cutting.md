@@ -127,11 +127,11 @@ Các tiêu chí này giống nhau về mặt ý nghĩa; tệp này viết ca ki�
 - **Tiếu chí (HT-09):** Kết quả tìm kiếm đúng phạm vi quyền; tệp xuất mở được, đủ cột, đúng tổng và không
   vỡ bố cục.
 - **Các bước:**
-  1. Đăng nhập `customer`. Mở `/portal/shipments`. Tìm theo mã lô của khách khác (lấy mã từ DB).
+  1. Đăng nhập `customer`. Mở `/portal/shipments`. Đối chiếu theo Bill/Book và thử truy cập lô của khách khác bằng URL đã cấp an toàn.
   2. Đăng nhập `admin`. Mở `/trips`. Tìm theo biển số xe. Xuất Excel.
   3. Mở Excel, kiểm tra số cột, tổng số chuyến, tổng doanh thu.
 - **Kết quả mong đợi (Pass):**
-  - Customer không tìm thấy lô của khách khác.
+  - Customer không tìm thấy lô của khách khác; danh sách/chi tiết dùng Bill/Book và không hiển thị mã nội bộ `SHP-*`.
   - Excel mở được, có đủ cột (không cắt cột), tổng = tổng màn hình, layout không vỡ.
 - **Bằng chứng:** ảnh kết quả tìm kiếm + ảnh Excel.
 

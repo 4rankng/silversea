@@ -324,7 +324,7 @@ def main() -> bool:
 
                 if width == 1440:
                     master_row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    expand_button = master_row.locator("button.cus-expand-button")
+                    expand_button = master_row.locator("button.cus-row-toggle")
                     expand_button.focus()
                     page.keyboard.press("Enter")
                     page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
@@ -339,7 +339,7 @@ def main() -> bool:
 
                 if width == 390:
                     mobile_card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    drawer_opener = mobile_card.get_by_role("button", name="Xem chi tiết")
+                    drawer_opener = mobile_card.locator("button.cus-mobile-card__reference")
                     drawer_opener.focus()
                     drawer_opener.click()
                     dialog = page.get_by_role("dialog")
@@ -356,7 +356,7 @@ def main() -> bool:
                         "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                         timeout=2_000,
                     )
-                    focus_restored = page.evaluate("document.activeElement?.textContent?.includes('Xem chi tiết') === true")
+                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-mobile-card__reference') === true")
                     check(
                         results,
                         "TC-1813",

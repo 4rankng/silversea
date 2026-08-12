@@ -369,7 +369,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 workspace_layout = page.locator(".cus-workspace").get_attribute("data-layout")
                 if workspace_layout == "cards":
                     card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                    card.get_by_role("button", name="Xem chi tiết").click()
+                    card.locator("button.cus-mobile-card__reference").click()
                     dialog = page.get_by_role("dialog")
                     dialog.wait_for(timeout=10_000)
                     button = dialog.get_by_role("button", name=expectation["ui_button"]).first
@@ -407,7 +407,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
 
 def open_mobile_drawer(page: Page):
     card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-    opener = card.get_by_role("button", name="Xem chi tiết")
+    opener = card.locator("button.cus-mobile-card__reference")
     opener.wait_for(state="visible", timeout=10_000)
     opener.focus()
     opener.click()
@@ -417,10 +417,10 @@ def open_mobile_drawer(page: Page):
     return opener, dialog
 
 
-def active_text_contains(page: Page, fragment: str) -> bool:
+def active_has_class(page: Page, class_name: str) -> bool:
     return page.evaluate(
-        "(fragment) => document.activeElement?.textContent?.includes(fragment) === true",
-        fragment,
+        "(className) => document.activeElement?.classList.contains(className) === true",
+        class_name,
     )
 
 
@@ -451,7 +451,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
 
             if width == 1440:
                 row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                expand_button = row.locator("button.cus-expand-button")
+                expand_button = row.locator("button.cus-row-toggle")
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
@@ -502,7 +502,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                close_button_restored = active_text_contains(page, "Xem chi tiết")
+                close_button_restored = active_has_class(page, "cus-mobile-card__reference")
 
                 backdrop_restored = True
                 if width > 320:
@@ -512,7 +512,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                         "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                         timeout=2_500,
                     )
-                    backdrop_restored = active_text_contains(page, "Xem chi tiết")
+                    backdrop_restored = active_has_class(page, "cus-mobile-card__reference")
 
                 opener, _ = open_mobile_drawer(page)
                 page.keyboard.press("Escape")
@@ -520,7 +520,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                escape_restored = active_text_contains(page, "Xem chi tiết")
+                escape_restored = active_has_class(page, "cus-mobile-card__reference")
 
                 reduced_motion_ok = True
                 if reduced_motion:

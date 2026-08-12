@@ -233,6 +233,9 @@ before(async () => {
   multiPendingId = (await createDocument(multiCustomer.id, 'PENDING_CONFIRM')).id;
   multiShipmentId = (await createShipment({ customerId: multiCustomer.id, cargoMode: 'LCL' })).id;
   shipmentIds.push(multiShipmentId);
+  await db.update(s.shipments)
+    .set({ blNumber: `BL-PORTAL-${suffix}`.slice(0, 100), bookingRef: `BOOK-PORTAL-${suffix}`.slice(0, 100) })
+    .where(eq(s.shipments.id, multiShipmentId));
 
   const [route] = await db.insert(s.routes).values({
     name: `Portal pod route ${suffix}`,
@@ -390,9 +393,17 @@ describe('CUSTOMER portal HTTP security contract', () => {
   test('selected customerId scopes list and statement routes to that customer only', async () => {
     const shipments = await request(`/shipments?customerId=${multiCustomerId}`, { token: multiCustomerToken });
     assert.equal(shipments.status, 200);
-    const shipmentBody = shipments.body as { items: Array<{ id: number }>; total: number };
+    const shipmentBody = shipments.body as { items: Array<Record<string, unknown> & { id: number }>; total: number };
     assert.equal(shipmentBody.total, 1);
     assert.equal(shipmentBody.items[0].id, multiShipmentId);
+    assert.equal(shipmentBody.items[0].blNumber, `BL-PORTAL-${suffix}`.slice(0, 100));
+    assert.ok(!('shipmentCode' in shipmentBody.items[0]), 'customer list must not expose the internal shipment code');
+
+    const shipmentDetail = await request(`/shipments/${multiShipmentId}?customerId=${multiCustomerId}`, { token: multiCustomerToken });
+    assert.equal(shipmentDetail.status, 200);
+    const shipmentDetailBody = shipmentDetail.body as { shipment: Record<string, unknown> };
+    assert.equal(shipmentDetailBody.shipment.blNumber, `BL-PORTAL-${suffix}`.slice(0, 100));
+    assert.ok(!('shipmentCode' in shipmentDetailBody.shipment), 'customer detail must not expose the internal shipment code');
 
     const debitNotes = await request(`/debit-notes?customerId=${multiCustomerId}`, { token: multiCustomerToken });
     assert.equal(debitNotes.status, 200);

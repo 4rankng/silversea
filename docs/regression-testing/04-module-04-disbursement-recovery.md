@@ -229,7 +229,7 @@ Nhập sai lô → **chuyển có kiểm soát kèm lịch sử** (không xóa i
 - **Vai trò thử:** `laixe`, `customer`, `clerk`
 - **Các bước:**
   1. `laixe` mở `/shipments/SHP-001` → kiểm tra thấy bảng tổng hợp chi phí không.
-  2. `customer` (chủ lô SHP-001) mở `/portal/shipments/SHP-001` → kiểm tra thấy tổng chi phí đã duyệt.
+  2. `customer` mở lô tương ứng từ Bill/Book trên `/portal/shipments` → kiểm tra thấy tổng chi phí đã duyệt; URL dùng id kỹ thuật nhưng UI không hiển thị mã nội bộ `SHP-*`.
   3. `clerk` mở `/shipments/SHP-001` → thử sửa một dòng chi phí.
 - **Kết quả mong đợi (Pass):**
   - `laixe`: không thấy bảng chi phí (hoặc không vào được trang).

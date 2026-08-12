@@ -459,7 +459,12 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     if customer_list.get("status") == 200 and isinstance(customer_items, list):
         if customer_items:
             first_customer_item = customer_items[0]
-            if not (isinstance(first_customer_item.get("id"), int) and isinstance(first_customer_item.get("shipmentCode"), (str, type(None))) and isinstance(first_customer_item.get("status"), str)):
+            if not (
+                isinstance(first_customer_item.get("id"), int)
+                and isinstance(first_customer_item.get("status"), str)
+                and "shipmentCode" not in first_customer_item
+                and isinstance(first_customer_item.get("blNumber"), (str, type(None)))
+            ):
                 results.fail("TC-1607", "Customer portal shipment contract", str(first_customer_item))
             else:
                 results.pass_("TC-1607", "Customer portal shipment contract", f"items={len(customer_items)}")

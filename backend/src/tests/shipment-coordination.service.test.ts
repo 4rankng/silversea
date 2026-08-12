@@ -52,6 +52,7 @@ describe('customer-visible shipment coordination', () => {
       });
       assert.equal(before[0]?.acknowledged, false);
       assert.equal(before[0]?.acknowledgedAt, null);
+      assert.ok(!('shipmentCode' in (before[0] ?? {})), 'customer-visible event DTO must omit internal shipment codes');
 
       await acknowledgeCustomerVisibleEvent({
         shipmentId: shipment!.id,

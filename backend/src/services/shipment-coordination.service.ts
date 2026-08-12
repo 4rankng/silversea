@@ -143,7 +143,6 @@ function toCustomerEventDto(
     occurredAt: snapshot.occurredAt,
     acknowledged: Boolean(acknowledgement),
     acknowledgedAt: acknowledgement?.acknowledgedAt.toISOString() ?? null,
-    ...(snapshot.shipmentCode ? { shipmentCode: snapshot.shipmentCode } : {}),
   };
 }
 
