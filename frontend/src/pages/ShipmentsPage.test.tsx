@@ -553,6 +553,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*max-height:/);
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-y:\s*auto;/);
     expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-master-table__col-documents\s*\{\s*width:\s*10%;\s*\}/);
+    expect(css).toMatch(/\.cus-master-table__col-action\s*\{\s*width:\s*10%;\s*\}/);
     expect(css).toMatch(/\.cus-cell-stack\s*\{[\s\S]*?display:\s*grid;/);
     expect(css).toMatch(/\.cus-cell-stack dt\s*\{[\s\S]*?font-size:\s*11px;/);
     expect(css).toMatch(/\.cus-cell-stack dd\s*\{[\s\S]*?font-size:\s*var\(--fs-sm\);/);

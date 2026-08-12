@@ -230,13 +230,13 @@
   font-size: 12px;
 }
 
-.cus-master-table__col-documents { width: 11%; }
-.cus-master-table__col-customer-route { width: 22%; }
+.cus-master-table__col-documents { width: 10%; }
+.cus-master-table__col-customer-route { width: 21%; }
 .cus-master-table__col-container-schedule { width: 14%; }
-.cus-master-table__col-status { width: 14%; }
+.cus-master-table__col-status { width: 13%; }
 .cus-master-table__col-finance { width: 19%; }
 .cus-master-table__col-records { width: 13%; }
-.cus-master-table__col-action { width: 7%; }
+.cus-master-table__col-action { width: 10%; }
 
 .cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-documents { width: 12%; }
 .cus-master-table--columns-6.cus-master-table--has-container .cus-master-table__col-customer-route { width: 25%; }
