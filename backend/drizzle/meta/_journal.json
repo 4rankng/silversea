@@ -36,6 +36,20 @@
       "when": 1786473680530,
       "tag": "0004_tranquil_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786630700296,
+      "tag": "0005_cus_container_customer_appointment",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786630704971,
+      "tag": "0006_backfill_cus_container_customer_appointment",
+      "breakpoints": true
     }
   ]
 }

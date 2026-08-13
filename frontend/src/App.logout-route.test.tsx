@@ -27,8 +27,8 @@ vi.mock('./pages/AccountingWorkspacePage', () => ({
   default: () => <div>Không gian kế toán</div>,
 }));
 
-vi.mock('./components/Layout', () => ({
-  default: ({ children }: { children: ReactNode }) => {
+vi.mock('./components/Layout', () => {
+  const MockLayout = ({ children }: { children: ReactNode }) => {
     const { logout } = useAuthMock();
     return (
       <div>
@@ -36,8 +36,9 @@ vi.mock('./components/Layout', () => ({
         {children}
       </div>
     );
-  },
-}));
+  };
+  return { default: MockLayout };
+});
 
 import { AppRoutes } from './App';
 
@@ -111,7 +112,6 @@ describe('unauthenticated route handling', () => {
 
   it('replaces the protected history entry after an authenticated shell logout', async () => {
     let authenticated = true;
-    let router: ReturnType<typeof createMemoryRouter>;
     const logout = vi.fn(() => {
       authenticated = false;
       void router.navigate(router.state.location.pathname, { replace: true });
@@ -123,7 +123,7 @@ describe('unauthenticated route handling', () => {
       logout,
     }));
 
-    router = createMemoryRouter(
+    const router = createMemoryRouter(
       [{ path: '*', element: <AppRoutes /> }],
       { initialEntries: ['/sentinel', '/dashboard'], initialIndex: 1 },
     );

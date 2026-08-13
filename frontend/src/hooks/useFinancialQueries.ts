@@ -186,7 +186,7 @@ export function useApproveFuelInvoice() {
       financialClient.approveFuelInvoice(id, expectedVersion, reason),
     onSuccess: (action) => {
       if (action.subjectId != null) invalidateFuelInvoiceQueries(qc, action.subjectId);
-      qc.invalidateQueries({ queryKey: ['governance-actions'] });
+      qc.invalidateQueries({ queryKey: qk.governance.actions });
     },
   });
 }

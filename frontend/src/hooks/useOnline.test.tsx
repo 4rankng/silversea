@@ -5,7 +5,7 @@
  * The banner renders a Vietnamese message when offline, nothing when online.
  */
 import { render, screen, act } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { useOnline } from './useOnline';
 import { OfflineBanner } from '../components/shared/OfflineBanner';
 

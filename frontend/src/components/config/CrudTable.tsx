@@ -63,7 +63,7 @@ export function CrudTable<T extends { id: number }>({
   const { confirm, dialog } = useConfirm();
 
   const { data, refetch } = useQuery({
-    queryKey: [...qk.crud.entity(endpoint), listQuery],
+    queryKey: qk.crud.entityList(endpoint, listQuery),
     queryFn: async () => {
       const r = await api.get<PaginatedResponse<T>>(`${endpoint}${listQuery}`);
       return r.items;

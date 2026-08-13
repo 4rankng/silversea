@@ -145,8 +145,6 @@ export function AppRoutes() {
   const isPortalUser = isDriver || isOps; // updated to use isOps
   const customerHome = routes.portalShipments;
   const isCustomer = currentRole === Role.CUSTOMER;
-  const accountantWithoutExecutiveDashboard = currentRole === Role.ACCOUNTANT
-    && !user?.capabilities?.includes('executive_dashboard.read');
   const defaultHome = homeForRole(currentRole);
   const homeRedirect = isDriver
     ? driverHome
@@ -161,15 +159,12 @@ export function AppRoutes() {
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const opsOnly = (el: ReactElement) => (isOps ? el : <Navigate to={homeRedirect} replace />); // formerly forwarderOnly
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
-  const managerOrAdminOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER ? el : <Navigate to={homeRedirect} replace />);
   // Accountant cannot access dispatch pages
   const dispatchOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || isDispatcher
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  // Accountant-blocked routes (per specification)
-  const accountantBlocked = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : el);
   // /users is the single home for everyone; accountants get scoped (driver-only) access.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);
   const accountantOnly = (el: ReactElement) => (currentRole === Role.ACCOUNTANT ? el : <Navigate to={homeRedirect} replace />);

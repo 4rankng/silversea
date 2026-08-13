@@ -23,7 +23,7 @@ import {
   DRIVER_PROGRESS_EVENT_LABELS,
 } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
-import { offlineQueue, uuidv4, type QueuedOp } from '../../lib/offline-queue';
+import { offlineQueue, type QueuedOp } from '../../lib/offline-queue';
 import { ApiError } from '../../lib/api/errors';
 
 interface ProgressEvent {

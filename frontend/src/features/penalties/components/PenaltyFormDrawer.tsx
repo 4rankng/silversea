@@ -37,7 +37,7 @@ export function PenaltyFormDrawer({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tripSearch, setTripSearch] = useState('');
   const tripOptionsQuery = useQuery({
-    queryKey: [...qk.trips.all, 'penalty-selector', formDriverId, tripSearch],
+    queryKey: qk.penalties.tripSelector(formDriverId || null, tripSearch),
     queryFn: () => tripClient.listTrips({
       limit: 50,
       page: 1,

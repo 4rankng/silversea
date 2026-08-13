@@ -118,6 +118,31 @@ container, chỉ dùng chung nhiều container khi người có thẩm quyền x
 - **Phụ thuộc:** không
 - **Bằng chứng:** ảnh Network (2 request, cùng `id`) + ảnh Adminer.
 
+### TC-M03-01-07 — Xem rồi mới sửa chi tiết công-te-nơ trong bảng lô
+
+- **Vai trò:** `admin` (hoặc vai trò CUS được cấp quyền sửa lô).
+- **Tiền điều kiện:** có một lô trên `/shipments` chứa ít nhất một công-te-nơ và quyền sửa dữ liệu vận hành.
+- **Các bước:**
+  1. Mở `/shipments`. Xác nhận bảng lô không có cột hay nút riêng tên “Chi tiết”.
+  2. Bấm vùng không tương tác của dòng lô. Kiểm tra phần “Chi tiết container” xuất hiện ngay dưới dòng lô.
+  3. Kiểm tra danh sách ban đầu chỉ đọc theo hai tầng cho từng container: **Nhận diện** gồm `Số cont`,
+     `Loại cont`, `Hãng tàu`, `Điều vận`; **Vận hành** gồm `Nhà xe`, `Biển số xe`, `Nâng`, `Hạ`,
+     `Giờ đóng/trả`. Không có ô nhập hoặc nút lưu từng dòng.
+  4. Bấm “Chỉnh sửa”, sửa một trường vận hành hợp lệ và lưu dòng công-te-nơ. Bấm “Hoàn tất”.
+  5. Mở lại phần chi tiết, sửa nhưng không lưu, rồi bấm “Thu gọn”; xác nhận cảnh báo không làm mất thay đổi
+     ngoài ý muốn. Sau đó chọn bỏ thay đổi và thu gọn.
+  6. Thử lại ở màn hình rộng, tablet và điện thoại. Trên điện thoại, mở phần chi tiết từ thẻ lô và xác nhận
+     cùng dữ liệu hiện trong drawer trước khi bấm “Chỉnh sửa”.
+- **Kết quả mong đợi (Pass):**
+  - Click dòng là cách mở chi tiết; không thêm cột “Chi tiết” làm giảm không gian dữ liệu của bảng chính.
+  - Phần mở rộng là chi tiết container hai tầng, chỉ đọc trước; chỉ “Chỉnh sửa” mới hiển thị ô nhập và nút lưu theo dòng.
+  - “Thu gọn” luôn nhìn thấy trong phần chi tiết đang mở, đóng đúng lô và đưa bàn phím trở về dòng vừa mở.
+  - `Ngày vận chuyển` và `Phơi phiếu` vẫn ở dòng lô; chi phí chi tiết không xuất hiện trong luồng CUS này.
+  - Không có cuộn ngang ở bảng chính hoặc phần chi tiết. Drawer điện thoại có bố cục nhãn–giá trị gọn,
+    thao tác chạm được và giữ nguyên dữ liệu khi chưa bắt đầu sửa.
+- **Bằng chứng:** ảnh 1440px, tablet, 390px; ảnh trạng thái chỉ đọc và sau khi bấm “Chỉnh sửa”; request lưu
+  container và ảnh xác nhận trước khi bỏ thay đổi.
+
 ---
 
 ## 3.2 — Kiểm tra chứng từ và số liệu lô hàng
@@ -610,6 +635,7 @@ chiếu từng khoản theo lô; cuối kỳ tổng hợp theo khách/cảng/h�
 | __/__/__ | TC-M03-01-04   |           |                             |         |            |
 | __/__/__ | TC-M03-01-05   |           |                             |         |            |
 | __/__/__ | TC-M03-01-06   |           |                             |         |            |
+| __/__/__ | TC-M03-01-07   |           |                             |         |            |
 | __/__/__ | TC-M03-02-01   |           |                             |         |            |
 | __/__/__ | TC-M03-02-02   |           |                             |         |            |
 | __/__/__ | TC-M03-02-03   |           |                             |         |            |

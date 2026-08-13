@@ -81,7 +81,7 @@ describe('useApproveGovernanceAction company-info refresh', () => {
       await result.current.mutateAsync({ id: 71, expectedVersion: 2 });
     });
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['governance-actions'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.governance.actions });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.catalogs.companyInfo });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.configCounts.companyInfo });
   });
@@ -96,6 +96,6 @@ describe('useApproveGovernanceAction company-info refresh', () => {
     });
 
     expect(invalidateSpy).toHaveBeenCalledTimes(1);
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['governance-actions'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.governance.actions });
   });
 });

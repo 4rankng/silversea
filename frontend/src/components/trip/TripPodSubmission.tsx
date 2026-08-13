@@ -99,7 +99,7 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 export function TripPodSubmission({
-  tripId,
+  tripId: _tripId,
   tripCode,
   tripVersion,
   currentSubmission,

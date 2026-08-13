@@ -2556,6 +2556,7 @@ export const shipmentContainers = pgTable('shipment_containers', {
   sealNumber: varchar('seal_number', { length: 50 }),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
   shippingLineName: varchar('shipping_line_name', { length: 255 }),
+  customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),
   dropoffPortId: integer('dropoff_port_id'),
   notes: text('notes'),

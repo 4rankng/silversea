@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
-import { Role } from '@tingting/shared';
 import { useTripOptions } from '../hooks/useTripOptions';
 import { useTripForm } from '../hooks/useTripForm';
 import { TripFormProvider } from '../hooks/useTripFormContext';

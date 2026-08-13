@@ -786,6 +786,8 @@ async function getCusWorkspaceDetail(shipmentId: number, token: string) {
       externalCarrierVehicleId: number | null;
       carrierName: string | null;
       plateNumber: string | null;
+      shippingLineName: string | null;
+      dispatchStatus: 'UNASSIGNED' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
       inboundCharges: { transport: { amount: string | null }; handling: { amount: string | null } };
       outboundCharges: { transport: { amount: string | null } };
     }>;
@@ -1348,6 +1350,23 @@ describe('GET /cus-workspace', () => {
     assert.ok(Array.isArray(detail.data.containers));
     assert.equal(typeof detail.data.dataState.hasExplicitDocumentCustody, 'boolean');
     assert.equal(typeof detail.data.dataState.hasExplicitRecoveryFacts, 'boolean');
+  });
+
+  test('exposes each container shipping line and dispatch state for the two-tier CUS detail', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    await db.update(s.shipmentContainers).set({ shippingLineName: 'HMM' })
+      .where(eq(s.shipmentContainers.id, container.id));
+
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+    assert.equal(line.shippingLineName, 'HMM');
+    assert.equal(line.dispatchStatus, 'PLANNED');
   });
 
   test('keeps a planned internal carrier pending until an actual vehicle plate exists', async () => {

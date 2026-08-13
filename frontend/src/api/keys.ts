@@ -174,6 +174,8 @@ export const qk = {
     tripDetail: (id: number) => ['forwarder-trip-detail', id] as const,
     /** Broad prefix — matches all forwarder-trip-detail queries. */
     tripDetailAll: ['forwarder-trip-detail'] as const,
+    /** Broad prefix — matches all forwarder-trips queries. */
+    tripsAll: ['forwarder-trips'] as const,
     suppliers: ['forwarder-suppliers'],
     liftPrice: (params: {
       portId: string;
@@ -261,6 +263,10 @@ export const qk = {
     payablesSummary: (category: string | undefined) => ['payables-summary', category ?? 'all'] as const,
     /** Broad prefix — matches all payablesSummary queries regardless of category. */
     payablesSummaryAll: ['payables-summary'] as const,
+    /** Trip picker for the commission form — rides the trips prefix so trip
+     *  invalidations refresh it, but is scoped per search. */
+    commissionTripSelector: (search: string) =>
+      [...qk.trips.all, 'commission-selector', search] as const,
     fuelInvoices: (filters: { supplierId?: number; status?: string } = {}) =>
       ['fuel-invoices', filters.supplierId ?? 'all', filters.status ?? 'all'] as const,
     fuelInvoicesAll: ['fuel-invoices'] as const,
@@ -310,6 +316,25 @@ export const qk = {
     list: ['penalties'],
     catalogs: ['penalty-catalogs'],
     stats: ['/penalty-reasons/stats'],
+    /** Trip picker for the penalty form — rides the trips prefix so trip
+     *  invalidations refresh it, but is scoped per driver + search. */
+    tripSelector: (driverId: string | null, search: string) =>
+      [...qk.trips.all, 'penalty-selector', driverId, search] as const,
+  },
+
+  /* ── Governance actions (approval inbox) ───────────────────────────── */
+
+  governance: {
+    actions: ['governance-actions'],
+  },
+
+  /* ── Fuel-evidence review queue ────────────────────────────────────── */
+
+  fuelEvidence: {
+    reviews: (status: string, page: number) =>
+      ['fuel-evidence-reviews', status, page] as const,
+    /** Broad prefix — matches all fuel-evidence-reviews queries. */
+    reviewsAll: ['fuel-evidence-reviews'] as const,
   },
 
   /* ── Salary ─────────────────────────────────────────────────────────── */
@@ -437,6 +462,8 @@ export const qk = {
 
   crud: {
     entity: (endpoint: string) => [endpoint] as const,
+    /** Paginated list slice of a crud entity — entity() stays the broad prefix. */
+    entityList: (endpoint: string, listQuery: string) => [endpoint, listQuery] as const,
   },
 
 } as const;

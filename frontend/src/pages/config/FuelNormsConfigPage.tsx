@@ -60,7 +60,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
   const [effectiveDate, setEffectiveDate] = useState(
     item?.effectiveDate ? item.effectiveDate.split('T')[0] : todayISO(),
   );
-  const [note, setNote] = useState(item?.note || '');
+  const [note] = useState(item?.note || '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 

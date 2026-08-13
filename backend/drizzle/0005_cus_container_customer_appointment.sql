@@ -1,0 +1,1 @@
+ALTER TABLE "shipment_containers" ADD COLUMN "customer_appointment_at" timestamp with time zone;

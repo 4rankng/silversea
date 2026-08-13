@@ -1594,35 +1594,34 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     mobile_page.goto(f"{BASE_URL}/shipments?searchSuffix={search_suffix}")
     mobile_page.wait_for_load_state("networkidle")
     mobile_card = mobile_page.locator("article.cus-mobile-card").filter(has_text=bl_number)
-    mobile_card.locator("button.cus-mobile-card__reference").click()
-    mobile_page.locator('[role="dialog"]').first.wait_for(timeout=10_000)
-    reopen_trigger = mobile_page.get_by_role("button", name="Đề nghị điều chỉnh")
+    # Reopen governance belongs to the shipment card (Layer 1), never inside
+    # the operational container drawer (Layer 2).
+    reopen_trigger = mobile_card.get_by_role("button", name="Đề nghị điều chỉnh")
     reopen_trigger.click()
-    stacked_dialogs = mobile_page.locator('[role="dialog"]')
-    stacked_dialogs.nth(1).wait_for(timeout=10_000)
+    action_dialog = mobile_page.locator('[role="dialog"]')
+    action_dialog.wait_for(timeout=10_000)
     mobile_page.keyboard.press("Escape")
     mobile_page.wait_for_function(
-        "document.querySelectorAll('[role=\"dialog\"]').length === 1",
+        "document.querySelectorAll('[role=\"dialog\"]').length === 0",
         timeout=2_000,
     )
     focus_returned_to_action = mobile_page.evaluate(
         "document.activeElement?.textContent?.includes('Đề nghị điều chỉnh') === true"
     )
-    if stacked_dialogs.count() != 1 or not focus_returned_to_action:
+    if action_dialog.count() != 0 or not focus_returned_to_action:
         results.fail(
             "TC-1732A",
-            "Escape closes only the top mobile modal and restores its action focus",
-            f"dialogs={stacked_dialogs.count()}, focusReturned={focus_returned_to_action}",
+            "Escape closes the master adjustment modal and restores its action focus",
+            f"dialogs={action_dialog.count()}, focusReturned={focus_returned_to_action}",
         )
         mobile_page.close()
         return
     ctx.screenshot(mobile_page, f"TC-1732A_stacked_overlay_{shipment_id}")
     results.pass_(
         "TC-1732A",
-        "Escape closes only the top mobile modal and restores its action focus",
+        "Master adjustment modal restores focus without entering container detail",
         f"shipment#{shipment_id}",
     )
-    mobile_page.keyboard.press("Escape")
     mobile_page.close()
 
     first_request_status, first_request_body = request_json(

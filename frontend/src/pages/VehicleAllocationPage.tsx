@@ -1,11 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Plus, Truck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, Pagination } from '../design-system';
-import { PageHeader, StatusPill } from '../components/UI';
+import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { api } from '../lib/api';
-import { ApiError } from '../lib/api';
 import './VehicleAllocationPage.css';
 
 const PAGE_SIZE = 20;
@@ -51,21 +49,8 @@ export default function VehicleAllocationPage({ initialTab = 'summary' as Vehicl
   const [activeTab, setActiveTab] = useState<VehicleTab>(initialTab);
   const [data, setData] = useState<AllocationResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get<AllocationResponse>(`/vehicle-allocation?page=${page}&limit=${PAGE_SIZE}`);
-      setData(res);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu phân xe');
-    } finally {
-      setLoading(false);
-    }
-  }, [page]);
 
   // TODO: Replace with real API call when backend is ready
   // For now, use mock data

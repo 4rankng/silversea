@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, FileSearch, Loader2, Plus, Search } from 'lucide-react';
 import type { ForwarderTripSummary } from '@tingting/shared';
 import { SHIPMENT_STATUS_LABELS } from '@tingting/shared';
+import { qk } from '../api/keys';
 import { PageHeader } from '../components/UI';
 import { useDebouncedValue } from '../design-system';
 import { formatDate } from '../lib/format';
@@ -62,8 +63,8 @@ function OrderExchangePanel({ item }: { item: ForwarderTripSummary }) {
         await forwarderClient.completeOrderExchange(item.shipmentId, item.shipmentVersion);
         toast({ kind: 'success', message: 'Đã hoàn tất đổi lệnh.' });
       }
-      await queryClient.invalidateQueries({ queryKey: ['forwarder-trips'] });
-      if (item.tripId) await queryClient.invalidateQueries({ queryKey: ['forwarder-trip-detail', item.tripId] });
+      await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripsAll });
+      if (item.tripId) await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(item.tripId) });
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể cập nhật đổi lệnh.' });
     } finally {

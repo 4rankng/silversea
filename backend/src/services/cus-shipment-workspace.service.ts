@@ -44,7 +44,7 @@ type ContainerRow = {
   id: number;
   shipmentId: number;
   containerNumber: string | null;
-  shippingLineName: string | null;
+  customerAppointmentAt: Date | null;
   cargoWeightKg: string | null;
   containerTypeId: number | null;
   containerTypeCode: string | null;
@@ -533,7 +533,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       id: s.shipmentContainers.id,
       shipmentId: s.shipmentContainers.shipmentId,
       containerNumber: s.shipmentContainers.containerNumber,
-      shippingLineName: s.shipmentContainers.shippingLineName,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       cargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeCode: s.containerTypes.code,
@@ -940,14 +940,6 @@ function buildListItem(
     ? toNumber(customerInvoiceTotal) + toNumber(customerNoInvoiceTotal)
     : null;
 
-  const shippingLines = new Set<string>();
-  const shipmentShippingLine = trimOrNull(row.shipment.shippingLineName);
-  if (shipmentShippingLine) shippingLines.add(shipmentShippingLine);
-  for (const container of containers) {
-    const value = trimOrNull(container.shippingLineName);
-    if (value) shippingLines.add(value);
-  }
-
   const accountantAction = confirmation.status === 'CONFIRMED'
     ? {
         kind: 'NONE' as const,
@@ -971,7 +963,7 @@ function buildListItem(
     factoryName: trimOrNull(row.shipment.factoryName),
     billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
     declarationNumber: support.declarationByShipment.get(row.shipment.id) ?? null,
-    shippingLineName: shippingLines.size > 0 ? Array.from(shippingLines).join(', ') : null,
+    shippingLineName: trimOrNull(row.shipment.shippingLineName),
     routeName: row.routeName,
     isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
     direction: row.shipment.tradeDirection,
@@ -1057,9 +1049,6 @@ function buildContainerLine(
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
   const canEditOperational = editableBase && assignment?.tripId == null;
-  const canEditCloseOrReturn = editableBase
-    && assignment?.tripId == null
-    && (support.containersByShipment.get(row.shipment.id)?.length ?? 0) === 1;
   const liftSite = readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
   const dropoffSite = readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
   const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
@@ -1068,6 +1057,15 @@ function buildContainerLine(
     ? 'SilverSea'
     : assignment?.tripExternalCarrierName ?? assignment?.plannedCarrierName ?? null;
   const plateEditable = canEditOperational && carrierType === 'EXTERNAL';
+  const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
+    ? 'COMPLETED'
+    : assignment?.tripStatus === 'IN_TRANSIT'
+      ? 'IN_TRANSIT'
+      : assignment?.tripStatus === 'CREATED'
+        ? 'CREATED'
+        : assignment?.plannedCarrierType
+          ? 'PLANNED'
+          : 'UNASSIGNED';
 
   return {
     id: container.id,
@@ -1075,6 +1073,7 @@ function buildContainerLine(
     containerNumber: container.containerNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
+    dispatchStatus,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
     externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,
@@ -1086,9 +1085,7 @@ function buildContainerLine(
     liftSite: liftSite?.name ?? null,
     dropoffSiteId: dropoffSite?.id ?? null,
     dropoffSite: dropoffSite?.name ?? null,
-    closeOrReturnAt: assignment?.tripPlannedEndAt?.toISOString()
-      ?? (row.shipment.closingAt ?? row.shipment.plannedReturnAt)?.toISOString()
-      ?? null,
+    customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
     outboundCharges,
     inboundCharges,
     passThroughChargesGrouped: passThrough.grouped,
@@ -1101,7 +1098,7 @@ function buildContainerLine(
       containerTypeEditable: canEditOperational,
       liftSiteEditable: canEditOperational,
       dropoffSiteEditable: canEditOperational,
-      closeOrReturnTimeEditable: canEditCloseOrReturn,
+      customerAppointmentEditable: canEditOperational,
       outboundEditable: editableBase && actor.role === Role.CUS,
       inboundEditable: editableBase,
       passThroughEditable: false,
@@ -1548,12 +1545,6 @@ async function resolveInlineExternalCarrier(
   };
 }
 
-function resolveCloseField(shipment: ShipmentRow): 'closingAt' | 'plannedReturnAt' {
-  if (shipment.closingAt != null && shipment.plannedReturnAt == null) return 'closingAt';
-  if (shipment.plannedReturnAt != null && shipment.closingAt == null) return 'plannedReturnAt';
-  return shipment.tradeDirection === 'IMPORT' ? 'plannedReturnAt' : 'closingAt';
-}
-
 export async function updateCusShipmentContainerLine(args: {
   shipmentId: number;
   containerId: number;
@@ -1599,10 +1590,6 @@ export async function updateCusShipmentContainerLine(args: {
       throw new ApiError(409, 'Container chưa có tác vụ thực hiện chuẩn hóa để cập nhật từ workspace.');
     }
 
-    const shipmentContainerRows = await tx.select({ id: s.shipmentContainers.id })
-      .from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
-
     const [trip] = await tx.select().from(s.trips)
       .where(and(
         eq(s.trips.fulfillmentId, fulfillment.id),
@@ -1616,7 +1603,7 @@ export async function updateCusShipmentContainerLine(args: {
       args.input.containerTypeId !== undefined
       || args.input.liftSiteId !== undefined
       || args.input.dropoffSiteId !== undefined
-      || args.input.closeOrReturnAt !== undefined
+      || args.input.customerAppointmentAt !== undefined
       || args.input.carrierType !== undefined
       || args.input.externalCarrierId !== undefined
       || args.input.externalCarrierVehicleId !== undefined
@@ -1667,16 +1654,13 @@ export async function updateCusShipmentContainerLine(args: {
       touched = true;
     }
 
-    if (args.input.closeOrReturnAt !== undefined) {
-      if (shipmentContainerRows.length !== 1) {
-        throw new ApiError(409, 'Giờ đóng/trả hiện là dữ liệu cấp lô cho nhiều container; không được sửa từ một dòng đơn lẻ.');
-      }
-      const field = resolveCloseField(shipment);
-      await tx.update(s.shipments).set({
-        [field]: args.input.closeOrReturnAt == null ? null : new Date(args.input.closeOrReturnAt),
+    if (args.input.customerAppointmentAt !== undefined) {
+      await tx.update(s.shipmentContainers).set({
+        customerAppointmentAt: args.input.customerAppointmentAt == null
+          ? null
+          : new Date(args.input.customerAppointmentAt),
         updatedAt: now,
-        updatedBy: args.actor.userId,
-      }).where(eq(s.shipments.id, shipment.id));
+      }).where(eq(s.shipmentContainers.id, container.id));
       touched = true;
     }
 

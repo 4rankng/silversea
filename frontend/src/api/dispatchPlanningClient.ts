@@ -109,11 +109,6 @@ export function listDispatchQueue(filters: { cursor?: string | null; limit?: num
 }
 
 type DispatchResource = 'TRUCK' | 'DRIVER' | 'EXTERNAL_CARRIER';
-type DispatchResourceItem<R extends DispatchResource> = R extends 'TRUCK'
-  ? DispatchTruck
-  : R extends 'DRIVER'
-    ? DispatchDriver
-    : DispatchExternalCarrier;
 
 export type DispatchFleetResource = DispatchResource | 'EXTERNAL_VEHICLE';
 type DispatchFleetResourceItem<R extends DispatchFleetResource> = R extends 'TRUCK'

@@ -116,6 +116,10 @@ export default defineConfig([
       // Throwaway QA/puppeteer scripts at the repo root (use node+browser globals)
       'qa-*.js',
       'screenshot.spec.js',
+      // Playwright E2E specs run outside the Vite/tsconfig project → the
+      // projectService cannot parse them (dedicated Python e2e/ lives at the
+      // repo root; these are browser-globals test files).
+      'e2e/**',
     ],
   },
 

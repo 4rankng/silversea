@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { qk } from '../api/keys';
 
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
 import { StatusPill } from '../components/UI';
@@ -48,7 +49,7 @@ export default function FuelEvidenceReviewPage() {
   const [page, setPage] = useState(1);
 
   const query = useQuery({
-    queryKey: ['fuel-evidence-reviews', status, page],
+    queryKey: qk.fuelEvidence.reviews(status, page),
     queryFn: () => fuelEvidenceClient.list({ status: status === 'ALL' ? undefined : status, page, limit: 20 }),
   });
 
@@ -56,7 +57,7 @@ export default function FuelEvidenceReviewPage() {
     mutationFn: ({ row, decision }: { row: FuelEvidenceReviewRecord; decision: 'CONFIRMED' | 'REJECTED' }) =>
       fuelEvidenceClient.decide(row.id, decisionPayload(decision, row)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fuel-evidence-reviews'] });
+      queryClient.invalidateQueries({ queryKey: qk.fuelEvidence.reviewsAll });
     },
   });
 

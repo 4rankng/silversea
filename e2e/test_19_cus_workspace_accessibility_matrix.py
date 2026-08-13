@@ -384,7 +384,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                     reason_visible = action_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                     button.wait_for(state="visible", timeout=10_000)
                     action_is_disabled = button.is_disabled()
-                    toggle = row.locator("button.cus-row-toggle")
+                    toggle = row.locator("button.cus-row-disclosure")
                     controls = toggle.get_attribute("aria-controls")
                     toggle.click()
                     detail_surface = page.locator(f"#{controls}")
@@ -478,7 +478,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
 
             if width == 1440:
                 row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                expand_button = row.locator("button.cus-row-toggle")
+                expand_button = row.locator("button.cus-row-disclosure")
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
@@ -486,27 +486,34 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
                 controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
                 inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
-                page.keyboard.press("Enter")
+                collapse_button = page.get_by_role("button", name="Thu gọn chi tiết container")
+                collapse_present = collapse_button.count() == 1
+                collapse_button.click()
                 page.wait_for_function(
                     f"document.querySelector('#{controls}') === null",
                     timeout=2_500,
                 )
-                focus_restored = active_has_class(page, "cus-row-toggle")
+                focus_restored = active_has_class(page, "cus-row-disclosure")
                 check(
                     results,
                     "TC-1930",
-                    "Desktop keyboard mở/thu gọn chi tiết nội dòng và giữ focus đúng aria-controls",
-                    controlled_region_exists and inline_detail_has_no_drawer and focus_restored,
-                    f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
+                    "Desktop mở bằng bàn phím, thu gọn nội dòng và giữ focus đúng aria-controls",
+                    controlled_region_exists and inline_detail_has_no_drawer and collapse_present and focus_restored,
+                    f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, collapse={collapse_present}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
                 )
 
             if width in (390, 320):
                 opener, dialog = open_mobile_drawer(page)
                 close_button = page.get_by_role("button", name="Đóng")
-                save_container_button = dialog.get_by_role("button", name="Lưu container")
+                page.wait_for_function(
+                    "document.activeElement?.getAttribute('aria-label') === 'Đóng'",
+                    timeout=2_500,
+                )
                 focus_in_dialog = page.evaluate(
                     "document.activeElement?.getAttribute('aria-label') === 'Đóng'"
                 )
+                dialog.get_by_role("button", name="Chỉnh sửa").click()
+                save_container_button = dialog.get_by_role("button", name="Lưu container", exact=False)
 
                 assert_min_target(
                     results,

@@ -79,7 +79,7 @@ export function CommissionModal({
   const [form, setForm] = useState<CommissionForm>({ supplierId: '', amount: '', tripId: '', note: '' });
   const [tripSearch, setTripSearch] = useState('');
   const tripOptionsQuery = useQuery({
-    queryKey: [...qk.trips.all, 'commission-selector', tripSearch],
+    queryKey: qk.financial.commissionTripSelector(tripSearch),
     queryFn: () => tripClient.listTrips({ limit: 50, page: 1, search: tripSearch || undefined }),
     enabled: isOpen,
     staleTime: 60_000,

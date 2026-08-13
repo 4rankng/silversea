@@ -314,7 +314,7 @@ def main() -> bool:
 
                 if width == 1440:
                     master_row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    expand_button = master_row.locator("button.cus-row-toggle")
+                    expand_button = master_row.locator("button.cus-row-disclosure")
                     expand_button.focus()
                     controls = expand_button.get_attribute("aria-controls")
                     page.keyboard.press("Enter")
@@ -322,20 +322,22 @@ def main() -> bool:
                     page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
                     inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
-                    page.keyboard.press("Enter")
+                    collapse_button = page.get_by_role("button", name="Thu gọn chi tiết container")
+                    collapse_present = collapse_button.count() == 1
+                    collapse_button.click()
                     page.wait_for_function(
                         f"document.querySelector('#{controls}') === null",
                         timeout=2_500,
                     )
                     focus_restored = page.evaluate(
-                        "document.activeElement?.classList.contains('cus-row-toggle') === true"
+                        "document.activeElement?.classList.contains('cus-row-disclosure') === true"
                     )
                     check(
                         results,
                         "TC-1812",
-                        "Mở và thu gọn chi tiết container nội dòng bằng bàn phím",
-                        controlled_region_exists and inline_detail_has_no_drawer and focus_restored,
-                        f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, focusRestored={focus_restored}",
+                        "Mở bằng bàn phím và thu gọn bằng nút nội dòng",
+                        controlled_region_exists and inline_detail_has_no_drawer and collapse_present and focus_restored,
+                        f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, collapse={collapse_present}, focusRestored={focus_restored}",
                     )
 
                 if width == 390:
