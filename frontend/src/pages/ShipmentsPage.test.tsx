@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
@@ -24,6 +24,7 @@ import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+const defaultResizeObserver = window.ResizeObserver;
 
 const row: ShipmentCusWorkspaceListItem = {
   id: 1,
@@ -215,11 +216,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockReset();
     apiPost.mockReset();
     apiPut.mockReset();
+    window.localStorage.clear();
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
     ));
     apiPost.mockResolvedValue({ replayed: false });
     apiPut.mockResolvedValue({ ...row, version: 4 });
+  });
+
+  afterEach(() => {
+    window.ResizeObserver = defaultResizeObserver;
   });
 
   it('renders one focused shipment workspace without unfinished navigation', async () => {
@@ -252,21 +258,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
   });
 
-  it('keeps the master index compact and moves complete finance evidence into the drawer', async () => {
+  it('keeps a 13-column master grid while putting full evidence in its inline detail row', async () => {
     renderPage();
     const table = await screen.findByRole('table');
     const surface = within(table);
-    expect(surface.getByRole('columnheader', { name: 'Lô hàng' })).toBeTruthy();
-    expect(surface.getByRole('columnheader', { name: 'Khách hàng / tuyến' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Chi tiết' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Khách hàng / Nhà máy' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Bill/Book / Tờ khai' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Hãng tàu / Tuyến' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Loại hàng' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Số lượng' })).toBeTruthy();
     expect(surface.getByRole('columnheader', { name: 'Kế hoạch' })).toBeTruthy();
-    expect(surface.getByRole('columnheader', { name: 'Điều xe' })).toBeTruthy();
-    expect(surface.getByRole('columnheader', { name: 'Trạng thái / ngoại lệ' })).toBeTruthy();
-    expect(surface.getByRole('columnheader', { name: 'Đối soát / hành động' })).toBeTruthy();
-    expect(surface.queryByText('Có hóa đơn')).toBeNull();
-    expect(surface.queryByText('Tổng chi')).toBeNull();
-    expect(surface.queryByText('12.000.000')).toBeNull();
+    expect(surface.getByRole('columnheader', { name: 'Thu có hóa đơn' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Thu không hóa đơn' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Tổng chi phí' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Phơi phiếu' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Kế toán duyệt' })).toBeTruthy();
+    expect(surface.getByRole('columnheader', { name: 'Trạng thái / Hành động' })).toBeTruthy();
+    expect(surface.getByText('12.000.000 ₫')).toBeTruthy();
+    expect(surface.getByText('14.000.000 ₫')).toBeTruthy();
     expect(surface.getByLabelText('Lỗ 500.000 đồng')).toBeTruthy();
-    expect(surface.getByLabelText('Thông tin xe đã đủ')).toBeTruthy();
     expect(screen.getByLabelText('Tình trạng các lô đang hiển thị')).toBeTruthy();
     expect(screen.getByLabelText('Chú thích trạng thái lô hàng')).toBeTruthy();
     expect(surface.getByText('Lỗ')).toBeTruthy();
@@ -275,17 +286,64 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect((surface.getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(masterRowDetailButton());
-    const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByText('Đối soát và chứng từ')).toBeTruthy();
-    expect(within(drawer).getByText('12.000.000 ₫')).toBeTruthy();
-    expect(within(drawer).getByText('14.000.000 ₫')).toBeTruthy();
-    expect(within(drawer).getByText(/Đã xác nhận:/)).toBeTruthy();
+    const inlineDetail = await screen.findByText('Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.');
+    expect(inlineDetail.closest('.cus-inline-detail-row')).not.toBeNull();
+    expect(within(inlineDetail.closest('.cus-inline-detail-row') as HTMLElement).queryByText('Đối soát và chứng từ')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getAllByText(/Đã xác nhận:/)).toHaveLength(1);
 
     const mobileList = document.querySelector('.cus-mobile-list');
     expect(mobileList).not.toBeNull();
     const mobileSurface = within(mobileList as HTMLElement);
     expect(mobileSurface.getByText('Container')).toBeTruthy();
     expect(mobileSurface.getByText('2x40HC · Nhập')).toBeTruthy();
+  });
+
+  it('lets CUS hide optional columns without changing the core ledger fields', async () => {
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByRole('columnheader', { name: 'Hãng tàu / Tuyến' })).toBeTruthy();
+
+    const columnTrigger = screen.getByRole('button', { name: 'Chọn cột hiển thị' });
+    fireEvent.pointerDown(columnTrigger, { button: 0, ctrlKey: false });
+    const routeColumn = await screen.findByRole('menuitemcheckbox', { name: 'Hãng tàu / Tuyến' });
+    expect(routeColumn.getAttribute('data-state')).toBe('checked');
+    fireEvent.click(routeColumn);
+
+    await waitFor(() => expect(within(table).queryByRole('columnheader', { name: 'Hãng tàu / Tuyến' })).toBeNull());
+    expect(within(table).getByRole('columnheader', { name: 'Khách hàng / Nhà máy' })).toBeTruthy();
+    expect(within(table).getByRole('columnheader', { name: 'Tổng chi phí' })).toBeTruthy();
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3') ?? '{}').wide).not.toContain('route'));
+
+    fireEvent.pointerDown(columnTrigger, { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Khôi phục mặc định' }));
+    await waitFor(() => expect(within(table).getByRole('columnheader', { name: 'Hãng tàu / Tuyến' })).toBeTruthy());
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3') ?? '{}').wide).toContain('route'));
+  });
+
+  it('keeps details open independently for more than one shipment', async () => {
+    const secondRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      id: 2,
+      billOrBookNumber: 'BILL-54321',
+      customerName: 'Công ty Sao Mai',
+    };
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/shipments/cus-workspace/1') return Promise.resolve(detail);
+      if (url === '/shipments/cus-workspace/2') return Promise.resolve({ ...detail, summary: secondRow });
+      return Promise.resolve(listResponse([row, secondRow]));
+    });
+
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    const rows = document.querySelectorAll('tr.cus-master-row');
+    fireEvent.click(rows[0] as HTMLTableRowElement);
+    fireEvent.click(rows[1] as HTMLTableRowElement);
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/2'));
+    expect(document.querySelector('#cus-inline-detail-1')).not.toBeNull();
+    expect(document.querySelector('#cus-inline-detail-2')).not.toBeNull();
   });
 
   it('shows active filters and clears the suffix from the visible chip', async () => {
@@ -341,7 +399,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
 
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Mở chi tiết lô hàng của Công ty Silver Sea' }));
+    await screen.findAllByText('Công ty Silver Sea');
+    const mobileReference = document.querySelector('.cus-mobile-card__reference');
+    expect(mobileReference).not.toBeNull();
+    fireEvent.click(mobileReference as HTMLButtonElement);
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByRole('combobox', { name: /Trạng thái phơi phiếu/ })).toBeTruthy();
 
@@ -361,8 +422,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
 
     renderPage();
-    const referenceButton = await screen.findByRole('button', { name: 'Mở chi tiết lô hàng của Công ty Silver Sea' });
-    const card = referenceButton.closest('article');
+    await screen.findAllByText('Công ty Silver Sea');
+    const referenceButton = document.querySelector('.cus-mobile-card__reference') as HTMLButtonElement | null;
+    expect(referenceButton).not.toBeNull();
+    const card = referenceButton?.closest('article');
     expect(card).not.toBeNull();
     fireEvent.click(card as HTMLElement);
     expect(await screen.findByRole('dialog')).toBeTruthy();
@@ -372,28 +435,50 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     window.ResizeObserver = originalResizeObserver;
   });
 
-  it('uses compact direct actions on tablet cards only when the action is enabled', async () => {
-    class TabletLayoutObserver {
+  it('switches at the available-workspace boundaries without changing to cards too early', async () => {
+    let observedCallback: ResizeObserverCallback | undefined;
+    let workspaceWidth = 1040;
+    class WorkspaceLayoutObserver {
       constructor(private callback: ResizeObserverCallback) {}
       observe() {
-        this.callback([{ contentRect: { width: 900 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+        observedCallback = this.callback;
+        this.callback([], this as unknown as ResizeObserver);
       }
       disconnect() {}
       unobserve() {}
     }
     const originalResizeObserver = window.ResizeObserver;
-    window.ResizeObserver = TabletLayoutObserver as unknown as typeof ResizeObserver;
+    const boundingBox = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+      width: workspaceWidth,
+      height: 800,
+      top: 0,
+      left: 0,
+      right: workspaceWidth,
+      bottom: 800,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }));
+    window.ResizeObserver = WorkspaceLayoutObserver as unknown as typeof ResizeObserver;
 
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    const mobileList = await waitFor(() => {
-      const element = document.querySelector('.cus-mobile-list');
-      expect(element).not.toBeNull();
-      return element as HTMLElement;
-    });
-    expect(await within(mobileList).findByRole('button', { name: 'Khóa lô' })).toBeTruthy();
+    expect(document.querySelector(".cus-workspace[data-layout='wide']")).not.toBeNull();
+
+    workspaceWidth = 1039;
+    observedCallback?.([], {} as ResizeObserver);
+    await waitFor(() => expect(document.querySelector(".cus-workspace[data-layout='compact']")).not.toBeNull());
+
+    workspaceWidth = 760;
+    observedCallback?.([], {} as ResizeObserver);
+    await waitFor(() => expect(document.querySelector(".cus-workspace[data-layout='compact']")).not.toBeNull());
+
+    workspaceWidth = 759;
+    observedCallback?.([], {} as ResizeObserver);
+    await waitFor(() => expect(document.querySelector(".cus-workspace[data-layout='cards']")).not.toBeNull());
 
     window.ResizeObserver = originalResizeObserver;
+    boundingBox.mockRestore();
   });
 
   it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
@@ -416,11 +501,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     const table = await screen.findByRole('table');
     expect(screen.getByLabelText('Tình trạng các lô đang hiển thị').textContent).toContain('0 chờ Kế toán');
-    expect(within(table).queryByText('Chưa đủ dữ liệu xác nhận')).toBeNull();
+    expect(within(table).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
     fireEvent.click(masterRowDetailButton());
-    const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByText('Chưa đủ dữ liệu xác nhận')).toBeTruthy();
-    expect(within(drawer).queryByText('Chờ xác nhận')).toBeNull();
+    expect((await screen.findAllByText('Chưa đủ dữ liệu xác nhận')).length).toBe(1);
+    expect(screen.queryByText('Chờ xác nhận')).toBeNull();
   });
 
   it('shows the reason for a disabled consequential action without relying on a tooltip', async () => {
@@ -440,10 +524,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(table).queryByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeNull();
     expect((within(table).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(masterRowDetailButton());
-    expect(within(await screen.findByRole('dialog')).getByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeTruthy();
+    const note = await screen.findByText('Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.');
+    expect(within(note.closest('.cus-inline-detail-row') as HTMLElement).queryByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeNull();
   });
 
-  it('loads container detail lazily and renders all three grouped charge sections', async () => {
+  it('loads operational container detail lazily and keeps finance entry outside the expansion', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
@@ -451,15 +536,31 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const rowElement = masterRow();
     fireEvent.click(rowElement);
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
-    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Cước đầu ra' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Cước đầu vào' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Phí chi hộ' })).toBeTruthy();
-    expect(screen.getAllByText('Chưa thu hồi sửa chữa').length).toBeGreaterThan(0);
+    expect(screen.getByText('Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.')).toBeTruthy();
+    expect(screen.queryByText('Cước đầu ra')).toBeNull();
+    expect(screen.queryByText('Cước đầu vào')).toBeNull();
+    expect(screen.queryByText('Phí chi hộ')).toBeNull();
+    expect(screen.queryByText('Chưa thu hồi sửa chữa')).toBeNull();
   });
 
-  it('lets CUS chốt lịch from the drawer through the versioned shipment update', async () => {
+  it('keeps the finance handoff when a shipment has no container rows', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...detail, containers: [] })
+        : Promise.resolve(listResponse())
+    ));
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRow());
+
+    const emptyState = await screen.findByText('Lô hàng chưa có dữ liệu container.');
+    const inlineDetail = emptyState.closest('.cus-inline-detail-row') as HTMLElement;
+    expect(within(inlineDetail).getByText('Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.')).toBeTruthy();
+  });
+
+  it('lets CUS chốt lịch from the inline detail through the versioned shipment update', async () => {
     const waitingRow = {
       ...row,
       transportDate: null,
@@ -473,14 +574,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    const drawer = await screen.findByRole('dialog');
-    fireEvent.change(within(drawer).getByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-14' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Chốt lịch' }));
+    fireEvent.change(await screen.findByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-14' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Chốt lịch' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', {
       expectedVersion: 3,
       expectedDeliveryDate: '2026-08-14',
     }));
+    await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace/1')).toHaveLength(2));
+    expect(await screen.findByText('MSKU1234567')).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
@@ -510,6 +612,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       }),
       expect.any(Object),
     ));
+    const [, payload] = apiPost.mock.calls[0] ?? [];
+    expect(payload.outboundCharges).toBeUndefined();
+    expect(payload.inboundCharges).toBeUndefined();
   });
 
   it('creates a new external carrier through the container workflow', async () => {
@@ -639,19 +744,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     randomUUID.mockRestore();
   });
 
-  it('uses a page-scrolling wrapping ledger and container-aware card mode', () => {
+  it('uses a wrapping 13-column ledger with inline expansion and card mode only below 760px', () => {
     expect(css).toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-x:\s*clip;/);
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*max-height:/);
     expect(css).not.toMatch(/\.cus-master-scroll\s*\{[^}]*overflow-y:\s*auto;/);
-    expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*0;[\s\S]*?min-width:\s*100%;[\s\S]*?table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-master-table__col-shipment\s*\{\s*width:\s*17%;\s*\}/);
-    expect(css).toMatch(/\.cus-master-table__col-finance\s*\{\s*width:\s*16%;\s*\}/);
-    expect(css).toMatch(/\.cus-master-table__col-status/);
-    expect(css).not.toMatch(/\.cus-master-table__col-action/);
+    expect(css).toMatch(/\.cus-master-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-master-table th\s*\{[\s\S]*?white-space:\s*normal;/);
+    expect(css).toMatch(/\.cus-master-table td\s*\{[\s\S]*?font-size:\s*11px;/);
+    expect(css).toMatch(/\.cus-operational-evidence strong,[\s\S]*?white-space:\s*normal;/);
+    expect(css).not.toMatch(/\.cus-operational-evidence strong,[\s\S]*?text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.cus-inline-detail-row > td\s*\{[\s\S]*?padding:\s*0;/);
+    expect(css).toMatch(/\.cus-detail-content\s*\{[\s\S]*?overflow:\s*clip;/);
+    expect(css).toMatch(/\.cus-workspace\[data-layout='compact'\] \.cus-master-table th/);
     expect(css).toMatch(/\.cus-index-cell\s*\{[\s\S]*?display:\s*grid;/);
-    expect(css).toMatch(/\.cus-index-cell > strong,[\s\S]*?font-family:\s*var\(--font-body\);/);
+    expect(css).toMatch(/\.cus-index-cell > strong,[\s\S]*?white-space:\s*normal;/);
     expect(css).not.toMatch(/\.cus-cell-stack/);
-    expect(css).toMatch(/\.cus-master-row:hover \.cus-row-hover-action,[\s\S]*?\.cus-master-row:focus-within \.cus-row-hover-action/);
     expect(css).not.toMatch(/\.cus-master-table\s*\{[\s\S]*?min-width:\s*2300px;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-master-scroll\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-mobile-list\s*\{[\s\S]*?display:\s*grid;/);
@@ -660,7 +767,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-workspace\[data-layout='cards'\] \.cus-toolbar\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/padding:\s*16px 0 max\(16px, env\(safe-area-inset-bottom\)\)/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;/);
-    expect(css).toMatch(/\.cus-detail-facts\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/\.cus-container-ledger__finance-note\s*\{[\s\S]*?line-height:\s*1\.5;/);
     expect(css).not.toMatch(/cus-master-table__col-expand|cus-expand-button|cus-mobile-card__open/);
   });
 

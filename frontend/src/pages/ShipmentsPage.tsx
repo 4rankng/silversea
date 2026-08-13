@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CalendarCheck2,
   CalendarClock,
+  ChevronDown,
   CircleCheck,
   CircleDollarSign,
   FileLock2,
@@ -33,6 +34,15 @@ import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { EmptyState, Pagination, SearchableSelect } from '../design-system';
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/DropdownMenu/DropdownMenu';
+import {
   getCusShipmentWorkspaceDetail,
   confirmCusShipmentFinance,
   listCusShipmentWorkspace,
@@ -54,6 +64,20 @@ const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
   [ShipmentCusBucket.LOCKED]: 'var(--slate-4)',
 };
 type CusWorkspaceLayout = 'wide' | 'compact' | 'cards';
+type OptionalMasterColumn = 'route' | 'type' | 'invoice' | 'nonInvoice';
+type MasterColumnPreferences = Record<'wide' | 'compact', OptionalMasterColumn[]>;
+
+const OPTIONAL_MASTER_COLUMNS: Array<{ id: OptionalMasterColumn; label: string }> = [
+  { id: 'route', label: 'Hãng tàu / Tuyến' },
+  { id: 'type', label: 'Loại hàng' },
+  { id: 'invoice', label: 'Thu có hóa đơn' },
+  { id: 'nonInvoice', label: 'Thu không hóa đơn' },
+];
+const DEFAULT_MASTER_COLUMNS: MasterColumnPreferences = {
+  wide: OPTIONAL_MASTER_COLUMNS.map((column) => column.id),
+  compact: ['invoice'],
+};
+const MASTER_COLUMN_PREFERENCES_KEY = 'silversea:cus-shipments:master-columns:v3';
 
 function formatMoney(value: string | null): string {
   if (value == null) return '—';
@@ -192,64 +216,6 @@ function safeError(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback;
 }
 
-interface MoneyCellProps {
-  amount: string | null;
-  invoiceNumber?: string | null;
-  warning?: boolean;
-  warningLabel?: string;
-  available?: boolean;
-}
-
-function MoneyCell({ amount, invoiceNumber, warning, warningLabel, available = true }: MoneyCellProps) {
-  if (!available || amount == null) {
-    return <span className="cus-money-unavailable">Chưa có dữ liệu đối soát</span>;
-  }
-  return (
-    <div className={`cus-money-cell${warning ? ' cus-money-cell--warning' : ''}`}>
-      <strong>{formatMoney(amount)}</strong>
-      <span>{invoiceNumber ? `HĐ: ${invoiceNumber}` : 'Chưa có hóa đơn'}</span>
-      {warning && <em>{warningLabel ?? 'Chưa thu hồi'}</em>}
-    </div>
-  );
-}
-
-function ChargeGroup({
-  title,
-  group,
-}: {
-  title: string;
-  group: ShipmentCusWorkspaceContainerLine['outboundCharges'];
-}) {
-  return (
-    <section className="cus-detail-group" aria-label={title}>
-      <h4>{title}</h4>
-      {!group.available && <p className="cus-detail-group__unavailable">Chưa có dữ liệu đối soát từ nguồn nghiệp vụ.</p>}
-      <dl>
-        <div><dt>Phí vận chuyển</dt><dd><MoneyCell {...group.transport} /></dd></div>
-        <div><dt>Phí làm hàng</dt><dd><MoneyCell {...group.handling} /></dd></div>
-        <div><dt>Phí phát sinh</dt><dd><MoneyCell {...group.incidental} /></dd></div>
-        <div className="cus-detail-group__total"><dt>Tổng</dt><dd>{formatMoney(group.total)}</dd></div>
-      </dl>
-    </section>
-  );
-}
-
-function PassThroughGroup({ line }: { line: ShipmentCusWorkspaceContainerLine }) {
-  const group = line.passThroughChargesGrouped;
-  return (
-    <section className="cus-detail-group" aria-label="Phí chi hộ">
-      <h4>Phí chi hộ</h4>
-      <dl>
-        <div><dt>CSHT</dt><dd><MoneyCell {...group.csht} /></dd></div>
-        <div><dt>Nâng</dt><dd><MoneyCell {...group.lift} /></dd></div>
-        <div><dt>Hạ</dt><dd><MoneyCell {...group.dropoff} /></dd></div>
-        <div><dt>Khác</dt><dd><MoneyCell {...group.other} warning={group.other.repairRecoveryPending} warningLabel="Chưa thu hồi sửa chữa" /></dd></div>
-        <div className="cus-detail-group__total"><dt>Tổng</dt><dd>{formatMoney(group.total)}</dd></div>
-      </dl>
-    </section>
-  );
-}
-
 interface ContainerLineDraft {
   carrierKey: string;
   newCarrierName: string;
@@ -258,11 +224,6 @@ interface ContainerLineDraft {
   liftSiteId: string;
   dropoffSiteId: string;
   closeOrReturnAt: string;
-  outboundTransport: string;
-  outboundHandling: string;
-  outboundIncidental: string;
-  inboundTransport: string;
-  inboundHandling: string;
 }
 
 function toLocalDateTime(value: string | null): string {
@@ -284,55 +245,11 @@ function lineDraft(line: ShipmentCusWorkspaceContainerLine): ContainerLineDraft 
     liftSiteId: line.liftSiteId ? String(line.liftSiteId) : '',
     dropoffSiteId: line.dropoffSiteId ? String(line.dropoffSiteId) : '',
     closeOrReturnAt: toLocalDateTime(line.closeOrReturnAt),
-    outboundTransport: line.outboundCharges.transport.amount ?? '',
-    outboundHandling: line.outboundCharges.handling.amount ?? '',
-    outboundIncidental: line.outboundCharges.incidental.amount ?? '',
-    inboundTransport: line.inboundCharges.transport.amount ?? '',
-    inboundHandling: line.inboundCharges.handling.amount ?? '',
   };
-}
-
-function optionalMoney(value: string): string | null {
-  const normalized = value.trim();
-  if (normalized === '') return null;
-  if (!/^\d+$/.test(normalized)) {
-    throw new Error('Số tiền phải là số nguyên không âm, không dùng ký hiệu rút gọn.');
-  }
-  return normalized;
 }
 
 function idempotencySignature(...parts: Array<string | number | boolean | null | undefined>): string {
   return parts.map((part) => (part == null ? '' : String(part))).join(':');
-}
-
-function draftMoneyTotal(values: string[]): string | null {
-  const amounts = values.filter((value) => /^\d+$/.test(value.trim()));
-  if (amounts.length === 0) return null;
-  return amounts.reduce((sum, value) => sum + BigInt(value.trim()), 0n).toString();
-}
-
-function EditableMoneyField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="cus-inline-money-field">
-      <span>{label}</span>
-      <input
-        type="number"
-        min="0"
-        step="1"
-        inputMode="numeric"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
-  );
 }
 
 function ContainerLineCard({
@@ -341,19 +258,28 @@ function ContainerLineCard({
   onSaved,
   getIdempotencyKey,
   clearIdempotencyKey,
+  idPrefix,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
   onSaved: (line: ShipmentCusWorkspaceContainerLine) => void;
   getIdempotencyKey: (signature: string) => string;
   clearIdempotencyKey: (signature: string) => void;
+  idPrefix: string;
 }) {
   const [draft, setDraft] = useState<ContainerLineDraft>(() => lineDraft(line));
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const permissions = line.permissions;
-  const editable = Object.values(permissions).some(Boolean);
+  const operationalEditable = (
+    permissions.carrierEditable
+    || permissions.plateEditable
+    || permissions.containerTypeEditable
+    || permissions.liftSiteEditable
+    || permissions.dropoffSiteEditable
+    || permissions.closeOrReturnTimeEditable
+  );
 
   useEffect(() => {
     setDraft(lineDraft(line));
@@ -407,19 +333,6 @@ function ContainerLineCard({
         ...(permissions.closeOrReturnTimeEditable ? {
           closeOrReturnAt: draft.closeOrReturnAt ? new Date(draft.closeOrReturnAt).toISOString() : null,
         } : {}),
-        ...(permissions.outboundEditable ? {
-          outboundCharges: {
-            transportAmount: optionalMoney(draft.outboundTransport),
-            handlingAmount: optionalMoney(draft.outboundHandling),
-            incidentalAmount: optionalMoney(draft.outboundIncidental),
-          },
-        } : {}),
-        ...(permissions.inboundEditable ? {
-          inboundCharges: {
-            transportAmount: optionalMoney(draft.inboundTransport),
-            handlingAmount: optionalMoney(draft.inboundHandling),
-          },
-        } : {}),
       }, idempotencyKey);
       onSaved(result.line);
       clearIdempotencyKey(signature);
@@ -448,11 +361,6 @@ function ContainerLineCard({
           <h3>{line.containerNumber || 'Chưa có số container'}</h3>
           <p>{line.containerTypeLabel || 'Chưa chọn loại cont'}</p>
         </div>
-        {line.repairRecoveryPending && (
-          <span className="cus-signal cus-signal--repair">
-            <AlertTriangle size={15} aria-hidden="true" /> Chưa thu hồi sửa chữa
-          </span>
-        )}
       </header>
 
       <div className="cus-container__facts">
@@ -462,9 +370,9 @@ function ContainerLineCard({
             <div className="cus-carrier-editor">
               {draft.carrierKey === 'NEW_EXTERNAL' ? (
                 <>
-                  <label className="sr-only" htmlFor={`cus-new-carrier-${line.id}`}>Tên nhà xe mới</label>
+                  <label className="sr-only" htmlFor={`${idPrefix}-new-carrier-${line.id}`}>Tên nhà xe mới</label>
                   <input
-                    id={`cus-new-carrier-${line.id}`}
+                    id={`${idPrefix}-new-carrier-${line.id}`}
                     value={draft.newCarrierName}
                     maxLength={255}
                     placeholder="Nhập tên nhà xe mới"
@@ -481,7 +389,7 @@ function ContainerLineCard({
               ) : (
                 <>
                   <SearchableSelect
-                    id={`cus-carrier-${line.id}`}
+                    id={`${idPrefix}-carrier-${line.id}`}
                     value={draft.carrierKey}
                     onChange={(value) => updateDraft({ carrierKey: value, newCarrierName: '' })}
                     options={carrierOptions}
@@ -503,18 +411,18 @@ function ContainerLineCard({
           ) : <strong>{line.carrierName || '—'}</strong>}
         </div>
         <div>
-          <label className="cus-container__field-label" htmlFor={`cus-plate-${line.id}`}>Biển số xe</label>
+          <label className="cus-container__field-label" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe</label>
           {permissions.plateEditable ? (
             <input
-              id={`cus-plate-${line.id}`}
+              id={`${idPrefix}-plate-${line.id}`}
               value={draft.plateNumber}
-              list={`cus-plates-${line.id}`}
+              list={`${idPrefix}-plates-${line.id}`}
               maxLength={20}
               onChange={(event) => updateDraft({ plateNumber: event.target.value })}
             />
           ) : <strong>{line.plateNumber || '—'}</strong>}
           {permissions.plateEditable && (
-            <datalist id={`cus-plates-${line.id}`}>
+            <datalist id={`${idPrefix}-plates-${line.id}`}>
               {detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}
             </datalist>
           )}
@@ -523,7 +431,7 @@ function ContainerLineCard({
           <span className="cus-container__field-label">Loại cont</span>
           {permissions.containerTypeEditable ? (
             <SearchableSelect
-              id={`cus-container-type-${line.id}`}
+              id={`${idPrefix}-container-type-${line.id}`}
               value={draft.containerTypeId}
               onChange={(value) => updateDraft({ containerTypeId: value })}
               options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))}
@@ -535,7 +443,7 @@ function ContainerLineCard({
           <span className="cus-container__field-label">Nâng</span>
           {permissions.liftSiteEditable ? (
             <SearchableSelect
-              id={`cus-lift-site-${line.id}`}
+              id={`${idPrefix}-lift-site-${line.id}`}
               value={draft.liftSiteId}
               onChange={(value) => updateDraft({ liftSiteId: value })}
               options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))}
@@ -547,7 +455,7 @@ function ContainerLineCard({
           <span className="cus-container__field-label">Hạ</span>
           {permissions.dropoffSiteEditable ? (
             <SearchableSelect
-              id={`cus-dropoff-site-${line.id}`}
+              id={`${idPrefix}-dropoff-site-${line.id}`}
               value={draft.dropoffSiteId}
               onChange={(value) => updateDraft({ dropoffSiteId: value })}
               options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))}
@@ -556,50 +464,14 @@ function ContainerLineCard({
           ) : <strong>{line.dropoffSite || '—'}</strong>}
         </div>
         <div>
-          <label className="cus-container__field-label" htmlFor={`cus-close-return-${line.id}`}>Giờ đóng/trả</label>
+          <label className="cus-container__field-label" htmlFor={`${idPrefix}-close-return-${line.id}`}>Giờ đóng/trả</label>
           {permissions.closeOrReturnTimeEditable ? (
-            <input id={`cus-close-return-${line.id}`} type="datetime-local" value={draft.closeOrReturnAt} onChange={(event) => updateDraft({ closeOrReturnAt: event.target.value })} />
+            <input id={`${idPrefix}-close-return-${line.id}`} type="datetime-local" value={draft.closeOrReturnAt} onChange={(event) => updateDraft({ closeOrReturnAt: event.target.value })} />
           ) : <strong>{formatDateTime(line.closeOrReturnAt)}</strong>}
         </div>
       </div>
 
-      <div className="cus-container__charges">
-        {permissions.outboundEditable ? (
-          <section className="cus-detail-group" aria-label="Cước đầu ra">
-            <h4>Cước đầu ra</h4>
-            <p className="cus-proposal-note">Đề xuất CUS — cần đưa vào Giấy báo nợ trước khi Kế toán xác nhận.</p>
-            <div className="cus-editable-money-grid">
-              <EditableMoneyField label="Phí vận chuyển" value={draft.outboundTransport} onChange={(value) => updateDraft({ outboundTransport: value })} />
-              <EditableMoneyField label="Phí làm hàng" value={draft.outboundHandling} onChange={(value) => updateDraft({ outboundHandling: value })} />
-              <EditableMoneyField label="Phí phát sinh" value={draft.outboundIncidental} onChange={(value) => updateDraft({ outboundIncidental: value })} />
-            </div>
-            <div className="cus-editable-total"><span>Tổng</span><strong>{formatMoney(draftMoneyTotal([
-              draft.outboundTransport,
-              draft.outboundHandling,
-              draft.outboundIncidental,
-            ]))}</strong></div>
-          </section>
-        ) : <ChargeGroup title="Cước đầu ra" group={line.outboundCharges} />}
-        {permissions.inboundEditable ? (
-          <section className="cus-detail-group" aria-label="Cước đầu vào">
-            <h4>Cước đầu vào</h4>
-            <p className="cus-proposal-note">Đề xuất CUS — cần đưa vào Giấy báo nợ trước khi Kế toán xác nhận.</p>
-            <div className="cus-editable-money-grid">
-              <EditableMoneyField label="Phí vận chuyển" value={draft.inboundTransport} onChange={(value) => updateDraft({ inboundTransport: value })} />
-              <EditableMoneyField label="Phí làm hàng" value={draft.inboundHandling} onChange={(value) => updateDraft({ inboundHandling: value })} />
-              <div><span className="cus-container__field-label">Phí phát sinh từ OPS</span><MoneyCell {...line.inboundCharges.incidental} /></div>
-            </div>
-            <div className="cus-editable-total"><span>Tổng</span><strong>{formatMoney(draftMoneyTotal([
-              draft.inboundTransport,
-              draft.inboundHandling,
-              line.inboundCharges.incidental.amount ?? '',
-            ]))}</strong></div>
-          </section>
-        ) : <ChargeGroup title="Cước đầu vào" group={line.inboundCharges} />}
-        <PassThroughGroup line={line} />
-      </div>
-
-      {editable && (
+      {operationalEditable && (
         <footer className="cus-container__savebar">
           {saveError && <span role="alert">{saveError}</span>}
           <button type="button" className="btn btn--primary btn--sm" disabled={!dirty || saving} onClick={() => void save()}>
@@ -617,18 +489,17 @@ function ContainerLedger({
   onLineSaved,
   getIdempotencyKey,
   clearIdempotencyKey,
+  idPrefix,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => void;
   getIdempotencyKey: (signature: string) => string;
   clearIdempotencyKey: (signature: string) => void;
+  idPrefix: string;
 }) {
-  if (detail.containers.length === 0) {
-    return <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p>;
-  }
-
   return (
     <div className="cus-container-ledger">
+      {detail.containers.length === 0 && <p className="cus-detail-empty">Lô hàng chưa có dữ liệu container.</p>}
       {detail.containers.map((line) => (
         <ContainerLineCard
           key={line.id}
@@ -637,8 +508,12 @@ function ContainerLedger({
           onSaved={onLineSaved}
           getIdempotencyKey={getIdempotencyKey}
           clearIdempotencyKey={clearIdempotencyKey}
+          idPrefix={idPrefix}
         />
       ))}
+      <p className="cus-container-ledger__finance-note">
+        Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.
+      </p>
     </div>
   );
 }
@@ -707,55 +582,92 @@ function ShipmentSignals({ item }: { item: ShipmentCusWorkspaceListItem }) {
   );
 }
 
-function ShipmentDetailSummary({ item }: { item: ShipmentCusWorkspaceListItem }) {
+function ShipmentDetailContent({
+  item,
+  detail,
+  loading,
+  error,
+  transportDateDraft,
+  savingTransportDate,
+  onTransportDateDraftChange,
+  onSaveTransportDate,
+  onRetry,
+  onCustodyChange,
+  onLineSaved,
+  getIdempotencyKey,
+  clearIdempotencyKey,
+  idPrefix,
+}: {
+  item: ShipmentCusWorkspaceListItem;
+  detail?: ShipmentCusWorkspaceDetail;
+  loading: boolean;
+  error?: string;
+  transportDateDraft: string;
+  savingTransportDate: boolean;
+  onTransportDateDraftChange: (value: string) => void;
+  onSaveTransportDate: () => void;
+  onRetry: () => void;
+  onCustodyChange: (status: ShipmentDocumentCustody) => void;
+  onLineSaved: (line: ShipmentCusWorkspaceContainerLine) => void;
+  getIdempotencyKey: (signature: string) => string;
+  clearIdempotencyKey: (signature: string) => void;
+  idPrefix: string;
+}) {
   return (
-    <div className="cus-drawer-summary">
-      <section className="cus-drawer-section" aria-labelledby={`cus-overview-${item.id}`}>
-        <h3 id={`cus-overview-${item.id}`}>Tổng quan</h3>
-        <dl className="cus-detail-facts">
-          <div><dt>Bill/Book</dt><dd>{item.billOrBookNumber || '—'}</dd></div>
-          <div><dt>Tờ khai</dt><dd>{item.declarationNumber || '—'}</dd></div>
-          <div><dt>Hãng tàu</dt><dd>{item.shippingLineName || '—'}</dd></div>
-          <div><dt>Loại hàng</dt><dd>{directionLabel(item.direction)}</dd></div>
-          <div><dt>Nhà máy</dt><dd>{item.factoryName || '—'}</dd></div>
-          <div><dt>Tuyến</dt><dd>{item.routeName || '—'}</dd></div>
-          <div><dt>Ngày vận chuyển</dt><dd>{formatDate(item.transportDate)}</dd></div>
-          <div><dt>Container</dt><dd>{item.containerSummary}</dd></div>
-          <div><dt>Khối lượng</dt><dd>{formatQuantity(item.weightKg)} kg</dd></div>
-          <div><dt>Thể tích</dt><dd>{formatQuantity(item.volumeCbm, 3)} CBM</dd></div>
-          <div><dt>Kết hợp</dt><dd>{item.isCombined ? 'Có kết hợp hàng' : 'Không kết hợp'}</dd></div>
-          <div><dt>Điều xe / BKS</dt><dd>{item.operational.assignedContainers}/{item.operational.totalContainers} xe · {item.operational.plateAssignedContainers}/{item.operational.totalContainers} BKS</dd></div>
-        </dl>
-      </section>
-
-      <section className="cus-drawer-section" aria-labelledby={`cus-reconciliation-${item.id}`}>
-        <div className="cus-drawer-section__heading">
-          <h3 id={`cus-reconciliation-${item.id}`}>Đối soát và chứng từ</h3>
-          <ShipmentSignals item={item} />
+    <div className="cus-detail-content">
+      <div className="cus-drawer-actions">
+        <div className="cus-drawer-transport-date">
+          <label htmlFor={`${idPrefix}-transport-date-input-${item.id}`}>Ngày vận chuyển</label>
+          <div className="cus-drawer-transport-date__control">
+            <input
+              id={`${idPrefix}-transport-date-input-${item.id}`}
+              type="date"
+              value={transportDateDraft}
+              disabled={!item.operational.transportDateEditable || savingTransportDate}
+              onChange={(event) => onTransportDateDraftChange(event.target.value)}
+            />
+            {item.operational.transportDateEditable && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={!transportDateDraft || transportDateDraft === item.transportDate || savingTransportDate}
+                onClick={onSaveTransportDate}
+              >
+                {savingTransportDate ? <Loader2 className="spin" size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+                Chốt lịch
+              </button>
+            )}
+          </div>
         </div>
-        <dl className="cus-detail-facts cus-detail-facts--finance">
-          <div><dt>Có hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</dd></div>
-          <div><dt>Không hóa đơn</dt><dd>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerNoInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</dd></div>
-          <div><dt>Tổng chi</dt><dd>{item.finance.totalCostAvailable ? `${formatMoney(item.finance.totalCost)} ₫` : 'Chưa có dữ liệu'}</dd></div>
-          <div><dt>Debit Note</dt><dd>{item.debitNote.documentNumber || item.debitNote.disabledReason || 'Chưa có'}</dd></div>
-          <div><dt>Kế toán</dt><dd>{accountingConfirmationLabel(item.accountingConfirmation)}</dd></div>
-          <div><dt>Phơi phiếu</dt><dd>{item.documentCustody.label || 'Chưa xác định'}</dd></div>
-        </dl>
-      </section>
-
-      {(item.note || item.activeLock) && (
-        <section className="cus-drawer-section" aria-labelledby={`cus-context-${item.id}`}>
-          <h3 id={`cus-context-${item.id}`}>Ghi chú và khóa lô</h3>
-          {item.note && <p className="cus-drawer-note">{item.note}</p>}
-          {item.activeLock && (
-            <dl className="cus-detail-facts">
-              <div><dt>Người khóa</dt><dd>{item.activeLock.activatedByName || '—'}</dd></div>
-              <div><dt>Thời điểm khóa</dt><dd>{formatDateTime(item.activeLock.activatedAt)}</dd></div>
-              <div className="cus-detail-facts__wide"><dt>Lý do</dt><dd>{item.activeLock.reason}</dd></div>
-            </dl>
-          )}
-        </section>
-      )}
+        <label className="cus-drawer-custody">
+          <span>Phơi phiếu</span>
+          <select
+            className="cus-custody-select"
+            value={item.documentCustody.status ?? ''}
+            disabled={item.bucket === ShipmentCusBucket.LOCKED || !item.documentCustody.available || !item.documentCustody.editable}
+            aria-label={`Trạng thái phơi phiếu của ${item.customerName || 'lô hàng'}`}
+            onChange={(event) => onCustodyChange(event.target.value as ShipmentDocumentCustody)}
+          >
+            <option value="" disabled>Chưa xác định</option>
+            {Object.values(ShipmentDocumentCustody).map((status) => (
+              <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {loading && !detail ? (
+        <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải dữ liệu container…</div>
+      ) : error ? (
+        <div className="cus-inline-error" role="alert"><span>{error}</span><button type="button" onClick={onRetry}>Thử lại</button></div>
+      ) : detail ? (
+        <ContainerLedger
+          detail={detail}
+          onLineSaved={onLineSaved}
+          getIdempotencyKey={getIdempotencyKey}
+          clearIdempotencyKey={clearIdempotencyKey}
+          idPrefix={idPrefix}
+        />
+      ) : null}
     </div>
   );
 }
@@ -779,17 +691,20 @@ export default function ShipmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [expandedShipmentIds, setExpandedShipmentIds] = useState<Set<number>>(() => new Set());
   const [details, setDetails] = useState<Record<number, ShipmentCusWorkspaceDetail>>({});
-  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
+  const [detailLoadingIds, setDetailLoadingIds] = useState<Set<number>>(() => new Set());
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
   const [actionItem, setActionItem] = useState<ShipmentCusWorkspaceListItem | null>(null);
   const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [transportDateDraft, setTransportDateDraft] = useState('');
-  const [savingTransportDate, setSavingTransportDate] = useState(false);
+  const [transportDateDrafts, setTransportDateDrafts] = useState<Record<number, string>>({});
+  const [savingTransportDateIds, setSavingTransportDateIds] = useState<Set<number>>(() => new Set());
   const [workspaceLayout, setWorkspaceLayout] = useState<CusWorkspaceLayout>('wide');
+  const [masterColumnPreferences, setMasterColumnPreferences] = useState<MasterColumnPreferences>(DEFAULT_MASTER_COLUMNS);
   const requestSequence = useRef(0);
+  const detailRequestSequence = useRef<Record<number, number>>({});
   const idempotencyKeysRef = useRef<Record<string, string>>({});
 
   const getIdempotencyKey = useCallback((signature: string) => {
@@ -817,12 +732,39 @@ export default function ShipmentsPage() {
   useEffect(() => setSearchInput(suffixParam), [suffixParam]);
 
   useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(MASTER_COLUMN_PREFERENCES_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Partial<MasterColumnPreferences>;
+      const sanitize = (columns: unknown, fallback: OptionalMasterColumn[]) => (
+        Array.isArray(columns)
+          ? columns.filter((column): column is OptionalMasterColumn => OPTIONAL_MASTER_COLUMNS.some((candidate) => candidate.id === column))
+          : fallback
+      );
+      setMasterColumnPreferences({
+        wide: sanitize(parsed.wide, DEFAULT_MASTER_COLUMNS.wide),
+        compact: sanitize(parsed.compact, DEFAULT_MASTER_COLUMNS.compact),
+      });
+    } catch {
+      // A blocked or malformed local preference must not prevent CUS from working.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MASTER_COLUMN_PREFERENCES_KEY, JSON.stringify(masterColumnPreferences));
+    } catch {
+      // Persistence is a convenience; a browser privacy setting cannot break the ledger.
+    }
+  }, [masterColumnPreferences]);
+
+  useEffect(() => {
     const element = workspaceRef.current;
     if (!element || typeof ResizeObserver === 'undefined') return;
 
     const updateLayout = () => {
       const availableWidth = element.getBoundingClientRect().width;
-      setWorkspaceLayout(availableWidth >= 1040 ? 'wide' : 'cards');
+      setWorkspaceLayout(availableWidth >= 1040 ? 'wide' : availableWidth >= 760 ? 'compact' : 'cards');
     };
     const observer = new ResizeObserver(updateLayout);
     updateLayout();
@@ -857,18 +799,30 @@ export default function ShipmentsPage() {
 
   const loadDetail = useCallback(async (shipmentId: number, force = false) => {
     if (!force && details[shipmentId]) return;
-    setDetailLoadingId(shipmentId);
+    const requestId = (detailRequestSequence.current[shipmentId] ?? 0) + 1;
+    detailRequestSequence.current[shipmentId] = requestId;
+    setDetailLoadingIds((current) => new Set(current).add(shipmentId));
     setDetailErrors((current) => ({ ...current, [shipmentId]: '' }));
     try {
       const detail = await getCusShipmentWorkspaceDetail(shipmentId);
-      setDetails((current) => ({ ...current, [shipmentId]: detail }));
+      if (detailRequestSequence.current[shipmentId] === requestId) {
+        setDetails((current) => ({ ...current, [shipmentId]: detail }));
+      }
     } catch (detailError) {
-      setDetailErrors((current) => ({
-        ...current,
-        [shipmentId]: safeError(detailError, 'Không thể tải chi tiết container.'),
-      }));
+      if (detailRequestSequence.current[shipmentId] === requestId) {
+        setDetailErrors((current) => ({
+          ...current,
+          [shipmentId]: safeError(detailError, 'Không thể tải chi tiết container.'),
+        }));
+      }
     } finally {
-      setDetailLoadingId((current) => current === shipmentId ? null : current);
+      if (detailRequestSequence.current[shipmentId] === requestId) {
+        setDetailLoadingIds((current) => {
+          const next = new Set(current);
+          next.delete(shipmentId);
+          return next;
+        });
+      }
     }
   }, [details]);
 
@@ -892,10 +846,21 @@ export default function ShipmentsPage() {
     setNotice('Đã lưu dữ liệu container. Xác nhận Kế toán cũ (nếu có) sẽ được kiểm tra lại theo nguồn mới.');
   }, []);
 
-  const openDetail = useCallback((shipmentId: number) => {
+  const openMobileDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
     void loadDetail(shipmentId);
   }, [loadDetail]);
+
+  const toggleInlineDetail = useCallback((shipmentId: number) => {
+    const willExpand = !expandedShipmentIds.has(shipmentId);
+    setExpandedShipmentIds((current) => {
+      const next = new Set(current);
+      if (next.has(shipmentId)) next.delete(shipmentId);
+      else next.add(shipmentId);
+      return next;
+    });
+    if (willExpand && !details[shipmentId]) void loadDetail(shipmentId);
+  }, [details, expandedShipmentIds, loadDetail]);
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -936,8 +901,9 @@ export default function ShipmentsPage() {
   };
 
   const saveTransportDate = async (item: ShipmentCusWorkspaceListItem) => {
+    const transportDateDraft = transportDateDrafts[item.id] ?? item.transportDate ?? '';
     if (!transportDateDraft || transportDateDraft === item.transportDate) return;
-    setSavingTransportDate(true);
+    setSavingTransportDateIds((current) => new Set(current).add(item.id));
     setError(null);
     try {
       await updateShipment(item.id, {
@@ -950,12 +916,17 @@ export default function ShipmentsPage() {
         delete next[item.id];
         return next;
       });
-      setDrawerId(null);
+      if (expandedShipmentIds.has(item.id)) void loadDetail(item.id, true);
+      if (workspaceLayout === 'cards') setDrawerId(null);
       await loadList();
     } catch (transportDateError) {
       setError(safeError(transportDateError, 'Không thể cập nhật ngày vận chuyển.'));
     } finally {
-      setSavingTransportDate(false);
+      setSavingTransportDateIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
     }
   };
 
@@ -1050,6 +1021,7 @@ export default function ShipmentsPage() {
         delete next[actionItem.id];
         return next;
       });
+      if (expandedShipmentIds.has(actionItem.id)) void loadDetail(actionItem.id, true);
       await loadList();
     } catch (actionError) {
       setError(safeError(actionError, 'Không thể hoàn tất thao tác.'));
@@ -1063,6 +1035,9 @@ export default function ShipmentsPage() {
   const visibleSummary = data?.pageSummary;
   const totalPages = Math.max(1, data?.totalPages ?? Math.ceil(total / PAGE_SIZE));
   const drawerItem = items.find((item) => item.id === drawerId) ?? null;
+  const activeColumnMode = workspaceLayout === 'compact' ? 'compact' : 'wide';
+  const visibleOptionalColumns = masterColumnPreferences[activeColumnMode];
+  const visibleColumnCount = 9 + visibleOptionalColumns.length;
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || bucket);
 
   const resultLabel = useMemo(() => {
@@ -1078,8 +1053,22 @@ export default function ShipmentsPage() {
   ].filter((chip): chip is { key: string; label: string } => chip != null), [bucket, dateFrom, dateTo, suffixParam]);
 
   useEffect(() => {
-    setTransportDateDraft(drawerItem?.transportDate ?? '');
-  }, [drawerItem?.id, drawerItem?.transportDate]);
+    setExpandedShipmentIds((current) => {
+      const visibleIds = new Set(items.map((item) => item.id));
+      const next = new Set([...current].filter((id) => visibleIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [items]);
+
+  const setOptionalColumnVisible = (column: OptionalMasterColumn, checked: boolean) => {
+    setMasterColumnPreferences((current) => {
+      const currentColumns = current[activeColumnMode];
+      const nextColumns = checked
+        ? [...currentColumns, column]
+        : currentColumns.filter((candidate) => candidate !== column);
+      return { ...current, [activeColumnMode]: OPTIONAL_MASTER_COLUMNS.map(({ id }) => id).filter((id) => nextColumns.includes(id)) };
+    });
+  };
 
   return (
     <div className="shipments-page">
@@ -1157,6 +1146,34 @@ export default function ShipmentsPage() {
 
           <div className="cus-toolbar__actions">
             <button className="btn btn--primary" type="submit"><Search size={17} aria-hidden="true" /> Tìm kiếm</button>
+            {workspaceLayout !== 'cards' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="btn btn--secondary cus-column-menu" aria-label="Chọn cột hiển thị">
+                    Cột hiển thị <ChevronDown size={16} aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="cus-column-menu__content">
+                  <DropdownMenuLabel>Cột tùy chọn</DropdownMenuLabel>
+                  {OPTIONAL_MASTER_COLUMNS.map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={visibleOptionalColumns.includes(column.id)}
+                      onCheckedChange={(checked) => setOptionalColumnVisible(column.id, checked === true)}
+                    >
+                      {column.label}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setMasterColumnPreferences((current) => ({
+                    ...current,
+                    [activeColumnMode]: [...DEFAULT_MASTER_COLUMNS[activeColumnMode]],
+                  }))}>
+                    Khôi phục mặc định
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             {hasFilters && (
               <button className="btn btn--ghost" type="button" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa lọc</button>
             )}
@@ -1226,80 +1243,95 @@ export default function ShipmentsPage() {
             <div className="cus-master-scroll" role="region" aria-label="Bảng tổng hợp lô hàng">
               <table className={`cus-master-table cus-master-table--${workspaceLayout}`}>
                 <colgroup>
-                  <col className="cus-master-table__col-shipment" />
-                  <col className="cus-master-table__col-customer-route" />
+                  <col className="cus-master-table__col-detail" />
+                  <col className="cus-master-table__col-customer" />
+                  <col className="cus-master-table__col-bill" />
+                  {visibleOptionalColumns.includes('route') && <col className="cus-master-table__col-route" />}
+                  {visibleOptionalColumns.includes('type') && <col className="cus-master-table__col-type" />}
+                  <col className="cus-master-table__col-quantity" />
                   <col className="cus-master-table__col-plan" />
-                  <col className="cus-master-table__col-vehicle" />
+                  {visibleOptionalColumns.includes('invoice') && <col className="cus-master-table__col-invoice" />}
+                  {visibleOptionalColumns.includes('nonInvoice') && <col className="cus-master-table__col-non-invoice" />}
+                  <col className="cus-master-table__col-cost" />
+                  <col className="cus-master-table__col-custody" />
+                  <col className="cus-master-table__col-accounting" />
                   <col className="cus-master-table__col-status" />
-                  <col className="cus-master-table__col-finance" />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">Lô hàng</th>
-                    <th scope="col">Khách hàng / tuyến</th>
+                    <th scope="col">Chi tiết</th>
+                    <th scope="col">Khách hàng / Nhà máy</th>
+                    <th scope="col">Bill/Book / Tờ khai</th>
+                    {visibleOptionalColumns.includes('route') && <th scope="col">Hãng tàu / Tuyến</th>}
+                    {visibleOptionalColumns.includes('type') && <th scope="col">Loại hàng</th>}
+                    <th scope="col">Số lượng</th>
                     <th scope="col">Kế hoạch</th>
-                    <th scope="col">Điều xe</th>
-                    <th scope="col">Trạng thái / ngoại lệ</th>
-                    <th scope="col">Đối soát / hành động</th>
+                    {visibleOptionalColumns.includes('invoice') && <th scope="col">Thu có hóa đơn</th>}
+                    {visibleOptionalColumns.includes('nonInvoice') && <th scope="col">Thu không hóa đơn</th>}
+                    <th scope="col">Tổng chi phí</th>
+                    <th scope="col">Phơi phiếu</th>
+                    <th scope="col">Kế toán duyệt</th>
+                    <th scope="col">Trạng thái / Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const expanded = expandedShipmentIds.has(item.id);
+                    const detailLoading = detailLoadingIds.has(item.id);
+                    const transportDateDraft = transportDateDrafts[item.id] ?? item.transportDate ?? '';
+                    const savingTransportDate = savingTransportDateIds.has(item.id);
+                    return (
+                      <Fragment key={item.id}>
                       <tr
                         key={`master-${item.id}`}
-                        className="cus-master-row"
+                        className={`cus-master-row${expanded ? ' cus-master-row--expanded' : ''}`}
                         onClick={(event) => {
                           if (isInteractiveRowTarget(event.target)) return;
-                          openDetail(item.id);
+                          toggleInlineDetail(item.id);
                         }}
                       >
                         <td>
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-                          <div className="cus-index-cell">
-                            <button
-                              type="button"
-                              className="cus-row-toggle"
-                              aria-haspopup="dialog"
-                              aria-controls={`cus-detail-drawer-${item.id}`}
-                              onClick={() => openDetail(item.id)}
-                            >
-                              {item.billOrBookNumber || item.declarationNumber || 'Chưa có mã lô'}
-                              <span className="sr-only"> — Mở chi tiết lô hàng của {item.customerName || 'khách hàng'}</span>
-                            </button>
-                            <span>{item.declarationNumber ? `Tờ khai ${item.declarationNumber}` : item.shippingLineName || 'Chưa có tờ khai'}</span>
-                          </div>
+                          <button type="button" className="cus-row-toggle" aria-expanded={expanded} aria-controls={`cus-inline-detail-${item.id}`} aria-label={`${expanded ? 'Thu gọn' : 'Mở'} chi tiết lô hàng của ${item.customerName || 'khách hàng'}`} onClick={() => toggleInlineDetail(item.id)}><ChevronDown size={18} aria-hidden="true" /></button>
                         </td>
                         <td>
                           <div className="cus-index-cell">
                             <strong>{item.customerName || 'Chưa có khách hàng'}</strong>
                             <span title={item.factoryName || 'Chưa có nhà máy'}><Warehouse size={13} aria-hidden="true" /> {item.factoryName || 'Chưa có nhà máy'}</span>
-                            <span title={item.routeName || 'Chưa xác định tuyến'}><Route size={13} aria-hidden="true" /> {item.routeName || 'Chưa xác định tuyến'}</span>
                           </div>
                         </td>
                         <td>
-                          <ScheduleEvidence item={item} />
+                          <div className="cus-index-cell"><strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong><span>{item.declarationNumber ? `Tờ khai ${item.declarationNumber}` : 'Chưa có tờ khai'}</span></div>
+                        </td>
+                        {visibleOptionalColumns.includes('route') && <td><div className="cus-index-cell"><strong>{item.shippingLineName || '—'}</strong><span><Route size={13} aria-hidden="true" /> {item.routeName || 'Chưa xác định tuyến'}</span></div></td>}
+                        {visibleOptionalColumns.includes('type') && <td><div className="cus-index-cell"><strong>{directionLabel(item.direction)}</strong><span>{item.isCombined ? 'Có kết hợp hàng' : 'Không kết hợp'}</span></div></td>}
+                        <td>
+                          <div className="cus-index-cell cus-index-cell--numbers"><strong>{item.containerSummary || '—'}</strong><span>{formatQuantity(item.weightKg)} kg · {formatQuantity(item.volumeCbm, 3)} CBM</span></div>
                         </td>
                         <td>
-                          <VehicleEvidence item={item} />
+                          <div className="cus-index-cell"><ScheduleEvidence item={item} /><span>{item.note || 'Không có ghi chú'}</span></div>
+                        </td>
+                        {visibleOptionalColumns.includes('invoice') && <td><div className="cus-index-cell cus-index-cell--money"><strong>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</strong></div></td>}
+                        {visibleOptionalColumns.includes('nonInvoice') && <td><div className="cus-index-cell cus-index-cell--money"><strong>{item.finance.customerChargeTotalsAvailable ? `${formatMoney(item.finance.customerNoInvoiceTotal)} ₫` : 'Chưa có dữ liệu'}</strong></div></td>}
+                        <td>
+                          <div className="cus-index-cell cus-index-cell--money"><strong>{item.finance.totalCostAvailable ? `${formatMoney(item.finance.totalCost)} ₫` : 'Chưa có dữ liệu'}</strong><FinanceEvidence item={item} /></div>
                         </td>
                         <td>
-                          <div className="cus-status-cell">
-                            <WorkflowBadge item={item} />
-                            <ShipmentSignals item={item} />
-                          </div>
+                          <select className="cus-custody-select cus-custody-select--table" value={item.documentCustody.status ?? ''} disabled={item.bucket === ShipmentCusBucket.LOCKED || !item.documentCustody.available || !item.documentCustody.editable} aria-label={`Trạng thái phơi phiếu của ${item.customerName || 'lô hàng'}`} onChange={(event) => void updateCustody(item, event.target.value as ShipmentDocumentCustody)}><option value="" disabled>Chưa xác định</option>{Object.values(ShipmentDocumentCustody).map((status) => <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>)}</select>
                         </td>
+                        <td><div className="cus-index-cell"><strong>{accountingConfirmationLabel(item.accountingConfirmation)}</strong></div></td>
                         <td>
-                          <div className="cus-finance-cell">
-                            <FinanceEvidence item={item} />
-                            {item.action.kind !== 'NONE' && (
-                              <div className="cus-row-hover-action" data-row-interactive>
-                                {shipmentActionButton(item, 'btn btn--primary btn--sm')}
-                              </div>
-                            )}
-                          </div>
+                          <div className="cus-status-cell"><WorkflowBadge item={item} /><ShipmentSignals item={item} />{shipmentActionButton(item, 'btn btn--primary btn--sm')}</div>
                         </td>
                       </tr>
-                  ))}
+                      {expanded && (
+                        <tr key={`detail-${item.id}`} className="cus-inline-detail-row"><td id={`cus-inline-detail-${item.id}`} colSpan={visibleColumnCount}>
+                          <ShipmentDetailContent item={item} detail={details[item.id]} loading={detailLoading} error={detailErrors[item.id]} transportDateDraft={transportDateDraft} savingTransportDate={savingTransportDate} onTransportDateDraftChange={(value) => setTransportDateDrafts((current) => ({ ...current, [item.id]: value }))} onSaveTransportDate={() => void saveTransportDate(item)} onRetry={() => void loadDetail(item.id, true)} onCustodyChange={(status) => void updateCustody(item, status)} onLineSaved={(line) => applySavedContainerLine(item.id, line)} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix="cus-inline-detail" />
+                        </td></tr>
+                      )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1311,7 +1343,7 @@ export default function ShipmentsPage() {
                   className={`cus-mobile-card cus-mobile-card--interactive${item.finance.isLoss ? ' cus-mobile-card--loss' : ''}${item.finance.hasPendingRecovery ? ' cus-mobile-card--pending' : ''}`}
                   onClick={(event) => {
                     if (isInteractiveRowTarget(event.target)) return;
-                    openDetail(item.id);
+                    openMobileDetail(item.id);
                   }}
                 >
                   <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
@@ -1324,7 +1356,7 @@ export default function ShipmentsPage() {
                         aria-haspopup="dialog"
                         aria-controls={`cus-detail-drawer-${item.id}`}
                         aria-label={`Mở chi tiết lô hàng của ${item.customerName || 'khách hàng'}`}
-                        onClick={() => openDetail(item.id)}
+                        onClick={() => openMobileDetail(item.id)}
                       >
                         {item.billOrBookNumber || item.declarationNumber || 'Chưa có Bill/Tờ khai'}
                         <span className="sr-only"> — Mở chi tiết lô hàng</span>
@@ -1372,73 +1404,8 @@ export default function ShipmentsPage() {
         className="cus-shipment-drawer"
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
-          {drawerItem && <ShipmentDetailSummary item={drawerItem} />}
-          {drawerId != null && detailLoadingId === drawerId && !details[drawerId] ? (
-            <div className="cus-detail-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải dữ liệu container…</div>
-          ) : drawerId != null && detailErrors[drawerId] ? (
-            <div className="cus-inline-error" role="alert"><span>{detailErrors[drawerId]}</span><button type="button" onClick={() => void loadDetail(drawerId, true)}>Thử lại</button></div>
-          ) : drawerId != null && details[drawerId] ? (
-            <ContainerLedger
-              detail={details[drawerId]}
-              onLineSaved={(line) => applySavedContainerLine(drawerId, line)}
-              getIdempotencyKey={getIdempotencyKey}
-              clearIdempotencyKey={clearIdempotencyKey}
-            />
-          ) : null}
-
           {drawerItem && (
-            <div className="cus-drawer-actions">
-              <div className="cus-drawer-transport-date">
-                <label htmlFor="cus-drawer-transport-date-input">Ngày vận chuyển</label>
-                <div className="cus-drawer-transport-date__control">
-                  <input
-                    id="cus-drawer-transport-date-input"
-                    type="date"
-                    value={transportDateDraft}
-                    disabled={!drawerItem.operational.transportDateEditable || savingTransportDate}
-                    onChange={(event) => setTransportDateDraft(event.target.value)}
-                  />
-                  {drawerItem.operational.transportDateEditable && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary btn--sm"
-                      disabled={!transportDateDraft || transportDateDraft === drawerItem.transportDate || savingTransportDate}
-                      onClick={() => void saveTransportDate(drawerItem)}
-                    >
-                      {savingTransportDate ? <Loader2 className="spin" size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
-                      Chốt lịch
-                    </button>
-                  )}
-                </div>
-              </div>
-              <label className="cus-drawer-custody">
-                <span>Phơi phiếu</span>
-                <select
-                  className="cus-custody-select"
-                  value={drawerItem.documentCustody.status ?? ''}
-                  disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
-                  aria-label={`Trạng thái phơi phiếu của ${drawerItem.customerName || 'lô hàng'}`}
-                  onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
-                >
-                  <option value="" disabled>Chưa xác định</option>
-                  {Object.values(ShipmentDocumentCustody).map((status) => (
-                    <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>
-                  ))}
-                </select>
-              </label>
-              {drawerItem.action.kind === 'CONFIRM_FINANCE' && (
-                <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'confirm')}>Xác nhận chi phí</button>
-              )}
-              {drawerItem.action.kind === 'LOCK' && (
-                <button type="button" className="btn btn--primary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'lock')}>Khóa lô</button>
-              )}
-              {drawerItem.action.kind === 'REQUEST_REOPEN' && (
-                <button type="button" className="btn btn--secondary" disabled={!drawerItem.action.enabled} onClick={() => openAction(drawerItem, 'reopen')}>Đề nghị điều chỉnh</button>
-              )}
-              {drawerItem.action.kind !== 'NONE' && !drawerItem.action.enabled && drawerItem.action.disabledReason && (
-                <span className="cus-action-unavailable">{drawerItem.action.disabledReason}</span>
-              )}
-            </div>
+            <ShipmentDetailContent item={drawerItem} detail={details[drawerItem.id]} loading={detailLoadingIds.has(drawerItem.id)} error={detailErrors[drawerItem.id]} transportDateDraft={transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? ''} savingTransportDate={savingTransportDateIds.has(drawerItem.id)} onTransportDateDraftChange={(value) => setTransportDateDrafts((current) => ({ ...current, [drawerItem.id]: value }))} onSaveTransportDate={() => void saveTransportDate(drawerItem)} onRetry={() => void loadDetail(drawerItem.id, true)} onCustodyChange={(status) => void updateCustody(drawerItem, status)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix="cus-drawer-detail" />
           )}
         </div>
       </Drawer>

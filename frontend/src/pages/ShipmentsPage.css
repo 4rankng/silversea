@@ -199,6 +199,26 @@
   grid-column: 1 / -1;
 }
 
+.cus-workspace[data-layout='compact'] .cus-master-table th,
+.cus-workspace[data-layout='compact'] .cus-master-table td {
+  padding: 7px 5px;
+  font-size: 10px;
+}
+
+.cus-workspace[data-layout='compact'] .cus-master-table th:first-child,
+.cus-workspace[data-layout='compact'] .cus-master-table td:first-child {
+  width: 44px;
+}
+
+.cus-workspace[data-layout='compact'] .cus-master-table th:last-child,
+.cus-workspace[data-layout='compact'] .cus-master-table td:last-child {
+  width: 110px;
+}
+
+.cus-workspace[data-layout='compact'] .cus-inline-detail-row .cus-container__facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .cus-workspace__summary {
   display: flex;
   align-items: center;
@@ -337,8 +357,8 @@
   /* A percentage-width table still honors its min-content width in Chrome.
      This fixed-layout form makes every semantic track share the available
      ledger width, so cells wrap instead of creating a hidden side overflow. */
-  width: 0;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   table-layout: fixed;
   border-collapse: separate;
@@ -346,13 +366,6 @@
   color: var(--ink);
   font-size: 12px;
 }
-
-.cus-master-table__col-shipment { width: 17%; }
-.cus-master-table__col-customer-route { width: 23%; }
-.cus-master-table__col-plan { width: 13%; }
-.cus-master-table__col-vehicle { width: 13%; }
-.cus-master-table__col-status { width: 18%; }
-.cus-master-table__col-finance { width: 16%; }
 
 .cus-master-table th,
 .cus-master-table td {
@@ -384,9 +397,35 @@
   white-space: normal;
 }
 
+.cus-master-table td {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.cus-master-table__col-detail { width: 4%; }
+.cus-master-table__col-customer { width: 10.5%; }
+.cus-master-table__col-bill { width: 8.5%; }
+.cus-master-table__col-route { width: 9%; }
+.cus-master-table__col-type { width: 6%; }
+.cus-master-table__col-quantity { width: 6.5%; }
+.cus-master-table__col-plan { width: 8%; }
+.cus-master-table__col-invoice,
+.cus-master-table__col-non-invoice { width: 7.5%; }
+.cus-master-table__col-cost { width: 8%; }
+.cus-master-table__col-custody { width: 6.5%; }
+.cus-master-table__col-accounting { width: 7.5%; }
+.cus-master-table__col-status { width: 9.5%; }
+
+.cus-master-table th:first-child,
+.cus-master-table td:first-child {
+  padding-inline: 6px;
+  text-align: center;
+}
+
 .cus-finance-evidence {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   min-height: 44px;
   gap: 8px;
   color: var(--ink-2);
@@ -411,7 +450,8 @@
 
 .cus-finance-loss strong {
   font-size: 11px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cus-finance-quiet {
@@ -440,29 +480,31 @@
 }
 
 .cus-row-toggle {
-  display: inline;
-  max-width: 100%;
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
   padding: 0;
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: var(--fw-semibold);
-  text-align: left;
-  overflow-wrap: anywhere;
+  color: var(--ink-2);
   cursor: pointer;
 }
 
 .cus-row-toggle:hover {
+  background: var(--surface-3);
   color: var(--accent-2);
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .cus-row-toggle:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 2px;
+}
+
+.cus-master-row--expanded .cus-row-toggle svg {
+  transform: rotate(180deg);
 }
 
 .cus-index-cell {
@@ -475,14 +517,14 @@
 .cus-index-cell > .cus-row-toggle {
   display: block;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: var(--fw-semibold);
   line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .cus-index-cell > span {
@@ -490,14 +532,48 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--ink-3);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: var(--fw-normal);
   line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.cus-index-cell--numbers strong,
+.cus-index-cell--money strong {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.cus-custody-select--table {
+  min-height: 38px;
+  padding: 6px;
+  font-size: 11px;
+}
+
+.cus-inline-detail-row > td {
+  padding: 0;
+  background: var(--surface-2);
+}
+
+.cus-detail-content {
+  border-top: 2px solid var(--line-strong);
+}
+
+.cus-inline-detail-row .cus-container-ledger,
+.cus-inline-detail-row .cus-drawer-actions {
+  max-width: 100%;
+}
+
+.cus-inline-detail-row .cus-container__facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cus-column-menu__content {
+  min-width: 236px;
 }
 
 .cus-operational-evidence {
@@ -516,9 +592,9 @@
 .cus-operational-evidence strong,
 .cus-operational-evidence > span:last-child {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .cus-operational-evidence strong {
@@ -539,6 +615,12 @@
 .cus-status-cell {
   display: grid;
   gap: 5px;
+}
+
+.cus-status-cell .btn {
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cus-workflow-badge {
@@ -652,11 +734,6 @@
   color: var(--info-text);
 }
 
-.cus-signal--repair {
-  background: color-mix(in srgb, var(--warning-soft) 80%, #fff0d8);
-  color: var(--warning-text);
-}
-
 .cus-custody-select {
   width: 100%;
   min-width: 0;
@@ -681,8 +758,7 @@
 }
 
 .cus-confirmation,
-.cus-action-unavailable,
-.cus-money-unavailable {
+.cus-action-unavailable {
   min-width: 0;
   max-width: 100%;
   white-space: normal;
@@ -883,22 +959,19 @@
 }
 
 .cus-container__facts dt,
-.cus-mobile-card dt,
-.cus-detail-group dt {
+.cus-mobile-card dt {
   color: var(--ink-3);
   font-size: 11px;
 }
 
 .cus-container__facts dd,
-.cus-mobile-card dd,
-.cus-detail-group dd {
+.cus-mobile-card dd {
   margin: 3px 0 0;
   color: var(--ink);
   font-size: 12px;
 }
 
-.cus-container__field-label,
-.cus-inline-money-field > span {
+.cus-container__field-label {
   color: var(--ink-3);
   font-size: 11px;
   font-weight: var(--fw-semibold);
@@ -913,8 +986,7 @@
   font-weight: var(--fw-medium);
 }
 
-.cus-container__facts input,
-.cus-inline-money-field input {
+.cus-container__facts input {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -930,13 +1002,7 @@
   line-height: 1.35;
 }
 
-.cus-inline-money-field input {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.cus-container__facts input:focus-visible,
-.cus-inline-money-field input:focus-visible {
+.cus-container__facts input:focus-visible {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
   outline-offset: 1px;
@@ -962,78 +1028,6 @@
   color: var(--accent-2);
 }
 
-.cus-container__charges {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(260px, 1fr));
-}
-
-.cus-detail-group {
-  min-width: 0;
-  padding: 12px;
-  border-right: 1px solid var(--line);
-}
-
-.cus-detail-group:last-child {
-  border-right: 0;
-}
-
-.cus-detail-group h4 {
-  margin: 0 0 8px;
-  color: var(--accent-2);
-  font-size: var(--fs-sm);
-}
-
-.cus-proposal-note {
-  margin: -2px 0 10px;
-  color: var(--ink-3);
-  font-size: var(--fs-xs);
-  line-height: 1.45;
-}
-
-.cus-detail-group dl {
-  display: grid;
-  gap: 5px;
-  margin: 0;
-}
-
-.cus-detail-group dl > div {
-  display: grid;
-  grid-template-columns: minmax(95px, 0.8fr) minmax(120px, 1.2fr);
-  gap: 10px;
-  align-items: center;
-  min-height: 38px;
-  padding: 4px 0;
-  border-bottom: 1px dashed var(--line);
-}
-
-.cus-detail-group__total {
-  border-bottom: 0 !important;
-  font-family: var(--font-mono);
-  font-weight: var(--fw-bold);
-}
-
-.cus-editable-money-grid {
-  display: grid;
-  gap: 7px;
-}
-
-.cus-inline-money-field,
-.cus-editable-money-grid > div {
-  display: grid;
-  gap: 4px;
-}
-
-.cus-editable-total {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--line);
-  font-family: var(--font-mono);
-}
-
 .cus-container__savebar {
   display: flex;
   align-items: center;
@@ -1055,52 +1049,12 @@
   font-size: var(--fs-xs);
 }
 
-.cus-money-cell {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  padding: 4px 6px;
-  border-radius: 4px;
-}
-
-.cus-money-cell strong {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.cus-money-cell span,
-.cus-money-cell em {
+.cus-container-ledger__finance-note {
+  margin: 0;
+  padding: 2px 2px 0;
   color: var(--ink-3);
-  font-size: 10px;
-  font-style: normal;
-  overflow-wrap: anywhere;
-}
-
-.cus-money-cell--warning {
-  background: color-mix(in srgb, var(--warning-soft) 82%, #fff0d8);
-}
-
-.cus-money-cell--warning em {
-  color: var(--warning-text);
-  font-weight: var(--fw-semibold);
-}
-
-.cus-money-unavailable,
-.cus-detail-group__unavailable {
-  color: var(--ink-3);
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: var(--fw-normal);
-  white-space: normal;
-}
-
-.cus-detail-group__unavailable {
-  margin: 0 0 8px;
-  padding: 7px 8px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 4px;
-  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
 }
 
 .cus-detail-empty {
@@ -1155,91 +1109,6 @@
 .cus-shipment-drawer {
   width: min(960px, 100vw);
   max-width: min(960px, 100vw);
-}
-
-.cus-drawer-summary {
-  display: grid;
-  gap: 16px;
-  padding-bottom: 16px;
-}
-
-.cus-drawer-section {
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 16px;
-}
-
-.cus-drawer-section > h3,
-.cus-drawer-section__heading h3 {
-  margin: 0 0 10px;
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
-
-.cus-drawer-section__heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.cus-drawer-section__heading .cus-signals {
-  justify-content: flex-end;
-  margin: 0;
-}
-
-.cus-detail-facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  margin: 0;
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-}
-
-.cus-detail-facts > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 9px 10px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.cus-detail-facts dt {
-  color: var(--ink-3);
-  font-size: 11px;
-  font-weight: var(--fw-medium);
-}
-
-.cus-detail-facts dd {
-  min-width: 0;
-  margin: 0;
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: var(--fw-medium);
-  overflow-wrap: anywhere;
-}
-
-.cus-detail-facts--finance dd {
-  font-variant-numeric: tabular-nums;
-}
-
-.cus-detail-facts__wide {
-  grid-column: 1 / -1;
-}
-
-.cus-drawer-note {
-  margin: 0 0 10px;
-  padding: 10px 12px;
-  border-left: 3px solid var(--line-3);
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-relaxed);
 }
 
 .cus-drawer-custody {
@@ -1404,20 +1273,10 @@
   }
 
   .cus-shipment-drawer .cus-container__facts input,
-  .cus-shipment-drawer .cus-inline-money-field input,
   .cus-shipment-drawer .searchable-select__trigger,
   .cus-shipment-drawer .cus-container__savebar .btn {
     height: 44px;
     min-height: 44px;
-  }
-
-  .cus-shipment-drawer .cus-container__charges {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-shipment-drawer .cus-detail-group {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
   }
 
   .cus-shipment-drawer .cus-container__facts {
@@ -1497,14 +1356,6 @@
     grid-template-columns: 1fr;
   }
 
-  .cus-detail-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cus-detail-facts__wide {
-    grid-column: 1 / -1;
-  }
-
   .cus-shipment-drawer .drawer__head {
     gap: 10px;
     overflow: clip;
@@ -1518,19 +1369,6 @@
 
   .cus-shipment-drawer .drawer__body {
     padding: 14px 18px 80px;
-  }
-
-  .cus-shipment-drawer .cus-drawer-summary {
-    gap: 12px;
-    padding-bottom: 12px;
-  }
-
-  .cus-shipment-drawer .cus-drawer-section {
-    padding-bottom: 12px;
-  }
-
-  .cus-shipment-drawer .cus-detail-facts > div {
-    padding: 7px 8px;
   }
 
   .cus-container__head {
@@ -1551,7 +1389,6 @@
   }
 
   .cus-shipment-drawer .cus-container__facts input,
-  .cus-shipment-drawer .cus-inline-money-field input,
   .cus-shipment-drawer .cus-drawer-transport-date input,
   .cus-shipment-drawer .searchable-select__trigger {
     font-size: 16px;

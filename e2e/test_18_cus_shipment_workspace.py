@@ -242,26 +242,16 @@ def main() -> bool:
                     "name": f"Nhà xe E2E {RUN_ID}",
                     "plateNumber": f"E2E-{BOOK_SUFFIX_STORED}",
                 },
-                "outboundCharges": {
-                    "transportAmount": "2500000",
-                    "handlingAmount": "350000",
-                    "incidentalAmount": "100000",
-                },
-                "inboundCharges": {
-                    "transportAmount": "1900000",
-                    "handlingAmount": "250000",
-                },
             },
         )
         updated_line = update_response.get("data", {}).get("line", {})
         check(
             results,
             "TC-1807",
-            "CUS lưu nhà xe mới và cước bằng optimistic version",
+            "CUS lưu thông tin vận hành container bằng optimistic version",
             update_response.get("status") == 200
             and updated_line.get("carrierName") == f"Nhà xe E2E {RUN_ID}"
-            and updated_line.get("plateNumber") == f"E2E-{BOOK_SUFFIX_STORED}".upper()
-            and updated_line.get("outboundCharges", {}).get("transport", {}).get("amount") == "2500000",
+            and updated_line.get("plateNumber") == f"E2E-{BOOK_SUFFIX_STORED}".upper(),
             str(update_response),
         )
 
@@ -270,7 +260,7 @@ def main() -> bool:
             {
                 "expectedShipmentVersion": line["shipmentVersion"],
                 "expectedFactVersion": line["factVersion"],
-                "outboundCharges": {"transportAmount": "1"},
+                "containerTypeId": line["containerTypeId"],
             },
         )
         check(
@@ -328,13 +318,13 @@ def main() -> bool:
                     expand_button.focus()
                     controls = expand_button.get_attribute("aria-controls")
                     page.keyboard.press("Enter")
-                    dialog = page.get_by_role("dialog")
-                    dialog.wait_for(timeout=10_000)
-                    page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
+                    page.locator(f"#{controls}").wait_for(timeout=10_000)
+                    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                    page.keyboard.press("Escape")
+                    inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
+                    page.keyboard.press("Enter")
                     page.wait_for_function(
-                        "document.querySelectorAll('[role=\"dialog\"]').length === 0",
+                        f"document.querySelector('#{controls}') === null",
                         timeout=2_500,
                     )
                     focus_restored = page.evaluate(
@@ -343,9 +333,9 @@ def main() -> bool:
                     check(
                         results,
                         "TC-1812",
-                        "Mở chi tiết container bằng bàn phím",
-                        controlled_region_exists and focus_restored,
-                        f"ariaControls={controls}, focusRestored={focus_restored}",
+                        "Mở và thu gọn chi tiết container nội dòng bằng bàn phím",
+                        controlled_region_exists and inline_detail_has_no_drawer and focus_restored,
+                        f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, focusRestored={focus_restored}",
                     )
 
                 if width == 390:
@@ -356,7 +346,7 @@ def main() -> bool:
                     dialog = page.get_by_role("dialog")
                     dialog.wait_for(timeout=10_000)
                     focus_moved_inside = page.evaluate("document.activeElement?.getAttribute('aria-label') === 'Đóng'")
-                    page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
+                    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
                     page.wait_for_function(
                         """() => {
                             const rect = document.querySelector('[role="dialog"]')?.getBoundingClientRect();

@@ -34,7 +34,7 @@ ROLE_EXPECTATIONS = {
         "action_kind": "CONFIRM_FINANCE",
         "action_enabled": False,
         "action_label": "Xác nhận tài chính",
-        "ui_button": "Xác nhận chi phí",
+        "ui_button": "Xác nhận tài chính",
         "ui_reason": "Chưa có Debit Note hiện hành đủ điều kiện.",
     },
     "admin": {
@@ -369,20 +369,40 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 workspace_layout = page.locator(".cus-workspace").get_attribute("data-layout")
                 if workspace_layout == "cards":
                     card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                    action_surface = card
+                    button = action_surface.get_by_role("button", name=expectation["ui_button"]).first
+                    reason_visible = action_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
+                    button.wait_for(state="visible", timeout=10_000)
+                    action_is_disabled = button.is_disabled()
                     card.locator("button.cus-mobile-card__reference").click()
+                    detail_surface = page.get_by_role("dialog")
+                    detail_surface.wait_for(timeout=10_000)
                 else:
                     row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                    row.locator("button.cus-row-toggle").click()
-                dialog = page.get_by_role("dialog")
-                dialog.wait_for(timeout=10_000)
-                button = dialog.get_by_role("button", name=expectation["ui_button"]).first
-                reason_visible = dialog.get_by_text(expectation["ui_reason"], exact=False).count() > 0
-                button.wait_for(state="visible", timeout=10_000)
+                    action_surface = row
+                    button = action_surface.get_by_role("button", name=expectation["ui_button"]).first
+                    reason_visible = action_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
+                    button.wait_for(state="visible", timeout=10_000)
+                    action_is_disabled = button.is_disabled()
+                    toggle = row.locator("button.cus-row-toggle")
+                    controls = toggle.get_attribute("aria-controls")
+                    toggle.click()
+                    detail_surface = page.locator(f"#{controls}")
+                    detail_surface.wait_for(timeout=10_000)
+                handoff_visible = detail_surface.get_by_text(
+                    "Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.",
+                    exact=True,
+                ).count() == 1
                 condition = (
                     visible_fixture
                     and overflow_ok
-                    and button.is_disabled() == (not expectation["action_enabled"])
-                    and reason_visible
+                    and action_is_disabled == (not expectation["action_enabled"])
+                    and (
+                        expectation["action_enabled"]
+                        or reason_visible
+                        or button.get_attribute("title") == expectation["ui_reason"]
+                    )
+                    and handoff_visible
                     and not console_errors
                     and not page_errors
                 )
@@ -413,7 +433,14 @@ def open_mobile_drawer(page: Page):
     opener.click()
     dialog = page.get_by_role("dialog")
     dialog.wait_for(timeout=10_000)
-    page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
+    page.wait_for_function(
+        """() => {
+          const transform = getComputedStyle(document.querySelector('[role="dialog"]')).transform;
+          return transform === 'none' || Math.abs(new DOMMatrixReadOnly(transform).m41) < 1;
+        }""",
+        timeout=2_500,
+    )
+    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
     return opener, dialog
 
 
@@ -455,28 +482,28 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
-                dialog = page.get_by_role("dialog")
-                dialog.wait_for(timeout=10_000)
-                page.get_by_text("Cước đầu ra", exact=True).wait_for(timeout=10_000)
+                page.locator(f"#{controls}").wait_for(timeout=10_000)
+                page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
                 controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                page.keyboard.press("Escape")
+                inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
+                page.keyboard.press("Enter")
                 page.wait_for_function(
-                    "document.querySelectorAll('[role=\"dialog\"]').length === 0",
+                    f"document.querySelector('#{controls}') === null",
                     timeout=2_500,
                 )
                 focus_restored = active_has_class(page, "cus-row-toggle")
                 check(
                     results,
                     "TC-1930",
-                    "Desktop keyboard mở/đóng drawer và trả focus đúng aria-controls",
-                    controlled_region_exists and focus_restored,
-                    f"ariaControls={controls}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
+                    "Desktop keyboard mở/thu gọn chi tiết nội dòng và giữ focus đúng aria-controls",
+                    controlled_region_exists and inline_detail_has_no_drawer and focus_restored,
+                    f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
                 )
 
             if width in (390, 320):
                 opener, dialog = open_mobile_drawer(page)
                 close_button = page.get_by_role("button", name="Đóng")
-                action_button = dialog.get_by_role("button", name="Khóa lô")
+                save_container_button = dialog.get_by_role("button", name="Lưu container")
                 focus_in_dialog = page.evaluate(
                     "document.activeElement?.getAttribute('aria-label') === 'Đóng'"
                 )
@@ -498,9 +525,9 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 assert_min_target(
                     results,
                     f"TC-1931-{width}-ACTION",
-                    f"Nút hành động drawer mobile {width}px đạt tối thiểu 24px",
-                    action_button,
-                    "hành động drawer",
+                    f"Nút lưu container trong drawer mobile {width}px đạt tối thiểu 24px",
+                    save_container_button,
+                    "lưu container",
                 )
 
                 close_button.click()
@@ -509,16 +536,6 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     timeout=2_500,
                 )
                 close_button_restored = active_has_class(page, "cus-mobile-card__reference")
-
-                backdrop_restored = True
-                if width > 320:
-                    opener, _ = open_mobile_drawer(page)
-                    page.locator(".drawer-overlay").click(position={"x": 10, "y": 10})
-                    page.wait_for_function(
-                        "document.querySelectorAll('[role=\"dialog\"]').length === 0",
-                        timeout=2_500,
-                    )
-                    backdrop_restored = active_has_class(page, "cus-mobile-card__reference")
 
                 opener, _ = open_mobile_drawer(page)
                 page.keyboard.press("Escape")
@@ -537,9 +554,9 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 check(
                     results,
                     f"TC-1932-{width}",
-                    f"Drawer mobile {width}px có nút đóng, backdrop, Escape và trả focus",
-                    focus_in_dialog and close_button_restored and backdrop_restored and escape_restored and reduced_motion_ok,
-                    f"focusInDialog={focus_in_dialog}, close={close_button_restored}, backdrop={backdrop_restored}, escape={escape_restored}, reducedMotion={reduced_motion_ok}",
+                    f"Drawer mobile {width}px có nút đóng, Escape và trả focus",
+                    focus_in_dialog and close_button_restored and escape_restored and reduced_motion_ok,
+                    f"focusInDialog={focus_in_dialog}, close={close_button_restored}, escape={escape_restored}, reducedMotion={reduced_motion_ok}",
                 )
 
             check(
