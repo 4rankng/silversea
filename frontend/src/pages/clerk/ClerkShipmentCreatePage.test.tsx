@@ -113,20 +113,24 @@ async function saveCarrierAllocationDialog() {
 }
 
 async function choose(label: string, value: string) {
+  // Untitled UI fields: NativeSelect is a real <select>; ComboBox (React Aria)
+  // opens through keyboard input and renders the item value in the option id.
   const labelElement = Array.from(document.querySelectorAll('label'))
     .find((element) => element.textContent?.trim().startsWith(label));
-  const labelledControl = labelElement?.htmlFor
-    ? document.getElementById(labelElement.htmlFor)
-    : null;
-  const control = labelledControl ?? labelElement?.parentElement?.querySelector('select');
-  if (!control) throw new Error(`Không tìm thấy trường chọn ${label}`);
-  if (control instanceof HTMLSelectElement) {
-    fireEvent.change(control, { target: { value } });
+  const nativeSelect = labelElement?.parentElement?.querySelector('select');
+  if (nativeSelect instanceof HTMLSelectElement) {
+    fireEvent.change(nativeSelect, { target: { value } });
     return;
   }
-  fireEvent.click(control);
-  const option = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
-  if (!option) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
+  const combobox = screen.getByRole('combobox', { name: new RegExp(`^${label}`) });
+  // Manual trigger: ArrowDown opens the listbox without making plain focus modal.
+  fireEvent.focus(combobox);
+  fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+  const option = await waitFor(() => {
+    const match = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
+    if (!match) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
+    return match;
+  });
   fireEvent.click(option);
   return waitFor(() => {
     expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull();
@@ -200,13 +204,13 @@ describe('ClerkShipmentCreatePage', () => {
     const confirm = vi.spyOn(window, 'confirm');
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-DIRTY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-DIRTY' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
 
     expect(await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeTruthy();
     expect(confirm).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Số Bill/Book')).toHaveProperty('value', 'BK-DIRTY');
+    expect(screen.getByLabelText('Số Bill/Booking')).toHaveProperty('value', 'BK-DIRTY');
     confirm.mockRestore();
   });
 
@@ -230,7 +234,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-001' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-001' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ customerId: 7, bookingRef: 'BK-001', cargoMode: 'FCL' });
@@ -267,11 +271,11 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-ORIGINAL' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-ORIGINAL' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     expect((await screen.findByRole('alert')).textContent).toContain('Mất kết nối sau khi tạo lô');
 
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-EDITED' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-EDITED' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
 
     await waitFor(() => expect(mocks.updateShipment).toHaveBeenCalledTimes(1));
@@ -288,11 +292,11 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-SAI' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-SAI' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     expect((await screen.findByRole('alert')).textContent).toContain('Số Bill không hợp lệ');
 
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-DA-SUA' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-DA-SUA' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
 
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(2));
@@ -332,7 +336,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-CARRIER-FOCUS' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-CARRIER-FOCUS' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -353,7 +357,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-FCL' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-FCL' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -397,7 +401,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-RETRY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -442,7 +446,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-MODE-RETRY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-MODE-RETRY' } });
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     await choose('Loại container', '31');
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'MSC' } });
@@ -498,7 +502,7 @@ describe('ClerkShipmentCreatePage', () => {
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Loại hàng', '32');
     await choose('Kho lấy hàng', '42');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-LCL-RECOVERY' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-LCL-RECOVERY' } });
     await choose('Quy cách đóng gói', 'Pallet');
     fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '900' } });
@@ -519,7 +523,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-LCL' } });
+    fireEvent.change(screen.getByLabelText('Số Bill/Booking'), { target: { value: 'BK-LCL' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ (LCL)' }));
     await choose('Loại hàng', '32');
     await choose('Kho lấy hàng', '42');

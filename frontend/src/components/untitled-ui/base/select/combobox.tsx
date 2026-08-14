@@ -1,5 +1,5 @@
 
-import type { FC, FocusEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
+import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes } from "react";
 import { isValidElement, useCallback, useContext, useRef, useState } from "react";
 import { SearchLg } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
@@ -19,6 +19,8 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     shortcutClassName?: string;
     /** Leading icon component displayed before the input. */
     icon?: FC | ReactNode;
+    /** Open the options when the input group is clicked or touched. */
+    openOnPress?: boolean;
     children: AriaListBoxProps<SelectItemType>["children"];
 }
 
@@ -28,12 +30,13 @@ interface ComboBoxValueProps extends AriaGroupProps {
     placeholder?: string;
     shortcutClassName?: string;
     icon?: FC | ReactNode;
+    openOnPress?: boolean;
     onFocus?: FocusEventHandler;
     onPointerEnter?: PointerEventHandler;
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, ref, ...otherProps }: ComboBoxValueProps) => {
+const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, ref, ...otherProps }: ComboBoxValueProps) => {
     const state = useContext(ComboBoxStateContext);
 
     const value = state?.selectedItem?.value || null;
@@ -42,10 +45,16 @@ const ComboBoxValue = ({ size, shortcut, placeholder, shortcutClassName, icon: I
     const first = inputValue?.split(value?.supportingText)?.[0] || "";
     const last = inputValue?.split(first)[1];
 
+    const handleClick: MouseEventHandler<HTMLDivElement> = (event) => {
+        otherProps.onClick?.(event);
+        if (openOnPress && !event.defaultPrevented && !state?.isOpen) state?.open(null, "manual");
+    };
+
     return (
         <AriaGroup
             ref={ref}
             {...otherProps}
+            onClick={handleClick}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
                     "relative flex w-full items-center gap-2 rounded-lg bg-primary shadow-xs ring-1 ring-primary outline-hidden transition-shadow duration-100 ease-linear ring-inset",
@@ -112,6 +121,7 @@ export const ComboBox = ({
     items,
     shortcutClassName,
     icon,
+    openOnPress = false,
     hideRequiredIndicator,
     ...otherProps
 }: ComboBoxProps) => {
@@ -150,6 +160,7 @@ export const ComboBox = ({
                             shortcut={shortcut}
                             shortcutClassName={shortcutClassName}
                             icon={icon}
+                            openOnPress={openOnPress}
                             size={size}
                             // This is a workaround to correctly calculating the trigger width
                             // while using ResizeObserver wasn't 100% reliable.

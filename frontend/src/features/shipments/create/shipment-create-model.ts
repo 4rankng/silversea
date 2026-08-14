@@ -1,4 +1,5 @@
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
+import { ShipmentStatus } from '@tingting/shared';
 
 export type CargoMode = 'FCL' | 'LCL';
 export type SaveIntent = 'DRAFT' | 'SUBMIT';
@@ -54,6 +55,7 @@ export interface ShipmentCreateSectionReadiness {
 export interface ShipmentCreateReadiness {
   draftReady: boolean;
   dispatchReady: boolean;
+  initialStatus: ShipmentStatus.PENDING_DATE | ShipmentStatus.READY_FOR_DISPATCH;
   issues: ShipmentCreateIssue[];
   sections: ShipmentCreateSectionReadiness[];
   firstInvalidFieldId: string | null;
@@ -168,6 +170,9 @@ export function getShipmentCreateReadiness(
   return {
     draftReady: Boolean(form.customerId),
     dispatchReady: issues.length === 0,
+    initialStatus: form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
+      ? ShipmentStatus.READY_FOR_DISPATCH
+      : ShipmentStatus.PENDING_DATE,
     issues,
     sections,
     firstInvalidFieldId: issues[0]?.fieldId ?? null,

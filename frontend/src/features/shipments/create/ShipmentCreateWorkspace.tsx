@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Eye, Plus, Trash2 } from 'lucide-react';
-import { EmptyState, SearchableSelect, SelectField, TextField } from '../../../design-system';
+import { EmptyState } from '../../../design-system';
+import {
+  USearchableField as SearchableField,
+  USelectField as SelectField,
+  UTextAreaField as TextAreaField,
+  UTextField as TextField,
+} from './uui-fields';
 import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
@@ -65,54 +71,6 @@ function inferContainerBucket(label: string | null | undefined): 20 | 40 | null 
 
 function carrierValidationMessage(validation: ReturnType<typeof validateCarrierAllocations>): string | null {
   return validation.isExact ? null : validation.errors[0] ?? 'Cần gán đúng số lượng nhà xe cho container 20\' và 40\'.';
-}
-
-interface SearchableFieldProps {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string; searchText?: string }>;
-  placeholder: string;
-  disabled?: boolean;
-  required?: boolean;
-  /** Optional helper text rendered under the select (e.g. empty-state guidance). */
-  hint?: React.ReactNode;
-  error?: string;
-}
-
-function SearchableField({
-  id,
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-  required,
-  hint,
-  error,
-}: SearchableFieldProps) {
-  const messageId = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
-  return (
-    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}`}>
-      <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
-      <SearchableSelect
-        id={id}
-        value={value}
-        onChange={onChange}
-        options={options}
-        placeholder={placeholder}
-        disabled={disabled}
-        required={required}
-        ariaInvalid={Boolean(error)}
-        ariaDescribedBy={messageId}
-      />
-      {error
-        ? <span id={messageId} className="csc-field-error">{error}</span>
-        : hint && <span id={messageId} className="csc-field-hint">{hint}</span>}
-    </div>
-  );
 }
 
 interface ShipmentCreateWorkspaceProps {
@@ -495,7 +453,7 @@ export function ShipmentCreateWorkspace({
             </div>
 
             {/* BILL LÔ HÀNG */}
-            <div data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Book" value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
+            <div data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
 
             {form.cargoMode === 'FCL' && (
               <div data-field-id="shipment-shipping-line"><TextField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(event) => update('shippingLineName', event.target.value)} maxLength={120} placeholder="Nhập hãng tàu chung của lô" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} /></div>
@@ -503,9 +461,7 @@ export function ShipmentCreateWorkspace({
 
             {/* SỐ TỜ KHAI */}
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
-            <SelectField label="Hình thức xuất nhập khẩu" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)}>
-              <option value="">— Chọn hình thức —</option><option value="IMPORT">Nhập khẩu</option><option value="EXPORT">Xuất khẩu</option>
-            </SelectField>
+            <SelectField label="Hình thức xuất nhập khẩu" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} />
 
           </div>
         </ShipmentCreateSection>
@@ -573,7 +529,7 @@ export function ShipmentCreateWorkspace({
         </ShipmentCreateSection>
 
         <ShipmentCreateSection id="cargo" number="03" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
-          <fieldset className="csc-mode"><legend>Hình thức lô hàng</legend><div>
+          <fieldset className="csc-mode"><legend>Loại hàng</legend><div>
             {(['FCL', 'LCL'] as CargoMode[]).map((mode) => <label key={mode}><input type="radio" name="cargo-mode" value={mode} checked={form.cargoMode === mode} onChange={() => changeMode(mode)} disabled={Boolean(saving)} /><span>{mode === 'FCL' ? 'Hàng nguyên container (FCL)' : 'Hàng lẻ (LCL)'}</span></label>)}
           </div></fieldset>
           {form.cargoMode === 'FCL' ? (
@@ -603,7 +559,7 @@ export function ShipmentCreateWorkspace({
                   <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))}><Trash2 size={18} /></button>}</div>
                   <div style={gridStyle}>
                     <div data-field-id={`container-${row.key}-number`}><TextField id={`container-${row.key}-number`} label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-number`)} /></div>
-                    <div data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)}><option value="">— Chọn loại —</option>{(catalogs.containerTypes ?? []).map((item) => <option key={item.id} value={item.id}>{item.code} — {item.name}</option>)}</SelectField></div>
+                    <div data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} /></div>
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
@@ -656,7 +612,7 @@ export function ShipmentCreateWorkspace({
               </div>
               <div style={gridStyle}>
                 <div data-field-id="shipment-cargo-type"><SearchableField id="shipment-cargo-type" label="Loại hàng" value={form.cargoTypeId} onChange={(value) => update('cargoTypeId', value)} options={(catalogs.cargoTypes ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Gõ chọn" disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-type')} /></div>
-                <div data-field-id="shipment-package-type"><SelectField id="shipment-package-type" label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-type')}><option value="">— Chọn quy cách —</option><option value="Pallet">Pallet</option><option value="Roll">Roll</option><option value="Carton">Carton</option></SelectField></div>
+                <div data-field-id="shipment-package-type"><SelectField id="shipment-package-type" label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-type')} options={[{ value: '', label: '— Chọn quy cách —' }, { value: 'Pallet', label: 'Pallet' }, { value: 'Roll', label: 'Roll' }, { value: 'Carton', label: 'Carton' }]} /></div>
                 <div data-field-id="shipment-package-count"><TextField id="shipment-package-count" label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-count')} /></div>
                 <div data-field-id="shipment-cargo-weight"><TextField id="shipment-cargo-weight" label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-weight')} /></div>
                 <div data-field-id="shipment-cargo-volume"><TextField id="shipment-cargo-volume" label="Thể tích (CBM)" type="number" min="0" step="0.001" value={form.cargoVolumeCbm} onChange={(event) => update('cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-volume')} /></div>
@@ -672,8 +628,8 @@ export function ShipmentCreateWorkspace({
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
             <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
           </div>
-          <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Ghi chú cho khách<textarea value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Nội dung hiển thị cho khách hàng" disabled={Boolean(saving)} /></label>
-          <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Lưu ý điều phối<textarea value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} /></label>
+          <TextAreaField label="Ghi chú cho khách" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Nội dung hiển thị cho khách hàng" disabled={Boolean(saving)} />
+          <TextAreaField label="Lưu ý điều phối" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} />
         </ShipmentCreateSection>
 
         </div>

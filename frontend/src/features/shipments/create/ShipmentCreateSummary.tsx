@@ -1,5 +1,7 @@
 import { AlertCircle, Check, Circle, Send } from 'lucide-react';
+import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentPricingProjection } from '../../../api/shipmentClient';
+import { StatusStrip } from '../../../components/shared/StatusStrip';
 import type {
   SaveIntent,
   ShipmentCreateIssue,
@@ -67,6 +69,19 @@ export function ShipmentCreateSummary({
             <h2 id="csc-readiness-title">Sẵn sàng điều phối</h2>
           </div>
           <strong>{readiness.sections.filter((section) => section.complete).length}/4</strong>
+        </div>
+        <div
+          className="csc-status-preview"
+          data-tone={readiness.initialStatus === ShipmentStatus.READY_FOR_DISPATCH ? 'ready' : 'pending'}
+        >
+          <StatusStrip
+            color={readiness.initialStatus === ShipmentStatus.READY_FOR_DISPATCH
+              ? 'var(--success, #16a34a)'
+              : 'var(--warning, #d97706)'}
+          />
+          <span>Trạng thái tự động</span>
+          <strong>{SHIPMENT_STATUS_LABELS[readiness.initialStatus]}</strong>
+          <small>Hệ thống xác định từ ngày giao, hạn hạ hoặc thời điểm trả container.</small>
         </div>
         <nav className="csc-readiness" aria-label="Đi đến phần nhập liệu">
           {readiness.sections.map((section, index) => (

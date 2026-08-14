@@ -163,11 +163,11 @@ async function chooseSearchable(label: string, value: string) {
   const control = labelledControl ?? labelElement?.parentElement?.querySelector('button');
   if (!control) throw new Error(`Không tìm thấy trường ${label}`);
   fireEvent.click(control);
-  const option = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
+  const option = document.querySelector<HTMLElement>(`[role="option"][data-value="${value}"]`);
   if (!option) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
   fireEvent.click(option);
   return waitFor(() => {
-    expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull();
+    expect(document.querySelector(`[role="option"][data-value="${value}"]`)).toBeNull();
   });
 }
 

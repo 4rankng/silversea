@@ -48,3 +48,19 @@ Object.defineProperty(window, 'localStorage', {
 beforeEach(() => {
   window.localStorage.clear();
 });
+
+// jsdom does not expose `window.CSS`, but react-aria's selection code
+// (ListBox/ComboBox in untitled-ui) calls `CSS.escape(id)` when a listbox
+// mounts. Without this shim the passive mount effect throws
+// "Cannot read properties of undefined (reading 'escape')".
+if (typeof window !== 'undefined') {
+  if (!window.CSS) {
+    Object.defineProperty(window, 'CSS', { configurable: true, value: {} });
+  }
+  if (!window.CSS.escape) {
+    Object.defineProperty(window.CSS, 'escape', {
+      configurable: true,
+      value: (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`),
+    });
+  }
+}
