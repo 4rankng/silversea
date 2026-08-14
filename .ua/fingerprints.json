@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "def081a4fb681b618589c1875bad936f59621fd6",
+  "gitCommitHash": "49b495d4e663466939ecb3830d9a523efe92d30a",
   "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
@@ -19380,7 +19380,7 @@
     },
     "backend/src/services/cus-shipment-workspace.service.ts": {
       "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "contentHash": "e4960167c1b2d938bb5733caf8c473a1c8391be45ee0b5c623195aeb5b76bb81",
+      "contentHash": "9a3f5fe7bda65db31d23d09328e3fa20a2ecf2889b5616242046a46bd94c4baa",
       "functions": [
         {
           "name": "toNumber",
@@ -19436,7 +19436,7 @@
           ],
           "returnType": "ShipmentCusWorkspaceListItem['operational']",
           "exported": false,
-          "lineCount": 64
+          "lineCount": 62
         },
         {
           "name": "effectiveBillingLineAmount",
@@ -19806,7 +19806,7 @@
         "getCusShipmentWorkspaceDetail",
         "updateCusShipmentContainerLine"
       ],
-      "totalLines": 1557,
+      "totalLines": 1555,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/customer-receivable-authority.service.ts": {
@@ -35761,7 +35761,7 @@
     },
     "backend/src/services/shipment-edit-boundary.service.ts": {
       "filePath": "backend/src/services/shipment-edit-boundary.service.ts",
-      "contentHash": "fc254761cfd8e2877c569759776dae8371fd090da16e90bd77c94795ee9fc0f4",
+      "contentHash": "1e1815d56d67000bc62e6ece7f7ce080663c28a5a9c5c18becce8ea3463f2677",
       "functions": [
         {
           "name": "normalizeNullableText",
@@ -35806,7 +35806,7 @@
             "row"
           ],
           "exported": false,
-          "lineCount": 31
+          "lineCount": 32
         },
         {
           "name": "currentContainerSnapshot",
@@ -35929,7 +35929,7 @@
         "createShipmentChangeRequest",
         "persistChangeRequestDecisionNotification"
       ],
-      "totalLines": 347,
+      "totalLines": 350,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-fulfillment.service.ts": {
@@ -36433,7 +36433,7 @@
     },
     "backend/src/services/shipment.service.ts": {
       "filePath": "backend/src/services/shipment.service.ts",
-      "contentHash": "3bef4f4ce5e47707350b7f85b7c4b46f867c2b6d3707c5b4a3efd3808ccb874c",
+      "contentHash": "f17569bf74eb58df55a49b6c9b522e7067c6171e13aed8477efe15da050f30f9",
       "functions": [
         {
           "name": "normalizeShipmentStatusValue",
@@ -36822,7 +36822,7 @@
           ],
           "returnType": "Promise<ShipmentUpdateResult>",
           "exported": true,
-          "lineCount": 226
+          "lineCount": 227
         },
         {
           "name": "transitionShipmentStatus",
@@ -37367,7 +37367,7 @@
         "replaceShipmentDocument",
         "reviewShipmentChangeRequest"
       ],
-      "totalLines": 3455,
+      "totalLines": 3456,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/snapshot-services.ts": {
@@ -44188,7 +44188,7 @@
     },
     "backend/src/tests/cus-shipment-workspace.test.ts": {
       "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "contentHash": "4133f4761da687307f2061e753fd4383af619428557bf7667fc861fd00df430f",
+      "contentHash": "d8559e2b9e320273d0b57ca1352ad178fc6153346eb62f006288c0cdb5f51ecf",
       "functions": [
         {
           "name": "seedContainerType",
@@ -44284,7 +44284,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 206,
+      "totalLines": 228,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/customer-commission-validation.test.ts": {
@@ -63534,7 +63534,7 @@
     },
     "backend/src/tests/shipment-service.test.ts": {
       "filePath": "backend/src/tests/shipment-service.test.ts",
-      "contentHash": "0f89cd5e04380c6286679fe5425ff6701199d2d1c8a05fbfb8f9e7ea4a896b25",
+      "contentHash": "723dfaa139c09fe38ac2bc50b90823c4cefc7b42998c6439e70afbea6e9e2659",
       "functions": [
         {
           "name": "mkCustomer",
@@ -63650,7 +63650,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 912,
+      "totalLines": 939,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/statement-period-summary.test.ts": {
