@@ -606,8 +606,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Sẵn sàng cho bước tiếp theo' })).toBeTruthy();
+    expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
+    expect(within(dialog).getByText('Hành động tiếp theo')).toBeTruthy();
     expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
-    expect(within(dialog).getByRole('combobox')).toBeTruthy();
+    const custodySelect = within(dialog).getByRole('combobox');
+    expect(custodySelect).toBeTruthy();
+    expect((within(custodySelect).getByRole('option', { name: 'Chưa xác định' }) as HTMLOptionElement).disabled).toBe(true);
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
   });
 
@@ -1022,6 +1027,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  });
+
+  it('adapts the drawer to its actual canvas instead of only the browser width', () => {
+    expect(css).toMatch(/\.cus-shipment-drawer\s*\{[\s\S]*?container-name:\s*shipment-drawer;[\s\S]*?container-type:\s*inline-size;/);
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 700px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr 1fr;/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr;/);
   });
 
   it('uses distinct semantic colors for running and locked shipments', () => {

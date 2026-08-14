@@ -28,7 +28,7 @@ import {
 } from '@tingting/shared';
 import { ApiError } from '../lib/api';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { StatusStrip } from '../components/shared/StatusStrip';
+import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
@@ -151,27 +151,25 @@ function FinanceEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const revenue = Number(item.finance.customerInvoiceTotal ?? 0) + Number(item.finance.customerNoInvoiceTotal ?? 0);
   const cost = Number(item.finance.totalCost ?? 0);
   const lossAmount = item.finance.isLoss ? Math.max(0, cost - revenue) : 0;
+  const reconciliationLabel = item.finance.isLoss
+    ? `Lỗ ${formatMoney(String(lossAmount))} ₫`
+    : item.finance.customerChargeTotalsAvailable
+      ? 'Không ghi nhận lỗ'
+      : 'Chưa đủ số liệu đối soát';
   return (
     <div className="cus-finance-evidence">
-      {item.finance.isLoss ? (
-        <span className="cus-finance-loss" aria-label={`Lỗ ${formatMoney(String(lossAmount))} đồng`}>
-          <AlertTriangle size={15} aria-hidden="true" />
-          <strong>Lỗ {formatMoney(String(lossAmount))} ₫</strong>
-        </span>
-      ) : (
-        <span className="cus-finance-quiet" aria-label={item.finance.customerChargeTotalsAvailable ? 'Đối soát không lỗ' : 'Chưa có dữ liệu đối soát'}>
-          <CircleDollarSign size={15} aria-hidden="true" />
-        </span>
-      )}
-      <span
-        className={`cus-finance-confirmation cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}`}
-        aria-label={accountingConfirmationLabel(item.accountingConfirmation)}
-        title={accountingConfirmationLabel(item.accountingConfirmation)}
-      >
+      <div className={item.finance.isLoss ? 'cus-finance-loss' : 'cus-finance-quiet'}>
+        {item.finance.isLoss
+          ? <AlertTriangle size={16} aria-hidden="true" />
+          : <CircleDollarSign size={16} aria-hidden="true" />}
+        <span><small>Đối soát chi phí</small><strong>{reconciliationLabel}</strong></span>
+      </div>
+      <div className={`cus-finance-confirmation cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}`}>
         {confirmationIsCurrent
-          ? <CircleCheck size={15} aria-hidden="true" />
-          : <AlertTriangle size={15} aria-hidden="true" />}
-      </span>
+          ? <CircleCheck size={16} aria-hidden="true" />
+          : <AlertTriangle size={16} aria-hidden="true" />}
+        <span><small>Kế toán xác nhận</small><strong>{accountingConfirmationLabel(item.accountingConfirmation)}</strong></span>
+      </div>
     </div>
   );
 }
@@ -427,10 +425,17 @@ function ContainerLineRow({
             {customerAppointmentEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} /></> : <strong>{formatDateTime(line.customerAppointmentAt)}</strong>}
           </dd></div>
           {editing && <div className="cus-container-fact cus-container-fact--save"><dt className="sr-only">Lưu</dt><dd>
-            {operationalEditable && <button type="button" className="btn btn--primary btn--sm" disabled={!dirty || saving} onClick={() => void save()} aria-label={`Lưu container ${line.containerNumber || line.ordinal}`}>
-              {saving ? <Loader2 className="spin" size={16} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
-              <span>Lưu</span>
-            </button>}
+            {operationalEditable && <UUIButton
+              size="sm"
+              color="primary"
+              className="cus-container-save"
+              isDisabled={!dirty || saving}
+              isLoading={saving}
+              showTextWhileLoading
+              onPress={() => void save()}
+              aria-label={`Lưu container ${line.containerNumber || line.ordinal}`}
+              iconLeading={!saving ? <Save size={16} aria-hidden="true" /> : undefined}
+            >Lưu</UUIButton>}
             {saveError && <span className="cus-container-row__error" role="alert">{saveError}</span>}
           </dd></div>}
         </dl>
@@ -522,7 +527,9 @@ function ContainerLedger({
       <header className="cus-container-ledger__head">
         <div><strong>Chi tiết container</strong><span>{detail.containers.length} cont</span></div>
         <div className="cus-container-ledger__actions">
-          {hasEditableLine && (editing ? <button type="button" className="btn btn--secondary btn--sm" onClick={requestFinishEditing} disabled={savingLineIds.size > 0}>Hoàn tất</button> : <button type="button" className="btn btn--secondary btn--sm" onClick={() => setEditing(true)}>Chỉnh sửa</button>)}
+          {hasEditableLine && (editing
+            ? <UUIButton size="sm" color="secondary" className="cus-container-edit-action" onPress={requestFinishEditing} isDisabled={savingLineIds.size > 0}>Hoàn tất</UUIButton>
+            : <UUIButton size="sm" color="secondary" className="cus-container-edit-action" onPress={() => setEditing(true)}>Chỉnh sửa</UUIButton>)}
           {onCollapse && <button type="button" className="cus-detail-collapse" onClick={requestCollapse} disabled={savingLineIds.size > 0} aria-label={savingLineIds.size > 0 ? 'Đang lưu dữ liệu container' : 'Thu gọn chi tiết container'}><X size={16} aria-hidden="true" /><span>{savingLineIds.size > 0 ? 'Đang lưu' : 'Thu gọn'}</span></button>}
         </div>
       </header>
@@ -1071,7 +1078,7 @@ export default function ShipmentsPage() {
     );
   };
 
-  const shipmentActionButton = (item: ShipmentCusWorkspaceListItem, className: string) => {
+  const shipmentActionButton = (item: ShipmentCusWorkspaceListItem) => {
     if (item.action.kind === 'NONE') return null;
     const mode = item.action.kind === 'CONFIRM_FINANCE'
       ? 'confirm'
@@ -1079,17 +1086,17 @@ export default function ShipmentsPage() {
         ? 'lock'
         : 'reopen';
     return (
-      <button
-        type="button"
-        className={className}
-        disabled={!item.action.enabled}
+      <UUIButton
+        size="sm"
+        color="primary"
+        className="cus-drawer-primary-action"
+        isDisabled={!item.action.enabled}
         aria-label={item.action.label}
-        title={!item.action.enabled ? item.action.disabledReason || undefined : undefined}
-        onClick={() => openAction(item, mode)}
+        onPress={() => openAction(item, mode)}
+        iconLeading={item.action.kind === 'LOCK' ? <FileLock2 size={16} aria-hidden="true" /> : undefined}
       >
-        {item.action.kind === 'LOCK' && <FileLock2 size={16} aria-hidden="true" />}
         {item.action.label}
-      </button>
+      </UUIButton>
     );
   };
 
@@ -1632,6 +1639,7 @@ export default function ShipmentsPage() {
         title={drawerItem?.customerName || 'Chi tiết lô hàng'}
         subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
         className="cus-shipment-drawer"
+        headerGraphic={drawerItem ? <StatusSwatch color={SHIPMENT_BUCKET_COLORS[drawerItem.bucket]} /> : undefined}
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
           {drawerItem && (
@@ -1639,58 +1647,70 @@ export default function ShipmentsPage() {
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
                   <div>
-                    <h3 id="cus-drawer-workflow-title">Điều hành lô hàng</h3>
+                    <span className="cus-drawer-eyebrow">Điều hành lô hàng</span>
+                    <h3 id="cus-drawer-workflow-title">Sẵn sàng cho bước tiếp theo</h3>
                     <p>{drawerItem.factoryName || drawerItem.deliveryLocation || 'Chưa xác định điểm giao'}</p>
                   </div>
                   <WorkflowBadge item={drawerItem} />
                 </div>
                 <ShipmentSignals item={drawerItem} />
-                <FinanceEvidence item={drawerItem} />
 
-                <div className="cus-drawer-workflow__grid">
-                  <label>
-                    <span>Ngày giao hàng</span>
+                <div className="cus-drawer-decision-grid" aria-label="Điều kiện xử lý lô hàng">
+                  <div className="cus-drawer-decision cus-drawer-decision--schedule">
+                    <span className="cus-drawer-field-label">Ngày giao hàng</span>
                     <div className="cus-drawer-inline-control">
-                      <input
+                      <UUIInput
+                        aria-label="Ngày giao hàng"
+                        size="sm"
                         type="date"
                         value={transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? ''}
-                        disabled={!drawerItem.operational.transportDateEditable || savingTransportDateIds.has(drawerItem.id)}
-                        onChange={(event) => setTransportDateDrafts((current) => ({ ...current, [drawerItem.id]: event.target.value }))}
+                        isDisabled={!drawerItem.operational.transportDateEditable || savingTransportDateIds.has(drawerItem.id)}
+                        onChange={(value) => setTransportDateDrafts((current) => ({ ...current, [drawerItem.id]: value }))}
+                        className="cus-drawer-uui-field"
+                        wrapperClassName="cus-drawer-uui-control"
+                        inputClassName="cus-drawer-uui-input"
                       />
                       {drawerItem.operational.transportDateEditable && (
-                        <button
-                          type="button"
-                          className="btn btn--secondary btn--sm"
-                          disabled={!(transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') || (transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') === drawerItem.transportDate || savingTransportDateIds.has(drawerItem.id)}
-                          onClick={() => void saveTransportDate(drawerItem)}
+                        <UUIButton
+                          size="sm"
+                          color="secondary"
+                          className="cus-drawer-save-date"
+                          isDisabled={!(transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') || (transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') === drawerItem.transportDate || savingTransportDateIds.has(drawerItem.id)}
+                          isLoading={savingTransportDateIds.has(drawerItem.id)}
+                          showTextWhileLoading
+                          onPress={() => void saveTransportDate(drawerItem)}
+                          iconLeading={!savingTransportDateIds.has(drawerItem.id) ? <Save size={15} aria-hidden="true" /> : undefined}
                         >
-                          {savingTransportDateIds.has(drawerItem.id) ? <Loader2 className="spin" size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
                           Chốt lịch
-                        </button>
+                        </UUIButton>
                       )}
                     </div>
-                  </label>
-                  <label>
-                    <span>Phơi phiếu</span>
-                    <select
-                      className="cus-custody-select"
+                  </div>
+                  <div className="cus-drawer-decision cus-drawer-decision--custody">
+                    <UUINativeSelect
+                      label="Phơi phiếu"
+                      size="sm"
                       value={drawerItem.documentCustody.status ?? ''}
                       disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
                       onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
-                    >
-                      <option value="" disabled>Chưa xác định</option>
-                      {Object.values(ShipmentDocumentCustody).map((status) => <option value={status} key={status}>{SHIPMENT_DOCUMENT_CUSTODY_LABELS[status]}</option>)}
-                    </select>
-                  </label>
-                  <div>
-                    <span>Kế toán xác nhận</span>
-                    <strong>{accountingConfirmationLabel(drawerItem.accountingConfirmation)}</strong>
+                      options={[
+                        { value: '', label: 'Chưa xác định', disabled: true },
+                        ...Object.values(ShipmentDocumentCustody).map((status) => ({ value: status, label: SHIPMENT_DOCUMENT_CUSTODY_LABELS[status] })),
+                      ]}
+                      className="cus-drawer-uui-field"
+                      selectClassName="cus-drawer-uui-select"
+                    />
                   </div>
+                  <div className="cus-drawer-decision cus-drawer-decision--finance"><FinanceEvidence item={drawerItem} /></div>
                 </div>
 
                 <div className="cus-drawer-workflow__action">
-                  {shipmentActionButton(drawerItem, 'btn btn--primary')}
-                  {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p>{drawerItem.action.disabledReason}</p>}
+                  <div>
+                    <span className="cus-drawer-eyebrow">Hành động tiếp theo</span>
+                    <strong>{drawerItem.action.kind === 'NONE' ? 'Theo dõi tiến độ lô hàng' : drawerItem.action.label}</strong>
+                    {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p>{drawerItem.action.disabledReason}</p>}
+                  </div>
+                  {shipmentActionButton(drawerItem)}
                 </div>
               </section>
 
