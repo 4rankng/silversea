@@ -1326,6 +1326,7 @@ export async function updateShipment(
       packageCount: input.packageCount,
       packageType: input.packageType,
       operationalNotes: input.operationalNotes,
+      customerNotes: input.customerNotes,
       pickupLocation: input.pickupLocation,
       deliveryLocation: input.deliveryLocation,
       contactName: input.contactName,

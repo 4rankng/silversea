@@ -31,6 +31,7 @@ export type ShipmentPlanPatch = {
   packageCount?: number | null;
   packageType?: string | null;
   operationalNotes?: string | null;
+  customerNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -54,6 +55,11 @@ type ChangeMode = 'DIRECT' | 'REQUESTED' | 'NOOP';
 const POST_DISPATCH_DIRECT_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'bookingRef',
   'blNumber',
+  'expectedDeliveryDate',
+  'closingAt',
+  'plannedReturnAt',
+  'operationalNotes',
+  'customerNotes',
   'contactName',
   'contactPhone',
 ]);
@@ -69,15 +75,11 @@ const POST_DISPATCH_REQUEST_FIELDS = new Set<keyof ShipmentPlanPatch>([
   'pickupWarehouseSiteId',
   'factoryName',
   'shippingLineName',
-  'expectedDeliveryDate',
   'customsCutoffAt',
-  'closingAt',
-  'plannedReturnAt',
   'cargoWeightKg',
   'cargoVolumeCbm',
   'packageCount',
   'packageType',
-  'operationalNotes',
   'pickupLocation',
   'deliveryLocation',
 ]);
@@ -160,6 +162,7 @@ function currentShipmentSnapshot(row: ShipmentRow) {
     packageCount: row.packageCount ?? null,
     packageType: row.packageType ?? null,
     operationalNotes: row.operationalNotes ?? null,
+    customerNotes: row.customerNotes ?? null,
     pickupLocation: row.pickupLocation ?? null,
     deliveryLocation: row.deliveryLocation ?? null,
     contactName: row.contactName ?? null,

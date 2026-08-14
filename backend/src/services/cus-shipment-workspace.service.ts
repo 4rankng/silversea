@@ -225,10 +225,8 @@ function buildOperationalSummary(
     : bucket === ShipmentCusBucket.NEW && row.shipment.expectedDeliveryDate < businessDateNow()
       ? 'OVERDUE' as const
       : 'SCHEDULED' as const;
-  const canonicalStatus = canonicalShipmentStatus(row.shipment.status);
   const transportDateEditable = actor.role === Role.CUS
-    && support.locksByShipment.get(row.shipment.id) == null
-    && (canonicalStatus === ShipmentStatus.PENDING_DATE || canonicalStatus === ShipmentStatus.READY_FOR_DISPATCH);
+    && support.locksByShipment.get(row.shipment.id) == null;
 
   return {
     scheduleReadiness,

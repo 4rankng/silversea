@@ -692,6 +692,33 @@ describe('updateShipment (optimistic lock)', () => {
     assert.ok(handoff, 'a ready shipment has an active dispatch handoff');
   });
 
+  test('persists CUS inline schedule and note edits directly after dispatch', async () => {
+    const customer = await mkCustomer();
+    const businessUnit = await mkBusinessUnit();
+    const actor = await mkScopedClerk(customer.id, businessUnit.id);
+    const shipment = await createShipment({
+      customerId: customer.id,
+      responsibleUnitId: businessUnit.id,
+      expectedDeliveryDate: '2026-08-18',
+    });
+    createdShipmentIds.push(shipment.id);
+    const dispatched = await transitionShipmentStatus(shipment.id, 'DISPATCHED');
+
+    const updated = await updateShipment(shipment.id, {
+      expectedVersion: dispatched.version,
+      expectedDeliveryDate: '2026-08-19',
+      closingAt: '2026-08-19T03:30:00.000Z',
+      operationalNotes: 'Điều xe vào cổng số 2',
+      customerNotes: 'Khách nhận lúc 10 giờ 30',
+    }, actor);
+
+    assert.equal(updated.changeMode, 'DIRECT');
+    assert.equal(updated.expectedDeliveryDate, '2026-08-19');
+    assert.equal(updated.closingAt?.toISOString(), '2026-08-19T03:30:00.000Z');
+    assert.equal(updated.operationalNotes, 'Điều xe vào cổng số 2');
+    assert.equal(updated.customerNotes, 'Khách nhận lúc 10 giờ 30');
+  });
+
   test('throws 404 for a missing shipment', async () => {
     await assert.rejects(
       () => updateShipment(99_999_999, { version: 1 }),

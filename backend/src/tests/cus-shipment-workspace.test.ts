@@ -31,6 +31,7 @@ const createdContainerTypeIds: number[] = [];
 let customerId: number;
 let containerTypeId: number;
 let adminActor: AuthUser;
+let cusActor: AuthUser;
 
 async function seedContainerType() {
   const [row] = await db.insert(s.containerTypes).values({
@@ -83,6 +84,15 @@ before(async () => {
     email: null,
     fullName: null,
     role: Role.ADMIN,
+  };
+  cusActor = {
+    userId: 0,
+    username: 'cus-ws-test-cus',
+    email: null,
+    fullName: null,
+    role: Role.CUS,
+    customerId,
+    customerIds: [customerId],
   };
 });
 
@@ -201,5 +211,17 @@ describe('CUS shipment workspace projection — OQ3 vehicle-assigned numerator',
     assert.ok(item!.operational.assignedContainers >= 0);
     // totalContainers drives the readiness gate; assignedContainers is its subset.
     assert.ok(item!.operational.assignedContainers <= item!.operational.totalContainers);
+  });
+});
+
+describe('CUS shipment workspace projection — inline edit authority', () => {
+  test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
+    const shipment = await seedShipment({ status: 'PENDING_EXPENSE_APPROVAL' });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const item = response.items.find((candidate) => candidate.id === shipment.id);
+
+    assert.ok(item);
+    assert.equal(item.operational.transportDateEditable, true);
   });
 });
