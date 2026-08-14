@@ -139,7 +139,8 @@ demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
 	@echo "Running pending migrations with the pulled backend image before cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
 	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@echo ""
 	@echo "3/3  Health check..."
@@ -164,7 +165,8 @@ demo-local: ## Build images locally only (fast, native platform, no push)
 demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --force-recreate --no-deps backend frontend"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
 	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@$(MAKE) --no-print-directory demo-health
 
