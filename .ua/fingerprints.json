@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "5bb23d9dd394e2884c6f49784a0ce1966aff6c98",
+  "gitCommitHash": "7c51d57ce39ae9200dac4c132014378b8c796bb6",
   "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
@@ -98416,7 +98416,7 @@
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "5d7e5c1272a53cb356601a9adb00444a4588e3a7be7937df3579e64ef414d448",
+      "contentHash": "d31ae23139cf573ac8ef71168ef69157d147dbd8b4d97ada6596f5aade369c2b",
       "functions": [
         {
           "name": "listResponse",
@@ -98506,12 +98506,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 1049,
+      "totalLines": 1140,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "7a99a609922bb6781d792a1d5b481990056bd90c503c86e9bab61656b38265a8",
+      "contentHash": "71e4fa94aae26eadbffde7cf5b35965dcdbc466c0254306d07bec8d48a1cb187",
       "functions": [
         {
           "name": "formatMoney",
@@ -98710,6 +98710,15 @@
           "lineCount": 37
         },
         {
+          "name": "derivePrimaryShipmentSignal",
+          "params": [
+            "item"
+          ],
+          "returnType": "ShipmentSignal | null",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
           "name": "ShipmentSignals",
           "params": [
             "{ item }"
@@ -98729,7 +98738,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 1055
+          "lineCount": 1062
         }
       ],
       "classes": [],
@@ -98760,6 +98769,7 @@
             "Download",
             "FileLock2",
             "Loader2",
+            "Pencil",
             "Plus",
             "RotateCcw",
             "Save",
@@ -98866,7 +98876,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1704,
+      "totalLines": 1727,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {

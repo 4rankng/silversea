@@ -32,8 +32,8 @@
       "Docker"
     ],
     "description": "Vietnamese trucking logistics platform for SilverSea operations.",
-    "analyzedAt": "2026-08-14T09:57:14.650Z",
-    "gitCommitHash": "5bb23d9dd394e2884c6f49784a0ce1966aff6c98"
+    "analyzedAt": "2026-08-14T10:13:15.429Z",
+    "gitCommitHash": "7c51d57ce39ae9200dac4c132014378b8c796bb6"
   },
   "nodes": [
     {
@@ -75040,200 +75040,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "type": "file",
-      "name": "ShipmentsPage.tsx",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "summary": "Implements the customer shipment workspace for filtering, creating, viewing, editing, exporting, and acting on shipment records and container details.",
-      "tags": [
-        "page",
-        "shipments",
-        "workflow",
-        "customer-portal"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
-      "type": "function",
-      "name": "FinanceEvidence",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        148,
-        176
-      ],
-      "summary": "Displays shipment finance evidence, including realized values, pending recovery, and loss indicators.",
-      "tags": [
-        "component",
-        "shipments",
-        "finance",
-        "status"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
-      "type": "function",
-      "name": "accountingConfirmationLabel",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        194,
-        203
-      ],
-      "summary": "Maps an accounting confirmation state to its customer-facing Vietnamese label.",
-      "tags": [
-        "utility",
-        "shipments",
-        "accounting",
-        "presentation"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
-      "type": "function",
-      "name": "lineDraft",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        227,
-        239
-      ],
-      "summary": "Builds an editable container-line draft from persisted shipment detail data.",
-      "tags": [
-        "utility",
-        "shipments",
-        "container",
-        "editing"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
-      "type": "function",
-      "name": "lineOperationalSignature",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        241,
-        252
-      ],
-      "summary": "Builds a stable signature for container-line operational fields to detect unsaved edits.",
-      "tags": [
-        "utility",
-        "shipments",
-        "container",
-        "change-detection"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "type": "function",
-      "name": "ContainerLineRow",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        258,
-        439
-      ],
-      "summary": "Renders and persists an editable container-line row while coordinating dirty state, idempotency, and save feedback.",
-      "tags": [
-        "component",
-        "shipments",
-        "container",
-        "editing"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
-      "type": "function",
-      "name": "ContainerLedger",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        441,
-        536
-      ],
-      "summary": "Presents shipment container lines as a collapsible ledger and coordinates per-line edits with its parent workspace.",
-      "tags": [
-        "component",
-        "shipments",
-        "container",
-        "ledger"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
-      "type": "function",
-      "name": "deriveShipmentSignals",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        547,
-        583
-      ],
-      "summary": "Derives operational and financial warning signals used to focus customer attention on shipment readiness and risk.",
-      "tags": [
-        "utility",
-        "shipments",
-        "workflow",
-        "finance"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
-      "type": "function",
-      "name": "ShipmentSignals",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        585,
-        600
-      ],
-      "summary": "Renders compact warning and status signals derived from a shipment workspace item.",
-      "tags": [
-        "component",
-        "shipments",
-        "status",
-        "workflow"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
-      "type": "function",
-      "name": "ShipmentDetailContent",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        602,
-        647
-      ],
-      "summary": "Renders shipment detail loading, error, and container-ledger content inside the detail surface.",
-      "tags": [
-        "component",
-        "shipments",
-        "detail-view",
-        "container"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "function",
-      "name": "ShipmentsPage",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        649,
-        1703
-      ],
-      "summary": "Coordinates shipment workspace state, URL filters, list and detail loading, quick edits, exports, creation, and workflow actions.",
-      "tags": [
-        "page",
-        "shipments",
-        "workflow",
-        "state-management"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "file:frontend/src/utils/cx.ts",
       "type": "file",
       "name": "cx.ts",
@@ -76808,6 +76614,222 @@
         "browser-api"
       ],
       "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "type": "file",
+      "name": "ShipmentsPage.tsx",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "summary": "Implements the customer shipment workspace for filtering, creating, viewing, editing, exporting, and actioning shipment records. It coordinates container operations, financial confirmation, locking, reopening, document custody, and responsive detail views.",
+      "tags": [
+        "page",
+        "shipments",
+        "customer-portal",
+        "workflow",
+        "react-component"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses React hooks, typed workspace DTOs, optimistic local detail updates, and idempotency keys to coordinate asynchronous shipment mutations."
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
+      "type": "function",
+      "name": "FinanceEvidence",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        149,
+        177
+      ],
+      "summary": "Renders concise financial loss and accounting-confirmation indicators for a shipment row.",
+      "tags": [
+        "component",
+        "finance",
+        "status",
+        "shipment"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
+      "type": "function",
+      "name": "accountingConfirmationLabel",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        195,
+        204
+      ],
+      "summary": "Converts accounting confirmation states and timestamps into Vietnamese user-facing labels.",
+      "tags": [
+        "utility",
+        "finance",
+        "localization",
+        "status"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
+      "type": "function",
+      "name": "lineDraft",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        228,
+        240
+      ],
+      "summary": "Builds an editable container-operation draft from the persisted line, including carrier, vehicle, locations, and appointment values.",
+      "tags": [
+        "utility",
+        "container",
+        "form-state",
+        "mapping"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
+      "type": "function",
+      "name": "lineOperationalSignature",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        242,
+        253
+      ],
+      "summary": "Serializes mutable container-operation fields into a stable signature used to reset stale editing state.",
+      "tags": [
+        "utility",
+        "container",
+        "state-sync",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "type": "function",
+      "name": "ContainerLineRow",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        259,
+        440
+      ],
+      "summary": "Renders and conditionally edits one shipment container line while enforcing field permissions, idempotent saves, validation, and dirty or saving notifications.",
+      "tags": [
+        "component",
+        "container",
+        "form-state",
+        "validation",
+        "api-client"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
+      "type": "function",
+      "name": "ContainerLedger",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        442,
+        537
+      ],
+      "summary": "Manages the expandable container ledger, aggregating line-level dirty and saving state and requiring an explicit discard decision before closing or finishing edits.",
+      "tags": [
+        "component",
+        "container",
+        "edit-workflow",
+        "state-management"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
+      "type": "function",
+      "name": "deriveShipmentSignals",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        548,
+        584
+      ],
+      "summary": "Derives actionable shipment exceptions from schedule, vehicle, finance, document-custody, accounting, and action-readiness data.",
+      "tags": [
+        "utility",
+        "shipment",
+        "status",
+        "business-rules"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:derivePrimaryShipmentSignal",
+      "type": "function",
+      "name": "derivePrimaryShipmentSignal",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        592,
+        599
+      ],
+      "summary": "Selects the highest-priority actionable shipment signal by applying the declared danger, warning, and info ordering.",
+      "tags": [
+        "utility",
+        "shipment",
+        "status-priority",
+        "business-rules"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
+      "type": "function",
+      "name": "ShipmentSignals",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        601,
+        616
+      ],
+      "summary": "Displays all derived shipment exception signals with severity-specific icons and accessible labels.",
+      "tags": [
+        "component",
+        "shipment",
+        "status",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
+      "type": "function",
+      "name": "ShipmentDetailContent",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        618,
+        663
+      ],
+      "summary": "Selects loading, error, or editable container-ledger content for a shipment detail surface.",
+      "tags": [
+        "component",
+        "shipment-detail",
+        "container",
+        "error-handling"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "function",
+      "name": "ShipmentsPage",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        665,
+        1726
+      ],
+      "summary": "Provides the full customer shipment workspace, synchronizing URL filters, list and detail loading, inline edits, exports, container changes, and finance or lock actions.",
+      "tags": [
+        "page",
+        "shipments",
+        "customer-portal",
+        "workflow",
+        "api-client"
+      ],
+      "complexity": "complex"
     }
   ],
   "edges": [
@@ -144980,90 +145002,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/shared/StatusStrip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/csv.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/pages/ShipmentsPage.css",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:shared/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
       "type": "contains",
@@ -145122,76 +145060,6 @@
     {
       "source": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx:TooltipTrigger",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
       "type": "contains",
       "direction": "forward",
       "weight": 1
@@ -145290,13 +145158,6 @@
     {
       "source": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx:TooltipTrigger",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
@@ -146166,6 +146027,258 @@
       "source": "file:frontend/src/hooks/use-resize-observer.ts",
       "target": "function:frontend/src/hooks/use-resize-observer.ts:useResizeObserver",
       "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/shared/StatusStrip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/lib/csv.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/pages/ShipmentsPage.css",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:derivePrimaryShipmentSignal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/lib/csv.ts:downloadCSV",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/components/shared/Breadcrumbs.tsx:Breadcrumbs",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/components/shared/StatusStrip.tsx:StatusStrip",
+      "type": "calls",
       "direction": "forward",
       "weight": 0.8
     }
