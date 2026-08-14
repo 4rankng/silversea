@@ -438,7 +438,7 @@ Nhóm "Công việc của tôi":
 | Nhóm        | Mục                    | Đường dẫn                  | Ghi chú        |
 | ----------- | ---------------------- | -------------------------- | -------------- |
 | Chứng từ    | Lô hàng được giao      | `/shipments`               |                |
-|             | Tạo lô hàng            | `/clerk/shipments/new`     |                |
+|             | Tạo lô hàng            | `/shipments/new`           |                |
 | Đối soát    | Chi phí cần kiểm tra   | `/recoverable-costs`       | *(cq)* chỉ khi được cấp quyền |
 
 > *(cq)* chỉ hiển thị khi tài khoản được cấp quyền xem chi phí cần kiểm tra.

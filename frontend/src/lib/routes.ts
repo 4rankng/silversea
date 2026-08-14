@@ -121,7 +121,6 @@ export const routes = {
 
   /* ── Clerk portal (Wave 4) ────────────────────────────────────────── */
 
-  clerkShipmentNew: '/clerk/shipments/new',
   clerkShipmentDocs: (id: number | string) => `/clerk/shipments/${id}/docs`,
 
   /* ── Legacy paths that the router redirects from (kept for old links) */
@@ -203,6 +202,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.expenses), title: PAGE_CATALOG.expenses.title },
   { test: p => p.startsWith(routes.suppliers), title: PAGE_CATALOG.suppliers.title },
   { test: p => p === routes.shipmentContainers, title: PAGE_CATALOG.shipmentContainers.title },
+  { test: p => p === routes.shipmentNew, title: 'Tạo lô hàng' },
   { test: p => /^\/shipments\/\d+/.test(p), title: PAGE_CATALOG.shipmentDetail.title },
   { test: p => p.startsWith(routes.shipments), title: PAGE_CATALOG.shipments.title },
   { test: p => p === routes.penalties || p === routes.myPenalties, title: PAGE_CATALOG.penalties.title },
@@ -218,7 +218,6 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },
   { test: p => p.startsWith(routes.portalStatement), title: 'Sao kê công nợ' },
   { test: p => /^\/clerk\/shipments\/\d+\/docs$/.test(p), title: 'Hồ sơ lô hàng' },
-  { test: p => p.startsWith(routes.clerkShipmentNew), title: 'Tạo lô hàng' },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
   { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },

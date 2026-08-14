@@ -276,7 +276,7 @@ NHÓM CHỨNG TỪ
 1. Lô hàng được giao
    Đường dẫn: /shipments
 2. Tạo lô hàng
-   Đường dẫn: /clerk/shipments/new
+   Đường dẫn: /shipments/new
 
 NHÓM ĐỐI SOÁT
 

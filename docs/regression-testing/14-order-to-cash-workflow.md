@@ -157,7 +157,7 @@ Trạng thái chuyển sang `Mới tạo`.
 - **Vai trò:** vai trò `CLERK` (Nhân viên chứng từ)
 - **Tiền điều kiện:** Bảng giá đã ký cho Khách hàng × Tuyến đường tồn tại trong master data.
 - **Các bước:**
-  1. `CLERK` mở `/clerk/shipments/new` (hoặc `/shipments/new`).
+  1. CUS mở `/shipments/new`.
   2. Nhập Số Bill/Booking, chọn Khách hàng, Tuyến đường, Nhà máy.
   3. Phân loại FCL: nhập số Cont (ví dụ `2 × 40HC`), KG, CBM.
   4. Lưu.

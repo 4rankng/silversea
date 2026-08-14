@@ -388,6 +388,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
   customerAppointmentAt: z.string().datetime().nullable(),
+  scheduleEditable: z.boolean(),
 }).strict();
 
 export const shipmentCusContainerFlatResponseSchema = z.object({

@@ -21,6 +21,7 @@ import { test, expect } from '@playwright/test';
 
 const USERS = JSON.parse(process.env.STAGING_USERS || '{}');
 const PASSWORD = process.env.STAGING_PASSWORD || 'Abc123';
+const CUS_USERNAME = USERS.cus || USERS.clerk || 'cus';
 
 test.describe('O2C Lifecycle', () => {
   test.beforeEach(async ({ page }) => {
@@ -30,41 +31,38 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-002: Create LCL shipment and transition to ready by date', async ({ page }) => {
     // Login as CUS/CLERK
-    await page.fill('input[name="username"]', USERS.clerk);
+    await page.fill('input[name="username"]', CUS_USERNAME);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
     // Wait for navigation to dashboard
     await page.waitForURL('/shipments');
 
-    // Click "Tạo lô hàng" (Create new shipment)
-    await page.click('text=Tạo lô hàng');
-    await page.waitForURL('/clerk/shipments/new');
+    // Open the canonical standalone create page from the shipment workspace.
+    await page.getByRole('button', { name: 'Tạo lô mới' }).click();
+    await page.waitForURL('/shipments/new');
 
     // Fill LCL shipment form
-    await page.selectOption('select[name="customerId"]', '1');
-    await page.fill('input[name="bookingRef"]', `QA-LCL-${Date.now()}`);
-    await page.selectOption('select[name="shipmentType"]', 'LCL');
+    await page.getByRole('combobox', { name: /Khách hàng/ }).click();
+    await page.getByRole('option').first().click();
+    await page.getByRole('textbox', { name: 'Số Bill/Booking' }).fill(`QA-LCL-${Date.now()}`);
+    await page.getByRole('combobox', { name: 'Hình thức xuất nhập khẩu' }).selectOption('IMPORT');
+    await page.getByRole('radio', { name: 'Hàng lẻ (LCL)' }).check();
 
     // Enter LCL details
-    await page.fill('input[name="packageCount"]', '12');
-    await page.fill('input[name="cargoWeightKg"]', '8500');
-    await page.fill('input[name="cargoVolumeCbm"]', '18.5');
+    await page.getByRole('spinbutton', { name: 'Số lượng' }).fill('12');
+    await page.getByRole('spinbutton', { name: 'Trọng lượng (kg)' }).fill('8500');
+    await page.getByRole('spinbutton', { name: 'Thể tích (CBM)' }).fill('18.5');
 
-    // Leave delivery dates empty to test PENDING_DATE state
-    await page.click('button[type="submit"]');
-
-    // Verify success message
-    await expect(page.locator('text=Đã tạo lô thành công')).toBeVisible();
-
-    // Verify shipment is in PENDING_DATE state
-    await page.click('text=Chi tiết');
-    await expect(page.locator('text=Chờ ngày điều vận')).toBeVisible();
+    // Saving a draft remains customer-only and continues to the dossier page.
+    await page.getByRole('button', { name: 'Lưu bản nháp' }).click();
+    await page.waitForURL(/\/clerk\/shipments\/\d+\/docs/);
+    await expect(page).toHaveURL(/\/clerk\/shipments\/\d+\/docs/);
   });
 
   test('OPS-004: Complete documents and activate dispatch date', async ({ page }) => {
     // Login as CUS
-    await page.fill('input[name="username"]', USERS.clerk);
+    await page.fill('input[name="username"]', CUS_USERNAME);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 
@@ -88,7 +86,7 @@ test.describe('O2C Lifecycle', () => {
 
   test('OPS-006: Assign carriers by quantity and split FCL by container', async ({ page }) => {
     // Login as CUS
-    await page.fill('input[name="username"]', USERS.clerk);
+    await page.fill('input[name="username"]', CUS_USERNAME);
     await page.fill('input[name="password"]', PASSWORD);
     await page.click('button[type="submit"]');
 

@@ -189,10 +189,6 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  // M10.1: CUS (nhân viên CSKH) mobile surfaces. ADMIN is admitted as
-  // superuser; every other role is bounced to its own home. CUS's home is
-  // the create page itself until a CUS landing page ships.
-  const cusOrAdminOnly = (el: ReactElement) => (isAdmin || isCus ? el : <Navigate to={homeRedirect} replace />); // formerly clerkOrAdminOnly
   const shipmentOperatorOnly = (el: ReactElement) => (
     isAdmin || isCus || currentRole === Role.MANAGER
       ? el
@@ -333,10 +329,6 @@ export function AppRoutes() {
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
           <Route path="/portal/statement" element={customerOnly(page(<PortalStatementPage />))} />
-          {/* Wave 4 M10.1: CLERK mobile quick-shipment-create. ADMIN is
-              admitted as superuser; the clerk home is this create page until
-              a clerk landing page ships. */}
-          <Route path="/clerk/shipments/new" element={cusOrAdminOnly(page(<ClerkShipmentCreatePage />))} />
           {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
           <Route path="/clerk/shipments/:id/docs" element={shipmentOperatorOnly(page(<ClerkShipmentDocsPage />))} />
           <Route path="*" element={<Navigate to={defaultHome} replace />} />

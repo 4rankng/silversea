@@ -348,7 +348,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 if expectation["api_status"] == 403:
                     condition = (
                         DEMO_ACCOUNTS[role_key]["home"] in page.url
-                        and page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).count() == 0
+                        and page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).count() == 0
                         and no_horizontal_overflow(page)
                         and not console_errors
                         and not page_errors
@@ -362,7 +362,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                     )
                     continue
 
-                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
                 visible_fixture = page.get_by_text(f"BLCUS{SEARCH_SUFFIX}", exact=False).count() > 0
                 overflow_ok = no_horizontal_overflow(page)
@@ -449,7 +449,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
             page.goto(f"{BASE_URL}/shipments?searchSuffix={SEARCH_SUFFIX}")
             page.wait_for_load_state("networkidle")
             try:
-                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
             except Exception as error:
                 results.fail(
                     f"TC-1933-{width}",

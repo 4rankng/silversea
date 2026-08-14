@@ -3,24 +3,23 @@
 > **Phân hệ 10** — 3 nhóm chức năng (10.1–10.3). Nguồn PRD: `docs/prd/Module10.docx`.
 > **Tiêu chí nghiệm thu toàn phân hệ:** `M10-HT-01` … `M10-HT-10` (xem `00-cross-cutting.md`).
 >
-> **Đây là ứng dụng MOBILE của nhân viên chứng từ (CLERK).** Phần lớn thao tác xảy ra ngoài giờ, trên điện
+> **Đây là ứng dụng MOBILE của nhân viên CUS (CSKH/chứng từ).** Phần lớn thao tác xảy ra ngoài giờ, trên điện
 > thoại → **mặc định thử trên DevTools Device Toolbar, iPhone SE 375×667** (xem TC-HT-07). Chỉ dùng Desktop
 > cho ca kiểm soát quyền và đối chiếu danh sách văn phòng.
 >
 > **Màn hình chính (clerk portal):**
-> - `/clerk/shipments/new` — tạo nhanh lô nháp (M10.1).
+> - `/shipments/new` — tạo nhanh lô nháp (M10.1).
 > - `/clerk/shipments/:id/docs` — nhập số vận đơn (B/L), công-te-nơ, niêm phong, readiness (M10.2).
 > - `/shipments` — danh sách lô (góc nhìn văn phòng).
 > - `/shipments/:id` — chi tiết lô.
 >
-> **Vai trò thử:** `CLERK` (nhân viên chứng từ, label tiếng Việt "Chứng từ"). **Lưu ý quan trọng:** trong
-> seed hiện **chưa có tài khoản demo CLERK riêng** → dùng `admin` cho hầu hết ca (admin được phép vào clerk
-> portal — xem `clerkOrAdminOnly` trong `frontend/src/App.tsx:134`). Khi cần xác minh CLERK không thấy nút
-> "Điều vận", tạo một user CLERK tạm ở `/users` rồi đăng nhập lại. Ghi rõ lựa chọn này vào cột "Ghi chú".
+> **Vai trò thử:** `CUS` (`cus`, nhân viên CSKH/chứng từ). Route tạo lô cho phép `ADMIN`, `CUS` và
+> `MANAGER`; các vai trò chỉ đọc như `ACCOUNTANT` và `DISPATCHER` không thấy CTA tạo lô và không vào được
+> `/shipments/new`. Dùng đúng tài khoản theo từng ca, không dùng `admin` làm đại diện khi kiểm tra menu hay RBAC.
 >
 > **Ngoại lệ cho bộ visual xuyên suốt mới:** khi chạy
 > [`13-customer-service-finance-visual-workflow.md`](./13-customer-service-finance-visual-workflow.md),
-> bắt buộc dùng tài khoản có role `CLERK` thật; không dùng `admin` làm đại diện vì bộ đó kiểm tra cả menu,
+> bắt buộc dùng tài khoản có role `CUS` thật; không dùng `admin` làm đại diện vì bộ đó kiểm tra cả menu,
 > row-scope và quyền âm của CUS.
 
 ---
@@ -37,16 +36,16 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
 ### TC-M10-01-01 — Tạo lô nháp thành công trên mobile (luồng thường)
 
 - **Mã PRD:** M10-01-01
-- **Vai trò:** `admin` (đại diện CLERK — chưa có tài khoản demo CLERK)
+- **Vai trò:** `cus`
 - **Thiết bị:** Mobile (iPhone SE 375×667)
 - **Tiền điều kiện:** đã có ít nhất 1 khách hàng active trong `/customers` (không bị soft-delete).
 - **Các bước:**
-  1. Đăng nhập `admin`. DevTools → Device Toolbar → iPhone SE (375×667).
-  2. Mở trực tiếp `/clerk/shipments/new`.
+  1. Đăng nhập `cus`. DevTools → Device Toolbar → iPhone SE (375×667).
+  2. Mở trực tiếp `/shipments/new`.
   3. Chọn "Khách hàng". Gõ "Số booking" = `COSU-TEST-01`. Để trống các trường còn lại.
-  4. Bấm "Tạo lô hàng".
+  4. Bấm "Lưu bản nháp".
 - **Kết quả mong đợi (Pass):**
-  - Form một cột, nút "Tạo lô hàng" cao ≥ 44px, không bị keyboard che.
+  - Form một cột, nút "Lưu bản nháp" cao ≥ 44px, không bị keyboard che.
   - Sau bấm → chuyển sang `/clerk/shipments/:id/docs` (hồ sơ chứng từ đúng phạm vi CLERK).
   - Trạng thái lô = "Bản nháp" (DRAFT). `shipmentCode` được sinh ra, duy nhất.
   - Lô xuất hiện ngay trên `/shipments` (danh sách của người tạo); hồ sơ mới mở sẵn để bổ sung B/L,
@@ -57,13 +56,13 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
 ### TC-M10-01-02 — Thiếu trường bắt buộc (khách hàng)
 
 - **Mã PRD:** M10-01-02
-- **Vai trò:** `admin`
+- **Vai trò:** `cus`
 - **Thiết bị:** Mobile (iPhone SE 375×667)
 - **Tiền điều kiện:** như TC-M10-01-01.
 - **Các bước:**
-  1. Mở `/clerk/shipments/new`.
+  1. Mở `/shipments/new`.
   2. Không chọn "Khách hàng" (giữ nguyên "— Chọn khách hàng —").
-  3. Bấm "Tạo lô hàng".
+  3. Bấm "Lưu bản nháp".
 - **Kết quả mong đợi (Pass):**
   - Không gọi API (không có request POST `/api/shipments/quick` trong Network tab).
   - Hiển thị thông báo tiếng Việt: "Vui lòng chọn khách hàng" (xem `ClerkShipmentCreatePage.tsx:111`).
@@ -78,7 +77,7 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
 - **Thiết bị:** Mobile (iPhone SE 375×667)
 - **Tiền điều kiện:** đã có 1 khách hàng.
 - **Các bước:**
-  1. Mở `/clerk/shipments/new`. Chọn khách, gõ booking `OFFLINE-01`.
+  1. Mở `/shipments/new`. Chọn khách, gõ booking `OFFLINE-01`.
   2. DevTools → Network → Offline. Bấm "Tạo lô hàng" → quan sát thông báo lỗi.
   3. Bật lại Online. Bấm "Tạo lô hàng" lần nữa.
   4. Kiểm tra `/shipments` và DB: đếm số lô có booking `OFFLINE-01`.
@@ -90,18 +89,19 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
 - **Phụ thuộc:** Q23 (idempotency)
 - **Bằng chứng:** ảnh lỗi offline + ảnh Network tab 2 request (cùng `Idempotency-Key`, cùng `shipment.id`) + ảnh `/shipments`.
 
-### TC-M10-01-04 — Phân quyền: vai trò ngoài CLERK/ADMIN không vào được
+### TC-M10-01-04 — Phân quyền tạo lô theo vai trò
 
 - **Mã PRD:** M10-01-04
-- **Vai trò thử:** `laixe`, `customer`, `ketoan`
+- **Vai trò được phép:** `admin`, `cus`, `giamdoc`
+- **Vai trò bị chặn:** `ketoan`, `dispatcher`, `laixe`, `giaonhan`, `khachhang`
 - **Thiết bị:** Desktop
 - **Các bước:**
-  1. Đăng nhập `laixe`. Mở trực tiếp `/clerk/shipments/new`.
-  2. Lặp lại với `customer`, rồi `ketoan`.
+  1. Lần lượt đăng nhập `admin`, `cus`, `giamdoc`; mở `/shipments` và `/shipments/new`.
+  2. Lặp lại với `ketoan`, tài khoản điều vận, `laixe`, `giaonhan`, `khachhang`.
 - **Kết quả mong đợi (Pass):**
-  - Cả 3 đều bị `Navigate` redirect về màn nhà của vai trò (cổng nhân viên / khách).
-  - Không để lộ form tạo lô hay dữ liệu khách hàng trong response body.
-  - API `GET /api/config/customers` cũng chặn ở mức RBAC (kiểm tra Network tab nếu có request lọt qua).
+  - `ADMIN`, `CUS`, `MANAGER` thấy CTA **Tạo lô mới** và mở được `/shipments/new`.
+  - Các vai trò còn lại không thấy CTA; mở trực tiếp URL sẽ bị redirect về màn nhà của vai trò.
+  - Không để lộ form tạo lô hay dữ liệu khách hàng trong response body; API tạo/gửi lô vẫn chặn ở backend.
 - **Phụ thuộc:** Q17
 - **Bằng chứng:** ảnh redirect + ảnh DevTools Network.
 
@@ -198,7 +198,7 @@ giao hàng hết hạn; thay thế chứng từ.
 ### TC-M10-02-04 — Phân quyền: CLERK không thấy nút "Điều vận"
 
 - **Mã PRD:** M10-02-04
-- **Vai trò thử:** `CLERK` (tạo user tạm ở `/users`), đối chiếu `admin`/`MANAGER`
+- **Vai trò thử:** `cus`, đối chiếu `admin`/`giamdoc`
 - **Thiết bị:** Desktop
 - **Các bước:**
   1. Tạo user `clerk-test` với role CLERK ở `/users`. Đăng xuất, đăng nhập lại bằng user này.
@@ -301,7 +301,7 @@ lô trước khi gán xe.
 ### TC-M10-03-04 — Phân quyền: chỉ người xử lý / vai trò đúng mới được resolve
 
 - **Mã PRD:** M10-03-04
-- **Vai trò thử:** `CLERK`, `laixe`, `customer`, `FORWARDER` (handler)
+- **Vai trò thử:** `cus`, `laixe`, `khachhang`, `giaonhan` (handler)
 - **Thiết bị:** Desktop
 - **Các bước:**
   1. Đăng nhập CLERK → cố gắng `resolveHandoff` (ACCEPTED/REJECTED) handoff của người khác.

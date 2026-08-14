@@ -26,7 +26,7 @@ ROLE_SURFACES = {
     "admin": "/config/master-data-import",
     "manager": "/dispatch",
     "accountant": "/config/debit-note-templates",
-    "clerk": "/clerk/shipments/new",
+    "clerk": "/shipments/new",
     "driver": "/my-trips",
     "customer": "/portal/shipments",
 }

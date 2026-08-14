@@ -141,7 +141,7 @@ Các route/label sau chỉ dùng để tìm màn hình. Nếu label thực tế 
 
 | Vai trò | Route | Dẫn đường UI hiện hành |
 | --- | --- | --- |
-| CUS | `/clerk/shipments/new` | `Tạo lô hàng mới`, `Lưu bản nháp`, `Gửi sang điều phối` |
+| CUS | `/shipments/new` | `Tạo lô hàng mới`, `Lưu bản nháp`, `Gửi sang điều phối` |
 | Dispatcher | `/dispatch` | `Điều phối chuyến xe`, `Tiếp nhận`, `Phát hành lệnh điều xe` |
 | Driver | `/my-trips` | Bốn milestone nghiệp vụ và nút `Gửi chờ duyệt phí` |
 | Ops | `/my-forwarder-trips` | `Chi phí phát sinh`, `Thêm`, `Đã kê xong` |
@@ -270,8 +270,8 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | Trường | Nội dung |
 | --- | --- |
 | Vai trò | CUS |
-| Tiền điều kiện | Có khách, tuyến, bảng giá cước, fuel config, route dẫn đường `/clerk/shipments/new` |
-| Hành động | 1. Đăng nhập `cus`, mở `/clerk/shipments/new`. 2. Tạo lô FCL với Booking/BL và 2 container/seal ở Mục 4.3; lưu bằng `Lưu bản nháp`. 3. Đối chiếu từng trường với bộ chứng từ chuẩn bị. 4. Ghi cước master, giá dầu gốc/hiện tại, số lít định mức và tỷ lệ chia sẻ; tính tay `phụ phí = (giá hiện tại − giá gốc) × số lít định mức × tỷ lệ chia sẻ`. 5. Tạo lô LCL đối chứng, nhập kho lấy hàng, loại bao bì, số lượng, kg, CBM và ghi chú; lưu nháp. 6. Mở lại cả hai lô và ghi `shipmentId`/trạng thái. |
+| Tiền điều kiện | Có khách, tuyến, bảng giá cước, fuel config, route dẫn đường `/shipments/new` |
+| Hành động | 1. Đăng nhập `cus`, mở `/shipments/new`. 2. Tạo lô FCL với Booking/BL và 2 container/seal ở Mục 4.3; lưu bằng `Lưu bản nháp`. 3. Đối chiếu từng trường với bộ chứng từ chuẩn bị. 4. Ghi cước master, giá dầu gốc/hiện tại, số lít định mức và tỷ lệ chia sẻ; tính tay `phụ phí = (giá hiện tại − giá gốc) × số lít định mức × tỷ lệ chia sẻ`. 5. Tạo lô LCL đối chứng, nhập kho lấy hàng, loại bao bì, số lượng, kg, CBM và ghi chú; lưu nháp. 6. Mở lại cả hai lô và ghi `shipmentId`/trạng thái. |
 | PRD kỳ vọng | FCL và LCL hiển thị đúng bộ trường; cước dự kiến tự lấy theo Khách × Tuyến; phụ phí xăng dầu tự tính đúng công thức; giá read-only; cả hai lô là `NEW/Mới tạo` |
 | FAIL nếu | Thiếu trường FCL/LCL; không có cước hoặc phụ phí hiển thị; cho gõ tay giá; công thức sai; dữ liệu mở lại sai; lô nháp không ở `NEW` |
 | Bằng chứng | Ảnh form FCL/LCL; ảnh giá read-only; phép tính tay; ảnh detail và hai shipment ID |

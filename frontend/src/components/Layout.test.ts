@@ -7,7 +7,7 @@ describe('getNavItems', () => {
   it.each([
     [Role.ADMIN, [
       ['Tổng quan Quản trị', '/dashboard'],
-      ['Quản lý Lô hàng', '/shipments'],
+      ['Tổng quan lô hàng', '/shipments'],
       ['Điều vận', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
@@ -35,7 +35,7 @@ describe('getNavItems', () => {
     ]],
     [Role.MANAGER, [
       ['Tổng quan Quản trị', '/dashboard'],
-      ['Quản lý Lô hàng', '/shipments'],
+      ['Tổng quan lô hàng', '/shipments'],
       ['Điều vận', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
@@ -71,7 +71,7 @@ describe('getNavItems', () => {
       ['Báo cáo Lợi nhuận', '/profit'],
       ['Duyệt vượt hạn mức', '/credit-overrides'],
       ['Trung tâm phê duyệt', '/governance-actions'],
-      ['Quản lý Lô hàng', '/shipments'],
+      ['Tổng quan lô hàng', '/shipments'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
       ['Lương & Chấm công', '/salary'],
@@ -92,7 +92,7 @@ describe('getNavItems', () => {
       ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],
     ]],
     [Role.CUS, [
-      ['Tổng hợp Lô hàng', '/shipments'],
+      ['Tổng quan lô hàng', '/shipments'],
       ['Chi tiết lô hàng', '/shipments-detail'],
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
     ]],
@@ -150,7 +150,7 @@ describe('getNavItems', () => {
 
   it('keeps the approved operations order while omitting unavailable actions', () => {
     // Spec §III.1 ADMIN/MANAGER operations order:
-    // Quản lý Lô hàng → Phân bổ Phương tiện → Sổ chuyến đi → Quản lý Đội xe
+    // Tổng quan lô hàng → Phân bổ Phương tiện → Sổ chuyến đi → Quản lý Đội xe
     const adminOperations = getNavItems(Role.ADMIN)
       .filter((item) => item.section === 'operations')
       .map((item) => item.key);

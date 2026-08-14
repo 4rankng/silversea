@@ -101,7 +101,7 @@ Các tiêu chí này giống nhau về mặt ý nghĩa; tệp này viết ca ki�
 - **Cách thử:** mở DevTools Device Toolbar, thử 2 kích cỡ:
   - Desktop: 1440×900
   - Mobile: iPhone SE (375×667) — quan trọng cho M08/M09/M10
-- **Màn cần thử trên mobile:** `/my-trips/:id` (laixe), `/my-settlements/new` (giaonhan), `/clerk/shipments/new` (clerk), `/portal/shipments` (customer).
+- **Màn cần thử trên mobile:** `/my-trips/:id` (laixe), `/my-settlements/new` (giaonhan), `/shipments/new` (CUS), `/portal/shipments` (customer).
 - **Kết quả mong đợi (Pass):**
   - Bảng dài có thanh cuộn ngang hoặc biến thành card stack.
   - Nút "Lưu"/"Gửi" không bị che bởi keyboard trên mobile.

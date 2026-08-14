@@ -118,7 +118,7 @@ Mật khẩu cho tất cả: `Abc123`. URL: http://localhost:7174
 | M07 Lương, chấm công, kỷ luật | `/salary`, `/config/salary-periods`, `/penalties`       | ketoan / admin / laixe    |
 | M08 Ứng dụng lái xe | `/my-trips`, `/my-trips/two-orders`, `/my-trips/:id`, `/my-earnings`, `/my-payslips`, `/my-penalties` | laixe |
 | M09 Ứng dụng nhân viên hiện trường | `/my-forwarder-trips`, `/my-advances`, `/my-settlements`, `/my-settlements/new` | giaonhan |
-| M10 Ứng dụng nhân viên chứng từ | `/clerk/shipments/new`, `/clerk/shipments/:id/docs`, `/shipments` | clerk-style user (CLERK role) |
+| M10 Ứng dụng nhân viên chứng từ | `/shipments/new`, `/clerk/shipments/:id/docs`, `/shipments` | tài khoản CUS |
 | M11 Báo cáo tài chính & lãi lỗ | `/finance`, `/profit`, `/dashboard`                    | giamdoc / ketoan / admin   |
 | Admin application settings | `/config/app-settings` | admin |
 | Thông tin công ty | `/config/company-info` | admin / giamdoc / ketoan |

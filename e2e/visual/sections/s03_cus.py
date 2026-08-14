@@ -92,7 +92,7 @@ def tc_m03_01_01b(ctx: VisualTestContext):
     # Look for a create button.
     found = False
     for sel in ['button:has-text("Tạo")', 'button:has-text("Tạo lô")', 'button:has-text("Lô mới")',
-                'a:has-text("Tạo")', 'a[href*="clerk/shipments/new"]']:
+                'a:has-text("Tạo")', 'a[href="/shipments/new"]']:
         try:
             ctx.page.wait_for_selector(sel, timeout=2000)
             found = True
@@ -100,8 +100,7 @@ def tc_m03_01_01b(ctx: VisualTestContext):
         except Exception:
             continue
     if not found:
-        # Some flows put create under /clerk/shipments/new. Visit directly.
-        ctx.goto("/clerk/shipments/new")
+        ctx.goto("/shipments/new")
 
 
 @tc("TC-M03-01-05-forwarder", roles=["FORWARDER"], url="/shipments",

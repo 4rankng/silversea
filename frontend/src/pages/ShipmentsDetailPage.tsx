@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, RotateCcw, Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import type { ShipmentCusContainerFlatResponse } from '@tingting/shared';
+import type {
+  ShipmentCusContainerFlatResponse,
+  ShipmentCusContainerFlatRow,
+  ShipmentCusWorkspaceContainerLine,
+  ShipmentCusWorkspaceDetail,
+} from '@tingting/shared';
 import { ApiError } from '../lib/api';
-import { listCusShipmentContainers } from '../api/shipmentClient';
+import {
+  getCusShipmentWorkspaceDetail,
+  listCusShipmentContainers,
+  updateCusShipmentContainerLine,
+} from '../api/shipmentClient';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
@@ -11,7 +20,10 @@ import { Button as UUIButton } from '../components/untitled-ui/base/buttons/butt
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination } from '../design-system';
 import { PageHeader } from '../components/UI';
-import { ShipmentContainerLedger } from '../features/shipments/detail/ShipmentContainerLedger';
+import {
+  ShipmentContainerLedger,
+  type ShipmentScheduleDraft,
+} from '../features/shipments/detail/ShipmentContainerLedger';
 import './ShipmentsDetailPage.css';
 
 const PAGE_SIZE = 20;
@@ -47,7 +59,15 @@ export default function ShipmentsDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [activeEdit, setActiveEdit] = useState<{
+    detail: ShipmentCusWorkspaceDetail;
+    line: ShipmentCusWorkspaceContainerLine;
+  } | null>(null);
+  const [editLoadingRowId, setEditLoadingRowId] = useState<number | null>(null);
+  const [editError, setEditError] = useState<{ rowId: number; message: string } | null>(null);
   const requestSequence = useRef(0);
+  const editRequestSequence = useRef(0);
+  const editIdempotencyKeys = useRef<Record<string, string>>({});
 
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -62,7 +82,11 @@ export default function ShipmentsDetailPage() {
   useEffect(() => {
     setSearchInput(suffixParam);
     setSearchError(null);
-  }, [suffixParam]);
+    editRequestSequence.current += 1;
+    setActiveEdit(null);
+    setEditLoadingRowId(null);
+    setEditError(null);
+  }, [page, suffixParam]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -98,9 +122,72 @@ export default function ShipmentsDetailPage() {
     updateParam('searchSuffix', null);
   };
 
+  const cancelEdit = useCallback(() => {
+    editRequestSequence.current += 1;
+    setActiveEdit(null);
+    setEditLoadingRowId(null);
+    setEditError(null);
+  }, []);
+
+  const startEdit = useCallback(async (row: ShipmentCusContainerFlatRow) => {
+    const requestId = ++editRequestSequence.current;
+    setActiveEdit(null);
+    setEditLoadingRowId(row.id);
+    setEditError(null);
+    try {
+      const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
+      if (requestId !== editRequestSequence.current) return;
+      const line = detail.containers.find((candidate) => candidate.id === row.id);
+      const canEdit = line && (
+        line.permissions.liftSiteEditable
+        || line.permissions.dropoffSiteEditable
+        || line.permissions.customerAppointmentEditable
+      );
+      if (!line || !canEdit) {
+        throw new Error('Lịch trình container này không còn được phép chỉnh sửa.');
+      }
+      setActiveEdit({ detail, line });
+    } catch (loadError) {
+      if (requestId === editRequestSequence.current) {
+        setEditError({ rowId: row.id, message: safeError(loadError, 'Không thể mở lịch trình container.') });
+      }
+    } finally {
+      if (requestId === editRequestSequence.current) setEditLoadingRowId(null);
+    }
+  }, []);
+
+  const saveEdit = useCallback(async (
+    line: ShipmentCusWorkspaceContainerLine,
+    draft: ShipmentScheduleDraft,
+  ) => {
+    if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const shipmentId = activeEdit.detail.summary.id;
+    const signature = JSON.stringify([
+      shipmentId,
+      line.id,
+      line.shipmentVersion,
+      draft.liftSiteId,
+      draft.dropoffSiteId,
+      draft.customerAppointmentAt,
+    ]);
+    const idempotencyKey = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = idempotencyKey;
+    await updateCusShipmentContainerLine(shipmentId, line.id, {
+      expectedShipmentVersion: line.shipmentVersion,
+      ...(line.permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId } : {}),
+      ...(line.permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId } : {}),
+      ...(line.permissions.customerAppointmentEditable
+        ? { customerAppointmentAt: draft.customerAppointmentAt }
+        : {}),
+    }, idempotencyKey);
+    delete editIdempotencyKeys.current[signature];
+    setActiveEdit(null);
+    await loadRows();
+  }, [activeEdit, loadRows]);
+
   return (
     <div className="shipments-detail-page">
-      <Breadcrumbs items={[{ label: 'Tổng hợp Lô hàng', to: '/shipments' }, { label: 'Chi tiết lô hàng' }]} />
+      <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi tiết lô hàng' }]} />
       <PageHeader
         title="Chi tiết lô hàng"
         iconName="cargo"
@@ -189,7 +276,16 @@ export default function ShipmentsDetailPage() {
           />
         ) : (
           <>
-            <ShipmentContainerLedger rows={items} totalShipments={totalShipments} />
+            <ShipmentContainerLedger
+              rows={items}
+              totalShipments={totalShipments}
+              activeEdit={activeEdit}
+              editLoadingRowId={editLoadingRowId}
+              editError={editError}
+              onStartEdit={(row) => void startEdit(row)}
+              onCancelEdit={cancelEdit}
+              onSaveEdit={saveEdit}
+            />
             <Pagination
               page={page}
               totalPages={totalPages}

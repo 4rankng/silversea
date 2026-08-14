@@ -251,6 +251,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.customerName, `CusWs customer ${suffix}`);
     assert.equal(rowA1.containerTypeLabel != null, true);
     assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
+    assert.equal(rowA1.scheduleEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
     assert.equal(rowA1.customerAppointmentAt, appointmentA.toISOString());
     // Unassigned containers carry no carrier/plate yet.
@@ -271,5 +272,16 @@ describe('CUS container-flat projection', () => {
     assert.ok(response.total >= 2);
     assert.ok(response.totalPages >= 1);
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
+  });
+
+  test('does not advertise schedule editing to a read-only role', async () => {
+    const shipment = await seedShipment({ blNumber: `FLATRO${suffix}` });
+    await seedContainer(shipment.id, { containerNumber: `FLATRO${suffix}1` });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+
+    assert.ok(row);
+    assert.equal(row.scheduleEditable, false);
   });
 });

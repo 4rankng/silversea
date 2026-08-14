@@ -93,9 +93,7 @@ describe('AppRoutes shipment operations reachability', () => {
 
   it.each([
     [Role.ADMIN, '/shipments/new'],
-    [Role.ADMIN, '/clerk/shipments/new'],
     [Role.CUS, '/shipments/new'],
-    [Role.CUS, '/clerk/shipments/new'],
     [Role.MANAGER, '/shipments/new'],
   ])('admits %s to %s', async (role, path) => {
     authState.role = role;
@@ -130,17 +128,14 @@ describe('AppRoutes shipment operations reachability', () => {
   });
 
   it.each([
+    [Role.ADMIN, '/clerk/shipments/new'],
+    [Role.CUS, '/clerk/shipments/new'],
     [Role.MANAGER, '/clerk/shipments/new'],
     [Role.ACCOUNTANT, '/shipments/new'],
-    [Role.ACCOUNTANT, '/clerk/shipments/new'],
     [Role.DRIVER, '/shipments/new'],
-    [Role.DRIVER, '/clerk/shipments/new'],
     [Role.OPS, '/shipments/new'],
-    [Role.OPS, '/clerk/shipments/new'],
     [Role.DISPATCHER, '/shipments/new'],
-    [Role.DISPATCHER, '/clerk/shipments/new'],
     [Role.CUSTOMER, '/shipments/new'],
-    [Role.CUSTOMER, '/clerk/shipments/new'],
   ])('redirects %s away from %s', async (role, path) => {
     authState.role = role;
     renderRoute(path);

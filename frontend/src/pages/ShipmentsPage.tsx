@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CalendarClock,
@@ -21,6 +21,7 @@ import {
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  Role,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
@@ -45,7 +46,8 @@ import {
   updateShipment,
 } from '../api/shipmentClient';
 import { downloadCSV } from '../lib/csv';
-import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
+import { routes } from '../lib/routes';
+import { useAuth } from '../hooks/useAuth';
 import './ShipmentsPage.css';
 
 const PAGE_SIZE = 20;
@@ -670,6 +672,9 @@ function ShipmentDetailContent({
 }
 
 export default function ShipmentsPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER;
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const suffixParam = searchParams.get('searchSuffix') ?? '';
@@ -704,9 +709,6 @@ export default function ShipmentsPage() {
   const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
   const [savingQuickEdit, setSavingQuickEdit] = useState(false);
   const [quickEditError, setQuickEditError] = useState<string | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createDirty, setCreateDirty] = useState(false);
-  const [createCloseConfirmOpen, setCreateCloseConfirmOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const requestSequence = useRef(0);
   const detailRequestSequence = useRef<Record<number, number>>({});
@@ -1038,29 +1040,6 @@ export default function ShipmentsPage() {
     }
   };
 
-  const requestCloseCreate = () => {
-    if (createDirty) {
-      setCreateCloseConfirmOpen(true);
-      return;
-    }
-    setCreateOpen(false);
-    setCreateDirty(false);
-  };
-
-  const discardCreateChanges = () => {
-    setCreateCloseConfirmOpen(false);
-    setCreateOpen(false);
-    setCreateDirty(false);
-  };
-
-  const handleShipmentCreated = async () => {
-    setCreateOpen(false);
-    setCreateDirty(false);
-    setCreateCloseConfirmOpen(false);
-    setNotice('Đã tạo lô hàng mới. Dòng dữ liệu mới đã được cập nhật trên bảng.');
-    await loadList();
-  };
-
   const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen') => {
     if (dirtyDetailIds.has(item.id)) {
       setError('Hãy lưu hoặc bỏ thay đổi container trước khi thực hiện thao tác này.');
@@ -1221,7 +1200,7 @@ export default function ShipmentsPage() {
           [item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
         ]),
         {
-          title: 'Kế hoạch lô hàng',
+          title: 'Tổng quan lô hàng',
           subtitle: `${exportItems.length.toLocaleString('vi-VN')} lô hàng`,
           columnTypes: ['text', 'text', 'text', 'text', 'text', 'text', 'text'],
           hideTotals: true,
@@ -1236,15 +1215,15 @@ export default function ShipmentsPage() {
 
   return (
     <div className="shipments-page shipments-page--worksheet">
-      <Breadcrumbs items={[{ label: 'Tổng quan', to: '/dashboard' }, { label: 'Kế hoạch lô hàng' }]} />
-      <PageHeader title="Kế hoạch lô hàng" iconName="cargo" description="Bảng điều hành giao nhận theo từng lô hàng" />
+      <Breadcrumbs items={[{ label: 'Tổng quan', to: '/dashboard' }, { label: 'Tổng quan lô hàng' }]} />
+      <PageHeader title="Tổng quan lô hàng" iconName="cargo" description="Bảng điều hành giao nhận theo từng lô hàng" />
 
       <section
         className="cus-workspace cus-workspace--worksheet"
         aria-labelledby="cus-workspace-title"
         aria-busy={loading}
-        aria-hidden={drawerId != null || createOpen ? true : false}
-        inert={drawerId != null || createOpen ? true : false}
+        aria-hidden={drawerId != null ? true : false}
+        inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
         <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
@@ -1345,15 +1324,17 @@ export default function ShipmentsPage() {
           </details>
 
           <div className="cus-worksheet-toolbar__actions">
-            <UUIButton
-              size="sm"
-              color="primary"
-              className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
-              onPress={() => setCreateOpen(true)}
-              iconLeading={<Plus size={17} aria-hidden="true" />}
-            >
-              Tạo lô mới
-            </UUIButton>
+            {canCreateShipment && (
+              <UUIButton
+                size="sm"
+                color="primary"
+                className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
+                onPress={() => navigate(routes.shipmentNew)}
+                iconLeading={<Plus size={17} aria-hidden="true" />}
+              >
+                Tạo lô mới
+              </UUIButton>
+            )}
             <UUIButton
               size="sm"
               color="secondary"
@@ -1613,25 +1594,6 @@ export default function ShipmentsPage() {
           </>
         )}
       </section>
-
-      <Modal isOpen={createOpen} title="Tạo lô hàng mới" onClose={requestCloseCreate} maxWidth={1280}>
-        <p className="cus-create-modal-intro">Nhập thông tin trên một biểu mẫu liên tục. Có thể lưu bản nháp để bổ sung sau hoặc hoàn tất và gửi điều phối.</p>
-        <ShipmentCreateWorkspace embedded onCancel={requestCloseCreate} onDirtyChange={setCreateDirty} onSaved={() => void handleShipmentCreated()} />
-      </Modal>
-
-      <Modal
-        isOpen={createCloseConfirmOpen}
-        title="Bỏ tạo lô hàng?"
-        onClose={() => setCreateCloseConfirmOpen(false)}
-        footer={(
-          <>
-            <button type="button" className="btn btn--ghost" onClick={() => setCreateCloseConfirmOpen(false)}>Tiếp tục nhập</button>
-            <button type="button" className="btn btn--secondary" onClick={discardCreateChanges}>Bỏ thay đổi và đóng</button>
-          </>
-        )}
-      >
-        <p>Thông tin chưa lưu sẽ bị mất. Hãy lưu nháp hoặc xác nhận bỏ thay đổi trước khi đóng.</p>
-      </Modal>
 
       <Drawer
         isOpen={drawerId != null}

@@ -39317,71 +39317,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/lib/routes.ts",
-      "type": "file",
-      "name": "routes.ts",
-      "filePath": "frontend/src/lib/routes.ts",
-      "summary": "Provides routes support utilities used by the application.",
-      "tags": [
-        "utility",
-        "shared",
-        "typescript",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/lib/routes.ts:homeForRole",
-      "type": "function",
-      "name": "homeForRole",
-      "filePath": "frontend/src/lib/routes.ts",
-      "lineRange": [
-        151,
-        172
-      ],
-      "summary": "Implements homeForRole behavior within routes.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/lib/routes.ts:titleForPath",
-      "type": "function",
-      "name": "titleForPath",
-      "filePath": "frontend/src/lib/routes.ts",
-      "lineRange": [
-        232,
-        236
-      ],
-      "summary": "Implements titleForPath behavior within routes.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/lib/routes.ts:absoluteUrl",
-      "type": "function",
-      "name": "absoluteUrl",
-      "filePath": "frontend/src/lib/routes.ts",
-      "lineRange": [
-        247,
-        249
-      ],
-      "summary": "Implements absoluteUrl behavior within routes.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:frontend/src/lib/shipment-operations.test.ts",
       "type": "file",
       "name": "shipment-operations.test.ts",
@@ -41728,37 +41663,6 @@
         "application"
       ],
       "complexity": "complex"
-    },
-    {
-      "id": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "type": "file",
-      "name": "RecoverableCostsPage.tsx",
-      "filePath": "frontend/src/pages/RecoverableCostsPage.tsx",
-      "summary": "Implements the Recoverable Costs Page application page and its user workflow.",
-      "tags": [
-        "page",
-        "frontend",
-        "ui",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
-      "type": "function",
-      "name": "RecoverableCostsPage",
-      "filePath": "frontend/src/pages/RecoverableCostsPage.tsx",
-      "lineRange": [
-        16,
-        70
-      ],
-      "summary": "Implements RecoverableCostsPage behavior within RecoverableCostsPage.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
     },
     {
       "id": "file:frontend/src/pages/SalaryAttendancePage.test.tsx",
@@ -76419,55 +76323,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "type": "file",
-      "name": "ShipmentsDetailPage.tsx",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "summary": "Renders a paginated shipment container ledger with validated suffix search, loading/error recovery, and query-string state synchronization.",
-      "tags": [
-        "component",
-        "shipments",
-        "container-ledger",
-        "search",
-        "responsive"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
-      "type": "function",
-      "name": "ShipmentContainerLedgerSkeleton",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "lineRange": [
-        24,
-        39
-      ],
-      "summary": "Supports the shipment workflow by implementing shipment container ledger skeleton behavior.",
-      "tags": [
-        "component",
-        "shipments",
-        "workflow"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "function",
-      "name": "ShipmentsDetailPage",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "lineRange": [
-        41,
-        207
-      ],
-      "summary": "Renders the shipments detail page user interface and coordinates its stateful workflow.",
-      "tags": [
-        "component",
-        "shipments",
-        "workflow"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "file:frontend/src/pages/ShipmentsPage.tsx",
       "type": "file",
       "name": "ShipmentsPage.tsx",
@@ -76991,6 +76846,302 @@
         "shipment-create"
       ],
       "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "type": "file",
+      "name": "RecoverableCostsWorkspace.tsx",
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "summary": "Provides the responsive recoverable-cost review workspace, including filtering, page totals, evidence display, and versioned approval requests.",
+      "tags": [
+        "react-component",
+        "finance-workflow",
+        "review",
+        "responsive-ui",
+        "data-fetching"
+      ],
+      "complexity": "complex",
+      "languageNotes": "A TypeScript React component coordinates asynchronous API loading with optimistic-version review submissions."
+    },
+    {
+      "id": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:Eligibility",
+      "type": "function",
+      "name": "Eligibility",
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "lineRange": [
+        70,
+        79
+      ],
+      "summary": "Renders the recoverable-cost eligibility status and any blocking reason.",
+      "tags": [
+        "react-component",
+        "eligibility",
+        "status",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:DesktopLedger",
+      "type": "function",
+      "name": "DesktopLedger",
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "lineRange": [
+        103,
+        158
+      ],
+      "summary": "Renders the desktop ledger table for recoverable costs, amounts, evidence, eligibility, and review actions.",
+      "tags": [
+        "react-component",
+        "ledger",
+        "responsive-ui",
+        "finance"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:MobileRecords",
+      "type": "function",
+      "name": "MobileRecords",
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "lineRange": [
+        160,
+        193
+      ],
+      "summary": "Renders compact mobile records for recoverable-cost review while preserving financial and evidence context.",
+      "tags": [
+        "react-component",
+        "mobile-ui",
+        "finance",
+        "responsive-ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:RecoverableCostsWorkspace",
+      "type": "function",
+      "name": "RecoverableCostsWorkspace",
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "lineRange": [
+        195,
+        407
+      ],
+      "summary": "Loads, filters, summarizes, and reviews recoverable shipment costs through the customer-service finance API.",
+      "tags": [
+        "react-component",
+        "finance-workflow",
+        "data-fetching",
+        "approval",
+        "pagination"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "type": "file",
+      "name": "ShipmentContainerLedger.tsx",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "summary": "Renders a container-level shipment ledger with dispatch status, route, appointments, and operational summary metrics.",
+      "tags": [
+        "react-component",
+        "shipment-detail",
+        "ledger",
+        "dispatch",
+        "responsive-ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:formatAppointment",
+      "type": "function",
+      "name": "formatAppointment",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        21,
+        31
+      ],
+      "summary": "Converts a shipment appointment timestamp into display-ready Vietnamese date and time fields.",
+      "tags": [
+        "utility",
+        "date-formatting",
+        "shipment-detail",
+        "presentation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "function",
+      "name": "ShipmentContainerLedger",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        42,
+        151
+      ],
+      "summary": "Displays shipment containers with assignment counts and per-container operational details.",
+      "tags": [
+        "react-component",
+        "shipment-detail",
+        "dispatch",
+        "ledger",
+        "table"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/lib/routes.ts",
+      "type": "file",
+      "name": "routes.ts",
+      "filePath": "frontend/src/lib/routes.ts",
+      "summary": "Defines the application route catalog and helpers for role landing pages, page titles, and origin-aware share URLs.",
+      "tags": [
+        "routing",
+        "navigation",
+        "role-based",
+        "utility",
+        "configuration"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses a typed route catalog with role-specific fallbacks and ordered pathname title rules."
+    },
+    {
+      "id": "function:frontend/src/lib/routes.ts:homeForRole",
+      "type": "function",
+      "name": "homeForRole",
+      "filePath": "frontend/src/lib/routes.ts",
+      "lineRange": [
+        152,
+        173
+      ],
+      "summary": "Returns the default landing route for a supported application role.",
+      "tags": [
+        "routing",
+        "role-based",
+        "navigation",
+        "utility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/lib/routes.ts:titleForPath",
+      "type": "function",
+      "name": "titleForPath",
+      "filePath": "frontend/src/lib/routes.ts",
+      "lineRange": [
+        234,
+        238
+      ],
+      "summary": "Resolves a page title from ordered route-matching rules and the brand fallback.",
+      "tags": [
+        "routing",
+        "navigation",
+        "title-resolution",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/lib/routes.ts:absoluteUrl",
+      "type": "function",
+      "name": "absoluteUrl",
+      "filePath": "frontend/src/lib/routes.ts",
+      "lineRange": [
+        249,
+        251
+      ],
+      "summary": "Builds an absolute browser URL from a SPA path using the current origin.",
+      "tags": [
+        "utility",
+        "url",
+        "routing",
+        "browser"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "type": "file",
+      "name": "RecoverableCostsPage.tsx",
+      "filePath": "frontend/src/pages/RecoverableCostsPage.tsx",
+      "summary": "Provides the recoverable-cost page shell with navigation breadcrumbs and the finance review workspace.",
+      "tags": [
+        "react-component",
+        "page",
+        "finance-workflow",
+        "navigation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
+      "type": "function",
+      "name": "RecoverableCostsPage",
+      "filePath": "frontend/src/pages/RecoverableCostsPage.tsx",
+      "lineRange": [
+        4,
+        14
+      ],
+      "summary": "Composes breadcrumbs and the recoverable-cost workspace for the routed page.",
+      "tags": [
+        "react-component",
+        "page",
+        "finance-workflow",
+        "navigation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "type": "file",
+      "name": "ShipmentsDetailPage.tsx",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "summary": "Provides a searchable, paginated shipment-container detail page with loading, error, empty, and ledger states.",
+      "tags": [
+        "react-component",
+        "shipment-detail",
+        "search",
+        "pagination",
+        "data-fetching"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses React hooks and URL search parameters to synchronize paginated container queries with the browser location."
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "function",
+      "name": "ShipmentContainerLedgerSkeleton",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        24,
+        39
+      ],
+      "summary": "Renders an accessible skeleton placeholder while shipment container rows load.",
+      "tags": [
+        "react-component",
+        "loading-state",
+        "skeleton",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "function",
+      "name": "ShipmentsDetailPage",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        41,
+        208
+      ],
+      "summary": "Synchronizes URL filters, validates suffix searches, loads container data, and selects the appropriate detail-page state.",
+      "tags": [
+        "react-component",
+        "shipment-detail",
+        "search",
+        "pagination",
+        "data-fetching"
+      ],
+      "complexity": "complex"
     }
   ],
   "edges": [
@@ -100481,13 +100632,6 @@
     },
     {
       "source": "file:frontend/src/App.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/App.tsx",
       "target": "file:frontend/src/pages/portal/CustomerPortalLayout.tsx",
       "type": "imports",
       "direction": "forward",
@@ -103525,13 +103669,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/accounting/AccountingOverview.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/features/accounting/AccountingTransportRegister.tsx",
       "target": "function:frontend/src/features/accounting/AccountingTransportRegister.tsx:AccountingTransportRegister",
       "type": "contains",
@@ -103576,13 +103713,6 @@
     {
       "source": "file:frontend/src/features/accounting/AccountingTransportRegister.tsx",
       "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/accounting/AccountingTransportRegister.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -103751,13 +103881,6 @@
     {
       "source": "file:frontend/src/features/accounting/accountingWorkspaceUtils.ts",
       "target": "file:frontend/src/features/accounting/accountingWorkspaceTypes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/accounting/accountingWorkspaceUtils.ts",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -104765,13 +104888,6 @@
     },
     {
       "source": "file:frontend/src/features/fleet/trailer-card.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/trailer-card.tsx",
       "target": "file:frontend/src/pages/FleetPage.css",
       "type": "imports",
       "direction": "forward",
@@ -104864,13 +104980,6 @@
     {
       "source": "file:frontend/src/features/fleet/truck-card.tsx",
       "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/truck-card.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -110813,13 +110922,6 @@
     },
     {
       "source": "file:frontend/src/lib/notificationClient.ts",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/lib/notificationClient.ts",
       "target": "file:shared/src/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -111044,69 +111146,6 @@
     },
     {
       "source": "file:frontend/src/lib/routes.test.ts",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/lib/routes.test.ts",
-      "target": "file:shared/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:homeForRole",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:homeForRole",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:titleForPath",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:titleForPath",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:absoluteUrl",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "function:frontend/src/lib/routes.ts:absoluteUrl",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "file:frontend/src/brand.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/lib/routes.ts",
       "target": "file:shared/src/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -114760,62 +114799,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/api/customerServiceFinanceClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/pages/WorkflowFinance.css",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/pages/SalaryAttendancePage.test.tsx",
       "target": "function:frontend/src/pages/SalaryAttendancePage.test.tsx:renderPage",
       "type": "contains",
@@ -115903,13 +115886,6 @@
     {
       "source": "file:frontend/src/pages/TruckTiresPage.tsx",
       "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/TruckTiresPage.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -134445,13 +134421,6 @@
     },
     {
       "source": "file:frontend/src/pages/portal/CustomerPortalLayout.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/portal/CustomerPortalLayout.tsx",
       "target": "file:frontend/src/pages/portal/CustomerPortalLayout.css",
       "type": "imports",
       "direction": "forward",
@@ -134648,13 +134617,6 @@
     },
     {
       "source": "file:frontend/src/pages/portal/PortalShipmentDetailPage.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/portal/PortalShipmentDetailPage.tsx",
       "target": "file:frontend/src/pages/portal/CustomerPortalScope.tsx",
       "type": "imports",
       "direction": "forward",
@@ -134705,13 +134667,6 @@
     {
       "source": "file:frontend/src/pages/portal/PortalShipmentsPage.tsx",
       "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/portal/PortalShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -143352,14 +143307,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/lib/routes.ts",
-      "target": "file:frontend/src/lib/routes.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
       "source": "file:frontend/src/lib/shipment-operations.ts",
       "target": "file:frontend/src/lib/shipment-operations.test.ts",
       "type": "tested_by",
@@ -145938,105 +145885,7 @@
     },
     {
       "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
       "target": "file:shared/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "target": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Alert.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Skeleton.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -146201,13 +146050,6 @@
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5
     },
     {
       "source": "file:shared/src/schemas/cus-shipment-workspace.ts",
@@ -146604,6 +146446,342 @@
     {
       "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
       "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "file:frontend/src/api/customerServiceFinanceClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:Eligibility",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:DesktopLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:MobileRecords",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:RecoverableCostsWorkspace",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "target": "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:RecoverableCostsWorkspace",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/lib/shipment-operations.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:formatAppointment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "file:frontend/src/brand.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:homeForRole",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:titleForPath",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:absoluteUrl",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:homeForRole",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:titleForPath",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/lib/routes.ts",
+      "target": "function:frontend/src/lib/routes.ts:absoluteUrl",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/api/customerServiceFinanceClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "file:frontend/src/pages/WorkflowFinance.css",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
+      "target": "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Alert.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Skeleton.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
@@ -147376,7 +147554,6 @@
         "file:frontend/src/lib/role-access.ts",
         "file:frontend/src/lib/role-helpers.ts",
         "file:frontend/src/lib/round.ts",
-        "file:frontend/src/lib/routes.ts",
         "file:frontend/src/lib/shipment-operations.ts",
         "file:frontend/src/lib/status-variants.ts",
         "file:frontend/src/main.tsx",
@@ -147412,7 +147589,6 @@
         "file:frontend/src/pages/PayableListPage.tsx",
         "file:frontend/src/pages/PenaltyPage.tsx",
         "file:frontend/src/pages/ProfitPage.tsx",
-        "file:frontend/src/pages/RecoverableCostsPage.tsx",
         "file:frontend/src/pages/SalaryAttendancePage.tsx",
         "file:frontend/src/pages/SettlementPrintPage.tsx",
         "file:frontend/src/pages/ShipmentDetailPage.tsx",
@@ -147782,7 +147958,6 @@
         "file:frontend/src/hooks/use-resize-observer.ts",
         "file:frontend/src/api/shipmentClient.ts",
         "file:frontend/src/components/Layout.tsx",
-        "file:frontend/src/pages/ShipmentsDetailPage.tsx",
         "file:frontend/src/pages/ShipmentsPage.tsx",
         "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
         "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
@@ -147801,7 +147976,24 @@
         "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
         "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
         "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
-        "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField"
+        "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+        "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+        "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:Eligibility",
+        "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:DesktopLedger",
+        "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:MobileRecords",
+        "function:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx:RecoverableCostsWorkspace",
+        "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:formatAppointment",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+        "file:frontend/src/lib/routes.ts",
+        "function:frontend/src/lib/routes.ts:homeForRole",
+        "function:frontend/src/lib/routes.ts:titleForPath",
+        "function:frontend/src/lib/routes.ts:absoluteUrl",
+        "file:frontend/src/pages/RecoverableCostsPage.tsx",
+        "function:frontend/src/pages/RecoverableCostsPage.tsx:RecoverableCostsPage",
+        "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+        "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+        "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage"
       ]
     },
     {

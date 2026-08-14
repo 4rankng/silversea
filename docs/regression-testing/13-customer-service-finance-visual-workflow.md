@@ -137,7 +137,7 @@ Không có fixture và không được phép tạo → `BLOCKED_DATA_FIXTURE`, k
 
 ### VIS-CSF-102 — Tạo nhanh booking trên màn hình nhỏ `[MUTATION]` · P1
 
-- **Route/viewport:** `/clerk/shipments/new` hoặc `/shipments/new`, `375 × 667`.
+- **Route/viewport:** `/shipments/new`, `375 × 667`.
 - Chọn khách hàng, nhập booking/ngày/tuyến, mở bàn phím ảo và tạo một lần.
 - **Pass:** form một cột; nút không bị keyboard che; trạng thái lưu rõ; điều hướng đúng hồ sơ.
 

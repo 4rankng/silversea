@@ -1106,9 +1106,11 @@ export async function getCusShipmentWorkspaceDetail(
 /**
  * Container-flat projection across all in-scope shipments: one row per
  * container, carrying shipment context (customer, factory, bill/booking)
- * plus the per-container operational fields. Read-only sibling of the
- * workspace list; pagination counts shipments via loadShipmentPage's
- * filters, then flattens each shipment's containers.
+ * plus the per-container operational fields. Pagination counts shipments via
+ * loadShipmentPage's filters, then flattens each shipment's containers. The
+ * projection carries only the scheduling permission needed to decide whether
+ * to offer inline editing; current selectors and versions stay authoritative
+ * in the lazily-loaded workspace detail.
  */
 export async function listCusShipmentContainers(
   query: ShipmentCusWorkspaceQuery,
@@ -1137,6 +1139,9 @@ export async function listCusShipmentContainers(
         liftSite: line.liftSite,
         dropoffSite: line.dropoffSite,
         customerAppointmentAt: line.customerAppointmentAt,
+        scheduleEditable: line.permissions.liftSiteEditable
+          || line.permissions.dropoffSiteEditable
+          || line.permissions.customerAppointmentEditable,
       });
     });
   }

@@ -107,7 +107,6 @@ export const ROUTES = Object.freeze([
   { path: "/portal/shipments/:id", guard: "CUSTOMER" },
   { path: "/portal/debit-notes", guard: "CUSTOMER" },
   { path: "/portal/statement", guard: "CUSTOMER" },
-  { path: "/clerk/shipments/new", guard: "CUS_ADMIN" },
   { path: "/clerk/shipments/:id/docs", guard: "SHIPMENT_OPERATOR" },
 ]);
 

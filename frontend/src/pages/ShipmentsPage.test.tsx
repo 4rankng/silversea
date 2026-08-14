@@ -1,18 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  Role,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 
-const { apiGet, apiPost, apiPut, downloadCSV } = vi.hoisted(() => ({
+const { apiGet, apiPost, apiPut, authState, downloadCSV } = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
   apiPut: vi.fn(),
+  authState: { user: { role: 'CUS' } },
   downloadCSV: vi.fn(),
 }));
 
@@ -22,15 +24,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 vi.mock('../lib/csv', () => ({ downloadCSV }));
-
-vi.mock('../features/shipments/create/ShipmentCreateWorkspace', () => ({
-  ShipmentCreateWorkspace: ({ onSaved, onDirtyChange }: { onSaved?: (shipmentId: number) => void; onDirtyChange?: (dirty: boolean) => void }) => (
-    <div>
-      <button type="button" onClick={() => onDirtyChange?.(true)}>Đánh dấu đã nhập</button>
-      <button type="button" onClick={() => onSaved?.(99)}>Lưu lô thử nghiệm</button>
-    </div>
-  ),
-}));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => authState }));
 
 import ShipmentsPage from './ShipmentsPage';
 
@@ -184,7 +178,14 @@ function listResponse(items = [row]) {
 }
 
 function renderPage(path = '/shipments') {
-  return render(<MemoryRouter initialEntries={[path]}><ShipmentsPage /></MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/shipments" element={<ShipmentsPage />} />
+        <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
 }
 
 function masterRow(): HTMLTableRowElement {
@@ -201,6 +202,7 @@ function masterRowDetailButton(): HTMLButtonElement {
 
 describe('ShipmentsPage — CUS closeout workspace', () => {
   beforeEach(() => {
+    authState.user.role = Role.CUS;
     apiGet.mockReset();
     apiPost.mockReset();
     apiPut.mockReset();
@@ -219,7 +221,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('renders one focused shipment workspace without unfinished navigation', async () => {
     renderPage();
-    expect(await screen.findByRole('heading', { name: 'Kế hoạch lô hàng' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tổng quan lô hàng' })).toBeTruthy();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
     expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
@@ -587,17 +589,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })));
   });
 
-  it('opens the governed create form and refreshes the dashboard after save', async () => {
+  it('opens shipment creation as the dedicated canonical page', async () => {
     renderPage();
     await screen.findByRole('table');
-    const callsBeforeCreate = apiGet.mock.calls.length;
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu lô thử nghiệm' }));
+    expect(await screen.findByTestId('shipment-create-page')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Tạo lô hàng mới' })).toBeNull();
+  });
 
-    await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThan(callsBeforeCreate));
-    expect(await screen.findByText('Đã tạo lô hàng mới. Dòng dữ liệu mới đã được cập nhật trên bảng.')).toBeTruthy();
+  it('shows the create action only to shipment operators', async () => {
+    authState.user.role = Role.ACCOUNTANT;
+    const readerView = renderPage();
+    await screen.findByRole('table');
+    expect(screen.queryByRole('button', { name: 'Tạo lô mới' })).toBeNull();
+    readerView.unmount();
+
+    authState.user.role = Role.MANAGER;
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Tạo lô mới' })).toBeTruthy();
   });
 
   it('opens the governed shipment controls from the row button', async () => {
@@ -1039,44 +1050,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
     expect(source).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
     expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
-  });
-
-  it('opens the accessible confirm Modal (not window.confirm) when closing a dirty create form', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm');
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
-    // Mark the create form dirty via the mocked workspace's onDirtyChange callback.
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đánh dấu đã nhập' }));
-    // Attempt to close the create modal — should open the confirm modal instead.
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
-
-    expect(await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeTruthy();
-    expect(confirmSpy).not.toHaveBeenCalled();
-
-    // Confirming discards the draft and closes both the confirm + create modals.
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và đóng' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeNull());
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Tạo lô hàng mới' })).toBeNull());
-    confirmSpy.mockRestore();
-  });
-
-  it('keeps the create draft when cancelling the dirty-close confirm', async () => {
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đánh dấu đã nhập' }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
-
-    const confirmDialog = await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' });
-    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Tiếp tục nhập' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeNull());
-    // The create modal stays open.
-    expect(screen.getByRole('dialog', { name: 'Tạo lô hàng mới' })).toBeTruthy();
   });
 
   it('emits the seven-column grouped dashboard schema from the XLSX export', async () => {

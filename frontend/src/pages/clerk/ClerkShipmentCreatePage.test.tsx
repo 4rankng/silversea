@@ -87,11 +87,11 @@ const sites = [
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/clerk/shipments/new']}>
+    <MemoryRouter initialEntries={['/shipments/new']}>
       <ReducedMotionProvider>
         <ToastProvider>
           <Routes>
-            <Route path="/clerk/shipments/new" element={<ClerkShipmentCreatePage />} />
+            <Route path="/shipments/new" element={<ClerkShipmentCreatePage />} />
             <Route path="/clerk/shipments/:id/docs" element={<div data-testid="dossier" />} />
           </Routes>
         </ToastProvider>
@@ -354,6 +354,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
@@ -372,6 +373,8 @@ describe('ClerkShipmentCreatePage', () => {
     const submitButton = screen.getByRole('button', { name: /Gửi sang điều phối/ }) as HTMLButtonElement;
     await waitFor(() => expect(submitButton.disabled).toBe(false));
     fireEvent.click(submitButton);
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
+    expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledTimes(1));
     expect(mocks.saveCarrierAllocations).not.toHaveBeenCalled();
     expect(mocks.submit).toHaveBeenCalledWith(90, expect.objectContaining({
@@ -398,6 +401,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
@@ -443,6 +447,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');
@@ -493,6 +498,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu bản nháp/ }));
     expect((await screen.findByRole('alert')).textContent).toContain('Mất kết nối khi lưu container');
@@ -520,6 +526,7 @@ describe('ClerkShipmentCreatePage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     await choose('Tuyến đường', '11');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
     await choose('Nhà máy', '41');

@@ -338,6 +338,9 @@ async function assertIntakeReady(
   if (!shipment.bookingRef?.trim() && !shipment.blNumber?.trim()) {
     throw new ApiError(409, 'Vui lòng nhập Số Bill hoặc Số Booking.');
   }
+  if (shipment.tradeDirection !== 'IMPORT' && shipment.tradeDirection !== 'EXPORT') {
+    throw new ApiError(409, 'Vui lòng chọn hình thức nhập khẩu hoặc xuất khẩu.');
+  }
   if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
     throw new ApiError(409, 'Vui lòng chọn hình thức hàng FCL hoặc LCL.');
   }

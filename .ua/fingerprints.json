@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "b0d7638fe026c79bf0a7816deeb49db554bb673e",
-  "generatedAt": "2026-08-14T12:51:33.950Z",
+  "gitCommitHash": "aa12dbbd407de31796ff4963df54eed62e75c322",
+  "generatedAt": "2026-08-14T14:45:04.773Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -91238,7 +91238,6 @@
           "params": [
             "role"
           ],
-          "returnType": "string",
           "exported": true,
           "lineCount": 22
         },
@@ -91247,7 +91246,6 @@
           "params": [
             "pathname"
           ],
-          "returnType": "string",
           "exported": true,
           "lineCount": 5
         },
@@ -91256,7 +91254,6 @@
           "params": [
             "path"
           ],
-          "returnType": "string",
           "exported": true,
           "lineCount": 3
         }
@@ -91282,7 +91279,7 @@
         "titleForPath",
         "absoluteUrl"
       ],
-      "totalLines": 252,
+      "totalLines": 251,
       "hasStructuralAnalysis": true
     },
     "frontend/src/lib/shipment-operations.test.ts": {
@@ -97613,41 +97610,17 @@
     },
     "frontend/src/pages/RecoverableCostsPage.tsx": {
       "filePath": "frontend/src/pages/RecoverableCostsPage.tsx",
-      "contentHash": "43a2a2a7b94b82753a3fdb3d1bd4dc88fdf21018a14312c65d78524ec1334af8",
+      "contentHash": "86f7e191bd911b9d95431a4a43e81cb2e1b936567519c52c83e90e84a3d1f1ab",
       "functions": [
         {
           "name": "RecoverableCostsPage",
           "params": [],
           "exported": true,
-          "lineCount": 55
+          "lineCount": 11
         }
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useState"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "CheckCircle2",
-            "FileCheck2",
-            "RotateCcw",
-            "TriangleAlert"
-          ]
-        },
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "PageHeader",
-            "Modal"
-          ]
-        },
         {
           "source": "../components/shared/Breadcrumbs",
           "specifiers": [
@@ -97655,41 +97628,16 @@
           ]
         },
         {
-          "source": "../design-system",
+          "source": "../features/recoverable-costs/RecoverableCostsWorkspace",
           "specifiers": [
-            "EmptyState",
-            "Pagination"
+            "RecoverableCostsWorkspace"
           ]
-        },
-        {
-          "source": "../lib/format",
-          "specifiers": [
-            "formatCurrency",
-            "formatDate"
-          ]
-        },
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../api/customerServiceFinanceClient",
-          "specifiers": [
-            "customerServiceFinanceClient",
-            "RecoverableCost"
-          ]
-        },
-        {
-          "source": "./WorkflowFinance.css",
-          "specifiers": []
         }
       ],
       "exports": [
         "RecoverableCostsPage"
       ],
-      "totalLines": 71,
+      "totalLines": 14,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SalaryAttendancePage.css": {
@@ -112423,7 +112371,7 @@
     },
     "frontend/src/pages/ShipmentsDetailPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "contentHash": "79544c65ed8048557f7491249549b36da21d0bcadf0e23da55f40a43da66b55e",
+      "contentHash": "cabbcc716d978fe3c41333d0e0d704174c4d716ef88493fe0a35355554a7eb6e",
       "functions": [
         {
           "name": "safeError",
@@ -112431,7 +112379,6 @@
             "error",
             "fallback"
           ],
-          "returnType": "string",
           "exported": false,
           "lineCount": 3
         },
@@ -112445,7 +112392,7 @@
           "name": "ShipmentsDetailPage",
           "params": [],
           "exported": true,
-          "lineCount": 167
+          "lineCount": 168
         }
       ],
       "classes": [],
@@ -112512,13 +112459,13 @@
         {
           "source": "../components/untitled-ui/base/buttons/button",
           "specifiers": [
-            "UUIButton"
+            "Button"
           ]
         },
         {
           "source": "../components/untitled-ui/base/input/input",
           "specifiers": [
-            "UUIInput"
+            "Input"
           ]
         },
         {
@@ -112549,6 +112496,257 @@
         "ShipmentsDetailPage"
       ],
       "totalLines": 208,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx": {
+      "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
+      "contentHash": "2bc026790a8bb0a53af49da4d7e5fa13f24fb0640d6da1660abedf9e53f1466c",
+      "functions": [
+        {
+          "name": "eligibilityTone",
+          "params": [
+            "state"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "variance",
+          "params": [
+            "item"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "evidenceLabel",
+          "params": [
+            "item"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "expenseLabel",
+          "params": [
+            "item"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "Money",
+          "params": [
+            "{ value, tone }"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "Eligibility",
+          "params": [
+            "{ item }"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "Evidence",
+          "params": [
+            "{ item }"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "ReviewAction",
+          "params": [
+            "{ item, onReview }"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "DesktopLedger",
+          "params": [
+            "{ items, onReview }"
+          ],
+          "exported": false,
+          "lineCount": 56
+        },
+        {
+          "name": "MobileRecords",
+          "params": [
+            "{ items, onReview }"
+          ],
+          "exported": false,
+          "lineCount": 34
+        },
+        {
+          "name": "RecoverableCostsWorkspace",
+          "params": [],
+          "exported": true,
+          "lineCount": 213
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useEffect",
+            "useMemo",
+            "useState"
+          ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "OPS_EXPENSE_TYPE_DEFAULTS"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "AlertCircle",
+            "CheckCircle2",
+            "FileCheck2",
+            "FileText",
+            "RefreshCw",
+            "Scale",
+            "TriangleAlert"
+          ]
+        },
+        {
+          "source": "../../components/UI",
+          "specifiers": [
+            "Btn",
+            "Modal",
+            "StatusPill",
+            "PillVariant"
+          ]
+        },
+        {
+          "source": "../../components/untitled-ui/base/select/select-native",
+          "specifiers": [
+            "NativeSelect"
+          ]
+        },
+        {
+          "source": "../../components/untitled-ui/base/radio-buttons/radio-buttons",
+          "specifiers": [
+            "RadioButton",
+            "RadioGroup"
+          ]
+        },
+        {
+          "source": "../../components/untitled-ui/base/textarea/textarea",
+          "specifiers": [
+            "TextAreaBase"
+          ]
+        },
+        {
+          "source": "../../design-system",
+          "specifiers": [
+            "EmptyState",
+            "Pagination"
+          ]
+        },
+        {
+          "source": "../../lib/api",
+          "specifiers": [
+            "ApiError"
+          ]
+        },
+        {
+          "source": "../../lib/format",
+          "specifiers": [
+            "formatCurrency",
+            "formatDate"
+          ]
+        },
+        {
+          "source": "../../api/customerServiceFinanceClient",
+          "specifiers": [
+            "customerServiceFinanceClient",
+            "RecoverableCost",
+            "RecoverableEligibilityState"
+          ]
+        },
+        {
+          "source": "./RecoverableCostsWorkspace.css",
+          "specifiers": []
+        }
+      ],
+      "exports": [
+        "RecoverableCostsWorkspace"
+      ],
+      "totalLines": 407,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx": {
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "contentHash": "54f32a2de80bd1ab407e5ba61911681b392762190730fa00f8388375adbbf03b",
+      "functions": [
+        {
+          "name": "directionLabel",
+          "params": [
+            "direction"
+          ],
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "formatAppointment",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "Fallback",
+          "params": [
+            "{ children }"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "ShipmentContainerLedger",
+          "params": [
+            "{ rows, totalShipments }"
+          ],
+          "exported": true,
+          "lineCount": 110
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "ShipmentCusContainerFlatRow"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/badges/badges",
+          "specifiers": [
+            "BadgeWithDot"
+          ]
+        },
+        {
+          "source": "../../../lib/shipment-operations",
+          "specifiers": [
+            "formatVietnamDateTimeInput"
+          ]
+        }
+      ],
+      "exports": [
+        "ShipmentContainerLedger"
+      ],
+      "totalLines": 151,
       "hasStructuralAnalysis": true
     }
   }

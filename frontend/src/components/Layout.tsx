@@ -95,7 +95,7 @@ export function getNavItems(
     case 'ADMIN': {
       return [
         // Vận hành (Operations) — O2C flow per spec
-        { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
+        { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
         { key: 'dispatch', label: 'Điều vận', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
@@ -145,7 +145,7 @@ export function getNavItems(
     case 'MANAGER': {
       return [
         // Vận hành (Operations) — O2C flow per spec
-        { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
+        { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
         { key: 'dispatch', label: 'Điều vận', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
@@ -215,7 +215,7 @@ export function getNavItems(
         { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
         // Vận hành liên quan (Operations - View-only/Audit) per spec
-        { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
+        { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
         { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
 
@@ -260,7 +260,7 @@ export function getNavItems(
     case 'CUS': {
       return [
         // Nghiệp vụ Chứng từ (Document Operations)
-        { key: 'shipments', label: 'Tổng hợp Lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
+        { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
         { key: 'shipment-containers', label: 'Chi tiết lô hàng', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
 
         // Đối soát (Reconciliation)

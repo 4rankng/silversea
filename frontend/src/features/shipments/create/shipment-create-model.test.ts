@@ -31,6 +31,7 @@ describe('shipment create model', () => {
     expect(readiness.dispatchReady).toBe(false);
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-booking-ref',
+      'shipment-trade-direction',
       'shipment-shipping-line',
       'shipment-route',
       'shipment-operational-site',
@@ -105,6 +106,7 @@ describe('shipment create model', () => {
       routeId: '11',
       cargoMode: 'LCL' as const,
       bookingRef: 'BK-LCL',
+      tradeDirection: 'IMPORT' as const,
       cargoTypeId: '32',
       pickupWarehouseSiteId: '42',
       packageType: 'Pallet',
@@ -126,6 +128,7 @@ describe('shipment create model', () => {
       customerId: '7',
       routeId: '11',
       bookingRef: 'BK-FCL',
+      tradeDirection: 'IMPORT' as const,
       shippingLineName: 'MSC',
       operationalSiteId: '41',
     };
@@ -140,6 +143,7 @@ describe('shipment create model', () => {
       customerId: '7',
       routeId: '11',
       bookingRef: 'BK-FCL-SCHEDULE',
+      tradeDirection: 'IMPORT' as const,
       shippingLineName: 'MSC',
       operationalSiteId: '41',
     };
@@ -159,6 +163,7 @@ describe('shipment create model', () => {
       customerId: '7',
       routeId: '11',
       bookingRef: 'BK-LCL-ZERO',
+      tradeDirection: 'IMPORT' as const,
       cargoMode: 'LCL' as const,
       cargoTypeId: '32',
       operationalSiteId: '41',

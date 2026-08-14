@@ -1,5 +1,13 @@
-import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
+import { useMemo, useState } from 'react';
+import { LoaderCircle, PencilLine, Save, X } from 'lucide-react';
+import type {
+  ShipmentCusContainerFlatRow,
+  ShipmentCusWorkspaceContainerLine,
+  ShipmentCusWorkspaceDetail,
+} from '@tingting/shared';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
@@ -34,12 +42,159 @@ function Fallback({ children }: { children: string }) {
   return <span className="shipment-container-ledger__missing">{children}</span>;
 }
 
+export interface ShipmentScheduleDraft {
+  liftSiteId: number | null;
+  dropoffSiteId: number | null;
+  customerAppointmentAt: string | null;
+}
+
+interface ActiveScheduleEdit {
+  detail: ShipmentCusWorkspaceDetail;
+  line: ShipmentCusWorkspaceContainerLine;
+}
+
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
   totalShipments: number;
+  activeEdit: ActiveScheduleEdit | null;
+  editLoadingRowId: number | null;
+  editError: { rowId: number; message: string } | null;
+  onStartEdit: (row: ShipmentCusContainerFlatRow) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentScheduleDraft) => Promise<void>;
 }
 
-export function ShipmentContainerLedger({ rows, totalShipments }: ShipmentContainerLedgerProps) {
+function toLocalDateTime(value: string | null): string {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function ScheduleInlineEditor({
+  edit,
+  onCancel,
+  onSave,
+}: {
+  edit: ActiveScheduleEdit;
+  onCancel: () => void;
+  onSave: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentScheduleDraft) => Promise<void>;
+}) {
+  const { detail, line } = edit;
+  const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
+  const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
+  const [appointment, setAppointment] = useState(toLocalDateTime(line.customerAppointmentAt));
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const options = useMemo(() => detail.selectors.operationalSites.map((site) => ({
+    value: String(site.id),
+    label: site.label,
+    searchText: `${site.code} ${site.name}`,
+  })), [detail.selectors.operationalSites]);
+  const dirty = liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
+    || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
+    || appointment !== toLocalDateTime(line.customerAppointmentAt);
+
+  const save = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(line, {
+        liftSiteId: liftSiteId ? Number(liftSiteId) : null,
+        dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
+        customerAppointmentAt: appointment ? new Date(appointment).toISOString() : null,
+      });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Không thể lưu lịch trình container.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const label = line.containerNumber || `số ${line.ordinal}`;
+
+  return (
+    <>
+      <td data-label="Hành trình nâng/hạ" className="shipment-container-ledger__editing-cell">
+        <div className="shipment-container-ledger__schedule-fields">
+          <label htmlFor={`shipment-detail-lift-${line.id}`}>Điểm nâng</label>
+          {line.permissions.liftSiteEditable ? (
+            <SearchableSelect
+              id={`shipment-detail-lift-${line.id}`}
+              value={liftSiteId}
+              onChange={(value) => { setLiftSiteId(value); setSaveError(null); }}
+              options={options}
+              placeholder="Chọn điểm nâng"
+              searchPlaceholder="Tìm điểm nâng"
+              disabled={saving}
+            />
+          ) : <strong>{line.liftSite || 'Chưa cập nhật'}</strong>}
+
+          <label htmlFor={`shipment-detail-dropoff-${line.id}`}>Điểm hạ</label>
+          {line.permissions.dropoffSiteEditable ? (
+            <SearchableSelect
+              id={`shipment-detail-dropoff-${line.id}`}
+              value={dropoffSiteId}
+              onChange={(value) => { setDropoffSiteId(value); setSaveError(null); }}
+              options={options}
+              placeholder="Chọn điểm hạ"
+              searchPlaceholder="Tìm điểm hạ"
+              disabled={saving}
+            />
+          ) : <strong>{line.dropoffSite || 'Chưa cập nhật'}</strong>}
+        </div>
+      </td>
+      <td data-label="Lịch hẹn đóng/trả" className="shipment-container-ledger__editing-cell">
+        <div className="shipment-container-ledger__appointment-editor">
+          <label htmlFor={`shipment-detail-appointment-${line.id}`}>Lịch hẹn đóng/trả</label>
+          {line.permissions.customerAppointmentEditable ? (
+            <input
+              id={`shipment-detail-appointment-${line.id}`}
+              aria-label={`Lịch hẹn đóng hoặc trả của container ${label}`}
+              type="datetime-local"
+              value={appointment}
+              disabled={saving}
+              onChange={(event) => { setAppointment(event.target.value); setSaveError(null); }}
+            />
+          ) : <strong>{formatAppointment(line.customerAppointmentAt)?.date || 'Chưa có lịch hẹn'}</strong>}
+          <div className="shipment-container-ledger__edit-actions">
+            <UUIButton
+              size="sm"
+              color="primary"
+              onPress={() => void save()}
+              isDisabled={!dirty || saving}
+              isLoading={saving}
+              showTextWhileLoading
+              iconLeading={!saving ? <Save aria-hidden="true" /> : undefined}
+              aria-label={`Lưu lịch trình ${label}`}
+            >Lưu</UUIButton>
+            <UUIButton
+              size="sm"
+              color="secondary"
+              onPress={onCancel}
+              isDisabled={saving}
+              iconLeading={<X aria-hidden="true" />}
+              aria-label={`Hủy chỉnh sửa lịch trình ${label}`}
+            >Hủy</UUIButton>
+          </div>
+          {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
+        </div>
+      </td>
+    </>
+  );
+}
+
+export function ShipmentContainerLedger({
+  rows,
+  totalShipments,
+  activeEdit,
+  editLoadingRowId,
+  editError,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+}: ShipmentContainerLedgerProps) {
   const unassignedCount = rows.filter((row) => row.dispatchStatus === 'UNASSIGNED').length;
   const assignedCount = rows.length - unassignedCount;
 
@@ -96,6 +251,9 @@ export function ShipmentContainerLedger({ rows, totalShipments }: ShipmentContai
             {rows.map((row) => {
               const appointment = formatAppointment(row.customerAppointmentAt);
               const dispatch = DISPATCH_STATUS[row.dispatchStatus];
+              const rowEdit = activeEdit?.line.id === row.id ? activeEdit : null;
+              const editBusy = editLoadingRowId === row.id;
+              const anotherRowIsEditing = activeEdit != null && rowEdit == null;
               return (
                 <tr key={row.id}>
                   <th scope="row" data-label="Container và điều vận">
@@ -117,21 +275,43 @@ export function ShipmentContainerLedger({ rows, totalShipments }: ShipmentContai
                       <small>{row.factoryName || 'Chưa cập nhật nhà máy'}</small>
                     </div>
                   </td>
-                  <td data-label="Hành trình nâng/hạ">
-                    <div className="shipment-container-ledger__route">
-                      <span><small>Điểm nâng</small>{row.liftSite || <Fallback>Chưa cập nhật</Fallback>}</span>
-                      <i aria-hidden="true">→</i>
-                      <span><small>Điểm hạ</small>{row.dropoffSite || <Fallback>Chưa cập nhật</Fallback>}</span>
-                    </div>
-                  </td>
-                  <td data-label="Lịch hẹn đóng/trả">
-                    {appointment ? (
-                      <time className="shipment-container-ledger__appointment" dateTime={row.customerAppointmentAt ?? undefined}>
-                        <strong>{appointment.time}</strong>
-                        <span>{appointment.date}</span>
-                      </time>
-                    ) : <Fallback>Chưa có lịch hẹn</Fallback>}
-                  </td>
+                  {rowEdit ? (
+                    <ScheduleInlineEditor edit={rowEdit} onCancel={onCancelEdit} onSave={onSaveEdit} />
+                  ) : (
+                    <>
+                      <td data-label="Hành trình nâng/hạ">
+                        <div className="shipment-container-ledger__route">
+                          <span><small>Điểm nâng</small>{row.liftSite || <Fallback>Chưa cập nhật</Fallback>}</span>
+                          <i aria-hidden="true">→</i>
+                          <span><small>Điểm hạ</small>{row.dropoffSite || <Fallback>Chưa cập nhật</Fallback>}</span>
+                        </div>
+                        {row.scheduleEditable && (
+                          <UUIButton
+                            size="sm"
+                            color="tertiary"
+                            className="shipment-container-ledger__edit-trigger"
+                            onPress={() => onStartEdit(row)}
+                            isDisabled={editBusy || anotherRowIsEditing}
+                            iconLeading={editBusy
+                              ? <LoaderCircle className="shipment-container-ledger__spinner" aria-hidden="true" />
+                              : <PencilLine aria-hidden="true" />}
+                            aria-label={`Chỉnh sửa lịch trình ${row.containerNumber || `container số ${row.ordinal}`}`}
+                          >{editBusy ? 'Đang mở' : 'Chỉnh sửa'}</UUIButton>
+                        )}
+                        {editError?.rowId === row.id && (
+                          <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>
+                        )}
+                      </td>
+                      <td data-label="Lịch hẹn đóng/trả">
+                        {appointment ? (
+                          <time className="shipment-container-ledger__appointment" dateTime={row.customerAppointmentAt ?? undefined}>
+                            <strong>{appointment.time}</strong>
+                            <span>{appointment.date}</span>
+                          </time>
+                        ) : <Fallback>Chưa có lịch hẹn</Fallback>}
+                      </td>
+                    </>
+                  )}
                   <td data-label="Xe vận chuyển">
                     <div className="shipment-container-ledger__vehicle">
                       <strong>{row.carrierName || 'Chưa có nhà xe'}</strong>

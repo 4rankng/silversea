@@ -128,6 +128,9 @@ export function getShipmentCreateReadiness(
   if (!form.bookingRef && !form.blNumber) {
     issues.push(issue('shipment-booking-ref', 'Nhập số Bill hoặc số Booking.', 'identity'));
   }
+  if (!form.tradeDirection) {
+    issues.push(issue('shipment-trade-direction', 'Chọn hình thức nhập khẩu hoặc xuất khẩu.', 'identity'));
+  }
   if (form.cargoMode === 'FCL' && !form.shippingLineName) {
     issues.push(issue('shipment-shipping-line', 'Nhập hãng tàu của lô hàng.', 'identity'));
   }

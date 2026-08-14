@@ -205,7 +205,7 @@ export const PAGE_CATALOG = {
     agent: { description: 'Khách hàng — danh sách.' },
   },
   shipments: {
-    title: 'Quản lý Lô hàng',
+    title: 'Tổng quan lô hàng',
     // Wave 0: minimal read-only list/detail surface. Path is its own top-level
     // (/shipments) rather than nested under /trips because a shipment precedes
     // and outlives any single trip (phase-01 architecture). No `agent` meta

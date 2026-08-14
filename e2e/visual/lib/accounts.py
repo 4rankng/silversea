@@ -27,7 +27,7 @@ ACCOUNTS = {
 }
 
 if legacy_clerk_identifier := os.environ.get("VISUAL_LEGACY_CLERK_IDENTIFIER"):
-    ACCOUNTS["CLERK"] = {"identifier": legacy_clerk_identifier, "home": "/clerk/shipments/new"}
+    ACCOUNTS["CLERK"] = {"identifier": legacy_clerk_identifier, "home": "/shipments/new"}
 
 
 def resolve(role: str) -> tuple[str, str]:

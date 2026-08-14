@@ -305,7 +305,7 @@ def main() -> bool:
                 ctx.login_as("clerk", page)
                 page.goto(f"{BASE_URL}/shipments?searchSuffix={BOOK_SUFFIX_QUERY}")
                 page.wait_for_load_state("networkidle")
-                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
                 overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
                 visible_fixture = page.get_by_text(f"BLCUS{BOOK_SUFFIX_STORED}", exact=False).count() > 0

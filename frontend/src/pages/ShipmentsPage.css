@@ -736,7 +736,6 @@
   justify-self: start;
 }
 .cus-create-shipment { white-space: nowrap; }
-.cus-create-modal-intro { margin: 0 0 16px; color: var(--ink-3); line-height: 1.5; }
 
 @container (max-width: 1000px) {
   .cus-dashboard-viewport { max-height: none; overflow: visible; border-bottom: 0; }
@@ -787,7 +786,6 @@
   .cus-quick-edit { grid-template-columns: 1fr; }
   .cus-quick-edit small { grid-column: auto; }
   .cus-row-actions { grid-template-columns: 1fr; }
-  .cus-create-modal-intro { font-size: var(--fs-sm); }
 }
 
 /* This is an operational ledger, not a reading page. Keep the title close to

@@ -73,19 +73,7 @@ function carrierValidationMessage(validation: ReturnType<typeof validateCarrierA
   return validation.isExact ? null : validation.errors[0] ?? 'Cần gán đúng số lượng nhà xe cho container 20\' và 40\'.';
 }
 
-interface ShipmentCreateWorkspaceProps {
-  embedded?: boolean;
-  onCancel?: () => void;
-  onDirtyChange?: (dirty: boolean) => void;
-  onSaved?: (shipmentId: number, intent: SaveIntent) => void;
-}
-
-export function ShipmentCreateWorkspace({
-  embedded = false,
-  onCancel,
-  onDirtyChange,
-  onSaved,
-}: ShipmentCreateWorkspaceProps = {}) {
+export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
@@ -256,12 +244,6 @@ export function ShipmentCreateWorkspace({
     return hasFormData || hasContainerData || carrierAllocations.length > 0 || customerNotes.trim() !== '';
   }, [carrierAllocations.length, containers, customerNotes, form]);
 
-  useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
-
-  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
@@ -269,7 +251,6 @@ export function ShipmentCreateWorkspace({
     carrierAllocations,
     readiness,
     onValidationIssues: setValidationIssues,
-    onSaved,
     customerNotes,
   });
 
@@ -396,18 +377,16 @@ export function ShipmentCreateWorkspace({
   }
 
   function goBack() {
-    if (isDirty && !embedded) {
+    if (isDirty) {
       setBackConfirmOpen(true);
       return;
     }
-    if (onCancel) onCancel();
-    else navigate(-1);
+    navigate(-1);
   }
 
   function discardAndGoBack() {
     setBackConfirmOpen(false);
-    if (onCancel) onCancel();
-    else navigate(-1);
+    navigate(-1);
   }
 
   async function save(intent: SaveIntent) {
@@ -422,19 +401,15 @@ export function ShipmentCreateWorkspace({
   if (!catalogs?.customers.length) return <EmptyState title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   return (
-    <div className={`csc-page${embedded ? ' csc-page--embedded' : ''}`}>
-      {!embedded && (
-        <>
-          <button type="button" className="csc-back" onClick={goBack} aria-label="Quay lại">
-            <ArrowLeft size={18} /> Quay lại
-          </button>
-          <header className="csc-header">
-            <span className="csc-header__eyebrow">Lô hàng CUS</span>
-            <h1>Tạo lô hàng mới</h1>
-            <p>Lưu bản nháp để bổ sung sau, hoặc hoàn tất thông tin rồi gửi sang điều phối.</p>
-          </header>
-        </>
-      )}
+    <div className="csc-page">
+      <button type="button" className="csc-back" onClick={goBack} aria-label="Quay lại">
+        <ArrowLeft size={18} /> Quay lại
+      </button>
+      <header className="csc-header">
+        <span className="csc-header__eyebrow">Lô hàng CUS</span>
+        <h1>Tạo lô hàng mới</h1>
+        <p>Lưu bản nháp để bổ sung sau, hoặc hoàn tất thông tin rồi gửi sang điều phối.</p>
+      </header>
 
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
@@ -464,7 +439,7 @@ export function ShipmentCreateWorkspace({
 
             {/* SỐ TỜ KHAI */}
             <TextField label="Số tờ khai" value={form.declarationNumber} onChange={(event) => update('declarationNumber', event.target.value)} maxLength={100} disabled={Boolean(saving)} />
-            <SelectField label="Hình thức xuất nhập khẩu" value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} />
+            <div data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 
           </div>
         </ShipmentCreateSection>
@@ -560,7 +535,7 @@ export function ShipmentCreateWorkspace({
               rows={<>{containers.map((row, index) => (
                 <div key={row.key} className="csc-container-record">
                   <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))}><Trash2 size={18} /></button>}</div>
-                  <div style={gridStyle}>
+                  <div className="csc-container-grid" style={gridStyle}>
                     <div data-field-id={`container-${row.key}-number`}><TextField id={`container-${row.key}-number`} label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-number`)} /></div>
                     <div data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} /></div>
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
@@ -643,8 +618,8 @@ export function ShipmentCreateWorkspace({
               <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={() => update('extraDeliveryDates', [...form.extraDeliveryDates, ''])} disabled={Boolean(saving)}><Plus size={15} aria-hidden="true" />Thêm ngày giao</button>
             </div>
           )}
-          <TextAreaField label="Ghi chú cho khách" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Nội dung hiển thị cho khách hàng" disabled={Boolean(saving)} />
-          <TextAreaField label="Lưu ý điều phối" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} />
+          <TextAreaField label="Ghi chú thu khách" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Khoản thu, cước hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
+          <TextAreaField label="Ghi chú điều xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Lưu ý đặc biệt cho Điều vận và Lái xe" disabled={Boolean(saving)} />
         </ShipmentCreateSection>
 
         </div>

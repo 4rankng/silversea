@@ -154,6 +154,7 @@ describe('shipment intake submission', () => {
       customerId: ref.customer.id,
       routeId: ref.route.id,
       cargoMode: 'FCL',
+      tradeDirection: 'IMPORT',
       bookingRef: `BOOK-${suffix}`,
       operationalSiteId: ref.site.id,
       shipmentCode: `INTAKE-FCL-${suffix}`,
@@ -227,6 +228,49 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 0);
   });
 
+  test('rejects dispatch when the import or export direction is missing', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      bookingRef: `BOOK-NO-DIRECTION-${suffix}`,
+      operationalSiteId: ref.site.id,
+      shipmentCode: `INTAKE-NO-DIRECTION-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: ref.containerType.id,
+      containerNumber: 'MSCU6639873',
+      shippingLineName: 'MSC',
+      pickupPortId: ref.ports[0]!.id,
+      dropoffPortId: ref.ports[1]!.id,
+      createdBy: admin.userId,
+    });
+    const key = `submit-no-direction-${suffix}`;
+    idempotencyKeys.push(key);
+
+    await assert.rejects(
+      submitShipmentForDispatch({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        idempotencyKey: key,
+        actor: admin,
+      }),
+      (error: unknown) => error instanceof ApiError
+        && error.statusCode === 409
+        && error.message === 'Vui lòng chọn hình thức nhập khẩu hoặc xuất khẩu.',
+    );
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 0);
+  });
+
   test('moves a complete LCL draft with factory, pickup warehouse and planned delivery into one handoff', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
@@ -234,6 +278,7 @@ describe('shipment intake submission', () => {
       customerId: ref.customer.id,
       routeId: ref.route.id,
       cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
       bookingRef: `BOOK-LCL-POSITIVE-${suffix}`,
       operationalSiteId: ref.site.id,
       pickupWarehouseSiteId: ref.warehouse.id,
