@@ -246,7 +246,9 @@ export function ShipmentCreateWorkspace({
   );
   const isDirty = useMemo(() => {
     const hasFormData = Object.entries(form).some(([key, value]) => (
-      key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode : value !== ''
+      key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
+        : Array.isArray(value) ? value.length > 0
+        : value !== ''
     ));
     const hasContainerData = containers.some((row) => (
       Object.entries(row).some(([key, value]) => key !== 'key' && value !== '')
@@ -346,7 +348,7 @@ export function ShipmentCreateWorkspace({
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm)
+      ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm || form.extraDeliveryDates.some(Boolean))
       : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
     if (hasModeData && !window.confirm(`Chuyển sang ${next} sẽ xóa dữ liệu hàng hóa đã nhập. Tiếp tục?`)) return;
     setForm((current) => ({
@@ -359,6 +361,7 @@ export function ShipmentCreateWorkspace({
       packageCount: '',
       packageType: '',
       cargoWeightKg: '',
+      extraDeliveryDates: [],
     }));
     setContainers([newContainer()]);
     setCarrierAllocations([]);
@@ -456,7 +459,7 @@ export function ShipmentCreateWorkspace({
             <div data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
 
             {form.cargoMode === 'FCL' && (
-              <div data-field-id="shipment-shipping-line"><TextField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(event) => update('shippingLineName', event.target.value)} maxLength={120} placeholder="Nhập hãng tàu chung của lô" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} /></div>
+              <div data-field-id="shipment-shipping-line"><SearchableField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(value) => update('shippingLineName', value)} allowsCustomValue options={carrierOptions.filter((carrier) => carrier.carrierType === 'EXTERNAL').map((carrier) => ({ value: carrier.label, label: carrier.label }))} placeholder="Gõ chọn hoặc nhập hãng tàu" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} /></div>
             )}
 
             {/* SỐ TỜ KHAI */}
@@ -564,6 +567,7 @@ export function ShipmentCreateWorkspace({
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
                     <TextField label="Thể tích (m³)" type="number" min="0" step="0.01" value={row.cargoVolumeCbm} onChange={(event) => updateContainer(row.key, 'cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
+                    <TextField label="Ngày đóng/trả" type="date" value={row.closingDate} onChange={(event) => updateContainer(row.key, 'closingDate', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
               ))}</>}
@@ -628,6 +632,17 @@ export function ShipmentCreateWorkspace({
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
             <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
           </div>
+          {form.cargoMode === 'LCL' && (
+            <div className="csc-extra-dates">
+              {form.extraDeliveryDates.map((date, index) => (
+                <div key={index} className="csc-extra-dates__row">
+                  <TextField label={index === 0 ? 'Ngày giao bổ sung' : ''} type="date" value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
+                  <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
+                </div>
+              ))}
+              <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={() => update('extraDeliveryDates', [...form.extraDeliveryDates, ''])} disabled={Boolean(saving)}><Plus size={15} aria-hidden="true" />Thêm ngày giao</button>
+            </div>
+          )}
           <TextAreaField label="Ghi chú cho khách" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Nội dung hiển thị cho khách hàng" disabled={Boolean(saving)} />
           <TextAreaField label="Lưu ý điều phối" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} />
         </ShipmentCreateSection>

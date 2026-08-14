@@ -20,6 +20,13 @@ export interface ShipmentCreateFormState {
   closingAt: string;
   plannedReturnAt: string;
   expectedDeliveryDate: string;
+  /**
+   * LCL split-lot extra delivery dates (doc Create Shipment Block 2B: "[+]"
+   * adds more delivery days). The backend has no array column for these yet,
+   * so they persist formatted inside `operationalNotes`; the first date is
+   * `expectedDeliveryDate` proper and drives the auto-status rule.
+   */
+  extraDeliveryDates: string[];
   cargoWeightKg: string;
   cargoVolumeCbm: string;
   packageCount: string;
@@ -35,6 +42,8 @@ export interface ShipmentContainerDraft {
   dropoffPortId: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
+  /** Ngày đóng/trả container (doc Create Shipment Block 2, per-row date picker). */
+  closingDate: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -77,6 +86,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   closingAt: '',
   plannedReturnAt: '',
   expectedDeliveryDate: '',
+  extraDeliveryDates: [],
   cargoWeightKg: '',
   cargoVolumeCbm: '',
   packageCount: '',
@@ -93,6 +103,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     dropoffPortId: '',
     cargoWeightKg: '',
     cargoVolumeCbm: '',
+    closingDate: '',
   };
 }
 
@@ -225,6 +236,9 @@ export function buildShipmentRootPayload(
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
     operationalNotes: [
       form.declarationNumber ? `Số tờ khai: ${form.declarationNumber}` : '',
+      form.cargoMode === 'LCL' && form.extraDeliveryDates.length > 0
+        ? `Ngày giao bổ sung: ${form.extraDeliveryDates.filter(Boolean).join(', ')}`
+        : '',
       form.operationalNotes,
     ].filter(Boolean).join('\n') || null,
   };
@@ -245,5 +259,9 @@ export function buildShipmentContainerPayload(
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
+    customerAppointmentAt: row.closingDate
+      // UTC noon so the calendar date survives timezone conversion on either side.
+      ? `${row.closingDate}T12:00:00.000Z`
+      : null,
   }));
 }

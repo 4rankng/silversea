@@ -19,6 +19,7 @@ const container: ShipmentContainerDraft = {
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
+  closingDate: '',
 };
 
 describe('shipment create model', () => {
@@ -70,6 +71,7 @@ describe('shipment create model', () => {
       dropoffPortId: 22,
       cargoWeightKg: '12000.25',
       cargoVolumeCbm: '33.5',
+      customerAppointmentAt: null,
     }]);
   });
 
@@ -179,5 +181,31 @@ describe('shipment create model', () => {
       factoryName: null,
       pickupWarehouseSiteId: 42,
     });
+  });
+
+  it('maps the per-container closing date to customerAppointmentAt (ISO)', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', shippingLineName: 'MSC' };
+    expect(buildShipmentContainerPayload(form, [{ ...container, closingDate: '2026-08-20' }])).toMatchObject([
+      { customerAppointmentAt: '2026-08-20T12:00:00.000Z' },
+    ]);
+    expect(buildShipmentContainerPayload(form, [container])).toMatchObject([
+      { customerAppointmentAt: null },
+    ]);
+  });
+
+  it('formats LCL extra delivery dates into operationalNotes and only for LCL', () => {
+    const lcl = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'LCL' as const,
+      expectedDeliveryDate: '2026-08-14',
+      extraDeliveryDates: ['2026-08-15', ''],
+    };
+    expect(buildShipmentRootPayload(lcl, [], [])).toMatchObject({
+      operationalNotes: 'Ngày giao bổ sung: 2026-08-15',
+    });
+
+    const fcl = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', extraDeliveryDates: ['2026-08-15'] };
+    expect(buildShipmentRootPayload(fcl, [], []).operationalNotes).toBeNull();
   });
 });

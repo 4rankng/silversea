@@ -1416,6 +1416,8 @@ export const shipmentContainerBatchSchema = z.object({
       .transform(v => (v === '' ? null : v)),
     pickupPortId: z.coerce.number().int().positive().optional().nullable(),
     dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
+    // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
+    customerAppointmentAt: shipmentTimestamp.optional().nullable(),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   })),
 }).superRefine((data, ctx) => {

@@ -1,5 +1,9 @@
 .csc-page { width: min(100%, 1360px); margin: 0 auto; padding: 20px 24px 40px; min-width: 0; }
 .csc-page--embedded { width: 100%; padding: 0; }
+/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
+.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
 .csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
 .csc-header { margin: 8px 0 22px; }
 .csc-header__eyebrow, .csc-summary__eyebrow { color: var(--accent, #2563eb); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }

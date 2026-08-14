@@ -394,6 +394,7 @@ export interface ShipmentContainerInput {
   shippingLineName?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  customerAppointmentAt?: string | null;
   notes?: string | null;
 }
 
@@ -2803,6 +2804,7 @@ async function reconcileShipmentContainersInTx(
       shippingLineName: container.shippingLineName?.trim() || null,
       pickupPortId: container.pickupPortId ?? null,
       dropoffPortId: container.dropoffPortId ?? null,
+      customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };

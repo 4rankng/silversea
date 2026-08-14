@@ -57,7 +57,8 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     dropoffSiteNames: ['Bãi Tân Vũ'],
     customerAppointmentAts: ['2026-08-11T02:00:00.000Z'],
     carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
-    note: null,
+    customerNotes: null,
+    operationalNotes: null,
     operational: {
       scheduleReadiness: 'SCHEDULED',
       vehicleReadiness: 'WAITING_PLATE',
@@ -139,7 +140,8 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
     dropoffSiteNames: [],
     customerAppointmentAts: [],
     carrierAssignments: [],
-    note: null,
+    customerNotes: null,
+    operationalNotes: null,
     operational: {
       scheduleReadiness: 'WAITING_DATE',
       vehicleReadiness: 'NO_CONTAINERS',
