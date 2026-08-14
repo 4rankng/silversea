@@ -13,6 +13,7 @@ import {
   TripPodStatus,
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListResponse,
+  type ShipmentCusContainerFlatResponse,
   type ShipmentCusFinanceConfirmationCreateInput,
   type ShipmentCusDocumentCustodyUpdateInput,
   type ShipmentCusLockInput,
@@ -734,6 +735,21 @@ export async function listCusShipmentWorkspace(
   if (filters.bucket) query.set('bucket', filters.bucket);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentCusWorkspaceListResponse>(`${SHIPMENTS.CUS_WORKSPACE_LIST}${suffix}`);
+}
+
+export async function listCusShipmentContainers(
+  filters: ShipmentCusWorkspaceFilters = {},
+): Promise<ShipmentCusContainerFlatResponse> {
+  const query = new URLSearchParams();
+  if (filters.page != null) query.set('page', String(filters.page));
+  if (filters.limit != null) query.set('limit', String(filters.limit));
+  if (filters.searchSuffix) query.set('searchSuffix', filters.searchSuffix);
+  if (filters.transportDateFrom) query.set('transportDateFrom', filters.transportDateFrom);
+  if (filters.transportDateTo) query.set('transportDateTo', filters.transportDateTo);
+  if (filters.direction) query.set('direction', filters.direction);
+  if (filters.bucket) query.set('bucket', filters.bucket);
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  return api.get<ShipmentCusContainerFlatResponse>(`${SHIPMENTS.CUS_WORKSPACE_CONTAINERS}${suffix}`);
 }
 
 export async function getCusShipmentWorkspaceDetail(

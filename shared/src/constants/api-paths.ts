@@ -39,6 +39,7 @@ export const TRIPS = {
 
 export const SHIPMENTS = {
   CUS_WORKSPACE_LIST: '/shipments/cus-workspace',
+  CUS_WORKSPACE_CONTAINERS: '/shipments/cus-workspace/containers',
   CUS_WORKSPACE_DETAIL: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}`,
   CUS_WORKSPACE_CONTAINER_LINE: (shipmentId: number, containerId: number) => `/shipments/cus-workspace/${shipmentId}/containers/${containerId}`,
   CUS_WORKSPACE_FINANCE_CONFIRM: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/finance-confirmations`,

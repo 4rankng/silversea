@@ -372,6 +372,32 @@ export const shipmentRecoveryRecordResultSchema = z.object({
   fact: shipmentCusWorkspaceRecoveryFactSchema,
 }).strict();
 
+export const shipmentCusContainerFlatRowSchema = z.object({
+  id: z.number().int().positive(),
+  shipmentId: z.number().int().positive(),
+  ordinal: z.number().int().positive(),
+  customerName: z.string().nullable(),
+  factoryName: z.string().nullable(),
+  billOrBookNumber: z.string().nullable(),
+  direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
+  containerNumber: z.string().nullable(),
+  containerTypeLabel: z.string().nullable(),
+  dispatchStatus: z.enum(['UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']),
+  carrierName: z.string().nullable(),
+  plateNumber: z.string().nullable(),
+  liftSite: z.string().nullable(),
+  dropoffSite: z.string().nullable(),
+  customerAppointmentAt: z.string().datetime().nullable(),
+}).strict();
+
+export const shipmentCusContainerFlatResponseSchema = z.object({
+  page: z.number().int().positive(),
+  limit: z.number().int().min(1).max(100),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  items: z.array(shipmentCusContainerFlatRowSchema),
+}).strict();
+
 export const shipmentCusWorkspaceListResponseSchema = z.object({
   page: z.number().int().positive(),
   limit: z.number().int().min(1).max(100),
@@ -398,6 +424,8 @@ export type ShipmentCusWorkspaceListItem = z.infer<typeof shipmentCusWorkspaceLi
 export type ShipmentCusWorkspacePassThroughCharge = z.infer<typeof shipmentCusWorkspacePassThroughChargeSchema>;
 export type ShipmentCusWorkspaceRecoveryFact = z.infer<typeof shipmentCusWorkspaceRecoveryFactSchema>;
 export type ShipmentCusWorkspaceContainerLine = z.infer<typeof shipmentCusWorkspaceContainerLineSchema>;
+export type ShipmentCusContainerFlatRow = z.infer<typeof shipmentCusContainerFlatRowSchema>;
+export type ShipmentCusContainerFlatResponse = z.infer<typeof shipmentCusContainerFlatResponseSchema>;
 export type ShipmentCusWorkspaceDetail = z.infer<typeof shipmentCusWorkspaceDetailSchema>;
 export type ShipmentCusWorkspaceListResponse = z.infer<typeof shipmentCusWorkspaceListResponseSchema>;
 export type ShipmentCusFinanceConfirmationCreateInput = z.infer<typeof shipmentCusFinanceConfirmationCreateSchema>;

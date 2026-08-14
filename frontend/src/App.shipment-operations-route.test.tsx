@@ -39,6 +39,10 @@ vi.mock('./pages/clerk/ClerkShipmentCreatePage', () => ({
   default: () => <div>Shipment create test page</div>,
 }));
 
+vi.mock('./pages/ShipmentsDetailPage', () => ({
+  default: () => <div>Shipment containers test page</div>,
+}));
+
 vi.mock('./pages/clerk/ClerkShipmentDocsPage', () => ({
   default: () => <div>Shipment dossier test page</div>,
 }));
@@ -98,6 +102,31 @@ describe('AppRoutes shipment operations reachability', () => {
     renderRoute(path);
     expect(await screen.findByText('Shipment create test page')).toBeTruthy();
     expect(screen.getByTestId('route-location').textContent).toBe(path);
+  });
+
+  it.each([
+    [Role.ADMIN, '/shipments-detail'],
+    [Role.CUS, '/shipments-detail'],
+    [Role.MANAGER, '/shipments-detail'],
+    [Role.ACCOUNTANT, '/shipments-detail'],
+    [Role.DISPATCHER, '/shipments-detail'],
+  ])('admits %s to the container-flat view %s', async (role, path) => {
+    authState.role = role;
+    renderRoute(path);
+    expect(await screen.findByText('Shipment containers test page')).toBeTruthy();
+    expect(screen.getByTestId('route-location').textContent).toBe(path);
+  });
+
+  it.each([
+    [Role.DRIVER, '/shipments-detail'],
+    [Role.OPS, '/shipments-detail'],
+    [Role.CUSTOMER, '/shipments-detail'],
+  ])('redirects %s away from the container-flat view %s', async (role, path) => {
+    authState.role = role;
+    renderRoute(path);
+    await screen.findByTestId('route-location');
+    await vi.waitFor(() => expect(screen.getByTestId('route-location').textContent).not.toBe(path));
+    expect(screen.queryByText('Shipment containers test page')).toBeNull();
   });
 
   it.each([

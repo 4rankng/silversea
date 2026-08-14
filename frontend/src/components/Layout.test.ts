@@ -92,7 +92,8 @@ describe('getNavItems', () => {
       ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],
     ]],
     [Role.CUS, [
-      ['Quản lý Lô hàng', '/shipments'],
+      ['Tổng hợp Lô hàng', '/shipments'],
+      ['Chi tiết lô hàng', '/shipments-detail'],
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
     ]],
     [Role.DISPATCHER, [
@@ -228,6 +229,12 @@ describe('getNavItems', () => {
     expect(items[0]).toEqual(expect.objectContaining({ key: 'shipments', path: '/shipments' }));
     expect(items.some((item) => item.key === 'recoverable-costs')).toBe(true);
     expect(items.some((item) => ['debt', 'payables', 'treasury', 'profit'].includes(item.key))).toBe(false);
+  });
+
+  it('shows CUS only the two document-ops items without the recoverable-costs capability', () => {
+    const items = getNavItems(Role.CUS);
+    expect(items.map(({ key }) => key)).toEqual(['shipments', 'shipment-containers']);
+    expect(items[1]).toEqual(expect.objectContaining({ key: 'shipment-containers', path: '/shipments-detail' }));
   });
 
   it('shows workflow links when the role has the required capability', () => {

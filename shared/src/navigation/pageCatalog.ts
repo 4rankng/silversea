@@ -220,6 +220,14 @@ export const PAGE_CATALOG = {
     pathPattern: '/shipments/:id',
     requiresParams: ['id'],
   },
+  shipmentContainers: {
+    // CUS container-flat view: every container of every shipment, with the
+    // closing/return appointment and vehicle plate per container. Sibling of
+    // `shipments`; the per-shipment detail page stays at /shipments/:id.
+    title: 'Chi tiết lô hàng',
+    path: '/shipments-detail',
+    section: 'operations',
+  },
   suppliers: {
     title: 'Nhà cung cấp',
     path: '/suppliers',

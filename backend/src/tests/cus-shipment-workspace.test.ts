@@ -19,7 +19,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
-import { listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
+import { listCusShipmentContainers, listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -223,5 +223,53 @@ describe('CUS shipment workspace projection — inline edit authority', () => {
 
     assert.ok(item);
     assert.equal(item.operational.transportDateEditable, true);
+  });
+});
+
+describe('CUS container-flat projection', () => {
+  test('flattens every container of every shipment with shipment context and operational fields', async () => {
+    const appointmentA = new Date('2026-08-20T08:00:00Z');
+    const shipmentA = await seedShipment({ blNumber: `FLATA${suffix}` });
+    const shipmentB = await seedShipment({ bookingRef: `FLATB${suffix}` });
+    await seedContainer(shipmentA.id, {
+      containerNumber: `FLA${suffix}1`,
+      customerAppointmentAt: appointmentA,
+    });
+    await seedContainer(shipmentA.id, { containerNumber: `FLA${suffix}2` });
+    await seedContainer(shipmentB.id, { containerNumber: `FLB${suffix}1` });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, cusActor);
+
+    const rows = response.items.filter((row) => row.shipmentId === shipmentA.id || row.shipmentId === shipmentB.id);
+    assert.equal(rows.length, 3);
+
+    const rowA1 = rows.find((row) => row.id != null && row.containerNumber === `FLA${suffix}1`);
+    assert.ok(rowA1);
+    assert.equal(rowA1.shipmentId, shipmentA.id);
+    assert.equal(rowA1.ordinal, 1);
+    assert.equal(rowA1.billOrBookNumber, `FLATA${suffix}`);
+    assert.equal(rowA1.customerName, `CusWs customer ${suffix}`);
+    assert.equal(rowA1.containerTypeLabel != null, true);
+    assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
+    // ISO datetime projected verbatim for the đóng/trả column.
+    assert.equal(rowA1.customerAppointmentAt, appointmentA.toISOString());
+    // Unassigned containers carry no carrier/plate yet.
+    assert.equal(rowA1.carrierName, null);
+    assert.equal(rowA1.plateNumber, null);
+
+    const rowA2 = rows.find((row) => row.containerNumber === `FLA${suffix}2`);
+    assert.ok(rowA2);
+    assert.equal(rowA2.ordinal, 2);
+    assert.equal(rowA2.customerAppointmentAt, null);
+
+    const rowB1 = rows.find((row) => row.containerNumber === `FLB${suffix}1`);
+    assert.ok(rowB1);
+    assert.equal(rowB1.shipmentId, shipmentB.id);
+    assert.equal(rowB1.billOrBookNumber, `FLATB${suffix}`);
+
+    // Pagination envelope counts shipments, not containers.
+    assert.ok(response.total >= 2);
+    assert.ok(response.totalPages >= 1);
+    assert.ok(response.items.every((row) => typeof row.id === 'number'));
   });
 });

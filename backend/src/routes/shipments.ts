@@ -70,6 +70,7 @@ import {
 } from '../services/shipment.service';
 import {
   getCusShipmentWorkspaceDetail,
+  listCusShipmentContainers,
   listCusShipmentWorkspace,
   updateCusShipmentContainerLine,
 } from '../services/cus-shipment-workspace.service';
@@ -357,6 +358,16 @@ router.get(
     const parsed = shipmentCusWorkspaceQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
     res.json(await listCusShipmentWorkspace(parsed.data, getUser(req)));
+  }),
+);
+
+router.get(
+  '/cus-workspace/containers',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shipmentCusWorkspaceQuerySchema.safeParse(req.query);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await listCusShipmentContainers(parsed.data, getUser(req)));
   }),
 );
 

@@ -30,6 +30,7 @@ import {
   Landmark,
   Calculator,
   Anchor,
+  Container,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -259,7 +260,8 @@ export function getNavItems(
     case 'CUS': {
       return [
         // Nghiệp vụ Chứng từ (Document Operations)
-        { key: 'shipments', label: 'Quản lý Lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
+        { key: 'shipments', label: 'Tổng hợp Lô hàng', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
+        { key: 'shipment-containers', label: 'Chi tiết lô hàng', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
 
         // Đối soát (Reconciliation)
         ...(hasCapability('recoverable_costs.read') ? [

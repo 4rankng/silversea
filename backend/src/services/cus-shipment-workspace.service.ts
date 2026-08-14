@@ -13,6 +13,8 @@ import {
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceListResponse,
   type ShipmentCusWorkspaceQuery,
+  type ShipmentCusContainerFlatResponse,
+  type ShipmentCusContainerFlatRow,
 } from '@tingting/shared';
 import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -1099,6 +1101,52 @@ export async function getCusShipmentWorkspaceDetail(
 ): Promise<ShipmentCusWorkspaceDetail> {
   const row = await loadShipmentRow(shipmentId, actor);
   return buildWorkspaceDetail(row, actor);
+}
+
+/**
+ * Container-flat projection across all in-scope shipments: one row per
+ * container, carrying shipment context (customer, factory, bill/booking)
+ * plus the per-container operational fields. Read-only sibling of the
+ * workspace list; pagination counts shipments via loadShipmentPage's
+ * filters, then flattens each shipment's containers.
+ */
+export async function listCusShipmentContainers(
+  query: ShipmentCusWorkspaceQuery,
+  actor: AuthUser,
+): Promise<ShipmentCusContainerFlatResponse> {
+  const { items, total } = await loadShipmentPage(query, actor);
+  const support = await loadSupportRows(items.map((row) => row.shipment.id));
+  const flatRows: ShipmentCusContainerFlatRow[] = [];
+  for (const row of items) {
+    const containers = support.containersByShipment.get(row.shipment.id) ?? [];
+    containers.forEach((container, index) => {
+      const line = buildContainerLine(row, actor, support, container, index + 1);
+      flatRows.push({
+        id: line.id,
+        shipmentId: row.shipment.id,
+        ordinal: line.ordinal,
+        customerName: row.customerName,
+        factoryName: trimOrNull(row.shipment.factoryName),
+        billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
+        direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
+        containerNumber: line.containerNumber,
+        containerTypeLabel: line.containerTypeLabel,
+        dispatchStatus: line.dispatchStatus,
+        carrierName: line.carrierName,
+        plateNumber: line.plateNumber,
+        liftSite: line.liftSite,
+        dropoffSite: line.dropoffSite,
+        customerAppointmentAt: line.customerAppointmentAt,
+      });
+    });
+  }
+  return {
+    page: query.page,
+    limit: query.limit,
+    total,
+    totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
+    items: flatRows,
+  };
 }
 
 function requireWorkspaceWriter(actor: AuthUser) {
