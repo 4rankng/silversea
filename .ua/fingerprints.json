@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "1ab1a4f39cef0fa3140ee3a428e5ef930bdb8f00",
-  "generatedAt": "2026-08-14T15:43:10.617Z",
+  "gitCommitHash": "6b6416a5e469f532548d09f22744ad045098c187",
+  "generatedAt": "2026-08-14T18:06:27.269Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -55,27 +55,27 @@
     },
     ".ua/fingerprints.json": {
       "filePath": ".ua/fingerprints.json",
-      "contentHash": "0ba5f985ed5b114d0d4555677853cdf0e0e3f5589ed574400758ceee8a0be80b",
+      "contentHash": "794d6e37d7fe0f6f5adb72f5231851432e371346874c33847c8550b544182440",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 112754,
+      "totalLines": 112798,
       "hasStructuralAnalysis": true
     },
     ".ua/knowledge-graph.json": {
       "filePath": ".ua/knowledge-graph.json",
-      "contentHash": "2648e72e31c35a7a7fcfbf92db91c722187cac4a7ea4f279eccdeae1e7d63c15",
+      "contentHash": "b176eb105bf5fbfd15b07a295f3ac28f0fdee832e41c8c78336c8215158c5d27",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 148457,
+      "totalLines": 148646,
       "hasStructuralAnalysis": true
     },
     ".ua/meta.json": {
       "filePath": ".ua/meta.json",
-      "contentHash": "33cf760b44bc2354683f9f7a8e940191746af9e13ea3338cf44e0b4e8861620e",
+      "contentHash": "07ea81f50c6126ea8496aeb3ee64647c6d74dea9cd6e61d4404bed9b6ca5e589",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -19381,456 +19381,63 @@
     },
     "backend/src/services/cus-shipment-workspace.service.ts": {
       "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "contentHash": "63bc74e73e56befd389055bc2198467be8820298082af5dcdf1cbe4124f24cab",
+      "contentHash": "7c3cda2d9a28f3908148a8d72cc589f977392a48a05d186c5b95f7d0620c5ebc",
       "functions": [
-        {
-          "name": "toNumber",
-          "params": [
-            "value"
-          ],
-          "returnType": "number",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "toMoneyString",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "sumMoney",
-          "params": [
-            "values"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "sumDecimal",
-          "params": [
-            "values",
-            "scale"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "businessDateNow",
-          "params": [],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "buildOperationalSummary",
-          "params": [
-            "row",
-            "support",
-            "bucket",
-            "actor"
-          ],
-          "returnType": "ShipmentCusWorkspaceListItem['operational']",
-          "exported": false,
-          "lineCount": 62
-        },
-        {
-          "name": "effectiveBillingLineAmount",
-          "params": [
-            "line"
-          ],
-          "returnType": "number",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "trimOrNull",
-          "params": [
-            "value"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 4
-        },
-        {
-          "name": "uniqueNonEmpty",
-          "params": [
-            "values"
-          ],
-          "returnType": "string[]",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "normalizeCarrierName",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "formatPlate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "normalizePlate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "buildScopeConditions",
-          "params": [
-            "actor"
-          ],
-          "exported": false,
-          "lineCount": 13
-        },
-        {
-          "name": "assertCusShipmentScope",
-          "params": [
-            "actor",
-            "shipmentCustomerId"
-          ],
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "deriveCusBucket",
-          "params": [
-            "status",
-            "hasActiveLock"
-          ],
-          "returnType": "ShipmentCusBucket",
-          "exported": false,
-          "lineCount": 11
-        },
-        {
-          "name": "buildContainerSummary",
-          "params": [
-            "rows",
-            "packageCount",
-            "packageType"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "isCurrentRecoveryFact",
-          "params": [
-            "row"
-          ],
-          "returnType": "boolean",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "readSiteSnapshotSite",
-          "params": [
-            "snapshot",
-            "key"
-          ],
-          "exported": false,
-          "lineCount": 14
-        },
-        {
-          "name": "loadSupportRows",
-          "params": [
-            "shipmentIds",
-            "executor"
-          ],
-          "exported": false,
-          "lineCount": 281
-        },
-        {
-          "name": "loadSelectors",
-          "params": [
-            "customerId",
-            "executor"
-          ],
-          "exported": false,
-          "lineCount": 64
-        },
-        {
-          "name": "buildListItem",
-          "params": [
-            "row",
-            "support",
-            "actor",
-            "confirmation"
-          ],
-          "returnType": "ShipmentCusWorkspaceListItem",
-          "exported": false,
-          "lineCount": 173
-        },
-        {
-          "name": "buildContainerLine",
-          "params": [
-            "row",
-            "actor",
-            "support",
-            "container",
-            "ordinal"
-          ],
-          "returnType": "ShipmentCusWorkspaceContainerLine",
-          "exported": false,
-          "lineCount": 60
-        },
-        {
-          "name": "loadShipmentRow",
-          "params": [
-            "shipmentId",
-            "actor",
-            "executor"
-          ],
-          "exported": false,
-          "lineCount": 22
-        },
-        {
-          "name": "buildWorkspaceDetail",
-          "params": [
-            "row",
-            "actor",
-            "executor"
-          ],
-          "returnType": "Promise<ShipmentCusWorkspaceDetail>",
-          "exported": false,
-          "lineCount": 20
-        },
-        {
-          "name": "buildShipmentPageConditions",
-          "params": [
-            "query",
-            "actor",
-            "searchMode"
-          ],
-          "exported": false,
-          "lineCount": 70
-        },
-        {
-          "name": "loadShipmentPage",
-          "params": [
-            "query",
-            "actor"
-          ],
-          "exported": false,
-          "lineCount": 25
-        },
-        {
-          "name": "loadActorScopedCustomerOptions",
-          "params": [
-            "actor"
-          ],
-          "exported": false,
-          "lineCount": 15
-        },
-        {
-          "name": "listCusShipmentWorkspace",
-          "params": [
-            "query",
-            "actor"
-          ],
-          "returnType": "Promise<ShipmentCusWorkspaceListResponse>",
-          "exported": true,
-          "lineCount": 44
-        },
-        {
-          "name": "getCusShipmentWorkspaceDetail",
-          "params": [
-            "shipmentId",
-            "actor"
-          ],
-          "returnType": "Promise<ShipmentCusWorkspaceDetail>",
-          "exported": true,
-          "lineCount": 7
-        },
-        {
-          "name": "listCusShipmentContainers",
-          "params": [
-            "query",
-            "actor"
-          ],
-          "returnType": "Promise<ShipmentCusContainerFlatResponse>",
-          "exported": true,
-          "lineCount": 91
-        },
-        {
-          "name": "requireWorkspaceWriter",
-          "params": [
-            "actor"
-          ],
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "assertActiveContainerType",
-          "params": [
-            "containerTypeId",
-            "tx"
-          ],
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "loadOperationalSiteRecords",
-          "params": [
-            "customerId",
-            "siteIds",
-            "tx"
-          ],
-          "exported": false,
-          "lineCount": 46
-        },
-        {
-          "name": "loadExternalCarrier",
-          "params": [
-            "carrierId",
-            "tx"
-          ],
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "loadCarrierVehicle",
-          "params": [
-            "carrierId",
-            "vehicleId",
-            "tx"
-          ],
-          "exported": false,
-          "lineCount": 21
-        },
-        {
-          "name": "resolveInlineExternalCarrier",
-          "params": [
-            "input",
-            "actor",
-            "tx"
-          ],
-          "exported": false,
-          "lineCount": 160
-        },
-        {
-          "name": "updateCusShipmentContainerLine",
-          "params": [
-            "args"
-          ],
-          "returnType": "Promise<ShipmentCusContainerLineUpdateResult>",
-          "exported": true,
-          "lineCount": 191
-        }
+        "toNumber",
+        "toMoneyString",
+        "sumMoney",
+        "sumDecimal",
+        "businessDateNow",
+        "buildOperationalSummary",
+        "effectiveBillingLineAmount",
+        "trimOrNull",
+        "readOnly",
+        "shipmentFieldAccess",
+        "containerFieldAccess",
+        "uniqueNonEmpty",
+        "normalizeCarrierName",
+        "formatPlate",
+        "normalizePlate",
+        "buildScopeConditions",
+        "assertCusShipmentScope",
+        "deriveCusBucket",
+        "buildContainerSummary",
+        "isCurrentRecoveryFact",
+        "readSiteSnapshotSite",
+        "loadSupportRows",
+        "loadSelectors",
+        "buildListItem",
+        "buildContainerLine",
+        "loadShipmentRow",
+        "buildWorkspaceDetail",
+        "buildShipmentPageConditions",
+        "loadShipmentPage",
+        "loadActorScopedCustomerOptions",
+        "listCusShipmentWorkspace",
+        "getCusShipmentWorkspaceDetail",
+        "listCusShipmentContainers",
+        "requireWorkspaceWriter",
+        "assertActiveContainerType",
+        "loadOperationalSiteRecords",
+        "loadExternalCarrier",
+        "loadCarrierVehicle",
+        "resolveInlineExternalCarrier",
+        "updateCusShipmentContainerLine",
+        "execute"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "Role",
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody",
-            "ShipmentStatus",
-            "SHIPMENT_CUS_BUCKET_LABELS",
-            "SHIPMENT_DOCUMENT_CUSTODY_LABELS",
-            "canonicalShipmentStatus",
-            "ShipmentCusContainerLineUpdateInput",
-            "ShipmentCusContainerLineUpdateResult",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail",
-            "ShipmentCusWorkspaceListItem",
-            "ShipmentCusWorkspaceListResponse",
-            "ShipmentCusWorkspaceQuery",
-            "ShipmentCusContainerFlatResponse",
-            "ShipmentCusContainerFlatRow"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "and",
-            "asc",
-            "count",
-            "desc",
-            "eq",
-            "ilike",
-            "inArray",
-            "isNull",
-            "ne",
-            "or",
-            "sql"
-          ]
-        },
-        {
-          "source": "drizzle-orm/pg-core",
-          "specifiers": [
-            "alias"
-          ]
-        },
-        {
-          "source": "../db",
-          "specifiers": [
-            "db"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../middleware/auth",
-          "specifiers": [
-            "AuthUser"
-          ]
-        },
-        {
-          "source": "./trip-shared",
-          "specifiers": [
-            "Tx"
-          ]
-        },
-        {
-          "source": "./shipment-fulfillment.service",
-          "specifiers": [
-            "ensureShipmentFulfillmentsInTx"
-          ]
-        },
-        {
-          "source": "./application-owned-uniqueness.service",
-          "specifiers": [
-            "lockApplicationOwnedUniqueness"
-          ]
-        },
-        {
-          "source": "./shipment-accounting-lock.service",
-          "specifiers": [
-            "assertShipmentAccountingUnlocked",
-            "getShipmentFinanceConfirmationSummaries",
-            "getShipmentFinanceConfirmationSummary"
-          ]
-        }
+        "@tingting/shared",
+        "drizzle-orm",
+        "drizzle-orm/pg-core",
+        "../db",
+        "../db/schema",
+        "../errors",
+        "../middleware/auth",
+        "./trip-shared",
+        "./shipment-fulfillment.service",
+        "./application-owned-uniqueness.service",
+        "./shipment-accounting-lock.service"
       ],
       "exports": [
         "listCusShipmentWorkspace",
@@ -19838,7 +19445,7 @@
         "listCusShipmentContainers",
         "updateCusShipmentContainerLine"
       ],
-      "totalLines": 1695,
+      "totalLines": 1900,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/customer-receivable-authority.service.ts": {
@@ -44220,104 +43827,28 @@
     },
     "backend/src/tests/cus-shipment-workspace.test.ts": {
       "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "contentHash": "6d0be6c804d3b7d35bd10950fdd0d33d5e0002afab06cc9bdd6dfb2cb8662903",
+      "contentHash": "165054ff9240bee683e83aa2932b8f6781e930fd28531e7161d80ccad6e3d7ed",
       "functions": [
-        {
-          "name": "seedContainerType",
-          "params": [],
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "seedCustomer",
-          "params": [],
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "seedShipment",
-          "params": [
-            "overrides"
-          ],
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "seedContainer",
-          "params": [
-            "shipmentId",
-            "overrides"
-          ],
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "findItem",
-          "params": [
-            "shipmentId"
-          ],
-          "exported": false,
-          "lineCount": 4
-        }
+        "seedContainerType",
+        "seedCustomer",
+        "seedRoute",
+        "seedShipment",
+        "seedContainer",
+        "findItem"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "node:test",
-          "specifiers": [
-            "after",
-            "before",
-            "describe",
-            "test"
-          ]
-        },
-        {
-          "source": "node:assert/strict",
-          "specifiers": [
-            "assert"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "inArray"
-          ]
-        },
-        {
-          "source": "../db",
-          "specifiers": [
-            "db",
-            "client"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "Role"
-          ]
-        },
-        {
-          "source": "../middleware/auth",
-          "specifiers": [
-            "AuthUser"
-          ]
-        },
-        {
-          "source": "../services/cus-shipment-workspace.service",
-          "specifiers": [
-            "listCusShipmentContainers",
-            "listCusShipmentWorkspace"
-          ]
-        }
+        "node:test",
+        "node:assert/strict",
+        "drizzle-orm",
+        "../db",
+        "../db/schema",
+        "@tingting/shared",
+        "../middleware/auth",
+        "../services/cus-shipment-workspace.service"
       ],
       "exports": [],
-      "totalLines": 305,
+      "totalLines": 376,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/customer-commission-validation.test.ts": {
@@ -61200,7 +60731,7 @@
     },
     "backend/src/tests/q23-upload-idempotency.test.ts": {
       "filePath": "backend/src/tests/q23-upload-idempotency.test.ts",
-      "contentHash": "85ae632333cb223385b54703cd8bf284058f6e672b5d79e2bd3e15aea889eb24",
+      "contentHash": "c1ef46c80e3b26abcba5385e65147920e5893bf2fd20fddd82a1912a3b4cb51c",
       "functions": [
         {
           "name": "buildPhotoForm",
@@ -61256,6 +60787,14 @@
           "params": [],
           "exported": false,
           "lineCount": 4
+        },
+        {
+          "name": "prioritizeDurableJobs",
+          "params": [
+            "jobIds"
+          ],
+          "exported": false,
+          "lineCount": 6
         }
       ],
       "classes": [],
@@ -61379,7 +60918,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 428,
+      "totalLines": 438,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/receivables-export.test.ts": {
@@ -63231,338 +62770,61 @@
     },
     "backend/src/tests/shipment-routes.test.ts": {
       "filePath": "backend/src/tests/shipment-routes.test.ts",
-      "contentHash": "a720652bbbe17e2b7d3a75ea22c6abe9416053ced3289657bd6810f77773ab5f",
+      "contentHash": "d2fd3a4570ecfc2f48974d4dce4ca47e26bebfcfd0dee8052a3b588c885d3cbd",
       "functions": [
-        {
-          "name": "mkUser",
-          "params": [
-            "username",
-            "role"
-          ],
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "sign",
-          "params": [
-            "u"
-          ],
-          "exported": false,
-          "lineCount": 21
-        },
-        {
-          "name": "mkCustomer",
-          "params": [],
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "createScopedCusSession",
-          "params": [
-            "scopedCustomerId"
-          ],
-          "exported": false,
-          "lineCount": 17
-        },
-        {
-          "name": "mkCatalogs",
-          "params": [],
-          "exported": false,
-          "lineCount": 17
-        },
-        {
-          "name": "mkBusinessUnit",
-          "params": [],
-          "exported": false,
-          "lineCount": 11
-        },
-        {
-          "name": "assignClerkScope",
-          "params": [
-            "userId",
-            "scopedCustomerId",
-            "businessUnitId"
-          ],
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "clerkCreateBody",
-          "params": [
-            "extra"
-          ],
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "testFetch",
-          "params": [
-            "urlPath",
-            "options"
-          ],
-          "exported": false,
-          "lineCount": 19
-        },
-        {
-          "name": "apiFetch",
-          "params": [
-            "urlPath",
-            "options"
-          ],
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "mkShipmentViaService",
-          "params": [
-            "overrides"
-          ],
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "mkClerkScopedShipmentViaService",
-          "params": [
-            "overrides"
-          ],
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "createOwnedResources",
-          "params": [],
-          "exported": false,
-          "lineCount": 28
-        },
-        {
-          "name": "createAcceptedFulfillmentFixture",
-          "params": [
-            "overrides"
-          ],
-          "exported": false,
-          "lineCount": 54
-        },
-        {
-          "name": "createReadyDirectCloseFixture",
-          "params": [],
-          "exported": false,
-          "lineCount": 80
-        },
-        {
-          "name": "createCusWorkspaceLockFixture",
-          "params": [],
-          "exported": false,
-          "lineCount": 69
-        },
-        {
-          "name": "createExternalCarrierFixture",
-          "params": [
-            "name"
-          ],
-          "exported": false,
-          "lineCount": 19
-        },
-        {
-          "name": "buildRecoverySourceVersion",
-          "params": [
-            "expense"
-          ],
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "getCusWorkspaceDetail",
-          "params": [
-            "shipmentId",
-            "token"
-          ],
-          "exported": false,
-          "lineCount": 31
-        },
-        {
-          "name": "confirmFinanceViaRoute",
-          "params": [
-            "shipmentId",
-            "idempotencyKey"
-          ],
-          "exported": false,
-          "lineCount": 14
-        },
-        {
-          "name": "lockShipmentViaRoute",
-          "params": [
-            "shipmentId",
-            "idempotencyKey"
-          ],
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "createRecoverableExpenseFixture",
-          "params": [
-            "options"
-          ],
-          "exported": false,
-          "lineCount": 91
-        }
+        "mkUser",
+        "sign",
+        "mkCustomer",
+        "createScopedCusSession",
+        "mkCatalogs",
+        "mkBusinessUnit",
+        "assignClerkScope",
+        "clerkCreateBody",
+        "testFetch",
+        "apiFetch",
+        "mkShipmentViaService",
+        "mkClerkScopedShipmentViaService",
+        "createOwnedResources",
+        "createAcceptedFulfillmentFixture",
+        "createReadyDirectCloseFixture",
+        "createCusWorkspaceLockFixture",
+        "createExternalCarrierFixture",
+        "buildRecoverySourceVersion",
+        "getCusWorkspaceDetail",
+        "confirmFinanceViaRoute",
+        "lockShipmentViaRoute",
+        "createRecoverableExpenseFixture",
+        "measurePage"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "node:test",
-          "specifiers": [
-            "test",
-            "describe",
-            "before",
-            "after"
-          ]
-        },
-        {
-          "source": "node:assert/strict",
-          "specifiers": [
-            "assert"
-          ]
-        },
-        {
-          "source": "node:http",
-          "specifiers": [
-            "http"
-          ]
-        },
-        {
-          "source": "net",
-          "specifiers": [
-            "AddressInfo"
-          ]
-        },
-        {
-          "source": "express",
-          "specifiers": [
-            "express"
-          ]
-        },
-        {
-          "source": "jsonwebtoken",
-          "specifiers": [
-            "jwt"
-          ]
-        },
-        {
-          "source": "bcryptjs",
-          "specifiers": [
-            "bcrypt"
-          ]
-        },
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "and",
-            "eq",
-            "inArray"
-          ]
-        },
-        {
-          "source": "../db",
-          "specifiers": [
-            "client",
-            "db"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "Role",
-            "ShipmentStatus",
-            "ShipmentDocumentType"
-          ]
-        },
-        {
-          "source": "../config",
-          "specifiers": [
-            "config"
-          ]
-        },
-        {
-          "source": "../casbin/enforcer",
-          "specifiers": [
-            "initEnforcer"
-          ]
-        },
-        {
-          "source": "../services/audit.service",
-          "specifiers": [
-            "initAuditService"
-          ]
-        },
-        {
-          "source": "../lib/redis",
-          "specifiers": [
-            "cacheInvalidate"
-          ]
-        },
-        {
-          "source": "../routes/shipments",
-          "specifiers": [
-            "shipmentRoutes"
-          ]
-        },
-        {
-          "source": "../routes/config",
-          "specifiers": [
-            "configRoutes"
-          ]
-        },
-        {
-          "source": "../routes/financial",
-          "specifiers": [
-            "financialRoutes"
-          ]
-        },
-        {
-          "source": "../routes/recoverable-costs",
-          "specifiers": [
-            "recoverableCostRoutes"
-          ]
-        },
-        {
-          "source": "../routes/salary",
-          "specifiers": [
-            "salaryRoutes"
-          ]
-        },
-        {
-          "source": "../middleware/auth",
-          "specifiers": [
-            "authMiddleware"
-          ]
-        },
-        {
-          "source": "../middleware/audit",
-          "specifiers": [
-            "auditLogMiddleware"
-          ]
-        },
-        {
-          "source": "../middleware/casbin",
-          "specifiers": [
-            "casbinAuthz"
-          ]
-        },
-        {
-          "source": "../middleware/errorHandler",
-          "specifiers": [
-            "globalErrorHandler"
-          ]
-        }
+        "node:test",
+        "node:assert/strict",
+        "node:http",
+        "net",
+        "express",
+        "jsonwebtoken",
+        "bcryptjs",
+        "drizzle-orm",
+        "../db",
+        "../db/schema",
+        "@tingting/shared",
+        "../config",
+        "../casbin/enforcer",
+        "../services/audit.service",
+        "../lib/redis",
+        "../routes/shipments",
+        "../routes/config",
+        "../routes/financial",
+        "../routes/recoverable-costs",
+        "../routes/salary",
+        "../middleware/auth",
+        "../middleware/audit",
+        "../middleware/casbin",
+        "../middleware/errorHandler"
       ],
       "exports": [],
-      "totalLines": 3910,
+      "totalLines": 3962,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/shipment-service.test.ts": {
@@ -65907,12 +65169,12 @@
     },
     "docs/regression-testing/03-module-03-cus.md": {
       "filePath": "docs/regression-testing/03-module-03-cus.md",
-      "contentHash": "319bead6be959fcf56346892ae8aea0b45d87fd51f9ceecc57aea5f52c397d53",
+      "contentHash": "888034c6a502c8675bcc4f566696bdac6cc7bd975c2e374db167e75e87a0d97c",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 708,
+      "totalLines": 702,
       "hasStructuralAnalysis": true
     },
     "docs/regression-testing/04-module-04-disbursement-recovery.md": {
@@ -98279,479 +97541,101 @@
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "dcd9ae1ef7037d07ff8b436c5b75f928c32ed08c5baaae411c148c6edc249a0f",
+      "contentHash": "aded000004227443740cea1fdd205d7c5b6df8fe0bc84e15aa9614bedefb3c90",
       "functions": [
-        {
-          "name": "listResponse",
-          "params": [
-            "items"
-          ],
-          "exported": false,
-          "lineCount": 18
-        },
-        {
-          "name": "renderPage",
-          "params": [
-            "path"
-          ],
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "masterRow",
-          "params": [],
-          "returnType": "HTMLTableRowElement",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "masterRowDetailButton",
-          "params": [],
-          "returnType": "HTMLButtonElement",
-          "exported": false,
-          "lineCount": 5
-        }
+        "listResponse",
+        "renderPage",
+        "masterRow",
+        "masterRowDetailButton"
       ],
-      "classes": [],
+      "classes": [
+        "ApiError",
+        "CardLayoutObserver"
+      ],
       "imports": [
-        {
-          "source": "node:fs",
-          "specifiers": [
-            "readFileSync"
-          ]
-        },
-        {
-          "source": "node:path",
-          "specifiers": [
-            "resolve"
-          ]
-        },
-        {
-          "source": "@testing-library/react",
-          "specifiers": [
-            "fireEvent",
-            "render",
-            "screen",
-            "waitFor",
-            "within"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "MemoryRouter",
-            "Route",
-            "Routes"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "afterEach",
-            "beforeEach",
-            "describe",
-            "expect",
-            "it",
-            "vi"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "Role",
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody",
-            "ShipmentCusWorkspaceListItem"
-          ]
-        },
-        {
-          "source": "./ShipmentsPage",
-          "specifiers": [
-            "ShipmentsPage"
-          ]
-        }
+        "node:fs",
+        "node:path",
+        "@testing-library/react",
+        "react-router-dom",
+        "vitest",
+        "@tingting/shared",
+        "./ShipmentsPage"
       ],
       "exports": [],
-      "totalLines": 1124,
+      "totalLines": 1163,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "2263f82308a354b19387db43ec9dd2081d8d0b83aaf2d3927f5ef7ceaa9b920a",
+      "contentHash": "193152a7cc8678f0d60c6fbc05996ccbd512a87c3114ff1f4d37b85a822abb2d",
       "functions": [
-        {
-          "name": "formatMoney",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "formatQuantity",
-          "params": [
-            "value",
-            "maximumFractionDigits"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "formatDate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "formatDateTime",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "directionLabel",
-          "params": [
-            "direction"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "worksheetQuantity",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "scheduleTimestamp",
-          "params": [
-            "item"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "scheduleTime",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "vehicleReadinessLabel",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "noteLines",
-          "params": [
-            "note"
-          ],
-          "returnType": "string[]",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "dispatchStatusLabel",
-          "params": [
-            "status"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "FinanceEvidence",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 27
-        },
-        {
-          "name": "WorkflowBadge",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "accountingConfirmationLabel",
-          "params": [
-            "confirmation"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "safeError",
-          "params": [
-            "error",
-            "fallback"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "toLocalDateTime",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "lineDraft",
-          "params": [
-            "line"
-          ],
-          "returnType": "ContainerLineDraft",
-          "exported": false,
-          "lineCount": 13
-        },
-        {
-          "name": "lineOperationalSignature",
-          "params": [
-            "line"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "idempotencySignature",
-          "params": [
-            "...parts"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "ContainerLineRow",
-          "params": [
-            "{\n  detail,\n  line,\n  onSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onDirtyChange,\n  editing,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 189
-        },
-        {
-          "name": "ContainerLedger",
-          "params": [
-            "{\n  detail,\n  onLineSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onCollapse,\n  onDirtyChange,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 98
-        },
-        {
-          "name": "deriveShipmentSignals",
-          "params": [
-            "item"
-          ],
-          "returnType": "ShipmentSignal[]",
-          "exported": false,
-          "lineCount": 37
-        },
-        {
-          "name": "derivePrimaryShipmentSignal",
-          "params": [
-            "item"
-          ],
-          "returnType": "ShipmentSignal | null",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "ShipmentSignals",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "ShipmentDetailContent",
-          "params": [
-            "{\n  detail,\n  loading,\n  error,\n  onRetry,\n  onLineSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onCollapse,\n  onDirtyChange,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 46
-        },
-        {
-          "name": "ShipmentsPage",
-          "params": [],
-          "exported": true,
-          "lineCount": 1056
-        }
+        "formatMoney",
+        "formatQuantity",
+        "formatDate",
+        "formatDateTime",
+        "directionLabel",
+        "worksheetQuantity",
+        "scheduleTimestamp",
+        "scheduleTime",
+        "vehicleReadinessLabel",
+        "noteLines",
+        "dispatchStatusLabel",
+        "FinanceEvidence",
+        "WorkflowBadge",
+        "accountingConfirmationLabel",
+        "safeError",
+        "toLocalDateTime",
+        "lineDraft",
+        "lineOperationalSignature",
+        "idempotencySignature",
+        "ContainerLineRow",
+        "updateDraft",
+        "save",
+        "ContainerLedger",
+        "requestCollapse",
+        "requestFinishEditing",
+        "discardChanges",
+        "deriveShipmentSignals",
+        "derivePrimaryShipmentSignal",
+        "ShipmentSignals",
+        "ShipmentDetailContent",
+        "ShipmentsPage",
+        "submitSearch",
+        "clearFilters",
+        "updateCustody",
+        "saveTransportDate",
+        "startQuickEdit",
+        "closeQuickEdit",
+        "saveQuickEdit",
+        "openAction",
+        "shipmentActionButton",
+        "closeAction",
+        "submitAction",
+        "exportWorksheet"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useMemo",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "useNavigate",
-            "useSearchParams"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "AlertTriangle",
-            "CalendarClock",
-            "CircleCheck",
-            "CircleDollarSign",
-            "Download",
-            "FileLock2",
-            "Loader2",
-            "Pencil",
-            "Plus",
-            "RotateCcw",
-            "Save",
-            "Search",
-            "Truck",
-            "X"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "SHIPMENT_CUS_BUCKET_LABELS",
-            "SHIPMENT_DOCUMENT_CUSTODY_LABELS",
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody",
-            "Role",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail",
-            "ShipmentCusWorkspaceListItem",
-            "ShipmentCusWorkspaceListResponse"
-          ]
-        },
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../components/shared/Breadcrumbs",
-          "specifiers": [
-            "Breadcrumbs"
-          ]
-        },
-        {
-          "source": "../components/shared/StatusStrip",
-          "specifiers": [
-            "StatusStrip",
-            "StatusSwatch"
-          ]
-        },
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "Drawer",
-            "Modal",
-            "PageHeader"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UUIButton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/input/input",
-          "specifiers": [
-            "UUIInput"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/select/select-native",
-          "specifiers": [
-            "UUINativeSelect"
-          ]
-        },
-        {
-          "source": "../design-system",
-          "specifiers": [
-            "EmptyState",
-            "Pagination",
-            "SearchableSelect"
-          ]
-        },
-        {
-          "source": "../api/shipmentClient",
-          "specifiers": [
-            "getCusShipmentWorkspaceDetail",
-            "confirmCusShipmentFinance",
-            "listCusShipmentWorkspace",
-            "lockCusShipment",
-            "requestCusShipmentReopen",
-            "updateCusShipmentContainerLine",
-            "updateCusShipmentDocumentCustody",
-            "updateShipment"
-          ]
-        },
-        {
-          "source": "../lib/csv",
-          "specifiers": [
-            "downloadCSV"
-          ]
-        },
-        {
-          "source": "../lib/routes",
-          "specifiers": [
-            "routes"
-          ]
-        },
-        {
-          "source": "../hooks/useAuth",
-          "specifiers": [
-            "useAuth"
-          ]
-        },
-        {
-          "source": "./ShipmentsPage.css",
-          "specifiers": []
-        }
+        "react",
+        "react-router-dom",
+        "lucide-react",
+        "@tingting/shared",
+        "../lib/api",
+        "../components/shared/Breadcrumbs",
+        "../components/shared/StatusStrip",
+        "../components/UI",
+        "../components/untitled-ui/base/buttons/button",
+        "../components/untitled-ui/base/input/input",
+        "../components/untitled-ui/base/select/select-native",
+        "../design-system",
+        "../api/shipmentClient",
+        "../lib/csv",
+        "../lib/routes",
+        "../hooks/useAuth"
       ],
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1730,
+      "totalLines": 1814,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
@@ -108481,635 +107365,12 @@
     },
     "shared/src/index.ts": {
       "filePath": "shared/src/index.ts",
-      "contentHash": "3551d178afd047a472771a3c6abdd3c42aa8e7262ed2736c711d3fefe1659792",
+      "contentHash": "81457523bfdcd4f9d8c39e098e03515bd423caf86ec9f594a14e543817693878",
       "functions": [],
       "classes": [],
       "imports": [],
-      "exports": [
-        "TripStatus",
-        "BILLABLE_TRIP_STATUSES",
-        "FuelMode",
-        "LoadingType",
-        "Role",
-        "TxnType",
-        "TrailerType",
-        "TrailerStatus",
-        "TruckStatus",
-        "DriverStatus",
-        "CustomerStatus",
-        "PenaltyStatus",
-        "PENALTY_STATUS_LABELS",
-        "TRAILER_STATUS_LABELS",
-        "TRAILER_TYPE_LABELS",
-        "TIRE_STATUSES",
-        "TIRE_STATUS_LABELS",
-        "TIRE_DISPOSAL_REASONS",
-        "TRIP_STATUS_LABELS",
-        "ROLE_LABELS",
-        "FUEL_MODE_LABELS",
-        "LOADING_TYPE_LABELS",
-        "TRIP_STATUS_COLORS",
-        "DATA_COMPLETENESS_COLORS",
-        "ShipmentStatus",
-        "ShipmentDocumentType",
-        "OperationalSiteType",
-        "ShipmentCusBucket",
-        "ShipmentDocumentCustody",
-        "MasterImportStatus",
-        "MasterImportRowClassification",
-        "ShipmentFulfillmentType",
-        "FulfillmentCancellationDisposition",
-        "TripPodStatus",
-        "TripPodFileType",
-        "DriverProgressEventType",
-        "DRIVER_PROGRESS_EVENT_LABELS",
-        "DRIVER_FULFILLMENT_PROGRESS_SEQUENCE",
-        "TRIP_POD_REQUIRED_FILE_TYPES",
-        "DriverIncidentalCostType",
-        "DRIVER_INCIDENTAL_COST_LABELS",
-        "SHIPMENT_STATUS_LABELS",
-        "SHIPMENT_DOCUMENT_TYPE_LABELS",
-        "canonicalShipmentStatus",
-        "SHIPMENT_CUS_BUCKET_LABELS",
-        "SHIPMENT_DOCUMENT_CUSTODY_LABELS",
-        "AdvanceRequestStatus",
-        "AdvanceSettlementStatus",
-        "ExpenseEntryStatus",
-        "OPS_EXPENSE_TYPE_DEFAULTS",
-        "ADVANCE_REQUEST_STATUS_LABELS",
-        "ADVANCE_SETTLEMENT_STATUS_LABELS",
-        "NO_INVOICE_EVIDENCE_TYPES",
-        "NO_INVOICE_EVIDENCE_TYPE_LABELS",
-        "DEFAULT_NO_INVOICE_EVIDENCE_TYPES",
-        "NO_INVOICE_POLICY_DEFAULTS",
-        "NO_INVOICE_REQUIRED_SCOPE",
-        "NO_INVOICE_APPROVAL_TITLES",
-        "NO_INVOICE_APPROVAL_TITLE_LABELS",
-        "NO_INVOICE_DEFAULT_CATEGORY_ALIASES",
-        "NotificationType",
-        "NOTIFICATION_TYPE_LABELS",
-        "PUSH_RULES",
-        "CONFIG",
-        "FINANCIAL",
-        "REPORTS",
-        "DRIVER",
-        "SYSTEM",
-        "AUTH",
-        "TRIPS",
-        "SHIPMENTS",
-        "CATALOGS",
-        "FORWARDER",
-        "NOTIFICATIONS",
-        "SALARY",
-        "TRACKING",
-        "CarrierType",
-        "SettlementMethod",
-        "ApprovalStatus",
-        "DebitNoteMode",
-        "TruckCapRole",
-        "CARRIER_TYPE_LABELS",
-        "SETTLEMENT_METHOD_LABELS",
-        "APPROVAL_STATUS_LABELS",
-        "TRUCK_CAP_ROLE_LABELS",
-        "FINANCIAL_ROLES",
-        "isFinancialRole",
-        "TIRES",
-        "CustomerAccountType",
-        "SupplierType",
-        "SUPPLIER_TYPES",
-        "SUPPLIER_TYPE_LABELS",
-        "PushAudience",
-        "TireStatus",
-        "NoInvoiceEvidenceType",
-        "NoInvoiceApprovalTitle",
-        "User",
-        "UserPublic",
-        "Driver",
-        "Customer",
-        "Truck",
-        "Trailer",
-        "Route",
-        "CargoType",
-        "PricingTable",
-        "RoadAllowance",
-        "FuelConfig",
-        "FuelPriceHistory",
-        "PenaltyReason",
-        "RoadConfig",
-        "AppSetting",
-        "CompanyInfo",
-        "Trip",
-        "TripLeg",
-        "TripDetail",
-        "TripInstruction",
-        "ShipmentAccountingLockSummary",
-        "LedgerEntry",
-        "Penalty",
-        "TripPairSummary",
-        "TripPairRecord",
-        "TripPairStatus",
-        "TripPairBreakReason",
-        "DriverOrderedPairView",
-        "CapTableHistory",
-        "TruckCapEntry",
-        "Distribution",
-        "ManagementFee",
-        "AuditLog",
-        "Notification",
-        "PushSubscriptionPayload",
-        "CreateTripRequest",
-        "CreateTripPairRequest",
-        "TripPairDraftInput",
-        "TripLegInput",
-        "UpdateTripFiguresRequest",
-        "BulkUpdateTripFiguresRequest",
-        "BulkUpdateTripFiguresResponse",
-        "CreatePaymentRequest",
-        "PaymentAllocationMethod",
-        "PaymentReceiptAllocation",
-        "PaymentReceiptResult",
-        "PaymentReceiptResponse",
-        "CreatePenaltyRequest",
-        "CreateAdjustmentRequest",
-        "LoginResponse",
-        "PaginatedResponse",
-        "CursorPaginatedResponse",
-        "DashboardStats",
-        "DashboardDecisionItem",
-        "DashboardDecisionKind",
-        "DashboardDecisionSeverity",
-        "CustomerStatement",
-        "AgingBucket",
-        "UnpaidTrip",
-        "PeriodSummary",
-        "TreasuryAccountPosition",
-        "TreasuryPosition",
-        "CustomerVisibleEventDto",
-        "RecoverableCostEligibility",
-        "ProfitabilityReportRow",
-        "ProfitabilityReport",
-        "LowMarginState",
-        "DashboardWidgets",
-        "DashboardFleetAttentionItem",
-        "SalaryPeriod",
-        "SalaryPeriodRange",
-        "PnlTruck",
-        "PnlMaintenanceItem",
-        "PnlTripDetail",
-        "PnlReport",
-        "Supplier",
-        "ExpenseCategory",
-        "Expense",
-        "ExpenseWithRefs",
-        "PayableSummary",
-        "PayablesCategory",
-        "SupplierStatement",
-        "RenewalReminder",
-        "VendorPaymentRequest",
-        "TripContainer",
-        "TripExpense",
-        "TripExpenseWithRefs",
-        "ForwarderTripSummary",
-        "ForwarderTripDetail",
-        "ShipmentOrderExchangeStatus",
-        "TripExpenseWithSupplier",
-        "NoInvoicePolicySnapshot",
-        "AdvanceRequest",
-        "AdvanceRequestWithRefs",
-        "AdvanceSettlement",
-        "AdvanceSettlementWithRefs",
-        "ContainerType",
-        "Port",
-        "SealType",
-        "DebtOffset",
-        "ApprovalItemType",
-        "VehicleAlertField",
-        "VehicleAlertStatus",
-        "VehicleAlert",
-        "Tire",
-        "TirePosition",
-        "BillingDocument",
-        "BillingDocumentOfficialIdentitySnapshot",
-        "BillingDocumentLine",
-        "BillingDocumentType",
-        "BillingDocumentEntityType",
-        "BillingLineSourceType",
-        "BillingLineType",
-        "BillingVatTreatment",
-        "BillingVatRate",
-        "BillingDraftBlockedTrip",
-        "BillingDraftEligibilitySummary",
-        "BillingDraftLine",
-        "BillingDocumentDraft",
-        "BillingLineProvenance",
-        "BillingLineProvenanceStatus",
-        "BillingDocumentAuthorityState",
-        "BillingDocumentCorrection",
-        "BillingDocumentAdjustmentRequest",
-        "BillingLineRenderData",
-        "DebitNoteColumnVariable",
-        "DebitNoteTemplateColumn",
-        "DebitNoteTemplate",
-        "DebitNoteTemplateSnapshot",
-        "LiveFleetVehicle",
-        "LiveFleetResponse",
-        "LiveFleetStatus",
-        "LiveFleetDetails",
-        "LiveFleetLeg",
-        "GpsStop",
-        "parseThreshold",
-        "canonicalFreightDescription",
-        "isCompanyInfoConfigured",
-        "financialReportingPolicyRequestSchema",
-        "financialReportingPolicyStateSchema",
-        "truckFinancialProfileRequestSchema",
-        "truckFinancialProfileStateSchema",
-        "FinancialReportingPolicyRequest",
-        "FinancialReportingPolicyState",
-        "TruckFinancialProfileRequest",
-        "TruckFinancialProfileState",
-        "PAGE_CATALOG",
-        "PageCatalogEntry",
-        "StaticPageEntry",
-        "DynamicPageEntry",
-        "PageCatalogKey",
-        "PageSection",
-        "PageAgentMeta",
-        "tripLegSchema",
-        "createTripSchema",
-        "createTripPairSchema",
-        "updateTripFiguresSchema",
-        "bulkUpdateTripFiguresSchema",
-        "createPaymentSchema",
-        "createPenaltySchema",
-        "createAdjustmentSchema",
-        "tripReopenRequestSchema",
-        "loginSchema",
-        "createUserSchema",
-        "updateUserSchema",
-        "updateProfileSchema",
-        "changePasswordSchema",
-        "customerSchema",
-        "customerUpdateSchema",
-        "paymentDatePolicySchema",
-        "businessCalendarDaySchema",
-        "truckSchema",
-        "trailerSchema",
-        "routeSchema",
-        "cargoTypeSchema",
-        "pricingTableSchema",
-        "roadAllowanceSchema",
-        "fuelConfigSchema",
-        "fuelPriceHistorySchema",
-        "fuelNormSchema",
-        "weightPricingTierSchema",
-        "liftPricingSchema",
-        "ancillaryRevenueSchema",
-        "companyInfoSchema",
-        "penaltyReasonSchema",
-        "driverSchema",
-        "managementFeeSchema",
-        "capTableSchema",
-        "truckCapSchema",
-        "salaryPeriodSchema",
-        "salaryPeriodDefaultSchema",
-        "supplierSchema",
-        "expenseCategorySchema",
-        "expenseSchema",
-        "vendorPaymentSchema",
-        "tripContainerSchema",
-        "tripContainerBatchSchema",
-        "tripContainerPatchSchema",
-        "tripContainerSealSchema",
-        "tripContainerSealBatchSchema",
-        "tripExpenseSchema",
-        "baseTripExpenseSchema",
-        "tripExpensePatchSchema",
-        "tripExpenseCompletionSchema",
-        "accountantSettlementExpensePatchSchema",
-        "forwarderExpenseTypeSchema",
-        "noInvoiceEvidenceTypeSchema",
-        "noInvoiceEvidenceTypesSchema",
-        "createAdvanceRequestSchema",
-        "createAdvanceSettlementSchema",
-        "advanceMutationVersionSchema",
-        "updateAdvanceSettlementSchema",
-        "upsertTripInstructionsSchema",
-        "createShipmentSchema",
-        "quickCreateShipmentSchema",
-        "updateShipmentSchema",
-        "transitionShipmentStatusSchema",
-        "attachShipmentDocumentSchema",
-        "shipmentContainerBatchSchema",
-        "dispatchShipmentSchema",
-        "operationalSiteSchema",
-        "decomposeShipmentFulfillmentsSchema",
-        "submitShipmentForDispatchSchema",
-        "assignShipmentCarriersSchema",
-        "shipmentCarrierAllocationSchema",
-        "carrierFleetVehicleSchema",
-        "shipmentAccountingLockSchema",
-        "cancelShipmentFulfillmentSchema",
-        "tripPodFileMetadataSchema",
-        "driverProgressSchema",
-        "driverIncidentalCostSchema",
-        "containerTypeSchema",
-        "portSchema",
-        "sealTypeSchema",
-        "debtOffsetSchema",
-        "ANCILLARY_EXPENSE_TYPES",
-        "commissionSchema",
-        "driverPayoutSchema",
-        "tireSchema",
-        "installTireSchema",
-        "disposeTireSchema",
-        "transferTireSchema",
-        "tirePositionSchema",
-        "generateBillingDocumentSchema",
-        "saveBillingDocumentSchema",
-        "billingDocumentLineSchema",
-        "billingDocumentAdjustmentRequestSchema",
-        "billingDocumentIssueRequestSchema",
-        "debitNoteTemplateSchema",
-        "debitNoteColumnSchema",
-        "debitNoteColumnVariableSchema",
-        "defaultDebitNoteColumns",
-        "defaultPaymentStatementColumns",
-        "bachKhoaVehicleSchema",
-        "bachKhoaResponseSchema",
-        "parseBachKhoaResponse",
-        "agentDirectiveSchema",
-        "agentWidgetSchema",
-        "widgetFormatSchema",
-        "agentActionChipSchema",
-        "agentCitationSchema",
-        "provenanceSchema",
-        "agentResponseSchema",
-        "agentMessageSchema",
-        "agentConversationSchema",
-        "agentEventSchema",
-        "agentRouteKeySchema",
-        "AGENT_ROUTE_KEYS",
-        "ACKED_DIRECTIVE_KINDS",
-        "agentActionResultSchema",
-        "geotagSchema",
-        "GEOTAG_ENTITY_TYPES",
-        "GEOTAG_SOURCES",
-        "GEOTAG_PATHS",
-        "customerVisibleEventContentSchema",
-        "createCustomerVisibleEventSchema",
-        "acknowledgeCustomerEventSchema",
-        "recoverableCostListQuerySchema",
-        "recoverableCostRequestSchema",
-        "sendDebitNoteForConfirmationSchema",
-        "portalDebitNoteDecisionSchema",
-        "directMoneyTreasurySchema",
-        "profitabilityReportQuerySchema",
-        "CUSTOMER_VISIBLE_EVENT_TYPES",
-        "PROFITABILITY_DIMENSIONS",
-        "accountingTransportRegisterQuerySchema",
-        "accountingTransportRegisterRowSchema",
-        "accountingTransportRegisterResponseSchema",
-        "ACCOUNTING_TRANSPORT_OWNERSHIP",
-        "ACCOUNTING_TRANSPORT_READINESS",
-        "shipmentCusWorkspaceQuerySchema",
-        "shipmentCusWorkspaceOperationalSummarySchema",
-        "shipmentCusWorkspaceFinanceSummarySchema",
-        "shipmentCusWorkspaceDocumentCustodySchema",
-        "shipmentCusWorkspaceAccountingConfirmationSchema",
-        "shipmentCusWorkspaceActionSchema",
-        "shipmentCusWorkspaceActiveLockSchema",
-        "shipmentCusWorkspaceListItemSchema",
-        "shipmentCusWorkspacePassThroughChargeSchema",
-        "shipmentCusWorkspaceRecoveryFactSchema",
-        "shipmentCusWorkspaceContainerLineSchema",
-        "shipmentCusWorkspaceDetailSchema",
-        "shipmentCusWorkspaceListResponseSchema",
-        "shipmentCusContainerFlatRowSchema",
-        "shipmentCusContainerFlatResponseSchema",
-        "shipmentCusFinanceConfirmationCreateSchema",
-        "shipmentCusDocumentCustodyUpdateSchema",
-        "shipmentCusLockSchema",
-        "shipmentCusReopenRequestSchema",
-        "shipmentCusReopenDecisionSchema",
-        "shipmentCusContainerLineUpdateSchema",
-        "shipmentCusContainerLineUpdateResultSchema",
-        "shipmentRecoveryRecordSchema",
-        "shipmentRecoveryRecordResultSchema",
-        "ShipmentCusWorkspaceQuery",
-        "ShipmentCusWorkspaceOperationalSummary",
-        "ShipmentCusWorkspaceFinanceSummary",
-        "ShipmentCusWorkspaceDocumentCustody",
-        "ShipmentCusWorkspaceAccountingConfirmation",
-        "ShipmentCusWorkspaceAction",
-        "ShipmentCusWorkspaceActiveLock",
-        "ShipmentCusWorkspaceListItem",
-        "ShipmentCusWorkspacePassThroughCharge",
-        "ShipmentCusWorkspaceRecoveryFact",
-        "ShipmentCusWorkspaceContainerLine",
-        "ShipmentCusWorkspaceDetail",
-        "ShipmentCusWorkspaceListResponse",
-        "ShipmentCusContainerFlatRow",
-        "ShipmentCusContainerFlatResponse",
-        "ShipmentCusFinanceConfirmationCreateInput",
-        "ShipmentCusDocumentCustodyUpdateInput",
-        "ShipmentCusLockInput",
-        "ShipmentCusReopenRequestInput",
-        "ShipmentCusReopenDecisionInput",
-        "ShipmentCusContainerLineUpdateInput",
-        "ShipmentCusContainerLineUpdateResult",
-        "ShipmentRecoveryRecordInput",
-        "ShipmentRecoveryRecordResult",
-        "shipmentChargeProposalFieldSchema",
-        "shipmentChargeProposalReviewSchema",
-        "ShipmentChargeProposalField",
-        "ShipmentChargeProposalReviewInput",
-        "appSettingsSchema",
-        "AppSettings",
-        "EMAIL_SETTINGS_PATHS",
-        "emailSettingsUpdateSchema",
-        "EmailSettingsResponse",
-        "EmailSettingsUpdate",
-        "FUEL_PRICE_PER_LITER_FALLBACK",
-        "FUEL_LOADED_NORM_FALLBACK",
-        "FUEL_EMPTY_NORM_FALLBACK",
-        "ROAD_ALLOWANCE_PER_KM_FALLBACK",
-        "CreateTripInput",
-        "CreateTripPairInput",
-        "UpdateTripFiguresInput",
-        "CreatePaymentInput",
-        "CreatePenaltyInput",
-        "CreateAdjustmentInput",
-        "LoginInput",
-        "CustomerInput",
-        "TruckInput",
-        "TrailerInput",
-        "TirePositionInput",
-        "RouteInput",
-        "CargoTypeInput",
-        "PricingTableInput",
-        "RoadAllowanceInput",
-        "FuelConfigInput",
-        "CompanyInfoInput",
-        "PenaltyReasonInput",
-        "DriverInput",
-        "ManagementFeeInput",
-        "CapTableInput",
-        "TruckCapInput",
-        "SalaryPeriodInput",
-        "SalaryPeriodDefaultInput",
-        "SupplierInput",
-        "ExpenseCategoryInput",
-        "ExpenseInput",
-        "VendorPaymentInput",
-        "CreateUserInput",
-        "UpdateUserInput",
-        "TripContainerInput",
-        "TripExpenseInput",
-        "CreateAdvanceRequestInput",
-        "CreateAdvanceSettlementInput",
-        "UpdateAdvanceSettlementInput",
-        "ContainerTypeInput",
-        "PortInput",
-        "SealTypeInput",
-        "AncillaryExpenseType",
-        "UpdateProfileInput",
-        "CommissionInput",
-        "TireInput",
-        "InstallTireInput",
-        "GenerateBillingDocumentInput",
-        "SaveBillingDocumentInput",
-        "BillingDocumentAdjustmentRequestInput",
-        "BillingDocumentLineInput",
-        "DebitNoteTemplateInput",
-        "DebitNoteColumnInput",
-        "DebitNoteColumnVariableInput",
-        "BachKhoaVehicle",
-        "AgentDirective",
-        "AgentWidget",
-        "WidgetFormat",
-        "AgentActionChip",
-        "AgentCitation",
-        "Provenance",
-        "AgentResponse",
-        "AgentMessage",
-        "AgentConversation",
-        "AgentEvent",
-        "AgentRouteKey",
-        "AckedDirectiveKind",
-        "AgentActionResult",
-        "GeotagInput",
-        "GeotagEntityType",
-        "GeotagSource",
-        "PhotoGeotag",
-        "CreateShipmentInput",
-        "UpdateShipmentInput",
-        "TransitionShipmentStatusInput",
-        "AttachShipmentDocumentInput",
-        "ShipmentContainerBatchInput",
-        "DispatchShipmentInput",
-        "OperationalSiteInput",
-        "DecomposeShipmentFulfillmentsInput",
-        "SubmitShipmentForDispatchInput",
-        "AssignShipmentCarriersInput",
-        "CarrierFleetVehicleInput",
-        "ShipmentAccountingLockInput",
-        "CancelShipmentFulfillmentInput",
-        "TripPodFileMetadataInput",
-        "CustomerVisibleEventContent",
-        "CreateCustomerVisibleEventInput",
-        "AcknowledgeCustomerEventInput",
-        "RecoverableCostListQuery",
-        "RecoverableCostRequestInput",
-        "SendDebitNoteForConfirmationInput",
-        "PortalDebitNoteDecisionInput",
-        "DirectMoneyTreasuryInput",
-        "ProfitabilityDimension",
-        "ProfitabilityReportQuery",
-        "AccountingTransportOwnership",
-        "AccountingTransportReadiness",
-        "AccountingTransportRegisterQuery",
-        "AccountingTransportRegisterRow",
-        "AccountingTransportRegisterResponse",
-        "round2dp",
-        "roundInt",
-        "computeFuelSurcharge",
-        "ComputeFuelSurchargeInput",
-        "ComputeFuelSurchargeResult",
-        "FuelSurchargeSnapshot",
-        "computeTripDriverSalary",
-        "resolveTripDriverSalary",
-        "TRIP_SALARY_WORK_DAYS",
-        "normalizeContainerNumber",
-        "validateContainerFormat",
-        "calculateCheckDigit",
-        "validateCheckDigit",
-        "validateContainerNumber",
-        "suggestCorrections",
-        "computeTripTotals",
-        "computeRoadAllowance",
-        "ComputeTripTotalsInput",
-        "ComputeTripTotalsOutput",
-        "computeFifoAging",
-        "FifoAgingInput",
-        "AgingBuckets",
-        "OpenInvoice",
-        "computeVehicleAlerts",
-        "VEHICLE_ALERT_LABELS",
-        "VehicleAlertInput",
-        "LLM_PROVIDERS",
-        "LLM_PROVIDER_MODELS",
-        "LLM_PROVIDER_LABELS",
-        "LLM_SETTINGS_PATHS",
-        "llmSettingsUpdateSchema",
-        "LlmProvider",
-        "LlmSettingsResponse",
-        "LlmSettingsUpdate",
-        "OCR_SETTINGS_PATHS",
-        "ocrSettingsUpdateSchema",
-        "OcrSettingsResponse",
-        "OcrSettingsUpdate",
-        "GPS_SETTINGS_PATHS",
-        "gpsSettingsUpdateSchema",
-        "GpsSettingsResponse",
-        "GpsSettingsUpdate",
-        "SOURCE_AUTHORITY_KINDS",
-        "DEPENDENT_AUTHORITY_KINDS",
-        "AUTHORITY_FIELD_FAMILIES",
-        "AUTHORITY_MILESTONES",
-        "SOURCE_AUTHORITY_ACTIONS",
-        "SOURCE_AUTHORITY_PAIR_IDS",
-        "SOURCE_AUTHORITY_CATALOG",
-        "SOURCE_AUTHORITY_POLICIES",
-        "findSourceAuthorityPolicy",
-        "getSourceAuthorityActions",
-        "isSourceAuthorityActionAllowed",
-        "GOVERNANCE_SUBJECT_TYPES",
-        "GOVERNANCE_ACTION_KINDS",
-        "GOVERNANCE_ACTION_STATUSES",
-        "GOVERNANCE_CAPABILITIES",
-        "GOVERNANCE_ALLOWED_ACTIONS",
-        "governanceActionVersionSchema",
-        "governanceActionDecisionSchema",
-        "governanceActionListQuerySchema",
-        "GovernanceSubjectType",
-        "GovernanceActionKind",
-        "GovernanceActionStatus",
-        "GovernanceCapability",
-        "GovernanceAllowedAction",
-        "GovernanceActionVersionInput",
-        "GovernanceActionDecisionInput",
-        "GovernanceActionListQuery",
-        "SourceAuthorityKind",
-        "DependentAuthorityKind",
-        "AuthorityFieldFamily",
-        "AuthorityMilestone",
-        "SourceAuthorityAction",
-        "SourceAuthorityPairId",
-        "AuthorityPhase",
-        "SourceAuthorityPolicy"
-      ],
-      "totalLines": 360,
+      "exports": [],
+      "totalLines": 361,
       "hasStructuralAnalysis": true
     },
     "shared/src/navigation/pageCatalog.ts": {
@@ -109216,61 +107477,27 @@
     },
     "shared/src/schemas/cus-shipment-workspace.test.ts": {
       "filePath": "shared/src/schemas/cus-shipment-workspace.test.ts",
-      "contentHash": "983083e6f27ad0fdcdc80ca30cfe4e4426b22e7a0372d95a615009c295ee74a5",
+      "contentHash": "b7388e525b0233cb89ce548102fa6b51b1503b0bceada84361186084a6cd7f0e",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "node:assert/strict",
-          "specifiers": [
-            "assert"
-          ]
-        },
-        {
-          "source": "node:test",
-          "specifiers": [
-            "test"
-          ]
-        },
-        {
-          "source": "./cus-shipment-workspace",
-          "specifiers": [
-            "shipmentCusContainerLineUpdateSchema",
-            "shipmentCusWorkspaceListItemSchema",
-            "shipmentCusWorkspaceQuerySchema"
-          ]
-        },
-        {
-          "source": "../constants",
-          "specifiers": [
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody"
-          ]
-        }
+        "node:assert/strict",
+        "node:test",
+        "./cus-shipment-workspace",
+        "../constants"
       ],
       "exports": [],
-      "totalLines": 256,
+      "totalLines": 292,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/cus-shipment-workspace.ts": {
       "filePath": "shared/src/schemas/cus-shipment-workspace.ts",
-      "contentHash": "09dd211c00abd65c7577629e84972ad0f67f00e289b2b3225c5d246fe2a5f91f",
+      "contentHash": "26961b4794952104054f983cb53dadd310c2db08cf41b3de00736f4f44db9813",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "zod",
-          "specifiers": [
-            "z"
-          ]
-        },
-        {
-          "source": "../constants",
-          "specifiers": [
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody"
-          ]
-        }
+        "zod",
+        "../constants"
       ],
       "exports": [
         "shipmentCusWorkspaceQuerySchema",
@@ -109297,9 +107524,34 @@
         "shipmentRecoveryRecordResultSchema",
         "shipmentCusContainerFlatRowSchema",
         "shipmentCusContainerFlatResponseSchema",
-        "shipmentCusWorkspaceListResponseSchema"
+        "shipmentCusWorkspaceListResponseSchema",
+        "ShipmentCusWorkspaceQuery",
+        "ShipmentCusWorkspaceFinanceSummary",
+        "ShipmentCusWorkspaceOperationalSummary",
+        "ShipmentCusWorkspaceDocumentCustody",
+        "ShipmentCusWorkspaceAccountingConfirmation",
+        "ShipmentCusWorkspaceAction",
+        "ShipmentCusWorkspaceFieldAccess",
+        "ShipmentCusWorkspaceActiveLock",
+        "ShipmentCusWorkspaceListItem",
+        "ShipmentCusWorkspacePassThroughCharge",
+        "ShipmentCusWorkspaceRecoveryFact",
+        "ShipmentCusWorkspaceContainerLine",
+        "ShipmentCusContainerFlatRow",
+        "ShipmentCusContainerFlatResponse",
+        "ShipmentCusWorkspaceDetail",
+        "ShipmentCusWorkspaceListResponse",
+        "ShipmentCusFinanceConfirmationCreateInput",
+        "ShipmentCusDocumentCustodyUpdateInput",
+        "ShipmentCusLockInput",
+        "ShipmentCusReopenRequestInput",
+        "ShipmentCusReopenDecisionInput",
+        "ShipmentCusContainerLineUpdateInput",
+        "ShipmentCusContainerLineUpdateResult",
+        "ShipmentRecoveryRecordInput",
+        "ShipmentRecoveryRecordResult"
       ],
-      "totalLines": 465,
+      "totalLines": 574,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/customer-service-finance.test.ts": {
@@ -112199,214 +110451,58 @@
     },
     "frontend/src/pages/ShipmentsDetailPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "contentHash": "d0e3c43cda3abae4a6a17cb901455d4ae1e3d09c34407146fbfff9e8484c400d",
+      "contentHash": "e55adb4ea78e5775ab4237c3df839e6722a8dbaebcd1a6f40e93c97c7fd98810",
       "functions": [],
-      "classes": [],
+      "classes": [
+        "ApiError"
+      ],
       "imports": [
-        {
-          "source": "@testing-library/react",
-          "specifiers": [
-            "fireEvent",
-            "render",
-            "screen",
-            "waitFor"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "MemoryRouter"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "beforeEach",
-            "describe",
-            "expect",
-            "it",
-            "vi"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentCusContainerFlatResponse",
-            "ShipmentCusWorkspaceDetail"
-          ]
-        },
-        {
-          "source": "../lib/shipment-operations",
-          "specifiers": [
-            "formatVietnamDateInput"
-          ]
-        },
-        {
-          "source": "./ShipmentsDetailPage",
-          "specifiers": [
-            "ShipmentsDetailPage"
-          ]
-        }
+        "@testing-library/react",
+        "react-router-dom",
+        "vitest",
+        "@tingting/shared",
+        "../lib/shipment-operations",
+        "../lib/api",
+        "./ShipmentsDetailPage"
       ],
       "exports": [],
-      "totalLines": 170,
+      "totalLines": 362,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "contentHash": "c0370d49c88f8f88cd7b5fe7ba98c71b225d90eeba279ed2769da63ca65a69af",
+      "contentHash": "413a4d1ff2b8ba6484295c06a8b4aedc77513c653f33a3ec16e6f820465e9178",
       "functions": [
-        {
-          "name": "safeError",
-          "params": [
-            "error",
-            "fallback"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "ShipmentContainerLedgerSkeleton",
-          "params": [],
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "ShipmentsDetailPage",
-          "params": [],
-          "exported": true,
-          "lineCount": 263
-        }
+        "safeError",
+        "canEditMode",
+        "ShipmentContainerLedgerSkeleton",
+        "ShipmentsDetailPage",
+        "resetFilters",
+        "showAllDates"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useMemo",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "AlertCircle",
-            "CalendarDays",
-            "RotateCcw",
-            "Search"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "useSearchParams"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentCusContainerFlatResponse",
-            "ShipmentCusContainerFlatRow",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail"
-          ]
-        },
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../api/shipmentClient",
-          "specifiers": [
-            "getCusShipmentWorkspaceDetail",
-            "listCusShipmentContainers",
-            "updateCusShipmentContainerLine",
-            "updateShipment"
-          ]
-        },
-        {
-          "source": "../components/shared/Breadcrumbs",
-          "specifiers": [
-            "Breadcrumbs"
-          ]
-        },
-        {
-          "source": "../components/shared/Alert",
-          "specifiers": [
-            "Alert"
-          ]
-        },
-        {
-          "source": "../components/shared/Skeleton",
-          "specifiers": [
-            "Skeleton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UUIButton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/input/input",
-          "specifiers": [
-            "UUIInput"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/select/select-native",
-          "specifiers": [
-            "UUINativeSelect"
-          ]
-        },
-        {
-          "source": "../design-system",
-          "specifiers": [
-            "EmptyState",
-            "Pagination"
-          ]
-        },
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "PageHeader"
-          ]
-        },
-        {
-          "source": "../features/shipments/detail/ShipmentContainerLedger",
-          "specifiers": [
-            "ShipmentContainerLedger",
-            "ActiveShipmentDetailEdit",
-            "ShipmentDetailEditMode",
-            "ShipmentNotesDraft",
-            "ShipmentRouteDraft",
-            "ShipmentScheduleDraft",
-            "ShipmentVehicleDraft"
-          ]
-        },
-        {
-          "source": "../lib/shipment-operations",
-          "specifiers": [
-            "formatVietnamDateInput",
-            "localDateTimeToIso"
-          ]
-        },
-        {
-          "source": "./ShipmentsDetailPage.css",
-          "specifiers": []
-        }
+        "react",
+        "lucide-react",
+        "react-router-dom",
+        "@tingting/shared",
+        "../lib/api",
+        "../api/shipmentClient",
+        "../components/shared/Breadcrumbs",
+        "../components/shared/Alert",
+        "../components/shared/Skeleton",
+        "../components/untitled-ui/base/buttons/button",
+        "../components/untitled-ui/base/input/input",
+        "../components/untitled-ui/base/select/select-native",
+        "../design-system",
+        "../components/UI",
+        "../features/shipments/detail/ShipmentContainerLedger",
+        "../lib/shipment-operations"
       ],
       "exports": [
         "ShipmentsDetailPage"
       ],
-      "totalLines": 320,
+      "totalLines": 481,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx": {
@@ -112602,138 +110698,50 @@
     },
     "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx": {
       "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "contentHash": "5dc7b5eb165768656c6002d12bfd05c33ce3ec0253d09b57dbe4b49ddf86b62a",
+      "contentHash": "f75a7a70e4308c49a9a39a47fa7f6bed13ca9c9c5851fd1fd06ac51f22f641c1",
       "functions": [
-        {
-          "name": "directionLabel",
-          "params": [
-            "direction"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "formatDate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "formatScheduleTime",
-          "params": [
-            "row"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "fallback",
-          "params": [
-            "value",
-            "label"
-          ],
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "EditActions",
-          "params": [
-            "{\n  saving,\n  saveDisabled,\n  label,\n  onSave,\n  onCancel,\n}"
-          ],
-          "exported": false,
-          "lineCount": 36
-        },
-        {
-          "name": "InlineEditor",
-          "params": [
-            "{\n  edit,\n  onCancel,\n  onSaveRoute,\n  onSaveVehicle,\n  onSaveSchedule,\n  onSaveNotes,\n}"
-          ],
-          "exported": false,
-          "lineCount": 144
-        },
-        {
-          "name": "ShipmentContainerLedger",
-          "params": [
-            "{\n  rows,\n  totalContainers,\n  today,\n  activeEdit,\n  editLoadingRowId,\n  editError,\n  onStartEdit,\n  onCancelEdit,\n  onSaveRoute,\n  onSaveVehicle,\n  onSaveSchedule,\n  onSaveNotes,\n}"
-          ],
-          "exported": true,
-          "lineCount": 128
-        }
+        "modeLabelForTrigger",
+        "directionLabel",
+        "formatDate",
+        "formatScheduleTime",
+        "formatAppointment",
+        "fallback",
+        "EditActions",
+        "InlineEditor",
+        "save",
+        "ShipmentContainerLedger",
+        "editButton"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useEffect",
-            "useMemo",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "AlertTriangle",
-            "LoaderCircle",
-            "PencilLine",
-            "Save",
-            "X"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentCusContainerFlatRow",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/badges/badges",
-          "specifiers": [
-            "BadgeWithDot"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UUIButton"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/textarea/textarea",
-          "specifiers": [
-            "UUITextArea"
-          ]
-        },
-        {
-          "source": "../../../design-system",
-          "specifiers": [
-            "SearchableSelect"
-          ]
-        },
-        {
-          "source": "../../../lib/shipment-operations",
-          "specifiers": [
-            "formatVietnamDateTimeInput"
-          ]
-        }
+        "react",
+        "lucide-react",
+        "@tingting/shared",
+        "../../../components/untitled-ui/base/badges/badges",
+        "../../../components/untitled-ui/base/buttons/button",
+        "../../../components/untitled-ui/base/textarea/textarea",
+        "../../../design-system",
+        "../../../lib/shipment-operations"
       ],
       "exports": [
+        "ShipmentDetailEditMode",
+        "ActiveShipmentDetailEdit",
+        "ShipmentRouteDraft",
+        "ShipmentIdentityDraft",
+        "ShipmentDocumentsDraft",
+        "ShipmentContainerDraft",
+        "ShipmentVehicleDraft",
+        "ShipmentScheduleDraft",
+        "ShipmentAppointmentDraft",
+        "ShipmentNotesDraft",
         "ShipmentContainerLedger"
       ],
-      "totalLines": 402,
+      "totalLines": 579,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.styles.test.ts": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "contentHash": "3ebb14dc56d6285210c7038d6fc1201eb685483415ba70bb10477726f4a71550",
+      "contentHash": "6a68156983424081fe57685c81bcae8289dc7d43cbaa3d9055f2190408b70b3b",
       "functions": [],
       "classes": [],
       "imports": [
@@ -112759,7 +110767,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 26,
+      "totalLines": 29,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts": {
