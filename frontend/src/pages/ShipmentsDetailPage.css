@@ -138,6 +138,7 @@
 .shipment-container-summary__attention dd { color: var(--warning-text); }
 
 .shipment-container-ledger {
+  position: relative;
   max-height: min(62vh, 740px);
   min-width: 0;
   overflow: auto;
@@ -297,16 +298,32 @@
   .shipment-container-ledger colgroup { display: none; }
   .shipment-container-ledger thead {
     position: absolute;
+    top: 0;
+    left: 0;
     width: 1px;
     height: 1px;
-    margin: -1px;
+    margin: 0;
     padding: 0;
     overflow: hidden;
     clip: rect(0 0 0 0);
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
   }
-  .shipment-container-ledger thead th { position: static; }
+  .shipment-container-ledger thead tr,
+  .shipment-container-ledger thead th {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    border: 0;
+  }
   .shipment-container-ledger tbody > tr {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
