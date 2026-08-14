@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "aa12dbbd407de31796ff4963df54eed62e75c322",
-  "generatedAt": "2026-08-14T14:45:04.773Z",
+  "gitCommitHash": "1ab1a4f39cef0fa3140ee3a428e5ef930bdb8f00",
+  "generatedAt": "2026-08-14T15:43:10.617Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -55,32 +55,32 @@
     },
     ".ua/fingerprints.json": {
       "filePath": ".ua/fingerprints.json",
-      "contentHash": "ec9d3024c88e4bf37928bf2f53037586ae3195483aeab63368a05adbbe8ba19f",
+      "contentHash": "0ba5f985ed5b114d0d4555677853cdf0e0e3f5589ed574400758ceee8a0be80b",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 110048,
+      "totalLines": 112754,
       "hasStructuralAnalysis": true
     },
     ".ua/knowledge-graph.json": {
       "filePath": ".ua/knowledge-graph.json",
-      "contentHash": "68f24a395df1859215336ef44db61cf947e1be73c80c4ab7ff0c6272dce6e603",
+      "contentHash": "2648e72e31c35a7a7fcfbf92db91c722187cac4a7ea4f279eccdeae1e7d63c15",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 146635,
+      "totalLines": 148457,
       "hasStructuralAnalysis": true
     },
     ".ua/meta.json": {
       "filePath": ".ua/meta.json",
-      "contentHash": "560b082c87a341360a52577a160b9cf1c915b5f73bbb95b424ecb72b59437bd7",
+      "contentHash": "33cf760b44bc2354683f9f7a8e940191746af9e13ea3338cf44e0b4e8861620e",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 6,
+      "totalLines": 7,
       "hasStructuralAnalysis": true
     },
     ".zcode/config.json": {
@@ -135,12 +135,12 @@
     },
     "Makefile": {
       "filePath": "Makefile",
-      "contentHash": "f95ea46aa214d975a27b831a461f3df1851d88d7ec0e294b825ff220f0f2f689",
+      "contentHash": "627350ac3bcfe693ed78ed13322c84c4a622df32d854c381a99fc0a6d484de10",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 200,
+      "totalLines": 202,
       "hasStructuralAnalysis": true
     },
     "ROADMAP.md": {
@@ -19381,7 +19381,7 @@
     },
     "backend/src/services/cus-shipment-workspace.service.ts": {
       "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "contentHash": "70f4e4d37ffe7950751978af60268a128535e23a094c905bfbe779b446e92b0e",
+      "contentHash": "63bc74e73e56befd389055bc2198467be8820298082af5dcdf1cbe4124f24cab",
       "functions": [
         {
           "name": "toNumber",
@@ -19614,13 +19614,31 @@
           "lineCount": 20
         },
         {
+          "name": "buildShipmentPageConditions",
+          "params": [
+            "query",
+            "actor",
+            "searchMode"
+          ],
+          "exported": false,
+          "lineCount": 70
+        },
+        {
           "name": "loadShipmentPage",
           "params": [
             "query",
             "actor"
           ],
           "exported": false,
-          "lineCount": 75
+          "lineCount": 25
+        },
+        {
+          "name": "loadActorScopedCustomerOptions",
+          "params": [
+            "actor"
+          ],
+          "exported": false,
+          "lineCount": 15
         },
         {
           "name": "listCusShipmentWorkspace",
@@ -19650,7 +19668,7 @@
           ],
           "returnType": "Promise<ShipmentCusContainerFlatResponse>",
           "exported": true,
-          "lineCount": 38
+          "lineCount": 91
         },
         {
           "name": "requireWorkspaceWriter",
@@ -19820,7 +19838,7 @@
         "listCusShipmentContainers",
         "updateCusShipmentContainerLine"
       ],
-      "totalLines": 1603,
+      "totalLines": 1695,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/customer-receivable-authority.service.ts": {
@@ -36137,7 +36155,7 @@
     },
     "backend/src/services/shipment-intake.service.ts": {
       "filePath": "backend/src/services/shipment-intake.service.ts",
-      "contentHash": "2c1673628d708bd5206dc38c51bd26ebf629322482f7fc3ae0c8c35da4ef6879",
+      "contentHash": "b37a4395525fecec3d88659036a94e21ccac2b2dab3facf922874117d8ac3015",
       "functions": [
         {
           "name": "containerSizeBucket",
@@ -36204,7 +36222,7 @@
           ],
           "returnType": "Promise<void>",
           "exported": false,
-          "lineCount": 48
+          "lineCount": 50
         },
         {
           "name": "submitShipmentForDispatch",
@@ -36212,7 +36230,7 @@
             "input"
           ],
           "exported": true,
-          "lineCount": 93
+          "lineCount": 97
         },
         {
           "name": "assignShipmentCarriers",
@@ -36313,7 +36331,7 @@
         "submitShipmentForDispatch",
         "assignShipmentCarriers"
       ],
-      "totalLines": 539,
+      "totalLines": 545,
       "hasStructuralAnalysis": true
     },
     "backend/src/services/shipment-recovery.service.ts": {
@@ -44202,7 +44220,7 @@
     },
     "backend/src/tests/cus-shipment-workspace.test.ts": {
       "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "contentHash": "f6e661c1e8408b35cd83bba15d28cf21dfd8b1582f77c75a1b4f27b2f271bf20",
+      "contentHash": "6d0be6c804d3b7d35bd10950fdd0d33d5e0002afab06cc9bdd6dfb2cb8662903",
       "functions": [
         {
           "name": "seedContainerType",
@@ -44299,7 +44317,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 276,
+      "totalLines": 305,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/customer-commission-validation.test.ts": {
@@ -62764,7 +62782,7 @@
     },
     "backend/src/tests/shipment-intake-submit.test.ts": {
       "filePath": "backend/src/tests/shipment-intake-submit.test.ts",
-      "contentHash": "7a4091d4a68c1210bfc5f71856d89f5a46c279a24e2386629f3fd1394626a4fc",
+      "contentHash": "743dd556e3f90cb27e0ba1c01a26bd98f6833275a90e0744ff99b0ff0cc2003b",
       "functions": [
         {
           "name": "actor",
@@ -62852,7 +62870,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 329,
+      "totalLines": 415,
       "hasStructuralAnalysis": true
     },
     "backend/src/tests/shipment-quick-create.test.ts": {
@@ -65749,7 +65767,7 @@
     },
     "docs/prd/quytrinh-o2c-qa-test-plan.md": {
       "filePath": "docs/prd/quytrinh-o2c-qa-test-plan.md",
-      "contentHash": "637a591011785853f16d9d0a6a5992aa70a156f0520a73a9713ce34dd6f8d09f",
+      "contentHash": "ab6a6920fa916eb3425c185547cc01be959c4c290ffc0dfe1aa1cd6616c65037",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65759,7 +65777,7 @@
     },
     "docs/prd/sidebar-organization-by-role.txt": {
       "filePath": "docs/prd/sidebar-organization-by-role.txt",
-      "contentHash": "ad14a702513ec0cb40adf4ed97aafaebc96f027ecf24975c245a9f5b57186f35",
+      "contentHash": "34c0114cf7f7aaf5a17be52191b2a4f564b949bb7cb98a3a98253192bd0d72c3",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65849,7 +65867,7 @@
     },
     "docs/quytrinh/HUONG-DAN-KIEM-THU-O2C-STAGING.md": {
       "filePath": "docs/quytrinh/HUONG-DAN-KIEM-THU-O2C-STAGING.md",
-      "contentHash": "45c282a0636a7ce1e6ef8af62b03e5a3f9c99372b4330a00cd89069fdefaa0d5",
+      "contentHash": "20e9387fb835a676c2c069a863a42b43790387611d37b08395b463c261485f2b",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65859,7 +65877,7 @@
     },
     "docs/regression-testing/00-cross-cutting.md": {
       "filePath": "docs/regression-testing/00-cross-cutting.md",
-      "contentHash": "db65eeecf09837800675375b3641aee1b7f50bd744a484443a371f46be39f16e",
+      "contentHash": "9ca79c31f92ec11f96dbeb1bd12910b6c150e21f857d2a57bd417eed5880d4eb",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65959,7 +65977,7 @@
     },
     "docs/regression-testing/10-module-10-clerk-app.md": {
       "filePath": "docs/regression-testing/10-module-10-clerk-app.md",
-      "contentHash": "e7f5c965c38976a6358464b06ab2b45981d4d8540bb2b68649f6739f49afc483",
+      "contentHash": "5b0118662739027d3da23d491c95691690dc21b41507b85ff71fbf52ecf24c6b",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65989,7 +66007,7 @@
     },
     "docs/regression-testing/13-customer-service-finance-visual-workflow.md": {
       "filePath": "docs/regression-testing/13-customer-service-finance-visual-workflow.md",
-      "contentHash": "5b886e82f55057bf1d86e99342677717461310ccf6f970b249261d2d310ec876",
+      "contentHash": "1e6a0062bef595b77fcd8bb1f75e8fd4b7486c68cce321ef3b48175b2403d1f5",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -65999,7 +66017,7 @@
     },
     "docs/regression-testing/14-order-to-cash-workflow.md": {
       "filePath": "docs/regression-testing/14-order-to-cash-workflow.md",
-      "contentHash": "fc63614731f26ce8f2c7fd21ccb79d4b2cfa3431e6e138288254c1d7d8ad1a15",
+      "contentHash": "2011f732264a706b2527f7a9480412b7540310982e540e95037d31ccc4c38814",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -66009,7 +66027,7 @@
     },
     "docs/regression-testing/15-navigation-menu-by-role.md": {
       "filePath": "docs/regression-testing/15-navigation-menu-by-role.md",
-      "contentHash": "7bd4d4b39f909c3e28cad90294b43f7b29b5ee60e0c8192cab1d58d07f48776c",
+      "contentHash": "f0c67ff132cea7a16c0501b67d2d5c9bf718dbe05fe82876fd73a102cb2de022",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -66029,7 +66047,7 @@
     },
     "docs/regression-testing/README.md": {
       "filePath": "docs/regression-testing/README.md",
-      "contentHash": "8466519eca0aceccd279d4737877d274097fe61a58fcbf68cb6d765a25e34247",
+      "contentHash": "00c4b67a36511f58ba2032c1652c6f9fc617f24d49d179e09f1eea25de2120da",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -66136,7 +66154,7 @@
     },
     "frontend/eslint.config.js": {
       "filePath": "frontend/eslint.config.js",
-      "contentHash": "d66ff4aaf553f80e5726fe7dc1e26ecf37a4e3c284e8baa751c846f2777901ab",
+      "contentHash": "fed9e16f0782fa0816f8a3e595aefbea148600eaf4d50c0a7cad8283ead08ed0",
       "functions": [],
       "classes": [],
       "imports": [
@@ -66178,7 +66196,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 203,
+      "totalLines": 213,
       "hasStructuralAnalysis": true
     },
     "frontend/index.html": {
@@ -66213,12 +66231,12 @@
     },
     "frontend/package.json": {
       "filePath": "frontend/package.json",
-      "contentHash": "ef8923c344a645f1f8674b5fc5173d4b68e834a6832f2063bb6ea84c1dcad262",
+      "contentHash": "b911fa2a2bbf077e3d69b5049fe648bdf8eeb92cc6f36603f61a07c0a97d0c78",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 68,
+      "totalLines": 71,
       "hasStructuralAnalysis": true
     },
     "frontend/playwright.config.ts": {
@@ -66697,7 +66715,7 @@
     },
     "frontend/src/App.shipment-operations-route.test.tsx": {
       "filePath": "frontend/src/App.shipment-operations-route.test.tsx",
-      "contentHash": "53429a4c078e10a5328951e0efccab7dc030461383c0b58f6b58d8d0ba55cdc9",
+      "contentHash": "791fa6561e2dc2b25b516a4da01a586a9800b4606902f61f9bbaf424dde8d5d6",
       "functions": [
         {
           "name": "renderRoute",
@@ -66754,12 +66772,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 152,
+      "totalLines": 147,
       "hasStructuralAnalysis": true
     },
     "frontend/src/App.tsx": {
       "filePath": "frontend/src/App.tsx",
-      "contentHash": "f4d99b46e034e48d21f3e6ce7f8e893deeff7ec0391d78e0a8ef19df21865ade",
+      "contentHash": "52e18c668d615ea5fa0a201321407f38dbf15baa2e048972a5a38b5986355151",
       "functions": [
         {
           "name": "legacyAdvanceSettlementsTarget",
@@ -66786,7 +66804,7 @@
           "name": "AppRoutes",
           "params": [],
           "exported": true,
-          "lineCount": 225
+          "lineCount": 217
         },
         {
           "name": "App",
@@ -66901,7 +66919,7 @@
         "AppRoutes",
         "App"
       ],
-      "totalLines": 365,
+      "totalLines": 357,
       "hasStructuralAnalysis": true
     },
     "frontend/src/__test_no_any.ts": {
@@ -68033,7 +68051,7 @@
     },
     "frontend/src/api/shipmentClient.ts": {
       "filePath": "frontend/src/api/shipmentClient.ts",
-      "contentHash": "8f70e1a032187272d7f8b77ad7ab37bf9c2e879b899c9aadd26d8bc630e39afd",
+      "contentHash": "e3d16f4da88407b30f9ebaaae0895e605b84a59eda5ca3778ed1a03f180636d5",
       "functions": [
         {
           "name": "quickCreateShipment",
@@ -68245,7 +68263,7 @@
           ],
           "returnType": "Promise<ShipmentCusWorkspaceListResponse>",
           "exported": true,
-          "lineCount": 14
+          "lineCount": 15
         },
         {
           "name": "listCusShipmentContainers",
@@ -68254,7 +68272,7 @@
           ],
           "returnType": "Promise<ShipmentCusContainerFlatResponse>",
           "exported": true,
-          "lineCount": 14
+          "lineCount": 15
         },
         {
           "name": "getCusShipmentWorkspaceDetail",
@@ -68387,7 +68405,7 @@
         "requestCusShipmentReopen",
         "dispatchShipment"
       ],
-      "totalLines": 829,
+      "totalLines": 832,
       "hasStructuralAnalysis": true
     },
     "frontend/src/api/systemClient.ts": {
@@ -68773,7 +68791,7 @@
     },
     "frontend/src/components/Layout.test.ts": {
       "filePath": "frontend/src/components/Layout.test.ts",
-      "contentHash": "7772bc5b6be9ace3220c448873e78b698daeafcd66aa541cde009e90455e023b",
+      "contentHash": "4ad3a01f875fb74eae813aea64654fc8ebe012d5680ba2d8b0ed8bcd156205f2",
       "functions": [],
       "classes": [],
       "imports": [
@@ -68807,7 +68825,7 @@
     },
     "frontend/src/components/Layout.tsx": {
       "filePath": "frontend/src/components/Layout.tsx",
-      "contentHash": "afb5acbceccb2377817cc620a7418a2c42d7f2194bc0af26c296d207dc4ebc77",
+      "contentHash": "519227f2dc30dc3f41652cf02bda54facb4e7bed13e903748231142de42cc30a",
       "functions": [
         {
           "name": "getDefaultOpenSection",
@@ -71080,7 +71098,7 @@
     },
     "frontend/src/components/debt/PeriodSummaryCards.tsx": {
       "filePath": "frontend/src/components/debt/PeriodSummaryCards.tsx",
-      "contentHash": "8d7f8afe2172f67c0a809621c1dfde40b0c12821ac990249585b11632f8f382d",
+      "contentHash": "06e3136a95b1328eae31d0ca7b0ed4de9048c5b75daa2d7065c32ed4440457ca",
       "functions": [
         {
           "name": "PeriodSummaryCards",
@@ -71117,7 +71135,7 @@
       "exports": [
         "PeriodSummaryCards"
       ],
-      "totalLines": 96,
+      "totalLines": 97,
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/finance/ProfitabilityReportPanel.test.tsx": {
@@ -71815,12 +71833,12 @@
     },
     "frontend/src/components/layout/sidebar.css": {
       "filePath": "frontend/src/components/layout/sidebar.css",
-      "contentHash": "cf6b12ef29c9acce91d1ff7739c3845a5d5bf8de1d7450a1105c0cd1a2872e8e",
+      "contentHash": "baf00f99bccbb2e716061240c85ee5c61d038edde9d1ad74a94bdeea99f10aa1",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 445,
+      "totalLines": 449,
       "hasStructuralAnalysis": false
     },
     "frontend/src/components/layout/topbar.css": {
@@ -76474,7 +76492,7 @@
     },
     "frontend/src/data/searchRegistry.ts": {
       "filePath": "frontend/src/data/searchRegistry.ts",
-      "contentHash": "80d22fa8ffc0df817376dc5e621e1445ed431abbd2e19284a90431198bc3d783",
+      "contentHash": "a08ffd2b462dfa01cba1494b97087955679d53d97a6c3f1b4a469674229e5cb8",
       "functions": [
         {
           "name": "normalise",
@@ -80847,15 +80865,15 @@
     },
     "frontend/src/features/shipments/create/ShipmentContainerEditor.tsx": {
       "filePath": "frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
-      "contentHash": "b68076e3ec0b51a6a2333eef3f69d2d90be4e83ed3cb85a825c8cc2c56c8a7e3",
+      "contentHash": "e0c1f313b08b58f8a47c2b7c5da7af9a4446879904ae719027db1e2eb1147c86",
       "functions": [
         {
           "name": "ShipmentContainerEditor",
           "params": [
-            "{ allocationSummary, allocationControl, rows, saving, onAdd }"
+            "{ rows, saving, onAdd }"
           ],
           "exported": true,
-          "lineCount": 14
+          "lineCount": 10
         }
       ],
       "classes": [],
@@ -80876,7 +80894,7 @@
       "exports": [
         "ShipmentContainerEditor"
       ],
-      "totalLines": 27,
+      "totalLines": 21,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/ShipmentCreateSections.tsx": {
@@ -80917,24 +80935,15 @@
     },
     "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx": {
       "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "contentHash": "878113c53589de8260e5c3885b8ac90b9eb518274da9f2e91f0c24f2578b6e1c",
+      "contentHash": "c65c4ba39262c8e047512732bd1a9d3310112afb082afb9ba2fc0d45724b89a5",
       "functions": [
-        {
-          "name": "formatVnd",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 4
-        },
         {
           "name": "ShipmentCreateSummary",
           "params": [
-            "{\n  readiness,\n  validationIssues,\n  pricingProjection,\n  pricingLoading,\n  pricingError,\n  saving,\n  submitError,\n  onNavigateSection,\n  onFocusIssue,\n  onSaveDraft,\n  onSubmitDispatch,\n}"
+            "{\n  readiness,\n  validationIssues,\n  saving,\n  submitError,\n  onNavigateSection,\n  onFocusIssue,\n  onSaveDraft,\n  onSubmitDispatch,\n}"
           ],
           "exported": true,
-          "lineCount": 140
+          "lineCount": 88
         }
       ],
       "classes": [],
@@ -80956,12 +80965,6 @@
           ]
         },
         {
-          "source": "../../../api/shipmentClient",
-          "specifiers": [
-            "ShipmentPricingProjection"
-          ]
-        },
-        {
           "source": "../../../components/shared/StatusStrip",
           "specifiers": [
             "StatusStrip"
@@ -80980,38 +80983,18 @@
       "exports": [
         "ShipmentCreateSummary"
       ],
-      "totalLines": 171,
+      "totalLines": 110,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx": {
       "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "contentHash": "fc18e4fe2cb89361a0716701aa5e0b5d65b933ce890ea993536c5400509b80db",
+      "contentHash": "a0300ececa9e37f274afaf951c5bd80554b724d531d64bd1a9e5f8780a6bf937",
       "functions": [
         {
-          "name": "inferContainerBucket",
-          "params": [
-            "label"
-          ],
-          "returnType": "20 | 40 | null",
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "carrierValidationMessage",
-          "params": [
-            "validation"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
           "name": "ShipmentCreateWorkspace",
-          "params": [
-            "{\n  embedded = false,\n  onCancel,\n  onDirtyChange,\n  onSaved,\n}"
-          ],
+          "params": [],
           "exported": true,
-          "lineCount": 616
+          "lineCount": 460
         }
       ],
       "classes": [],
@@ -81071,9 +81054,7 @@
           "source": "../../../api/shipmentClient",
           "specifiers": [
             "listOperationalSites",
-            "getShipmentPricingPreview",
-            "OperationalSite",
-            "ShipmentPricingProjection"
+            "OperationalSite"
           ]
         },
         {
@@ -81086,23 +81067,6 @@
           "source": "../../../components/shipment/OperationalSiteCreateDialog",
           "specifiers": [
             "OperationalSiteCreateDialog"
-          ]
-        },
-        {
-          "source": "../../../components/shipment/CarrierAllocationDialog",
-          "specifiers": [
-            "CarrierAllocationDialog"
-          ]
-        },
-        {
-          "source": "../../../components/shipment/CarrierAllocationSummary",
-          "specifiers": [
-            "CarrierAllocationSummary",
-            "carrierOptionKey",
-            "CarrierAllocationDemand",
-            "CarrierAllocationOption",
-            "CarrierAllocationValue",
-            "validateCarrierAllocations"
           ]
         },
         {
@@ -81157,12 +81121,12 @@
       "exports": [
         "ShipmentCreateWorkspace"
       ],
-      "totalLines": 699,
+      "totalLines": 504,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/shipment-create-model.test.ts": {
       "filePath": "frontend/src/features/shipments/create/shipment-create-model.test.ts",
-      "contentHash": "99d073e67c01cd45aea7c73e9f30be959b47115537361e4041316c3c118a53b0",
+      "contentHash": "36050fe0565ac883f7b196d46c8cf94e318ec6905320bb200ac605da4b5b2388",
       "functions": [],
       "classes": [],
       "imports": [
@@ -81189,12 +81153,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 212,
+      "totalLines": 214,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/shipment-create-model.ts": {
       "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "contentHash": "e144bbd9ac6abc54961a0943efd82e12ec25736de729a781df2fb79ec697f238",
+      "contentHash": "313f9b310a8fca3f6ef9e9ba494fc2f9ac0f617223df1429830b0bdd03b0c512",
       "functions": [
         {
           "name": "createEmptyContainer",
@@ -81218,12 +81182,11 @@
           "name": "getShipmentCreateReadiness",
           "params": [
             "form",
-            "containers",
-            "carrierAllocationError"
+            "containers"
           ],
           "returnType": "ShipmentCreateReadiness",
           "exported": true,
-          "lineCount": 74
+          "lineCount": 66
         },
         {
           "name": "validateShipmentCreate",
@@ -81243,7 +81206,7 @@
             "sites"
           ],
           "exported": true,
-          "lineCount": 36
+          "lineCount": 34
         },
         {
           "name": "buildShipmentContainerPayload",
@@ -81278,12 +81241,12 @@
         "buildShipmentRootPayload",
         "buildShipmentContainerPayload"
       ],
-      "totalLines": 268,
+      "totalLines": 258,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/use-shipment-create-workflow.ts": {
       "filePath": "frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
-      "contentHash": "92d95083ac074676f1287536e230129c70cfe70aa76ae3bdb0c4c62269c79021",
+      "contentHash": "c4347c1ef7fab7c547f0b018f476885fb24a15816f65fb6b70bcdb27eff5ef3d",
       "functions": [
         {
           "name": "signature",
@@ -81302,20 +81265,12 @@
           "lineCount": 3
         },
         {
-          "name": "allocationPayload",
-          "params": [
-            "rows"
-          ],
-          "exported": false,
-          "lineCount": 9
-        },
-        {
           "name": "useShipmentCreateWorkflow",
           "params": [
-            "{\n  form,\n  containers,\n  sites,\n  carrierAllocations,\n  readiness,\n  onValidationIssues,\n  onSaved,\n  customerNotes,\n}"
+            "{\n  form,\n  containers,\n  sites,\n  readiness,\n  onValidationIssues,\n  onSaved,\n  customerNotes,\n}"
           ],
           "exported": true,
-          "lineCount": 119
+          "lineCount": 117
         }
       ],
       "classes": [],
@@ -81359,12 +81314,6 @@
           ]
         },
         {
-          "source": "../../../components/shipment/CarrierAllocationSummary",
-          "specifiers": [
-            "CarrierAllocationValue"
-          ]
-        },
-        {
           "source": "./shipment-create-model",
           "specifiers": [
             "buildShipmentContainerPayload",
@@ -81381,7 +81330,7 @@
       "exports": [
         "useShipmentCreateWorkflow"
       ],
-      "totalLines": 196,
+      "totalLines": 182,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/tires/tire-controls.tsx": {
@@ -89261,12 +89210,12 @@
     },
     "frontend/src/index.css": {
       "filePath": "frontend/src/index.css",
-      "contentHash": "d2b0a51e406d6b7e476956ad4fa2004cf9394530932e320ef791f94fe5f1888c",
+      "contentHash": "d4146e2359f788f1461f25ce364f9f06d8067f65d0d377a10770c353049bdbed",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 36,
+      "totalLines": 37,
       "hasStructuralAnalysis": false
     },
     "frontend/src/internal-product-copy.test.ts": {
@@ -91198,7 +91147,7 @@
     },
     "frontend/src/lib/routes.test.ts": {
       "filePath": "frontend/src/lib/routes.test.ts",
-      "contentHash": "51c0a8458a8b000e6a66261856fdd062809f5fbf870bc00578b82f8afd9a14c3",
+      "contentHash": "d0ad476972dcc3d1491f6af48bf33fab20c8dfed37728408f37ebebd6664617d",
       "functions": [],
       "classes": [],
       "imports": [
@@ -91231,13 +91180,14 @@
     },
     "frontend/src/lib/routes.ts": {
       "filePath": "frontend/src/lib/routes.ts",
-      "contentHash": "c4fc3305ad950f4fb6927b960dd1300e9511f563ce901b9e710147174fcae903",
+      "contentHash": "0bf6e20ef827e17b473248521f87e08be5dff92bcf355cb03e68a05498452bf0",
       "functions": [
         {
           "name": "homeForRole",
           "params": [
             "role"
           ],
+          "returnType": "string",
           "exported": true,
           "lineCount": 22
         },
@@ -91246,6 +91196,7 @@
           "params": [
             "pathname"
           ],
+          "returnType": "string",
           "exported": true,
           "lineCount": 5
         },
@@ -91254,6 +91205,7 @@
           "params": [
             "path"
           ],
+          "returnType": "string",
           "exported": true,
           "lineCount": 3
         }
@@ -91489,7 +91441,7 @@
     },
     "frontend/src/main.tsx": {
       "filePath": "frontend/src/main.tsx",
-      "contentHash": "e98cab719b93739ed30b442879fd480df7e50f650f038cf090e71969404d7c57",
+      "contentHash": "f6e85b2e70a9ba9a1361d3802c785781b7bb699fc138735eb320b37f854c2f42",
       "functions": [],
       "classes": [],
       "imports": [
@@ -91541,14 +91493,10 @@
         {
           "source": "./index.css",
           "specifiers": []
-        },
-        {
-          "source": "@/styles/globals.css",
-          "specifiers": []
         }
       ],
       "exports": [],
-      "totalLines": 57,
+      "totalLines": 56,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/AccountingWorkspacePage.css": {
@@ -92455,12 +92403,12 @@
     },
     "frontend/src/pages/CreditOverrideQueuePage.css": {
       "filePath": "frontend/src/pages/CreditOverrideQueuePage.css",
-      "contentHash": "dd80487c5cc047751a8d5368baf41e25c5c1b9752c06d48185612214d394dadc",
+      "contentHash": "769d9844b783217e9a49eb2498ec9fdbae6d7b36db09f0a7df9c908f9de2e224",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 668,
+      "totalLines": 681,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/CreditOverrideQueuePage.test.tsx": {
@@ -97637,7 +97585,7 @@
       "exports": [
         "RecoverableCostsPage"
       ],
-      "totalLines": 14,
+      "totalLines": 15,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SalaryAttendancePage.css": {
@@ -98290,12 +98238,12 @@
     },
     "frontend/src/pages/ShipmentsPage.css": {
       "filePath": "frontend/src/pages/ShipmentsPage.css",
-      "contentHash": "d186bc97fee913fcaeca205c647742ca256863e690ce46a6e34198d838754a87",
+      "contentHash": "33194c0d626eab5ff89f0fd44ab4daeff394f1d4514907b04446708a8de4ee62",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1402,
+      "totalLines": 1651,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ShipmentsPage.density.test.ts": {
@@ -98329,86 +98277,9 @@
       "totalLines": 49,
       "hasStructuralAnalysis": true
     },
-    "frontend/src/pages/ShipmentsPage.embedded-create.test.tsx": {
-      "filePath": "frontend/src/pages/ShipmentsPage.embedded-create.test.tsx",
-      "contentHash": "e97eb2d3d61ef7465abaf22b73a9d776f22e1fe0900760e0ac4f3389dbdb4ef4",
-      "functions": [
-        {
-          "name": "listResponse",
-          "params": [
-            "items"
-          ],
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "renderPage",
-          "params": [
-            "path"
-          ],
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "chooseSearchable",
-          "params": [
-            "label",
-            "value"
-          ],
-          "exported": false,
-          "lineCount": 16
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "@testing-library/react",
-          "specifiers": [
-            "fireEvent",
-            "render",
-            "screen",
-            "waitFor",
-            "within"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "MemoryRouter"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "beforeEach",
-            "describe",
-            "expect",
-            "it",
-            "vi"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody",
-            "ShipmentCusWorkspaceListItem"
-          ]
-        },
-        {
-          "source": "./ShipmentsPage",
-          "specifiers": [
-            "ShipmentsPage"
-          ]
-        }
-      ],
-      "exports": [],
-      "totalLines": 277,
-      "hasStructuralAnalysis": true
-    },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "fc0b9047886d647dd2d5730cda4344b16cebf71c5706d9df84bd749318880cbf",
+      "contentHash": "dcd9ae1ef7037d07ff8b436c5b75f928c32ed08c5baaae411c148c6edc249a0f",
       "functions": [
         {
           "name": "listResponse",
@@ -98424,7 +98295,7 @@
             "path"
           ],
           "exported": false,
-          "lineCount": 3
+          "lineCount": 10
         },
         {
           "name": "masterRow",
@@ -98468,7 +98339,9 @@
         {
           "source": "react-router-dom",
           "specifiers": [
-            "MemoryRouter"
+            "MemoryRouter",
+            "Route",
+            "Routes"
           ]
         },
         {
@@ -98485,6 +98358,7 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
+            "Role",
             "ShipmentCusBucket",
             "ShipmentDocumentCustody",
             "ShipmentCusWorkspaceListItem"
@@ -98498,12 +98372,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 1151,
+      "totalLines": 1124,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "1e8b1aeced23ed77b47059b86841689c1b0649c1d425bf4c821b9201ee517aa5",
+      "contentHash": "2263f82308a354b19387db43ec9dd2081d8d0b83aaf2d3927f5ef7ceaa9b920a",
       "functions": [
         {
           "name": "formatMoney",
@@ -98730,7 +98604,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 1096
+          "lineCount": 1056
         }
       ],
       "classes": [],
@@ -98748,6 +98622,7 @@
         {
           "source": "react-router-dom",
           "specifiers": [
+            "useNavigate",
             "useSearchParams"
           ]
         },
@@ -98777,6 +98652,7 @@
             "SHIPMENT_DOCUMENT_CUSTODY_LABELS",
             "ShipmentCusBucket",
             "ShipmentDocumentCustody",
+            "Role",
             "ShipmentCusWorkspaceContainerLine",
             "ShipmentCusWorkspaceDetail",
             "ShipmentCusWorkspaceListItem",
@@ -98856,9 +98732,15 @@
           ]
         },
         {
-          "source": "../features/shipments/create/ShipmentCreateWorkspace",
+          "source": "../lib/routes",
           "specifiers": [
-            "ShipmentCreateWorkspace"
+            "routes"
+          ]
+        },
+        {
+          "source": "../hooks/useAuth",
+          "specifiers": [
+            "useAuth"
           ]
         },
         {
@@ -98869,7 +98751,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1768,
+      "totalLines": 1730,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
@@ -100520,17 +100402,17 @@
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.css": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.css",
-      "contentHash": "f1388848263d19fede85f33a9c21c0e91c7d8cb03904fae8a8f8af1d4fb9c41f",
+      "contentHash": "7fa5d1e377d26491cef3d35d63b6581002676b39a80194d27c27f9a0f284f6b5",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 72,
+      "totalLines": 128,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx",
-      "contentHash": "5a8d690ead6eb96565b8891c7fb56d4fcd60cb3c258ee19f6b09c769f87a8526",
+      "contentHash": "545b60d1562235664424722b96e182dff8e74ec1a455696041feb2f0884f95fc",
       "functions": [
         {
           "name": "renderPage",
@@ -100543,12 +100425,6 @@
           "params": [
             "name"
           ],
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "saveCarrierAllocationDialog",
-          "params": [],
           "exported": false,
           "lineCount": 5
         },
@@ -100618,7 +100494,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 592,
+      "totalLines": 545,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.tsx": {
@@ -100649,7 +100525,7 @@
     },
     "frontend/src/pages/clerk/ClerkShipmentDocsPage.test.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentDocsPage.test.tsx",
-      "contentHash": "b3d8ffbf0c72f4a52ecd7de9eb9aa32b1554258183f47d237381ab777ffc17b5",
+      "contentHash": "729fab580f5a06f22c25c7f7d74b8f27b9c1bdc2dd88743aac3b328ef8b29213",
       "functions": [
         {
           "name": "makeDetail",
@@ -107703,7 +107579,7 @@
     },
     "qa_test_cases.json": {
       "filePath": "qa_test_cases.json",
-      "contentHash": "5446b3ce1c0a3c1b68bd0cc604bdbb115134f8608e6581a1950f3d40ca094bb1",
+      "contentHash": "09c71272eab93a3756a9df5f3edf6ac13b2539722fa77ddb7b195339a98c0cc9",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -108442,7 +108318,7 @@
     },
     "shared/src/constants/index.ts": {
       "filePath": "shared/src/constants/index.ts",
-      "contentHash": "b153e46635a28c579ee6a278ea70f7f40fcc125c78d60d85f9ae000f542275b3",
+      "contentHash": "52c075026f6d77f5cdb4339ddc2c10c108671eb5b9cc0e00a787692377165e79",
       "functions": [
         {
           "name": "canonicalShipmentStatus",
@@ -109238,7 +109114,7 @@
     },
     "shared/src/navigation/pageCatalog.ts": {
       "filePath": "shared/src/navigation/pageCatalog.ts",
-      "contentHash": "6c34d27aaeb5cc924b9b001534080424ef377331eab4d34d6780147c83e0f919",
+      "contentHash": "4ac538756cd6dac63a1534b2fb00d0df7bfaa5430ac73d512586b146fce5ad8b",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -109340,7 +109216,7 @@
     },
     "shared/src/schemas/cus-shipment-workspace.test.ts": {
       "filePath": "shared/src/schemas/cus-shipment-workspace.test.ts",
-      "contentHash": "96e3e9426472df141151d6f6638c50828ffa68a3bfd36c1acf8b90fd0c532198",
+      "contentHash": "983083e6f27ad0fdcdc80ca30cfe4e4426b22e7a0372d95a615009c295ee74a5",
       "functions": [],
       "classes": [],
       "imports": [
@@ -109373,12 +109249,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 255,
+      "totalLines": 256,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/cus-shipment-workspace.ts": {
       "filePath": "shared/src/schemas/cus-shipment-workspace.ts",
-      "contentHash": "936016107a740b24b781c2cae1d69dfa7d57f0e290c281d18d2d8a9da3dabe79",
+      "contentHash": "09dd211c00abd65c7577629e84972ad0f67f00e289b2b3225c5d246fe2a5f91f",
       "functions": [],
       "classes": [],
       "imports": [
@@ -109423,7 +109299,7 @@
         "shipmentCusContainerFlatResponseSchema",
         "shipmentCusWorkspaceListResponseSchema"
       ],
-      "totalLines": 440,
+      "totalLines": 465,
       "hasStructuralAnalysis": true
     },
     "shared/src/schemas/customer-service-finance.test.ts": {
@@ -112229,7 +112105,7 @@
     },
     "frontend/src/features/shipments/create/uui-fields.tsx": {
       "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "contentHash": "7de1a46b74da70edfe26c13d600150d7be6d44347b417ecc63213960d99960fc",
+      "contentHash": "35e801317117c3e0f935196258333d06c42eb568392d0c2c4b00625ea224edfa",
       "functions": [
         {
           "name": "asEvent",
@@ -112323,7 +112199,7 @@
     },
     "frontend/src/pages/ShipmentsDetailPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "contentHash": "24df7cba8014f7e2349f0c44339d6550e026d9dfe698b9f712a763f2b307b5b1",
+      "contentHash": "d0e3c43cda3abae4a6a17cb901455d4ae1e3d09c34407146fbfff9e8484c400d",
       "functions": [],
       "classes": [],
       "imports": [
@@ -112355,7 +112231,14 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
-            "ShipmentCusContainerFlatResponse"
+            "ShipmentCusContainerFlatResponse",
+            "ShipmentCusWorkspaceDetail"
+          ]
+        },
+        {
+          "source": "../lib/shipment-operations",
+          "specifiers": [
+            "formatVietnamDateInput"
           ]
         },
         {
@@ -112366,12 +112249,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 158,
+      "totalLines": 170,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "contentHash": "cabbcc716d978fe3c41333d0e0d704174c4d716ef88493fe0a35355554a7eb6e",
+      "contentHash": "c0370d49c88f8f88cd7b5fe7ba98c71b225d90eeba279ed2769da63ca65a69af",
       "functions": [
         {
           "name": "safeError",
@@ -112379,6 +112262,7 @@
             "error",
             "fallback"
           ],
+          "returnType": "string",
           "exported": false,
           "lineCount": 3
         },
@@ -112386,13 +112270,13 @@
           "name": "ShipmentContainerLedgerSkeleton",
           "params": [],
           "exported": false,
-          "lineCount": 16
+          "lineCount": 12
         },
         {
           "name": "ShipmentsDetailPage",
           "params": [],
           "exported": true,
-          "lineCount": 168
+          "lineCount": 263
         }
       ],
       "classes": [],
@@ -112402,6 +112286,7 @@
           "specifiers": [
             "useCallback",
             "useEffect",
+            "useMemo",
             "useRef",
             "useState"
           ]
@@ -112410,6 +112295,7 @@
           "source": "lucide-react",
           "specifiers": [
             "AlertCircle",
+            "CalendarDays",
             "RotateCcw",
             "Search"
           ]
@@ -112423,7 +112309,10 @@
         {
           "source": "@tingting/shared",
           "specifiers": [
-            "ShipmentCusContainerFlatResponse"
+            "ShipmentCusContainerFlatResponse",
+            "ShipmentCusContainerFlatRow",
+            "ShipmentCusWorkspaceContainerLine",
+            "ShipmentCusWorkspaceDetail"
           ]
         },
         {
@@ -112435,7 +112324,10 @@
         {
           "source": "../api/shipmentClient",
           "specifiers": [
-            "listCusShipmentContainers"
+            "getCusShipmentWorkspaceDetail",
+            "listCusShipmentContainers",
+            "updateCusShipmentContainerLine",
+            "updateShipment"
           ]
         },
         {
@@ -112459,13 +112351,19 @@
         {
           "source": "../components/untitled-ui/base/buttons/button",
           "specifiers": [
-            "Button"
+            "UUIButton"
           ]
         },
         {
           "source": "../components/untitled-ui/base/input/input",
           "specifiers": [
-            "Input"
+            "UUIInput"
+          ]
+        },
+        {
+          "source": "../components/untitled-ui/base/select/select-native",
+          "specifiers": [
+            "UUINativeSelect"
           ]
         },
         {
@@ -112484,7 +112382,20 @@
         {
           "source": "../features/shipments/detail/ShipmentContainerLedger",
           "specifiers": [
-            "ShipmentContainerLedger"
+            "ShipmentContainerLedger",
+            "ActiveShipmentDetailEdit",
+            "ShipmentDetailEditMode",
+            "ShipmentNotesDraft",
+            "ShipmentRouteDraft",
+            "ShipmentScheduleDraft",
+            "ShipmentVehicleDraft"
+          ]
+        },
+        {
+          "source": "../lib/shipment-operations",
+          "specifiers": [
+            "formatVietnamDateInput",
+            "localDateTimeToIso"
           ]
         },
         {
@@ -112495,7 +112406,7 @@
       "exports": [
         "ShipmentsDetailPage"
       ],
-      "totalLines": 208,
+      "totalLines": 320,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx": {
@@ -112507,6 +112418,7 @@
           "params": [
             "state"
           ],
+          "returnType": "PillVariant",
           "exported": false,
           "lineCount": 5
         },
@@ -112515,6 +112427,7 @@
           "params": [
             "item"
           ],
+          "returnType": "number",
           "exported": false,
           "lineCount": 3
         },
@@ -112523,6 +112436,7 @@
           "params": [
             "item"
           ],
+          "returnType": "string",
           "exported": false,
           "lineCount": 7
         },
@@ -112531,6 +112445,7 @@
           "params": [
             "item"
           ],
+          "returnType": "string",
           "exported": false,
           "lineCount": 5
         },
@@ -112682,58 +112597,125 @@
       "exports": [
         "RecoverableCostsWorkspace"
       ],
-      "totalLines": 407,
+      "totalLines": 408,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx": {
       "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "contentHash": "54f32a2de80bd1ab407e5ba61911681b392762190730fa00f8388375adbbf03b",
+      "contentHash": "5dc7b5eb165768656c6002d12bfd05c33ce3ec0253d09b57dbe4b49ddf86b62a",
       "functions": [
         {
           "name": "directionLabel",
           "params": [
             "direction"
           ],
+          "returnType": "string",
           "exported": false,
           "lineCount": 5
         },
         {
-          "name": "formatAppointment",
+          "name": "formatDate",
           "params": [
             "value"
           ],
+          "returnType": "string",
           "exported": false,
-          "lineCount": 11
+          "lineCount": 5
         },
         {
-          "name": "Fallback",
+          "name": "formatScheduleTime",
           "params": [
-            "{ children }"
+            "row"
+          ],
+          "returnType": "string | null",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "fallback",
+          "params": [
+            "value",
+            "label"
           ],
           "exported": false,
           "lineCount": 3
         },
         {
+          "name": "EditActions",
+          "params": [
+            "{\n  saving,\n  saveDisabled,\n  label,\n  onSave,\n  onCancel,\n}"
+          ],
+          "exported": false,
+          "lineCount": 36
+        },
+        {
+          "name": "InlineEditor",
+          "params": [
+            "{\n  edit,\n  onCancel,\n  onSaveRoute,\n  onSaveVehicle,\n  onSaveSchedule,\n  onSaveNotes,\n}"
+          ],
+          "exported": false,
+          "lineCount": 144
+        },
+        {
           "name": "ShipmentContainerLedger",
           "params": [
-            "{ rows, totalShipments }"
+            "{\n  rows,\n  totalContainers,\n  today,\n  activeEdit,\n  editLoadingRowId,\n  editError,\n  onStartEdit,\n  onCancelEdit,\n  onSaveRoute,\n  onSaveVehicle,\n  onSaveSchedule,\n  onSaveNotes,\n}"
           ],
           "exported": true,
-          "lineCount": 110
+          "lineCount": 128
         }
       ],
       "classes": [],
       "imports": [
         {
+          "source": "react",
+          "specifiers": [
+            "useEffect",
+            "useMemo",
+            "useRef",
+            "useState"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "AlertTriangle",
+            "LoaderCircle",
+            "PencilLine",
+            "Save",
+            "X"
+          ]
+        },
+        {
           "source": "@tingting/shared",
           "specifiers": [
-            "ShipmentCusContainerFlatRow"
+            "ShipmentCusContainerFlatRow",
+            "ShipmentCusWorkspaceContainerLine",
+            "ShipmentCusWorkspaceDetail"
           ]
         },
         {
           "source": "../../../components/untitled-ui/base/badges/badges",
           "specifiers": [
             "BadgeWithDot"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/buttons/button",
+          "specifiers": [
+            "UUIButton"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/textarea/textarea",
+          "specifiers": [
+            "UUITextArea"
+          ]
+        },
+        {
+          "source": "../../../design-system",
+          "specifiers": [
+            "SearchableSelect"
           ]
         },
         {
@@ -112746,7 +112728,69 @@
       "exports": [
         "ShipmentContainerLedger"
       ],
-      "totalLines": 151,
+      "totalLines": 402,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/pages/ShipmentsDetailPage.styles.test.ts": {
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "contentHash": "3ebb14dc56d6285210c7038d6fc1201eb685483415ba70bb10477726f4a71550",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "resolve"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts": {
+      "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "contentHash": "0422cdd64d394f8343acfef57b09c117a60bdbb0384942b0cdc0e45c5059a413",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync"
+          ]
+        },
+        {
+          "source": "node:path",
+          "specifiers": [
+            "resolve"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 38,
       "hasStructuralAnalysis": true
     }
   }
