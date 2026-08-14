@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "7c51d57ce39ae9200dac4c132014378b8c796bb6",
+  "gitCommitHash": "def081a4fb681b618589c1875bad936f59621fd6",
   "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
@@ -98308,7 +98308,7 @@
     },
     "frontend/src/pages/ShipmentsPage.density.test.ts": {
       "filePath": "frontend/src/pages/ShipmentsPage.density.test.ts",
-      "contentHash": "5ef33488734ee93bba69922586892afc1a68beca4f4bdc27d603f94135e4527a",
+      "contentHash": "f1a324b332bb60e8c8a6efbfc0518999365aa9a47703ce4de45a6316dcb0ed7e",
       "functions": [],
       "classes": [],
       "imports": [
@@ -98334,7 +98334,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 25,
+      "totalLines": 49,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.embedded-create.test.tsx": {
@@ -98511,7 +98511,7 @@
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "71e4fa94aae26eadbffde7cf5b35965dcdbc466c0254306d07bec8d48a1cb187",
+      "contentHash": "f6e2ae8e5eca840c0699634cceea3c4c5627b3e22a90121d568b5bbc58fdddb3",
       "functions": [
         {
           "name": "formatMoney",
@@ -98738,7 +98738,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 1062
+          "lineCount": 1083
         }
       ],
       "classes": [],
@@ -98876,7 +98876,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1727,
+      "totalLines": 1748,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
