@@ -188,12 +188,6 @@ function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
   );
 }
 
-function isInteractiveRowTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && Boolean(target.closest(
-    'a, button, input, select, textarea, label, summary, [contenteditable="true"], [role="button"], [role="link"], [role^="menuitem"], [role="option"], [data-row-interactive]',
-  ));
-}
-
 function accountingConfirmationLabel(
   confirmation: ShipmentCusWorkspaceListItem['accountingConfirmation'],
 ): string {
@@ -1393,10 +1387,6 @@ export default function ShipmentsPage() {
                       <tr
                         key={item.id}
                         className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
-                        onClick={(event) => {
-                          if (isInteractiveRowTarget(event.target)) return;
-                          openShipmentDetail(item.id);
-                        }}
                       >
                         <th scope="row" data-label="Khách hàng & nhà máy">
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
@@ -1426,7 +1416,14 @@ export default function ShipmentsPage() {
                             <span>{item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
                           </div>
                         </td>
-                        <td data-label="Lịch trình & điều xe">
+                        <td
+                          data-label="Lịch trình & điều xe"
+                          onClick={() => {
+                            if (!editingSchedule && item.operational.transportDateEditable && !quickEditDraft && !savingQuickEdit) {
+                              startQuickEdit(item, 'schedule');
+                            }
+                          }}
+                        >
                           {editingSchedule && quickEditDraft ? (
                             <div className="cus-quick-edit" aria-busy={savingQuickEdit} onBlur={(event) => {
                               if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
@@ -1445,14 +1442,21 @@ export default function ShipmentsPage() {
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
                             </div>
                           ) : (
-                            <button id={`cus-inline-schedule-${item.id}`} type="button" className="cus-inline-trigger" onClick={() => startQuickEdit(item, 'schedule')} disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô lịch trình lô hàng ${identity}`}>
+                            <button id={`cus-inline-schedule-${item.id}`} type="button" className="cus-inline-trigger" disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô lịch trình lô hàng ${identity}`}>
                               <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                               <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
                               <span>{vehicleReadinessLabel(item)}</span>
                             </button>
                           )}
                         </td>
-                        <td data-label="Ghi chú">
+                        <td
+                          data-label="Ghi chú"
+                          onClick={() => {
+                            if (!editingNotes && item.operational.transportDateEditable && !quickEditDraft && !savingQuickEdit) {
+                              startQuickEdit(item, 'notes');
+                            }
+                          }}
+                        >
                           {editingNotes && quickEditDraft ? (
                             <div className="cus-note-editor-group" aria-busy={savingQuickEdit} onBlur={(event) => {
                               if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
@@ -1470,7 +1474,7 @@ export default function ShipmentsPage() {
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
                             </div>
                           ) : (
-                            <button id={`cus-inline-notes-${item.id}`} type="button" className="cus-inline-trigger cus-note-preview" title={item.customerNotes || item.operationalNotes || undefined} onClick={() => startQuickEdit(item, 'notes')} disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô ghi chú lô hàng ${identity}`}>
+                            <button id={`cus-inline-notes-${item.id}`} type="button" className="cus-inline-trigger cus-note-preview" title={item.customerNotes || item.operationalNotes || undefined} disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô ghi chú lô hàng ${identity}`}>
                               <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
                               {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
                               {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}

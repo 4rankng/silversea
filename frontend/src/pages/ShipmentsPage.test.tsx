@@ -402,6 +402,70 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
+  it('opens inline editors from the whole editable cell and reserves the drawer for Chi tiết', async () => {
+    renderPage();
+    const table = await screen.findByRole('table');
+    const rowElement = masterRow();
+    const scheduleButton = within(rowElement).getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
+    const scheduleCell = scheduleButton.closest('td');
+    expect(scheduleCell).toBeTruthy();
+
+    fireEvent.click(scheduleCell!);
+    expect(screen.getByLabelText('Ngày đóng/trả')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    fireEvent.keyDown(screen.getByLabelText('Ngày đóng/trả'), { key: 'Escape' });
+    const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
+    const notesCell = notesButton.closest('td');
+    expect(notesCell).toBeTruthy();
+
+    fireEvent.click(notesCell!);
+    expect(screen.getByLabelText('Ghi chú cho khách')).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    fireEvent.keyDown(screen.getByLabelText('Ghi chú cho khách'), { key: 'Escape' });
+    fireEvent.click(within(rowElement).getByText('Công ty Silver Sea'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+
+    fireEvent.click(masterRowDetailButton());
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
+  });
+
+  it('does not open inline editors or the drawer from locked shipment cells', async () => {
+    const lockedRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      bucket: ShipmentCusBucket.LOCKED,
+      bucketLabel: 'Đã khóa',
+      operational: { ...row.operational, transportDateEditable: false },
+    };
+    apiGet.mockResolvedValue(listResponse([lockedRow]));
+
+    renderPage();
+    await screen.findByRole('table');
+    const rowElement = masterRow();
+    const scheduleCell = within(rowElement)
+      .getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })
+      .closest('td');
+    const notesCell = within(rowElement)
+      .getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })
+      .closest('td');
+    expect(scheduleCell).toBeTruthy();
+    expect(notesCell).toBeTruthy();
+
+    fireEvent.click(scheduleCell!);
+    fireEvent.click(notesCell!);
+
+    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
+    expect(screen.queryByLabelText('Ghi chú cho khách')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+  });
+
   it('cancels an inline cell edit with Escape without persisting', async () => {
     renderPage();
     await screen.findByRole('table');
@@ -551,8 +615,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findAllByText('Công ty Silver Sea');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
-    const rowElement = masterRow();
-    fireEvent.click(rowElement);
+    fireEvent.click(masterRowDetailButton());
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
     expect(screen.getByRole('dialog')).toBeTruthy();
     const ledger = await screen.findByLabelText('Chi tiết container');
@@ -590,7 +653,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('actually discards drafts before leaving edit mode', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
     fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
     fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-555.55' } });
     fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất' }));
@@ -667,7 +730,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
 
     const emptyState = await screen.findByText('Lô hàng chưa có dữ liệu container.');
     const dialog = emptyState.closest('[role="dialog"]') as HTMLElement;
@@ -709,7 +772,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     });
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
     fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
@@ -746,7 +809,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       .mockResolvedValueOnce({ line: { ...secondLine, plateNumber: '15C-888.88', shipmentVersion: 5 } });
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
     fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-999.99' } });
@@ -775,7 +838,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     });
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
     fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhà xe' }));
@@ -829,7 +892,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRow());
+    fireEvent.click(masterRowDetailButton());
     expect(await screen.findByText('15C-123.45')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Chỉnh sửa' })).toBeNull();
     expect(screen.queryByLabelText(/Biển số xe của container MSKU1234567/)).toBeNull();
