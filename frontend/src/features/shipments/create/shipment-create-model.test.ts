@@ -25,16 +25,14 @@ const container: ShipmentContainerDraft = {
 describe('shipment create model', () => {
   it('keeps a customer-only draft valid while listing every dispatch requirement', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7' };
-    const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '' }], null);
+    const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '' }]);
 
     expect(readiness.draftReady).toBe(true);
     expect(readiness.dispatchReady).toBe(false);
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-booking-ref',
       'shipment-trade-direction',
-      'shipment-shipping-line',
       'shipment-route',
-      'shipment-operational-site',
       'container-row-1-number',
       'shipment-expected-delivery',
     ]);
@@ -116,25 +114,24 @@ describe('shipment create model', () => {
       expectedDeliveryDate: '2026-08-14',
     };
 
-    const readiness = getShipmentCreateReadiness(form, [container], null);
+    const readiness = getShipmentCreateReadiness(form, [container]);
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
     expect(buildShipmentContainerPayload(form, [container])).toEqual([]);
   });
 
-  it('keeps carrier allocation as part of FCL readiness', () => {
+  it('keeps shipping line and factory optional for FCL dispatch readiness', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
       bookingRef: 'BK-FCL',
       tradeDirection: 'IMPORT' as const,
-      shippingLineName: 'MSC',
-      operationalSiteId: '41',
+      expectedDeliveryDate: '2026-08-14',
     };
-    const readiness = getShipmentCreateReadiness(form, [container], 'Cần gán đủ 1 container 40\'.');
-    expect(readiness.firstInvalidFieldId).toBe('shipment-carrier-allocation');
-    expect(readiness.sections.find((section) => section.id === 'cargo')).toMatchObject({ complete: false, missingCount: 1 });
+    const readiness = getShipmentCreateReadiness(form, [container]);
+    expect(readiness.dispatchReady).toBe(true);
+    expect(readiness.issues).toEqual([]);
   });
 
   it('requires an FCL dispatch schedule date that can make intake ready', () => {
@@ -148,16 +145,16 @@ describe('shipment create model', () => {
       operationalSiteId: '41',
     };
 
-    const missingSchedule = getShipmentCreateReadiness(form, [container], null);
+    const missingSchedule = getShipmentCreateReadiness(form, [container]);
     expect(missingSchedule.issues).toContainEqual(expect.objectContaining({
       fieldId: 'shipment-expected-delivery',
       sectionId: 'schedule',
     }));
 
-    expect(getShipmentCreateReadiness({ ...form, closingAt: '2026-08-14T09:00' }, [container], null).dispatchReady).toBe(true);
+    expect(getShipmentCreateReadiness({ ...form, closingAt: '2026-08-14T09:00' }, [container]).dispatchReady).toBe(true);
   });
 
-  it('rejects zero-valued LCL quantities and clears hidden FCL site fields from payloads', () => {
+  it('rejects zero-valued LCL quantities and preserves the common factory detail', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -174,7 +171,7 @@ describe('shipment create model', () => {
       cargoVolumeCbm: '0',
       expectedDeliveryDate: '2026-08-14',
     };
-    const readiness = getShipmentCreateReadiness(form, [container], null);
+    const readiness = getShipmentCreateReadiness(form, [container]);
     expect(readiness.dispatchReady).toBe(false);
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-package-count',
@@ -182,8 +179,8 @@ describe('shipment create model', () => {
       'shipment-cargo-volume',
     ]);
     expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
-      operationalSiteId: null,
-      factoryName: null,
+      operationalSiteId: 41,
+      factoryName: 'Nhà máy Long Minh',
       pickupWarehouseSiteId: 42,
     });
   });

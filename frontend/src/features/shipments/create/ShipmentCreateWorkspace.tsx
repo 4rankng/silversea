@@ -12,23 +12,10 @@ import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   listOperationalSites,
-  getShipmentPricingPreview,
   type OperationalSite,
-  type ShipmentPricingProjection,
 } from '../../../api/shipmentClient';
 import { OperationalSiteDetailsDialog } from '../../../components/shipment/OperationalSiteDetailsDialog';
 import { OperationalSiteCreateDialog } from '../../../components/shipment/OperationalSiteCreateDialog';
-import {
-  CarrierAllocationDialog,
-} from '../../../components/shipment/CarrierAllocationDialog';
-import {
-  CarrierAllocationSummary,
-  carrierOptionKey,
-  type CarrierAllocationDemand,
-  type CarrierAllocationOption,
-  type CarrierAllocationValue,
-  validateCarrierAllocations,
-} from '../../../components/shipment/CarrierAllocationSummary';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createEmptyContainer,
@@ -54,25 +41,6 @@ const newContainer = createEmptyContainer;
 
 const gridStyle = shipmentCreateGridStyle;
 
-const OWN_CARRIER_OPTION: CarrierAllocationOption = {
-  key: 'OWN',
-  label: 'Đội xe nội bộ SilverSea',
-  carrierType: 'OWN',
-  externalCarrierId: null,
-  isActive: true,
-};
-
-function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
-  const normalized = (label ?? '').toUpperCase();
-  if (normalized.includes('20')) return 20;
-  if (normalized.includes('40')) return 40;
-  return null;
-}
-
-function carrierValidationMessage(validation: ReturnType<typeof validateCarrierAllocations>): string | null {
-  return validation.isExact ? null : validation.errors[0] ?? 'Cần gán đúng số lượng nhà xe cho container 20\' và 40\'.';
-}
-
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
@@ -93,11 +61,6 @@ export function ShipmentCreateWorkspace() {
   // Bumped after a site is created in-dialog so the operational-sites effect
   // re-fetches and the new row appears in the dropdown without a full reload.
   const [sitesVersion, setSitesVersion] = useState(0);
-  const [pricingProjection, setPricingProjection] = useState<ShipmentPricingProjection | null>(null);
-  const [pricingLoading, setPricingLoading] = useState(false);
-  const [pricingError, setPricingError] = useState<string | null>(null);
-  const [carrierAllocations, setCarrierAllocations] = useState<CarrierAllocationValue[]>([]);
-  const [carrierAllocationDialogOpen, setCarrierAllocationDialogOpen] = useState(false);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -120,113 +83,15 @@ export function ShipmentCreateWorkspace() {
     return () => { cancelled = true; };
   }, [form.customerId, sitesVersion]);
 
-  useEffect(() => {
-    if (!form.customerId || !form.routeId) {
-      setPricingProjection(null);
-      setPricingError(null);
-      setPricingLoading(false);
-      return;
-    }
-    const populatedContainers = containers.filter((row) => (
-      row.containerNumber
-      || row.containerTypeId
-      || row.pickupPortId
-      || row.dropoffPortId
-      || row.cargoWeightKg
-      || row.cargoVolumeCbm
-    ));
-    const containerCount = form.cargoMode === 'FCL'
-      ? Math.max(1, populatedContainers.length)
-      : null;
-    let cancelled = false;
-    setPricingLoading(true);
-    setPricingError(null);
-    getShipmentPricingPreview({
-      customerId: Number(form.customerId),
-      routeId: Number(form.routeId),
-      cargoMode: form.cargoMode,
-      cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
-      expectedDeliveryDate: form.expectedDeliveryDate || null,
-      cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
-      containerCount,
-      containerTypeIds: form.cargoMode === 'FCL'
-        ? populatedContainers
-          .map((row) => Number(row.containerTypeId))
-          .filter((value) => Number.isInteger(value) && value > 0)
-        : [],
-    })
-      .then((value) => {
-        if (!cancelled) setPricingProjection(value);
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setPricingProjection(null);
-          setPricingError(error instanceof Error && error.message.trim()
-            ? error.message
-            : 'Không thể tính cước dự kiến.');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPricingLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [
-    form.customerId,
-    form.routeId,
-    form.cargoMode,
-    form.cargoTypeId,
-    form.expectedDeliveryDate,
-    form.cargoWeightKg,
-    containers,
-  ]);
-
   const operationalSites = useMemo(() => sites.filter((site) => site.siteType === 'FACTORY'), [sites]);
   const selectedOperationalSite = useMemo(
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
     [form.operationalSiteId, operationalSites],
   );
   const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
-  const carrierOptions = useMemo(() => {
-    const externalCarriers = catalogs?.externalCarriers ?? [];
-    return [
-      OWN_CARRIER_OPTION,
-      ...externalCarriers.map((carrier) => ({
-        key: carrierOptionKey('EXTERNAL', carrier.id),
-        label: carrier.name,
-        carrierType: 'EXTERNAL' as const,
-        externalCarrierId: carrier.id,
-        isActive: carrier.isActive,
-      })),
-    ];
-  }, [catalogs]);
-  const carrierDemand = useMemo<CarrierAllocationDemand>(() => {
-    const typeLabels = new Map((catalogs?.containerTypes ?? []).map((item) => [String(item.id), `${item.code} ${item.name}`.trim()]));
-    return containers.reduce<CarrierAllocationDemand>((totals, row) => {
-      const bucket = inferContainerBucket(typeLabels.get(row.containerTypeId));
-      if (bucket === 20) totals.count20 += 1;
-      if (bucket === 40) totals.count40 += 1;
-      return totals;
-    }, { count20: 0, count40: 0 });
-  }, [catalogs?.containerTypes, containers]);
-  const carrierAllocationValidation = useMemo(
-    () => validateCarrierAllocations(
-      carrierAllocations.map((row) => ({
-        carrierKey: carrierOptionKey(row.carrierType, row.externalCarrierId),
-        count20: row.count20,
-        count40: row.count40,
-      })),
-      carrierDemand,
-      carrierOptions,
-    ),
-    [carrierAllocations, carrierDemand, carrierOptions],
-  );
-  const carrierAllocationWarning = useMemo(
-    () => ((carrierDemand.count20 + carrierDemand.count40) > 0 ? carrierValidationMessage(carrierAllocationValidation) : null),
-    [carrierAllocationValidation, carrierDemand.count20, carrierDemand.count40],
-  );
   const readiness = useMemo(
-    () => getShipmentCreateReadiness(form, containers, carrierAllocationWarning),
-    [carrierAllocationWarning, containers, form],
+    () => getShipmentCreateReadiness(form, containers),
+    [containers, form],
   );
   const issueByField = useMemo(
     () => new Map(validationIssues.map((item) => [item.fieldId, item.message])),
@@ -241,14 +106,13 @@ export function ShipmentCreateWorkspace() {
     const hasContainerData = containers.some((row) => (
       Object.entries(row).some(([key, value]) => key !== 'key' && value !== '')
     ));
-    return hasFormData || hasContainerData || carrierAllocations.length > 0 || customerNotes.trim() !== '';
-  }, [carrierAllocations.length, containers, customerNotes, form]);
+    return hasFormData || hasContainerData || customerNotes.trim() !== '';
+  }, [containers, customerNotes, form]);
 
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
     sites,
-    carrierAllocations,
     readiness,
     onValidationIssues: setValidationIssues,
     customerNotes,
@@ -336,7 +200,7 @@ export function ShipmentCreateWorkspace() {
       ...current,
       cargoMode: next,
       cargoTypeId: next === 'FCL' ? '' : current.cargoTypeId,
-      operationalSiteId: next === 'LCL' ? '' : current.operationalSiteId,
+      operationalSiteId: current.operationalSiteId,
       pickupWarehouseSiteId: next === 'FCL' ? '' : current.pickupWarehouseSiteId,
       cargoVolumeCbm: '',
       packageCount: '',
@@ -345,7 +209,6 @@ export function ShipmentCreateWorkspace() {
       extraDeliveryDates: [],
     }));
     setContainers([newContainer()]);
-    setCarrierAllocations([]);
     setCustomerNotes('');
     clearFeedback();
   }
@@ -431,10 +294,10 @@ export function ShipmentCreateWorkspace() {
             </div>
 
             {/* BILL LÔ HÀNG */}
-            <div data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
+            <div data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
 
             {form.cargoMode === 'FCL' && (
-              <div data-field-id="shipment-shipping-line"><SearchableField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(value) => update('shippingLineName', value)} allowsCustomValue options={carrierOptions.filter((carrier) => carrier.carrierType === 'EXTERNAL').map((carrier) => ({ value: carrier.label, label: carrier.label }))} placeholder="Gõ chọn hoặc nhập hãng tàu" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} /></div>
+              <div data-field-id="shipment-shipping-line"><SearchableField id="shipment-shipping-line" label="Hãng tàu" value={form.shippingLineName} onChange={(value) => update('shippingLineName', value)} allowsCustomValue options={(catalogs.externalCarriers ?? []).map((carrier) => ({ value: carrier.name, label: carrier.name }))} placeholder="Gõ chọn hoặc nhập hãng tàu" disabled={Boolean(saving)} error={issueByField.get('shipment-shipping-line')} /></div>
             )}
 
             {/* SỐ TỜ KHAI */}
@@ -450,6 +313,7 @@ export function ShipmentCreateWorkspace() {
             <SearchableField
               id="shipment-route"
               label="Tuyến đường"
+              required
               value={form.routeId}
               onChange={(value) => update('routeId', value)}
               options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
@@ -458,7 +322,6 @@ export function ShipmentCreateWorkspace() {
               error={issueByField.get('shipment-route')}
             />
             </div>
-            {form.cargoMode === 'FCL' && (
             <div className="csc-site-picker">
               <SearchableField
                 id="shipment-operational-site"
@@ -495,7 +358,6 @@ export function ShipmentCreateWorkspace() {
                 </button>
               </div>
             </div>
-            )}
           </div>
 
           {selectedOperationalSite?.strictRules && (
@@ -507,31 +369,13 @@ export function ShipmentCreateWorkspace() {
         </ShipmentCreateSection>
 
         <ShipmentCreateSection id="cargo" number="03" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
-          <fieldset className="csc-mode"><legend>Loại hàng</legend><div>
+          <fieldset className="csc-mode" aria-required="true"><legend>Loại hàng <span aria-hidden="true">*</span></legend><div>
             {(['FCL', 'LCL'] as CargoMode[]).map((mode) => <label key={mode}><input type="radio" name="cargo-mode" value={mode} checked={form.cargoMode === mode} onChange={() => changeMode(mode)} disabled={Boolean(saving)} /><span>{mode === 'FCL' ? 'Hàng nguyên container (FCL)' : 'Hàng lẻ (LCL)'}</span></label>)}
           </div></fieldset>
           {form.cargoMode === 'FCL' ? (
             <ShipmentContainerEditor
               saving={Boolean(saving)}
               onAdd={() => setContainers((current) => [...current, newContainer()])}
-              allocationSummary={<div className="csc-allocation-summary">
-                  <strong style={{ fontSize: 15 }}>Gán nhà xe</strong>
-                  <CarrierAllocationSummary
-                    allocations={carrierAllocations}
-                    demand={carrierDemand}
-                    warning={carrierAllocationWarning}
-                    emptyLabel="Chọn nhà xe cho từng cỡ container 20' và 40'."
-                  />
-                </div>}
-              allocationControl={<button
-                  type="button"
-                  data-field-id="shipment-carrier-allocation"
-                  onClick={() => setCarrierAllocationDialogOpen(true)}
-                  disabled={Boolean(saving) || ((carrierDemand.count20 + carrierDemand.count40) === 0)}
-                  className="csc-utility-button"
-                >
-                  Gán nhà xe
-                </button>}
               rows={<>{containers.map((row, index) => (
                 <div key={row.key} className="csc-container-record">
                   <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))}><Trash2 size={18} /></button>}</div>
@@ -590,7 +434,6 @@ export function ShipmentCreateWorkspace() {
                 ) : null}
               </div>
               <div style={gridStyle}>
-                <div data-field-id="shipment-cargo-type"><SearchableField id="shipment-cargo-type" label="Loại hàng" value={form.cargoTypeId} onChange={(value) => update('cargoTypeId', value)} options={(catalogs.cargoTypes ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Gõ chọn" disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-type')} /></div>
                 <div data-field-id="shipment-package-type"><SelectField id="shipment-package-type" label="Quy cách đóng gói" value={form.packageType} onChange={(event) => update('packageType', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-type')} options={[{ value: '', label: '— Chọn quy cách —' }, { value: 'Pallet', label: 'Pallet' }, { value: 'Roll', label: 'Roll' }, { value: 'Carton', label: 'Carton' }]} /></div>
                 <div data-field-id="shipment-package-count"><TextField id="shipment-package-count" label="Số lượng" type="number" min="1" step="1" value={form.packageCount} onChange={(event) => update('packageCount', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-package-count')} /></div>
                 <div data-field-id="shipment-cargo-weight"><TextField id="shipment-cargo-weight" label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={form.cargoWeightKg} onChange={(event) => update('cargoWeightKg', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-cargo-weight')} /></div>
@@ -626,9 +469,6 @@ export function ShipmentCreateWorkspace() {
         <ShipmentCreateSummary
           readiness={readiness}
           validationIssues={validationIssues}
-          pricingProjection={pricingProjection}
-          pricingLoading={pricingLoading}
-          pricingError={pricingError}
           saving={saving}
           submitError={submitError}
           onNavigateSection={navigateSection}
@@ -644,16 +484,6 @@ export function ShipmentCreateWorkspace() {
         defaultSiteType={createSiteDialog.siteType}
         onClose={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}
         onCreated={handleSiteCreated}
-      />
-      <CarrierAllocationDialog
-        isOpen={carrierAllocationDialogOpen}
-        title="Gán nhà xe"
-        description="Phân bổ đúng số lượng container 20' và 40' theo từng nhà xe trước khi lưu."
-        carrierOptions={carrierOptions}
-        demand={carrierDemand}
-        value={carrierAllocations}
-        onClose={() => setCarrierAllocationDialogOpen(false)}
-        onSave={setCarrierAllocations}
       />
       <Modal
         isOpen={backConfirmOpen}

@@ -11,7 +11,6 @@ import {
   updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
-import type { CarrierAllocationValue } from '../../../components/shipment/CarrierAllocationSummary';
 import {
   buildShipmentContainerPayload,
   buildShipmentRootPayload,
@@ -45,21 +44,10 @@ function isAmbiguousCreateError(error: unknown) {
   return !(error instanceof ApiError) || error.status >= 500;
 }
 
-function allocationPayload(rows: CarrierAllocationValue[]) {
-  return rows.map((row) => ({
-    carrierType: row.carrierType,
-    externalCarrierId: row.externalCarrierId,
-    carrierName: row.carrierLabel,
-    count20: row.count20,
-    count40: row.count40,
-  }));
-}
-
 interface UseShipmentCreateWorkflowArgs {
   form: ShipmentCreateFormState;
   containers: ShipmentContainerDraft[];
   sites: OperationalSite[];
-  carrierAllocations: CarrierAllocationValue[];
   readiness: ShipmentCreateReadiness;
   onValidationIssues: (issues: ShipmentCreateIssue[]) => void;
   onSaved?: (shipmentId: number, intent: SaveIntent) => void;
@@ -78,7 +66,6 @@ export function useShipmentCreateWorkflow({
   form,
   containers,
   sites,
-  carrierAllocations,
   readiness,
   onValidationIssues,
   onSaved,
@@ -172,7 +159,6 @@ export function useShipmentCreateWorkflow({
         const submitPayload = {
           expectedVersion: version,
           operationalNote: form.operationalNotes || null,
-          ...(form.cargoMode === 'FCL' ? { carrierAllocations: allocationPayload(carrierAllocations) } : {}),
         };
         const submitSignature = signature(submitPayload);
         if (attempt.submitSignature != null && attempt.submitSignature !== submitSignature) attempt.submitKey = crypto.randomUUID();
@@ -189,7 +175,7 @@ export function useShipmentCreateWorkflow({
     } finally {
       setSaving(null);
     }
-  }, [carrierAllocations, containers, customerNotes, form, navigate, onSaved, onValidationIssues, readiness, sites]);
+  }, [containers, customerNotes, form, navigate, onSaved, onValidationIssues, readiness, sites]);
 
   return { clearFeedback, reportError: setSubmitError, save, saving, submitError };
 }

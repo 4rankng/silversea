@@ -7,8 +7,20 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/ShipmentCreateWorkspace.tsx'),
   'utf8',
 );
+const fieldAdapters = readFileSync(
+  resolve(process.cwd(), 'src/features/shipments/create/uui-fields.tsx'),
+  'utf8',
+);
 
 describe('shipment create responsive layout', () => {
+  it('gives every form control a persistent visible boundary and focus state', () => {
+    expect(fieldAdapters).toContain('csc-uui-field csc-control-boundary');
+    expect(css).toMatch(/\.csc-control-boundary > \[role='presentation'\][\s\S]*?border:\s*1px solid/);
+    expect(css).toMatch(/\.csc-control-boundary > \[role='presentation'\][\s\S]*?background:\s*var\(--surface/);
+    expect(css).toMatch(/\.csc-control-boundary:focus-within > \[role='presentation'\][\s\S]*?border-color:\s*var\(--accent/);
+    expect(css).toMatch(/\.csc-control-boundary:focus-within > \[role='presentation'\][\s\S]*?box-shadow:\s*0 0 0 3px/);
+  });
+
   it('keeps container fields shrinkable inside the page workspace', () => {
     expect(source).toContain('className="csc-container-grid"');
     expect(css).toMatch(/\.csc-container-record\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);

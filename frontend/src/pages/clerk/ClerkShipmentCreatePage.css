@@ -54,6 +54,48 @@
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
 .csc-section textarea { width: 100%; min-height: 104px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 11px 12px; color: var(--fg-1); background: var(--surface-2); font: inherit; }
+.csc-control-boundary > [role='presentation'],
+.csc-control-boundary [data-input-wrapper='true'],
+.csc-control-boundary [role='group'],
+.csc-control-boundary select,
+.csc-control-boundary textarea {
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+.csc-control-boundary:not(:focus-within):hover > [role='presentation'],
+.csc-control-boundary:not(:focus-within):hover [data-input-wrapper='true'],
+.csc-control-boundary:not(:focus-within):hover [role='group'],
+.csc-control-boundary:not(:focus-within):hover select,
+.csc-control-boundary:not(:focus-within):hover textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
+}
+.csc-control-boundary:focus-within > [role='presentation'],
+.csc-control-boundary:focus-within [data-input-wrapper='true'],
+.csc-control-boundary:focus-within [role='group'],
+.csc-control-boundary:focus-within select,
+.csc-control-boundary:focus-within textarea {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+.csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
+.csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
+.csc-control-boundary:has([aria-invalid='true']) [role='group'],
+.csc-control-boundary:has([aria-invalid='true']) select,
+.csc-control-boundary:has([aria-invalid='true']) textarea {
+  border-color: var(--danger, #dc2626);
+}
+.csc-control-boundary:has(:disabled) > [role='presentation'],
+.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
+.csc-control-boundary:has(:disabled) [role='group'],
+.csc-control-boundary:has(:disabled) select,
+.csc-control-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2, #f8fafc);
+}
 .csc-summary { position: sticky; top: 16px; display: grid; gap: 12px; min-width: 0; }
 .csc-summary__section, .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--surface); }
 .csc-summary__heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }

@@ -63,7 +63,7 @@ export function UTextField({
       hint={error ?? hint}
       hideRequiredIndicator={!required}
       inputProps={{ maxLength, min, step }}
-      className="csc-uui-field"
+      className="csc-uui-field csc-control-boundary"
     />
   );
 }
@@ -120,7 +120,7 @@ export function USearchableField({
         isInvalid={Boolean(error)}
         hint={typeof (error ?? hint) === 'string' ? (error ?? hint) as string : undefined}
         hideRequiredIndicator={!required}
-        className="csc-uui-field"
+        className="csc-uui-field csc-control-boundary"
       >
         {(item: { id: string | number; label?: string; supportingText?: string }) => (
           <SelectItem
@@ -158,10 +158,10 @@ export function USelectField({
   hint,
 }: USelectFieldProps) {
   return (
-    <div className={`csc-select-field${error ? ' csc-select-field--error' : ''}`}>
+    <div className={`csc-select-field csc-control-boundary${error ? ' csc-select-field--error' : ''}`}>
       <NativeSelect
         aria-label={label}
-        label={label}
+        label={required ? `${label} *` : label}
         value={value}
         onChange={(event) => onChange(event)}
         options={options}
@@ -204,7 +204,7 @@ export function UTextAreaField({
       maxLength={maxLength}
       placeholder={placeholder}
       isDisabled={disabled}
-      className="csc-uui-field"
+      className="csc-uui-field csc-control-boundary"
     />
   );
 }

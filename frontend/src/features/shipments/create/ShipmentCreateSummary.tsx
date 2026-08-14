@@ -1,6 +1,5 @@
 import { AlertCircle, Check, Circle, Send } from 'lucide-react';
 import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
-import type { ShipmentPricingProjection } from '../../../api/shipmentClient';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import type {
   SaveIntent,
@@ -12,9 +11,6 @@ import type {
 interface ShipmentCreateSummaryProps {
   readiness: ShipmentCreateReadiness;
   validationIssues: ShipmentCreateIssue[];
-  pricingProjection: ShipmentPricingProjection | null;
-  pricingLoading: boolean;
-  pricingError: string | null;
   saving: SaveIntent | null;
   submitError: string | null;
   onNavigateSection: (sectionId: ShipmentCreateSectionId) => void;
@@ -23,17 +19,9 @@ interface ShipmentCreateSummaryProps {
   onSubmitDispatch: () => void;
 }
 
-function formatVnd(value: number | null | undefined): string {
-  if (value == null) return '—';
-  return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
-}
-
 export function ShipmentCreateSummary({
   readiness,
   validationIssues,
-  pricingProjection,
-  pricingLoading,
-  pricingError,
   saving,
   submitError,
   onNavigateSection,
@@ -103,55 +91,6 @@ export function ShipmentCreateSummary({
             </button>
           ))}
         </nav>
-      </section>
-
-      <section className="csc-summary__section" aria-labelledby="csc-pricing-title">
-        <div className="csc-summary__heading">
-          <div>
-            <span className="csc-summary__eyebrow">Đối chiếu</span>
-            <h2 id="csc-pricing-title">Cước dự kiến</h2>
-          </div>
-        </div>
-        {pricingLoading && <p className="csc-summary__muted">Đang tính cước và phụ phí nhiên liệu…</p>}
-        {!pricingLoading && pricingError && <p className="csc-summary__error" role="alert">{pricingError}</p>}
-        {!pricingLoading && !pricingError && !pricingProjection && (
-          <p className="csc-summary__muted">Chọn khách hàng, tuyến đường và thông tin hàng để xem cước.</p>
-        )}
-        {!pricingLoading && !pricingError && pricingProjection && (
-          <div className="csc-pricing">
-            <p className={pricingProjection.readiness === 'READY' ? '' : 'csc-summary__warning'}>
-              {pricingProjection.message}
-            </p>
-            <dl>
-              <div>
-                <dt>Cước vận chuyển</dt>
-                <dd>{formatVnd(pricingProjection.freightPrice)}</dd>
-              </div>
-              <div>
-                <dt>Phụ phí nhiên liệu</dt>
-                <dd>{formatVnd(pricingProjection.expectedFuelSurcharge)}</dd>
-              </div>
-            </dl>
-            {(pricingProjection.freightFormula || pricingProjection.expectedFuelLiters != null) && (
-              <div className="csc-pricing__explain">
-                {pricingProjection.freightFormula && <p>{pricingProjection.freightFormula}</p>}
-                {pricingProjection.expectedFuelLiters != null && (
-                  <p>{pricingProjection.expectedFuelLiters.toLocaleString('vi-VN')} lít định mức.</p>
-                )}
-              </div>
-            )}
-            {pricingProjection.breakdown.length > 0 && (
-              <div className="csc-pricing__breakdown">
-                {pricingProjection.breakdown.map((line) => (
-                  <div key={`${line.label}-${line.quantity}`}>
-                    <span><strong>{line.label}</strong><small>{line.formula}</small></span>
-                    <strong>{formatVnd(line.amount)}</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </section>
 
       <section className="csc-summary__section csc-summary__actions" aria-label="Thao tác lưu lô hàng">

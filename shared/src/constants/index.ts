@@ -167,7 +167,7 @@ export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, str
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.NEW]: 'Chờ bổ sung ngày',
-  [ShipmentStatus.PENDING_DATE]: 'Chờ ngày đóng/trả hàng',
+  [ShipmentStatus.PENDING_DATE]: 'Chờ chốt lịch',
   [ShipmentStatus.READY_FOR_DISPATCH]: 'Sẵn sàng điều xe',
   [ShipmentStatus.DISPATCHED]: 'Đã điều xe',
   [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',

@@ -118,7 +118,6 @@ function issue(
 export function getShipmentCreateReadiness(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],
-  carrierAllocationError: string | null,
 ): ShipmentCreateReadiness {
   const issues: ShipmentCreateIssue[] = [];
 
@@ -131,17 +130,11 @@ export function getShipmentCreateReadiness(
   if (!form.tradeDirection) {
     issues.push(issue('shipment-trade-direction', 'Chọn hình thức nhập khẩu hoặc xuất khẩu.', 'identity'));
   }
-  if (form.cargoMode === 'FCL' && !form.shippingLineName) {
-    issues.push(issue('shipment-shipping-line', 'Nhập hãng tàu của lô hàng.', 'identity'));
-  }
   if (!form.routeId) {
     issues.push(issue('shipment-route', 'Chọn tuyến đường.', 'route'));
   }
 
   if (form.cargoMode === 'FCL') {
-    if (!form.operationalSiteId) {
-      issues.push(issue('shipment-operational-site', 'Chọn nhà máy giao hàng.', 'route'));
-    }
     containers.forEach((row, index) => {
       const prefix = `container-${row.key}`;
       const label = `Container ${index + 1}`;
@@ -150,9 +143,6 @@ export function getShipmentCreateReadiness(
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
     });
-    if (carrierAllocationError) {
-      issues.push(issue('shipment-carrier-allocation', carrierAllocationError, 'cargo'));
-    }
     if (!form.expectedDeliveryDate && !form.closingAt && !form.plannedReturnAt) {
       issues.push(issue(
         'shipment-expected-delivery',
@@ -162,7 +152,6 @@ export function getShipmentCreateReadiness(
     }
   } else {
     if (!form.pickupWarehouseSiteId) issues.push(issue('shipment-pickup-warehouse', 'Chọn kho lấy hàng.', 'route'));
-    if (!form.cargoTypeId) issues.push(issue('shipment-cargo-type', 'Chọn loại hàng để tính cước lô hàng lẻ.', 'cargo'));
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
@@ -223,11 +212,9 @@ export function buildShipmentRootPayload(
     blNumber: form.blNumber || null,
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
-    operationalSiteId: form.cargoMode === 'FCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
+    operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
-    factoryName: form.cargoMode === 'FCL'
-      ? sites.find((site) => String(site.id) === form.operationalSiteId)?.name ?? null
-      : null,
+    factoryName: sites.find((site) => String(site.id) === form.operationalSiteId)?.name ?? null,
     shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),

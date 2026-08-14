@@ -196,6 +196,47 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 1);
   });
 
+  test('submits FCL intake without factory, shipping line, or carrier assignment', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      tradeDirection: 'EXPORT',
+      bookingRef: `BOOK-OPTIONAL-${suffix}`,
+      shipmentCode: `INTAKE-FCL-OPTIONAL-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: ref.containerType.id,
+      containerNumber: 'MSCU6639874',
+      pickupPortId: ref.ports[0]!.id,
+      dropoffPortId: ref.ports[1]!.id,
+      createdBy: admin.userId,
+    });
+    const key = `submit-fcl-optional-${suffix}`;
+    idempotencyKeys.push(key);
+
+    const result = await submitShipmentForDispatch({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: key,
+      actor: admin,
+    });
+
+    assert.equal(result.result.handoff.status, 'UNSEEN');
+    const fulfillments = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(fulfillments.length, 1);
+    assert.equal(fulfillments[0]?.plannedCarrierType, null);
+    assert.equal(fulfillments[0]?.plannedExternalCarrierId, null);
+  });
+
   test('keeps an incomplete draft unchanged and creates no handoff', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();

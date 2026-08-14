@@ -380,7 +380,7 @@ describe('ClerkShipmentDocsPage', () => {
 
     renderAt();
 
-    expect(await screen.findByText(/Trạng thái: Chờ ngày đóng\/trả hàng/)).toBeTruthy();
+    expect(await screen.findByText(/Trạng thái: Chờ chốt lịch/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Gửi sang điều phối' })).toBeTruthy();
   });
 

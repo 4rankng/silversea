@@ -304,9 +304,9 @@ async function assertReferenceIsActive(
     .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
   if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
 
-  // FCL requires a delivery factory; LCL delivers to a warehouse pickup, not a factory.
-  if (shipment.cargoMode === 'FCL') {
-    if (shipment.operationalSiteId == null) throw new ApiError(409, 'Vui lòng chọn nhà máy.');
+  // A factory is common optional intake detail for both cargo modes. Validate it
+  // when supplied, but do not make it a dispatch prerequisite.
+  if (shipment.operationalSiteId != null) {
     const [factory] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
       .where(and(
         eq(s.operationalSites.id, shipment.operationalSiteId),
@@ -362,11 +362,10 @@ async function assertIntakeReady(
   const incomplete = containers.find((container) => (
     !container.containerNumber?.trim()
     || container.containerTypeId == null
-    || !container.shippingLineName?.trim()
     || container.pickupPortId == null
     || container.dropoffPortId == null
   ));
-  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ số container, loại, hãng tàu, cảng nâng và cảng hạ.');
+  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ số container, loại, cảng nâng và cảng hạ.');
   const containerTypeIds = [...new Set(containers.map((container) => container.containerTypeId)
     .filter((id): id is number => id != null))];
   const activeContainerTypes = await tx.select({ id: s.containerTypes.id }).from(s.containerTypes)
@@ -425,12 +424,16 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
       }
       await assertIntakeReady(tx, shipment);
 
-      await persistCarrierAllocations(
-        tx,
-        shipment,
-        input.actor.userId,
-        input.carrierAllocations ?? [],
-      );
+      const carrierAllocations = input.carrierAllocations ?? [];
+      if (carrierAllocations.length > 0) {
+        await persistCarrierAllocations(tx, shipment, input.actor.userId, carrierAllocations);
+      } else {
+        await ensureShipmentFulfillmentsInTx(tx, {
+          shipmentId: shipment.id,
+          actorId: input.actor.userId,
+          allowClerkIntake: true,
+        });
+      }
 
       const nextVersion = shipment.version + 1;
       const now = new Date();
