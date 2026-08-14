@@ -17,6 +17,7 @@ export const shipmentCusWorkspaceQuerySchema = z.object({
   searchSuffix: suffixSchema.optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
+  customerId: z.coerce.number().int().positive().optional(),
   direction: z.enum(['IMPORT', 'EXPORT']).optional(),
   bucket: z.nativeEnum(ShipmentCusBucket).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -375,10 +376,16 @@ export const shipmentRecoveryRecordResultSchema = z.object({
 export const shipmentCusContainerFlatRowSchema = z.object({
   id: z.number().int().positive(),
   shipmentId: z.number().int().positive(),
+  shipmentVersion: z.number().int().positive(),
   ordinal: z.number().int().positive(),
+  customerId: z.number().int().positive(),
   customerName: z.string().nullable(),
   factoryName: z.string().nullable(),
+  routeName: z.string().nullable(),
   billOrBookNumber: z.string().nullable(),
+  declarationNumber: z.string().nullable(),
+  shippingLineName: z.string().nullable(),
+  isCombined: z.boolean(),
   direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
   containerNumber: z.string().nullable(),
   containerTypeLabel: z.string().nullable(),
@@ -387,7 +394,18 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   plateNumber: z.string().nullable(),
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
+  transportDate: z.string().date().nullable(),
+  closingAt: z.string().datetime().nullable(),
+  plannedReturnAt: z.string().datetime().nullable(),
   customerAppointmentAt: z.string().datetime().nullable(),
+  customerNotes: z.string().nullable(),
+  operationalNotes: z.string().nullable(),
+  shipmentScheduleEditable: z.boolean(),
+  shipmentNotesEditable: z.boolean(),
+  carrierEditable: z.boolean(),
+  plateEditable: z.boolean(),
+  liftSiteEditable: z.boolean(),
+  dropoffSiteEditable: z.boolean(),
   scheduleEditable: z.boolean(),
 }).strict();
 
@@ -396,6 +414,12 @@ export const shipmentCusContainerFlatResponseSchema = z.object({
   limit: z.number().int().min(1).max(100),
   total: z.number().int().nonnegative(),
   totalPages: z.number().int().nonnegative(),
+  filterOptions: z.object({
+    customers: z.array(z.object({
+      id: z.number().int().positive(),
+      name: z.string(),
+    }).strict()),
+  }).strict(),
   items: z.array(shipmentCusContainerFlatRowSchema),
 }).strict();
 

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { LoaderCircle, PencilLine, Save, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, LoaderCircle, PencilLine, Save, X } from 'lucide-react';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -7,11 +7,43 @@ import type {
 } from '@tingting/shared';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
-type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
+export type ShipmentDetailEditMode = 'route' | 'schedule' | 'vehicle' | 'notes';
 
+export interface ActiveShipmentDetailEdit {
+  row: ShipmentCusContainerFlatRow;
+  detail: ShipmentCusWorkspaceDetail;
+  line: ShipmentCusWorkspaceContainerLine;
+  mode: ShipmentDetailEditMode;
+}
+
+export interface ShipmentRouteDraft {
+  liftSiteId: number | null;
+  dropoffSiteId: number | null;
+}
+
+export interface ShipmentVehicleDraft {
+  carrierType: 'EXTERNAL';
+  externalCarrierId: number | null;
+  externalCarrierVehicleId: number | null;
+  plateNumber: string | null;
+  newExternalCarrier: { name: string; plateNumber: string } | null;
+}
+
+export interface ShipmentScheduleDraft {
+  transportDate: string | null;
+  scheduleAt: string | null;
+}
+
+export interface ShipmentNotesDraft {
+  customerNotes: string | null;
+  operationalNotes: string | null;
+}
+
+type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
 const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'success' }> = {
   UNASSIGNED: { label: 'Chưa điều xe', color: 'warning' },
   PLANNED: { label: 'Đã phân xe', color: 'brand' },
@@ -26,299 +58,337 @@ function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): st
   return 'Chưa xác định';
 }
 
-function formatAppointment(value: string | null): { date: string; time: string } | null {
-  if (!value) return null;
-  const vietnamDateTime = formatVietnamDateTimeInput(value);
-  if (!vietnamDateTime) return { date: value, time: '' };
-  const [datePart, time] = vietnamDateTime.split('T');
-  const [year, month, day] = datePart.split('-');
-  return {
-    date: `${day}/${month}/${year}`,
-    time,
-  };
+function formatDate(value: string | null): string {
+  if (!value) return 'Chưa có ngày';
+  const [year, month, day] = value.split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
-function Fallback({ children }: { children: string }) {
-  return <span className="shipment-container-ledger__missing">{children}</span>;
+function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
+  const value = row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt;
+  const input = formatVietnamDateTimeInput(value);
+  return input ? input.slice(11, 16) : null;
 }
 
-export interface ShipmentScheduleDraft {
-  liftSiteId: number | null;
-  dropoffSiteId: number | null;
-  customerAppointmentAt: string | null;
+function fallback(value: string | null, label: string) {
+  return value || <span className="shipment-container-ledger__missing">{label}</span>;
 }
 
-interface ActiveScheduleEdit {
-  detail: ShipmentCusWorkspaceDetail;
-  line: ShipmentCusWorkspaceContainerLine;
+function EditActions({
+  saving,
+  saveDisabled,
+  label,
+  onSave,
+  onCancel,
+}: {
+  saving: boolean;
+  saveDisabled: boolean;
+  label: string;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="shipment-container-ledger__edit-actions">
+      <UUIButton
+        size="sm"
+        color="primary"
+        onPress={onSave}
+        isDisabled={saveDisabled || saving}
+        isLoading={saving}
+        showTextWhileLoading
+        iconLeading={!saving ? <Save aria-hidden="true" /> : undefined}
+        aria-label={`Lưu ${label}`}
+      >Lưu</UUIButton>
+      <UUIButton
+        size="sm"
+        color="secondary"
+        onPress={onCancel}
+        isDisabled={saving}
+        iconLeading={<X aria-hidden="true" />}
+        aria-label={`Hủy ${label}`}
+      >Hủy</UUIButton>
+    </div>
+  );
 }
 
-interface ShipmentContainerLedgerProps {
-  rows: ShipmentCusContainerFlatRow[];
-  totalShipments: number;
-  activeEdit: ActiveScheduleEdit | null;
-  editLoadingRowId: number | null;
-  editError: { rowId: number; message: string } | null;
-  onStartEdit: (row: ShipmentCusContainerFlatRow) => void;
-  onCancelEdit: () => void;
-  onSaveEdit: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentScheduleDraft) => Promise<void>;
-}
-
-function toLocalDateTime(value: string | null): string {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function ScheduleInlineEditor({
+function InlineEditor({
   edit,
   onCancel,
-  onSave,
+  onSaveRoute,
+  onSaveVehicle,
+  onSaveSchedule,
+  onSaveNotes,
 }: {
-  edit: ActiveScheduleEdit;
+  edit: ActiveShipmentDetailEdit;
   onCancel: () => void;
-  onSave: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
+  onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
+  onSaveSchedule: (row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
 }) {
-  const { detail, line } = edit;
+  const { detail, line, mode, row } = edit;
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
   const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
-  const [appointment, setAppointment] = useState(toLocalDateTime(line.customerAppointmentAt));
+  const initialCarrier = line.externalCarrierId ? String(line.externalCarrierId) : '';
+  const [carrierId, setCarrierId] = useState(initialCarrier);
+  const [newCarrierName, setNewCarrierName] = useState('');
+  const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
+  const [transportDate, setTransportDate] = useState(row.transportDate ?? '');
+  const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
+  const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
+  const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const options = useMemo(() => detail.selectors.operationalSites.map((site) => ({
-    value: String(site.id),
-    label: site.label,
-    searchText: `${site.code} ${site.name}`,
+  const editorRef = useRef<HTMLDivElement>(null);
+  const siteOptions = useMemo(() => detail.selectors.operationalSites.map((site) => ({
+    value: String(site.id), label: site.label, searchText: `${site.code} ${site.name}`,
   })), [detail.selectors.operationalSites]);
-  const dirty = liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
-    || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
-    || appointment !== toLocalDateTime(line.customerAppointmentAt);
+  const carrierOptions = useMemo(() => [
+    ...detail.selectors.externalCarriers.map((carrier) => ({
+      value: String(carrier.id), label: carrier.label, searchText: `${carrier.name} ${carrier.shortName ?? ''}`,
+    })),
+    { value: 'NEW_EXTERNAL', label: 'Nhập nhà xe mới', searchText: 'nhà xe mới' },
+  ], [detail.selectors.externalCarriers]);
+  const vehicleOptions = useMemo(() => detail.selectors.carrierVehicles
+    .filter((vehicle) => vehicle.carrierId === Number(carrierId))
+    .map((vehicle) => ({ value: String(vehicle.id), label: vehicle.label, searchText: vehicle.licensePlate })),
+  [carrierId, detail.selectors.carrierVehicles]);
+  const matchedVehicle = detail.selectors.carrierVehicles.find((vehicle) => (
+    vehicle.carrierId === Number(carrierId)
+    && vehicle.licensePlate.localeCompare(plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
+  ));
+  const dirty = mode === 'route'
+    ? liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
+      || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
+    : mode === 'vehicle'
+      ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
+      : mode === 'schedule'
+        ? transportDate !== (row.transportDate ?? '') || scheduleTime !== (formatScheduleTime(row) ?? '')
+        : customerNotes.trim() !== (row.customerNotes ?? '').trim()
+          || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
+  const label = `${mode === 'route' ? 'hành trình' : mode === 'vehicle' ? 'phân xe' : mode === 'schedule' ? 'lịch trình' : 'ghi chú'} ${row.containerNumber || `container số ${row.ordinal}`}`;
+
+  useEffect(() => {
+    editorRef.current?.focus();
+  }, []);
 
   const save = async () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave(line, {
-        liftSiteId: liftSiteId ? Number(liftSiteId) : null,
-        dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
-        customerAppointmentAt: appointment ? new Date(appointment).toISOString() : null,
-      });
+      if (mode === 'route') {
+        await onSaveRoute(line, {
+          liftSiteId: liftSiteId ? Number(liftSiteId) : null,
+          dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
+        });
+      } else if (mode === 'vehicle') {
+        if (carrierId === 'NEW_EXTERNAL' && (!newCarrierName.trim() || !plateNumber.trim())) {
+          throw new Error('Nhập đủ tên nhà xe mới và biển số xe.');
+        }
+        if (!carrierId) throw new Error('Chọn nhà xe trước khi lưu.');
+        await onSaveVehicle(line, {
+          carrierType: 'EXTERNAL',
+          externalCarrierId: carrierId === 'NEW_EXTERNAL' ? null : Number(carrierId),
+          externalCarrierVehicleId: matchedVehicle?.id ?? null,
+          plateNumber: plateNumber.trim() || null,
+          newExternalCarrier: carrierId === 'NEW_EXTERNAL'
+            ? { name: newCarrierName.trim(), plateNumber: plateNumber.trim() }
+            : null,
+        });
+      } else if (mode === 'schedule') {
+        if (scheduleTime && !transportDate) throw new Error('Chọn ngày vận chuyển trước khi nhập giờ.');
+        await onSaveSchedule(row, {
+          transportDate: transportDate || null,
+          scheduleAt: transportDate && scheduleTime ? `${transportDate}T${scheduleTime}` : null,
+        });
+      } else {
+        await onSaveNotes(row, {
+          customerNotes: customerNotes.trim() || null,
+          operationalNotes: operationalNotes.trim() || null,
+        });
+      }
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Không thể lưu lịch trình container.');
+      setSaveError(error instanceof Error ? error.message : 'Không thể lưu thay đổi.');
     } finally {
       setSaving(false);
     }
   };
 
-  const label = line.containerNumber || `số ${line.ordinal}`;
-
   return (
-    <>
-      <td data-label="Hành trình nâng/hạ" className="shipment-container-ledger__editing-cell">
-        <div className="shipment-container-ledger__schedule-fields">
-          <label htmlFor={`shipment-detail-lift-${line.id}`}>Điểm nâng</label>
-          {line.permissions.liftSiteEditable ? (
-            <SearchableSelect
-              id={`shipment-detail-lift-${line.id}`}
-              value={liftSiteId}
-              onChange={(value) => { setLiftSiteId(value); setSaveError(null); }}
-              options={options}
-              placeholder="Chọn điểm nâng"
-              searchPlaceholder="Tìm điểm nâng"
-              disabled={saving}
-            />
-          ) : <strong>{line.liftSite || 'Chưa cập nhật'}</strong>}
-
-          <label htmlFor={`shipment-detail-dropoff-${line.id}`}>Điểm hạ</label>
-          {line.permissions.dropoffSiteEditable ? (
-            <SearchableSelect
-              id={`shipment-detail-dropoff-${line.id}`}
-              value={dropoffSiteId}
-              onChange={(value) => { setDropoffSiteId(value); setSaveError(null); }}
-              options={options}
-              placeholder="Chọn điểm hạ"
-              searchPlaceholder="Tìm điểm hạ"
-              disabled={saving}
-            />
-          ) : <strong>{line.dropoffSite || 'Chưa cập nhật'}</strong>}
+    <div
+      ref={editorRef}
+      className="shipment-container-ledger__inline-editor"
+      tabIndex={-1}
+      onKeyDown={(event) => { if (event.key === 'Escape' && !saving) onCancel(); }}
+    >
+      {mode === 'route' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Điểm nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn điểm nâng" searchPlaceholder="Tìm điểm nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
+          <label><span>Điểm hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn điểm hạ" searchPlaceholder="Tìm điểm hạ" disabled={saving || !line.permissions.dropoffSiteEditable} /></label>
         </div>
-      </td>
-      <td data-label="Lịch hẹn đóng/trả" className="shipment-container-ledger__editing-cell">
-        <div className="shipment-container-ledger__appointment-editor">
-          <label htmlFor={`shipment-detail-appointment-${line.id}`}>Lịch hẹn đóng/trả</label>
-          {line.permissions.customerAppointmentEditable ? (
-            <input
-              id={`shipment-detail-appointment-${line.id}`}
-              aria-label={`Lịch hẹn đóng hoặc trả của container ${label}`}
-              type="datetime-local"
-              value={appointment}
-              disabled={saving}
-              onChange={(event) => { setAppointment(event.target.value); setSaveError(null); }}
-            />
-          ) : <strong>{formatAppointment(line.customerAppointmentAt)?.date || 'Chưa có lịch hẹn'}</strong>}
-          <div className="shipment-container-ledger__edit-actions">
-            <UUIButton
-              size="sm"
-              color="primary"
-              onPress={() => void save()}
-              isDisabled={!dirty || saving}
-              isLoading={saving}
-              showTextWhileLoading
-              iconLeading={!saving ? <Save aria-hidden="true" /> : undefined}
-              aria-label={`Lưu lịch trình ${label}`}
-            >Lưu</UUIButton>
-            <UUIButton
-              size="sm"
-              color="secondary"
-              onPress={onCancel}
-              isDisabled={saving}
-              iconLeading={<X aria-hidden="true" />}
-              aria-label={`Hủy chỉnh sửa lịch trình ${label}`}
-            >Hủy</UUIButton>
-          </div>
-          {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
+      )}
+      {mode === 'vehicle' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
+          {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
+          {carrierId && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length > 0 && <label><span>Biển số đã lưu</span><SearchableSelect id={`shipment-detail-vehicle-${line.id}`} value={matchedVehicle ? String(matchedVehicle.id) : ''} onChange={(value) => { const vehicle = detail.selectors.carrierVehicles.find((item) => item.id === Number(value)); setPlateNumber(vehicle?.licensePlate ?? ''); }} options={vehicleOptions} placeholder="Chọn biển số" searchPlaceholder="Tìm biển số" disabled={saving || !line.permissions.plateEditable} /></label>}
+          <label><span>Biển số xe</span><input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || !line.permissions.plateEditable} /></label>
         </div>
-      </td>
-    </>
+      )}
+      {mode === 'schedule' && (
+        <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
+          <label><span>Ngày vận chuyển</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving} /></label>
+          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving} /></label>
+          <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
+        </div>
+      )}
+      {mode === 'notes' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <UUITextArea label="Ghi chú thu khách" size="sm" rows={2} maxLength={2000} value={customerNotes} onChange={setCustomerNotes} isDisabled={saving} />
+          <UUITextArea label="Ghi chú điều xe" size="sm" rows={2} maxLength={2000} value={operationalNotes} onChange={setOperationalNotes} isDisabled={saving} />
+          <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
+        </div>
+      )}
+      <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
+      <small className="shipment-container-ledger__escape-hint">Nhấn Escape để hủy.</small>
+      {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
+    </div>
   );
+}
+
+interface ShipmentContainerLedgerProps {
+  rows: ShipmentCusContainerFlatRow[];
+  totalContainers: number;
+  today: string;
+  activeEdit: ActiveShipmentDetailEdit | null;
+  editLoadingRowId: number | null;
+  editError: { rowId: number; message: string } | null;
+  onStartEdit: (row: ShipmentCusContainerFlatRow, mode: ShipmentDetailEditMode, triggerId: string) => void;
+  onCancelEdit: () => void;
+  onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
+  onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
+  onSaveSchedule: (row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
 }
 
 export function ShipmentContainerLedger({
   rows,
-  totalShipments,
+  totalContainers,
+  today,
   activeEdit,
   editLoadingRowId,
   editError,
   onStartEdit,
   onCancelEdit,
-  onSaveEdit,
+  onSaveRoute,
+  onSaveVehicle,
+  onSaveSchedule,
+  onSaveNotes,
 }: ShipmentContainerLedgerProps) {
-  const unassignedCount = rows.filter((row) => row.dispatchStatus === 'UNASSIGNED').length;
-  const assignedCount = rows.length - unassignedCount;
+  const missingDateCount = rows.filter((row) => row.transportDate == null).length;
+  const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
+  const editButton = (row: ShipmentCusContainerFlatRow, mode: ShipmentDetailEditMode, enabled: boolean) => {
+    if (!enabled) return null;
+    const triggerId = `shipment-detail-edit-${mode}-${row.id}`;
+    const busy = editLoadingRowId === row.id;
+    return (
+      <UUIButton
+        id={triggerId}
+        size="sm"
+        color="tertiary"
+        className="shipment-container-ledger__edit-trigger"
+        onPress={() => onStartEdit(row, mode, triggerId)}
+        isDisabled={busy || activeEdit != null}
+        iconLeading={busy ? <LoaderCircle className="shipment-container-ledger__spinner" aria-hidden="true" /> : <PencilLine aria-hidden="true" />}
+        aria-label={`Chỉnh sửa ${mode === 'route' ? 'điểm nâng hạ' : mode === 'vehicle' ? 'phân xe' : mode === 'schedule' ? 'lịch trình' : 'ghi chú'} ${row.containerNumber || `container số ${row.ordinal}`}`}
+      >{busy ? 'Đang mở' : 'Sửa'}</UUIButton>
+    );
+  };
 
   return (
     <>
-      <dl className="shipment-container-summary" aria-label="Tổng quan trang hiện tại">
-        <div>
-          <dt>Container trên trang</dt>
-          <dd>{rows.length.toLocaleString('vi-VN')}</dd>
-        </div>
-        <div className={unassignedCount > 0 ? 'shipment-container-summary__attention' : undefined}>
-          <dt>Chưa điều xe</dt>
-          <dd>{unassignedCount.toLocaleString('vi-VN')}</dd>
-        </div>
-        <div>
-          <dt>Đã có kế hoạch</dt>
-          <dd>{assignedCount.toLocaleString('vi-VN')}</dd>
-        </div>
-        <div>
-          <dt>Lô hàng phù hợp</dt>
-          <dd>{totalShipments.toLocaleString('vi-VN')}</dd>
-        </div>
+      <dl className="shipment-container-summary" aria-label="Tóm tắt container trên trang">
+        <div><dt>Container trên trang</dt><dd>{rows.length.toLocaleString('vi-VN')}</dd></div>
+        <div><dt>Tổng container phù hợp</dt><dd>{totalContainers.toLocaleString('vi-VN')}</dd></div>
+        <div className={missingDateCount ? 'shipment-container-summary__attention' : ''}><dt>Thiếu ngày vận chuyển</dt><dd>{missingDateCount.toLocaleString('vi-VN')}</dd></div>
+        <div className={missingVehicleTodayCount ? 'shipment-container-summary__danger' : ''}><dt>Hôm nay thiếu xe</dt><dd>{missingVehicleTodayCount.toLocaleString('vi-VN')}</dd></div>
       </dl>
-
-      <p id="shipment-container-ledger-instructions" className="sr-only">
-        Bảng container của các lô hàng. Mỗi dòng là một container với lô hàng, hành trình, lịch hẹn, phương tiện và trạng thái điều vận.
-      </p>
-      <div
-        className="shipment-container-ledger"
-        role="region"
-        aria-label="Danh sách chi tiết container"
-        aria-describedby="shipment-container-ledger-instructions"
-        tabIndex={0}
-      >
+      <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
         <table>
-          <caption className="sr-only">Chi tiết container theo lô hàng</caption>
+          <caption>Chi tiết container theo bảy nhóm thông tin nghiệp vụ</caption>
           <colgroup>
+            <col className="shipment-container-ledger__col--customer" />
+            <col className="shipment-container-ledger__col--documents" />
             <col className="shipment-container-ledger__col--container" />
-            <col className="shipment-container-ledger__col--shipment" />
             <col className="shipment-container-ledger__col--route" />
-            <col className="shipment-container-ledger__col--appointment" />
+            <col className="shipment-container-ledger__col--schedule" />
             <col className="shipment-container-ledger__col--vehicle" />
+            <col className="shipment-container-ledger__col--notes" />
           </colgroup>
-          <thead>
-            <tr>
-              <th scope="col">Container và điều vận</th>
-              <th scope="col">Lô hàng</th>
-              <th scope="col">Hành trình nâng/hạ</th>
-              <th scope="col">Lịch hẹn đóng/trả</th>
-              <th scope="col">Xe vận chuyển</th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th scope="col">Khách hàng &amp; lộ trình</th>
+            <th scope="col">Chứng từ &amp; hãng tàu</th>
+            <th scope="col">Thông số container</th>
+            <th scope="col">Địa điểm nâng / hạ</th>
+            <th scope="col">Lịch trình</th>
+            <th scope="col">Phân xe</th>
+            <th scope="col">Ghi chú</th>
+          </tr></thead>
           <tbody>
             {rows.map((row) => {
-              const appointment = formatAppointment(row.customerAppointmentAt);
-              const dispatch = DISPATCH_STATUS[row.dispatchStatus];
-              const rowEdit = activeEdit?.line.id === row.id ? activeEdit : null;
-              const editBusy = editLoadingRowId === row.id;
-              const anotherRowIsEditing = activeEdit != null && rowEdit == null;
+              const edit = activeEdit?.row.id === row.id ? activeEdit : null;
+              const missingDate = row.transportDate == null;
+              const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
+              const scheduleTime = formatScheduleTime(row);
               return (
-                <tr key={row.id}>
-                  <th scope="row" data-label="Container và điều vận">
-                    <div className="shipment-container-ledger__identity">
-                      <strong className="shipment-container-ledger__code">{row.containerNumber || 'Chưa có số container'}</strong>
-                      <span>{row.containerTypeLabel || 'Chưa rõ loại container'}</span>
-                      <BadgeWithDot type="color" size="sm" color={dispatch.color}>
-                        {dispatch.label}
-                      </BadgeWithDot>
+                <tr key={row.id} className={missingDate ? 'shipment-container-ledger__row--missing-date' : undefined}>
+                  <th scope="row" data-label="Khách hàng & lộ trình">
+                    {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
+                    <div className="shipment-container-ledger__multiline">
+                      <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
+                      <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
+                      <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
                     </div>
                   </th>
-                  <td data-label="Lô hàng">
-                    <div className="shipment-container-ledger__shipment">
-                      <div className="shipment-container-ledger__bill">
-                        <strong>{row.billOrBookNumber || 'Chưa có Bill/Booking'}</strong>
-                        <span>{directionLabel(row.direction)}</span>
-                      </div>
-                      <span>{row.customerName || 'Chưa cập nhật khách hàng'}</span>
-                      <small>{row.factoryName || 'Chưa cập nhật nhà máy'}</small>
+                  <td data-label="Chứng từ & hãng tàu">
+                    <div className="shipment-container-ledger__multiline">
+                      <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
+                      <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
+                      <span><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b> · {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
                     </div>
                   </td>
-                  {rowEdit ? (
-                    <ScheduleInlineEditor edit={rowEdit} onCancel={onCancelEdit} onSave={onSaveEdit} />
-                  ) : (
-                    <>
-                      <td data-label="Hành trình nâng/hạ">
-                        <div className="shipment-container-ledger__route">
-                          <span><small>Điểm nâng</small>{row.liftSite || <Fallback>Chưa cập nhật</Fallback>}</span>
-                          <i aria-hidden="true">→</i>
-                          <span><small>Điểm hạ</small>{row.dropoffSite || <Fallback>Chưa cập nhật</Fallback>}</span>
-                        </div>
-                        {row.scheduleEditable && (
-                          <UUIButton
-                            size="sm"
-                            color="tertiary"
-                            className="shipment-container-ledger__edit-trigger"
-                            onPress={() => onStartEdit(row)}
-                            isDisabled={editBusy || anotherRowIsEditing}
-                            iconLeading={editBusy
-                              ? <LoaderCircle className="shipment-container-ledger__spinner" aria-hidden="true" />
-                              : <PencilLine aria-hidden="true" />}
-                            aria-label={`Chỉnh sửa lịch trình ${row.containerNumber || `container số ${row.ordinal}`}`}
-                          >{editBusy ? 'Đang mở' : 'Chỉnh sửa'}</UUIButton>
-                        )}
-                        {editError?.rowId === row.id && (
-                          <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>
-                        )}
-                      </td>
-                      <td data-label="Lịch hẹn đóng/trả">
-                        {appointment ? (
-                          <time className="shipment-container-ledger__appointment" dateTime={row.customerAppointmentAt ?? undefined}>
-                            <strong>{appointment.time}</strong>
-                            <span>{appointment.date}</span>
-                          </time>
-                        ) : <Fallback>Chưa có lịch hẹn</Fallback>}
-                      </td>
-                    </>
-                  )}
-                  <td data-label="Xe vận chuyển">
-                    <div className="shipment-container-ledger__vehicle">
-                      <strong>{row.carrierName || 'Chưa có nhà xe'}</strong>
-                      {row.plateNumber
-                        ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
-                        : <Fallback>Chưa có biển số</Fallback>}
+                  <td data-label="Thông số container">
+                    <div className="shipment-container-ledger__multiline">
+                      <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                      <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
+                      {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
+                      <BadgeWithDot size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>
+                  </td>
+                  <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'route' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                      <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>
+                      {editButton(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable)}
+                    </>}
+                    {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
+                  </td>
+                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'schedule' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                      <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>
+                      {editButton(row, 'schedule', row.shipmentScheduleEditable)}
+                    </>}
+                  </td>
+                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-alert' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
+                    {edit?.mode === 'vehicle' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                      <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>
+                      {editButton(row, 'vehicle', row.carrierEditable || row.plateEditable)}
+                    </>}
+                  </td>
+                  <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'notes' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                      <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>
+                      {editButton(row, 'notes', row.shipmentNotesEditable)}
+                    </>}
                   </td>
                 </tr>
               );

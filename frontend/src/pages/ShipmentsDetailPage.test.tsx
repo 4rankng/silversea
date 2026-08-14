@@ -2,333 +2,168 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatResponse, ShipmentCusWorkspaceDetail } from '@tingting/shared';
+import { formatVietnamDateInput } from '../lib/shipment-operations';
 
-const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
-
+const { apiGet, apiPost, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() }));
 vi.mock('../lib/api', () => ({
-  api: { get: apiGet, post: apiPost },
+  api: { get: apiGet, post: apiPost, put: apiPut },
   ApiError: class ApiError extends Error {},
 }));
 
 import ShipmentsDetailPage from './ShipmentsDetailPage';
 
+const today = formatVietnamDateInput(new Date());
 const response: ShipmentCusContainerFlatResponse = {
   page: 1,
   limit: 20,
   total: 2,
   totalPages: 1,
+  filterOptions: { customers: [{ id: 7, name: 'Công ty Silver Sea' }] },
   items: [
     {
-      id: 11,
-      shipmentId: 1,
-      ordinal: 1,
-      customerName: 'Công ty Silver Sea',
-      factoryName: 'Nhà máy Hải Phòng',
-      billOrBookNumber: 'BILL-12345',
-      direction: 'IMPORT',
-      containerNumber: 'CONT-001',
-      containerTypeLabel: '40HC',
-      dispatchStatus: 'PLANNED',
-      carrierName: 'SilverSea',
-      plateNumber: '30H-123.45',
-      liftSite: 'Bãi CY',
-      dropoffSite: 'Nhà máy Hải Phòng',
-      customerAppointmentAt: '2026-08-20T08:00:00.000Z',
-      scheduleEditable: false,
+      id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7,
+      customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
+      billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, direction: 'IMPORT',
+      containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
+      liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
+      customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
+      carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, scheduleEditable: false,
     },
     {
-      id: 12,
-      shipmentId: 2,
-      ordinal: 1,
-      customerName: 'Công ty Silver Sea',
-      factoryName: 'Nhà máy Hưng Yên',
-      billOrBookNumber: 'BOOK-67890',
-      direction: 'EXPORT',
-      containerNumber: 'CONT-002',
-      containerTypeLabel: '20DC',
-      dispatchStatus: 'UNASSIGNED',
-      carrierName: null,
-      plateNumber: null,
-      liftSite: null,
-      dropoffSite: null,
-      customerAppointmentAt: null,
-      scheduleEditable: true,
+      id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7,
+      customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
+      billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, direction: 'EXPORT',
+      containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,
+      liftSite: null, dropoffSite: null, transportDate: null, closingAt: null, plannedReturnAt: null, customerAppointmentAt: null,
+      customerNotes: null, operationalNotes: null, shipmentScheduleEditable: true, shipmentNotesEditable: true,
+      carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, scheduleEditable: true,
     },
   ],
 };
 
+const detail = {
+  summary: { id: 2, version: 7, operational: { transportDateEditable: true } },
+  containers: [{
+    id: 12, ordinal: 1, containerNumber: 'CONT-002', liftSiteId: 31, liftSite: 'Bãi CY', dropoffSiteId: 32, dropoffSite: 'Nhà máy Hưng Yên',
+    externalCarrierId: null, externalCarrierVehicleId: null, plateNumber: null, customerAppointmentAt: null, shipmentVersion: 7,
+    permissions: { carrierEditable: true, plateEditable: true, containerTypeEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true },
+  }],
+  selectors: {
+    operationalSites: [
+      { id: 31, siteType: 'WAREHOUSE', code: 'CY', name: 'Bãi CY', label: 'CY · Bãi CY' },
+      { id: 32, siteType: 'FACTORY', code: 'HY', name: 'Nhà máy Hưng Yên', label: 'HY · Nhà máy Hưng Yên' },
+      { id: 33, siteType: 'WAREHOUSE', code: 'DV', name: 'Cảng Đình Vũ', label: 'DV · Cảng Đình Vũ' },
+    ],
+    externalCarriers: [{ id: 41, name: 'Nhà xe Bắc', shortName: null, label: 'Nhà xe Bắc' }],
+    carrierVehicles: [{ id: 51, carrierId: 41, licensePlate: '15C-123.45', label: '15C-123.45' }],
+    containerTypes: [],
+  },
+} as unknown as ShipmentCusWorkspaceDetail;
+
 beforeEach(() => {
   apiGet.mockReset();
   apiPost.mockReset();
+  apiPut.mockReset();
 });
 
-describe('ShipmentsDetailPage — container-flat view', () => {
-  it('renders one row per container across shipments, with plate and đóng/trả appointment', async () => {
+describe('ShipmentsDetailPage — DOCX container workboard', () => {
+  it('loads today by default and renders the seven multi-line groups with warning semantics', async () => {
     apiGet.mockResolvedValueOnce(response);
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     expect(await screen.findByText('CONT-001')).toBeTruthy();
-    expect(screen.getByText('CONT-002')).toBeTruthy();
-    // The operational context is visible, but the internal shipment id is not.
-    expect(screen.queryByRole('columnheader', { name: 'Mã lô hàng' })).toBeNull();
-
-    expect(screen.getByText('30H-123.45')).toBeTruthy();
-    expect(screen.getByText('15:00')).toBeTruthy();
-    expect(screen.getByText('20/08/2026')).toBeTruthy();
-    // Unassigned container shows meaningful placeholders, not blanks.
-    expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThan(0);
-    expect(screen.getByText('Chưa có nhà xe')).toBeTruthy();
-    expect(screen.getByText('Chưa có biển số')).toBeTruthy();
-    expect(screen.getByText('Đã phân xe')).toBeTruthy();
-    expect(screen.getAllByText('Chưa điều xe').length).toBeGreaterThan(0);
-    // Page rows and matching shipments stay labelled as separate units.
-    expect(screen.getByText((_, element) => (
-      element?.classList.contains('ds-pagination__summary') === true
-      && element.textContent === 'Trang này có 2 container · 2 lô hàng phù hợp'
-    ))).toBeTruthy();
-
-    expect(screen.getByRole('columnheader', { name: 'Container và điều vận' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Lô hàng' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Hành trình nâng/hạ' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Lịch hẹn đóng/trả' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Xe vận chuyển' })).toBeTruthy();
-
-    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
+    for (const label of ['Khách hàng & lộ trình', 'Chứng từ & hãng tàu', 'Thông số container', 'Địa điểm nâng / hạ', 'Lịch trình', 'Phân xe', 'Ghi chú']) {
+      expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
+    }
+    expect(screen.getByText('TK-001')).toBeTruthy();
+    expect(screen.getByText((_, element) => element?.textContent === 'Nhập · MSC')).toBeTruthy();
+    expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
+    expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
+    expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
+    expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
+    expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
   });
 
-  it('surfaces the error notice with a retry action when loading fails', async () => {
-    apiGet.mockRejectedValueOnce(new Error('boom'));
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
+  it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT&searchSuffix=abcde']}><ShipmentsDetailPage /></MemoryRouter>);
 
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=abcde&transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT'));
+    expect(await screen.findByRole('option', { name: 'Công ty Silver Sea' })).toBeTruthy();
+  });
+
+  it('rejects an invalid suffix without issuing a filtered request', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+    await screen.findByText('CONT-001');
+    const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
+    fireEvent.change(input, { target: { value: 'ABC123' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(await screen.findByText('Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.')).toBeTruthy();
+    expect(apiGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows load failure separately from empty data and offers retry', async () => {
+    apiGet.mockRejectedValueOnce(new Error('boom'));
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.getByText('Thử lại')).toBeTruthy();
     expect(screen.queryByText('Chưa có container')).toBeNull();
-    expect(screen.queryByText('Không có container phù hợp')).toBeNull();
   });
 
-  it('replaces stale rows during a new search and keeps a failed result distinct from empty data', async () => {
-    apiGet.mockResolvedValueOnce(response).mockRejectedValueOnce(new Error('filter failed'));
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('CONT-001')).toBeTruthy();
-
-    const input = screen.getByLabelText(/Bill\/Booking hoặc tờ khai/i);
-    fireEvent.change(input, { target: { value: 'ABCD' } });
-    fireEvent.submit(input.closest('form')!);
-
-    await waitFor(() => expect(screen.queryByText('CONT-001')).toBeNull());
-    expect(await screen.findByRole('alert')).toBeTruthy();
-    expect(screen.queryByText('Chưa có container')).toBeNull();
-    expect(screen.queryByText('Không có container phù hợp')).toBeNull();
-    expect(apiGet).toHaveBeenLastCalledWith(
-      '/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD',
-    );
-  });
-
-  it('passes a trimmed uppercase suffix through as a search filter', async () => {
-    apiGet.mockResolvedValueOnce(response);
-    render(
-      <MemoryRouter initialEntries={['/?searchSuffix=abcde']}>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=abcde',
-    ));
-  });
-
-  it('shows the empty state when no containers match', async () => {
-    apiGet.mockResolvedValueOnce({ ...response, items: [], total: 0, totalPages: 0 });
-    render(
-      <MemoryRouter initialEntries={['/?searchSuffix=zzzz']}>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
-
-    expect(await screen.findByText('Không có container phù hợp')).toBeTruthy();
-    // Both the toolbar chip and the empty-state action offer clearing filters.
-    expect(screen.getAllByText('Xóa bộ lọc').length).toBeGreaterThan(0);
-  });
-
-  it('ignores suffix input shorter or longer than the 4-5 char contract on submit', async () => {
-    apiGet.mockResolvedValue(response);
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
-    await screen.findByText('CONT-001');
-
-    const input = screen.getByLabelText(/Bill\/Booking hoặc tờ khai/i);
-    fireEvent.change(input, { target: { value: 'ABC123' } });
-    fireEvent.submit(input.closest('form')!);
-    expect(await screen.findByText('Nhập đúng 4 hoặc 5 ký tự chữ và số.')).toBeTruthy();
-    // No page-2 request fired with the invalid suffix; the request sequence
-    // still only carries the base params.
-    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(
-      '/shipments/cus-workspace/containers?page=1&limit=20',
-    ));
-  });
-
-  it('edits lift/drop and the closing-return appointment inline through the existing versioned mutation', async () => {
-    const detail = {
-      summary: { id: 2 },
-      containers: [{
-        id: 12,
-        ordinal: 1,
-        containerNumber: 'CONT-002',
-        liftSiteId: 31,
-        liftSite: 'Bãi CY',
-        dropoffSiteId: 32,
-        dropoffSite: 'Nhà máy Hưng Yên',
-        customerAppointmentAt: null,
-        permissions: {
-          carrierEditable: true,
-          plateEditable: false,
-          containerTypeEditable: true,
-          liftSiteEditable: true,
-          dropoffSiteEditable: true,
-          customerAppointmentEditable: true,
-        },
-        shipmentVersion: 7,
-      }],
-      selectors: {
-        operationalSites: [
-          { id: 31, code: 'CY', name: 'Bãi CY', label: 'CY · Bãi CY' },
-          { id: 32, code: 'HY', name: 'Nhà máy Hưng Yên', label: 'HY · Nhà máy Hưng Yên' },
-          { id: 33, code: 'DV', name: 'Cảng Đình Vũ', label: 'DV · Cảng Đình Vũ' },
-        ],
-      },
-    } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet
-      .mockResolvedValueOnce(response)
-      .mockResolvedValueOnce(detail)
-      .mockResolvedValueOnce(response);
+  it('saves lift/drop through the existing idempotent optimistic container mutation', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
     apiPost.mockResolvedValueOnce({ line: detail.containers[0] });
-
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    expect(screen.queryByRole('button', { name: 'Chỉnh sửa lịch trình CONT-001' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
-
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
     fireEvent.click(await screen.findByLabelText('Điểm nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
-    const appointment = await screen.findByLabelText('Lịch hẹn đóng hoặc trả của container CONT-002');
-    fireEvent.change(appointment, { target: { value: '2026-08-22T09:30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
 
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/2/containers/12',
-      {
-        expectedShipmentVersion: 7,
-        liftSiteId: 33,
-        dropoffSiteId: 32,
-        customerAppointmentAt: new Date('2026-08-22T09:30').toISOString(),
-      },
-      { headers: { 'Idempotency-Key': expect.any(String) } },
-    ));
-    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(
-      '/shipments/cus-workspace/containers?page=1&limit=20',
-    ));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
+      expectedShipmentVersion: 7, liftSiteId: 33, dropoffSiteId: 32,
+    }, { headers: { 'Idempotency-Key': expect.any(String) } }));
   });
 
-  it('cancels an inline schedule edit without writing', async () => {
-    const detail = {
-      summary: { id: 2 },
-      containers: [{
-        id: 12,
-        ordinal: 1,
-        containerNumber: 'CONT-002',
-        liftSiteId: null,
-        dropoffSiteId: null,
-        customerAppointmentAt: null,
-        permissions: {
-          liftSiteEditable: true,
-          dropoffSiteEditable: true,
-          customerAppointmentEditable: true,
-        },
-        shipmentVersion: 7,
-      }],
-      selectors: { operationalSites: [] },
-    } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
-
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
+  it('keeps the same idempotency key when a route save is retried and supports Escape cancel', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
+    apiPost.mockRejectedValueOnce(new Error('Mạng tạm thời gián đoạn')).mockResolvedValueOnce({ line: detail.containers[0] });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
-    await screen.findByLabelText('Lịch hẹn đóng hoặc trả của container CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Hủy chỉnh sửa lịch trình CONT-002' }));
-
-    expect(apiPost).not.toHaveBeenCalled();
-    expect(screen.queryByLabelText('Lịch hẹn đóng hoặc trả của container CONT-002')).toBeNull();
-  });
-
-  it('keeps the same idempotency key when an unchanged schedule save is retried', async () => {
-    const line = {
-      id: 12,
-      ordinal: 1,
-      containerNumber: 'CONT-002',
-      liftSiteId: null,
-      dropoffSiteId: null,
-      customerAppointmentAt: null,
-      permissions: {
-        liftSiteEditable: true,
-        dropoffSiteEditable: true,
-        customerAppointmentEditable: true,
-      },
-      shipmentVersion: 7,
-    };
-    const detail = {
-      summary: { id: 2 },
-      containers: [line],
-      selectors: { operationalSites: [] },
-    } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet
-      .mockResolvedValueOnce(response)
-      .mockResolvedValueOnce(detail)
-      .mockResolvedValueOnce(response);
-    apiPost.mockRejectedValueOnce(new Error('Mạng tạm thời gián đoạn')).mockResolvedValueOnce({ line });
-
-    render(
-      <MemoryRouter>
-        <ShipmentsDetailPage />
-      </MemoryRouter>,
-    );
-
-    await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
-    const appointment = await screen.findByLabelText('Lịch hẹn đóng hoặc trả của container CONT-002');
-    fireEvent.change(appointment, { target: { value: '2026-08-22T09:30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    fireEvent.click(await screen.findByLabelText('Điểm nâng'));
+    fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
     expect(await screen.findByText('Mạng tạm thời gián đoạn')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(2));
-    const firstKey = apiPost.mock.calls[0]?.[2]?.headers?.['Idempotency-Key'];
-    const secondKey = apiPost.mock.calls[1]?.[2]?.headers?.['Idempotency-Key'];
-    expect(firstKey).toBeTruthy();
-    expect(secondKey).toBe(firstKey);
+    expect(apiPost.mock.calls[0]?.[2]?.headers?.['Idempotency-Key']).toBe(apiPost.mock.calls[1]?.[2]?.headers?.['Idempotency-Key']);
+
+    apiGet.mockResolvedValueOnce(detail);
+    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    const editor = (await screen.findByLabelText('Điểm nâng')).closest('.shipment-container-ledger__inline-editor')!;
+    fireEvent.keyDown(editor, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeNull();
+  });
+
+  it('saves shipment-scoped schedule through the existing versioned shipment update', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
+    apiPut.mockResolvedValueOnce({ version: 8 });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
+    fireEvent.change(await screen.findByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-22' } });
+    fireEvent.change(screen.getByLabelText('Giờ đóng hàng'), { target: { value: '09:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({
+      expectedVersion: 7,
+      expectedDeliveryDate: '2026-08-22',
+      closingAt: '2026-08-22T09:30:00+07:00',
+    })));
   });
 });

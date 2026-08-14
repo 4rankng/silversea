@@ -718,6 +718,7 @@ export interface ShipmentCusWorkspaceFilters {
   searchSuffix?: string;
   transportDateFrom?: string;
   transportDateTo?: string;
+  customerId?: number;
   direction?: 'IMPORT' | 'EXPORT';
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
 }
@@ -731,6 +732,7 @@ export async function listCusShipmentWorkspace(
   if (filters.searchSuffix) query.set('searchSuffix', filters.searchSuffix);
   if (filters.transportDateFrom) query.set('transportDateFrom', filters.transportDateFrom);
   if (filters.transportDateTo) query.set('transportDateTo', filters.transportDateTo);
+  if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
@@ -746,6 +748,7 @@ export async function listCusShipmentContainers(
   if (filters.searchSuffix) query.set('searchSuffix', filters.searchSuffix);
   if (filters.transportDateFrom) query.set('transportDateFrom', filters.transportDateFrom);
   if (filters.transportDateTo) query.set('transportDateTo', filters.transportDateTo);
+  if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';

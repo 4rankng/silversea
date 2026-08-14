@@ -249,6 +249,8 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.ordinal, 1);
     assert.equal(rowA1.billOrBookNumber, `FLATA${suffix}`);
     assert.equal(rowA1.customerName, `CusWs customer ${suffix}`);
+    assert.equal(rowA1.customerId, customerId);
+    assert.equal(rowA1.shipmentVersion, shipmentA.version);
     assert.equal(rowA1.containerTypeLabel != null, true);
     assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
     assert.equal(rowA1.scheduleEditable, true);
@@ -268,10 +270,23 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowB1.shipmentId, shipmentB.id);
     assert.equal(rowB1.billOrBookNumber, `FLATB${suffix}`);
 
-    // Pagination envelope counts shipments, not containers.
-    assert.ok(response.total >= 2);
+    // Pagination envelope is container-authoritative, matching one row per container.
+    assert.ok(response.total >= 3);
     assert.ok(response.totalPages >= 1);
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
+    assert.deepEqual(response.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
+  });
+
+  test('searches a container suffix and returns only the matching container row', async () => {
+    const shipment = await seedShipment({ blNumber: `NOSUFFIX${suffix}` });
+    await seedContainer(shipment.id, { containerNumber: 'CONTAINER-ZX9Q' });
+    await seedContainer(shipment.id, { containerNumber: 'CONTAINER-OTHER' });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: 'ZX9Q' }, cusActor);
+
+    assert.equal(response.total, 1);
+    assert.equal(response.items.length, 1);
+    assert.equal(response.items[0]?.containerNumber, 'CONTAINER-ZX9Q');
   });
 
   test('does not advertise schedule editing to a read-only role', async () => {
@@ -283,5 +298,7 @@ describe('CUS container-flat projection', () => {
 
     assert.ok(row);
     assert.equal(row.scheduleEditable, false);
+    assert.equal(row.shipmentScheduleEditable, false);
+    assert.equal(row.shipmentNotesEditable, false);
   });
 });

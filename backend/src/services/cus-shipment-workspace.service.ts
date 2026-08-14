@@ -974,7 +974,11 @@ async function buildWorkspaceDetail(
   };
 }
 
-async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUser) {
+function buildShipmentPageConditions(
+  query: ShipmentCusWorkspaceQuery,
+  actor: AuthUser,
+  searchMode: 'shipment' | 'container',
+) {
   const activeLockExists = sql`exists (
     select 1
     from ${s.shipmentAccountingLocks}
@@ -992,6 +996,9 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
   if (query.transportDateTo) {
     conditions.push(sql`${s.shipments.expectedDeliveryDate} <= ${query.transportDateTo}`);
   }
+  if (query.customerId) {
+    conditions.push(eq(s.shipments.customerId, query.customerId));
+  }
   if (query.direction) {
     conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }
@@ -1000,6 +1007,14 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
     conditions.push(or(
       ilike(s.shipments.blNumber, suffix),
       ilike(s.shipments.bookingRef, suffix),
+      searchMode === 'container'
+        ? ilike(s.shipmentContainers.containerNumber, suffix)
+        : sql`exists (
+            select 1
+            from ${s.shipmentContainers}
+            where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+              and ${s.shipmentContainers.containerNumber} ilike ${suffix}
+          )`,
       sql`exists (
         select 1
         from ${s.shipmentDeclarations}
@@ -1027,6 +1042,12 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
     conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.PENDING_EXPENSE_APPROVAL}, ${ShipmentStatus.COMPLETED})`);
   }
 
+  return conditions;
+}
+
+async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUser) {
+  const conditions = buildShipmentPageConditions(query, actor, 'shipment');
+
   const offset = (query.page - 1) * query.limit;
   const [items, totalRows] = await Promise.all([
     db.select({
@@ -1048,6 +1069,22 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
     items,
     total: Number(totalRows[0]?.value ?? 0),
   };
+}
+
+async function loadActorScopedCustomerOptions(actor: AuthUser) {
+  const conditions = [
+    isNull(s.shipments.deletedAt),
+    ne(s.shipments.status, ShipmentStatus.CANCELED),
+    isNull(s.customers.deletedAt),
+    ...buildScopeConditions(actor),
+  ];
+  return db.selectDistinct({
+    id: s.customers.id,
+    name: s.customers.name,
+  }).from(s.shipments)
+    .innerJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .where(and(...conditions))
+    .orderBy(asc(s.customers.name), asc(s.customers.id));
 }
 
 export async function listCusShipmentWorkspace(
@@ -1116,33 +1153,82 @@ export async function listCusShipmentContainers(
   query: ShipmentCusWorkspaceQuery,
   actor: AuthUser,
 ): Promise<ShipmentCusContainerFlatResponse> {
-  const { items, total } = await loadShipmentPage(query, actor);
-  const support = await loadSupportRows(items.map((row) => row.shipment.id));
+  const conditions = buildShipmentPageConditions(query, actor, 'container');
+  const offset = (query.page - 1) * query.limit;
+  const [selectedContainers, totalRows, customerOptions] = await Promise.all([
+    db.select({
+      shipment: s.shipments,
+      customerName: s.customers.name,
+      routeName: s.routes.name,
+      containerId: s.shipmentContainers.id,
+    }).from(s.shipmentContainers)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+      .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+      .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
+      .where(and(...conditions))
+      .orderBy(
+        asc(sql`case when ${s.shipments.expectedDeliveryDate} is null then 0 else 1 end`),
+        asc(s.shipments.expectedDeliveryDate),
+        desc(s.shipments.createdAt),
+        asc(s.shipmentContainers.id),
+      )
+      .limit(query.limit)
+      .offset(offset),
+    db.select({ value: count() }).from(s.shipmentContainers)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+      .where(and(...conditions)),
+    loadActorScopedCustomerOptions(actor),
+  ]);
+  const total = Number(totalRows[0]?.value ?? 0);
+  const shipmentIds = [...new Set(selectedContainers.map((row) => row.shipment.id))];
+  const support = await loadSupportRows(shipmentIds);
   const flatRows: ShipmentCusContainerFlatRow[] = [];
-  for (const row of items) {
+  for (const selected of selectedContainers) {
+    const row: ShipmentListRow = selected;
     const containers = support.containersByShipment.get(row.shipment.id) ?? [];
-    containers.forEach((container, index) => {
-      const line = buildContainerLine(row, actor, support, container, index + 1);
-      flatRows.push({
-        id: line.id,
-        shipmentId: row.shipment.id,
-        ordinal: line.ordinal,
-        customerName: row.customerName,
-        factoryName: trimOrNull(row.shipment.factoryName),
-        billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
-        direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
-        containerNumber: line.containerNumber,
-        containerTypeLabel: line.containerTypeLabel,
-        dispatchStatus: line.dispatchStatus,
-        carrierName: line.carrierName,
-        plateNumber: line.plateNumber,
-        liftSite: line.liftSite,
-        dropoffSite: line.dropoffSite,
-        customerAppointmentAt: line.customerAppointmentAt,
-        scheduleEditable: line.permissions.liftSiteEditable
-          || line.permissions.dropoffSiteEditable
-          || line.permissions.customerAppointmentEditable,
-      });
+    const containerIndex = containers.findIndex((container) => container.id === selected.containerId);
+    const container = containers[containerIndex];
+    if (!container) continue;
+    const line = buildContainerLine(row, actor, support, container, containerIndex + 1);
+    const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
+    const shipmentEditable = actor.role === Role.CUS
+      && support.locksByShipment.get(row.shipment.id) == null;
+    flatRows.push({
+      id: line.id,
+      shipmentId: row.shipment.id,
+      shipmentVersion: row.shipment.version,
+      ordinal: line.ordinal,
+      customerId: row.shipment.customerId,
+      customerName: row.customerName,
+      factoryName: trimOrNull(row.shipment.factoryName),
+      routeName: row.routeName,
+      billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
+      declarationNumber: support.declarationByShipment.get(row.shipment.id) ?? null,
+      shippingLineName: trimOrNull(row.shipment.shippingLineName),
+      isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
+      direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
+      containerNumber: line.containerNumber,
+      containerTypeLabel: line.containerTypeLabel,
+      dispatchStatus: line.dispatchStatus,
+      carrierName: line.carrierName,
+      plateNumber: line.plateNumber,
+      liftSite: line.liftSite,
+      dropoffSite: line.dropoffSite,
+      transportDate: row.shipment.expectedDeliveryDate,
+      closingAt: row.shipment.closingAt?.toISOString() ?? null,
+      plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+      customerAppointmentAt: line.customerAppointmentAt,
+      customerNotes: trimOrNull(row.shipment.customerNotes),
+      operationalNotes: trimOrNull(row.shipment.operationalNotes),
+      shipmentScheduleEditable: shipmentEditable,
+      shipmentNotesEditable: shipmentEditable,
+      carrierEditable: line.permissions.carrierEditable,
+      plateEditable: line.permissions.plateEditable,
+      liftSiteEditable: line.permissions.liftSiteEditable,
+      dropoffSiteEditable: line.permissions.dropoffSiteEditable,
+      scheduleEditable: line.permissions.liftSiteEditable
+        || line.permissions.dropoffSiteEditable
+        || line.permissions.customerAppointmentEditable,
     });
   }
   return {
@@ -1150,6 +1236,7 @@ export async function listCusShipmentContainers(
     limit: query.limit,
     total,
     totalPages: total === 0 ? 0 : Math.ceil(total / query.limit),
+    filterOptions: { customers: customerOptions },
     items: flatRows,
   };
 }

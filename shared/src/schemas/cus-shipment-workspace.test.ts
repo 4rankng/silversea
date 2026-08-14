@@ -16,6 +16,7 @@ test('CUS workspace query accepts 4-5 alphanumeric suffix search', () => {
     searchSuffix: 'aB12C',
     transportDateFrom: '2026-08-01',
     transportDateTo: '2026-08-11',
+    customerId: 7,
     direction: 'IMPORT',
     bucket: ShipmentCusBucket.RUNNING,
   }).success, true);
