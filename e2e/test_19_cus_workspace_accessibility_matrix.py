@@ -152,9 +152,16 @@ def login_page(ctx: NepoTestContext, role_key: str, page: Page):
 
 
 def no_horizontal_overflow(page: Page) -> bool:
-    return page.evaluate(
-        "document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"
-    )
+    condition = "document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1"
+    try:
+        # Role changes rebuild the application shell and briefly animate the
+        # responsive sidebar. Measure the settled layout, not an intermediate
+        # transition frame, while preserving the existing one-pixel tolerance.
+        page.wait_for_function(condition, timeout=2_000)
+        page.wait_for_timeout(100)
+        return page.evaluate(condition)
+    except Exception:
+        return False
 
 
 def collect_page_issues(page: Page):
@@ -364,17 +371,17 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
 
                 page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
-                visible_fixture = page.get_by_text(f"BLCUS{SEARCH_SUFFIX}", exact=False).count() > 0
+                fixture = page.get_by_text(f"BLCUS{SEARCH_SUFFIX}", exact=False).first
+                fixture.wait_for(state="visible", timeout=10_000)
+                visible_fixture = fixture.is_visible()
                 overflow_ok = no_horizontal_overflow(page)
                 workspace_layout = "worksheet"
-                row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                toggle = row.locator("button.cus-dashboard-detail")
-                toggle.click()
-                detail_surface = page.get_by_role("dialog")
-                detail_surface.wait_for(timeout=10_000)
+                _, detail_surface = open_mobile_drawer(page)
                 button = detail_surface.get_by_role("button", name=expectation["ui_button"]).first
-                reason_visible = detail_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                 button.wait_for(state="visible", timeout=10_000)
+                detail_surface.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
+                detail_surface.get_by_text("Điều vận", exact=True).first.wait_for(timeout=10_000)
+                reason_visible = detail_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                 action_is_disabled = button.is_disabled()
                 operational_detail_visible = (
                     detail_surface.get_by_text("Giờ hẹn đóng/trả", exact=True).count() >= 1
@@ -398,7 +405,10 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                     tc_id,
                     f"{display_role} nhận đúng hành động workspace ở {width}px",
                     condition,
-                    f"layout={workspace_layout}, overflow={overflow_ok}, console={console_errors}, pageErrors={page_errors}, url={page.url}",
+                    f"layout={workspace_layout}, fixtureVisible={visible_fixture}, overflowOk={overflow_ok}, "
+                    f"actionDisabled={action_is_disabled}, reasonVisible={reason_visible}, "
+                    f"operationalDetailVisible={operational_detail_visible}, console={console_errors}, "
+                    f"pageErrors={page_errors}, url={page.url}",
                 )
                 ctx.screenshot(page, f"TC-1920_{role_key}_{label}")
             except Exception as error:
