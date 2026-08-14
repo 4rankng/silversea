@@ -393,7 +393,7 @@ export function ShipmentContainerLedger({
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
-                      <BadgeWithDot size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
+                      <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>

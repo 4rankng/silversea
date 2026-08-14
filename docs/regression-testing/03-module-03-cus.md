@@ -13,6 +13,7 @@
 > | `/customers/:id`                                     | admin                  |
 > | `/customers/:id/billing/new`                         | admin                  |
 > | `/shipments`                                         | admin / ketoan         |
+> | `/shipments-detail`                                  | admin / giamdoc / cus  |
 > | `/shipments/:id`                                     | admin / ketoan         |
 > | `/portal/shipments`                                  | customer               |
 > | `/portal/shipments/:id`                              | customer               |
@@ -118,32 +119,25 @@ container, chỉ dùng chung nhiều container khi người có thẩm quyền x
 - **Phụ thuộc:** không
 - **Bằng chứng:** ảnh Network (2 request, cùng `id`) + ảnh Adminer.
 
-### TC-M03-01-07 — Xem rồi mới sửa chi tiết công-te-nơ trong bảng lô
+### TC-M03-01-07 — Workboard chi tiết công-te-nơ và chỉnh sửa có kiểm soát
 
-- **Vai trò:** `cus` (vai trò CUS được cấp quyền sửa lô).
-- **Tiền điều kiện:** có một lô trên `/shipments` chứa ít nhất một công-te-nơ và quyền sửa dữ liệu vận hành.
+- **Vai trò:** `cus` (hoặc `admin`/`giamdoc` trong môi trường không có tài khoản CUS).
+- **Tiền điều kiện:** có ít nhất một lô chứa công-te-nơ và quyền sửa dữ liệu vận hành.
 - **Các bước:**
-  1. Mở `/shipments`. Xác nhận bảng lô không có cột hay nút riêng tên “Chi tiết”.
-  2. Bấm vùng không tương tác của dòng lô. Kiểm tra phần “Chi tiết container” xuất hiện ngay dưới dòng lô.
-  3. Kiểm tra danh sách ban đầu chỉ đọc theo hai tầng cho từng container: **Nhận diện** gồm `STT`,
-     `Số cont`, `Loại cont`, `Điều vận`; **Vận hành** gồm `Nhà xe`, `Biển số xe`, `Nâng`, `Hạ`,
-     `Giờ hẹn đóng/trả`. Hãng tàu chỉ xuất hiện ở dòng lô; không có ô nhập hoặc nút lưu từng dòng.
-  4. Bấm “Chỉnh sửa”, sửa một trường vận hành hợp lệ và lưu dòng công-te-nơ. Bấm “Hoàn tất”.
-  5. Mở lại phần chi tiết, sửa nhưng không lưu, rồi bấm “Thu gọn”; xác nhận cảnh báo không làm mất thay đổi
-     ngoài ý muốn. Sau đó chọn bỏ thay đổi và thu gọn.
+  1. Mở `/shipments-detail`. Xác nhận mặc định lọc theo ngày vận chuyển hiện tại; có thể chọn “Tất cả ngày”, khoảng ngày, khách hàng, chiều nhập/xuất hoặc tìm 4–5 ký tự cuối của container, Bill/Booking hoặc tờ khai.
+  2. Kiểm tra bảng có đúng bảy nhóm: khách hàng/lộ trình, chứng từ/hãng tàu, thông số container, địa điểm nâng/hạ, lịch trình, phân xe và ghi chú.
+  3. Xác nhận dòng thiếu ngày vận chuyển có cảnh báo màu hổ phách; dòng của hôm nay thiếu nhà xe hoặc biển số có cảnh báo đỏ và hướng dẫn phối hợp Điều vận.
+  4. Bấm “Sửa” ở một trường được phép, thay đổi dữ liệu và bấm “Lưu”. Thử một lần lưu lại khi phiên bản đã cũ; xác nhận lỗi xung đột có hướng dẫn tải lại/thử lại, không ghi đè dữ liệu mới hơn.
+  5. Mở chỉnh sửa nhưng bấm “Hủy” hoặc Escape; xác nhận dữ liệu chưa lưu bị bỏ và tiêu điểm trở về nút “Sửa”.
   6. Gửi thử payload chi phí đầu vào hoặc đầu ra vào endpoint cập nhật dòng container bằng phiên CUS.
-  7. Thử lại ở màn hình rộng, tablet và điện thoại. Trên điện thoại, mở phần chi tiết từ thẻ lô và xác nhận
-     cùng dữ liệu hiện trong drawer trước khi bấm “Chỉnh sửa”.
+  7. Thử lại ở 1440, 768, 390 và 320px; xác nhận không có cuộn ngang, bộ lọc không tạo request cũ ghi đè kết quả mới, và chỉ một editor hoạt động tại một thời điểm.
 - **Kết quả mong đợi (Pass):**
-  - Click dòng là cách mở chi tiết; không thêm cột “Chi tiết” làm giảm không gian dữ liệu của bảng chính.
-  - Phần mở rộng là chi tiết container hai tầng, chỉ đọc trước; chỉ “Chỉnh sửa” mới hiển thị ô nhập và nút lưu theo dòng.
-  - “Thu gọn” luôn nhìn thấy trong phần chi tiết đang mở, đóng đúng lô và đưa bàn phím trở về dòng vừa mở.
-  - `Ngày vận chuyển` và `Phơi phiếu` vẫn ở dòng lô; chi phí chi tiết không xuất hiện trong luồng CUS này.
+  - Workboard tải đúng dữ liệu theo bộ lọc URL và chỉ trả về khách hàng thuộc phạm vi của actor CUS.
+  - Chỉ “Sửa” mới hiển thị ô nhập; quyền, trạng thái khóa/điều phối, phiên bản lạc hậu và idempotency được kiểm tra ở API.
+  - Lưu thành công làm mới các dòng container cùng lô; không tạo đường ghi mới hoặc làm mất thay đổi của dòng khác.
   - API từ chối payload chi phí của CUS với `403` và không tạo bản ghi chi phí; việc ẩn chi phí không chỉ là xử lý giao diện.
-  - Không có cuộn ngang ở bảng chính hoặc phần chi tiết. Drawer điện thoại có bố cục nhãn–giá trị gọn,
-    thao tác chạm được và giữ nguyên dữ liệu khi chưa bắt đầu sửa.
-- **Bằng chứng:** ảnh 1440px, tablet, 390px; ảnh trạng thái chỉ đọc và sau khi bấm “Chỉnh sửa”; request lưu
-  container và ảnh xác nhận trước khi bỏ thay đổi.
+  - Không có cuộn ngang ở các kích thước đã thử; loading, lỗi, rỗng và filtered-empty đều có trạng thái rõ ràng.
+- **Bằng chứng:** ảnh/bản ghi browser ở 1440, 768, 390 và 320px; request lưu container; kiểm tra xung đột phiên bản, hủy bằng Escape và API 403 cho payload chi phí.
 
 ---
 
