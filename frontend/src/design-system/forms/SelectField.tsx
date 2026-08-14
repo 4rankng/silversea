@@ -1,4 +1,4 @@
-import React, { useId, useState, useRef } from 'react';
+import React, { useId, useState, useRef, type KeyboardEvent } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import './TextField.css';
@@ -23,7 +23,7 @@ function childrenToText(children: React.ReactNode): string {
 }
 
 export interface SelectFieldProps
-  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id' | 'className'> {
+  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'className'> {
   label: string;
   required?: boolean;
   error?: string;
@@ -47,9 +47,14 @@ export function SelectField({
   placeholder,
   ...select
 }: SelectFieldProps) {
-  const id = useId();
+  const generatedId = useId();
+  const id = select.id ?? generatedId;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [select['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Close dropdown when clicking outside
   useClickOutside(containerRef, () => setIsOpen(false), { escapeKey: true, enabled: isOpen });
@@ -68,6 +73,21 @@ export function SelectField({
   const selectedValue = value !== undefined ? String(value) : '';
   const selectedOption = optionsList.find(opt => opt.value === selectedValue) || optionsList[0];
   const displayLabel = selectedOption ? selectedOption.label : (placeholder ?? '— Chọn —');
+  const selectedIndex = optionsList.findIndex((option) => option.value === selectedValue);
+  const activeOption = optionsList[activeIndex];
+
+  const close = (restoreFocus = false) => {
+    setIsOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+    }
+  };
+
+  const open = (nextActiveIndex = selectedIndex >= 0 ? selectedIndex : 0) => {
+    if (disabled) return;
+    setActiveIndex(Math.max(0, Math.min(nextActiveIndex, optionsList.length - 1)));
+    setIsOpen(true);
+  };
 
   const handleSelect = (val: string) => {
     if (disabled) return;
@@ -81,14 +101,51 @@ export function SelectField({
       } as React.ChangeEvent<HTMLSelectElement>;
       onChange(simulatedEvent);
     }
-    setIsOpen(false);
+    close(true);
+  };
+
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (disabled || optionsList.length === 0) return;
+
+    const currentIndex = isOpen
+      ? activeIndex
+      : (selectedIndex >= 0 ? selectedIndex : 0);
+
+    if (event.key === 'Escape') {
+      if (isOpen) {
+        event.preventDefault();
+        close(true);
+      }
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (isOpen) {
+        if (activeOption) handleSelect(activeOption.value);
+      } else {
+        open(currentIndex);
+      }
+      return;
+    }
+
+    let nextIndex: number | undefined;
+    if (event.key === 'ArrowDown') nextIndex = Math.min(currentIndex + 1, optionsList.length - 1);
+    if (event.key === 'ArrowUp') nextIndex = Math.max(currentIndex - 1, 0);
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = optionsList.length - 1;
+
+    if (nextIndex !== undefined) {
+      event.preventDefault();
+      open(nextIndex);
+    }
   };
 
   const cls = ['ds-field', error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
     <div className={cls} ref={containerRef} style={{ position: 'relative' }}>
-      <label className="ds-field__label">
+      <label htmlFor={id} className="ds-field__label">
         {label}
         {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
       </label>
@@ -96,12 +153,19 @@ export function SelectField({
       {/* Custom Select Trigger */}
       <button
         id={id}
+        ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => isOpen ? close() : open()}
+        onKeyDown={handleTriggerKeyDown}
         className={`ds-select-trigger ${isOpen ? 'ds-select-trigger--open' : ''}`}
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
+        aria-controls={`${id}-listbox`}
+        aria-activedescendant={isOpen && activeOption ? `${id}-option-${activeOption.value}` : undefined}
+        aria-invalid={select['aria-invalid'] ?? Boolean(error)}
+        aria-describedby={describedBy}
       >
         <span className="ds-select-trigger__value">{displayLabel}</span>
         <ChevronDown size={16} className={`ds-select-trigger__icon ${isOpen ? 'ds-select-trigger__icon--rotated' : ''}`} />
@@ -114,22 +178,25 @@ export function SelectField({
         disabled={disabled}
         style={{ display: 'none' }}
         {...select}
+        id={`${id}-native`}
       >
         {children}
       </select>
 
       {/* Custom Dropdown Popover */}
       {isOpen && (
-        <ul className="ds-select-popover" role="listbox">
+        <ul id={`${id}-listbox`} className="ds-select-popover" role="listbox" aria-labelledby={id}>
           {optionsList.map((opt) => {
             const isSelected = opt.value === selectedValue;
+            const isActive = optionsList.indexOf(opt) === activeIndex;
             return (
               <li
+                id={`${id}-option-${opt.value}`}
                 key={opt.value}
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleSelect(opt.value)}
-                className={`ds-select-item ${isSelected ? 'ds-select-item--selected' : ''}`}
+                className={`ds-select-item ${isSelected ? 'ds-select-item--selected' : ''} ${isActive ? 'ds-select-item--active' : ''}`}
               >
                 <span className="ds-select-item__check">
                   {isSelected && <Check size={14} />}
@@ -142,7 +209,7 @@ export function SelectField({
       )}
 
       {error ? (
-        <span className="ds-field__msg ds-field__msg--error">{error}</span>
+        <span id={errorId} className="ds-field__msg ds-field__msg--error">{error}</span>
       ) : helpText ? (
         <span className="ds-field__msg">{helpText}</span>
       ) : null}

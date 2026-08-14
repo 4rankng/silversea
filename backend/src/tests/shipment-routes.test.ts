@@ -786,8 +786,9 @@ async function getCusWorkspaceDetail(shipmentId: number, token: string) {
       externalCarrierVehicleId: number | null;
       carrierName: string | null;
       plateNumber: string | null;
-      shippingLineName: string | null;
+      customerAppointmentAt: string | null;
       dispatchStatus: 'UNASSIGNED' | 'PLANNED' | 'CREATED' | 'IN_TRANSIT' | 'COMPLETED';
+      permissions: { outboundEditable: boolean; inboundEditable: boolean };
       inboundCharges: { transport: { amount: string | null }; handling: { amount: string | null } };
       outboundCharges: { transport: { amount: string | null } };
     }>;
@@ -1306,7 +1307,10 @@ describe('GET /cus-workspace', () => {
     const shipment = await mkShipmentViaService({
       bookingRef: `BOOK-${suffix}-Ab12X`.slice(0, 50),
       expectedDeliveryDate: '2026-08-11',
-      cargoMode: 'FCL',
+      cargoMode: 'LCL',
+      packageCount: 4,
+      packageType: 'Pallet',
+      tradeDirection: 'EXPORT',
     });
     const declaration = await testFetch(`/${shipment.id}/declarations`, {
       method: 'POST',
@@ -1328,8 +1332,24 @@ describe('GET /cus-workspace', () => {
       assert.equal(row.action.kind, 'LOCK');
       assert.equal(row.operational.scheduleReadiness, 'OVERDUE');
       assert.equal(typeof row.operational.totalContainers, 'number');
+      assert.equal(row.operational.totalContainers, 0);
+      assert.equal(row.packageCount, 4);
+      assert.equal(row.packageType, 'Pallet');
+      assert.equal(row.containerSummary, '4 Pallet');
+      assert.ok(Array.isArray(row.liftSiteNames));
+      assert.ok(Array.isArray(row.dropoffSiteNames));
+      assert.ok(Array.isArray(row.customerAppointmentAts));
+      assert.ok(Array.isArray(row.carrierAssignments));
+      assert.equal(Object.hasOwn(row, 'customsCutoffAt'), true);
       assert.equal(typeof ok.data.pageSummary.needsSchedule, 'number');
     }
+
+    const exportOnly = await testFetch('/cus-workspace?direction=EXPORT&page=1&limit=100', { token: adminToken });
+    assert.equal(exportOnly.status, 200);
+    assert.ok(exportOnly.data.items.some((item: { id: number }) => item.id === shipment.id));
+    const importOnly = await testFetch('/cus-workspace?direction=IMPORT&page=1&limit=100', { token: adminToken });
+    assert.equal(importOnly.status, 200);
+    assert.equal(importOnly.data.items.some((item: { id: number }) => item.id === shipment.id), false);
 
     for (const invalidSuffix of ['A12', 'ABC123', 'AB$1']) {
       const invalid = await testFetch(`/cus-workspace?searchSuffix=${encodeURIComponent(invalidSuffix)}`, { token: adminToken });
@@ -1349,23 +1369,19 @@ describe('GET /cus-workspace', () => {
     assert.equal(detail.data.summary.id, shipment.id);
     assert.ok(Array.isArray(detail.data.containers));
     assert.equal(typeof detail.data.dataState.hasExplicitDocumentCustody, 'boolean');
-    assert.equal(typeof detail.data.dataState.hasExplicitRecoveryFacts, 'boolean');
   });
 
-  test('exposes each container shipping line and dispatch state for the two-tier CUS detail', async () => {
+  test('keeps shipping line at shipment level and exposes the container dispatch state', async () => {
     const fixture = await createAcceptedFulfillmentFixture();
     const [container] = await db.select({ id: s.shipmentContainers.id })
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
       .limit(1);
     assert.ok(container);
-    await db.update(s.shipmentContainers).set({ shippingLineName: 'HMM' })
-      .where(eq(s.shipmentContainers.id, container.id));
-
-    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
     const line = detail.containers.find((item) => item.id === container.id);
     assert.ok(line);
-    assert.equal(line.shippingLineName, 'HMM');
+    assert.equal(Object.hasOwn(line, 'shippingLineName'), false);
     assert.equal(line.dispatchStatus, 'PLANNED');
   });
 
@@ -1438,8 +1454,7 @@ describe('GET /cus-workspace', () => {
     assert.equal(detail.data.summary.finance.customerTotalsAuthority, 'BILLING_DOCUMENT');
     assert.equal(detail.data.summary.finance.totalCost, '45000000');
     assert.equal(detail.data.summary.finance.isLoss, true);
-    assert.equal(detail.data.containers[0].outboundCharges.transport.amount, '999000000');
-    assert.equal(detail.data.containers[0].outboundCharges.authority, 'MANUAL_PROPOSAL');
+    assert.equal(Object.hasOwn(detail.data.containers[0], 'outboundCharges'), false);
 
     await db.insert(s.billingDocumentLines).values({
       documentId: fixture.document.id,
@@ -1578,7 +1593,6 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
         token: clerkToken,
         body: {
           expectedShipmentVersion: line.shipmentVersion,
-          expectedFactVersion: line.factVersion,
           ...chargeInput,
         },
       });
@@ -1591,7 +1605,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(facts.length, 0);
   });
 
-  test('DISPATCHER updates a pre-dispatch line with an existing external carrier and inbound charges', async () => {
+  test('DISPATCHER updates a pre-dispatch line with an existing external carrier', async () => {
     const fixture = await createAcceptedFulfillmentFixture();
     const [container] = await db.select().from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
@@ -1607,14 +1621,9 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: dispatcherToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'EXTERNAL',
         externalCarrierId: carrier.id,
         externalCarrierVehicleId: vehicle.id,
-        inboundCharges: {
-          transportAmount: '123000',
-          handlingAmount: '45000',
-        },
       },
     });
 
@@ -1622,15 +1631,41 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(update.data.line.externalCarrierId, carrier.id);
     assert.equal(update.data.line.externalCarrierVehicleId, vehicle.id);
     assert.equal(update.data.line.plateNumber, vehicle.licensePlate);
-    assert.equal(update.data.line.inboundCharges.transport.amount, '123000');
-    assert.equal(update.data.line.factVersion, 1);
 
     const reloaded = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
     const persisted = reloaded.containers.find((item) => item.id === container.id);
     assert.equal(persisted?.externalCarrierId, carrier.id);
     assert.equal(persisted?.externalCarrierVehicleId, vehicle.id);
     assert.equal(persisted?.plateNumber, vehicle.licensePlate);
-    assert.equal(persisted?.inboundCharges.transport.amount, '123000');
+  });
+
+  test('CUS cannot write container costs through the operational detail endpoint', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const line = detail.containers[0];
+    assert.ok(line);
+    assert.equal(Object.hasOwn(line.permissions, 'outboundEditable'), false);
+    assert.equal(Object.hasOwn(line.permissions, 'inboundEditable'), false);
+
+    for (const charges of [
+      { outboundCharges: { transportAmount: '999000' } },
+      { inboundCharges: { handlingAmount: '45000' } },
+    ]) {
+      const response = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${line.id}`, {
+        method: 'POST',
+        token: clerkToken,
+        body: {
+          expectedShipmentVersion: line.shipmentVersion,
+          ...charges,
+        },
+      });
+      assert.equal(response.status, 400);
+    }
+
+    const facts = await db.select({ id: s.shipmentContainerChargeFacts.id })
+      .from(s.shipmentContainerChargeFacts)
+      .where(eq(s.shipmentContainerChargeFacts.shipmentContainerId, line.id));
+    assert.equal(facts.length, 0);
   });
 
   test('CUS can create an inline external carrier, and idempotent replay does not duplicate it', async () => {
@@ -1651,14 +1686,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       idempotencyKey,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'EXTERNAL',
         newExternalCarrier: {
           name: carrierName,
           plateNumber: '51H-123.45',
-        },
-        outboundCharges: {
-          transportAmount: '999000',
         },
       },
     });
@@ -1668,14 +1699,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       idempotencyKey,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'EXTERNAL',
         newExternalCarrier: {
           name: carrierName,
           plateNumber: '51H-123.45',
-        },
-        outboundCharges: {
-          transportAmount: '999000',
         },
       },
     });
@@ -1685,7 +1712,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(replay.data.line.externalCarrierId, first.data.line.externalCarrierId);
     assert.equal(replay.data.line.externalCarrierVehicleId, first.data.line.externalCarrierVehicleId);
     assert.equal(replay.data.line.plateNumber, '51H-123.45');
-    assert.equal(first.data.line.outboundCharges.transport.amount, '999000');
+    assert.equal(Object.hasOwn(first.data.line, 'outboundCharges'), false);
 
     const [carrierCount, vehicleCount] = await Promise.all([
       db.select({ value: s.customers.id }).from(s.customers)
@@ -1715,7 +1742,6 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: clerkToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'EXTERNAL',
         newExternalCarrier: {
           name: carrierName,
@@ -1743,6 +1769,69 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(rows[0]?.isActive, true);
   });
 
+  test('CUS saves independent customer appointments for multiple containers', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [secondContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: fixture.shipment.id,
+      containerTypeId,
+      containerNumber: 'MSKU7654321',
+      createdBy: clerkUserId,
+    }).returning();
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: fixture.shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: secondContainer.id,
+      sourceShipmentVersion: fixture.shipment.version,
+      siteSnapshot: {},
+      createdBy: clerkUserId,
+    });
+    const before = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    assert.equal(before.containers.length, 2);
+    const firstLine = before.containers[0]!;
+    const secondLine = before.containers.find((line) => line.id === secondContainer.id);
+    assert.ok(secondLine);
+
+    const firstAppointment = '2026-08-15T02:30:00.000Z';
+    const firstUpdate = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${firstLine.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: firstLine.shipmentVersion,
+        customerAppointmentAt: firstAppointment,
+      },
+    });
+    assert.equal(firstUpdate.status, 200);
+    assert.equal(firstUpdate.data.line.customerAppointmentAt, firstAppointment);
+
+    const refreshed = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const refreshedSecond = refreshed.containers.find((line) => line.id === secondContainer.id);
+    assert.ok(refreshedSecond);
+    const secondAppointment = '2026-08-16T05:45:00.000Z';
+    const secondUpdate = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${secondContainer.id}`, {
+      method: 'POST',
+      token: clerkToken,
+      body: {
+        expectedShipmentVersion: refreshedSecond.shipmentVersion,
+        customerAppointmentAt: secondAppointment,
+      },
+    });
+    assert.equal(secondUpdate.status, 200);
+    assert.equal(secondUpdate.data.line.customerAppointmentAt, secondAppointment);
+
+    const [persistedShipment] = await db.select({ closingAt: s.shipments.closingAt })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, fixture.shipment.id));
+    const persistedContainers = await db.select({
+      id: s.shipmentContainers.id,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    }).from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id));
+    assert.equal(persistedShipment?.closingAt?.toISOString(), '2026-08-04T08:00:00.000Z');
+    assert.equal(persistedContainers.find((row) => row.id === firstLine.id)?.customerAppointmentAt?.toISOString(), firstAppointment);
+    assert.equal(persistedContainers.find((row) => row.id === secondContainer.id)?.customerAppointmentAt?.toISOString(), secondAppointment);
+  });
+
   test('CUS cannot resurrect an inactive external carrier vehicle through inline creation', async () => {
     const fixture = await createAcceptedFulfillmentFixture();
     const [container] = await db.select().from(s.shipmentContainers)
@@ -1765,7 +1854,6 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: clerkToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'EXTERNAL',
         newExternalCarrier: {
           name: carrierName,
@@ -1801,32 +1889,26 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
       .limit(1);
     assert.ok(container);
-    const detail = await getCusWorkspaceDetail(fixture.shipment.id, clerkToken);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
     const line = detail.containers.find((item) => item.id === container.id);
     assert.ok(line);
 
     const first = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
       method: 'POST',
-      token: clerkToken,
+      token: dispatcherToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
-        outboundCharges: {
-          transportAmount: '100000',
-        },
+        customerAppointmentAt: '2026-08-20T03:00:00.000Z',
       },
     });
     assert.equal(first.status, 200);
 
     const stale = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
       method: 'POST',
-      token: clerkToken,
+      token: dispatcherToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
-        outboundCharges: {
-          transportAmount: '110000',
-        },
+        customerAppointmentAt: '2026-08-20T04:00:00.000Z',
       },
     });
     assert.equal(stale.status, 409);
@@ -1845,10 +1927,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: clerkToken,
       body: {
         expectedShipmentVersion: locked.detail.summary.version + 1,
-        expectedFactVersion: 0,
-        outboundCharges: {
-          transportAmount: '200000',
-        },
+        plateNumber: '51H-333.33',
       },
     });
     assert.equal(denied.status, 409);
@@ -1865,7 +1944,6 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: clerkToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        expectedFactVersion: line.factVersion,
         carrierType: 'OWN',
       },
     });
@@ -1884,7 +1962,6 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: accountantToken,
       body: {
         expectedShipmentVersion: fixture.shipment.version,
-        expectedFactVersion: 0,
       },
     });
     assert.equal(denied.status, 403);
@@ -2312,8 +2389,8 @@ describe('POST /:id/recovery-facts', () => {
     assert.equal(detail.status, 200);
     const container = detail.data.containers.find((row: { id: number }) => row.id === fixture.shipmentContainerId);
     assert.ok(container);
-    assert.deepEqual(container.recoveryFacts, []);
-    assert.equal(container.repairRecoveryPending, false);
+    assert.equal(Object.hasOwn(container, 'recoveryFacts'), false);
+    assert.equal(Object.hasOwn(container, 'repairRecoveryPending'), false);
     assert.equal(detail.data.summary.finance.hasPendingRecovery, false);
   });
 

@@ -44,6 +44,9 @@ export interface SearchableSelectProps {
   clearable?: boolean;
   /** Label for the clear item. Override for context-specific wording. */
   clearLabel?: string;
+  /** Validation state and associated helper/error content owned by the caller. */
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
 }
 
 function normalizeSearchText(value: string): string {
@@ -75,6 +78,8 @@ export function SearchableSelect({
   onLoadMore,
   clearable = true,
   clearLabel = 'Bỏ chọn',
+  ariaInvalid,
+  ariaDescribedBy,
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -322,6 +327,8 @@ export function SearchableSelect({
         disabled={disabled}
         aria-haspopup={isMobile ? 'dialog' : 'listbox'}
         aria-expanded={isOpen}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         aria-controls={isOpen ? listboxId : undefined}
         aria-required={required}
       >

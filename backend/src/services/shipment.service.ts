@@ -2760,11 +2760,24 @@ async function reconcileShipmentContainersInTx(
   userId: number | null,
   containers: ShipmentContainerInput[],
 ) {
+  const [shipment] = await tx.select({ shippingLineName: s.shipments.shippingLineName })
+    .from(s.shipments)
+    .where(eq(s.shipments.id, shipmentId))
+    .limit(1)
+    .for('update');
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  const shippingLineName = resolveShipmentShippingLine(shipment.shippingLineName, containers);
+  const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
+  if (!shipment.shippingLineName?.trim() && shippingLineName) {
+    await tx.update(s.shipments).set({ shippingLineName, updatedAt: new Date() })
+      .where(eq(s.shipments.id, shipmentId));
+  }
+
   const current = await tx.select()
     .from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const existingIds = new Set(current.map((row) => row.id));
-  const incomingIds = new Set(containers.filter((row) => row.id).map((row) => row.id as number));
+  const incomingIds = new Set(synchronizedContainers.filter((row) => row.id).map((row) => row.id as number));
 
   const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
   if (toDelete.length > 0) {
@@ -2773,7 +2786,7 @@ async function reconcileShipmentContainersInTx(
   }
 
   const upserted: Array<{ id: number }> = [];
-  for (const container of containers) {
+  for (const container of synchronizedContainers) {
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -2922,6 +2935,33 @@ function assertContainerSetValid(
   }
 }
 
+function resolveShipmentShippingLine(
+  shipmentShippingLineName: string | null,
+  containers: ReadonlyArray<ShipmentContainerInput>,
+): string | null {
+  const master = shipmentShippingLineName?.trim() || null;
+  const incomingByKey = new Map<string, string>();
+  for (const container of containers) {
+    const value = container.shippingLineName?.trim() || null;
+    if (value) incomingByKey.set(value.toLocaleLowerCase('vi'), value);
+  }
+  if (incomingByKey.size > 1) {
+    throw new ApiError(400, 'Các container trong cùng lô phải dùng chung một hãng tàu.');
+  }
+  const incoming = incomingByKey.values().next().value as string | undefined;
+  if (master && incoming && master.localeCompare(incoming, 'vi', { sensitivity: 'base' }) !== 0) {
+    throw new ApiError(400, 'Hãng tàu của container phải khớp với hãng tàu chung của lô hàng.');
+  }
+  return master ?? incoming ?? null;
+}
+
+function synchronizeContainerShippingLine(
+  containers: ReadonlyArray<ShipmentContainerInput>,
+  shippingLineName: string | null,
+): ShipmentContainerInput[] {
+  return containers.map((container) => ({ ...container, shippingLineName }));
+}
+
 export async function batchUpsertShipmentContainers(
   shipmentId: number,
   userId: number | null,
@@ -2973,14 +3013,16 @@ export async function batchUpsertShipmentContainers(
     // numbers are allowed (placeholder rows before the BL arrives); only
     // non-null values are validated. Reuses the shared ISO 6346 validator
     // already ported from vantaiphucloc.
-    assertContainerSetValid(containers);
+    const shippingLineName = resolveShipmentShippingLine(existing.shippingLineName, containers);
+    const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
+    assertContainerSetValid(synchronizedContainers);
 
     const current = await tx.select()
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
     if (actor && isClerkScopedUser(actor) && !isDirectlyEditableIntakeStatus(existing.status)) {
-      const classification = classifyClerkContainerChange(current, containers);
+      const classification = classifyClerkContainerChange(current, synchronizedContainers);
       if (classification.mode === 'NOOP') {
         return {
           items: current,
@@ -3014,7 +3056,7 @@ export async function batchUpsertShipmentContainers(
       tx,
       shipmentId,
       userId,
-      containers,
+      synchronizedContainers,
     );
 
     // Bump the shipment's version so any open editor is told to reload — the

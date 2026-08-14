@@ -5,6 +5,378 @@
   padding-bottom: 40px;
 }
 
+/* Excel-like CUS shipment worksheet */
+.shipments-page--worksheet {
+  min-width: 0;
+}
+
+.cus-workspace--worksheet {
+  min-width: 0;
+  border: 1px solid var(--line-strong, #aeb8b2);
+  border-radius: 0;
+  background: var(--surface, #fff);
+  box-shadow: none;
+}
+
+.cus-worksheet-toolbar {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.1fr) minmax(580px, 2.8fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border-bottom: 1px solid var(--line-strong, #aeb8b2);
+  background: var(--surface-2, #f7f9f8);
+}
+
+.cus-worksheet-toolbar__filters {
+  display: grid;
+  grid-template-columns: minmax(120px, .8fr) repeat(2, minmax(145px, 1fr)) minmax(160px, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.cus-worksheet-filter-disclosure > summary {
+  display: none;
+}
+
+.cus-worksheet-filter-disclosure:not([open]) > .cus-worksheet-toolbar__filters {
+  display: grid;
+}
+
+.cus-worksheet-toolbar__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.cus-worksheet-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line, #d8dedb);
+  color: var(--ink-2, #53615a);
+  font-size: 12px;
+}
+
+.cus-worksheet-viewport {
+  position: relative;
+  width: 100%;
+  max-height: clamp(360px, calc(100vh - 330px), 760px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  background: var(--surface, #fff);
+}
+
+.cus-worksheet-viewport:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent, #008f4c) 40%, transparent);
+  outline-offset: -3px;
+}
+
+.cus-worksheet-table {
+  width: 2368px;
+  min-width: 2368px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--ink, #142019);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.cus-worksheet-table col.cus-worksheet-col--control { width: 144px; }
+.cus-worksheet-table col.cus-worksheet-col--date { width: 112px; }
+.cus-worksheet-table col.cus-worksheet-col--customer { width: 160px; }
+.cus-worksheet-table col.cus-worksheet-col--factory { width: 150px; }
+.cus-worksheet-table col.cus-worksheet-col--bill { width: 145px; }
+.cus-worksheet-table col.cus-worksheet-col--line { width: 110px; }
+.cus-worksheet-table col.cus-worksheet-col--count { width: 112px; }
+.cus-worksheet-table col.cus-worksheet-col--weight { width: 130px; }
+.cus-worksheet-table col.cus-worksheet-col--direction { width: 96px; }
+.cus-worksheet-table col.cus-worksheet-col--cutoff { width: 135px; }
+.cus-worksheet-table col.cus-worksheet-col--lift { width: 150px; }
+.cus-worksheet-table col.cus-worksheet-col--drop { width: 150px; }
+.cus-worksheet-table col.cus-worksheet-col--destination { width: 170px; }
+.cus-worksheet-table col.cus-worksheet-col--container { width: 110px; }
+.cus-worksheet-table col.cus-worksheet-col--closing { width: 150px; }
+.cus-worksheet-table col.cus-worksheet-col--note { width: 185px; }
+.cus-worksheet-table col.cus-worksheet-col--carrier { width: 165px; }
+
+.cus-worksheet-table th,
+.cus-worksheet-table td {
+  height: 52px;
+  padding: 7px 9px;
+  overflow: hidden;
+  border-right: 1px solid var(--line, #d8dedb);
+  border-bottom: 1px solid var(--line, #d8dedb);
+  background: var(--surface, #fff);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.cus-worksheet-table thead th {
+  position: sticky;
+  top: 29px;
+  z-index: 4;
+  height: 42px;
+  padding-block: 6px;
+  border-bottom-color: var(--line-strong, #aeb8b2);
+  background: var(--surface-accent, #e7f4ec);
+  color: var(--accent-ink, #075c35);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .015em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.cus-worksheet-table .cus-worksheet-groups th {
+  top: 0;
+  height: 29px;
+  padding-block: 4px;
+  background: var(--surface-2, #f7f9f8);
+  color: var(--ink-2, #53615a);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+.cus-worksheet-table .cus-worksheet-sticky-control {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  padding: 4px 8px;
+  border-right-color: var(--line-strong, #aeb8b2);
+  background: var(--surface-2, #f7f9f8);
+  text-align: center;
+}
+
+.cus-worksheet-table thead .cus-worksheet-sticky-control {
+  top: 0;
+  z-index: 7;
+  height: 71px;
+  background: var(--surface-accent, #e7f4ec);
+}
+
+.cus-worksheet-row:hover td,
+.cus-worksheet-row:hover .cus-worksheet-sticky-control {
+  background: color-mix(in srgb, var(--surface-accent, #e7f4ec) 45%, var(--surface, #fff));
+}
+
+.cus-row-disclosure--worksheet {
+  position: relative;
+  display: inline-flex;
+  width: 128px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--line-strong, #aeb8b2);
+  border-radius: 4px;
+  background: var(--surface, #fff);
+  color: var(--accent-ink, #075c35);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cus-row-disclosure--worksheet .cus-row-disclosure__identity,
+.cus-row-disclosure--worksheet .cus-row-disclosure__status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cus-row-disclosure--worksheet .cus-row-disclosure__identity {
+  max-width: 96px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.cus-row-disclosure--worksheet .cus-row-disclosure__status {
+  max-width: 96px;
+  color: var(--ink-2, #53615a);
+  font-size: 9px;
+}
+
+.cus-row-disclosure--worksheet:hover,
+.cus-row-disclosure--worksheet:focus-visible {
+  border-color: var(--accent, #008f4c);
+  outline: 2px solid color-mix(in srgb, var(--accent, #008f4c) 35%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-worksheet-cell--mono {
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.cus-worksheet-cell--number,
+.cus-worksheet-cell--date {
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+}
+
+.cus-worksheet-cell--mixed {
+  color: var(--warning-ink, #775300);
+  font-weight: 700;
+}
+
+.cus-drawer-workflow {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-strong, #aeb8b2);
+}
+
+.cus-drawer-workflow__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cus-drawer-workflow__heading h3,
+.cus-drawer-workflow__heading p,
+.cus-drawer-workflow__action p {
+  margin: 0;
+}
+
+.cus-drawer-workflow__heading p,
+.cus-drawer-workflow__action p {
+  color: var(--ink-2, #53615a);
+  font-size: 12px;
+}
+
+.cus-drawer-workflow__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.cus-drawer-workflow__grid > label,
+.cus-drawer-workflow__grid > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-drawer-workflow__grid span {
+  color: var(--ink-2, #53615a);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cus-drawer-inline-control {
+  display: flex;
+  gap: 6px;
+}
+
+.cus-drawer-inline-control input,
+.cus-drawer-workflow__grid select {
+  min-width: 0;
+  min-height: 40px;
+}
+
+.cus-drawer-workflow__action {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+@media (max-width: 1100px) {
+  .cus-worksheet-toolbar {
+    grid-template-columns: minmax(220px, 1fr) 2fr;
+  }
+
+  .cus-worksheet-toolbar__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 700px) {
+  .cus-workspace--worksheet {
+    border-inline: 0;
+  }
+
+  .cus-worksheet-toolbar {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .cus-worksheet-filter-disclosure > summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong, #aeb8b2);
+    border-radius: 4px;
+    background: var(--surface, #fff);
+    color: var(--ink, #142019);
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .cus-worksheet-filter-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .cus-worksheet-filter-disclosure:not([open]) > .cus-worksheet-toolbar__filters {
+    display: none;
+  }
+
+  .cus-worksheet-filter-disclosure[open] > summary {
+    margin-bottom: 8px;
+    border-color: var(--accent, #008f4c);
+  }
+
+  .cus-worksheet-toolbar__filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cus-worksheet-toolbar__actions {
+    grid-column: auto;
+    justify-content: stretch;
+  }
+
+  .cus-worksheet-toolbar__actions .btn {
+    min-width: 44px;
+    flex: 1;
+  }
+
+  .cus-worksheet-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cus-worksheet-viewport {
+    max-height: 58vh;
+  }
+
+  .cus-drawer-workflow__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .cus-worksheet-toolbar__filters {
+    grid-template-columns: 1fr;
+  }
+
+  .cus-worksheet-toolbar__actions {
+    flex-wrap: wrap;
+  }
+}
+
 /* This is an operational ledger, not a reading page. Keep the title close to
    the workspace so the first row stays useful on a normal desktop viewport. */
 .shipments-page > .page-header {
@@ -959,15 +1331,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The ledger never edits money; point CUS at the accounting reconciliation
-   instead of leaving a dead-end money surface inside the closeout flow. */
-.cus-container-ledger__finance-note {
-  margin: 8px 0 0;
-  color: var(--ink-3);
-  font-size: var(--fs-xs);
-  line-height: 1.5;
-}
-
 /* Each container reads in two passes: identify it first, then scan or edit its
    operational assignments. The grid deliberately wraps instead of borrowing a
    horizontal scrollbar from the shipment workspace. */
@@ -1551,4 +1914,20 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+/* Keep worksheet row controls explicit after the legacy master-table rules. */
+.cus-worksheet-table .cus-row-disclosure--worksheet {
+  position: relative;
+  inset: auto;
+  display: inline-flex;
+  width: 128px;
+  height: 44px;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid var(--line-strong, #aeb8b2);
+  border-radius: 4px;
+  background: var(--surface, #fff);
 }

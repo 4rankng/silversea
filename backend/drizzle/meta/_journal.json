@@ -50,6 +50,13 @@
       "when": 1786630704971,
       "tag": "0006_backfill_cus_container_customer_appointment",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786633714979,
+      "tag": "0007_backfill_shipment_shipping_line",
+      "breakpoints": true
     }
   ]
 }

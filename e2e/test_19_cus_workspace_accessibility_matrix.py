@@ -348,7 +348,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 if expectation["api_status"] == 403:
                     condition = (
                         DEMO_ACCOUNTS[role_key]["home"] in page.url
-                        and page.get_by_role("heading", name="Quản lý lô hàng", exact=True).count() == 0
+                        and page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).count() == 0
                         and no_horizontal_overflow(page)
                         and not console_errors
                         and not page_errors
@@ -362,37 +362,24 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                     )
                     continue
 
-                page.get_by_role("heading", name="Quản lý lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
                 visible_fixture = page.get_by_text(f"BLCUS{SEARCH_SUFFIX}", exact=False).count() > 0
                 overflow_ok = no_horizontal_overflow(page)
-                workspace_layout = page.locator(".cus-workspace").get_attribute("data-layout")
-                if workspace_layout == "cards":
-                    card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                    action_surface = card
-                    button = action_surface.get_by_role("button", name=expectation["ui_button"]).first
-                    reason_visible = action_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
-                    button.wait_for(state="visible", timeout=10_000)
-                    action_is_disabled = button.is_disabled()
-                    card.locator("button.cus-mobile-card__reference").click()
-                    detail_surface = page.get_by_role("dialog")
-                    detail_surface.wait_for(timeout=10_000)
-                else:
-                    row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                    action_surface = row
-                    button = action_surface.get_by_role("button", name=expectation["ui_button"]).first
-                    reason_visible = action_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
-                    button.wait_for(state="visible", timeout=10_000)
-                    action_is_disabled = button.is_disabled()
-                    toggle = row.locator("button.cus-row-disclosure")
-                    controls = toggle.get_attribute("aria-controls")
-                    toggle.click()
-                    detail_surface = page.locator(f"#{controls}")
-                    detail_surface.wait_for(timeout=10_000)
-                handoff_visible = detail_surface.get_by_text(
-                    "Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.",
-                    exact=True,
-                ).count() == 1
+                workspace_layout = "worksheet"
+                row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                toggle = row.locator("button.cus-row-disclosure")
+                toggle.click()
+                detail_surface = page.get_by_role("dialog")
+                detail_surface.wait_for(timeout=10_000)
+                button = detail_surface.get_by_role("button", name=expectation["ui_button"]).first
+                reason_visible = detail_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
+                button.wait_for(state="visible", timeout=10_000)
+                action_is_disabled = button.is_disabled()
+                operational_detail_visible = (
+                    detail_surface.get_by_text("Giờ hẹn đóng/trả", exact=True).count() >= 1
+                    and detail_surface.get_by_text("Điều vận", exact=True).count() >= 1
+                )
                 condition = (
                     visible_fixture
                     and overflow_ok
@@ -402,7 +389,7 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                         or reason_visible
                         or button.get_attribute("title") == expectation["ui_reason"]
                     )
-                    and handoff_visible
+                    and operational_detail_visible
                     and not console_errors
                     and not page_errors
                 )
@@ -426,8 +413,8 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
 
 
 def open_mobile_drawer(page: Page):
-    card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-    opener = card.locator("button.cus-mobile-card__reference")
+    row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+    opener = row.locator("button.cus-row-disclosure")
     opener.wait_for(state="visible", timeout=10_000)
     opener.focus()
     opener.click()
@@ -440,7 +427,7 @@ def open_mobile_drawer(page: Page):
         }""",
         timeout=2_500,
     )
-    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
+    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
     return opener, dialog
 
 
@@ -462,7 +449,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
             page.goto(f"{BASE_URL}/shipments?searchSuffix={SEARCH_SUFFIX}")
             page.wait_for_load_state("networkidle")
             try:
-                page.get_by_role("heading", name="Quản lý lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
             except Exception as error:
                 results.fail(
                     f"TC-1933-{width}",
@@ -477,29 +464,27 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
             overflow_ok = no_horizontal_overflow(page)
 
             if width == 1440:
-                row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
                 expand_button = row.locator("button.cus-row-disclosure")
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
-                page.locator(f"#{controls}").wait_for(timeout=10_000)
-                page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
+                dialog = page.get_by_role("dialog")
+                dialog.wait_for(timeout=10_000)
+                dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
                 controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
-                collapse_button = page.get_by_role("button", name="Thu gọn chi tiết container")
-                collapse_present = collapse_button.count() == 1
-                collapse_button.click()
+                dialog.get_by_role("button", name="Đóng").click()
                 page.wait_for_function(
-                    f"document.querySelector('#{controls}') === null",
+                    "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
                 focus_restored = active_has_class(page, "cus-row-disclosure")
                 check(
                     results,
                     "TC-1930",
-                    "Desktop mở bằng bàn phím, thu gọn nội dòng và giữ focus đúng aria-controls",
-                    controlled_region_exists and inline_detail_has_no_drawer and collapse_present and focus_restored,
-                    f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, collapse={collapse_present}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
+                    "Desktop mở drawer bằng bàn phím và giữ focus đúng aria-controls",
+                    controlled_region_exists and focus_restored,
+                    f"ariaControls={controls}, focusRestored={focus_restored}, console={console_errors}, pageErrors={page_errors}",
                 )
 
             if width in (390, 320):
@@ -542,7 +527,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                close_button_restored = active_has_class(page, "cus-mobile-card__reference")
+                close_button_restored = active_has_class(page, "cus-row-disclosure")
 
                 opener, _ = open_mobile_drawer(page)
                 page.keyboard.press("Escape")
@@ -550,7 +535,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                escape_restored = active_has_class(page, "cus-mobile-card__reference")
+                escape_restored = active_has_class(page, "cus-row-disclosure")
 
                 reduced_motion_ok = True
                 if reduced_motion:

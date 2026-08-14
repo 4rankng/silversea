@@ -225,8 +225,9 @@ describe('ClerkShipmentDocsPage', () => {
     expect(await screen.findByRole('heading', { name: 'Hồ sơ: Chưa có mã lô hàng' })).toBeTruthy();
     expect(screen.getByText(/Khách hàng: Chưa có tên khách hàng/)).toBeTruthy();
     expect(screen.getByText('Chưa có số tờ khai')).toBeTruthy();
-    const responsibleUnitSelect = screen.getByRole('button', { name: 'Phòng Chứng từ' });
+    const responsibleUnitSelect = screen.getByRole('combobox', { name: 'Đơn vị phụ trách' });
     expect(responsibleUnitSelect).toBeTruthy();
+    expect(responsibleUnitSelect.textContent).toContain('Phòng Chứng từ');
     fireEvent.click(responsibleUnitSelect);
     expect(screen.getByRole('option', { name: 'Phòng Điều hành' })).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/#(?:42|7|11|12|88)\b/);

@@ -236,7 +236,6 @@ def main() -> bool:
             f"/api/shipments/cus-workspace/{shipment_id}/containers/{line['id']}",
             {
                 "expectedShipmentVersion": line["shipmentVersion"],
-                "expectedFactVersion": line["factVersion"],
                 "carrierType": "EXTERNAL",
                 "newExternalCarrier": {
                     "name": f"Nhà xe E2E {RUN_ID}",
@@ -259,7 +258,6 @@ def main() -> bool:
             f"/api/shipments/cus-workspace/{shipment_id}/containers/{line['id']}",
             {
                 "expectedShipmentVersion": line["shipmentVersion"],
-                "expectedFactVersion": line["factVersion"],
                 "containerTypeId": line["containerTypeId"],
             },
         )
@@ -307,48 +305,41 @@ def main() -> bool:
                 ctx.login_as("clerk", page)
                 page.goto(f"{BASE_URL}/shipments?searchSuffix={BOOK_SUFFIX_QUERY}")
                 page.wait_for_load_state("networkidle")
-                page.get_by_role("heading", name="Quản lý lô hàng", exact=True).wait_for(timeout=10_000)
+                page.get_by_role("heading", name="Kế hoạch lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
                 overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
                 visible_fixture = page.get_by_text(f"BLCUS{BOOK_SUFFIX_STORED}", exact=False).count() > 0
 
                 if width == 1440:
-                    master_row = page.locator("tr.cus-master-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
+                    master_row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
                     expand_button = master_row.locator("button.cus-row-disclosure")
                     expand_button.focus()
                     controls = expand_button.get_attribute("aria-controls")
                     page.keyboard.press("Enter")
-                    page.locator(f"#{controls}").wait_for(timeout=10_000)
-                    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
+                    dialog = page.get_by_role("dialog")
+                    dialog.wait_for(timeout=10_000)
+                    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                    inline_detail_has_no_drawer = page.get_by_role("dialog").count() == 0
-                    collapse_button = page.get_by_role("button", name="Thu gọn chi tiết container")
-                    collapse_present = collapse_button.count() == 1
-                    collapse_button.click()
-                    page.wait_for_function(
-                        f"document.querySelector('#{controls}') === null",
-                        timeout=2_500,
-                    )
-                    focus_restored = page.evaluate(
-                        "document.activeElement?.classList.contains('cus-row-disclosure') === true"
-                    )
+                    dialog.get_by_role("button", name="Đóng").click()
+                    page.wait_for_function("document.querySelectorAll('[role=\"dialog\"]').length === 0", timeout=2_500)
+                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-row-disclosure') === true")
                     check(
                         results,
                         "TC-1812",
-                        "Mở bằng bàn phím và thu gọn bằng nút nội dòng",
-                        controlled_region_exists and inline_detail_has_no_drawer and collapse_present and focus_restored,
-                        f"ariaControls={controls}, inlineNoDrawer={inline_detail_has_no_drawer}, collapse={collapse_present}, focusRestored={focus_restored}",
+                        "Mở drawer bằng bàn phím và trả focus đúng hàng",
+                        controlled_region_exists and focus_restored,
+                        f"ariaControls={controls}, focusRestored={focus_restored}",
                     )
 
                 if width == 390:
-                    mobile_card = page.locator("article.cus-mobile-card").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    drawer_opener = mobile_card.locator("button.cus-mobile-card__reference")
+                    worksheet_row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
+                    drawer_opener = worksheet_row.locator("button.cus-row-disclosure")
                     drawer_opener.focus()
                     drawer_opener.click()
                     dialog = page.get_by_role("dialog")
                     dialog.wait_for(timeout=10_000)
                     focus_moved_inside = page.evaluate("document.activeElement?.getAttribute('aria-label') === 'Đóng'")
-                    page.get_by_text("Chi phí không nhập tại đây. Kế toán đối soát chi phí thực tế sau khi lô hàng hoàn thành.", exact=True).wait_for(timeout=10_000)
+                    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
                     page.wait_for_function(
                         """() => {
                             const rect = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
@@ -363,7 +354,7 @@ def main() -> bool:
                         "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                         timeout=2_000,
                     )
-                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-mobile-card__reference') === true")
+                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-row-disclosure') === true")
                     check(
                         results,
                         "TC-1813",

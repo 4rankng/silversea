@@ -1,0 +1,157 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  EMPTY_SHIPMENT_CREATE_FORM,
+  buildShipmentContainerPayload,
+  buildShipmentRootPayload,
+  getShipmentCreateReadiness,
+  validateShipmentCreate,
+  type ShipmentContainerDraft,
+} from './shipment-create-model';
+
+vi.stubGlobal('crypto', { randomUUID: () => 'row-1' });
+
+const container: ShipmentContainerDraft = {
+  key: 'row-1',
+  containerNumber: 'MSCU6639870',
+  containerTypeId: '31',
+  pickupPortId: '21',
+  dropoffPortId: '22',
+  cargoWeightKg: '12000.25',
+};
+
+describe('shipment create model', () => {
+  it('keeps a customer-only draft valid while listing every dispatch requirement', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7' };
+    const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '' }], null);
+
+    expect(readiness.draftReady).toBe(true);
+    expect(readiness.dispatchReady).toBe(false);
+    expect(readiness.issues.map((item) => item.fieldId)).toEqual([
+      'shipment-booking-ref',
+      'shipment-shipping-line',
+      'shipment-route',
+      'shipment-operational-site',
+      'container-row-1-number',
+      'shipment-expected-delivery',
+    ]);
+    expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
+  });
+
+  it('builds the existing FCL root and container payload semantics', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoTypeId: '31',
+      bookingRef: 'BK-FCL',
+      shippingLineName: 'MSC',
+      declarationNumber: 'TK-01',
+      tradeDirection: 'IMPORT' as const,
+      operationalSiteId: '41',
+    };
+
+    expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
+      customerId: 7,
+      routeId: 11,
+      bookingRef: 'BK-FCL',
+      cargoMode: 'FCL',
+      operationalSiteId: 41,
+      factoryName: 'Nhà máy Long Minh',
+      shippingLineName: 'MSC',
+      operationalNotes: 'Số tờ khai: TK-01',
+    });
+    expect(buildShipmentContainerPayload(form, [container])).toEqual([{
+      containerNumber: 'MSCU6639870',
+      containerTypeId: 31,
+      shippingLineName: 'MSC',
+      pickupPortId: 21,
+      dropoffPortId: 22,
+      cargoWeightKg: '12000.25',
+    }]);
+  });
+
+  it('requires only LCL-specific cargo and schedule fields for dispatch', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL' as const,
+      bookingRef: 'BK-LCL',
+      cargoTypeId: '32',
+      pickupWarehouseSiteId: '42',
+      packageType: 'Pallet',
+      packageCount: '8',
+      cargoWeightKg: '1200',
+      cargoVolumeCbm: '4.25',
+      expectedDeliveryDate: '2026-08-14',
+    };
+
+    const readiness = getShipmentCreateReadiness(form, [container], null);
+    expect(readiness.dispatchReady).toBe(true);
+    expect(readiness.issues).toEqual([]);
+    expect(buildShipmentContainerPayload(form, [container])).toEqual([]);
+  });
+
+  it('keeps carrier allocation as part of FCL readiness', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      bookingRef: 'BK-FCL',
+      shippingLineName: 'MSC',
+      operationalSiteId: '41',
+    };
+    const readiness = getShipmentCreateReadiness(form, [container], 'Cần gán đủ 1 container 40\'.');
+    expect(readiness.firstInvalidFieldId).toBe('shipment-carrier-allocation');
+    expect(readiness.sections.find((section) => section.id === 'cargo')).toMatchObject({ complete: false, missingCount: 1 });
+  });
+
+  it('requires an FCL dispatch schedule date that can make intake ready', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      bookingRef: 'BK-FCL-SCHEDULE',
+      shippingLineName: 'MSC',
+      operationalSiteId: '41',
+    };
+
+    const missingSchedule = getShipmentCreateReadiness(form, [container], null);
+    expect(missingSchedule.issues).toContainEqual(expect.objectContaining({
+      fieldId: 'shipment-expected-delivery',
+      sectionId: 'schedule',
+    }));
+
+    expect(getShipmentCreateReadiness({ ...form, closingAt: '2026-08-14T09:00' }, [container], null).dispatchReady).toBe(true);
+  });
+
+  it('rejects zero-valued LCL quantities and clears hidden FCL site fields from payloads', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      bookingRef: 'BK-LCL-ZERO',
+      cargoMode: 'LCL' as const,
+      cargoTypeId: '32',
+      operationalSiteId: '41',
+      pickupWarehouseSiteId: '42',
+      packageType: 'Pallet',
+      packageCount: '0',
+      cargoWeightKg: '0',
+      cargoVolumeCbm: '0',
+      expectedDeliveryDate: '2026-08-14',
+    };
+    const readiness = getShipmentCreateReadiness(form, [container], null);
+    expect(readiness.dispatchReady).toBe(false);
+    expect(readiness.issues.map((item) => item.fieldId)).toEqual([
+      'shipment-package-count',
+      'shipment-cargo-weight',
+      'shipment-cargo-volume',
+    ]);
+    expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
+      operationalSiteId: null,
+      factoryName: null,
+      pickupWarehouseSiteId: 42,
+    });
+  });
+});

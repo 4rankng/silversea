@@ -16,6 +16,7 @@ test('CUS workspace query accepts 4-5 alphanumeric suffix search', () => {
     searchSuffix: 'aB12C',
     transportDateFrom: '2026-08-01',
     transportDateTo: '2026-08-11',
+    direction: 'IMPORT',
     bucket: ShipmentCusBucket.RUNNING,
   }).success, true);
 });
@@ -43,9 +44,19 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     isCombined: false,
     direction: 'IMPORT',
     containerSummary: '1x40HC',
+    packageCount: null,
+    packageType: null,
     weightKg: '12500.00',
     volumeCbm: '32.500',
     transportDate: '2026-08-11',
+    customsCutoffAt: '2026-08-10T08:00:00.000Z',
+    closingAt: '2026-08-11T03:00:00.000Z',
+    plannedReturnAt: null,
+    deliveryLocation: 'Kho Hà Nội',
+    liftSiteNames: ['Cảng Đình Vũ'],
+    dropoffSiteNames: ['Bãi Tân Vũ'],
+    customerAppointmentAts: ['2026-08-11T02:00:00.000Z'],
+    carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
     note: null,
     operational: {
       scheduleReadiness: 'SCHEDULED',
@@ -114,10 +125,20 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
     routeName: null,
     isCombined: false,
     direction: null,
-    containerSummary: '0 cont',
+    containerSummary: '',
+    packageCount: null,
+    packageType: null,
     weightKg: null,
     volumeCbm: null,
     transportDate: null,
+    customsCutoffAt: null,
+    closingAt: null,
+    plannedReturnAt: null,
+    deliveryLocation: null,
+    liftSiteNames: [],
+    dropoffSiteNames: [],
+    customerAppointmentAts: [],
+    carrierAssignments: [],
     note: null,
     operational: {
       scheduleReadiness: 'WAITING_DATE',
@@ -167,49 +188,45 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
 test('CUS container-line update accepts inline new external carrier input', () => {
   assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({
     expectedShipmentVersion: 3,
-    expectedFactVersion: 0,
     carrierType: 'EXTERNAL',
     newExternalCarrier: {
       name: 'Nhà xe Minh Phát',
       plateNumber: '51H-123.45',
     },
-    outboundCharges: {
-      transportAmount: '1200000',
-    },
   }).success, true);
 });
 
-test('CUS container-line update limits every proposal amount to nonnegative integer VND within numeric(15,0)', () => {
-  const fields = [
-    ['outboundCharges', 'transportAmount'],
-    ['outboundCharges', 'handlingAmount'],
-    ['outboundCharges', 'incidentalAmount'],
-    ['inboundCharges', 'transportAmount'],
-    ['inboundCharges', 'handlingAmount'],
-  ] as const;
-  const invalidAmounts: unknown[] = ['-1', '1.5', 'NaN', '1000000000000000', Number.NaN, 1];
+test('CUS container-line update accepts a container-specific customer appointment', () => {
+  const appointment = '2026-08-14T03:30:00.000Z';
+  const parsed = shipmentCusContainerLineUpdateSchema.safeParse({
+    expectedShipmentVersion: 3,
+    customerAppointmentAt: appointment,
+  });
 
-  for (const [group, field] of fields) {
+  assert.equal(parsed.success, true);
+  if (parsed.success) assert.equal(parsed.data.customerAppointmentAt, appointment);
+  assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({
+    expectedShipmentVersion: 3,
+    closeOrReturnAt: appointment,
+  }).success, false);
+});
+
+test('CUS container-line update rejects every finance field at the strict operational boundary', () => {
+  for (const financeInput of [
+    { outboundCharges: { transportAmount: '1200000' } },
+    { inboundCharges: { handlingAmount: '45000' } },
+    { expectedFactVersion: 0 },
+  ]) {
     assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({
       expectedShipmentVersion: 3,
-      expectedFactVersion: 0,
-      [group]: { [field]: '999999999999999' },
-    }).success, true, `${group}.${field} accepts the numeric(15,0) maximum`);
-
-    for (const amount of invalidAmounts) {
-      assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({
-        expectedShipmentVersion: 3,
-        expectedFactVersion: 0,
-        [group]: { [field]: amount },
-      }).success, false, `${group}.${field} rejects ${String(amount)}`);
-    }
+      ...financeInput,
+    }).success, false);
   }
 });
 
 test('CUS container-line update rejects mixed existing and new external carrier input', () => {
   const result = shipmentCusContainerLineUpdateSchema.safeParse({
     expectedShipmentVersion: 3,
-    expectedFactVersion: 0,
     carrierType: 'EXTERNAL',
     externalCarrierId: 88,
     newExternalCarrier: {
@@ -224,7 +241,6 @@ test('CUS container-line update rejects mixed existing and new external carrier 
 test('CUS container-line update rejects inline external carrier for OWN carrier type', () => {
   const result = shipmentCusContainerLineUpdateSchema.safeParse({
     expectedShipmentVersion: 3,
-    expectedFactVersion: 0,
     carrierType: 'OWN',
     newExternalCarrier: {
       name: 'Nhà xe Minh Phát',

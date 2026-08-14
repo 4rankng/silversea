@@ -23,6 +23,25 @@ describe('SearchableSelect', () => {
     })));
   }
 
+  it('exposes caller-owned validation state and description', () => {
+    render(
+      <>
+        <SearchableSelect
+          id="routeId"
+          value=""
+          onChange={() => {}}
+          options={ROUTES}
+          ariaInvalid
+          ariaDescribedBy="route-error"
+        />
+        <span id="route-error">Chọn tuyến đường.</span>
+      </>,
+    );
+    const trigger = screen.getByRole('button');
+    expect(trigger.getAttribute('aria-invalid')).toBe('true');
+    expect(trigger.getAttribute('aria-describedby')).toBe('route-error');
+  });
+
   it('filters Vietnamese labels without requiring diacritics', () => {
     render(
       <SearchableSelect

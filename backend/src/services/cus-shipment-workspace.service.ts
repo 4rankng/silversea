@@ -12,7 +12,6 @@ import {
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceListResponse,
-  type ShipmentCusWorkspacePassThroughCharge,
   type ShipmentCusWorkspaceQuery,
 } from '@tingting/shared';
 import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -24,6 +23,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import {
   assertShipmentAccountingUnlocked,
   getShipmentFinanceConfirmationSummaries,
@@ -95,26 +95,6 @@ type BillingLineRow = {
   vatTreatment: string;
 };
 
-type ExpenseRow = {
-  id: number;
-  shipmentId: number | null;
-  sourceShipmentContainerId: number | null;
-  expenseType: string;
-  sellAmount: string;
-  invoiceNumber: string | null;
-  supplierName: string | null;
-};
-
-type ChargeFactRow = {
-  shipmentContainerId: number;
-  version: number;
-  outboundTransportAmount: string | null;
-  outboundHandlingAmount: string | null;
-  outboundIncidentalAmount: string | null;
-  inboundTransportAmount: string | null;
-  inboundHandlingAmount: string | null;
-};
-
 type RecoveryFactRow = {
   id: number;
   shipmentId: number;
@@ -174,11 +154,6 @@ function toMoneyString(value: number): string {
 
 function sumMoney(values: Array<string | number | null | undefined>): string {
   return toMoneyString(values.reduce<number>((sum, value) => sum + toNumber(value), 0));
-}
-
-function sumIfAny(values: Array<string | number | null | undefined>): string | null {
-  const present = values.filter((value) => value != null && String(value).trim() !== '');
-  return present.length === 0 ? null : sumMoney(present);
 }
 
 function businessDateNow(): string {
@@ -268,6 +243,10 @@ function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.map(trimOrNull).filter((value): value is string => value != null))];
+}
+
 function normalizeCarrierName(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -319,157 +298,17 @@ function deriveCusBucket(status: string | null, hasActiveLock: boolean): Shipmen
   return ShipmentCusBucket.NEW;
 }
 
-function buildContainerSummary(rows: ContainerRow[]): string {
-  if (rows.length === 0) return '0 cont';
+function buildContainerSummary(rows: ContainerRow[], packageCount: number | null, packageType: string | null): string {
+  if (rows.length === 0) {
+    if (packageCount == null) return '';
+    return `${packageCount} ${trimOrNull(packageType) ?? 'kiện'}`;
+  }
   const counts = new Map<string, number>();
   for (const row of rows) {
     const label = row.containerTypeCode ?? row.containerTypeName ?? 'Cont';
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, qty]) => `${qty}x${label}`).join(' + ');
-}
-
-function baseChargeComponent(
-  amount: string | null,
-  available: boolean,
-  repairRecoveryPending = false,
-): {
-  amount: string | null;
-  invoiceNumber: string | null;
-  repairRecoveryPending: boolean;
-  available: boolean;
-} {
-  return {
-    amount,
-    invoiceNumber: null,
-    repairRecoveryPending,
-    available,
-  };
-}
-
-function emptyPassThroughGroup(): {
-  csht: ReturnType<typeof baseChargeComponent>;
-  lift: ReturnType<typeof baseChargeComponent>;
-  dropoff: ReturnType<typeof baseChargeComponent>;
-  other: ReturnType<typeof baseChargeComponent>;
-  total: string | null;
-  available: boolean;
-  authority: 'APPROVED_EXPENSE_SOURCE';
-} {
-  return {
-    csht: baseChargeComponent(null, true),
-    lift: baseChargeComponent(null, true),
-    dropoff: baseChargeComponent(null, true),
-    other: baseChargeComponent(null, true),
-    total: null as string | null,
-    available: true,
-    authority: 'APPROVED_EXPENSE_SOURCE',
-  };
-}
-
-function passThroughBucket(expenseType: string): 'csht' | 'lift' | 'dropoff' | 'other' {
-  switch (expenseType) {
-    case 'INFRASTRUCTURE':
-      return 'csht';
-    case 'LIFTING':
-      return 'lift';
-    case 'LOWERING':
-      return 'dropoff';
-    default:
-      return 'other';
-  }
-}
-
-function buildPassThrough(expenses: ExpenseRow[], recoveryFacts: RecoveryFactRow[]) {
-  const grouped = emptyPassThroughGroup();
-  const recoveryByExpenseId = new Map<number, RecoveryFactRow[]>();
-  for (const fact of recoveryFacts) {
-    if (fact.sourceExpenseId == null) continue;
-    const bucket = recoveryByExpenseId.get(fact.sourceExpenseId) ?? [];
-    bucket.push(fact);
-    recoveryByExpenseId.set(fact.sourceExpenseId, bucket);
-  }
-
-  const charges: ShipmentCusWorkspacePassThroughCharge[] = [];
-  for (const expense of expenses) {
-    const expenseFacts = recoveryByExpenseId.get(expense.id) ?? [];
-    const bucket = passThroughBucket(expense.expenseType);
-    const current = grouped[bucket];
-    const pendingRecovery = expenseFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
-    const repairRecoveryPending = expenseFacts.some((fact) => fact.kind === 'REPAIR' && toNumber(fact.outstandingAmount) > 0);
-    grouped[bucket] = {
-      amount: sumIfAny([current.amount, expense.sellAmount]),
-      invoiceNumber: current.invoiceNumber == null || current.invoiceNumber === expense.invoiceNumber
-        ? expense.invoiceNumber
-        : null,
-      repairRecoveryPending: current.repairRecoveryPending || repairRecoveryPending,
-      available: true,
-    };
-    charges.push({
-      expenseId: expense.id,
-      label: expense.supplierName ?? expense.expenseType,
-      amount: expense.sellAmount,
-      invoiceNumber: expense.invoiceNumber,
-      pendingRecovery,
-    });
-  }
-
-  grouped.total = sumIfAny([
-    grouped.csht.amount,
-    grouped.lift.amount,
-    grouped.dropoff.amount,
-    grouped.other.amount,
-  ]);
-
-  return {
-    grouped,
-    charges,
-    repairRecoveryPending: grouped.other.repairRecoveryPending,
-  };
-}
-
-function buildChargeGroups(fact: ChargeFactRow | null) {
-  return {
-    outboundCharges: {
-      transport: baseChargeComponent(fact?.outboundTransportAmount ?? null, true),
-      handling: baseChargeComponent(fact?.outboundHandlingAmount ?? null, true),
-      incidental: baseChargeComponent(fact?.outboundIncidentalAmount ?? null, true),
-      total: sumIfAny([
-        fact?.outboundTransportAmount ?? null,
-        fact?.outboundHandlingAmount ?? null,
-        fact?.outboundIncidentalAmount ?? null,
-      ]),
-      available: true,
-      authority: 'MANUAL_PROPOSAL' as const,
-    },
-    inboundCharges: {
-      transport: baseChargeComponent(fact?.inboundTransportAmount ?? null, true),
-      handling: baseChargeComponent(fact?.inboundHandlingAmount ?? null, true),
-      incidental: baseChargeComponent(null, false),
-      total: sumIfAny([
-        fact?.inboundTransportAmount ?? null,
-        fact?.inboundHandlingAmount ?? null,
-      ]),
-      available: true,
-      authority: 'MANUAL_PROPOSAL' as const,
-    },
-  };
-}
-
-function toRecoveryFactDto(row: RecoveryFactRow) {
-  return {
-    id: row.id,
-    version: row.version,
-    shipmentContainerId: row.shipmentContainerId,
-    kind: row.kind as 'DEPOSIT' | 'REPAIR' | 'OTHER',
-    status: row.status as 'OPEN' | 'PARTIAL' | 'RECOVERED' | 'WAIVED',
-    expectedAmount: row.expectedAmount,
-    recoveredAmount: row.recoveredAmount,
-    outstandingAmount: row.outstandingAmount,
-    sourceExpenseId: row.sourceExpenseId,
-    sourceVersion: row.sourceVersion,
-    waiverReason: row.waiverReason,
-  };
 }
 
 function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
@@ -508,11 +347,8 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       custodyByShipment: new Map<number, CustodyRow>(),
       tripsByShipment: new Map<number, TripRow[]>(),
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
-      expensesByContainer: new Map<number, ExpenseRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
-      chargeFactsByContainer: new Map<number, ChargeFactRow>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
-      recoveryFactsByContainer: new Map<number, RecoveryFactRow[]>(),
     };
   }
 
@@ -524,9 +360,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     custodyRows,
     tripRows,
     billingLineRows,
-    expenseRows,
     assignmentRows,
-    chargeFactRows,
     recoveryFactRows,
   ] = await Promise.all([
     executor.select({
@@ -656,22 +490,6 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .leftJoin(billingExpenseTrip, eq(billingExpenseTrip.id, s.tripExpenses.tripId))
       .where(isNull(s.billingDocumentTripClaims.releasedAt)),
     executor.select({
-      id: s.tripExpenses.id,
-      shipmentId: s.trips.shipmentId,
-      sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
-      expenseType: s.tripExpenses.expenseType,
-      sellAmount: s.tripExpenses.sellAmount,
-      invoiceNumber: s.tripExpenses.invoiceNumber,
-      supplierName: s.customers.name,
-    }).from(s.tripExpenses)
-      .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
-      .leftJoin(s.tripContainers, eq(s.tripContainers.id, s.tripExpenses.tripContainerId))
-      .leftJoin(s.customers, eq(s.customers.id, s.tripExpenses.supplierId))
-      .where(and(
-        inArray(s.trips.shipmentId, shipmentIds),
-        eq(s.tripExpenses.approvalStatus, 'APPROVED'),
-      )),
-    executor.select({
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       fulfillmentId: s.shipmentFulfillments.id,
       fulfillmentVersion: s.shipmentFulfillments.version,
@@ -705,16 +523,6 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
         inArray(s.shipmentFulfillments.shipmentId, shipmentIds),
         isNull(s.shipmentFulfillments.canceledAt),
       )),
-    executor.select({
-      shipmentContainerId: s.shipmentContainerChargeFacts.shipmentContainerId,
-      version: s.shipmentContainerChargeFacts.version,
-      outboundTransportAmount: s.shipmentContainerChargeFacts.outboundTransportAmount,
-      outboundHandlingAmount: s.shipmentContainerChargeFacts.outboundHandlingAmount,
-      outboundIncidentalAmount: s.shipmentContainerChargeFacts.outboundIncidentalAmount,
-      inboundTransportAmount: s.shipmentContainerChargeFacts.inboundTransportAmount,
-      inboundHandlingAmount: s.shipmentContainerChargeFacts.inboundHandlingAmount,
-    }).from(s.shipmentContainerChargeFacts)
-      .where(inArray(s.shipmentContainerChargeFacts.shipmentId, shipmentIds)),
     executor.select({
       id: s.shipmentRecoveryFacts.id,
       shipmentId: s.shipmentRecoveryFacts.shipmentId,
@@ -783,35 +591,18 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     billingLinesByShipment.set(row.shipmentId, bucket);
   }
 
-  const expensesByContainer = new Map<number, ExpenseRow[]>();
-  for (const row of expenseRows) {
-    if (row.sourceShipmentContainerId == null) continue;
-    const bucket = expensesByContainer.get(row.sourceShipmentContainerId) ?? [];
-    bucket.push(row);
-    expensesByContainer.set(row.sourceShipmentContainerId, bucket);
-  }
-
   const assignmentsByContainer = new Map<number, AssignmentRow>();
   for (const row of assignmentRows) {
     if (row.shipmentContainerId == null || assignmentsByContainer.has(row.shipmentContainerId)) continue;
     assignmentsByContainer.set(row.shipmentContainerId, row as AssignmentRow);
   }
 
-  const chargeFactsByContainer = new Map<number, ChargeFactRow>();
-  for (const row of chargeFactRows) chargeFactsByContainer.set(row.shipmentContainerId, row);
-
   const recoveryFactsByShipment = new Map<number, RecoveryFactRow[]>();
-  const recoveryFactsByContainer = new Map<number, RecoveryFactRow[]>();
   for (const row of recoveryFactRows) {
     if (!isCurrentRecoveryFact(row as RecoveryFactRow)) continue;
     const byShipment = recoveryFactsByShipment.get(row.shipmentId) ?? [];
     byShipment.push(row as RecoveryFactRow);
     recoveryFactsByShipment.set(row.shipmentId, byShipment);
-    if (row.shipmentContainerId != null) {
-      const byContainer = recoveryFactsByContainer.get(row.shipmentContainerId) ?? [];
-      byContainer.push(row as RecoveryFactRow);
-      recoveryFactsByContainer.set(row.shipmentContainerId, byContainer);
-    }
   }
 
   return {
@@ -822,11 +613,8 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     custodyByShipment,
     tripsByShipment,
     billingLinesByShipment,
-    expensesByContainer,
     assignmentsByContainer,
-    chargeFactsByContainer,
     recoveryFactsByShipment,
-    recoveryFactsByContainer,
   };
 }
 
@@ -939,6 +727,31 @@ function buildListItem(
   const authoritativeCustomerTotal = customerTotalsAvailable
     ? toNumber(customerInvoiceTotal) + toNumber(customerNoInvoiceTotal)
     : null;
+  const assignments = containers.map((container) => support.assignmentsByContainer.get(container.id) ?? null);
+  const liftSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
+    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse')?.name
+  )));
+  const dropoffSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
+    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite')?.name
+  )));
+  const customerAppointmentAts = uniqueNonEmpty(containers.map((container) => (
+    container.customerAppointmentAt?.toISOString() ?? null
+  )));
+  const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
+    if (assignment == null) return result;
+    const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
+    const carrierName = carrierType === 'OWN'
+      ? 'SilverSea'
+      : trimOrNull(assignment.tripExternalCarrierName ?? assignment.plannedCarrierName);
+    const plateNumber = trimOrNull(carrierType === 'OWN'
+      ? assignment.tripTruckPlate
+      : assignment.tripExternalPlateNumber ?? assignment.plannedVehiclePlateNumber);
+    if (carrierName == null && plateNumber == null) return result;
+    if (!result.some((item) => item.carrierName === carrierName && item.plateNumber === plateNumber)) {
+      result.push({ carrierName, plateNumber });
+    }
+    return result;
+  }, []);
 
   const accountantAction = confirmation.status === 'CONFIRMED'
     ? {
@@ -967,10 +780,20 @@ function buildListItem(
     routeName: row.routeName,
     isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
     direction: row.shipment.tradeDirection,
-    containerSummary: buildContainerSummary(containers),
+    containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
+    packageCount: row.shipment.packageCount,
+    packageType: trimOrNull(row.shipment.packageType),
     weightKg: row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg),
     volumeCbm: row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm),
     transportDate: row.shipment.expectedDeliveryDate,
+    customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
+    closingAt: row.shipment.closingAt?.toISOString() ?? null,
+    plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+    deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
+    liftSiteNames,
+    dropoffSiteNames,
+    customerAppointmentAts,
+    carrierAssignments,
     note: trimOrNull(row.shipment.operationalNotes),
     operational,
     finance: {
@@ -1039,13 +862,6 @@ function buildContainerLine(
   ordinal: number,
 ): ShipmentCusWorkspaceContainerLine {
   const assignment = support.assignmentsByContainer.get(container.id) ?? null;
-  const chargeFact = support.chargeFactsByContainer.get(container.id) ?? null;
-  const recoveryFacts = (support.recoveryFactsByContainer.get(container.id) ?? []).map(toRecoveryFactDto);
-  const passThrough = buildPassThrough(
-    support.expensesByContainer.get(container.id) ?? [],
-    support.recoveryFactsByContainer.get(container.id) ?? [],
-  );
-  const { outboundCharges, inboundCharges } = buildChargeGroups(chargeFact);
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
   const canEditOperational = editableBase && assignment?.tripId == null;
@@ -1086,12 +902,6 @@ function buildContainerLine(
     dropoffSiteId: dropoffSite?.id ?? null,
     dropoffSite: dropoffSite?.name ?? null,
     customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
-    outboundCharges,
-    inboundCharges,
-    passThroughChargesGrouped: passThrough.grouped,
-    passThroughCharges: passThrough.charges,
-    recoveryFacts,
-    repairRecoveryPending: passThrough.repairRecoveryPending || recoveryFacts.some((fact) => fact.kind === 'REPAIR' && toNumber(fact.outstandingAmount) > 0),
     permissions: {
       carrierEditable: canEditOperational,
       plateEditable,
@@ -1099,12 +909,8 @@ function buildContainerLine(
       liftSiteEditable: canEditOperational,
       dropoffSiteEditable: canEditOperational,
       customerAppointmentEditable: canEditOperational,
-      outboundEditable: editableBase && actor.role === Role.CUS,
-      inboundEditable: editableBase,
-      passThroughEditable: false,
     },
     shipmentVersion: row.shipment.version,
-    factVersion: chargeFact?.version ?? 0,
     relatedTripVersion: assignment?.tripVersion ?? null,
   };
 }
@@ -1149,8 +955,6 @@ async function buildWorkspaceDetail(
     selectors,
     dataState: {
       hasExplicitDocumentCustody: summary.documentCustody.available,
-      hasExplicitRecoveryFacts: (support.recoveryFactsByShipment.get(row.shipment.id) ?? []).length > 0,
-      hasAuthoritativeChargeBreakdown: containers.length > 0 && containers.every((line) => line.factVersion > 0),
     },
   };
 }
@@ -1172,6 +976,9 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
   }
   if (query.transportDateTo) {
     conditions.push(sql`${s.shipments.expectedDeliveryDate} <= ${query.transportDateTo}`);
+  }
+  if (query.direction) {
+    conditions.push(eq(s.shipments.tradeDirection, query.direction));
   }
   if (query.searchSuffix) {
     const suffix = `%${query.searchSuffix}`;
@@ -1396,6 +1203,8 @@ async function resolveInlineExternalCarrier(
     throw new ApiError(400, 'Biển số xe không hợp lệ.');
   }
 
+  await lockApplicationOwnedUniqueness(tx, 'cus-inline-carrier', [normalizedCarrierName]);
+
   const [matchedCarrier] = await tx.select({
     id: s.customers.id,
     name: s.customers.name,
@@ -1413,23 +1222,18 @@ async function resolveInlineExternalCarrier(
 
   let carrier = matchedCarrier ?? null;
   if (carrier == null) {
-    try {
-      [carrier] = await tx.insert(s.customers).values({
-        name: displayCarrierName,
-        status: 'ACTIVE',
-        isCarrier: true,
-      }).returning({
-        id: s.customers.id,
-        name: s.customers.name,
-        status: s.customers.status,
-        isCarrier: s.customers.isCarrier,
-        deletedAt: s.customers.deletedAt,
-      });
-    } catch (error) {
-      const code = typeof error === 'object' && error != null && 'code' in error
-        ? String((error as { code?: unknown }).code ?? '')
-        : '';
-      if (code !== '23505') throw error;
+    [carrier] = await tx.insert(s.customers).values({
+      name: displayCarrierName,
+      status: 'ACTIVE',
+      isCarrier: true,
+    }).onConflictDoNothing().returning({
+      id: s.customers.id,
+      name: s.customers.name,
+      status: s.customers.status,
+      isCarrier: s.customers.isCarrier,
+      deletedAt: s.customers.deletedAt,
+    });
+    if (!carrier) {
       [carrier] = await tx.select({
         id: s.customers.id,
         name: s.customers.name,
@@ -1445,6 +1249,8 @@ async function resolveInlineExternalCarrier(
       }
     }
   }
+
+  await lockApplicationOwnedUniqueness(tx, 'cus-inline-carrier-vehicle', [carrier.id, normalizedPlate]);
 
   const matchingVehicles = await tx.select({
     id: s.carrierFleetVehicles.id,
@@ -1493,21 +1299,17 @@ async function resolveInlineExternalCarrier(
     };
   }
 
-  const [vehicle] = await tx.insert(s.carrierFleetVehicles).values({
+  let [vehicle] = await tx.insert(s.carrierFleetVehicles).values({
     carrierId: carrier.id,
     licensePlate,
     normalizedPlate,
     isActive: true,
     createdBy: actor.userId,
     updatedBy: actor.userId,
-  }).returning({
+  }).onConflictDoNothing().returning({
     id: s.carrierFleetVehicles.id,
-  }).catch(async (error) => {
-    const code = typeof error === 'object' && error != null && 'code' in error
-      ? String((error as { code?: unknown }).code ?? '')
-      : '';
-    if (code !== '23505') throw error;
-
+  });
+  if (!vehicle) {
     const rows = await tx.select({
       id: s.carrierFleetVehicles.id,
       licensePlate: s.carrierFleetVehicles.licensePlate,
@@ -1530,13 +1332,14 @@ async function resolveInlineExternalCarrier(
     }
     const active = rows.filter((row) => row.deletedAt == null && row.isActive === true);
     if (active.length === 1 && active[0]!.licensePlate === licensePlate) {
-      return [{ id: active[0]!.id }];
+      vehicle = { id: active[0]!.id };
+    } else {
+      throw new ApiError(
+        409,
+        'Biển số nhà xe đã tồn tại trong danh mục hoạt động. Vui lòng chọn xe hiện có hoặc liên hệ ADMIN hoặc Quản lý để xử lý.',
+      );
     }
-    throw new ApiError(
-      409,
-      'Biển số nhà xe đã tồn tại trong danh mục hoạt động. Vui lòng chọn xe hiện có hoặc liên hệ ADMIN hoặc Quản lý để xử lý.',
-    );
-  });
+  }
 
   return {
     carrierId: carrier.id,
@@ -1612,15 +1415,6 @@ export async function updateCusShipmentContainerLine(args: {
     );
     if (trip && requestedOperationalMutation) {
       throw new ApiError(409, 'Tác vụ đã điều xe; hãy dùng luồng điều chỉnh hiện có thay vì ghi đè trực tiếp lịch sử thực hiện.');
-    }
-
-    const [existingChargeFact] = await tx.select().from(s.shipmentContainerChargeFacts)
-      .where(eq(s.shipmentContainerChargeFacts.shipmentContainerId, args.containerId))
-      .limit(1)
-      .for('update');
-    const currentFactVersion = existingChargeFact?.version ?? 0;
-    if (currentFactVersion !== args.input.expectedFactVersion) {
-      throw new ApiError(409, 'Dòng phí container vừa thay đổi. Vui lòng tải lại.');
     }
 
     let touched = false;
@@ -1719,38 +1513,6 @@ export async function updateCusShipmentContainerLine(args: {
         }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
       } else if (nextCarrierType != null) {
         throw new ApiError(400, 'Loại nhà xe không hợp lệ.');
-      }
-      touched = true;
-    }
-
-    if (args.input.outboundCharges && args.actor.role !== Role.CUS) {
-      throw new ApiError(403, 'Chỉ CUS được cập nhật nhóm cước đầu ra.');
-    }
-
-    if (args.input.outboundCharges || args.input.inboundCharges) {
-      const nextValues = {
-        shipmentId: shipment.id,
-        shipmentContainerId: container.id,
-        outboundTransportAmount: args.input.outboundCharges?.transportAmount ?? existingChargeFact?.outboundTransportAmount ?? null,
-        outboundHandlingAmount: args.input.outboundCharges?.handlingAmount ?? existingChargeFact?.outboundHandlingAmount ?? null,
-        outboundIncidentalAmount: args.input.outboundCharges?.incidentalAmount ?? existingChargeFact?.outboundIncidentalAmount ?? null,
-        inboundTransportAmount: args.input.inboundCharges?.transportAmount ?? existingChargeFact?.inboundTransportAmount ?? null,
-        inboundHandlingAmount: args.input.inboundCharges?.handlingAmount ?? existingChargeFact?.inboundHandlingAmount ?? null,
-      };
-      if (existingChargeFact) {
-        await tx.update(s.shipmentContainerChargeFacts).set({
-          ...nextValues,
-          version: existingChargeFact.version + 1,
-          updatedBy: args.actor.userId,
-          updatedAt: now,
-        }).where(eq(s.shipmentContainerChargeFacts.id, existingChargeFact.id));
-      } else {
-        await tx.insert(s.shipmentContainerChargeFacts).values({
-          ...nextValues,
-          version: 1,
-          createdBy: args.actor.userId,
-          updatedBy: args.actor.userId,
-        });
       }
       touched = true;
     }

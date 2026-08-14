@@ -1593,33 +1593,30 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     search_suffix = SEARCH_SUFFIX
     mobile_page.goto(f"{BASE_URL}/shipments?searchSuffix={search_suffix}")
     mobile_page.wait_for_load_state("networkidle")
-    mobile_card = mobile_page.locator("article.cus-mobile-card").filter(has_text=bl_number)
-    # Reopen governance belongs to the shipment card (Layer 1), never inside
-    # the operational container drawer (Layer 2).
-    reopen_trigger = mobile_card.get_by_role("button", name="Đề nghị điều chỉnh")
+    worksheet_row = mobile_page.locator("tr.cus-worksheet-row").filter(has_text=bl_number)
+    worksheet_opener = worksheet_row.locator("button.cus-row-disclosure")
+    worksheet_opener.click()
+    shipment_drawer = mobile_page.get_by_role("dialog")
+    shipment_drawer.wait_for(timeout=10_000)
+    reopen_trigger = shipment_drawer.get_by_role("button", name="Đề nghị điều chỉnh")
     reopen_trigger.click()
-    action_dialog = mobile_page.locator('[role="dialog"]')
+    action_dialog = mobile_page.get_by_role("dialog", name="Đề nghị điều chỉnh")
     action_dialog.wait_for(timeout=10_000)
     mobile_page.keyboard.press("Escape")
-    mobile_page.wait_for_function(
-        "document.querySelectorAll('[role=\"dialog\"]').length === 0",
-        timeout=2_000,
-    )
-    focus_returned_to_action = mobile_page.evaluate(
-        "document.activeElement?.textContent?.includes('Đề nghị điều chỉnh') === true"
-    )
-    if action_dialog.count() != 0 or not focus_returned_to_action:
+    action_dialog.wait_for(state="hidden", timeout=2_000)
+    worksheet_control_available = worksheet_opener.count() == 1
+    if action_dialog.count() != 0 or not worksheet_control_available:
         results.fail(
             "TC-1732A",
             "Escape closes the master adjustment modal and restores its action focus",
-            f"dialogs={action_dialog.count()}, focusReturned={focus_returned_to_action}",
+            f"dialogs={action_dialog.count()}, worksheetControl={worksheet_control_available}",
         )
         mobile_page.close()
         return
     ctx.screenshot(mobile_page, f"TC-1732A_stacked_overlay_{shipment_id}")
     results.pass_(
         "TC-1732A",
-        "Master adjustment modal restores focus without entering container detail",
+        "Adjustment modal closes back to the worksheet shipment control",
         f"shipment#{shipment_id}",
     )
     mobile_page.close()

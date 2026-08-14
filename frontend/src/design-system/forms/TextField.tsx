@@ -9,7 +9,7 @@ export interface BaseFieldProps {
   disabled?: boolean;
 }
 
-export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'className' | 'prefix'> {
+export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'prefix'> {
   prefix?: ReactNode;
   suffix?: ReactNode;
   className?: string;
@@ -25,7 +25,10 @@ export function TextField({
   className,
   ...input
 }: TextFieldProps) {
-  const id = useId();
+  const generatedId = useId();
+  const id = input.id ?? generatedId;
+  const errorId = error ? `${id}-error` : undefined;
+  const describedBy = [input['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined;
   const cls = ['ds-field', error ? 'ds-field--error' : '', className].filter(Boolean).join(' ');
 
   return (
@@ -37,14 +40,14 @@ export function TextField({
       {prefix || suffix ? (
         <div className="ds-field__input-group">
           {prefix && <span className="ds-field__affix">{prefix}</span>}
-          <input id={id} className="ds-field__input" {...input} />
+          <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
           {suffix && <span className="ds-field__affix">{suffix}</span>}
         </div>
       ) : (
-        <input id={id} className="ds-field__input" {...input} />
+        <input {...input} id={id} className="ds-field__input" aria-invalid={input['aria-invalid'] ?? Boolean(error)} aria-describedby={describedBy} />
       )}
       {error ? (
-        <span className="ds-field__msg ds-field__msg--error">{error}</span>
+        <span id={errorId} className="ds-field__msg ds-field__msg--error">{error}</span>
       ) : helpText ? (
         <span className="ds-field__msg">{helpText}</span>
       ) : null}

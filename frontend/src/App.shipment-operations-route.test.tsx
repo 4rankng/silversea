@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 
@@ -54,9 +54,14 @@ vi.mock('./pages/AccountingWorkspacePage', () => ({
 import { AppRoutes } from './App';
 
 function renderRoute(path: string) {
+  function LocationProbe() {
+    const location = useLocation();
+    return <span data-testid="route-location">{location.pathname}</span>;
+  }
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AppRoutes />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -79,6 +84,39 @@ describe('AppRoutes shipment operations reachability', () => {
     authState.role = Role.ACCOUNTANT;
     renderRoute('/shipments/new');
     expect(await screen.findByText('Accounting test page')).toBeTruthy();
+    expect(screen.queryByText('Shipment create test page')).toBeNull();
+  });
+
+  it.each([
+    [Role.ADMIN, '/shipments/new'],
+    [Role.ADMIN, '/clerk/shipments/new'],
+    [Role.CUS, '/shipments/new'],
+    [Role.CUS, '/clerk/shipments/new'],
+    [Role.MANAGER, '/shipments/new'],
+  ])('admits %s to %s', async (role, path) => {
+    authState.role = role;
+    renderRoute(path);
+    expect(await screen.findByText('Shipment create test page')).toBeTruthy();
+    expect(screen.getByTestId('route-location').textContent).toBe(path);
+  });
+
+  it.each([
+    [Role.MANAGER, '/clerk/shipments/new'],
+    [Role.ACCOUNTANT, '/shipments/new'],
+    [Role.ACCOUNTANT, '/clerk/shipments/new'],
+    [Role.DRIVER, '/shipments/new'],
+    [Role.DRIVER, '/clerk/shipments/new'],
+    [Role.OPS, '/shipments/new'],
+    [Role.OPS, '/clerk/shipments/new'],
+    [Role.DISPATCHER, '/shipments/new'],
+    [Role.DISPATCHER, '/clerk/shipments/new'],
+    [Role.CUSTOMER, '/shipments/new'],
+    [Role.CUSTOMER, '/clerk/shipments/new'],
+  ])('redirects %s away from %s', async (role, path) => {
+    authState.role = role;
+    renderRoute(path);
+    await screen.findByTestId('route-location');
+    await vi.waitFor(() => expect(screen.getByTestId('route-location').textContent).not.toBe(path));
     expect(screen.queryByText('Shipment create test page')).toBeNull();
   });
 });

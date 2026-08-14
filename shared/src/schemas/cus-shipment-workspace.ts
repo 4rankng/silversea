@@ -17,6 +17,7 @@ export const shipmentCusWorkspaceQuerySchema = z.object({
   searchSuffix: suffixSchema.optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
+  direction: z.enum(['IMPORT', 'EXPORT']).optional(),
   bucket: z.nativeEnum(ShipmentCusBucket).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -106,9 +107,22 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   isCombined: z.boolean(),
   direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
   containerSummary: z.string(),
+  packageCount: z.number().int().positive().nullable(),
+  packageType: z.string().nullable(),
   weightKg: z.string().nullable(),
   volumeCbm: z.string().nullable(),
   transportDate: z.string().date().nullable(),
+  customsCutoffAt: z.string().datetime().nullable(),
+  closingAt: z.string().datetime().nullable(),
+  plannedReturnAt: z.string().datetime().nullable(),
+  deliveryLocation: z.string().nullable(),
+  liftSiteNames: z.array(z.string()),
+  dropoffSiteNames: z.array(z.string()),
+  customerAppointmentAts: z.array(z.string().datetime()),
+  carrierAssignments: z.array(z.object({
+    carrierName: z.string().nullable(),
+    plateNumber: z.string().nullable(),
+  }).strict()),
   note: z.string().nullable(),
   operational: shipmentCusWorkspaceOperationalSummarySchema,
   finance: shipmentCusWorkspaceFinanceSummarySchema,
@@ -174,9 +188,6 @@ const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
   liftSiteEditable: z.boolean(),
   dropoffSiteEditable: z.boolean(),
   customerAppointmentEditable: z.boolean(),
-  outboundEditable: z.boolean(),
-  inboundEditable: z.boolean(),
-  passThroughEditable: z.boolean(),
 }).strict();
 
 export const shipmentCusWorkspaceContainerLineSchema = z.object({
@@ -196,15 +207,8 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   dropoffSiteId: z.number().int().positive().nullable(),
   dropoffSite: z.string().nullable(),
   customerAppointmentAt: z.string().datetime().nullable(),
-  outboundCharges: shipmentCusWorkspaceChargeGroupSchema,
-  inboundCharges: shipmentCusWorkspaceChargeGroupSchema,
-  passThroughChargesGrouped: shipmentCusWorkspacePassThroughGroupSchema,
-  passThroughCharges: z.array(shipmentCusWorkspacePassThroughChargeSchema),
-  recoveryFacts: z.array(shipmentCusWorkspaceRecoveryFactSchema),
-  repairRecoveryPending: z.boolean(),
   permissions: shipmentCusWorkspaceFieldPermissionsSchema,
   shipmentVersion: z.number().int().positive(),
-  factVersion: z.number().int().nonnegative(),
   relatedTripVersion: z.number().int().positive().nullable(),
 }).strict();
 
@@ -250,8 +254,6 @@ export const shipmentCusWorkspaceDetailSchema = z.object({
   selectors: shipmentCusWorkspaceSelectorsSchema,
   dataState: z.object({
     hasExplicitDocumentCustody: z.boolean(),
-    hasExplicitRecoveryFacts: z.boolean(),
-    hasAuthoritativeChargeBreakdown: z.boolean(),
   }).strict(),
 }).strict();
 
@@ -291,7 +293,6 @@ export const shipmentCusReopenDecisionSchema = z.object({
 
 export const shipmentCusContainerLineUpdateSchema = z.object({
   expectedShipmentVersion: z.coerce.number().int().positive(),
-  expectedFactVersion: z.coerce.number().int().nonnegative(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
   externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
   externalCarrierVehicleId: z.coerce.number().int().positive().nullable().optional(),
@@ -304,15 +305,6 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
   liftSiteId: z.coerce.number().int().positive().nullable().optional(),
   dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
   customerAppointmentAt: z.string().datetime().nullable().optional(),
-  outboundCharges: z.object({
-    transportAmount: proposalVndAmountSchema.nullable().optional(),
-    handlingAmount: proposalVndAmountSchema.nullable().optional(),
-    incidentalAmount: proposalVndAmountSchema.nullable().optional(),
-  }).strict().optional(),
-  inboundCharges: z.object({
-    transportAmount: proposalVndAmountSchema.nullable().optional(),
-    handlingAmount: proposalVndAmountSchema.nullable().optional(),
-  }).strict().optional(),
 }).strict().superRefine((input, ctx) => {
   if (input.newExternalCarrier && input.carrierType !== 'EXTERNAL') {
     ctx.addIssue({

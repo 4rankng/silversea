@@ -134,6 +134,9 @@ describe('customer workflow migration safety', () => {
     const migrationSql = await readFile(new URL('../../drizzle/0000_flexible-baseline.sql', import.meta.url), 'utf8');
     const orderExchangeSql = await readFile(new URL('../../drizzle/0003_majestic_clea.sql', import.meta.url), 'utf8');
     const cusCloseoutSql = await readFile(new URL('../../drizzle/0004_tranquil_chronomancer.sql', import.meta.url), 'utf8');
+    const customerAppointmentSql = await readFile(new URL('../../drizzle/0005_cus_container_customer_appointment.sql', import.meta.url), 'utf8');
+    const customerAppointmentBackfillSql = await readFile(new URL('../../drizzle/0006_backfill_cus_container_customer_appointment.sql', import.meta.url), 'utf8');
+    const shippingLineBackfillSql = await readFile(new URL('../../drizzle/0007_backfill_shipment_shipping_line.sql', import.meta.url), 'utf8');
     const prevSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0003_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const nextSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0004_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
@@ -145,6 +148,9 @@ describe('customer workflow migration safety', () => {
       { idx: 2, tag: '0002_carrier_readiness_authorities' },
       { idx: 3, tag: '0003_majestic_clea' },
       { idx: 4, tag: '0004_tranquil_chronomancer' },
+      { idx: 5, tag: '0005_cus_container_customer_appointment' },
+      { idx: 6, tag: '0006_backfill_cus_container_customer_appointment' },
+      { idx: 7, tag: '0007_backfill_shipment_shipping_line' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
@@ -157,6 +163,14 @@ describe('customer workflow migration safety', () => {
     assert.match(cusCloseoutSql, /CREATE UNIQUE INDEX "shipment_accounting_locks_active_shipment_uniq_idx"/);
     assert.doesNotMatch(cusCloseoutSql, /ALTER TABLE "trip_expenses" ALTER COLUMN "settlement_method"/);
     assert.doesNotMatch(cusCloseoutSql, /DROP INDEX "ledger_forwarder_settlement_once_idx"/);
+    assert.match(customerAppointmentSql, /ALTER TABLE "shipment_containers" ADD COLUMN "customer_appointment_at" timestamp with time zone/);
+    assert.doesNotMatch(customerAppointmentSql, /DROP|NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
+    assert.match(customerAppointmentBackfillSql, /UPDATE "shipment_containers" AS container/);
+    assert.match(customerAppointmentBackfillSql, /container\."customer_appointment_at" IS NULL/);
+    assert.doesNotMatch(customerAppointmentBackfillSql, /DROP|DELETE|ALTER[\s\S]*NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
+    assert.match(shippingLineBackfillSql, /HAVING count\(DISTINCT lower\(btrim\(shipping_line_name\)\)\) = 1/);
+    assert.match(shippingLineBackfillSql, /nullif\(btrim\(shipment\.shipping_line_name\), ''\) IS NULL/);
+    assert.doesNotMatch(shippingLineBackfillSql, /DROP|DELETE|ALTER[\s\S]*NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
 
     const prevLedgerIndex = ((prevSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;
     const nextLedgerIndex = ((nextSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;
