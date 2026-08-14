@@ -19,7 +19,7 @@
 
 .cus-worksheet-toolbar {
   display: grid;
-  grid-template-columns: minmax(230px, 1.1fr) minmax(580px, 2.8fr) auto;
+  grid-template-columns: minmax(200px, auto) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
   padding: 12px;
@@ -29,7 +29,7 @@
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(120px, .8fr) repeat(2, minmax(145px, 1fr)) minmax(160px, 1fr);
+  grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(110px, 1fr)) minmax(120px, 1fr);
   gap: 8px;
   min-width: 0;
 }
@@ -38,9 +38,15 @@
   display: none;
 }
 
-.cus-worksheet-filter-disclosure:not([open]) > .cus-worksheet-toolbar__filters {
+/* The disclosure is rendered with the `open` attribute so its children stay
+   in the normal flow. Treat the shell as a grid container so it sizes to
+   the filters inside the toolbar's outer grid. */
+.cus-worksheet-filter-disclosure {
   display: grid;
+  align-items: end;
+  min-width: 0;
 }
+.cus-worksheet-filter-disclosure > .cus-worksheet-toolbar__filters { display: grid; }
 
 .cus-worksheet-toolbar__actions {
   display: flex;
@@ -143,6 +149,9 @@
     padding: 10px;
   }
 
+  /* On mobile the disclosure is a real <details> toggle, so restore its box. */
+  .cus-worksheet-filter-disclosure { display: block; }
+
   .cus-worksheet-filter-disclosure > summary {
     display: flex;
     min-height: 44px;
@@ -162,14 +171,14 @@
     display: none;
   }
 
-  .cus-worksheet-filter-disclosure:not([open]) > .cus-worksheet-toolbar__filters {
-    display: none;
-  }
-
   .cus-worksheet-filter-disclosure[open] > summary {
     margin-bottom: 8px;
     border-color: var(--accent, #008f4c);
   }
+
+  /* The disclosure is always `open` so the filters remain visible on mobile
+     too. Users can still tap the summary as a visual affordance. */
+  .cus-worksheet-filter-disclosure > .cus-worksheet-toolbar__filters { display: grid; }
 
   .cus-worksheet-toolbar__filters {
     grid-template-columns: 1fr 1fr;
@@ -407,7 +416,15 @@
 .cus-row-actions .cus-workflow-badge { max-width: 100%; }
 .cus-row-actions__edit { display: flex; flex-wrap: wrap; gap: 5px; }
 .cus-attention-label { display: inline-flex; align-items: center; gap: 4px; color: var(--warn, #a15c00); font-size: 11px; font-weight: var(--fw-semibold); }
-.cus-dashboard-detail { width: 100%; min-height: 44px; white-space: normal; }
+.cus-dashboard-detail {
+  width: auto;
+  min-height: 32px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  justify-self: start;
+}
 .cus-create-shipment { white-space: nowrap; }
 .cus-create-modal-intro { margin: 0 0 16px; color: var(--ink-3); line-height: 1.5; }
 

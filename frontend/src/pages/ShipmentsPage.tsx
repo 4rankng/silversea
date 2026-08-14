@@ -1266,7 +1266,7 @@ export default function ShipmentsPage() {
             {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
           </div>
 
-          <details className="cus-worksheet-filter-disclosure">
+          <details className="cus-worksheet-filter-disclosure" open>
             <summary>
               Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
               <span aria-hidden="true">▾</span>
