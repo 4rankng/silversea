@@ -29,6 +29,9 @@ import { ApiError } from '../lib/api';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
+import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
+import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
+import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
 import { EmptyState, Pagination, SearchableSelect } from '../design-system';
 import {
   getCusShipmentWorkspaceDetail,
@@ -1223,40 +1226,44 @@ export default function ShipmentsPage() {
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
         <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
           <div className="cus-search-field">
-            <label htmlFor="cus-shipment-search">Bill/Book hoặc tờ khai</label>
-            <div className="cus-search-field__control">
-              <Search size={18} aria-hidden="true" />
-              <input
-                id="cus-shipment-search"
-                inputMode="text"
-                pattern="[A-Za-z0-9]{4,5}"
-                autoCapitalize="characters"
-                autoCorrect="off"
-                spellCheck={false}
-                value={searchInput}
-                onChange={(event) => {
-                  setSearchInput(event.target.value);
+            <UUIInput
+              label="Bill/Book hoặc tờ khai"
+              size="sm"
+              icon={Search}
+              value={searchInput}
+              onChange={(value) => {
+                setSearchInput(value);
+                setSearchError(null);
+              }}
+              placeholder="Nhập 4–5 ký tự cuối"
+              inputProps={{
+                inputMode: 'text',
+                pattern: '[A-Za-z0-9]{4,5}',
+                autoCapitalize: 'characters',
+                autoCorrect: 'off',
+                spellCheck: false,
+              }}
+              isInvalid={Boolean(searchError)}
+              aria-describedby={searchError ? 'cus-search-error' : undefined}
+              className="shipment-uui-field"
+              wrapperClassName="shipment-uui-control"
+              inputClassName="shipment-uui-control__input"
+              iconClassName="shipment-uui-control__icon"
+            />
+            {searchInput && (
+              <UUIButton
+                size="xs"
+                color="tertiary"
+                className="shipment-uui-clear"
+                onPress={() => {
+                  setSearchInput('');
                   setSearchError(null);
+                  updateParam('searchSuffix', null);
                 }}
-                placeholder="Nhập 4–5 ký tự cuối"
-                aria-invalid={Boolean(searchError)}
-                aria-describedby={searchError ? 'cus-search-error' : undefined}
+                aria-label="Xóa tìm kiếm"
+                iconLeading={<X size={16} aria-hidden="true" />}
               />
-              {searchInput && (
-                <button
-                  type="button"
-                  className="cus-icon-button"
-                  onClick={() => {
-                    setSearchInput('');
-                    setSearchError(null);
-                    updateParam('searchSuffix', null);
-                  }}
-                  aria-label="Xóa tìm kiếm"
-                >
-                  <X size={16} aria-hidden="true" />
-                </button>
-              )}
-            </div>
+            )}
             {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
           </div>
 
@@ -1266,42 +1273,96 @@ export default function ShipmentsPage() {
               <span aria-hidden="true">▾</span>
             </summary>
             <div className="cus-worksheet-toolbar__filters" aria-label={'Bộ lọc' + (activeFilterCount ? ' đang áp dụng ' + activeFilterCount : '')}>
-              <label className="cus-filter-field">
-              <span>Xuất / Nhập</span>
-              <select value={direction} onChange={(event) => updateParam('direction', event.target.value || null)}>
-                <option value="">Tất cả</option>
-                <option value="EXPORT">Xuất</option>
-                <option value="IMPORT">Nhập</option>
-              </select>
-              </label>
-              <label className="cus-filter-field">
-              <span>Từ ngày giao</span>
-              <input type="date" value={dateFrom} onChange={(event) => updateParam('transportDateFrom', event.target.value || null)} />
-              </label>
-              <label className="cus-filter-field">
-              <span>Đến ngày giao</span>
-              <input type="date" value={dateTo} onChange={(event) => updateParam('transportDateTo', event.target.value || null)} />
-              </label>
-              <label className="cus-filter-field">
-              <span>Kế hoạch</span>
-              <select value={bucket} onChange={(event) => updateParam('bucket', event.target.value || null)}>
-                <option value="">Tất cả trạng thái</option>
-                {BUCKETS.map((value) => <option key={value} value={value}>{SHIPMENT_CUS_BUCKET_LABELS[value]}</option>)}
-              </select>
-              </label>
+              <UUINativeSelect
+                label="Xuất / Nhập"
+                size="sm"
+                value={direction}
+                onChange={(event) => updateParam('direction', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả' },
+                  { value: 'EXPORT', label: 'Xuất' },
+                  { value: 'IMPORT', label: 'Nhập' },
+                ]}
+                className="cus-filter-field shipment-uui-field"
+                selectClassName="shipment-uui-select"
+              />
+              <UUIInput
+                label="Từ ngày giao"
+                size="sm"
+                type="date"
+                value={dateFrom}
+                onChange={(value) => updateParam('transportDateFrom', value || null)}
+                className="cus-filter-field shipment-uui-field"
+                wrapperClassName="shipment-uui-control"
+                inputClassName="shipment-uui-control__input"
+              />
+              <UUIInput
+                label="Đến ngày giao"
+                size="sm"
+                type="date"
+                value={dateTo}
+                onChange={(value) => updateParam('transportDateTo', value || null)}
+                className="cus-filter-field shipment-uui-field"
+                wrapperClassName="shipment-uui-control"
+                inputClassName="shipment-uui-control__input"
+              />
+              <UUINativeSelect
+                label="Kế hoạch"
+                size="sm"
+                value={bucket}
+                onChange={(event) => updateParam('bucket', event.target.value || null)}
+                options={[
+                  { value: '', label: 'Tất cả trạng thái' },
+                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
+                ]}
+                className="cus-filter-field shipment-uui-field"
+                selectClassName="shipment-uui-select"
+              />
             </div>
           </details>
 
           <div className="cus-worksheet-toolbar__actions">
-            <button className="btn btn--primary cus-create-shipment" type="button" onClick={() => setCreateOpen(true)}>
-              <Plus size={18} aria-hidden="true" /> Tạo lô mới
-            </button>
-            <button className="btn btn--secondary" type="submit"><Search size={17} aria-hidden="true" /> Tìm kiếm</button>
-            {hasFilters && <button className="btn btn--ghost" type="button" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa lọc</button>}
-            <button className="btn btn--secondary" type="button" disabled={exporting || loading} onClick={() => void exportWorksheet()}>
-              {exporting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <Download size={17} aria-hidden="true" />}
+            <UUIButton
+              size="sm"
+              color="primary"
+              className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
+              onPress={() => setCreateOpen(true)}
+              iconLeading={<Plus size={17} aria-hidden="true" />}
+            >
+              Tạo lô mới
+            </UUIButton>
+            <UUIButton
+              size="sm"
+              color="secondary"
+              type="submit"
+              className="shipment-uui-button shipment-uui-button--secondary"
+              iconLeading={<Search size={16} aria-hidden="true" />}
+            >
+              Tìm kiếm
+            </UUIButton>
+            {hasFilters && (
+              <UUIButton
+                size="sm"
+                color="tertiary"
+                className="shipment-uui-button shipment-uui-button--tertiary"
+                onPress={clearFilters}
+                iconLeading={<RotateCcw size={16} aria-hidden="true" />}
+              >
+                Xóa lọc
+              </UUIButton>
+            )}
+            <UUIButton
+              size="sm"
+              color="secondary"
+              isDisabled={exporting || loading}
+              isLoading={exporting}
+              className="shipment-uui-button shipment-uui-button--secondary"
+              onPress={() => void exportWorksheet()}
+              iconLeading={<Download size={16} aria-hidden="true" />}
+              showTextWhileLoading
+            >
               Tải XLSX
-            </button>
+            </UUIButton>
           </div>
         </form>
 

@@ -11,6 +11,7 @@
 
 .cus-workspace--worksheet {
   min-width: 0;
+  container-type: inline-size;
   border: 1px solid var(--line-strong, #aeb8b2);
   border-radius: 0;
   background: var(--surface, #fff);
@@ -19,17 +20,17 @@
 
 .cus-worksheet-toolbar {
   display: grid;
-  grid-template-columns: minmax(200px, auto) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 8px 12px;
   align-items: end;
-  padding: 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line-strong, #aeb8b2);
   background: var(--surface-2, #f7f9f8);
 }
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(110px, 1fr)) minmax(120px, 1fr);
+  grid-template-columns: minmax(108px, .7fr) repeat(2, minmax(132px, 1fr)) minmax(140px, 1fr);
   gap: 8px;
   min-width: 0;
 }
@@ -50,9 +51,182 @@
 
 .cus-worksheet-toolbar__actions {
   display: flex;
+  grid-column: 1 / -1;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
   white-space: nowrap;
+}
+
+/* Dense desktop controls keep this high-frequency worksheet scannable. The
+   mobile rule below restores full touch targets. */
+.cus-worksheet-toolbar .shipment-uui-field {
+  gap: 4px;
+  min-width: 0;
+}
+
+.cus-worksheet-toolbar .shipment-uui-field [data-label] {
+  margin-bottom: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control,
+.cus-worksheet-toolbar .shipment-uui-select {
+  width: 100%;
+  min-height: 36px;
+  height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: none;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control:focus-within,
+.cus-worksheet-toolbar .shipment-uui-select:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  height: 34px;
+  padding: 0 9px;
+  color: var(--ink);
+  font: inherit;
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
+  color: var(--ink-4);
+}
+
+.cus-worksheet-toolbar .shipment-uui-control__icon {
+  color: var(--ink-3);
+}
+
+.cus-worksheet-toolbar .shipment-uui-select {
+  padding: 0 30px 0 9px;
+  font-weight: var(--fw-medium);
+}
+
+.cus-search-field {
+  position: relative;
+}
+
+.cus-search-field:has(.shipment-uui-clear) .shipment-uui-control__input {
+  padding-right: 38px;
+}
+
+.cus-worksheet-toolbar .shipment-uui-clear {
+  position: absolute;
+  top: 19px;
+  right: 2px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ink-3);
+  box-shadow: none;
+}
+
+.cus-worksheet-toolbar .shipment-uui-clear:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--primary {
+  border-color: var(--accent-2);
+  background: var(--accent-2);
+  color: var(--fg-on-brand);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--primary:hover {
+  border-color: var(--accent-ink);
+  background: var(--accent-ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--secondary {
+  border-color: var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--secondary:hover,
+.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary:hover {
+  background: var(--surface-3);
+}
+
+.cus-worksheet-toolbar__actions .shipment-uui-button--tertiary {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.cus-worksheet-toolbar .shipment-uui-button:focus-visible,
+.cus-worksheet-toolbar .shipment-uui-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Keep the action group beside the filters only when the workspace itself,
+   excluding the application sidebar, has enough room for every control. */
+@container (min-width: 1420px) {
+  .cus-worksheet-toolbar {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) auto;
+  }
+
+  .cus-worksheet-toolbar__actions {
+    grid-column: auto;
+  }
+}
+
+@container (max-width: 900px) {
+  .cus-worksheet-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .cus-worksheet-toolbar > .cus-search-field {
+    width: min(100%, 320px);
+  }
+
+  .cus-worksheet-toolbar__actions {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 900px) {
+  .cus-worksheet-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .cus-worksheet-toolbar > .cus-search-field {
+    width: min(100%, 320px);
+  }
+
+  .cus-worksheet-toolbar__actions {
+    grid-column: auto;
+  }
 }
 
 .cus-worksheet-meta {
@@ -128,17 +302,6 @@
   justify-items: start;
 }
 
-@media (max-width: 1100px) {
-  .cus-worksheet-toolbar {
-    grid-template-columns: minmax(220px, 1fr) 2fr;
-  }
-
-  .cus-worksheet-toolbar__actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-  }
-}
-
 @media (max-width: 700px) {
   .cus-workspace--worksheet {
     border-inline: 0;
@@ -187,11 +350,32 @@
   .cus-worksheet-toolbar__actions {
     grid-column: auto;
     justify-content: stretch;
+    flex-wrap: wrap;
   }
 
-  .cus-worksheet-toolbar__actions .btn {
+  .cus-worksheet-toolbar__actions .shipment-uui-button {
+    min-height: 44px;
+    padding: 9px 12px;
     min-width: 44px;
     flex: 1;
+  }
+
+  .cus-worksheet-toolbar .shipment-uui-control,
+  .cus-worksheet-toolbar .shipment-uui-select {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .cus-worksheet-toolbar .shipment-uui-control__input {
+    height: 42px;
+  }
+
+  .cus-worksheet-toolbar .shipment-uui-clear {
+    top: 21px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
   }
 
   .cus-worksheet-meta {
@@ -261,6 +445,8 @@
   font-weight: var(--fw-bold);
   line-height: 1.35;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cus-dashboard-table thead th:last-child,

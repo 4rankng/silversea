@@ -1,0 +1,37 @@
+Command: pnpm --dir frontend exec vitest run src/pages/ShipmentsPage.test.tsx
+Started: 2026-08-14T16:04:35+08:00
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+ ❯ src/pages/ShipmentsPage.test.tsx (40 tests | 1 failed) 2640ms
+     × renders one focused shipment workspace without unfinished navigation 91ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > renders one focused shipment workspace without unfinished navigation
+AssertionError: expected null to be 'text' // Object.is equality
+
+- Expected:
+"text"
+
++ Received:
+null
+
+ ❯ src/pages/ShipmentsPage.test.tsx:225:87
+    223|     expect(screen.queryByRole('tab')).toBeNull();
+    224|     expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
+    225|     expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribut…
+       |                                                                                       ^
+    226|   });
+    227|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 39 passed (40)
+   Start at  16:04:35
+   Duration  4.00s (transform 320ms, setup 15ms, import 935ms, tests 2.64s, environment 343ms)
+
+Exit status: 1
+Finished: 2026-08-14T16:04:39+08:00
