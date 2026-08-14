@@ -16,6 +16,16 @@ import { ApiError } from '../lib/api';
 import ShipmentsDetailPage from './ShipmentsDetailPage';
 
 const today = formatVietnamDateInput(new Date());
+const directContainerAccess = {
+  containerNumber: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  containerTypeId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  cargoWeightKg: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  cargoVolumeCbm: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+};
+const directShipmentAccess = Object.fromEntries([
+  'customerId', 'factoryName', 'routeId', 'deliveryLocation', 'blNumber', 'bookingRef', 'declarationNumber', 'tradeDirection', 'shippingLineName',
+  'packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm', 'customsCutoffAt', 'closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes',
+].map((key) => [key, { mode: 'DIRECT', reason: 'Có thể sửa.' }])) as ShipmentCusWorkspaceDetail['summary']['fieldAccess'];
 const response: ShipmentCusContainerFlatResponse = {
   page: 1,
   limit: 20,
@@ -30,6 +40,8 @@ const response: ShipmentCusContainerFlatResponse = {
       containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
+      raw: { containerNumber: 'CONT-001', containerTypeId: 1, cargoWeightKg: '25000', cargoVolumeCbm: '52.5' }, fieldAccess: directContainerAccess,
+      shipmentFieldAccess: directShipmentAccess,
       carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
     },
     {
@@ -39,6 +51,8 @@ const response: ShipmentCusContainerFlatResponse = {
       containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,
       liftSite: null, dropoffSite: null, transportDate: null, closingAt: null, plannedReturnAt: null, customerAppointmentAt: null,
       customerNotes: null, operationalNotes: null, shipmentScheduleEditable: true, shipmentNotesEditable: true,
+      raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null }, fieldAccess: directContainerAccess,
+      shipmentFieldAccess: directShipmentAccess,
       carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
     },
   ],
@@ -48,13 +62,18 @@ const detail = {
   summary: {
     id: 2, version: 7, transportDate: null, closingAt: null, plannedReturnAt: null,
     customerNotes: null, operationalNotes: null, operational: { transportDateEditable: true },
+    raw: { customerId: 7, factoryName: 'Nhà máy Hưng Yên', routeId: 2, deliveryLocation: null, blNumber: null, bookingRef: 'BOOK-67890', declarationNumber: null, tradeDirection: 'EXPORT', shippingLineName: 'CMA CGM', packageCount: null, packageType: null, cargoWeightKg: null, cargoVolumeCbm: null, customsCutoffAt: null, closingAt: null, plannedReturnAt: null, customerNotes: null, operationalNotes: null, declarationId: null, declarationIssuedAt: null, declarationScope: null, declarationNote: null },
+    fieldAccess: directShipmentAccess,
   },
   containers: [{
     id: 12, ordinal: 1, containerNumber: 'CONT-002', liftSiteId: 31, liftSite: 'Bãi CY', dropoffSiteId: 32, dropoffSite: 'Nhà máy Hưng Yên',
     externalCarrierId: null, externalCarrierVehicleId: null, plateNumber: null, customerAppointmentAt: null, shipmentVersion: 7,
     permissions: { carrierEditable: true, plateEditable: true, containerTypeEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true },
+    raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null },
+    fieldAccess: { ...directContainerAccess, carrierType: { mode: 'DIRECT', reason: 'Có thể sửa.' }, externalCarrierId: { mode: 'DIRECT', reason: 'Có thể sửa.' }, externalCarrierVehicleId: { mode: 'DIRECT', reason: 'Có thể sửa.' }, plateNumber: { mode: 'DIRECT', reason: 'Có thể sửa.' }, liftSiteId: { mode: 'DIRECT', reason: 'Có thể sửa.' }, dropoffSiteId: { mode: 'DIRECT', reason: 'Có thể sửa.' }, customerAppointmentAt: { mode: 'DIRECT', reason: 'Có thể sửa.' } },
   }],
   selectors: {
+    routes: [{ id: 2, name: 'Cảng → Hưng Yên', label: 'Cảng → Hưng Yên' }],
     operationalSites: [
       { id: 31, siteType: 'WAREHOUSE', code: 'CY', name: 'Bãi CY', label: 'CY · Bãi CY' },
       { id: 32, siteType: 'FACTORY', code: 'HY', name: 'Nhà máy Hưng Yên', label: 'HY · Nhà máy Hưng Yên' },
@@ -133,6 +152,44 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     }, { headers: { 'Idempotency-Key': expect.any(String) } }));
   });
 
+  it('edits the previously read-only identity and document cells through the shipment authority', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response)
+      .mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
+    apiPut.mockResolvedValue({ version: 8, changeMode: 'DIRECT', changeRequestId: null });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ô khách hàng và lộ trình CONT-002' }));
+    fireEvent.change(await screen.findByLabelText('Nhà máy'), { target: { value: 'Nhà máy mới' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu khách hàng và lộ trình CONT-002' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa ô chứng từ và hãng tàu CONT-002' }));
+    fireEvent.change(await screen.findByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu chứng từ và hãng tàu CONT-002' }));
+    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, blNumber: 'BILL-NEW' })));
+  });
+
+  it('edits container identity and cargo through the idempotent container authority', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
+    apiPost.mockResolvedValueOnce({ line: detail.containers[0] });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ô thông số container CONT-002' }));
+    fireEvent.change(await screen.findByLabelText('Số container'), { target: { value: 'MSCU1234566' } });
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12500.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thông số container CONT-002' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
+      expectedShipmentVersion: 7,
+      containerNumber: 'MSCU1234566',
+      containerTypeId: 2,
+      cargoWeightKg: '12500.5',
+      cargoVolumeCbm: null,
+    }, { headers: { 'Idempotency-Key': expect.any(String) } }));
+  });
+
   it('keeps the same idempotency key when a route save is retried and supports Escape cancel', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
     apiPost.mockRejectedValueOnce(new Error('Mạng tạm thời gián đoạn')).mockResolvedValueOnce({ line: detail.containers[0] });
@@ -179,9 +236,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
     fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
       expectedShipmentVersion: 7,
@@ -203,11 +260,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
-
-    expect((await screen.findByLabelText('Ngày vận chuyển')).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('Giờ đóng hàng').hasAttribute('disabled')).toBe(true);
-    expect(screen.getByLabelText('Giờ hẹn khách').hasAttribute('disabled')).toBe(false);
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
+    expect((await screen.findByLabelText('Giờ hẹn khách')).hasAttribute('disabled')).toBe(false);
   });
 
   it('represents an internal-fleet assignment without forcing an external carrier', async () => {
@@ -295,19 +350,12 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
     fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
 
-    expect((await screen.findByRole('status')).textContent).toContain('bỏ bản nháp cũ');
-    expect(screen.getByLabelText('Giờ hẹn khách').hasAttribute('disabled')).toBe(true);
-    fireEvent.change(screen.getByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-25' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({
-      expectedVersion: 8,
-      expectedDeliveryDate: '2026-08-25',
-    })));
+    expect((await screen.findByRole('alert')).textContent).toContain('chuyển sang chỉ đọc');
+    expect(screen.queryByLabelText('Giờ hẹn khách')).toBeNull();
     expect(apiPost).toHaveBeenCalledTimes(1);
   });
 });

@@ -177,6 +177,7 @@ export type {
   ShipmentCusWorkspaceDocumentCustody,
   ShipmentCusWorkspaceAccountingConfirmation,
   ShipmentCusWorkspaceAction,
+  ShipmentCusWorkspaceFieldAccess,
   ShipmentCusWorkspaceActiveLock,
   ShipmentCusWorkspaceListItem,
   ShipmentCusWorkspacePassThroughCharge,

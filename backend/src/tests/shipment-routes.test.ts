@@ -1915,6 +1915,57 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.match(stale.data.error, /vừa thay đổi/i);
   });
 
+  test('updates pre-trip container identity and cargo atomically with the shipment version', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const updated = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        expectedShipmentVersion: line.shipmentVersion,
+        containerNumber: 'allu-5216535',
+        cargoWeightKg: '1200.5',
+        cargoVolumeCbm: '21.4',
+      },
+    });
+
+    assert.equal(updated.status, 200);
+    assert.equal(updated.data.line.raw.containerNumber, 'ALLU5216535');
+    assert.equal(updated.data.line.raw.cargoWeightKg, '1200.50');
+    assert.equal(updated.data.line.raw.cargoVolumeCbm, '21.400');
+    assert.equal(updated.data.line.shipmentVersion, line.shipmentVersion + 1);
+  });
+
+  test('rejects a normalized duplicate container number within the same shipment', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [container] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(container);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: fixture.shipment.id,
+      containerTypeId: container.containerTypeId,
+      containerNumber: 'ALLU5216535',
+    });
+    const detail = await getCusWorkspaceDetail(fixture.shipment.id, dispatcherToken);
+    const line = detail.containers.find((item) => item.id === container.id);
+    assert.ok(line);
+
+    const duplicate = await testFetch(`/cus-workspace/${fixture.shipment.id}/containers/${container.id}`, {
+      method: 'POST', token: dispatcherToken,
+      body: { expectedShipmentVersion: line.shipmentVersion, containerNumber: 'allu 5216535' },
+    });
+    assert.equal(duplicate.status, 400);
+    assert.match(duplicate.data.error, /đã tồn tại trong lô/i);
+  });
+
   test('rejects container-line writes when the shipment is locked', async () => {
     const fixture = await createCusWorkspaceLockFixture();
     const confirmed = await confirmFinanceViaRoute(fixture.shipment.id);
@@ -3185,6 +3236,7 @@ describe('shipment declarations', () => {
     assert.equal(updated.data.declarationNumber, 'TK-001A');
     assert.equal(updated.data.scope, 'SINGLE');
   });
+
 });
 
 describe('Q17 explicit dossier subtype matrix', () => {

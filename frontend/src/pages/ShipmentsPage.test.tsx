@@ -31,6 +31,7 @@ import ShipmentsPage from './ShipmentsPage';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 const defaultResizeObserver = window.ResizeObserver;
+const directAccess = { mode: 'DIRECT' as const, reason: 'Có thể sửa.' };
 
 const row: ShipmentCusWorkspaceListItem = {
   id: 1,
@@ -61,6 +62,19 @@ const row: ShipmentCusWorkspaceListItem = {
   carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
   customerNotes: 'Giao buổi sáng',
   operationalNotes: 'Ưu tiên cổng số 2',
+  raw: {
+    customerId: 7, factoryName: 'Nhà máy Hải Phòng', routeId: 3, deliveryLocation: 'Kho Long Biên',
+    blNumber: 'BILL-12345', bookingRef: null, declarationNumber: 'TK-54321', tradeDirection: 'IMPORT', shippingLineName: 'Maersk',
+    packageCount: null, packageType: null, cargoWeightKg: '25000', cargoVolumeCbm: '52.5', customsCutoffAt: '2026-08-11T08:00:00.000Z',
+    closingAt: null, plannedReturnAt: '2026-08-12T10:00:00.000Z', customerNotes: 'Giao buổi sáng', operationalNotes: 'Ưu tiên cổng số 2',
+    declarationId: 9, declarationIssuedAt: null, declarationScope: 'SINGLE', declarationNote: null,
+  },
+  fieldAccess: {
+    customerId: directAccess, factoryName: directAccess, routeId: directAccess, deliveryLocation: directAccess,
+    blNumber: directAccess, bookingRef: directAccess, declarationNumber: directAccess, tradeDirection: directAccess, shippingLineName: directAccess,
+    packageCount: directAccess, packageType: directAccess, cargoWeightKg: directAccess, cargoVolumeCbm: directAccess,
+    customsCutoffAt: directAccess, closingAt: directAccess, plannedReturnAt: directAccess, customerNotes: directAccess, operationalNotes: directAccess,
+  },
   operational: {
     scheduleReadiness: 'SCHEDULED',
     vehicleReadiness: 'READY',
@@ -131,6 +145,12 @@ const detail = {
     dropoffSiteId: 32,
     dropoffSite: 'Bãi Tân Vũ',
     customerAppointmentAt: '2026-08-12T02:30:00.000Z',
+    raw: { containerNumber: 'MSKU1234567', containerTypeId: 2, cargoWeightKg: '12500', cargoVolumeCbm: '26.25' },
+    fieldAccess: {
+      containerNumber: directAccess, containerTypeId: directAccess, cargoWeightKg: directAccess, cargoVolumeCbm: directAccess,
+      carrierType: directAccess, externalCarrierId: directAccess, externalCarrierVehicleId: directAccess, plateNumber: directAccess,
+      liftSiteId: directAccess, dropoffSiteId: directAccess, customerAppointmentAt: directAccess,
+    },
     permissions: {
       carrierEditable: true,
       plateEditable: true,
@@ -473,13 +493,32 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.keyDown(screen.getByLabelText('Ghi chú cho khách'), { key: 'Escape' });
     fireEvent.click(within(rowElement).getByText('Công ty Silver Sea'));
+    expect(screen.getByLabelText('Nhà máy')).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    fireEvent.keyDown(screen.getByLabelText('Nhà máy'), { key: 'Escape' });
 
     fireEvent.click(masterRowDetailButton());
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
+  });
+
+  it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô phân loại và hãng tàu BILL-12345' }));
+    fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
+    fireEvent.keyDown(screen.getByLabelText('Hãng tàu'), { key: 'Enter' });
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3, tradeDirection: 'IMPORT', shippingLineName: 'ONE',
+    })));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
+    fireEvent.change(screen.getByLabelText('Số kiện'), { target: { value: '24' } });
+    fireEvent.keyDown(screen.getByLabelText('Số kiện'), { key: 'Enter' });
+    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3, packageCount: 24,
+    })));
   });
 
   it('does not open inline editors or the drawer from locked shipment cells', async () => {

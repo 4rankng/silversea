@@ -19,7 +19,7 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
-import { listCusShipmentContainers, listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
+import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -27,6 +27,7 @@ const createdShipmentIds: number[] = [];
 const createdContainerIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
+const createdRouteIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
@@ -49,6 +50,12 @@ async function seedCustomer(overrides: Partial<typeof s.customers.$inferInsert> 
     ...overrides,
   }).returning();
   createdCustomerIds.push(row.id);
+  return row;
+}
+
+async function seedRoute() {
+  const [row] = await db.insert(s.routes).values({ name: `CusWs route ${suffix}` }).returning();
+  createdRouteIds.push(row.id);
   return row;
 }
 
@@ -109,6 +116,9 @@ after(async () => {
   if (createdContainerTypeIds.length) {
     await db.delete(s.containerTypes)
       .where(inArray(s.containerTypes.id, createdContainerTypeIds));
+  }
+  if (createdRouteIds.length) {
+    await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
   }
   if (createdCustomerIds.length) {
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -217,13 +227,35 @@ describe('CUS shipment workspace projection — OQ3 vehicle-assigned numerator',
 
 describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
-    const shipment = await seedShipment({ status: 'PENDING_EXPENSE_APPROVAL' });
+    const shipment = await seedShipment({
+      status: 'PENDING_EXPENSE_APPROVAL',
+      bookingRef: 'BOOK-RAW-01',
+      closingAt: new Date('2026-08-20T01:00:00.000Z'),
+      customerNotes: 'Ghi chú khách hàng',
+    });
 
     const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
     const item = response.items.find((candidate) => candidate.id === shipment.id);
 
     assert.ok(item);
     assert.equal(item.operational.transportDateEditable, true);
+    assert.equal(item.raw.bookingRef, 'BOOK-RAW-01');
+    assert.equal(item.raw.closingAt, '2026-08-20T01:00:00.000Z');
+    assert.equal(item.fieldAccess.closingAt.mode, 'DIRECT');
+    assert.equal(item.fieldAccess.customerNotes.mode, 'DIRECT');
+    assert.equal(item.fieldAccess.factoryName.mode, 'REQUEST');
+    assert.match(item.fieldAccess.factoryName.reason, /Điều vận/i);
+  });
+});
+
+test('workspace detail returns safe route selectors for the route authority', async () => {
+  const route = await seedRoute();
+  const shipment = await seedShipment({ routeId: route.id });
+  const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+  assert.deepEqual(detail.selectors.routes.find((item) => item.id === route.id), {
+    id: route.id,
+    name: route.name,
+    label: route.name,
   });
 });
 
@@ -253,6 +285,9 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.customerId, customerId);
     assert.equal(rowA1.shipmentVersion, shipmentA.version);
     assert.equal(rowA1.containerTypeLabel != null, true);
+    assert.equal(rowA1.raw.containerNumber, `FLA${suffix}1`);
+    assert.equal(rowA1.fieldAccess.containerNumber.mode, 'DIRECT');
+    assert.equal(rowA1.shipmentFieldAccess.customerNotes.mode, 'DIRECT');
     assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
     assert.equal(rowA1.scheduleEditable, true);
     assert.equal(rowA1.customerAppointmentEditable, true);

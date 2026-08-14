@@ -11,6 +11,24 @@ import {
   ShipmentDocumentCustody,
 } from '../constants';
 
+const directField = { mode: 'DIRECT' as const, reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
+const workspaceRaw = {
+  customerId: 1, factoryName: null, routeId: null, deliveryLocation: null,
+  blNumber: null, bookingRef: null, declarationNumber: null, tradeDirection: null,
+  shippingLineName: null, packageCount: null, packageType: null, cargoWeightKg: null,
+  cargoVolumeCbm: null, customsCutoffAt: null, closingAt: null, plannedReturnAt: null,
+  customerNotes: null, operationalNotes: null, declarationId: null,
+  declarationIssuedAt: null, declarationScope: null, declarationNote: null,
+};
+const workspaceFieldAccess = {
+  customerId: directField, factoryName: directField, routeId: directField,
+  deliveryLocation: directField, blNumber: directField, bookingRef: directField,
+  declarationNumber: directField, tradeDirection: directField, shippingLineName: directField,
+  packageCount: directField, packageType: directField, cargoWeightKg: directField,
+  cargoVolumeCbm: directField, customsCutoffAt: directField, closingAt: directField,
+  plannedReturnAt: directField, customerNotes: directField, operationalNotes: directField,
+};
+
 test('CUS workspace query accepts 4-5 alphanumeric suffix search', () => {
   assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({
     searchSuffix: 'aB12C',
@@ -60,6 +78,8 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
     customerNotes: null,
     operationalNotes: null,
+    raw: { ...workspaceRaw, customerId: 1, factoryName: 'Nhà máy A', blNumber: 'BL12345', declarationNumber: null, tradeDirection: 'IMPORT', shippingLineName: 'Maersk', cargoWeightKg: '12500.00', cargoVolumeCbm: '32.500', customsCutoffAt: '2026-08-10T08:00:00.000Z', closingAt: '2026-08-11T03:00:00.000Z', deliveryLocation: 'Kho Hà Nội' },
+    fieldAccess: workspaceFieldAccess,
     operational: {
       scheduleReadiness: 'SCHEDULED',
       vehicleReadiness: 'WAITING_PLATE',
@@ -143,6 +163,8 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
     carrierAssignments: [],
     customerNotes: null,
     operationalNotes: null,
+    raw: workspaceRaw,
+    fieldAccess: workspaceFieldAccess,
     operational: {
       scheduleReadiness: 'WAITING_DATE',
       vehicleReadiness: 'NO_CONTAINERS',
@@ -212,6 +234,20 @@ test('CUS container-line update accepts a container-specific customer appointmen
     expectedShipmentVersion: 3,
     closeOrReturnAt: appointment,
   }).success, false);
+});
+
+test('CUS container-line update accepts only normalized container identity and cargo fields', () => {
+  const parsed = shipmentCusContainerLineUpdateSchema.safeParse({
+    expectedShipmentVersion: 3,
+    containerNumber: 'MSCU6639870',
+    cargoWeightKg: '1200.5',
+    cargoVolumeCbm: '21.4',
+  });
+  assert.equal(parsed.success, true);
+  if (parsed.success) {
+    assert.equal(parsed.data.cargoWeightKg, '1200.50');
+    assert.equal(parsed.data.cargoVolumeCbm, '21.400');
+  }
 });
 
 test('CUS container-line update rejects every finance field at the strict operational boundary', () => {

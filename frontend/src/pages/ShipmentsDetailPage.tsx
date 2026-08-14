@@ -27,8 +27,12 @@ import {
   type ActiveShipmentDetailEdit,
   type ShipmentDetailEditMode,
   type ShipmentNotesDraft,
+  type ShipmentIdentityDraft,
+  type ShipmentDocumentsDraft,
+  type ShipmentContainerDraft,
   type ShipmentRouteDraft,
   type ShipmentScheduleDraft,
+  type ShipmentAppointmentDraft,
   type ShipmentVehicleDraft,
 } from '../features/shipments/detail/ShipmentContainerLedger';
 import { formatVietnamDateInput, formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
@@ -46,10 +50,15 @@ function canEditMode(
   line: ShipmentCusWorkspaceContainerLine,
   mode: ShipmentDetailEditMode,
 ): boolean {
+  if (mode === 'identity') return ['factoryName', 'routeId', 'deliveryLocation'].some((field) => detail.summary.fieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
+  if (mode === 'documents') return ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => detail.summary.fieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
+  if (mode === 'classification') return ['tradeDirection', 'shippingLineName'].some((field) => detail.summary.fieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY');
+  if (mode === 'container') return ['containerNumber', 'containerTypeId', 'cargoWeightKg', 'cargoVolumeCbm'].some((field) => line.fieldAccess[field as 'containerNumber'].mode !== 'READ_ONLY');
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
-  if (mode === 'schedule') return detail.summary.operational.transportDateEditable || line.permissions.customerAppointmentEditable;
-  return detail.summary.operational.transportDateEditable;
+  if (mode === 'schedule') return detail.summary.operational.transportDateEditable;
+  if (mode === 'appointment') return line.permissions.customerAppointmentEditable;
+  return ['customerNotes', 'operationalNotes'].some((field) => detail.summary.fieldAccess[field as 'customerNotes'].mode !== 'READ_ONLY');
 }
 
 function ShipmentContainerLedgerSkeleton() {
@@ -85,6 +94,7 @@ export default function ShipmentsDetailPage() {
   const [activeEdit, setActiveEdit] = useState<ActiveShipmentDetailEdit | null>(null);
   const [editLoadingRowId, setEditLoadingRowId] = useState<number | null>(null);
   const [editError, setEditError] = useState<{ rowId: number; message: string } | null>(null);
+  const [editNotice, setEditNotice] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const editRequestSequence = useRef(0);
   const editIdempotencyKeys = useRef<Record<string, string>>({});
@@ -120,6 +130,7 @@ export default function ShipmentsDetailPage() {
     setActiveEdit(null);
     setEditLoadingRowId(null);
     setEditError(null);
+    setEditNotice(null);
   }, [customerId, dateFrom, dateTo, direction, page, suffixParam]);
 
   const loadRows = useCallback(async () => {
@@ -199,6 +210,7 @@ export default function ShipmentsDetailPage() {
     setActiveEdit(null);
     setEditLoadingRowId(row.id);
     setEditError(null);
+    setEditNotice(null);
     try {
       const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
       if (requestId !== editRequestSequence.current) return;
@@ -238,6 +250,7 @@ export default function ShipmentsDetailPage() {
         transportDate: detail.summary.transportDate,
         closingAt: detail.summary.closingAt,
         plannedReturnAt: detail.summary.plannedReturnAt,
+        direction: detail.summary.direction,
         customerAppointmentAt: line.customerAppointmentAt,
         customerNotes: detail.summary.customerNotes,
         operationalNotes: detail.summary.operationalNotes,
@@ -250,8 +263,8 @@ export default function ShipmentsDetailPage() {
   }, []);
 
   const finishSave = useCallback(async () => {
-    setActiveEdit(null);
     await loadRowsRef.current();
+    setActiveEdit(null);
   }, []);
 
   const saveRoute = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => {
@@ -269,6 +282,65 @@ export default function ShipmentsDetailPage() {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
       delete editIdempotencyKeys.current[signature];
       await recoverConflict(activeEdit.row, 'route');
+      return;
+    }
+    delete editIdempotencyKeys.current[signature];
+    await finishSave();
+  }, [activeEdit, finishSave, recoverConflict]);
+
+  const saveIdentity = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => {
+    if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    try {
+      const response = await updateShipment(row.shipmentId, {
+        expectedVersion: activeEdit.detail.summary.version,
+        factoryName: draft.factoryName,
+        routeId: draft.routeId,
+        deliveryLocation: draft.deliveryLocation,
+      });
+      if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      await recoverConflict(row, 'identity');
+      return;
+    }
+    await finishSave();
+  }, [activeEdit, finishSave, recoverConflict]);
+
+  const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
+    if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    try {
+      const response = await updateShipment(row.shipmentId, {
+        expectedVersion: activeEdit.detail.summary.version,
+        ...(activeEdit.mode === 'documents'
+          ? { blNumber: draft.blNumber, bookingRef: draft.bookingRef }
+          : { tradeDirection: draft.tradeDirection, shippingLineName: draft.shippingLineName }),
+      });
+      if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      await recoverConflict(row, activeEdit.mode === 'classification' ? 'classification' : 'documents');
+      return;
+    }
+    await finishSave();
+  }, [activeEdit, finishSave, recoverConflict]);
+
+  const saveContainer = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => {
+    if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const signature = JSON.stringify(['container', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = key;
+    try {
+      await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+        containerNumber: draft.containerNumber,
+        containerTypeId: draft.containerTypeId,
+        cargoWeightKg: draft.cargoWeightKg,
+        cargoVolumeCbm: draft.cargoVolumeCbm,
+      }, key);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      delete editIdempotencyKeys.current[signature];
+      await recoverConflict(activeEdit.row, 'container');
       return;
     }
     delete editIdempotencyKeys.current[signature];
@@ -302,36 +374,38 @@ export default function ShipmentsDetailPage() {
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
-  const saveSchedule = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
+  const saveSchedule = useCallback(async (_line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
     const scheduleAt = draft.scheduleAt ? localDateTimeToIso(draft.scheduleAt) : null;
-    const appointmentChanged = (draft.customerAppointmentAt ?? '') !== formatVietnamDateTimeInput(line.customerAppointmentAt);
-    const currentScheduleAt = formatVietnamDateTimeInput(row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt);
-    const shipmentScheduleChanged = draft.transportDate !== row.transportDate || (draft.scheduleAt ?? '') !== currentScheduleAt;
-    let expectedVersion = row.shipmentVersion;
     try {
-      if (appointmentChanged) {
-        const signature = JSON.stringify(['appointment', row.shipmentId, line.id, line.shipmentVersion, draft.customerAppointmentAt]);
-        const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
-        editIdempotencyKeys.current[signature] = key;
-        const result = await updateCusShipmentContainerLine(row.shipmentId, line.id, {
-          expectedShipmentVersion: line.shipmentVersion,
-          customerAppointmentAt: draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null,
-        }, key);
-        delete editIdempotencyKeys.current[signature];
-        expectedVersion = result.line.shipmentVersion;
-      }
-      if (shipmentScheduleChanged) {
-        await updateShipment(row.shipmentId, {
-          expectedVersion,
-          expectedDeliveryDate: draft.transportDate,
-          ...(row.direction === 'IMPORT' ? { plannedReturnAt: scheduleAt } : { closingAt: scheduleAt }),
-        });
-      }
+      await updateShipment(row.shipmentId, {
+        expectedVersion: row.shipmentVersion,
+        expectedDeliveryDate: draft.transportDate,
+        ...(row.direction === 'IMPORT' ? { plannedReturnAt: scheduleAt } : { closingAt: scheduleAt }),
+      });
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
       await recoverConflict(row, 'schedule');
       return;
     }
+    await finishSave();
+  }, [finishSave, recoverConflict]);
+
+  const saveAppointment = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => {
+    const signature = JSON.stringify(['appointment', row.shipmentId, line.id, line.shipmentVersion, draft.customerAppointmentAt]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = key;
+    try {
+      await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+        customerAppointmentAt: draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null,
+      }, key);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      delete editIdempotencyKeys.current[signature];
+      await recoverConflict(row, 'appointment');
+      return;
+    }
+    delete editIdempotencyKeys.current[signature];
     await finishSave();
   }, [finishSave, recoverConflict]);
 
@@ -353,7 +427,8 @@ export default function ShipmentsDetailPage() {
   return (
     <div className="shipments-detail-page">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi tiết lô hàng' }]} />
-      <PageHeader title="Chi tiết lô hàng" iconName="cargo" description="Bảng điều hành theo từng container: lịch trình, điểm nâng hạ, phân xe và ghi chú." />
+      <PageHeader title="Chi tiết lô hàng" iconName="cargo" description="Bảng điều hành có thể chỉnh trực tiếp từng ô dữ liệu được phép của lô hàng và container." />
+      {editNotice && <Alert variant="success">{editNotice}</Alert>}
 
       <section className="shipments-detail-workspace" aria-labelledby="shipment-container-ledger-title" aria-busy={loading}>
         <div className="shipments-detail-workspace__header">
@@ -396,7 +471,7 @@ export default function ShipmentsDetailPage() {
         {loading ? <ShipmentContainerLedgerSkeleton /> : error ? null : items.length === 0 ? (
           <EmptyState icon={Search} title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi bộ lọc hoặc trở về hôm nay để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Về hôm nay</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveNotes={saveNotes} />
+          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveIdentity={saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={saveContainer} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveAppointment={saveAppointment} onSaveNotes={saveNotes} />
           <Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />
         </>}
       </section>

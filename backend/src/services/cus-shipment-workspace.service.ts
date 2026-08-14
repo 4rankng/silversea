@@ -9,12 +9,15 @@ import {
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
   type ShipmentCusWorkspaceContainerLine,
+  type ShipmentCusWorkspaceFieldAccess,
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceListResponse,
   type ShipmentCusWorkspaceQuery,
   type ShipmentCusContainerFlatResponse,
   type ShipmentCusContainerFlatRow,
+  normalizeContainerNumber,
+  validateContainerNumber,
 } from '@tingting/shared';
 import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -52,6 +55,15 @@ type ContainerRow = {
   containerTypeId: number | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
+};
+
+type DeclarationRow = {
+  id: number;
+  shipmentId: number;
+  declarationNumber: string | null;
+  issuedAt: Date | null;
+  scope: 'SINGLE' | 'SHARED' | null;
+  note: string | null;
 };
 
 type LockRow = {
@@ -254,6 +266,86 @@ function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
+  'bookingRef', 'blNumber', 'closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes',
+]);
+
+const allShipmentFieldKeys = [
+  'customerId', 'factoryName', 'routeId', 'deliveryLocation', 'blNumber', 'bookingRef',
+  'declarationNumber', 'tradeDirection', 'shippingLineName', 'packageCount', 'packageType',
+  'cargoWeightKg', 'cargoVolumeCbm', 'customsCutoffAt', 'closingAt', 'plannedReturnAt',
+  'customerNotes', 'operationalNotes',
+] as const satisfies ReadonlyArray<keyof ShipmentCusWorkspaceListItem['fieldAccess']>;
+
+function readOnly(reason: string): ShipmentCusWorkspaceFieldAccess {
+  return { mode: 'READ_ONLY', reason };
+}
+
+function shipmentFieldAccess(
+  shipment: ShipmentRow,
+  actor: AuthUser,
+  hasActiveLock: boolean,
+  hasContainers: boolean,
+): ShipmentCusWorkspaceListItem['fieldAccess'] {
+  const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
+  const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
+  const preDispatch = canonicalShipmentStatus(shipment.status) === ShipmentStatus.PENDING_DATE
+    || canonicalShipmentStatus(shipment.status) === ShipmentStatus.READY_FOR_DISPATCH;
+  for (const field of allShipmentFieldKeys) {
+    if (field === 'declarationNumber') {
+      access[field] = !canWriteShipment
+        ? readOnly('Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.')
+        : hasActiveLock
+          ? readOnly('Lô hàng đã khóa kế toán; không thể sửa tờ khai.')
+          : { mode: 'DIRECT', reason: 'Cập nhật tờ khai trực tiếp theo lô hàng.' };
+      continue;
+    }
+    if (hasActiveLock) {
+      access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
+    } else if (!canWriteShipment) {
+      access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
+    } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
+      access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');
+    } else if (actor.role === Role.CUS && !preDispatch && !postDispatchDirectShipmentFields.has(field)) {
+      access[field] = { mode: 'REQUEST', reason: 'Thay đổi sau điều xe cần gửi yêu cầu để Điều vận xem xét.' };
+    } else {
+      access[field] = { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
+    }
+  }
+  return access;
+}
+
+function containerFieldAccess(
+  actor: AuthUser,
+  hasActiveLock: boolean,
+  hasTrip: boolean,
+  carrierType: 'OWN' | 'EXTERNAL' | null,
+): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
+  const editable = !hasActiveLock && !hasTrip && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
+  const reason = hasActiveLock
+    ? 'Lô hàng đã khóa kế toán; không thể thay đổi container.'
+    : hasTrip
+      ? 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.'
+      : actor.role !== Role.CUS && actor.role !== Role.DISPATCHER
+        ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
+        : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
+  const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
+  const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
+    if (key === 'plateNumber' && editable && carrierType !== 'EXTERNAL') {
+      return readOnly('Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.');
+    }
+    return { mode, reason };
+  };
+  return {
+    containerNumber: access('containerNumber'), containerTypeId: access('containerTypeId'),
+    cargoWeightKg: access('cargoWeightKg'), cargoVolumeCbm: access('cargoVolumeCbm'),
+    carrierType: access('carrierType'), externalCarrierId: access('externalCarrierId'),
+    externalCarrierVehicleId: access('externalCarrierVehicleId'), plateNumber: access('plateNumber'),
+    liftSiteId: access('liftSiteId'), dropoffSiteId: access('dropoffSiteId'),
+    customerAppointmentAt: access('customerAppointmentAt'),
+  };
+}
+
 function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return [...new Set(values.map(trimOrNull).filter((value): value is string => value != null))];
 }
@@ -352,7 +444,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   if (shipmentIds.length === 0) {
     return {
       containersByShipment: new Map<number, ContainerRow[]>(),
-      declarationByShipment: new Map<number, string | null>(),
+      declarationByShipment: new Map<number, DeclarationRow>(),
       locksByShipment: new Map<number, LockRow>(),
       debitNotesByShipment: new Map<number, DebitNoteRow>(),
       custodyByShipment: new Map<number, CustodyRow>(),
@@ -389,8 +481,12 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
     executor.select({
+      id: s.shipmentDeclarations.id,
       shipmentId: s.shipmentDeclarations.shipmentId,
       declarationNumber: s.shipmentDeclarations.declarationNumber,
+      issuedAt: s.shipmentDeclarations.issuedAt,
+      scope: s.shipmentDeclarations.scope,
+      note: s.shipmentDeclarations.note,
       createdAt: s.shipmentDeclarations.createdAt,
     }).from(s.shipmentDeclarations)
       .where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds))
@@ -563,10 +659,10 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     containersByShipment.set(row.shipmentId, bucket);
   }
 
-  const declarationByShipment = new Map<number, string | null>();
+  const declarationByShipment = new Map<number, DeclarationRow>();
   for (const row of declarationRows) {
     if (!declarationByShipment.has(row.shipmentId) && trimOrNull(row.declarationNumber)) {
-      declarationByShipment.set(row.shipmentId, row.declarationNumber);
+      declarationByShipment.set(row.shipmentId, row as DeclarationRow);
     }
   }
 
@@ -631,7 +727,13 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
 }
 
 async function loadSelectors(customerId: number, executor: Executor = db) {
-  const [containerTypes, operationalSites, externalCarriers, carrierVehicles] = await Promise.all([
+  const [routes, containerTypes, operationalSites, externalCarriers, carrierVehicles] = await Promise.all([
+    executor.select({
+      id: s.routes.id,
+      name: s.routes.name,
+    }).from(s.routes)
+      .where(isNull(s.routes.deletedAt))
+      .orderBy(asc(s.routes.name), asc(s.routes.id)),
     executor.select({
       id: s.containerTypes.id,
       code: s.containerTypes.code,
@@ -675,6 +777,7 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
   ]);
 
   return {
+    routes: routes.map((row) => ({ ...row, label: row.name })),
     containerTypes: containerTypes.map((row) => ({
       ...row,
       label: `${row.code} - ${row.name}`,
@@ -707,6 +810,7 @@ function buildListItem(
   const custody = support.custodyByShipment.get(row.shipment.id) ?? null;
   const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
   const recoveryFacts = support.recoveryFactsByShipment.get(row.shipment.id) ?? [];
+  const declaration = support.declarationByShipment.get(row.shipment.id) ?? null;
   const totalCost = sumMoney(trips.map((trip) => trip.totalCost));
   const bucket = deriveCusBucket(row.shipment.status, activeLock != null);
   const hasPendingRecovery = recoveryFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
@@ -787,7 +891,7 @@ function buildListItem(
     customerName: row.customerName,
     factoryName: trimOrNull(row.shipment.factoryName),
     billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
-    declarationNumber: support.declarationByShipment.get(row.shipment.id) ?? null,
+    declarationNumber: declaration?.declarationNumber ?? null,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     routeName: row.routeName,
     isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
@@ -810,6 +914,31 @@ function buildListItem(
     carrierAssignments,
     customerNotes: trimOrNull(row.shipment.customerNotes),
     operationalNotes: trimOrNull(row.shipment.operationalNotes),
+    raw: {
+      customerId: row.shipment.customerId,
+      factoryName: trimOrNull(row.shipment.factoryName),
+      routeId: row.shipment.routeId,
+      deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
+      blNumber: trimOrNull(row.shipment.blNumber),
+      bookingRef: trimOrNull(row.shipment.bookingRef),
+      declarationNumber: declaration?.declarationNumber ?? null,
+      tradeDirection: row.shipment.tradeDirection,
+      shippingLineName: trimOrNull(row.shipment.shippingLineName),
+      packageCount: row.shipment.packageCount,
+      packageType: trimOrNull(row.shipment.packageType),
+      cargoWeightKg: row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg),
+      cargoVolumeCbm: row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm),
+      customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
+      closingAt: row.shipment.closingAt?.toISOString() ?? null,
+      plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+      customerNotes: trimOrNull(row.shipment.customerNotes),
+      operationalNotes: trimOrNull(row.shipment.operationalNotes),
+      declarationId: declaration?.id ?? null,
+      declarationIssuedAt: declaration?.issuedAt?.toISOString() ?? null,
+      declarationScope: declaration?.scope ?? null,
+      declarationNote: trimOrNull(declaration?.note),
+    },
+    fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
     operational,
     finance: {
       customerInvoiceTotal,
@@ -917,6 +1046,13 @@ function buildContainerLine(
     dropoffSiteId: dropoffSite?.id ?? null,
     dropoffSite: dropoffSite?.name ?? null,
     customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
+    raw: {
+      containerNumber: container.containerNumber,
+      containerTypeId: container.containerTypeId,
+      cargoWeightKg: container.cargoWeightKg,
+      cargoVolumeCbm: container.cargoVolumeCbm,
+    },
+    fieldAccess: containerFieldAccess(actor, activeLock != null, assignment?.tripId != null, carrierType as 'OWN' | 'EXTERNAL' | null),
     permissions: {
       carrierEditable: canEditOperational,
       plateEditable,
@@ -1203,7 +1339,7 @@ export async function listCusShipmentContainers(
       factoryName: trimOrNull(row.shipment.factoryName),
       routeName: row.routeName,
       billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
-      declarationNumber: support.declarationByShipment.get(row.shipment.id) ?? null,
+      declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
       shippingLineName: trimOrNull(row.shipment.shippingLineName),
       isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
       direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
@@ -1220,6 +1356,19 @@ export async function listCusShipmentContainers(
       customerAppointmentAt: line.customerAppointmentAt,
       customerNotes: trimOrNull(row.shipment.customerNotes),
       operationalNotes: trimOrNull(row.shipment.operationalNotes),
+      raw: line.raw,
+      fieldAccess: {
+        containerNumber: line.fieldAccess.containerNumber,
+        containerTypeId: line.fieldAccess.containerTypeId,
+        cargoWeightKg: line.fieldAccess.cargoWeightKg,
+        cargoVolumeCbm: line.fieldAccess.cargoVolumeCbm,
+      },
+      shipmentFieldAccess: shipmentFieldAccess(
+        row.shipment,
+        actor,
+        support.locksByShipment.get(row.shipment.id) != null,
+        containers.length > 0,
+      ),
       shipmentScheduleEditable: shipmentEditable,
       shipmentNotesEditable: shipmentEditable,
       carrierEditable: line.permissions.carrierEditable,
@@ -1558,6 +1707,9 @@ export async function updateCusShipmentContainerLine(args: {
 
     const requestedOperationalMutation = (
       args.input.containerTypeId !== undefined
+      || args.input.containerNumber !== undefined
+      || args.input.cargoWeightKg !== undefined
+      || args.input.cargoVolumeCbm !== undefined
       || args.input.liftSiteId !== undefined
       || args.input.dropoffSiteId !== undefined
       || args.input.customerAppointmentAt !== undefined
@@ -1573,6 +1725,58 @@ export async function updateCusShipmentContainerLine(args: {
 
     let touched = false;
     const now = new Date();
+
+    if (args.input.containerNumber !== undefined) {
+      const requestedContainerNumber = trimOrNull(args.input.containerNumber);
+      const nextContainerNumber = requestedContainerNumber == null
+        ? null
+        : normalizeContainerNumber(requestedContainerNumber);
+      if (nextContainerNumber !== container.containerNumber) {
+        if (nextContainerNumber != null) {
+          const [valid, message] = validateContainerNumber(nextContainerNumber);
+          if (!valid) throw new ApiError(400, `Số container "${nextContainerNumber}" không hợp lệ: ${message}`);
+          const shipmentContainers = await tx.select({
+            id: s.shipmentContainers.id,
+            containerNumber: s.shipmentContainers.containerNumber,
+          }).from(s.shipmentContainers)
+            .where(eq(s.shipmentContainers.shipmentId, args.shipmentId))
+            .for('update');
+          const duplicate = shipmentContainers.some((candidate) => (
+            candidate.id !== container.id
+            && candidate.containerNumber != null
+            && normalizeContainerNumber(candidate.containerNumber) === nextContainerNumber
+          ));
+          if (duplicate) {
+            throw new ApiError(400, `Số container "${nextContainerNumber}" đã tồn tại trong lô hàng.`);
+          }
+        }
+        await tx.update(s.shipmentContainers).set({
+          containerNumber: nextContainerNumber,
+          updatedAt: now,
+        }).where(eq(s.shipmentContainers.id, container.id));
+        touched = true;
+      }
+    }
+
+    if (
+      args.input.cargoWeightKg !== undefined
+      || args.input.cargoVolumeCbm !== undefined
+    ) {
+      const nextCargoWeightKg = args.input.cargoWeightKg === undefined
+        ? container.cargoWeightKg
+        : args.input.cargoWeightKg;
+      const nextCargoVolumeCbm = args.input.cargoVolumeCbm === undefined
+        ? container.cargoVolumeCbm
+        : args.input.cargoVolumeCbm;
+      if (nextCargoWeightKg !== container.cargoWeightKg || nextCargoVolumeCbm !== container.cargoVolumeCbm) {
+        await tx.update(s.shipmentContainers).set({
+          cargoWeightKg: nextCargoWeightKg,
+          cargoVolumeCbm: nextCargoVolumeCbm,
+          updatedAt: now,
+        }).where(eq(s.shipmentContainers.id, container.id));
+        touched = true;
+      }
+    }
 
     if (args.input.containerTypeId !== undefined && args.input.containerTypeId !== container.containerTypeId) {
       if (args.input.containerTypeId != null) await assertActiveContainerType(args.input.containerTypeId, tx);

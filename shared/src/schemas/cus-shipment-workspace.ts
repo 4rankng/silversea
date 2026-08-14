@@ -5,6 +5,10 @@ import {
 } from '../constants';
 
 const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
+const fieldAccessSchema = z.object({
+  mode: z.enum(['DIRECT', 'REQUEST', 'READ_ONLY']),
+  reason: z.string().min(1),
+}).strict();
 const proposalVndAmountSchema = z.string().regex(
   /^(0|[1-9]\d{0,14})$/,
   'Số tiền đề xuất phải là số nguyên VND không âm và không vượt quá 15 chữ số.',
@@ -94,6 +98,27 @@ export const shipmentCusWorkspaceDebitNoteSchema = z.object({
   disabledReason: z.string().nullable(),
 }).strict();
 
+const shipmentCusWorkspaceShipmentFieldAccessSchema = z.object({
+  customerId: fieldAccessSchema,
+  factoryName: fieldAccessSchema,
+  routeId: fieldAccessSchema,
+  deliveryLocation: fieldAccessSchema,
+  blNumber: fieldAccessSchema,
+  bookingRef: fieldAccessSchema,
+  declarationNumber: fieldAccessSchema,
+  tradeDirection: fieldAccessSchema,
+  shippingLineName: fieldAccessSchema,
+  packageCount: fieldAccessSchema,
+  packageType: fieldAccessSchema,
+  cargoWeightKg: fieldAccessSchema,
+  cargoVolumeCbm: fieldAccessSchema,
+  customsCutoffAt: fieldAccessSchema,
+  closingAt: fieldAccessSchema,
+  plannedReturnAt: fieldAccessSchema,
+  customerNotes: fieldAccessSchema,
+  operationalNotes: fieldAccessSchema,
+}).strict();
+
 export const shipmentCusWorkspaceListItemSchema = z.object({
   id: z.number().int().positive(),
   version: z.number().int().positive(),
@@ -126,6 +151,31 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   }).strict()),
   customerNotes: z.string().nullable(),
   operationalNotes: z.string().nullable(),
+  raw: z.object({
+    customerId: z.number().int().positive(),
+    factoryName: z.string().nullable(),
+    routeId: z.number().int().positive().nullable(),
+    deliveryLocation: z.string().nullable(),
+    blNumber: z.string().nullable(),
+    bookingRef: z.string().nullable(),
+    declarationNumber: z.string().nullable(),
+    tradeDirection: z.enum(['IMPORT', 'EXPORT']).nullable(),
+    shippingLineName: z.string().nullable(),
+    packageCount: z.number().int().nonnegative().nullable(),
+    packageType: z.string().nullable(),
+    cargoWeightKg: z.string().nullable(),
+    cargoVolumeCbm: z.string().nullable(),
+    customsCutoffAt: z.string().datetime().nullable(),
+    closingAt: z.string().datetime().nullable(),
+    plannedReturnAt: z.string().datetime().nullable(),
+    customerNotes: z.string().nullable(),
+    operationalNotes: z.string().nullable(),
+    declarationId: z.number().int().positive().nullable(),
+    declarationIssuedAt: z.string().datetime().nullable(),
+    declarationScope: z.enum(['SINGLE', 'SHARED']).nullable(),
+    declarationNote: z.string().nullable(),
+  }).strict(),
+  fieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
   operational: shipmentCusWorkspaceOperationalSummarySchema,
   finance: shipmentCusWorkspaceFinanceSummarySchema,
   debitNote: shipmentCusWorkspaceDebitNoteSchema,
@@ -209,6 +259,25 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   dropoffSiteId: z.number().int().positive().nullable(),
   dropoffSite: z.string().nullable(),
   customerAppointmentAt: z.string().datetime().nullable(),
+  raw: z.object({
+    containerNumber: z.string().nullable(),
+    containerTypeId: z.number().int().positive().nullable(),
+    cargoWeightKg: z.string().nullable(),
+    cargoVolumeCbm: z.string().nullable(),
+  }).strict(),
+  fieldAccess: z.object({
+    containerNumber: fieldAccessSchema,
+    containerTypeId: fieldAccessSchema,
+    cargoWeightKg: fieldAccessSchema,
+    cargoVolumeCbm: fieldAccessSchema,
+    carrierType: fieldAccessSchema,
+    externalCarrierId: fieldAccessSchema,
+    externalCarrierVehicleId: fieldAccessSchema,
+    plateNumber: fieldAccessSchema,
+    liftSiteId: fieldAccessSchema,
+    dropoffSiteId: fieldAccessSchema,
+    customerAppointmentAt: fieldAccessSchema,
+  }).strict(),
   permissions: shipmentCusWorkspaceFieldPermissionsSchema,
   shipmentVersion: z.number().int().positive(),
   relatedTripVersion: z.number().int().positive().nullable(),
@@ -243,7 +312,14 @@ const shipmentCusWorkspaceCarrierVehicleOptionSchema = z.object({
   label: z.string(),
 }).strict();
 
+const shipmentCusWorkspaceRouteOptionSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  label: z.string(),
+}).strict();
+
 const shipmentCusWorkspaceSelectorsSchema = z.object({
+  routes: z.array(shipmentCusWorkspaceRouteOptionSchema),
   containerTypes: z.array(shipmentCusWorkspaceContainerTypeOptionSchema),
   operationalSites: z.array(shipmentCusWorkspaceOperationalSiteOptionSchema),
   externalCarriers: z.array(shipmentCusWorkspaceExternalCarrierOptionSchema),
@@ -295,6 +371,24 @@ export const shipmentCusReopenDecisionSchema = z.object({
 
 export const shipmentCusContainerLineUpdateSchema = z.object({
   expectedShipmentVersion: z.coerce.number().int().positive(),
+  containerNumber: z.string().trim().max(50, 'Số container không được quá 50 ký tự').nullable().optional(),
+  cargoWeightKg: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
+    const raw = String(value).trim();
+    if (!/^(0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(raw)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Trọng lượng phải là số không âm, tối đa 8 chữ số nguyên và 2 chữ số thập phân.' });
+      return z.NEVER;
+    }
+    return `${raw.includes('.') ? raw : `${raw}.00`}`.replace(/\.(\d)$/, '.$10');
+  }).nullable().optional(),
+  cargoVolumeCbm: z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
+    const raw = String(value).trim();
+    if (!/^(0|[1-9]\d*)(?:\.\d{1,3})?$/.test(raw) || raw.split('.')[0]!.length > 9) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Thể tích phải là số không âm, tối đa 9 chữ số nguyên và 3 chữ số thập phân.' });
+      return z.NEVER;
+    }
+    const [integer, fraction = ''] = raw.split('.');
+    return `${integer}.${fraction.padEnd(3, '0')}`;
+  }).nullable().optional(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
   externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
   externalCarrierVehicleId: z.coerce.number().int().positive().nullable().optional(),
@@ -400,6 +494,19 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   customerAppointmentAt: z.string().datetime().nullable(),
   customerNotes: z.string().nullable(),
   operationalNotes: z.string().nullable(),
+  raw: z.object({
+    containerNumber: z.string().nullable(),
+    containerTypeId: z.number().int().positive().nullable(),
+    cargoWeightKg: z.string().nullable(),
+    cargoVolumeCbm: z.string().nullable(),
+  }).strict(),
+  fieldAccess: z.object({
+    containerNumber: fieldAccessSchema,
+    containerTypeId: fieldAccessSchema,
+    cargoWeightKg: fieldAccessSchema,
+    cargoVolumeCbm: fieldAccessSchema,
+  }).strict(),
+  shipmentFieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
   shipmentScheduleEditable: z.boolean(),
   shipmentNotesEditable: z.boolean(),
   carrierEditable: z.boolean(),
@@ -445,6 +552,7 @@ export type ShipmentCusWorkspaceOperationalSummary = z.infer<typeof shipmentCusW
 export type ShipmentCusWorkspaceDocumentCustody = z.infer<typeof shipmentCusWorkspaceDocumentCustodySchema>;
 export type ShipmentCusWorkspaceAccountingConfirmation = z.infer<typeof shipmentCusWorkspaceAccountingConfirmationSchema>;
 export type ShipmentCusWorkspaceAction = z.infer<typeof shipmentCusWorkspaceActionSchema>;
+export type ShipmentCusWorkspaceFieldAccess = z.infer<typeof fieldAccessSchema>;
 export type ShipmentCusWorkspaceActiveLock = z.infer<typeof shipmentCusWorkspaceActiveLockSchema>;
 export type ShipmentCusWorkspaceListItem = z.infer<typeof shipmentCusWorkspaceListItemSchema>;
 export type ShipmentCusWorkspacePassThroughCharge = z.infer<typeof shipmentCusWorkspacePassThroughChargeSchema>;

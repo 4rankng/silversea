@@ -11,7 +11,7 @@ import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/te
 import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
-export type ShipmentDetailEditMode = 'route' | 'schedule' | 'vehicle' | 'notes';
+export type ShipmentDetailEditMode = 'identity' | 'documents' | 'classification' | 'container' | 'route' | 'schedule' | 'appointment' | 'vehicle' | 'notes';
 
 export interface ActiveShipmentDetailEdit {
   row: ShipmentCusContainerFlatRow;
@@ -26,6 +26,26 @@ export interface ShipmentRouteDraft {
   dropoffSiteId: number | null;
 }
 
+export interface ShipmentIdentityDraft {
+  factoryName: string | null;
+  routeId: number | null;
+  deliveryLocation: string | null;
+}
+
+export interface ShipmentDocumentsDraft {
+  blNumber: string | null;
+  bookingRef: string | null;
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  shippingLineName: string | null;
+}
+
+export interface ShipmentContainerDraft {
+  containerNumber: string | null;
+  containerTypeId: number | null;
+  cargoWeightKg: string | null;
+  cargoVolumeCbm: string | null;
+}
+
 export interface ShipmentVehicleDraft {
   carrierType: 'OWN' | 'EXTERNAL';
   externalCarrierId: number | null;
@@ -37,6 +57,9 @@ export interface ShipmentVehicleDraft {
 export interface ShipmentScheduleDraft {
   transportDate: string | null;
   scheduleAt: string | null;
+}
+
+export interface ShipmentAppointmentDraft {
   customerAppointmentAt: string | null;
 }
 
@@ -53,6 +76,18 @@ const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' 
   IN_TRANSIT: { label: 'Đang vận chuyển', color: 'blue' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
 };
+
+function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
+  if (mode === 'identity') return 'khách hàng và lộ trình';
+  if (mode === 'documents') return 'chứng từ và hãng tàu';
+  if (mode === 'classification') return 'chiều hàng và hãng tàu';
+  if (mode === 'container') return 'thông số container';
+  if (mode === 'route') return 'điểm nâng hạ';
+  if (mode === 'vehicle') return 'phân xe';
+  if (mode === 'schedule') return 'lịch trình';
+  if (mode === 'appointment') return 'giờ hẹn khách';
+  return 'ghi chú';
+}
 
 function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): string {
   if (direction === 'IMPORT') return 'Nhập';
@@ -127,14 +162,24 @@ function InlineEditor({
   onSaveRoute,
   onSaveVehicle,
   onSaveSchedule,
+  onSaveAppointment,
   onSaveNotes,
+  onSaveIdentity,
+  onSaveDocuments,
+  onSaveContainer,
+  routeOptions,
 }: {
   edit: ActiveShipmentDetailEdit;
   onCancel: () => void;
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveAppointment: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
+  onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
+  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
+  onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
+  routeOptions: Array<{ value: string; label: string; searchText?: string }>;
 }) {
   const { detail, line, mode, row } = edit;
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
@@ -150,6 +195,17 @@ function InlineEditor({
   const [customerAppointmentAt, setCustomerAppointmentAt] = useState(formatVietnamDateTimeInput(line.customerAppointmentAt));
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
+  const [factoryName, setFactoryName] = useState(detail.summary.raw.factoryName ?? '');
+  const [routeId, setRouteId] = useState(detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '');
+  const [deliveryLocation, setDeliveryLocation] = useState(detail.summary.raw.deliveryLocation ?? '');
+  const [blNumber, setBlNumber] = useState(detail.summary.raw.blNumber ?? '');
+  const [bookingRef, setBookingRef] = useState(detail.summary.raw.bookingRef ?? '');
+  const [tradeDirection, setTradeDirection] = useState(detail.summary.raw.tradeDirection ?? '');
+  const [shippingLineName, setShippingLineName] = useState(detail.summary.raw.shippingLineName ?? '');
+  const [containerNumber, setContainerNumber] = useState(line.raw.containerNumber ?? '');
+  const [containerTypeId, setContainerTypeId] = useState(line.raw.containerTypeId ? String(line.raw.containerTypeId) : '');
+  const [cargoWeightKg, setCargoWeightKg] = useState(line.raw.cargoWeightKg ?? '');
+  const [cargoVolumeCbm, setCargoVolumeCbm] = useState(line.raw.cargoVolumeCbm ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -171,7 +227,22 @@ function InlineEditor({
     vehicle.carrierId === Number(carrierId)
     && vehicle.licensePlate.localeCompare(plateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0
   ));
-  const dirty = mode === 'route'
+  const dirty = mode === 'identity'
+    ? factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
+      || routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '')
+      || deliveryLocation.trim() !== (detail.summary.raw.deliveryLocation ?? '')
+    : mode === 'documents'
+      ? blNumber.trim() !== (detail.summary.raw.blNumber ?? '')
+        || bookingRef.trim() !== (detail.summary.raw.bookingRef ?? '')
+    : mode === 'classification'
+      ? tradeDirection !== (detail.summary.raw.tradeDirection ?? '')
+        || shippingLineName.trim() !== (detail.summary.raw.shippingLineName ?? '')
+    : mode === 'container'
+      ? containerNumber.trim() !== (line.raw.containerNumber ?? '')
+        || containerTypeId !== (line.raw.containerTypeId ? String(line.raw.containerTypeId) : '')
+        || cargoWeightKg.trim() !== (line.raw.cargoWeightKg ?? '')
+        || cargoVolumeCbm.trim() !== (line.raw.cargoVolumeCbm ?? '')
+    : mode === 'route'
     ? liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
       || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
     : mode === 'vehicle'
@@ -179,10 +250,19 @@ function InlineEditor({
       : mode === 'schedule'
         ? transportDate !== (row.transportDate ?? '')
           || scheduleTime !== (formatScheduleTime(row) ?? '')
-          || customerAppointmentAt !== formatVietnamDateTimeInput(line.customerAppointmentAt)
+        : mode === 'appointment'
+          ? customerAppointmentAt !== formatVietnamDateTimeInput(line.customerAppointmentAt)
         : customerNotes.trim() !== (row.customerNotes ?? '').trim()
           || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
-  const label = `${mode === 'route' ? 'hành trình' : mode === 'vehicle' ? 'phân xe' : mode === 'schedule' ? 'lịch trình' : 'ghi chú'} ${row.containerNumber || `container số ${row.ordinal}`}`;
+  const modeLabel = mode === 'identity' ? 'khách hàng và lộ trình'
+    : mode === 'documents' ? 'chứng từ và hãng tàu'
+      : mode === 'classification' ? 'chiều hàng và hãng tàu'
+      : mode === 'container' ? 'thông số container'
+        : mode === 'route' ? 'hành trình'
+          : mode === 'vehicle' ? 'phân xe'
+            : mode === 'schedule' ? 'lịch trình'
+              : mode === 'appointment' ? 'giờ hẹn khách' : 'ghi chú';
+  const label = `${modeLabel} ${row.containerNumber || `container số ${row.ordinal}`}`;
 
   useEffect(() => {
     editorRef.current?.focus();
@@ -192,7 +272,27 @@ function InlineEditor({
     setSaving(true);
     setSaveError(null);
     try {
-      if (mode === 'route') {
+      if (mode === 'identity') {
+        await onSaveIdentity(row, {
+          factoryName: factoryName.trim() || null,
+          routeId: routeId ? Number(routeId) : null,
+          deliveryLocation: deliveryLocation.trim() || null,
+        });
+      } else if (mode === 'documents' || mode === 'classification') {
+        await onSaveDocuments(row, {
+          blNumber: blNumber.trim() || null,
+          bookingRef: bookingRef.trim() || null,
+          tradeDirection: tradeDirection === 'IMPORT' || tradeDirection === 'EXPORT' ? tradeDirection : null,
+          shippingLineName: shippingLineName.trim() || null,
+        });
+      } else if (mode === 'container') {
+        await onSaveContainer(line, {
+          containerNumber: containerNumber.trim().toUpperCase() || null,
+          containerTypeId: containerTypeId ? Number(containerTypeId) : null,
+          cargoWeightKg: cargoWeightKg.trim() || null,
+          cargoVolumeCbm: cargoVolumeCbm.trim() || null,
+        });
+      } else if (mode === 'route') {
         await onSaveRoute(line, {
           liftSiteId: liftSiteId ? Number(liftSiteId) : null,
           dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
@@ -226,8 +326,9 @@ function InlineEditor({
         await onSaveSchedule(line, row, {
           transportDate: transportDate || null,
           scheduleAt: transportDate && scheduleTime ? `${transportDate}T${scheduleTime}` : null,
-          customerAppointmentAt: customerAppointmentAt || null,
         });
+      } else if (mode === 'appointment') {
+        await onSaveAppointment(line, row, { customerAppointmentAt: customerAppointmentAt || null });
       } else {
         await onSaveNotes(row, {
           customerNotes: customerNotes.trim() || null,
@@ -246,8 +347,41 @@ function InlineEditor({
       ref={editorRef}
       className="shipment-container-ledger__inline-editor"
       tabIndex={-1}
-      onKeyDown={(event) => { if (event.key === 'Escape' && !saving) onCancel(); }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !saving) onCancel();
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && dirty && !saving) void save();
+      }}
     >
+      {mode === 'identity' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
+          <label><span>Nhà máy</span><input autoFocus value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
+          <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>
+          <label><span>Điểm giao</span><input value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.deliveryLocation.mode === 'READ_ONLY'} /></label>
+        </div>
+      )}
+      {mode === 'documents' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Số Bill</span><input autoFocus value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>
+          <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>
+          <small>Tờ khai dùng luồng chứng từ có kiểm soát riêng: {detail.summary.fieldAccess.declarationNumber.reason}</small>
+        </div>
+      )}
+      {mode === 'classification' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Nhập / Xuất</span><select autoFocus value={tradeDirection} onChange={(event) => setTradeDirection(event.target.value)} disabled={saving || detail.summary.fieldAccess.tradeDirection.mode === 'READ_ONLY'}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+          <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
+          <small>Thay đổi nhóm này có thể được gửi duyệt tùy trạng thái lô hàng.</small>
+        </div>
+      )}
+      {mode === 'container' && (
+        <div className="shipment-container-ledger__editor-grid">
+          <label><span>Số container</span><input autoFocus value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
+          <label><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
+          <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
+          <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>
+        </div>
+      )}
       {mode === 'route' && (
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Điểm nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn điểm nâng" searchPlaceholder="Tìm điểm nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
@@ -267,8 +401,12 @@ function InlineEditor({
         <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
           <label><span>Ngày vận chuyển</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
           <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
-          <label><span>Giờ hẹn khách</span><input type="datetime-local" value={customerAppointmentAt} onChange={(event) => setCustomerAppointmentAt(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
           <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
+        </div>
+      )}
+      {mode === 'appointment' && (
+        <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
+          <label><span>Giờ hẹn khách</span><input autoFocus type="datetime-local" value={customerAppointmentAt} onChange={(event) => setCustomerAppointmentAt(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
         </div>
       )}
       {mode === 'notes' && (
@@ -279,7 +417,7 @@ function InlineEditor({
         </div>
       )}
       <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
-      <small className="shipment-container-ledger__escape-hint">Nhấn Escape để hủy.</small>
+      <small className="shipment-container-ledger__escape-hint">Escape để hủy · Ctrl/Cmd + Enter để lưu.</small>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
     </div>
@@ -298,7 +436,11 @@ interface ShipmentContainerLedgerProps {
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveAppointment: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
+  onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
+  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
+  onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
 }
 
 export function ShipmentContainerLedger({
@@ -313,7 +455,11 @@ export function ShipmentContainerLedger({
   onSaveRoute,
   onSaveVehicle,
   onSaveSchedule,
+  onSaveAppointment,
   onSaveNotes,
+  onSaveIdentity,
+  onSaveDocuments,
+  onSaveContainer,
 }: ShipmentContainerLedgerProps) {
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
@@ -330,7 +476,7 @@ export function ShipmentContainerLedger({
         onPress={() => onStartEdit(row, mode, triggerId)}
         isDisabled={busy || activeEdit != null}
         iconLeading={busy ? <LoaderCircle className="shipment-container-ledger__spinner" aria-hidden="true" /> : <PencilLine aria-hidden="true" />}
-        aria-label={`Chỉnh sửa ${mode === 'route' ? 'điểm nâng hạ' : mode === 'vehicle' ? 'phân xe' : mode === 'schedule' ? 'lịch trình' : 'ghi chú'} ${row.containerNumber || `container số ${row.ordinal}`}`}
+        aria-label={`Chỉnh sửa ${mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}${modeLabelForTrigger(mode)} ${row.containerNumber || `container số ${row.ordinal}`}`}
       >{busy ? 'Đang mở' : 'Sửa'}</UUIButton>
     );
   };
@@ -373,50 +519,50 @@ export function ShipmentContainerLedger({
               const appointment = formatAppointment(row.customerAppointmentAt);
               return (
                 <tr key={row.id} className={missingDate ? 'shipment-container-ledger__row--missing-date' : undefined}>
-                  <th scope="row" data-label="Khách hàng & lộ trình">
+                  <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
                     {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
-                    <div className="shipment-container-ledger__multiline">
+                    {edit?.mode === 'identity' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
-                    </div>
+                    </div>{editButton(row, 'identity', ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY'))}</>}
                   </th>
-                  <td data-label="Chứng từ & hãng tàu">
-                    <div className="shipment-container-ledger__multiline">
+                  <td data-label="Chứng từ & hãng tàu" className={edit?.mode === 'documents' || edit?.mode === 'classification' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'documents' || edit?.mode === 'classification' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
                       <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       <span><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b> · {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
-                    </div>
+                    </div><div className="shipment-container-ledger__cell-actions">{editButton(row, 'documents', ['blNumber', 'bookingRef'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY'))}{editButton(row, 'classification', ['tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY'))}</div></>}
                   </td>
-                  <td data-label="Thông số container">
-                    <div className="shipment-container-ledger__multiline">
+                  <td data-label="Thông số container" className={edit?.mode === 'container' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'container' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
                       <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
-                    </div>
+                    </div>{editButton(row, 'container', row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY')}</>}
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'route' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'route' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
                       <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>
                       {editButton(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable)}
                     </>}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
-                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'schedule' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' || edit?.mode === 'appointment' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {edit?.mode === 'schedule' || edit?.mode === 'appointment' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
                       <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span><span>{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span></div>
-                      {editButton(row, 'schedule', row.shipmentScheduleEditable || row.customerAppointmentEditable)}
+                      <div className="shipment-container-ledger__cell-actions">{editButton(row, 'schedule', row.shipmentScheduleEditable)}{editButton(row, 'appointment', row.customerAppointmentEditable)}</div>
                     </>}
                   </td>
                   <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-alert' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
-                    {edit?.mode === 'vehicle' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'vehicle' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
                       <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>
                       {editButton(row, 'vehicle', row.carrierEditable || row.plateEditable)}
                     </>}
                   </td>
                   <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'notes' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'notes' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
                       <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>
                       {editButton(row, 'notes', row.shipmentNotesEditable)}
                     </>}
