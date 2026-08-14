@@ -397,6 +397,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       transportDate: null,
       plannedReturnAt: null,
       operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const },
+      finance: { ...row.finance, isLoss: false, hasPendingRecovery: false },
     }]));
 
     renderPage();
@@ -1093,6 +1094,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     expect(screen.getByText('Lỗ')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
+  });
+
+  it('prioritizes a danger signal over earlier schedule warnings in the grid and export', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      transportDate: null,
+      plannedReturnAt: null,
+      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const },
+    }]));
+
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByText('Lỗ')).toBeTruthy();
+    expect(screen.queryByText('Chờ chốt lịch')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
+    await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));
+    const rows = downloadCSV.mock.calls[0]?.[2] as Array<Array<string | number>>;
+    expect(rows[0]?.[6]).toContain('Lỗ');
+    expect(rows[0]?.[6]).not.toContain('Chờ chốt lịch');
   });
 
   it('does not flag an ordinary disabled no-op row as an exception', async () => {

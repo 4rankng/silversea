@@ -583,6 +583,21 @@ function deriveShipmentSignals(item: ShipmentCusWorkspaceListItem): ShipmentSign
   return signals;
 }
 
+const SHIPMENT_SIGNAL_TONE_PRIORITY: Record<ShipmentSignalTone, number> = {
+  danger: 0,
+  warning: 1,
+  info: 2,
+};
+
+function derivePrimaryShipmentSignal(item: ShipmentCusWorkspaceListItem): ShipmentSignal | null {
+  return deriveShipmentSignals(item).reduce<ShipmentSignal | null>((primary, signal) => {
+    if (!primary) return signal;
+    return SHIPMENT_SIGNAL_TONE_PRIORITY[signal.tone] < SHIPMENT_SIGNAL_TONE_PRIORITY[primary.tone]
+      ? signal
+      : primary;
+  }, null);
+}
+
 function ShipmentSignals({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const signals = deriveShipmentSignals(item);
   if (signals.length === 0) return null;
@@ -1196,7 +1211,7 @@ export default function ShipmentsPage() {
           [item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
           [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
           [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
-          [item.bucketLabel, deriveShipmentSignals(item)[0]?.label ?? ''].filter(Boolean).join('\n'),
+          [item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
         ]),
         {
           title: 'Kế hoạch lô hàng',
@@ -1438,7 +1453,7 @@ export default function ShipmentsPage() {
                 <tbody>
                   {items.map((item) => {
                     const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
-                    const primarySignal = deriveShipmentSignals(item)[0] ?? null;
+                    const primarySignal = derivePrimaryShipmentSignal(item);
                     const PrimarySignalIcon = primarySignal?.icon;
                     const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
                     const editingSchedule = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'schedule';
