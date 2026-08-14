@@ -8,7 +8,6 @@ import {
   Download,
   FileLock2,
   Loader2,
-  Pencil,
   Plus,
   RotateCcw,
   Save,
@@ -1429,7 +1428,7 @@ export default function ShipmentsPage() {
                         </td>
                         <td data-label="Lịch trình & điều xe">
                           {editingSchedule && quickEditDraft ? (
-                            <div className="cus-quick-edit" onBlur={(event) => {
+                            <div className="cus-quick-edit" aria-busy={savingQuickEdit} onBlur={(event) => {
                               if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
                               void saveQuickEdit(item, { restoreFocus: false });
                             }} onKeyDown={(event) => {
@@ -1439,8 +1438,8 @@ export default function ShipmentsPage() {
                                 void saveQuickEdit(item);
                               }
                             }}>
-                              <label><span>Ngày đóng/trả</span><input autoFocus type="date" value={quickEditDraft.date} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, date: event.target.value })} /></label>
-                              <label><span>Giờ</span><input type="time" value={quickEditDraft.time} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, time: event.target.value })} /></label>
+                              <label><span>Ngày đóng/trả</span><input autoFocus disabled={savingQuickEdit} type="date" value={quickEditDraft.date} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, date: event.target.value })} /></label>
+                              <label><span>Giờ</span><input disabled={savingQuickEdit} type="time" value={quickEditDraft.time} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, time: event.target.value })} /></label>
                               <small>{vehicleReadinessLabel(item)}</small>
                               <small className="cus-inline-edit-hint">Enter hoặc rời ô để tự lưu · Escape để hoàn tác</small>
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
@@ -1450,13 +1449,12 @@ export default function ShipmentsPage() {
                               <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                               <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
                               <span>{vehicleReadinessLabel(item)}</span>
-                              {item.operational.transportDateEditable && !editingNotes && <em><Pencil size={13} aria-hidden="true" /> Chọn để sửa</em>}
                             </button>
                           )}
                         </td>
                         <td data-label="Ghi chú">
                           {editingNotes && quickEditDraft ? (
-                            <div className="cus-note-editor-group" onBlur={(event) => {
+                            <div className="cus-note-editor-group" aria-busy={savingQuickEdit} onBlur={(event) => {
                               if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
                               void saveQuickEdit(item, { restoreFocus: false });
                             }} onKeyDown={(event) => {
@@ -1466,8 +1464,8 @@ export default function ShipmentsPage() {
                                 void saveQuickEdit(item);
                               }
                             }}>
-                              <label className="cus-note-editor"><span>Ghi chú cho khách</span><textarea autoFocus rows={2} maxLength={2000} value={quickEditDraft.customerNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, customerNote: event.target.value })} /></label>
-                              <label className="cus-note-editor cus-note-editor--internal"><span>Ghi chú nội bộ</span><textarea rows={2} maxLength={2000} value={quickEditDraft.operationalNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, operationalNote: event.target.value })} /></label>
+                              <label className="cus-note-editor"><span>Ghi chú cho khách</span><textarea autoFocus disabled={savingQuickEdit} rows={2} maxLength={2000} value={quickEditDraft.customerNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, customerNote: event.target.value })} /></label>
+                              <label className="cus-note-editor cus-note-editor--internal"><span>Ghi chú nội bộ</span><textarea disabled={savingQuickEdit} rows={2} maxLength={2000} value={quickEditDraft.operationalNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, operationalNote: event.target.value })} /></label>
                               <small>Enter hoặc rời ô để tự lưu · Shift+Enter xuống dòng · Escape hoàn tác</small>
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
                             </div>
@@ -1477,7 +1475,6 @@ export default function ShipmentsPage() {
                               {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
                               {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
                               {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
-                              {item.operational.transportDateEditable && !editingSchedule && <em><Pencil size={13} aria-hidden="true" /> Chọn để sửa</em>}
                             </button>
                           )}
                         </td>

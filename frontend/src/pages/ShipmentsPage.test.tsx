@@ -374,6 +374,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
+    expect(screen.queryByText('Chọn để sửa')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
@@ -437,6 +438,20 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(document.activeElement).toBe(searchInput);
   });
 
+  it('keeps Shift+Enter as a note newline without saving the cell', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
+    const notesInput = screen.getByLabelText('Ghi chú nội bộ');
+    fireEvent.change(notesInput, { target: { value: 'Dòng một\nDòng hai' } });
+    fireEvent.keyDown(notesInput, { key: 'Enter', shiftKey: true });
+
+    expect(apiPut).not.toHaveBeenCalled();
+    expect((notesInput as HTMLTextAreaElement).value).toBe('Dòng một\nDòng hai');
+    expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
+  });
+
   it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
     let resolveUpdate: ((value: unknown) => void) | undefined;
     apiPut.mockImplementation(() => new Promise((resolve) => { resolveUpdate = resolve; }));
@@ -453,6 +468,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.keyDown(notesInput, { key: 'Enter' });
     fireEvent.keyDown(notesInput, { key: 'Enter' });
     expect(apiPut).toHaveBeenCalledTimes(1);
+    expect((notesInput as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Ghi chú cho khách') as HTMLTextAreaElement).disabled).toBe(true);
     fireEvent.keyDown(notesInput, { key: 'Escape' });
     expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);

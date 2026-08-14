@@ -326,23 +326,47 @@
   gap: 4px;
   width: 100%;
   min-height: 44px;
-  padding: 0;
-  border: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--ink-3);
   font: inherit;
   font-size: var(--fs-xs);
   line-height: 1.35;
   text-align: left;
-  cursor: pointer;
+  cursor: cell;
+  border-radius: 6px;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .cus-inline-trigger strong { color: var(--ink); font-size: var(--fs-sm); }
-.cus-inline-trigger em { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-style: normal; font-weight: var(--fw-semibold); }
+.cus-inline-trigger:not(:disabled):hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
 .cus-inline-trigger:disabled { cursor: default; }
-.cus-inline-trigger:disabled em { display: none; }
-.cus-inline-trigger:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 3px; border-radius: 5px; }
+.cus-inline-trigger:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--brand-subtle);
+}
 .cus-schedule-missing { color: var(--warn, #a15c00) !important; }
+
+/* Edit hint only shows when the cell is interactive */
+.cus-inline-trigger em {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  letter-spacing: .01em;
+}
+.cus-inline-trigger:not(:disabled) em { opacity: 0; transition: opacity 120ms ease; }
+.cus-inline-trigger:not(:disabled):hover em,
+.cus-inline-trigger:not(:disabled):focus-visible em { opacity: 1; }
 
 .cus-quick-edit { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 7px; }
 .cus-quick-edit label,
@@ -367,7 +391,16 @@
 .cus-note-editor--internal textarea { background: var(--surface-2); }
 .cus-note-internal { color: var(--ink-3); font-style: italic; opacity: 0.85; }
 .cus-note-preview strong,
-.cus-note-preview span { display: -webkit-box; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.cus-note-preview span {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  min-width: 0;
+}
 .cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.35; }
 
 .cus-row-actions { display: grid; gap: 7px; justify-items: start; }
