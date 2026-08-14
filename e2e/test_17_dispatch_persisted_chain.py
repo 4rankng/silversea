@@ -1593,8 +1593,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
     search_suffix = SEARCH_SUFFIX
     mobile_page.goto(f"{BASE_URL}/shipments?searchSuffix={search_suffix}")
     mobile_page.wait_for_load_state("networkidle")
-    worksheet_row = mobile_page.locator("tr.cus-worksheet-row").filter(has_text=bl_number)
-    worksheet_opener = worksheet_row.locator("button.cus-row-disclosure")
+    worksheet_row = mobile_page.locator("tr.cus-dashboard-row").filter(has_text=bl_number)
+    worksheet_opener = worksheet_row.locator("button.cus-dashboard-detail")
     worksheet_opener.click()
     shipment_drawer = mobile_page.get_by_role("dialog")
     shipment_drawer.wait_for(timeout=10_000)

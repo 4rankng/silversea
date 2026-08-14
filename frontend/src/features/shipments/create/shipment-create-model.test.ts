@@ -3,6 +3,7 @@ import {
   EMPTY_SHIPMENT_CREATE_FORM,
   buildShipmentContainerPayload,
   buildShipmentRootPayload,
+  createEmptyContainer,
   getShipmentCreateReadiness,
   validateShipmentCreate,
   type ShipmentContainerDraft,
@@ -17,6 +18,7 @@ const container: ShipmentContainerDraft = {
   pickupPortId: '21',
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
+  cargoVolumeCbm: '33.5',
 };
 
 describe('shipment create model', () => {
@@ -67,7 +69,31 @@ describe('shipment create model', () => {
       pickupPortId: 21,
       dropoffPortId: 22,
       cargoWeightKg: '12000.25',
+      cargoVolumeCbm: '33.5',
     }]);
+  });
+
+  it('emits per-container cargoVolumeCbm and allows it to be blank (nullable)', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'FCL' as const,
+      bookingRef: 'BK-FCL',
+      shippingLineName: 'MSC',
+    };
+
+    const withCbm: ShipmentContainerDraft = {
+      ...container,
+      cargoVolumeCbm: '  28.75  ',
+    };
+    expect(buildShipmentContainerPayload(form, [withCbm])).toMatchObject([{ cargoVolumeCbm: '  28.75  ' }]);
+
+    const blankCbm: ShipmentContainerDraft = { ...container, cargoVolumeCbm: '' };
+    expect(buildShipmentContainerPayload(form, [blankCbm])).toMatchObject([{ cargoVolumeCbm: null }]);
+  });
+
+  it('initializes per-container cargoVolumeCbm as empty string on a new draft', () => {
+    expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
   it('requires only LCL-specific cargo and schedule fields for dispatch', () => {

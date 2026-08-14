@@ -367,8 +367,8 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 visible_fixture = page.get_by_text(f"BLCUS{SEARCH_SUFFIX}", exact=False).count() > 0
                 overflow_ok = no_horizontal_overflow(page)
                 workspace_layout = "worksheet"
-                row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                toggle = row.locator("button.cus-row-disclosure")
+                row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                toggle = row.locator("button.cus-dashboard-detail")
                 toggle.click()
                 detail_surface = page.get_by_role("dialog")
                 detail_surface.wait_for(timeout=10_000)
@@ -413,8 +413,8 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
 
 
 def open_mobile_drawer(page: Page):
-    row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-    opener = row.locator("button.cus-row-disclosure")
+    row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+    opener = row.locator("button.cus-dashboard-detail")
     opener.wait_for(state="visible", timeout=10_000)
     opener.focus()
     opener.click()
@@ -464,8 +464,8 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
             overflow_ok = no_horizontal_overflow(page)
 
             if width == 1440:
-                row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
-                expand_button = row.locator("button.cus-row-disclosure")
+                row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{SEARCH_SUFFIX}").first
+                expand_button = row.locator("button.cus-dashboard-detail")
                 expand_button.focus()
                 controls = expand_button.get_attribute("aria-controls")
                 page.keyboard.press("Enter")
@@ -478,7 +478,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                focus_restored = active_has_class(page, "cus-row-disclosure")
+                focus_restored = active_has_class(page, "cus-dashboard-detail")
                 check(
                     results,
                     "TC-1930",
@@ -527,7 +527,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                close_button_restored = active_has_class(page, "cus-row-disclosure")
+                close_button_restored = active_has_class(page, "cus-dashboard-detail")
 
                 opener, _ = open_mobile_drawer(page)
                 page.keyboard.press("Escape")
@@ -535,7 +535,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                     "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                     timeout=2_500,
                 )
-                escape_restored = active_has_class(page, "cus-row-disclosure")
+                escape_restored = active_has_class(page, "cus-dashboard-detail")
 
                 reduced_motion_ok = True
                 if reduced_motion:

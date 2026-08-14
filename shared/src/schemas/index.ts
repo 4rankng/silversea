@@ -1315,6 +1315,7 @@ export const createShipmentSchema = z.object({
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).optional().nullable(),
   operationalNotes: z.string().max(4000).optional().nullable(),
+  customerNotes: z.string().max(4000).optional().nullable(),
   pickupLocation: z.string().max(255).optional().nullable(),
   deliveryLocation: z.string().max(255).optional().nullable(),
   contactName: z.string().max(100).optional().nullable(),
@@ -1360,6 +1361,7 @@ export const updateShipmentSchema = z.object({
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).nullish(),
   operationalNotes: z.string().max(4000).nullish(),
+  customerNotes: z.string().max(4000).nullish(),
   pickupLocation: z.string().max(255).nullish(),
   deliveryLocation: z.string().max(255).nullish(),
   contactName: z.string().max(100).nullish(),
@@ -1409,6 +1411,7 @@ export const shipmentContainerBatchSchema = z.object({
       .transform(v => (v === '' ? null : v)),
     sealNumber: z.string().max(50).optional().nullable().transform(v => (v === '' ? null : v)),
     cargoWeightKg: shipmentWeightKg.optional().nullable(),
+    cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
     shippingLineName: z.string().trim().max(255).optional().nullable()
       .transform(v => (v === '' ? null : v)),
     pickupPortId: z.coerce.number().int().positive().optional().nullable(),

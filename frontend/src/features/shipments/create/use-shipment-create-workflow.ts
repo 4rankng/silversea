@@ -62,6 +62,15 @@ interface UseShipmentCreateWorkflowArgs {
   carrierAllocations: CarrierAllocationValue[];
   readiness: ShipmentCreateReadiness;
   onValidationIssues: (issues: ShipmentCreateIssue[]) => void;
+  onSaved?: (shipmentId: number, intent: SaveIntent) => void;
+  /**
+   * Customer-facing note (two-note model). The shared create/update payload
+   * builders live in `shipment-create-model.ts` and are not owned by this
+   * surface, so the customer note is injected here at the workflow boundary
+   * before the API call. The backend track accepts `customerNotes` on both
+   * `POST /shipments/quick` and `PUT /shipments/:id`.
+   */
+  customerNotes?: string;
 }
 
 /** Owns the durable create/retry state machine; presentation stays in the workspace. */
@@ -72,6 +81,8 @@ export function useShipmentCreateWorkflow({
   carrierAllocations,
   readiness,
   onValidationIssues,
+  onSaved,
+  customerNotes,
 }: UseShipmentCreateWorkflowArgs) {
   const navigate = useNavigate();
   const [saving, setSaving] = useState<SaveIntent | null>(null);
@@ -96,7 +107,11 @@ export function useShipmentCreateWorkflow({
     try {
       const attempt = attemptRef.current ?? { createKey: crypto.randomUUID(), submitKey: crypto.randomUUID() };
       attemptRef.current = attempt;
-      const createPayload = buildShipmentRootPayload(form, containers, sites);
+      const customerNotesValue = customerNotes?.trim() || null;
+      const createPayload = {
+        ...buildShipmentRootPayload(form, containers, sites),
+        customerNotes: customerNotesValue,
+      };
       const rootSignature = signature(createPayload);
 
       if (attempt.shipmentId == null || attempt.version == null) {
@@ -165,7 +180,8 @@ export function useShipmentCreateWorkflow({
         await submitShipmentForDispatch(shipmentId, submitPayload, attempt.submitKey);
       }
       attemptRef.current = null;
-      navigate(`/clerk/shipments/${shipmentId}/docs`);
+      if (onSaved) onSaved(shipmentId, intent);
+      else navigate(`/clerk/shipments/${shipmentId}/docs`);
       return { issues: [] as ShipmentCreateIssue[] };
     } catch (error) {
       setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');
@@ -173,7 +189,7 @@ export function useShipmentCreateWorkflow({
     } finally {
       setSaving(null);
     }
-  }, [carrierAllocations, containers, form, navigate, onValidationIssues, readiness, sites]);
+  }, [carrierAllocations, containers, customerNotes, form, navigate, onSaved, onValidationIssues, readiness, sites]);
 
   return { clearFeedback, reportError: setSubmitError, save, saving, submitError };
 }

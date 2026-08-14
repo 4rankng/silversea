@@ -8,12 +8,11 @@ import {
   Download,
   FileLock2,
   Loader2,
-  ReceiptText,
-  Route,
+  Pencil,
+  Plus,
   RotateCcw,
   Save,
   Search,
-  Warehouse,
   Truck,
   X,
 } from 'lucide-react';
@@ -43,6 +42,7 @@ import {
   updateShipment,
 } from '../api/shipmentClient';
 import { downloadCSV } from '../lib/csv';
+import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
 import './ShipmentsPage.css';
 
 const PAGE_SIZE = 20;
@@ -91,27 +91,6 @@ function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): s
   return '—';
 }
 
-function summarizeWorksheetValues(values: Array<string | null | undefined>): { display: string; full: string } {
-  const unique = [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))];
-  if (unique.length === 0) return { display: '—', full: 'Chưa có dữ liệu' };
-  if (unique.length === 1) return { display: unique[0], full: unique[0] };
-  return { display: 'Nhiều giá trị', full: unique.join('; ') };
-}
-
-function worksheetClosingValue(item: ShipmentCusWorkspaceListItem): { display: string; full: string } {
-  const appointmentValues = item.customerAppointmentAts.map((value) => formatDateTime(value));
-  if (appointmentValues.length > 0) return summarizeWorksheetValues(appointmentValues);
-  return summarizeWorksheetValues([
-    formatDateTime(item.direction === 'EXPORT' ? item.closingAt : item.plannedReturnAt),
-  ].filter((value) => value !== '—'));
-}
-
-function worksheetCarrierValues(item: ShipmentCusWorkspaceListItem): { display: string; full: string } {
-  return summarizeWorksheetValues(item.carrierAssignments.map(({ carrierName, plateNumber }) => (
-    [carrierName, plateNumber].filter(Boolean).join(' · ')
-  )));
-}
-
 function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
   if (item.operational.totalContainers > 0) {
     return `${item.operational.totalContainers.toLocaleString('vi-VN')} cont`;
@@ -120,6 +99,39 @@ function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
     return `${item.packageCount.toLocaleString('vi-VN')} ${item.packageType || 'kiện'}`;
   }
   return '—';
+}
+
+function scheduleTimestamp(item: ShipmentCusWorkspaceListItem): string | null {
+  return item.direction === 'IMPORT' ? item.plannedReturnAt : item.closingAt;
+}
+
+function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
+  const value = scheduleTimestamp(item);
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {
+  const { totalContainers, assignedContainers, vehicleReadiness } = item.operational;
+  if (vehicleReadiness === 'READY') return 'Đã phân xe';
+  if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
+  const waiting = Math.max(0, totalContainers - assignedContainers);
+  if (waiting >= totalContainers) return 'Toàn bộ chưa phân xe';
+  return `${waiting.toLocaleString('vi-VN')} cont chưa phân xe`;
+}
+
+function noteLines(note: string | null | undefined): string[] {
+  return (note ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 2);
+}
+
+interface ShipmentQuickEditDraft {
+  shipmentId: number;
+  date: string;
+  time: string;
+  customerNote: string;
+  operationalNote: string;
 }
 
 function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
@@ -173,17 +185,6 @@ function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
     <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>
       <Icon size={14} aria-hidden="true" /> {item.bucketLabel}
     </span>
-  );
-}
-
-function ScheduleEvidence({ item }: { item: ShipmentCusWorkspaceListItem }) {
-  const waiting = item.operational.scheduleReadiness === 'WAITING_DATE';
-  const overdue = item.operational.scheduleReadiness === 'OVERDUE';
-  return (
-    <div className={`cus-operational-evidence${waiting || overdue ? ' cus-operational-evidence--warning' : ''}`}>
-      <strong>{waiting ? 'Chưa chốt' : formatDate(item.transportDate)}</strong>
-      <span>{item.containerSummary} · {directionLabel(item.direction)}</span>
-    </div>
   );
 }
 
@@ -680,6 +681,11 @@ export default function ShipmentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [transportDateDrafts, setTransportDateDrafts] = useState<Record<number, string>>({});
   const [savingTransportDateIds, setSavingTransportDateIds] = useState<Set<number>>(() => new Set());
+  const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
+  const [savingQuickEdit, setSavingQuickEdit] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createDirty, setCreateDirty] = useState(false);
+  const [createCloseConfirmOpen, setCreateCloseConfirmOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const requestSequence = useRef(0);
   const detailRequestSequence = useRef<Record<number, number>>({});
@@ -908,6 +914,80 @@ export default function ShipmentsPage() {
     }
   };
 
+  const startQuickEdit = (item: ShipmentCusWorkspaceListItem) => {
+    if (!item.operational.transportDateEditable) {
+      setError('Lô hàng này đang khóa hoặc đã qua giai đoạn cho phép CUS sửa lịch.');
+      return;
+    }
+    setError(null);
+    setQuickEditDraft({
+      shipmentId: item.id,
+      date: item.transportDate ?? '',
+      time: scheduleTime(item),
+      customerNote: item.customerNotes ?? '',
+      operationalNote: item.operationalNotes ?? '',
+    });
+  };
+
+  const saveQuickEdit = async (item: ShipmentCusWorkspaceListItem) => {
+    if (!quickEditDraft || quickEditDraft.shipmentId !== item.id) return;
+    if (quickEditDraft.time && !quickEditDraft.date) {
+      setError('Chọn ngày đóng/trả trước khi nhập giờ.');
+      return;
+    }
+    setSavingQuickEdit(true);
+    setError(null);
+    try {
+      const scheduleValue = quickEditDraft.date && quickEditDraft.time
+        ? new Date(`${quickEditDraft.date}T${quickEditDraft.time}:00`).toISOString()
+        : null;
+      await updateShipment(item.id, {
+        expectedVersion: item.version,
+        expectedDeliveryDate: quickEditDraft.date || null,
+        operationalNotes: quickEditDraft.operationalNote.trim() || null,
+        customerNotes: quickEditDraft.customerNote.trim() || null,
+        ...(item.direction === 'IMPORT'
+          ? { plannedReturnAt: scheduleValue }
+          : { closingAt: scheduleValue }),
+      });
+      setQuickEditDraft(null);
+      setNotice('Đã cập nhật lịch đóng/trả và ghi chú lô hàng.');
+      setDetails((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+      await loadList();
+    } catch (quickEditError) {
+      setError(safeError(quickEditError, 'Không thể lưu lịch và ghi chú lô hàng.'));
+    } finally {
+      setSavingQuickEdit(false);
+    }
+  };
+
+  const requestCloseCreate = () => {
+    if (createDirty) {
+      setCreateCloseConfirmOpen(true);
+      return;
+    }
+    setCreateOpen(false);
+    setCreateDirty(false);
+  };
+
+  const discardCreateChanges = () => {
+    setCreateCloseConfirmOpen(false);
+    setCreateOpen(false);
+    setCreateDirty(false);
+  };
+
+  const handleShipmentCreated = async () => {
+    setCreateOpen(false);
+    setCreateDirty(false);
+    setCreateCloseConfirmOpen(false);
+    setNotice('Đã tạo lô hàng mới. Dòng dữ liệu mới đã được cập nhật trên bảng.');
+    await loadList();
+  };
+
   const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen') => {
     if (dirtyDetailIds.has(item.id)) {
       setError('Hãy lưu hoặc bỏ thay đổi container trước khi thực hiện thao tác này.');
@@ -1057,17 +1137,20 @@ export default function ShipmentsPage() {
 
       await downloadCSV(
         `ke-hoach-lo-hang-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Ngày giao hàng', 'Khách hàng', 'Nhà máy', 'Số Bill/Book', 'Hãng tàu', 'Tổng số lượng', 'Trọng lượng tổng', 'Xuất/Nhập', 'Cutoff', 'Nâng', 'Hạ', 'Điểm trả', 'Loại cont', 'Giờ đóng/trả', 'Ghi chú lưu ý', 'Nhà xe'],
+        ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú', 'Trạng thái'],
         exportItems.map((item) => [
-          item.transportDate ?? '', item.customerName ?? '', item.factoryName ?? '', item.billOrBookNumber ?? '',
-          item.shippingLineName ?? '', worksheetQuantity(item), item.weightKg == null ? '' : Number(item.weightKg), directionLabel(item.direction),
-          item.customsCutoffAt ?? '', item.liftSiteNames.join('; '), item.dropoffSiteNames.join('; '), item.deliveryLocation ?? '',
-          item.containerSummary, worksheetClosingValue(item).full, item.note ?? '', worksheetCarrierValues(item).full,
+          [item.customerName ?? '—', item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
+          [item.billOrBookNumber ?? '', item.declarationNumber ?? ''].filter(Boolean).join('\n'),
+          [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Hàng kết hợp' : ''].filter(Boolean).join('\n'),
+          [item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
+          [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
+          [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
+          [item.bucketLabel, (item.finance.isLoss || item.finance.hasPendingRecovery || !item.action.enabled) ? 'Cần kiểm tra' : ''].filter(Boolean).join('\n'),
         ]),
         {
           title: 'Kế hoạch lô hàng',
           subtitle: `${exportItems.length.toLocaleString('vi-VN')} lô hàng`,
-          columnTypes: ['date', 'text', 'text', 'text', 'text', 'text', 'number', 'text', 'date', 'text', 'text', 'text', 'text', 'text', 'text', 'text'],
+          columnTypes: ['text', 'text', 'text', 'text', 'text', 'text', 'text'],
           hideTotals: true,
         },
       );
@@ -1087,8 +1170,8 @@ export default function ShipmentsPage() {
         className="cus-workspace cus-workspace--worksheet"
         aria-labelledby="cus-workspace-title"
         aria-busy={loading}
-        aria-hidden={drawerId != null ? true : undefined}
-        inert={drawerId != null ? true : undefined}
+        aria-hidden={drawerId != null || createOpen ? true : undefined}
+        inert={drawerId != null || createOpen ? true : undefined}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
         <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
@@ -1153,7 +1236,7 @@ export default function ShipmentsPage() {
               <input type="date" value={dateTo} onChange={(event) => updateParam('transportDateTo', event.target.value || null)} />
               </label>
               <label className="cus-filter-field">
-              <span>Trạng thái</span>
+              <span>Kế hoạch</span>
               <select value={bucket} onChange={(event) => updateParam('bucket', event.target.value || null)}>
                 <option value="">Tất cả trạng thái</option>
                 {BUCKETS.map((value) => <option key={value} value={value}>{SHIPMENT_CUS_BUCKET_LABELS[value]}</option>)}
@@ -1163,7 +1246,10 @@ export default function ShipmentsPage() {
           </details>
 
           <div className="cus-worksheet-toolbar__actions">
-            <button className="btn btn--primary" type="submit"><Search size={17} aria-hidden="true" /> Tìm kiếm</button>
+            <button className="btn btn--primary cus-create-shipment" type="button" onClick={() => setCreateOpen(true)}>
+              <Plus size={18} aria-hidden="true" /> Tạo lô mới
+            </button>
+            <button className="btn btn--secondary" type="submit"><Search size={17} aria-hidden="true" /> Tìm kiếm</button>
             {hasFilters && <button className="btn btn--ghost" type="button" onClick={clearFilters}><RotateCcw size={17} aria-hidden="true" /> Xóa lọc</button>}
             <button className="btn btn--secondary" type="button" disabled={exporting || loading} onClick={() => void exportWorksheet()}>
               {exporting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : <Download size={17} aria-hidden="true" />}
@@ -1194,7 +1280,7 @@ export default function ShipmentsPage() {
 
         <div className="cus-worksheet-meta" role="status" aria-live="polite">
           <strong>{resultLabel}</strong>
-          <span>Cuộn ngang trong bảng để xem đủ 16 cột nghiệp vụ.</span>
+          <span>Bảy nhóm thông tin chính, mỗi lô hàng trên một dòng.</span>
         </div>
 
         {notice && <div className="cus-notice cus-notice--success" role="status">{notice}</div>}
@@ -1217,90 +1303,119 @@ export default function ShipmentsPage() {
         ) : (
           <>
             <p id="cus-worksheet-instructions" className="sr-only">
-              Bảng có thể cuộn ngang và dọc. Dùng phím mũi tên hoặc Shift cộng con lăn để di chuyển, rồi mở nút chi tiết ở đầu mỗi dòng để chỉnh sửa.
+              Bảng lô hàng gồm bảy nhóm thông tin. Chọn Sửa lịch và ghi chú để cập nhật nhanh, hoặc mở Chi tiết để dùng các nghiệp vụ nâng cao.
             </p>
-            <div className="cus-worksheet-viewport" role="region" aria-label="Bảng kế hoạch lô hàng" aria-describedby="cus-worksheet-instructions" tabIndex={0}>
-              <table className="cus-worksheet-table">
-                <caption className="sr-only">Kế hoạch giao nhận lô hàng theo 16 cột nghiệp vụ</caption>
+            <div className="cus-dashboard-viewport" role="region" aria-label="Bảng tổng hợp lô hàng" aria-describedby="cus-worksheet-instructions" tabIndex={0}>
+              <table className="cus-dashboard-table">
+                <caption className="sr-only">Tổng hợp lô hàng theo bảy nhóm thông tin</caption>
                 <colgroup>
-                  <col className="cus-worksheet-col--control" /><col className="cus-worksheet-col--date" />
-                  <col className="cus-worksheet-col--customer" /><col className="cus-worksheet-col--factory" />
-                  <col className="cus-worksheet-col--bill" /><col className="cus-worksheet-col--line" />
-                  <col className="cus-worksheet-col--count" /><col className="cus-worksheet-col--weight" />
-                  <col className="cus-worksheet-col--direction" /><col className="cus-worksheet-col--cutoff" />
-                  <col className="cus-worksheet-col--lift" /><col className="cus-worksheet-col--drop" />
-                  <col className="cus-worksheet-col--destination" /><col className="cus-worksheet-col--container" />
-                  <col className="cus-worksheet-col--closing" /><col className="cus-worksheet-col--note" />
-                  <col className="cus-worksheet-col--carrier" />
+                  <col className="cus-dashboard-col--customer" />
+                  <col className="cus-dashboard-col--documents" />
+                  <col className="cus-dashboard-col--classification" />
+                  <col className="cus-dashboard-col--cargo" />
+                  <col className="cus-dashboard-col--schedule" />
+                  <col className="cus-dashboard-col--notes" />
+                  <col className="cus-dashboard-col--status" />
                 </colgroup>
-                <thead>
-                  <tr className="cus-worksheet-groups">
-                    <th className="cus-worksheet-sticky-control" scope="col" rowSpan={2}>Lô hàng / chi tiết</th>
-                    <th scope="colgroup" colSpan={5}>Thông tin lô hàng</th>
-                    <th scope="colgroup" colSpan={3}>Hàng hóa</th>
-                    <th scope="colgroup" colSpan={2}>Kế hoạch</th>
-                    <th scope="colgroup" colSpan={6}>Điều vận</th>
-                  </tr>
-                  <tr>
-                    <th scope="col">Ngày giao hàng</th><th scope="col">Khách hàng</th>
-                    <th scope="col">Nhà máy</th><th scope="col">Số Bill/Book</th>
-                    <th scope="col">Hãng tàu</th><th scope="col">Tổng số lượng</th>
-                    <th scope="col">Trọng lượng tổng</th><th scope="col">Xuất / Nhập</th>
-                    <th scope="col">Cutoff</th><th scope="col">Nâng</th><th scope="col">Hạ</th>
-                    <th scope="col">Điểm trả</th><th scope="col">Loại cont</th>
-                    <th scope="col">Giờ đóng / trả</th><th scope="col">Ghi chú lưu ý</th><th scope="col">Nhà xe</th>
-                  </tr>
-                </thead>
+                <thead><tr>
+                  <th scope="col">Khách hàng &amp; nhà máy</th>
+                  <th scope="col">Chứng từ</th>
+                  <th scope="col">Phân loại &amp; hãng tàu</th>
+                  <th scope="col">Tổng quan hàng hóa</th>
+                  <th scope="col">Lịch trình &amp; điều xe</th>
+                  <th scope="col">Ghi chú</th>
+                  <th scope="col">Trạng thái</th>
+                </tr></thead>
                 <tbody>
                   {items.map((item) => {
-                    const lift = summarizeWorksheetValues(item.liftSiteNames);
-                    const dropoff = summarizeWorksheetValues(item.dropoffSiteNames);
-                    const closing = worksheetClosingValue(item);
-                    const carriers = worksheetCarrierValues(item);
                     const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
                     const needsAttention = Boolean(item.finance.isLoss || item.finance.hasPendingRecovery || !item.action.enabled);
+                    const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
+                    const editing = quickEditDraft?.shipmentId === item.id;
+                    const customerNoteLines = noteLines(item.customerNotes);
+                    const operationalNoteLines = noteLines(item.operationalNotes);
                     return (
                       <tr
                         key={item.id}
-                        className="cus-worksheet-row"
+                        className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
                         onClick={(event) => {
                           if (isInteractiveRowTarget(event.target)) return;
                           openShipmentDetail(item.id);
                         }}
                       >
-                        <th className="cus-worksheet-sticky-control" scope="row">
+                        <th scope="row" data-label="Khách hàng & nhà máy">
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-                          <button
-                            id={'cus-row-disclosure-' + item.id}
-                            type="button"
-                            className="cus-row-disclosure cus-row-disclosure--worksheet"
-                            aria-haspopup="dialog"
-                            aria-controls={'cus-detail-drawer-' + item.id}
-                            aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel}
-                            onClick={() => openShipmentDetail(item.id)}
-                          >
-                            <span className="cus-row-disclosure__identity" aria-hidden="true">{identity}</span>
-                            <span className="cus-row-disclosure__status" aria-hidden="true">{item.bucketLabel}</span>
-                            {needsAttention && <AlertTriangle size={13} aria-hidden="true" />}
-                          </button>
-                          <span className="sr-only">{item.bucketLabel}{needsAttention ? ', cần kiểm tra' : ''}</span>
+                          <div className="cus-multiline-cell">
+                            <strong>{item.customerName || '—'}</strong>
+                            <span>{item.factoryName || 'Chưa có nhà máy'}</span>
+                            <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
+                          </div>
                         </th>
-                        <td className="cus-worksheet-cell--date">{formatDate(item.transportDate)}</td>
-                        <td><strong>{item.customerName || '—'}</strong></td>
-                        <td>{item.factoryName || '—'}</td>
-                        <td className="cus-worksheet-cell--mono"><strong>{item.billOrBookNumber || '—'}</strong></td>
-                        <td>{item.shippingLineName || '—'}</td>
-                        <td className="cus-worksheet-cell--number">{worksheetQuantity(item)}</td>
-                        <td className="cus-worksheet-cell--number">{formatQuantity(item.weightKg)} kg</td>
-                        <td>{directionLabel(item.direction)}</td>
-                        <td>{formatDateTime(item.customsCutoffAt)}</td>
-                        <td aria-label={lift.full} className={lift.display === 'Nhiều giá trị' ? 'cus-worksheet-cell--mixed' : undefined}>{lift.display}</td>
-                        <td aria-label={dropoff.full} className={dropoff.display === 'Nhiều giá trị' ? 'cus-worksheet-cell--mixed' : undefined}>{dropoff.display}</td>
-                        <td>{item.deliveryLocation || item.factoryName || '—'}</td>
-                        <td>{item.containerSummary || '—'}</td>
-                        <td aria-label={closing.full} className={closing.display === 'Nhiều giá trị' ? 'cus-worksheet-cell--mixed' : undefined}>{closing.display}</td>
-                        <td>{item.note || '—'}</td>
-                        <td aria-label={carriers.full} className={carriers.display === 'Nhiều giá trị' ? 'cus-worksheet-cell--mixed' : undefined}>{carriers.display}</td>
+                        <td data-label="Chứng từ">
+                          <div className="cus-multiline-cell cus-multiline-cell--mono">
+                            <strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
+                            <span>{item.declarationNumber || 'Chưa có tờ khai'}</span>
+                          </div>
+                        </td>
+                        <td data-label="Phân loại & hãng tàu">
+                          <div className="cus-multiline-cell">
+                            <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
+                            <span>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
+                            {item.isCombined && <span className="cus-combined-tag">Hàng kết hợp</span>}
+                          </div>
+                        </td>
+                        <td data-label="Tổng quan hàng hóa">
+                          <div className="cus-multiline-cell cus-multiline-cell--numeric">
+                            <strong>{item.containerSummary || worksheetQuantity(item)}</strong>
+                            <span>{formatQuantity(item.weightKg)} kg</span>
+                            <span>{item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
+                          </div>
+                        </td>
+                        <td data-label="Lịch trình & điều xe">
+                          {editing && quickEditDraft ? (
+                            <div className="cus-quick-edit">
+                              <label><span>Ngày đóng/trả</span><input type="date" value={quickEditDraft.date} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, date: event.target.value })} /></label>
+                              <label><span>Giờ</span><input type="time" value={quickEditDraft.time} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, time: event.target.value })} /></label>
+                              <small>{vehicleReadinessLabel(item)}</small>
+                            </div>
+                          ) : (
+                            <button type="button" className="cus-inline-trigger" onClick={() => startQuickEdit(item)} disabled={!item.operational.transportDateEditable} aria-label={`Sửa lịch và ghi chú lô hàng ${identity}`}>
+                              <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
+                              <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
+                              <span>{vehicleReadinessLabel(item)}</span>
+                              {item.operational.transportDateEditable && <em><Pencil size={13} aria-hidden="true" /> Sửa nhanh</em>}
+                            </button>
+                          )}
+                        </td>
+                        <td data-label="Ghi chú">
+                          {editing && quickEditDraft ? (
+                            <div className="cus-note-editor-group">
+                              <label className="cus-note-editor"><span>Ghi chú cho khách</span><textarea rows={2} maxLength={2000} value={quickEditDraft.customerNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, customerNote: event.target.value })} /></label>
+                              <label className="cus-note-editor cus-note-editor--internal"><span>Ghi chú nội bộ</span><textarea rows={2} maxLength={2000} value={quickEditDraft.operationalNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, operationalNote: event.target.value })} /></label>
+                            </div>
+                          ) : (
+                            <div className="cus-multiline-cell cus-note-preview" title={item.customerNotes || item.operationalNotes || undefined}>
+                              <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
+                              {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
+                              {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
+                              {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td data-label="Trạng thái">
+                          <div className="cus-row-actions">
+                            <WorkflowBadge item={item} />
+                            {needsAttention && <span className="cus-attention-label"><AlertTriangle size={13} aria-hidden="true" /> Cần kiểm tra</span>}
+                            {editing ? (
+                              <div className="cus-row-actions__edit">
+                                <button type="button" className="btn btn--primary btn--sm" disabled={savingQuickEdit} onClick={() => void saveQuickEdit(item)}>{savingQuickEdit ? <Loader2 className="spin" size={14} aria-hidden="true" /> : <Save size={14} aria-hidden="true" />} Lưu</button>
+                                <button type="button" className="btn btn--ghost btn--sm" disabled={savingQuickEdit} onClick={() => setQuickEditDraft(null)}>Hủy</button>
+                              </div>
+                            ) : (
+                              <button id={'cus-dashboard-detail-' + item.id} type="button" className="btn btn--secondary btn--sm cus-dashboard-detail" aria-haspopup="dialog" aria-controls={'cus-detail-drawer-' + item.id} aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel} onClick={() => openShipmentDetail(item.id)}>Chi tiết</button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1313,6 +1428,25 @@ export default function ShipmentsPage() {
           </>
         )}
       </section>
+
+      <Modal isOpen={createOpen} title="Tạo lô hàng mới" onClose={requestCloseCreate} maxWidth={1280}>
+        <p className="cus-create-modal-intro">Nhập thông tin trên một biểu mẫu liên tục. Có thể lưu bản nháp để bổ sung sau hoặc hoàn tất và gửi điều phối.</p>
+        <ShipmentCreateWorkspace embedded onCancel={requestCloseCreate} onDirtyChange={setCreateDirty} onSaved={() => void handleShipmentCreated()} />
+      </Modal>
+
+      <Modal
+        isOpen={createCloseConfirmOpen}
+        title="Bỏ tạo lô hàng?"
+        onClose={() => setCreateCloseConfirmOpen(false)}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setCreateCloseConfirmOpen(false)}>Tiếp tục nhập</button>
+            <button type="button" className="btn btn--secondary" onClick={discardCreateChanges}>Bỏ thay đổi và đóng</button>
+          </>
+        )}
+      >
+        <p>Thông tin chưa lưu sẽ bị mất. Hãy lưu nháp hoặc xác nhận bỏ thay đổi trước khi đóng.</p>
+      </Modal>
 
       <Drawer
         isOpen={drawerId != null}

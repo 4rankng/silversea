@@ -46,6 +46,7 @@ type ContainerRow = {
   containerNumber: string | null;
   customerAppointmentAt: Date | null;
   cargoWeightKg: string | null;
+  cargoVolumeCbm: string | null;
   containerTypeId: number | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
@@ -154,6 +155,16 @@ function toMoneyString(value: number): string {
 
 function sumMoney(values: Array<string | number | null | undefined>): string {
   return toMoneyString(values.reduce<number>((sum, value) => sum + toNumber(value), 0));
+}
+
+// Sums numeric strings preserving `scale` decimal places. Returns null when no
+// value is present, so callers can fall back to the shipment-level figure for
+// historical rows that predate per-container cargo tracking.
+function sumDecimal(values: Array<string | null | undefined>, scale: number): string | null {
+  const present = values.filter((value): value is string => value != null && value !== '');
+  if (present.length === 0) return null;
+  const total = present.reduce<number>((sum, value) => sum + toNumber(value), 0);
+  return total.toFixed(scale);
 }
 
 function businessDateNow(): string {
@@ -369,6 +380,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerNumber: s.shipmentContainers.containerNumber,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      cargoVolumeCbm: s.shipmentContainers.cargoVolumeCbm,
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
@@ -783,8 +795,10 @@ function buildListItem(
     containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
     packageCount: row.shipment.packageCount,
     packageType: trimOrNull(row.shipment.packageType),
-    weightKg: row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg),
-    volumeCbm: row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm),
+    weightKg: sumDecimal(containers.map((container) => container.cargoWeightKg), 2)
+      ?? (row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg)),
+    volumeCbm: sumDecimal(containers.map((container) => container.cargoVolumeCbm), 3)
+      ?? (row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm)),
     transportDate: row.shipment.expectedDeliveryDate,
     customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
     closingAt: row.shipment.closingAt?.toISOString() ?? null,
@@ -794,7 +808,8 @@ function buildListItem(
     dropoffSiteNames,
     customerAppointmentAts,
     carrierAssignments,
-    note: trimOrNull(row.shipment.operationalNotes),
+    customerNotes: trimOrNull(row.shipment.customerNotes),
+    operationalNotes: trimOrNull(row.shipment.operationalNotes),
     operational,
     finance: {
       customerInvoiceTotal,

@@ -197,14 +197,15 @@ describe('ClerkShipmentCreatePage', () => {
   });
 
   it('protects entered data when the explicit back action is used', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirm = vi.spyOn(window, 'confirm');
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     fireEvent.change(screen.getByLabelText('Số Bill/Book'), { target: { value: 'BK-DIRTY' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
 
-    expect(confirm).toHaveBeenCalledWith('Thông tin chưa lưu sẽ bị mất. Bạn có chắc muốn quay lại?');
+    expect(await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeTruthy();
+    expect(confirm).not.toHaveBeenCalled();
     expect(screen.getByLabelText('Số Bill/Book')).toHaveProperty('value', 'BK-DIRTY');
     confirm.mockRestore();
   });

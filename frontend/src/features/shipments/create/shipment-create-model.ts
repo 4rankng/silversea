@@ -33,6 +33,7 @@ export interface ShipmentContainerDraft {
   pickupPortId: string;
   dropoffPortId: string;
   cargoWeightKg: string;
+  cargoVolumeCbm: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -89,6 +90,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     pickupPortId: '',
     dropoffPortId: '',
     cargoWeightKg: '',
+    cargoVolumeCbm: '',
   };
 }
 
@@ -237,5 +239,6 @@ export function buildShipmentContainerPayload(
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
+    cargoVolumeCbm: row.cargoVolumeCbm || null,
   }));
 }

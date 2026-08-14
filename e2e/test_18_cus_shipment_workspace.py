@@ -311,8 +311,8 @@ def main() -> bool:
                 visible_fixture = page.get_by_text(f"BLCUS{BOOK_SUFFIX_STORED}", exact=False).count() > 0
 
                 if width == 1440:
-                    master_row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    expand_button = master_row.locator("button.cus-row-disclosure")
+                    master_row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
+                    expand_button = master_row.locator("button.cus-dashboard-detail")
                     expand_button.focus()
                     controls = expand_button.get_attribute("aria-controls")
                     page.keyboard.press("Enter")
@@ -322,7 +322,7 @@ def main() -> bool:
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
                     dialog.get_by_role("button", name="Đóng").click()
                     page.wait_for_function("document.querySelectorAll('[role=\"dialog\"]').length === 0", timeout=2_500)
-                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-row-disclosure') === true")
+                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-dashboard-detail') === true")
                     check(
                         results,
                         "TC-1812",
@@ -332,8 +332,8 @@ def main() -> bool:
                     )
 
                 if width == 390:
-                    worksheet_row = page.locator("tr.cus-worksheet-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
-                    drawer_opener = worksheet_row.locator("button.cus-row-disclosure")
+                    worksheet_row = page.locator("tr.cus-dashboard-row").filter(has_text=f"BLCUS{BOOK_SUFFIX_STORED}")
+                    drawer_opener = worksheet_row.locator("button.cus-dashboard-detail")
                     drawer_opener.focus()
                     drawer_opener.click()
                     dialog = page.get_by_role("dialog")
@@ -354,7 +354,7 @@ def main() -> bool:
                         "document.querySelectorAll('[role=\"dialog\"]').length === 0",
                         timeout=2_000,
                     )
-                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-row-disclosure') === true")
+                    focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-dashboard-detail') === true")
                     check(
                         results,
                         "TC-1813",

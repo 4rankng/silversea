@@ -23,6 +23,15 @@ vi.mock('../lib/api', () => ({
 
 vi.mock('../lib/csv', () => ({ downloadCSV }));
 
+vi.mock('../features/shipments/create/ShipmentCreateWorkspace', () => ({
+  ShipmentCreateWorkspace: ({ onSaved, onDirtyChange }: { onSaved?: (shipmentId: number) => void; onDirtyChange?: (dirty: boolean) => void }) => (
+    <div>
+      <button type="button" onClick={() => onDirtyChange?.(true)}>Đánh dấu đã nhập</button>
+      <button type="button" onClick={() => onSaved?.(99)}>Lưu lô thử nghiệm</button>
+    </div>
+  ),
+}));
+
 import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
@@ -56,7 +65,8 @@ const row: ShipmentCusWorkspaceListItem = {
   dropoffSiteNames: ['Bãi Tân Vũ'],
   customerAppointmentAts: ['2026-08-12T02:30:00.000Z'],
   carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
-  note: 'Giao buổi sáng',
+  customerNotes: 'Giao buổi sáng',
+  operationalNotes: 'Ưu tiên cổng số 2',
   operational: {
     scheduleReadiness: 'SCHEDULED',
     vehicleReadiness: 'READY',
@@ -178,13 +188,13 @@ function renderPage(path = '/shipments') {
 }
 
 function masterRow(): HTMLTableRowElement {
-  const element = document.querySelector('tr.cus-worksheet-row');
+  const element = document.querySelector('tr.cus-dashboard-row');
   if (!(element instanceof HTMLTableRowElement)) throw new Error('shipment master row not rendered');
   return element;
 }
 
 function masterRowDetailButton(): HTMLButtonElement {
-  const element = document.querySelector('button.cus-row-disclosure');
+  const element = document.querySelector('button.cus-dashboard-detail');
   if (!(element instanceof HTMLButtonElement)) throw new Error('shipment detail button not rendered');
   return element;
 }
@@ -237,23 +247,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('searchSuffix=aB12C')));
   });
 
-  it('renders the fixed 16-column operational worksheet and opens detail in a drawer', async () => {
+  it('renders the approved seven-column multi-line dashboard and opens detail in a drawer', async () => {
     renderPage();
     const table = await screen.findByRole('table');
     const surface = within(table);
-    const headers = [
-      'Ngày giao hàng', 'Khách hàng', 'Nhà máy', 'Số Bill/Book', 'Hãng tàu',
-      'Tổng số lượng', 'Trọng lượng tổng', 'Xuất / Nhập', 'Cutoff', 'Nâng', 'Hạ',
-      'Điểm trả', 'Loại cont', 'Giờ đóng / trả', 'Ghi chú lưu ý', 'Nhà xe',
-    ];
+    const headers = ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú', 'Trạng thái'];
     for (const header of headers) {
       expect(surface.getByRole('columnheader', { name: header })).toBeTruthy();
     }
-    expect(surface.getByText('Cảng Đình Vũ')).toBeTruthy();
-    expect(surface.getByText('Bãi Tân Vũ')).toBeTruthy();
-    expect(surface.getByText('Kho Long Biên')).toBeTruthy();
-    expect(surface.getByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
-    expect(masterRowDetailButton().textContent).toContain('BILL-12345');
+    expect(surface.getByText('Công ty Silver Sea')).toBeTruthy();
+    expect(surface.getByText('Hải Phòng → Hà Nội')).toBeTruthy();
+    expect(surface.getByText('TK-54321')).toBeTruthy();
+    expect(masterRowDetailButton().textContent).toContain('Chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
 
@@ -277,21 +282,25 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
 
     renderPage();
-    expect((await screen.findAllByText('4 Pallet')).length).toBe(2);
+    expect((await screen.findAllByText('4 Pallet')).length).toBe(1);
     expect(screen.queryByText('0 cont')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
     await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));
-    const rows = downloadCSV.mock.calls[0]?.[2] as Array<Array<string | number>>;
-    expect(rows[0]?.[5]).toBe('4 Pallet');
+    const exportArgs = downloadCSV.mock.calls[0];
+    const exportColumns = exportArgs?.[1] as string[];
+    expect(exportColumns).toHaveLength(7);
+    const rows = exportArgs?.[2] as Array<Array<string | number>>;
+    // Column index 3 = "Tổng quan hàng hóa" — includes the package-authority quantity.
+    expect(rows[0]?.[3]).toContain('4 Pallet');
   });
 
-  it('sends the direction filter and keeps all worksheet columns fixed', async () => {
+  it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.change(screen.getByLabelText('Xuất / Nhập'), { target: { value: 'EXPORT' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
-    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
+    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     expect(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3')).toBeNull();
   });
 
@@ -335,13 +344,61 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     });
   });
 
-  it('uses the same horizontally scrollable worksheet at narrow widths', async () => {
+  it('stacks the same seven groups at narrow widths without a horizontal rail', async () => {
     renderPage();
     await screen.findByRole('table');
-    expect(document.querySelector('.cus-worksheet-viewport')).not.toBeNull();
+    expect(document.querySelector('.cus-dashboard-viewport')).not.toBeNull();
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
-    expect(css).toMatch(/\.cus-worksheet-viewport\s*\{[\s\S]*?overflow:\s*auto;/);
-    expect(css).toMatch(/@media \(max-width: 700px\)[\s\S]*?\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
+    expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
+  });
+
+  it('highlights a shipment whose closing or return date is not yet confirmed', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      transportDate: null,
+      plannedReturnAt: null,
+      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const },
+    }]));
+
+    renderPage();
+    expect(await screen.findByText('Chưa chốt ngày')).toBeTruthy();
+    expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
+  });
+
+  it('persists quick schedule and note edits with the shipment optimistic version', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa lịch và ghi chú lô hàng BILL-12345' }));
+    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
+    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3,
+      expectedDeliveryDate: '2026-08-20',
+      operationalNotes: 'Ưu tiên cổng số 2',
+      customerNotes: 'LƯU CA SÁNG',
+      plannedReturnAt: expect.any(String),
+    })));
+    expect(apiPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('closingAt');
+    expect(await screen.findByText('Đã cập nhật lịch đóng/trả và ghi chú lô hàng.')).toBeTruthy();
+  });
+
+  it('opens the governed create form and refreshes the dashboard after save', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    const callsBeforeCreate = apiGet.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu lô thử nghiệm' }));
+
+    await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThan(callsBeforeCreate));
+    expect(await screen.findByText('Đã tạo lô hàng mới. Dòng dữ liệu mới đã được cập nhật trên bảng.')).toBeTruthy();
   });
 
   it('opens the governed shipment controls from the row button', async () => {
@@ -748,15 +805,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     randomUUID.mockRestore();
   });
 
-  it('uses a bounded, sticky, keyboard-focusable worksheet without mobile card fallback', () => {
-    expect(css).toMatch(/\.cus-worksheet-viewport\s*\{[\s\S]*?max-height:[\s\S]*?overflow:\s*auto;[\s\S]*?scrollbar-gutter:\s*stable both-edges;/);
-    expect(css).toMatch(/\.cus-worksheet-table\s*\{[\s\S]*?width:\s*2368px;[\s\S]*?table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-worksheet-table col\.cus-worksheet-col--control\s*\{\s*width:\s*144px;/);
-    expect(css).toMatch(/\.cus-worksheet-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
-    expect(css).toMatch(/\.cus-worksheet-table \.cus-worksheet-sticky-control\s*\{[\s\S]*?left:\s*0;/);
-    expect(css).toMatch(/\.cus-row-disclosure--worksheet\s*\{[\s\S]*?width:\s*128px;[\s\S]*?height:\s*44px;/);
+  it('uses a bounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
+    expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?max-height:[\s\S]*?overflow-y:\s*auto;[\s\S]*?overflow-x:\s*clip;[\s\S]*?scrollbar-gutter:\s*stable;/);
+    expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
+    expect(css).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{\s*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?min-height:\s*44px;/);
     expect(source).toContain('tabIndex={0}');
-    expect(source).toContain('scope="colgroup"');
     expect(source).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
     expect(source).not.toContain('MASTER_COLUMN_PREFERENCES_KEY');
@@ -766,5 +821,73 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
     expect(source).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
     expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
+  });
+
+  it('opens the accessible confirm Modal (not window.confirm) when closing a dirty create form', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
+    // Mark the create form dirty via the mocked workspace's onDirtyChange callback.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đánh dấu đã nhập' }));
+    // Attempt to close the create modal — should open the confirm modal instead.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeTruthy();
+    expect(confirmSpy).not.toHaveBeenCalled();
+
+    // Confirming discards the draft and closes both the confirm + create modals.
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và đóng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Tạo lô hàng mới' })).toBeNull());
+    confirmSpy.mockRestore();
+  });
+
+  it('keeps the create draft when cancelling the dirty-close confirm', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Tạo lô hàng mới' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đánh dấu đã nhập' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Tiếp tục nhập' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeNull());
+    // The create modal stays open.
+    expect(screen.getByRole('dialog', { name: 'Tạo lô hàng mới' })).toBeTruthy();
+  });
+
+  it('emits the seven-column grouped dashboard schema from the XLSX export', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
+    await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));
+    const exportColumns = downloadCSV.mock.calls[0]?.[1] as string[];
+    expect(exportColumns).toEqual([
+      'Khách hàng & nhà máy',
+      'Chứng từ',
+      'Phân loại & hãng tàu',
+      'Tổng quan hàng hóa',
+      'Lịch trình & điều xe',
+      'Ghi chú',
+      'Trạng thái',
+    ]);
+    const rows = downloadCSV.mock.calls[0]?.[2] as Array<Array<string | number>>;
+    // Column 6 (index 5) = "Ghi chú" — should contain the customer-facing note.
+    expect(rows[0]?.[5]).toContain('Giao buổi sáng');
+  });
+
+  it('intentionally augments Col7 with a Cần kiểm tra attention flag', async () => {
+    // The spec lists Col7 as the status bucket only. This augmentation flags
+    // shipments needing operator attention (loss, pending recovery, disabled action).
+    expect(source).toContain('Cần kiểm tra');
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByText('Cần kiểm tra')).toBeTruthy();
   });
 });

@@ -344,6 +344,7 @@ export interface CreateShipmentInput {
   packageCount?: number | null;
   packageType?: string | null;
   operationalNotes?: string | null;
+  customerNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -375,6 +376,7 @@ export interface UpdateShipmentInput {
   packageCount?: number | null;
   packageType?: string | null;
   operationalNotes?: string | null;
+  customerNotes?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
   contactName?: string | null;
@@ -388,6 +390,7 @@ export interface ShipmentContainerInput {
   containerNumber?: string | null;
   sealNumber?: string | null;
   cargoWeightKg?: string | number | null;
+  cargoVolumeCbm?: string | number | null;
   shippingLineName?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
@@ -1035,6 +1038,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     packageCount: input.packageCount ?? null,
     packageType: input.packageType ?? null,
     operationalNotes: input.operationalNotes ?? null,
+    customerNotes: input.customerNotes ?? null,
     pickupLocation: input.pickupLocation ?? null,
     deliveryLocation: input.deliveryLocation ?? null,
     contactName: input.contactName ?? null,
@@ -1432,6 +1436,7 @@ export async function updateShipment(
       ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
       ...(input.packageType !== undefined ? { packageType: input.packageType } : {}),
       ...(input.operationalNotes !== undefined ? { operationalNotes: input.operationalNotes } : {}),
+      ...(input.customerNotes !== undefined ? { customerNotes: input.customerNotes } : {}),
       ...(input.pickupLocation !== undefined
         ? { pickupLocation: input.pickupLocation }
         : {}),
@@ -2793,6 +2798,7 @@ async function reconcileShipmentContainersInTx(
       containerNumber: container.containerNumber?.trim() || null,
       sealNumber: container.sealNumber?.trim() || null,
       cargoWeightKg: container.cargoWeightKg != null ? String(container.cargoWeightKg) : null,
+      cargoVolumeCbm: container.cargoVolumeCbm != null ? String(container.cargoVolumeCbm) : null,
       shippingLineName: container.shippingLineName?.trim() || null,
       pickupPortId: container.pickupPortId ?? null,
       dropoffPortId: container.dropoffPortId ?? null,
@@ -3381,6 +3387,7 @@ export async function reviewShipmentChangeRequest(
           ...(patch.packageCount !== undefined ? { packageCount: patch.packageCount } : {}),
           ...(patch.packageType !== undefined ? { packageType: patch.packageType } : {}),
           ...(patch.operationalNotes !== undefined ? { operationalNotes: patch.operationalNotes } : {}),
+          ...(patch.customerNotes !== undefined ? { customerNotes: patch.customerNotes } : {}),
           ...(patch.pickupLocation !== undefined ? { pickupLocation: patch.pickupLocation } : {}),
           ...(patch.deliveryLocation !== undefined ? { deliveryLocation: patch.deliveryLocation } : {}),
           ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),

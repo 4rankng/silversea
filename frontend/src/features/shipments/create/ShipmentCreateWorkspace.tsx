@@ -37,6 +37,7 @@ import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
+import { Modal } from '../../../components/UI';
 import '../../../pages/clerk/ClerkShipmentCreatePage.css';
 
 type FormState = ShipmentCreateFormState;
@@ -114,11 +115,27 @@ function SearchableField({
   );
 }
 
-export function ShipmentCreateWorkspace() {
+interface ShipmentCreateWorkspaceProps {
+  embedded?: boolean;
+  onCancel?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: (shipmentId: number, intent: SaveIntent) => void;
+}
+
+export function ShipmentCreateWorkspace({
+  embedded = false,
+  onCancel,
+  onDirtyChange,
+  onSaved,
+}: ShipmentCreateWorkspaceProps = {}) {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // Customer-facing note — kept separate from `form.operationalNotes` per the
+  // two-note model. `ShipmentCreateFormState` (owned by shipment-create-model)
+  // has not been widened yet, so this lives as its own state slice here.
+  const [customerNotes, setCustomerNotes] = useState('');
   const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
   const [loading, setLoading] = useState(true);
   const [sitesLoading, setSitesLoading] = useState(false);
@@ -135,6 +152,7 @@ export function ShipmentCreateWorkspace() {
   const [pricingError, setPricingError] = useState<string | null>(null);
   const [carrierAllocations, setCarrierAllocations] = useState<CarrierAllocationValue[]>([]);
   const [carrierAllocationDialogOpen, setCarrierAllocationDialogOpen] = useState(false);
+  const [backConfirmOpen, setBackConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,6 +187,7 @@ export function ShipmentCreateWorkspace() {
       || row.pickupPortId
       || row.dropoffPortId
       || row.cargoWeightKg
+      || row.cargoVolumeCbm
     ));
     const containerCount = form.cargoMode === 'FCL'
       ? Math.max(1, populatedContainers.length)
@@ -274,8 +293,15 @@ export function ShipmentCreateWorkspace() {
     const hasContainerData = containers.some((row) => (
       Object.entries(row).some(([key, value]) => key !== 'key' && value !== '')
     ));
-    return hasFormData || hasContainerData || carrierAllocations.length > 0;
-  }, [carrierAllocations.length, containers, form]);
+    return hasFormData || hasContainerData || carrierAllocations.length > 0 || customerNotes.trim() !== '';
+  }, [carrierAllocations.length, containers, customerNotes, form]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
@@ -283,6 +309,8 @@ export function ShipmentCreateWorkspace() {
     carrierAllocations,
     readiness,
     onValidationIssues: setValidationIssues,
+    onSaved,
+    customerNotes,
   });
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -376,6 +404,7 @@ export function ShipmentCreateWorkspace() {
     }));
     setContainers([newContainer()]);
     setCarrierAllocations([]);
+    setCustomerNotes('');
     clearFeedback();
   }
 
@@ -406,8 +435,18 @@ export function ShipmentCreateWorkspace() {
   }
 
   function goBack() {
-    if (isDirty && !window.confirm('Thông tin chưa lưu sẽ bị mất. Bạn có chắc muốn quay lại?')) return;
-    navigate(-1);
+    if (isDirty && !embedded) {
+      setBackConfirmOpen(true);
+      return;
+    }
+    if (onCancel) onCancel();
+    else navigate(-1);
+  }
+
+  function discardAndGoBack() {
+    setBackConfirmOpen(false);
+    if (onCancel) onCancel();
+    else navigate(-1);
   }
 
   async function save(intent: SaveIntent) {
@@ -422,15 +461,19 @@ export function ShipmentCreateWorkspace() {
   if (!catalogs?.customers.length) return <EmptyState title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   return (
-    <div className="csc-page">
-      <button type="button" className="csc-back" onClick={goBack} aria-label="Quay lại">
-        <ArrowLeft size={18} /> Quay lại
-      </button>
-      <header className="csc-header">
-        <span className="csc-header__eyebrow">Lô hàng CUS</span>
-        <h1>Tạo lô hàng mới</h1>
-        <p>Lưu bản nháp để bổ sung sau, hoặc hoàn tất thông tin rồi gửi sang điều phối.</p>
-      </header>
+    <div className={`csc-page${embedded ? ' csc-page--embedded' : ''}`}>
+      {!embedded && (
+        <>
+          <button type="button" className="csc-back" onClick={goBack} aria-label="Quay lại">
+            <ArrowLeft size={18} /> Quay lại
+          </button>
+          <header className="csc-header">
+            <span className="csc-header__eyebrow">Lô hàng CUS</span>
+            <h1>Tạo lô hàng mới</h1>
+            <p>Lưu bản nháp để bổ sung sau, hoặc hoàn tất thông tin rồi gửi sang điều phối.</p>
+          </header>
+        </>
+      )}
 
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
@@ -564,6 +607,7 @@ export function ShipmentCreateWorkspace() {
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
+                    <TextField label="Thể tích (m³)" type="number" min="0" step="0.01" value={row.cargoVolumeCbm} onChange={(event) => updateContainer(row.key, 'cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
               ))}</>}
@@ -628,6 +672,7 @@ export function ShipmentCreateWorkspace() {
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
             <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
           </div>
+          <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Ghi chú cho khách<textarea value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Nội dung hiển thị cho khách hàng" disabled={Boolean(saving)} /></label>
           <label style={{ display: 'grid', gap: 8, fontSize: 14, fontWeight: 600 }}>Lưu ý điều phối<textarea value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} disabled={Boolean(saving)} /></label>
         </ShipmentCreateSection>
 
@@ -664,6 +709,19 @@ export function ShipmentCreateWorkspace() {
         onClose={() => setCarrierAllocationDialogOpen(false)}
         onSave={setCarrierAllocations}
       />
+      <Modal
+        isOpen={backConfirmOpen}
+        title="Bỏ tạo lô hàng?"
+        onClose={() => setBackConfirmOpen(false)}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setBackConfirmOpen(false)}>Tiếp tục nhập</button>
+            <button type="button" className="btn btn--secondary" onClick={discardAndGoBack}>Bỏ thay đổi và quay lại</button>
+          </>
+        )}
+      >
+        <p>Thông tin chưa lưu sẽ bị mất. Hãy lưu nháp hoặc xác nhận bỏ thay đổi trước khi quay lại.</p>
+      </Modal>
     </div>
   );
 }

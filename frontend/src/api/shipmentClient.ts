@@ -124,6 +124,7 @@ export interface QuickCreateShipmentRequest {
   packageCount?: number | null;
   packageType?: string | null;
   operationalNotes?: string | null;
+  customerNotes?: string | null;
 }
 
 export interface ShipmentPricingPreviewRequest {
@@ -310,6 +311,7 @@ export interface UpdateShipmentRequest {
   packageCount?: number | null;
   packageType?: string | null;
   operationalNotes?: string | null;
+  customerNotes?: string | null;
 }
 
 /** Body for `PUT /api/shipments/:id/containers` (full reconcile). */
@@ -322,6 +324,7 @@ export interface ShipmentContainerBatch {
     containerNumber?: string | null;
     sealNumber?: string | null;
     cargoWeightKg?: string | number | null;
+    cargoVolumeCbm?: string | number | null;
     shippingLineName?: string | null;
     pickupPortId?: number | null;
     dropoffPortId?: number | null;

@@ -2462,6 +2462,9 @@ export const shipments = pgTable('shipments', {
   packageCount: integer('package_count'),
   packageType: varchar('package_type', { length: 100 }),
   operationalNotes: text('operational_notes'),
+  // Customer-facing note (shown on the CUS dashboard Col6). operationalNotes
+  // above is the internal note. Split keeps the two audiences separate.
+  customerNotes: text('customer_notes'),
   pickupLocation: varchar('pickup_location', { length: 255 }),
   deliveryLocation: varchar('delivery_location', { length: 255 }),
   contactName: varchar('contact_name', { length: 100 }),
@@ -2555,6 +2558,9 @@ export const shipmentContainers = pgTable('shipment_containers', {
   containerNumber: varchar('container_number', { length: 50 }),
   sealNumber: varchar('seal_number', { length: 50 }),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
+  // Per-container CBM. CUS dashboard Col4 cargo totals aggregate this across
+  // containers (sum), falling back to the shipment-level figure when unset.
+  cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 12, scale: 3 }),
   shippingLineName: varchar('shipping_line_name', { length: 255 }),
   customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),

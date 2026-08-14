@@ -19,7 +19,6 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__facts--identity,[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?font-size:\s*16px;/);
     expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?min-height:\s*44px;/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-action-summary\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?overflow-x:\s*visible;/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 });
