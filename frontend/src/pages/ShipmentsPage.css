@@ -541,6 +541,7 @@
   line-height: 1.35;
   text-align: left;
   cursor: cell;
+  touch-action: manipulation;
   border-radius: 6px;
   transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }

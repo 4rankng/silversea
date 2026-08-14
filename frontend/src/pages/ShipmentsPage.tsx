@@ -1520,7 +1520,17 @@ export default function ShipmentsPage() {
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
                             </div>
                           ) : (
-                            <button id={`cus-inline-schedule-${item.id}`} type="button" className="cus-inline-trigger" disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô lịch trình lô hàng ${identity}`}>
+                            <button
+                              id={`cus-inline-schedule-${item.id}`}
+                              type="button"
+                              className="cus-inline-trigger"
+                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
+                              aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                startQuickEdit(item, 'schedule');
+                              }}
+                            >
                               <span className="cus-inline-trigger__heading">
                                 <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                                 <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>
@@ -1555,7 +1565,18 @@ export default function ShipmentsPage() {
                               {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
                             </div>
                           ) : (
-                            <button id={`cus-inline-notes-${item.id}`} type="button" className="cus-inline-trigger cus-note-preview" title={item.customerNotes || item.operationalNotes || undefined} disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô ghi chú lô hàng ${identity}`}>
+                            <button
+                              id={`cus-inline-notes-${item.id}`}
+                              type="button"
+                              className="cus-inline-trigger cus-note-preview"
+                              title={item.customerNotes || item.operationalNotes || undefined}
+                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
+                              aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                startQuickEdit(item, 'notes');
+                              }}
+                            >
                               <span className="cus-inline-trigger__heading">
                                 <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
                                 <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>

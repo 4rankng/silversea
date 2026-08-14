@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
@@ -20,6 +21,12 @@ describe('shipment container editor density', () => {
   it('keeps inline edit affordances visible in the stacked and touch layouts', () => {
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
     expect(css).toMatch(/@media \(hover: none\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
+  });
+
+  it('binds touch-friendly inline editing directly to schedule and note controls', () => {
+    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*touch-action:\s*manipulation;/);
+    expect(pageSource).toMatch(/aria-label=\{`Sửa ô lịch trình[^]*?onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*startQuickEdit\(item, 'schedule'\);/);
+    expect(pageSource).toMatch(/aria-label=\{`Sửa ô ghi chú[^]*?onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*startQuickEdit\(item, 'notes'\);/);
   });
 
   it('uses two compact operational tiers instead of form cards', () => {
