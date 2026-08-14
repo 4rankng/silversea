@@ -350,7 +350,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(document.querySelector('.cus-dashboard-viewport')).not.toBeNull();
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
-    expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
+    expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
   });
 
@@ -970,6 +970,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
     expect(source).not.toContain('MASTER_COLUMN_PREFERENCES_KEY');
+  });
+
+  it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
+    expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
+    expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
+    expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
+    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
+    expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
   it('uses distinct semantic colors for running and locked shipments', () => {

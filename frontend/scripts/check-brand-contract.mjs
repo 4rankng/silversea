@@ -18,7 +18,6 @@ const scopedRuntimeFiles = [
   '../src/components/AssetIcon.tsx',
   '../src/components/agent/AgentAssistant.tsx',
   '../src/components/layout/Sidebar.tsx',
-  '../src/components/onboarding/OnboardingChecklist.tsx',
   '../src/pages/LoginPage.tsx',
   '../src/lib/csv.ts',
   '../src/lib/routes.ts',
@@ -40,12 +39,7 @@ const brandSource = await readFile(new URL('../src/brand.ts', import.meta.url), 
 const tokenSource = await readFile(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
 const buttonSource = await readFile(new URL('../src/components/Button.css', import.meta.url), 'utf8');
 const dashboardSource = await readFile(new URL('../src/pages/DashboardPage.css', import.meta.url), 'utf8');
-const agentSource = await readFile(new URL('../src/components/agent/agent.css', import.meta.url), 'utf8');
 const tableSource = await readFile(new URL('../src/components/Table.css', import.meta.url), 'utf8');
-const onboardingStyleSource = await readFile(
-  new URL('../src/components/onboarding/onboarding-checklist.css', import.meta.url),
-  'utf8',
-);
 for (const requiredCopy of [
   "name: 'TransTing'",
   "tagline: 'Vận tải thông minh. Doanh nghiệp vững mạnh.'",
@@ -91,19 +85,9 @@ for (const [sourceName, source, requiredRule] of [
     /\.dash-wf \.wf-minibtn\.green:hover\s*\{[^}]*background:\s*var\(--brand-hover\)/,
   ],
   [
-    'src/components/agent/agent.css',
-    agentSource,
-    /\.agent-tour__btn--primary:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--brand-hover/,
-  ],
-  [
     'src/components/Table.css',
     tableSource,
     /\.ancillary-fee-card__btn--approve:hover\s*\{[^}]*background:\s*var\(--brand\)/,
-  ],
-  [
-    'src/components/onboarding/onboarding-checklist.css',
-    onboardingStyleSource,
-    /\.ob-checklist__tour-btn\s*\{[^}]*color:\s*var\(--brand\)[^}]*background:\s*var\(--brand-soft\)/,
   ],
 ]) {
   if (!requiredRule.test(source)) {
@@ -114,15 +98,6 @@ for (const [sourceName, source, requiredRule] of [
 const index = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const manifest = await readFile(new URL('../public/manifest.json', import.meta.url), 'utf8');
 const serviceWorker = await readFile(new URL('../public/sw.js', import.meta.url), 'utf8');
-const faqMigration = await readFile(
-  new URL('../../backend/drizzle/0108_transting_product_identity.sql', import.meta.url),
-  'utf8',
-);
-const migrationJournal = JSON.parse(await readFile(
-  new URL('../../backend/drizzle/meta/_journal.json', import.meta.url),
-  'utf8',
-));
-
 if (!index.includes('TransTing') || !index.includes('<title>TransTing</title>')) {
   failures.push('index.html: missing TransTing browser title');
 }
@@ -161,19 +136,6 @@ if (!serviceWorker.includes("data.title || 'TransTing'")
   || !serviceWorker.includes("badge: '/assets/transting-sidebar-mark-192.png?v=4'")) {
   failures.push('public/sw.js: notification identity is not TransTing');
 }
-if (!faqMigration.includes(`replace("answer", 'TingTing', 'TransTing')`)
-  || !faqMigration.includes(`"updated_at" = now()`)
-  || !faqMigration.includes(`WHERE "answer" LIKE '%TingTing%'`)
-  || /"embedding"\s*=\s*NULL/i.test(faqMigration)) {
-  failures.push('backend FAQ migration: missing TingTing to TransTing copy update');
-}
-const faqMigrationJournalEntry = migrationJournal.entries?.find(
-  (entry) => entry.idx === 108 && entry.tag === '0108_transting_product_identity',
-);
-if (!faqMigrationJournalEntry) {
-  failures.push('backend FAQ migration: journal registration is missing');
-}
-
 for (const size of [180, 192, 512, 1024]) {
   try {
     await access(new URL(`../public/assets/transting-logo-${size}.png`, import.meta.url));

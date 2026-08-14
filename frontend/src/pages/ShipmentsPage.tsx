@@ -1247,7 +1247,7 @@ export default function ShipmentsPage() {
               aria-describedby={searchError ? 'cus-search-error' : undefined}
               className="shipment-uui-field"
               wrapperClassName="shipment-uui-control"
-              inputClassName="shipment-uui-control__input"
+              inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
               iconClassName="shipment-uui-control__icon"
             />
             {searchInput && (

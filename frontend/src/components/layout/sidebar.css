@@ -2,7 +2,11 @@
  * Sidebar
  * ========================================================================== */
 .sidebar {
-  background: var(--sidebar);
+  background: linear-gradient(
+    180deg,
+    var(--sb-gradient-start),
+    var(--sb-gradient-end)
+  );
   color: var(--sb-text);
   display: flex;
   flex-direction: column;

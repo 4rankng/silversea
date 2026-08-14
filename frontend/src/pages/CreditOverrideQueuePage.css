@@ -423,10 +423,23 @@
 }
 
 .credit-override-queue__reason {
+  position: relative;
   padding: 12px 14px;
-  border-left: 3px solid color-mix(in srgb, var(--brand) 40%, transparent);
-  border-radius: 0 8px 8px 0;
+  border-radius: 8px;
   background: var(--surface-2, var(--bg-2));
+}
+
+.credit-override-queue__reason::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: color-mix(in srgb, var(--brand) 40%, transparent);
+  transform: translateY(-50%);
+  content: '';
+  pointer-events: none;
 }
 
 .credit-override-queue__reason p {

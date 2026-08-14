@@ -103,6 +103,10 @@
   font: inherit;
 }
 
+.cus-worksheet-toolbar .shipment-uui-control__input--search {
+  padding-left: 34px;
+}
+
 .cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
   color: var(--ink-4);
 }
@@ -424,12 +428,12 @@
   font-size: var(--fs-sm);
 }
 
-.cus-dashboard-table col.cus-dashboard-col--customer { width: 17%; }
+.cus-dashboard-table col.cus-dashboard-col--customer { width: 16%; }
 .cus-dashboard-table col.cus-dashboard-col--documents { width: 13%; }
-.cus-dashboard-table col.cus-dashboard-col--classification { width: 13%; }
-.cus-dashboard-table col.cus-dashboard-col--cargo { width: 13%; }
-.cus-dashboard-table col.cus-dashboard-col--schedule { width: 18%; }
-.cus-dashboard-table col.cus-dashboard-col--notes { width: 15%; }
+.cus-dashboard-table col.cus-dashboard-col--classification { width: 12%; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: 12%; }
+.cus-dashboard-table col.cus-dashboard-col--schedule { width: 20%; }
+.cus-dashboard-table col.cus-dashboard-col--notes { width: 16%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 11%; }
 
 .cus-dashboard-table thead th {
@@ -495,7 +499,7 @@
 .cus-multiline-cell strong { color: var(--ink); font-weight: var(--fw-bold); }
 .cus-multiline-cell span { color: var(--ink-3); font-size: var(--fs-xs); }
 .cus-multiline-cell--mono { font-family: var(--font-mono); }
-.cus-multiline-cell--mono strong { font-size: var(--fs-md); letter-spacing: .01em; }
+.cus-multiline-cell--mono strong { font-size: var(--fs-sm); letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { font-variant-numeric: tabular-nums; }
 
 .cus-direction-badge,
@@ -539,6 +543,11 @@
   background: var(--surface-2);
   border-color: var(--line-strong);
 }
+.cus-dashboard-table td:has(> .cus-inline-trigger:not(:disabled)) { cursor: cell; }
+.cus-dashboard-table td:hover > .cus-inline-trigger:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
 .cus-inline-trigger:disabled { cursor: default; }
 .cus-inline-trigger:focus-visible {
   outline: none;
@@ -568,7 +577,9 @@
 .cus-note-editor { display: grid; gap: 3px; min-width: 0; color: var(--ink-3); font-size: 11px; font-weight: var(--fw-semibold); }
 .cus-quick-edit input,
 .cus-note-editor textarea {
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 7px 8px;
   border: 1px solid var(--line-strong);
@@ -576,9 +587,10 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+  font-size: var(--fs-xs);
 }
 .cus-quick-edit small { grid-column: 1 / -1; color: var(--ink-3); }
-.cus-inline-edit-hint { font-size: 10px; line-height: 1.35; }
+.cus-inline-edit-hint { font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .cus-note-editor textarea { resize: vertical; line-height: 1.35; }
 .cus-note-editor-group { display: grid; gap: 6px; }
 .cus-note-editor-group > small { color: var(--ink-3); font-size: 10px; line-height: 1.35; }
@@ -614,7 +626,7 @@
 .cus-create-shipment { white-space: nowrap; }
 .cus-create-modal-intro { margin: 0 0 16px; color: var(--ink-3); line-height: 1.5; }
 
-@media (max-width: 1100px) {
+@container (max-width: 1000px) {
   .cus-dashboard-viewport { max-height: none; overflow: visible; border-bottom: 0; }
   .cus-dashboard-table,
   .cus-dashboard-table tbody { display: block; width: 100%; }

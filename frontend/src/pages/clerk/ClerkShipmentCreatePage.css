@@ -20,7 +20,8 @@
 .csc-searchable-field--error .ds-select-trigger { border-color: var(--danger); }
 .csc-field-hint, .csc-field-error { font-size: 12px; font-weight: 400; line-height: 1.45; }
 .csc-field-hint { color: var(--fg-3); }.csc-field-error { color: var(--danger); }
-.csc-site-guidance { display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-left: 3px solid var(--warning, #d97706); border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
+.csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 7px; background: var(--warning-bg, #fff7ed); color: var(--fg-1); }
+.csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning, #d97706); transform: translateY(-50%); content: ''; pointer-events: none; }
 .csc-site-guidance strong { font-size: 13px; }.csc-site-guidance p { margin: 0; line-height: 1.5; }
 .csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
 .csc-mode legend { margin-bottom: 8px; font-size: 14px; font-weight: 700; }
@@ -39,8 +40,8 @@
 .csc-allocation-summary { display: grid; gap: 8px; min-width: 0; flex: 1 1 320px; }
 .csc-add-container { min-height: 44px; border: 1px dashed var(--border-2); border-radius: 8px; background: transparent; color: var(--accent, #2563eb); font: inherit; font-weight: 700; cursor: pointer; }
 .csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
-.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; min-width: 0; }
-.csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
 .csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
 .csc-utility-button--dashed { border-style: dashed; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
