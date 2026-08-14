@@ -1,0 +1,1 @@
+ALTER TABLE "shipments" ALTER COLUMN "cargo_volume_cbm" SET DATA TYPE numeric(12, 3);

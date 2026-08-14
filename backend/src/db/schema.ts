@@ -2458,7 +2458,9 @@ export const shipments = pgTable('shipments', {
   orderExchangeCompletedAt: timestamp('order_exchange_completed_at', { withTimezone: true }),
   orderExchangeCompletedBy: integer('order_exchange_completed_by'),
   cargoWeightKg: numeric('cargo_weight_kg', { precision: 10, scale: 2 }),
-  cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 10, scale: 3 }),
+  // Matched to per-container cargo_volume_cbm precision so a container sum
+  // promoted to the shipment level never overflows the narrower column.
+  cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 12, scale: 3 }),
   packageCount: integer('package_count'),
   packageType: varchar('package_type', { length: 100 }),
   operationalNotes: text('operational_notes'),

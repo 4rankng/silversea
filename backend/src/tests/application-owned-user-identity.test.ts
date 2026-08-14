@@ -43,6 +43,21 @@ after(async () => {
 });
 
 describe('application-owned user and business-unit identity', () => {
+  test('allows creating accounts when other users also have unset email/phone', async () => {
+    const token = uniqueToken();
+    const first = await createInactiveManager({ username: `app-user-${token}` });
+    const second = await createInactiveManager({ username: `app-user2-${token}` });
+    assert.ok(second.id > 0);
+    assert.notEqual(first.id, second.id);
+  });
+
+  test('treats blank email/phone as unset and does not conflict on them', async () => {
+    const token = uniqueToken();
+    const first = await createInactiveManager({ username: `app-user-${token}`, email: '   ', phone: '' });
+    const second = await createInactiveManager({ username: `app-user2-${token}`, email: '   ', phone: '' });
+    assert.notEqual(first.id, second.id);
+  });
+
   test('returns a semantic conflict before the database uniqueness fence on concurrent usernames', async () => {
     const token = uniqueToken();
     const attempts = await Promise.allSettled([

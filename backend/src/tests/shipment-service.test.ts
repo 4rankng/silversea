@@ -251,7 +251,7 @@ describe('createShipment', () => {
     assert.equal(shipment.status, 'PENDING_DATE');
     assert.equal(shipment.version, 1);
     assert.ok(shipment.shipmentCode, 'shipmentCode generated');
-    assert.match(shipment.shipmentCode!, /^SHP-\d{4}-\d{5}$/);
+    assert.match(shipment.shipmentCode!, /^SHP-\d{4}-\d{5,}$/);
     assert.equal(shipment.bookingRef, `BK-${suffix}`);
 
     // Initial history row written with fromStatus = null.

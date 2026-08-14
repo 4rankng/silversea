@@ -20,6 +20,7 @@ describe('O2C clean-baseline safety', () => {
       { idx: 6, tag: '0006_backfill_cus_container_customer_appointment' },
       { idx: 7, tag: '0007_backfill_shipment_shipping_line' },
       { idx: 8, tag: '0008_fair_stephen_strange' },
+      { idx: 9, tag: '0009_neat_doctor_octopus' },
     ]);
   });
 

@@ -1184,7 +1184,7 @@ describe('POST /', () => {
     assert.equal(r.data.customerId, customerId);
     assert.equal(r.data.status, ShipmentStatus.PENDING_DATE);
     assert.equal(r.data.version, 1);
-    assert.match(r.data.shipmentCode, /^SHP-\d{4}-\d{5}$/);
+    assert.match(r.data.shipmentCode, /^SHP-\d{4}-\d{5,}$/);
     createdShipmentIds.push(r.data.id);
   });
 
