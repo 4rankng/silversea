@@ -7,9 +7,10 @@ import { formatCurrency } from '../../lib/format';
  *
  * daisyUI `d-stats` is used (prefixed per tokens.css) — stacked through the
  * app's phone/tablet shell, then horizontal on desktop. The "Phát sinh" cell
- * is color-coded by sign:
- *   - positive (net increase in debt) → text-error (more to collect / pay)
- *   - negative (net decrease)         → text-success
+ * is color-coded by sign (pinned to app tokens, not daisyUI/UUI palette
+ * utilities — both libraries define conflicting semantic color variables):
+ *   - positive (net increase in debt) → --danger-text (more to collect / pay)
+ *   - negative (net decrease)         → --success-text
  *
  * `entityType` only affects the sub-line wording ("Tăng/Giảm"), not the
  * arithmetic — the backend `periodActivity` is already sign-adjusted per
@@ -38,9 +39,9 @@ export function PeriodSummaryCards({ summary, isLoading, entityType }: PeriodSum
   // more debt accrued than was paid off. We surface that as "danger" (more to
   // collect from the customer / pay the supplier).
   const activityClass = periodActivity > 0
-    ? 'text-error'
+    ? 'text-[var(--danger-text)]'
     : periodActivity < 0
-      ? 'text-success'
+      ? 'text-[var(--success-text)]'
       : '';
   const activitySign = periodActivity > 0 ? '+' : periodActivity < 0 ? '−' : '';
 

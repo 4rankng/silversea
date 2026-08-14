@@ -5,9 +5,12 @@ import { animate, utils, spring } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { usePressAnimation } from '../hooks/animations/usePressAnimation';
 import { Tooltip } from './shared/Tooltip';
 import { Sparkline } from '../design-system/Sparkline';
+import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitled-ui/base/buttons/button';
+import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/base/badges/badges';
+import { Label as UILabel } from './untitled-ui/base/input/label';
+import { HintText as UIHintText } from './untitled-ui/base/input/hint-text';
 
 /* ─── Shared overlay animation defaults ──────────────────────────────────── */
 
@@ -287,7 +290,7 @@ export function Card({ title, subtitle, action, children, style, className = '',
   );
 }
 
-/* ─── Button (wireframe variants) ───────────────────────────────────────── */
+/* ─── Button (Untitled UI backed, wireframe-compatible API) ─────────────── */
 
 interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -296,6 +299,17 @@ interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
 }
 
+/** Wireframe variant → UUI color. */
+const BTN_VARIANT_MAP: Record<NonNullable<BtnProps['variant']>, 'primary' | 'secondary' | 'tertiary' | 'primary-destructive'> = {
+  primary: 'primary',
+  secondary: 'secondary',
+  ghost: 'tertiary',
+  danger: 'primary-destructive',
+};
+
+/** Legacy 44px touch targets map onto UUI md (40px) / lg (44px). */
+const BTN_SIZE_MAP = { sm: 'md', md: 'lg' } as const;
+
 export function Btn({
   variant = 'secondary',
   size = 'md',
@@ -303,28 +317,21 @@ export function Btn({
   icon,
   children,
   className = '',
-  onPointerDown: restPointerDown,
-  onPointerUp: restPointerUp,
-  onPointerLeave: restPointerLeave,
+  disabled,
   ...rest
 }: BtnProps) {
-  const { ref: pressRef, handlers: pressHandlers } = usePressAnimation({ axis: 'x' });
-  const sizeClass = size === 'sm' ? ' btn--sm' : '';
-  const iconOnly = !children && icon ? ' btn--icon' : '';
-
   return (
-    <button
-      ref={pressRef as React.RefObject<HTMLButtonElement>}
+    <UIButton
       type={type}
-      className={`btn btn--${variant}${sizeClass}${iconOnly} ${className}`}
-      onPointerDown={(e) => { pressHandlers.onPointerDown(); restPointerDown?.(e); }}
-      onPointerUp={(e) => { pressHandlers.onPointerUp(); restPointerUp?.(e); }}
-      onPointerLeave={(e) => { pressHandlers.onPointerLeave(); restPointerLeave?.(e); }}
-      {...rest}
+      color={BTN_VARIANT_MAP[variant]}
+      size={BTN_SIZE_MAP[size]}
+      iconLeading={icon ?? undefined}
+      isDisabled={disabled}
+      className={className}
+      {...(rest as UIButtonProps)}
     >
-      {icon}
       {children}
-    </button>
+    </UIButton>
   );
 }
 
@@ -373,12 +380,25 @@ interface StatusPillProps {
   dot?: boolean;
 }
 
+/** Wireframe pill variant → UUI badge color. */
+const PILL_COLOR_MAP: Record<PillVariant, 'success' | 'warning' | 'error' | 'blue' | 'gray'> = {
+  success: 'success',
+  warn: 'warning',
+  danger: 'error',
+  info: 'blue',
+  neutral: 'gray',
+};
+
 export function StatusPill({ variant, children, dot = true }: StatusPillProps) {
-  return (
-    <span className={`pill pill--${variant}`}>
-      {dot && <span className="dot" />}
+  const color = PILL_COLOR_MAP[variant];
+  return dot ? (
+    <UIBadgeWithDot type="pill-color" size="sm" color={color}>
       {children}
-    </span>
+    </UIBadgeWithDot>
+  ) : (
+    <UIBadge type="pill-color" size="sm" color={color}>
+      {children}
+    </UIBadge>
   );
 }
 
@@ -402,20 +422,22 @@ interface BadgeProps {
 }
 
 export function Badge({ variant = 'neutral', children, className = '' }: BadgeProps) {
-  const badgeClassMap: Record<string, string> = {
-    success: 'badge-success',
-    warning: 'badge-warning',
-    danger: 'badge-danger',
-    info: 'badge-info',
-    outline: 'badge-outline',
-    neutral: 'badge-neutral',
-  };
   return (
-    <span className={`badge ${badgeClassMap[variant] || 'badge-neutral'} ${className}`}>
+    <UIBadge type="color" size="sm" color={BADGE_COLOR_MAP[variant]} className={className}>
       {children}
-    </span>
+    </UIBadge>
   );
 }
+
+/** Legacy badge variant → UUI badge color ("outline" and "neutral" both read as gray). */
+const BADGE_COLOR_MAP: Record<NonNullable<BadgeProps['variant']>, 'success' | 'warning' | 'error' | 'blue' | 'gray'> = {
+  success: 'success',
+  warning: 'warning',
+  danger: 'error',
+  info: 'blue',
+  outline: 'gray',
+  neutral: 'gray',
+};
 
 /* ─── Form group ────────────────────────────────────────────────────────── */
 
@@ -431,7 +453,7 @@ export function FormGroup({ label, helpText, error, children, style }: FormGroup
   const fieldId = useId();
   return (
     <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
-      <label htmlFor={fieldId} style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)' }}>{label}</label>
+      <UILabel htmlFor={fieldId} className="text-xs font-semibold text-secondary">{label}</UILabel>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, { id: fieldId });
@@ -439,12 +461,10 @@ export function FormGroup({ label, helpText, error, children, style }: FormGroup
         return child;
       })}
       {error && (
-        <span style={{ fontSize: 13, lineHeight: 1.4, color: 'var(--danger)', marginTop: 4 }}>{error}</span>
+        <UIHintText isInvalid size="sm" style={{ marginTop: 4 }}>{error}</UIHintText>
       )}
       {helpText && !error && (
-        <span className="field-help" style={{ color: 'var(--ink-3)', marginTop: 2 }}>
-          {helpText}
-        </span>
+        <UIHintText size="sm" style={{ marginTop: 2 }}>{helpText}</UIHintText>
       )}
     </div>
   );

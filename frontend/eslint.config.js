@@ -173,6 +173,16 @@ export default defineConfig([
     },
   },
 
+  // Untitled UI CLI-managed components are vendored canonical source — never
+  // edited locally, so stylistic rules that fire on upstream code are relaxed.
+  {
+    files: ['src/components/untitled-ui/**'],
+    rules: {
+      '@typescript-eslint/no-empty-object-type': 'off',
+      'prefer-const': 'off',
+    },
+  },
+
   // Plain JS/MJS files (build scripts like scripts/check-size.mjs): no
   // type-checked rules, and node globals so process/console/URL resolve.
   {
