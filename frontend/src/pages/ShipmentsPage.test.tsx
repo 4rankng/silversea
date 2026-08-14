@@ -351,6 +351,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
     expect(css).toMatch(/@media \(max-width: 1100px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
+    expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
   });
 
   it('highlights a shipment whose closing or return date is not yet confirmed', async () => {

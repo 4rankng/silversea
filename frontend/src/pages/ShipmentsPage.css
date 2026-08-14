@@ -452,12 +452,15 @@
   }
   .cus-dashboard-table tbody > tr > th::before,
   .cus-dashboard-table tbody > tr > td::before {
+    min-width: 0;
     color: var(--ink-3);
     content: attr(data-label);
     font-size: 11px;
     font-weight: var(--fw-bold);
     line-height: 1.35;
     text-transform: uppercase;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .cus-row-actions { grid-template-columns: repeat(2, minmax(0, auto)); align-items: center; }
 }
