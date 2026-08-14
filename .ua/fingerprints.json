@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "d70e736e43ca17fd50397026e098b095c11248f7",
-  "generatedAt": "2026-08-14T07:00:08.202Z",
+  "gitCommitHash": "f1434e7417db7385f113ffcd86c0c7005a5f5fe5",
+  "generatedAt": "2026-08-14T07:38:18.929Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -55,32 +55,32 @@
     },
     ".ua/fingerprints.json": {
       "filePath": ".ua/fingerprints.json",
-      "contentHash": "88e584cee2e0036c1d63049d3bb22340f1b6895b704c5ef2d285c2db9473f715",
+      "contentHash": "d5f7bb2e2e174edc44909de6ea4cf1592bc04e849a39e57c274e443d58454acb",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 104218,
+      "totalLines": 110057,
       "hasStructuralAnalysis": true
     },
     ".ua/knowledge-graph.json": {
       "filePath": ".ua/knowledge-graph.json",
-      "contentHash": "d3a12441d7ffb839df5160b04d312eec13ea767bb5148b4dadd07bf37c023ba5",
+      "contentHash": "294988e1e2fbb89614590d60fb25ec3652ac3219799787e6b619d888026b09c9",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 145962,
+      "totalLines": 145985,
       "hasStructuralAnalysis": true
     },
     ".ua/meta.json": {
       "filePath": ".ua/meta.json",
-      "contentHash": "62e90496b53e326273d61d6942f2b14252171e691f22883e23a81265e7e39f1f",
+      "contentHash": "2d882c60c3f23b14acae3bcaa21af4dca0bc054aa8055f52e17ea3c9e4fa56ed",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 7,
+      "totalLines": 6,
       "hasStructuralAnalysis": true
     },
     ".zcode/config.json": {
@@ -97886,12 +97886,12 @@
     },
     "frontend/src/pages/ShipmentsPage.css": {
       "filePath": "frontend/src/pages/ShipmentsPage.css",
-      "contentHash": "6bbd3e34ef613d5e49db023d2b21cc9973f1640a43ecfff66985988fc3bb246a",
+      "contentHash": "838a1291511e6416a43bbd3baef57ac30a8ce4b111a34a9489c5afc48e7d361d",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1209,
+      "totalLines": 1213,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ShipmentsPage.density.test.ts": {
@@ -98004,7 +98004,7 @@
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "4b4b6a555280bb06329b6955ad7b4a708f186fcc7b72d6a3992bcc148c05d5dc",
+      "contentHash": "5a0737a1ac7917eb23aa53b914bde6f3be8a34280c033d2244263fc488d3d870",
       "functions": [
         {
           "name": "listResponse",
@@ -98094,12 +98094,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 985,
+      "totalLines": 1048,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "b23f655eb66b7a8c1d1d860d392f308144d16fa405700e5a4ecf7be102135858",
+      "contentHash": "5f1dbde29c233d3372f5c0ee7f557af92c22dbd745b1ea9e38b64611bff4fde1",
       "functions": [
         {
           "name": "formatMoney",
@@ -98218,15 +98218,6 @@
           "lineCount": 8
         },
         {
-          "name": "isInteractiveRowTarget",
-          "params": [
-            "target"
-          ],
-          "returnType": "boolean",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
           "name": "accountingConfirmationLabel",
           "params": [
             "confirmation"
@@ -98326,7 +98317,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 987
+          "lineCount": 997
         }
       ],
       "classes": [],
@@ -98445,7 +98436,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1639,
+      "totalLines": 1643,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
