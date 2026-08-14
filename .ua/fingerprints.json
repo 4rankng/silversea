@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "f1434e7417db7385f113ffcd86c0c7005a5f5fe5",
-  "generatedAt": "2026-08-14T07:38:18.929Z",
+  "gitCommitHash": "ebd153a2f298a15b4c27b243160c181eb37dcd20",
+  "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -55,27 +55,27 @@
     },
     ".ua/fingerprints.json": {
       "filePath": ".ua/fingerprints.json",
-      "contentHash": "d5f7bb2e2e174edc44909de6ea4cf1592bc04e849a39e57c274e443d58454acb",
+      "contentHash": "ec9d3024c88e4bf37928bf2f53037586ae3195483aeab63368a05adbbe8ba19f",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 110057,
+      "totalLines": 110048,
       "hasStructuralAnalysis": true
     },
     ".ua/knowledge-graph.json": {
       "filePath": ".ua/knowledge-graph.json",
-      "contentHash": "294988e1e2fbb89614590d60fb25ec3652ac3219799787e6b619d888026b09c9",
+      "contentHash": "68f24a395df1859215336ef44db61cf947e1be73c80c4ab7ff0c6272dce6e603",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 145985,
+      "totalLines": 146635,
       "hasStructuralAnalysis": true
     },
     ".ua/meta.json": {
       "filePath": ".ua/meta.json",
-      "contentHash": "2d882c60c3f23b14acae3bcaa21af4dca0bc054aa8055f52e17ea3c9e4fa56ed",
+      "contentHash": "560b082c87a341360a52577a160b9cf1c915b5f73bbb95b424ecb72b59437bd7",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -66198,12 +66198,12 @@
     },
     "frontend/package.json": {
       "filePath": "frontend/package.json",
-      "contentHash": "32695d2751b335c7b80e57f6af9d2f00008733c9db0ee8d1ba5bd01a8b885b6f",
+      "contentHash": "ef8923c344a645f1f8674b5fc5173d4b68e834a6832f2063bb6ea84c1dcad262",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 62,
+      "totalLines": 68,
       "hasStructuralAnalysis": true
     },
     "frontend/playwright.config.ts": {
@@ -75795,6 +75795,394 @@
       "imports": [],
       "exports": [],
       "totalLines": 2,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/buttons/button.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "contentHash": "9a907c62064046c06f31f203b90ad38fd941f15da8821513c0fcc95893eb1113",
+      "functions": [
+        {
+          "name": "Button",
+          "params": [
+            "{\n    size = \"sm\",\n    color = \"primary\",\n    children,\n    className,\n    noTextPadding,\n    iconLeading: IconLeading,\n    iconTrailing: IconTrailing,\n    isDisabled: disabled,\n    isLoading: loading,\n    showTextWhileLoading,\n    ...props\n}"
+          ],
+          "exported": true,
+          "lineCount": 88
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "ReactElement",
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "React",
+            "isValidElement"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButtonProps",
+            "AriaLinkProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButton",
+            "AriaLink"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx",
+            "sortCx"
+          ]
+        },
+        {
+          "source": "@/utils/is-react-component",
+          "specifiers": [
+            "isReactComponent"
+          ]
+        }
+      ],
+      "exports": [
+        "styles",
+        "Button"
+      ],
+      "totalLines": 258,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/input/hint-text.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/input/hint-text.tsx",
+      "contentHash": "dd713a63a081fc16c7f69b2e92cabbfb7cb1303dd7584f94872ea40f6a8099cb",
+      "functions": [
+        {
+          "name": "HintText",
+          "params": [
+            "{ isInvalid, className, size = \"md\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 21
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "Ref"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaTextProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaText"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "HintText"
+      ],
+      "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/input/input.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
+      "contentHash": "39f3827cd2a764ed5c54191c02cc59975314ab45b556bb6af84752932f12b815",
+      "functions": [
+        {
+          "name": "InputBase",
+          "params": [
+            "{\n    ref,\n    tooltip,\n    shortcut,\n    groupRef,\n    size = \"md\",\n    isInvalid,\n    isDisabled,\n    isRequired,\n    icon: Icon,\n    placeholder,\n    wrapperClassName,\n    tooltipClassName,\n    inputClassName,\n    iconClassName,\n    type = \"text\",\n    ...inputProps\n}"
+          ],
+          "exported": true,
+          "lineCount": 158
+        },
+        {
+          "name": "TextField",
+          "params": [
+            "{ className, size = \"md\", inputClassName, wrapperClassName, iconClassName, tooltipClassName, ...props }"
+          ],
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "Input",
+          "params": [
+            "{\n    size = \"md\",\n    placeholder,\n    icon: Icon,\n    label,\n    hint,\n    shortcut,\n    hideRequiredIndicator,\n    className,\n    ref,\n    groupRef,\n    tooltip,\n    iconClassName,\n    inputClassName,\n    wrapperClassName,\n    tooltipClassName,\n    inputProps,\n    type = \"text\",\n    ...props\n}"
+          ],
+          "exported": true,
+          "lineCount": 54
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ComponentType",
+            "HTMLAttributes",
+            "ReactNode",
+            "Ref",
+            "createContext",
+            "useContext",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "Eye",
+            "EyeOff",
+            "HelpCircle",
+            "InfoCircle"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaInputProps",
+            "AriaTextFieldProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButton",
+            "AriaGroup",
+            "AriaInput",
+            "AriaTextField"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/tooltip/tooltip",
+          "specifiers": [
+            "Tooltip",
+            "TooltipTrigger"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx",
+            "sortCx"
+          ]
+        }
+      ],
+      "exports": [
+        "InputBase",
+        "TextField",
+        "Input"
+      ],
+      "totalLines": 309,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/input/label.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
+      "contentHash": "16cba57ebad9624c662510125d7c7c5c48f644141ab548343cac6daced3d92a5",
+      "functions": [
+        {
+          "name": "Label",
+          "params": [
+            "{ isInvalid, isRequired, tooltip, tooltipDescription, className, ...props }"
+          ],
+          "exported": true,
+          "lineCount": 35
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "Ref"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "HelpCircle"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaLabelProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaLabel"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/tooltip/tooltip",
+          "specifiers": [
+            "Tooltip",
+            "TooltipTrigger"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "Label"
+      ],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/select-native.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "contentHash": "cf14676a8624e04ed351da99c46689092e9a72306fc862658c4b888360ba23ab",
+      "functions": [
+        {
+          "name": "NativeSelect",
+          "params": [
+            "{ label, hint, options, className, selectClassName, size = \"md\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 67
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "SelectHTMLAttributes",
+            "useId"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "ChevronDown"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "NativeSelect"
+      ],
+      "totalLines": 97,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
+      "contentHash": "093ce18ecbd90a44735d2a148a07409aa4482a1fff354b407b2db911384f1ab9",
+      "functions": [
+        {
+          "name": "Tooltip",
+          "params": [
+            "{\n    title,\n    description,\n    children,\n    arrow = false,\n    delay = 300,\n    closeDelay = 0,\n    trigger,\n    isDisabled,\n    isOpen,\n    defaultOpen,\n    offset = 6,\n    crossOffset,\n    placement = \"top\",\n    onOpenChange,\n    ...tooltipProps\n}"
+          ],
+          "exported": true,
+          "lineCount": 65
+        },
+        {
+          "name": "TooltipTrigger",
+          "params": [
+            "{ children, className, ...buttonProps }"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButtonProps",
+            "AriaTooltipProps",
+            "AriaTooltipTriggerComponentProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButton",
+            "AriaOverlayArrow",
+            "AriaTooltip",
+            "AriaTooltipTrigger"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "Tooltip",
+        "TooltipTrigger"
+      ],
+      "totalLines": 108,
       "hasStructuralAnalysis": true
     },
     "frontend/src/context/AgentDirectiveContext.tsx": {
@@ -91040,7 +91428,7 @@
     },
     "frontend/src/main.tsx": {
       "filePath": "frontend/src/main.tsx",
-      "contentHash": "f6e85b2e70a9ba9a1361d3802c785781b7bb699fc138735eb320b37f854c2f42",
+      "contentHash": "e98cab719b93739ed30b442879fd480df7e50f650f038cf090e71969404d7c57",
       "functions": [],
       "classes": [],
       "imports": [
@@ -91092,10 +91480,14 @@
         {
           "source": "./index.css",
           "specifiers": []
+        },
+        {
+          "source": "@/styles/globals.css",
+          "specifiers": []
         }
       ],
       "exports": [],
-      "totalLines": 56,
+      "totalLines": 57,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/AccountingWorkspacePage.css": {
@@ -97886,12 +98278,12 @@
     },
     "frontend/src/pages/ShipmentsPage.css": {
       "filePath": "frontend/src/pages/ShipmentsPage.css",
-      "contentHash": "838a1291511e6416a43bbd3baef57ac30a8ce4b111a34a9489c5afc48e7d361d",
+      "contentHash": "d186bc97fee913fcaeca205c647742ca256863e690ce46a6e34198d838754a87",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1213,
+      "totalLines": 1402,
       "hasStructuralAnalysis": false
     },
     "frontend/src/pages/ShipmentsPage.density.test.ts": {
@@ -98004,7 +98396,7 @@
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "5a0737a1ac7917eb23aa53b914bde6f3be8a34280c033d2244263fc488d3d870",
+      "contentHash": "5d7e5c1272a53cb356601a9adb00444a4588e3a7be7937df3579e64ef414d448",
       "functions": [
         {
           "name": "listResponse",
@@ -98094,12 +98486,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 1048,
+      "totalLines": 1049,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "5f1dbde29c233d3372f5c0ee7f557af92c22dbd745b1ea9e38b64611bff4fde1",
+      "contentHash": "7a99a609922bb6781d792a1d5b481990056bd90c503c86e9bab61656b38265a8",
       "functions": [
         {
           "name": "formatMoney",
@@ -98317,7 +98709,7 @@
           "name": "ShipmentsPage",
           "params": [],
           "exported": true,
-          "lineCount": 997
+          "lineCount": 1055
         }
       ],
       "classes": [],
@@ -98396,6 +98788,24 @@
           ]
         },
         {
+          "source": "../components/untitled-ui/base/buttons/button",
+          "specifiers": [
+            "UUIButton"
+          ]
+        },
+        {
+          "source": "../components/untitled-ui/base/input/input",
+          "specifiers": [
+            "UUIInput"
+          ]
+        },
+        {
+          "source": "../components/untitled-ui/base/select/select-native",
+          "specifiers": [
+            "UUINativeSelect"
+          ]
+        },
+        {
           "source": "../design-system",
           "specifiers": [
             "EmptyState",
@@ -98436,7 +98846,7 @@
       "exports": [
         "ShipmentsPage"
       ],
-      "totalLines": 1643,
+      "totalLines": 1704,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/SupplierListPage.css": {
@@ -106905,6 +107315,36 @@
       "totalLines": 51,
       "hasStructuralAnalysis": true
     },
+    "frontend/src/utils/cx.ts": {
+      "filePath": "frontend/src/utils/cx.ts",
+      "contentHash": "d32cbae0ef101a957c58c0fff7b81738917c9f6b3f150103301e26192af62bcf",
+      "functions": [
+        {
+          "name": "sortCx",
+          "params": [
+            "classes"
+          ],
+          "returnType": "T",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "tailwind-merge",
+          "specifiers": [
+            "extendTailwindMerge"
+          ]
+        }
+      ],
+      "exports": [
+        "cx",
+        "sortCx"
+      ],
+      "totalLines": 25,
+      "hasStructuralAnalysis": true
+    },
     "frontend/src/utils/formStyles.ts": {
       "filePath": "frontend/src/utils/formStyles.ts",
       "contentHash": "e5c815f2973e07dec52296642705b1e7ac2567ddc2f29a2f0978bbfba299d1ce",
@@ -106924,6 +107364,61 @@
         "labelStyle"
       ],
       "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/utils/is-react-component.ts": {
+      "filePath": "frontend/src/utils/is-react-component.ts",
+      "contentHash": "2f24cf5e7c8cc9b8bb16750a59fbe58db32fc11c09d3b4d57288b15b31a98541",
+      "functions": [
+        {
+          "name": "isFunctionComponent",
+          "params": [
+            "component"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isClassComponent",
+          "params": [
+            "component"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isForwardRefComponent",
+          "params": [
+            "component"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isReactComponent",
+          "params": [
+            "component"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "React"
+          ]
+        }
+      ],
+      "exports": [
+        "isFunctionComponent",
+        "isClassComponent",
+        "isForwardRefComponent",
+        "isReactComponent"
+      ],
+      "totalLines": 34,
       "hasStructuralAnalysis": true
     },
     "frontend/src/vite-env.d.ts": {
