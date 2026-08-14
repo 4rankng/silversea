@@ -43,9 +43,10 @@ async function seedContainerType() {
   return row;
 }
 
-async function seedCustomer() {
+async function seedCustomer(overrides: Partial<typeof s.customers.$inferInsert> = {}) {
   const [row] = await db.insert(s.customers).values({
     name: `CusWs customer ${suffix}`,
+    ...overrides,
   }).returning();
   createdCustomerIds.push(row.id);
   return row;
@@ -254,6 +255,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.containerTypeLabel != null, true);
     assert.equal(rowA1.dispatchStatus, 'UNASSIGNED');
     assert.equal(rowA1.scheduleEditable, true);
+    assert.equal(rowA1.customerAppointmentEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
     assert.equal(rowA1.customerAppointmentAt, appointmentA.toISOString());
     // Unassigned containers carry no carrier/plate yet.
@@ -289,6 +291,39 @@ describe('CUS container-flat projection', () => {
     assert.equal(response.items[0]?.containerNumber, 'CONTAINER-ZX9Q');
   });
 
+  test('paginates container rows rather than shipment rows without overlap', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const shipmentA = await seedShipment({ blNumber: `PAGE-A-${marker}` });
+    const shipmentB = await seedShipment({ blNumber: `PAGE-B-${marker}` });
+    await seedContainer(shipmentA.id, { containerNumber: `PAGE-A1-${marker}` });
+    await seedContainer(shipmentA.id, { containerNumber: `PAGE-A2-${marker}` });
+    await seedContainer(shipmentB.id, { containerNumber: `PAGE-B1-${marker}` });
+
+    const first = await listCusShipmentContainers({ page: 1, limit: 2, searchSuffix: marker }, cusActor);
+    const second = await listCusShipmentContainers({ page: 2, limit: 2, searchSuffix: marker }, cusActor);
+
+    assert.equal(first.total, 3);
+    assert.equal(first.totalPages, 2);
+    assert.equal(first.items.length, 2);
+    assert.equal(second.total, 3);
+    assert.equal(second.items.length, 1);
+    assert.equal(new Set([...first.items, ...second.items].map((row) => row.id)).size, 3);
+  });
+
+  test('keeps customer filters and options inside the actor customer scope', async () => {
+    const outsideCustomer = await seedCustomer({ name: `CusWs outside customer ${suffix}` });
+    const outsideShipment = await seedShipment({ customerId: outsideCustomer.id, blNumber: `OUTSIDE${suffix}` });
+    await seedContainer(outsideShipment.id, { containerNumber: `OUTSIDE${suffix}` });
+
+    const scoped = await listCusShipmentContainers({ page: 1, limit: 100 }, cusActor);
+    const outsideFilter = await listCusShipmentContainers({ page: 1, limit: 100, customerId: outsideCustomer.id }, cusActor);
+
+    assert.deepEqual(scoped.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
+    assert.equal(scoped.items.some((row) => row.customerId === outsideCustomer.id), false);
+    assert.equal(outsideFilter.total, 0);
+    assert.equal(outsideFilter.items.length, 0);
+  });
+
   test('does not advertise schedule editing to a read-only role', async () => {
     const shipment = await seedShipment({ blNumber: `FLATRO${suffix}` });
     await seedContainer(shipment.id, { containerNumber: `FLATRO${suffix}1` });
@@ -300,5 +335,6 @@ describe('CUS container-flat projection', () => {
     assert.equal(row.scheduleEditable, false);
     assert.equal(row.shipmentScheduleEditable, false);
     assert.equal(row.shipmentNotesEditable, false);
+    assert.equal(row.customerAppointmentEditable, false);
   });
 });

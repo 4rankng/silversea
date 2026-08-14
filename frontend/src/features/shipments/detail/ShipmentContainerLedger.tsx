@@ -18,6 +18,7 @@ export interface ActiveShipmentDetailEdit {
   detail: ShipmentCusWorkspaceDetail;
   line: ShipmentCusWorkspaceContainerLine;
   mode: ShipmentDetailEditMode;
+  recoveryMessage?: string;
 }
 
 export interface ShipmentRouteDraft {
@@ -26,7 +27,7 @@ export interface ShipmentRouteDraft {
 }
 
 export interface ShipmentVehicleDraft {
-  carrierType: 'EXTERNAL';
+  carrierType: 'OWN' | 'EXTERNAL';
   externalCarrierId: number | null;
   externalCarrierVehicleId: number | null;
   plateNumber: string | null;
@@ -36,6 +37,7 @@ export interface ShipmentVehicleDraft {
 export interface ShipmentScheduleDraft {
   transportDate: string | null;
   scheduleAt: string | null;
+  customerAppointmentAt: string | null;
 }
 
 export interface ShipmentNotesDraft {
@@ -68,6 +70,14 @@ function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   const value = row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt;
   const input = formatVietnamDateTimeInput(value);
   return input ? input.slice(11, 16) : null;
+}
+
+function formatAppointment(value: string | null): string | null {
+  const input = formatVietnamDateTimeInput(value);
+  if (!input) return null;
+  const [date, time] = input.split('T');
+  const [year, month, day] = date?.split('-') ?? [];
+  return year && month && day && time ? `${day}/${month}/${year} ${time}` : input;
 }
 
 function fallback(value: string | null, label: string) {
@@ -123,18 +133,21 @@ function InlineEditor({
   onCancel: () => void;
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
-  onSaveSchedule: (row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
 }) {
   const { detail, line, mode, row } = edit;
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
   const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
-  const initialCarrier = line.externalCarrierId ? String(line.externalCarrierId) : '';
+  const initialCarrier = line.carrierType === 'OWN'
+    ? 'OWN'
+    : line.externalCarrierId ? String(line.externalCarrierId) : '';
   const [carrierId, setCarrierId] = useState(initialCarrier);
   const [newCarrierName, setNewCarrierName] = useState('');
   const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
   const [transportDate, setTransportDate] = useState(row.transportDate ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
+  const [customerAppointmentAt, setCustomerAppointmentAt] = useState(formatVietnamDateTimeInput(line.customerAppointmentAt));
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [saving, setSaving] = useState(false);
@@ -144,6 +157,7 @@ function InlineEditor({
     value: String(site.id), label: site.label, searchText: `${site.code} ${site.name}`,
   })), [detail.selectors.operationalSites]);
   const carrierOptions = useMemo(() => [
+    { value: 'OWN', label: 'Đội xe SilverSea', searchText: 'đội xe nội bộ silversea' },
     ...detail.selectors.externalCarriers.map((carrier) => ({
       value: String(carrier.id), label: carrier.label, searchText: `${carrier.name} ${carrier.shortName ?? ''}`,
     })),
@@ -163,7 +177,9 @@ function InlineEditor({
     : mode === 'vehicle'
       ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
       : mode === 'schedule'
-        ? transportDate !== (row.transportDate ?? '') || scheduleTime !== (formatScheduleTime(row) ?? '')
+        ? transportDate !== (row.transportDate ?? '')
+          || scheduleTime !== (formatScheduleTime(row) ?? '')
+          || customerAppointmentAt !== formatVietnamDateTimeInput(line.customerAppointmentAt)
         : customerNotes.trim() !== (row.customerNotes ?? '').trim()
           || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
   const label = `${mode === 'route' ? 'hành trình' : mode === 'vehicle' ? 'phân xe' : mode === 'schedule' ? 'lịch trình' : 'ghi chú'} ${row.containerNumber || `container số ${row.ordinal}`}`;
@@ -182,6 +198,16 @@ function InlineEditor({
           dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
         });
       } else if (mode === 'vehicle') {
+        if (carrierId === 'OWN') {
+          await onSaveVehicle(line, {
+            carrierType: 'OWN',
+            externalCarrierId: null,
+            externalCarrierVehicleId: null,
+            plateNumber: null,
+            newExternalCarrier: null,
+          });
+          return;
+        }
         if (carrierId === 'NEW_EXTERNAL' && (!newCarrierName.trim() || !plateNumber.trim())) {
           throw new Error('Nhập đủ tên nhà xe mới và biển số xe.');
         }
@@ -197,9 +223,10 @@ function InlineEditor({
         });
       } else if (mode === 'schedule') {
         if (scheduleTime && !transportDate) throw new Error('Chọn ngày vận chuyển trước khi nhập giờ.');
-        await onSaveSchedule(row, {
+        await onSaveSchedule(line, row, {
           transportDate: transportDate || null,
           scheduleAt: transportDate && scheduleTime ? `${transportDate}T${scheduleTime}` : null,
+          customerAppointmentAt: customerAppointmentAt || null,
         });
       } else {
         await onSaveNotes(row, {
@@ -231,14 +258,16 @@ function InlineEditor({
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
-          {carrierId && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length > 0 && <label><span>Biển số đã lưu</span><SearchableSelect id={`shipment-detail-vehicle-${line.id}`} value={matchedVehicle ? String(matchedVehicle.id) : ''} onChange={(value) => { const vehicle = detail.selectors.carrierVehicles.find((item) => item.id === Number(value)); setPlateNumber(vehicle?.licensePlate ?? ''); }} options={vehicleOptions} placeholder="Chọn biển số" searchPlaceholder="Tìm biển số" disabled={saving || !line.permissions.plateEditable} /></label>}
-          <label><span>Biển số xe</span><input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || !line.permissions.plateEditable} /></label>
+          {carrierId && carrierId !== 'OWN' && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length > 0 && <label><span>Biển số đã lưu</span><SearchableSelect id={`shipment-detail-vehicle-${line.id}`} value={matchedVehicle ? String(matchedVehicle.id) : ''} onChange={(value) => { const vehicle = detail.selectors.carrierVehicles.find((item) => item.id === Number(value)); setPlateNumber(vehicle?.licensePlate ?? ''); }} options={vehicleOptions} placeholder="Chọn biển số" searchPlaceholder="Tìm biển số" disabled={saving || !line.permissions.plateEditable} /></label>}
+          {carrierId !== 'OWN' && <label><span>Biển số xe</span><input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || !line.permissions.plateEditable} /></label>}
+          {carrierId === 'OWN' && <small>Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.</small>}
         </div>
       )}
       {mode === 'schedule' && (
         <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-          <label><span>Ngày vận chuyển</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving} /></label>
-          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving} /></label>
+          <label><span>Ngày vận chuyển</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
+          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
+          <label><span>Giờ hẹn khách</span><input type="datetime-local" value={customerAppointmentAt} onChange={(event) => setCustomerAppointmentAt(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
           <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
         </div>
       )}
@@ -251,6 +280,7 @@ function InlineEditor({
       )}
       <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
       <small className="shipment-container-ledger__escape-hint">Nhấn Escape để hủy.</small>
+      {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
     </div>
   );
@@ -267,7 +297,7 @@ interface ShipmentContainerLedgerProps {
   onCancelEdit: () => void;
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
-  onSaveSchedule: (row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
+  onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
 }
 
@@ -340,6 +370,7 @@ export function ShipmentContainerLedger({
               const missingDate = row.transportDate == null;
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const scheduleTime = formatScheduleTime(row);
+              const appointment = formatAppointment(row.customerAppointmentAt);
               return (
                 <tr key={row.id} className={missingDate ? 'shipment-container-ledger__row--missing-date' : undefined}>
                   <th scope="row" data-label="Khách hàng & lộ trình">
@@ -366,26 +397,26 @@ export function ShipmentContainerLedger({
                     </div>
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'route' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'route' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
                       <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>
                       {editButton(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable)}
                     </>}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'schedule' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
-                      <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>
-                      {editButton(row, 'schedule', row.shipmentScheduleEditable)}
+                    {edit?.mode === 'schedule' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                      <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span><span>{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span></div>
+                      {editButton(row, 'schedule', row.shipmentScheduleEditable || row.customerAppointmentEditable)}
                     </>}
                   </td>
                   <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-alert' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
-                    {edit?.mode === 'vehicle' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'vehicle' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
                       <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>
                       {editButton(row, 'vehicle', row.carrierEditable || row.plateEditable)}
                     </>}
                   </td>
                   <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'notes' ? <InlineEditor edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
+                    {edit?.mode === 'notes' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveNotes={onSaveNotes} /> : <>
                       <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>
                       {editButton(row, 'notes', row.shipmentNotesEditable)}
                     </>}

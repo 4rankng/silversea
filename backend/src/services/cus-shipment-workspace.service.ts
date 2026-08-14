@@ -1226,6 +1226,7 @@ export async function listCusShipmentContainers(
       plateEditable: line.permissions.plateEditable,
       liftSiteEditable: line.permissions.liftSiteEditable,
       dropoffSiteEditable: line.permissions.dropoffSiteEditable,
+      customerAppointmentEditable: line.permissions.customerAppointmentEditable,
       scheduleEditable: line.permissions.liftSiteEditable
         || line.permissions.dropoffSiteEditable
         || line.permissions.customerAppointmentEditable,

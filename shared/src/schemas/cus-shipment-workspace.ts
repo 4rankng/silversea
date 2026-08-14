@@ -406,6 +406,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   plateEditable: z.boolean(),
   liftSiteEditable: z.boolean(),
   dropoffSiteEditable: z.boolean(),
+  customerAppointmentEditable: z.boolean(),
   scheduleEditable: z.boolean(),
 }).strict();
 

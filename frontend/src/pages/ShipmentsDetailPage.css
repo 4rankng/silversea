@@ -131,6 +131,7 @@
 .shipment-container-ledger__edit-actions button { min-height: 36px; }
 .shipment-container-ledger__escape-hint { color: var(--ink-3); font-size: 9px; }
 .shipment-container-ledger__edit-error { display: block; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; }
+.shipment-container-ledger__recovery { display: block; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; }
 @keyframes shipment-detail-spin { to { transform: rotate(360deg); } }
 
 .shipments-detail-skeleton { padding: 0 12px; }

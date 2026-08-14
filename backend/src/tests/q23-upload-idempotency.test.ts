@@ -120,6 +120,13 @@ async function listStorageDeleteJobs() {
     .where(eq(s.durableEffectJobs.kind, DURABLE_EFFECT_KIND.STORAGE_DELETE));
 }
 
+async function prioritizeDurableJobs(jobIds: number[]) {
+  if (jobIds.length === 0) return;
+  await db.update(s.durableEffectJobs)
+    .set({ nextAttemptAt: new Date(0) })
+    .where(inArray(s.durableEffectJobs.id, jobIds));
+}
+
 before(async () => {
   const [actor] = await db.insert(s.users).values({
     username: `q23-upload-${suffix}`,
@@ -334,6 +341,7 @@ describe('Q23 operational evidence replay', () => {
       assert.equal(await storageService.exists(storageKey), true);
     }
 
+    await prioritizeDurableJobs(leakedJobs.map((row) => row.id));
     const processed = await processDueDurableEffectJobs(1000, {
       now: () => new Date(Date.now() + 60_000),
     });
@@ -365,6 +373,7 @@ describe('Q23 operational evidence replay', () => {
     assert.equal(failedJob.status, DURABLE_EFFECT_STATUS.RETRY);
     assert.equal(await storageService.exists(failedStorageKey), true);
 
+    await prioritizeDurableJobs([failedJob.id]);
     const firstWorkerPass = await processDueDurableEffectJobs(10, {
       now: () => new Date(Date.now() + 60_000),
     });
@@ -417,6 +426,7 @@ describe('Q23 operational evidence replay', () => {
     assert.equal(deleteJob.status, DURABLE_EFFECT_STATUS.PENDING);
     assert.equal(await storageService.exists(storageKey), true);
 
+    await prioritizeDurableJobs([deleteJob.id]);
     const processed = await processDueDurableEffectJobs(10, {
       now: () => new Date(Date.now() + 60_000),
     });

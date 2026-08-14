@@ -31,7 +31,7 @@ import {
   type ShipmentScheduleDraft,
   type ShipmentVehicleDraft,
 } from '../features/shipments/detail/ShipmentContainerLedger';
-import { formatVietnamDateInput, localDateTimeToIso } from '../lib/shipment-operations';
+import { formatVietnamDateInput, formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
 import './ShipmentsDetailPage.css';
 
 const PAGE_SIZE = 20;
@@ -39,6 +39,17 @@ const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 
 function safeError(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback;
+}
+
+function canEditMode(
+  detail: ShipmentCusWorkspaceDetail,
+  line: ShipmentCusWorkspaceContainerLine,
+  mode: ShipmentDetailEditMode,
+): boolean {
+  if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
+  if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
+  if (mode === 'schedule') return detail.summary.operational.transportDateEditable || line.permissions.customerAppointmentEditable;
+  return detail.summary.operational.transportDateEditable;
 }
 
 function ShipmentContainerLedgerSkeleton() {
@@ -78,6 +89,7 @@ export default function ShipmentsDetailPage() {
   const editRequestSequence = useRef(0);
   const editIdempotencyKeys = useRef<Record<string, string>>({});
   const restoreFocusId = useRef<string | null>(null);
+  const loadRowsRef = useRef<() => Promise<void>>(async () => {});
 
   useEffect(() => {
     if (allDates || searchParams.has('transportDateFrom') || searchParams.has('transportDateTo')) return;
@@ -136,6 +148,10 @@ export default function ShipmentsDetailPage() {
   useEffect(() => { void loadRows(); }, [loadRows]);
 
   useEffect(() => {
+    loadRowsRef.current = loadRows;
+  }, [loadRows]);
+
+  useEffect(() => {
     if (activeEdit || !restoreFocusId.current) return;
     const id = restoreFocusId.current;
     restoreFocusId.current = null;
@@ -187,12 +203,7 @@ export default function ShipmentsDetailPage() {
       const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
       if (requestId !== editRequestSequence.current) return;
       const line = detail.containers.find((candidate) => candidate.id === row.id);
-      const permitted = line && (
-        mode === 'route' ? line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable
-          : mode === 'vehicle' ? line.permissions.carrierEditable || line.permissions.plateEditable
-            : mode === 'schedule' ? detail.summary.operational.transportDateEditable
-              : detail.summary.operational.transportDateEditable
-      );
+      const permitted = line && canEditMode(detail, line, mode);
       if (!line || !permitted) throw new Error('Trường này không còn được phép chỉnh sửa. Tải lại trang để xem trạng thái mới nhất.');
       restoreFocusId.current = triggerId;
       setActiveEdit({ row: { ...row, shipmentVersion: detail.summary.version }, detail, line, mode });
@@ -206,63 +217,138 @@ export default function ShipmentsDetailPage() {
     }
   }, []);
 
+  const recoverConflict = useCallback(async (
+    row: ShipmentCusContainerFlatRow,
+    mode: ShipmentDetailEditMode,
+  ) => {
+    const requestId = ++editRequestSequence.current;
+    const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
+    if (requestId !== editRequestSequence.current) return;
+    const line = detail.containers.find((candidate) => candidate.id === row.id);
+    if (!line) throw new Error('Container không còn trong lô hàng này.');
+    if (!canEditMode(detail, line, mode)) {
+      setActiveEdit(null);
+      setEditError({ rowId: row.id, message: 'Quyền chỉnh sửa vừa thay đổi. Dòng này đã chuyển sang chỉ đọc.' });
+      return;
+    }
+    setActiveEdit({
+      row: {
+        ...row,
+        shipmentVersion: detail.summary.version,
+        transportDate: detail.summary.transportDate,
+        closingAt: detail.summary.closingAt,
+        plannedReturnAt: detail.summary.plannedReturnAt,
+        customerAppointmentAt: line.customerAppointmentAt,
+        customerNotes: detail.summary.customerNotes,
+        operationalNotes: detail.summary.operationalNotes,
+      },
+      detail,
+      line,
+      mode,
+      recoveryMessage: 'Dữ liệu vừa thay đổi. Đã tải bản mới nhất và bỏ bản nháp cũ để tránh ghi đè; vui lòng nhập lại thay đổi.',
+    });
+  }, []);
+
   const finishSave = useCallback(async () => {
     setActiveEdit(null);
-    await loadRows();
-  }, [loadRows]);
+    await loadRowsRef.current();
+  }, []);
 
   const saveRoute = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const signature = JSON.stringify(['route', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     editIdempotencyKeys.current[signature] = key;
-    await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
-      expectedShipmentVersion: line.shipmentVersion,
-      ...(line.permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId } : {}),
-      ...(line.permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId } : {}),
-    }, key);
+    try {
+      await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+        ...(line.permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId } : {}),
+        ...(line.permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId } : {}),
+      }, key);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      delete editIdempotencyKeys.current[signature];
+      await recoverConflict(activeEdit.row, 'route');
+      return;
+    }
     delete editIdempotencyKeys.current[signature];
     await finishSave();
-  }, [activeEdit, finishSave]);
+  }, [activeEdit, finishSave, recoverConflict]);
 
   const saveVehicle = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const signature = JSON.stringify(['vehicle', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     editIdempotencyKeys.current[signature] = key;
-    await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
-      expectedShipmentVersion: line.shipmentVersion,
-      carrierType: draft.carrierType,
-      ...(draft.newExternalCarrier
-        ? { newExternalCarrier: draft.newExternalCarrier }
-        : {
-            externalCarrierId: draft.externalCarrierId,
-            externalCarrierVehicleId: draft.externalCarrierVehicleId,
-            plateNumber: draft.plateNumber,
-          }),
-    }, key);
+    try {
+      await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+        carrierType: draft.carrierType,
+        ...(draft.newExternalCarrier
+          ? { newExternalCarrier: draft.newExternalCarrier }
+          : {
+              externalCarrierId: draft.externalCarrierId,
+              externalCarrierVehicleId: draft.externalCarrierVehicleId,
+              plateNumber: draft.plateNumber,
+            }),
+      }, key);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      delete editIdempotencyKeys.current[signature];
+      await recoverConflict(activeEdit.row, 'vehicle');
+      return;
+    }
     delete editIdempotencyKeys.current[signature];
     await finishSave();
-  }, [activeEdit, finishSave]);
+  }, [activeEdit, finishSave, recoverConflict]);
 
-  const saveSchedule = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
+  const saveSchedule = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
     const scheduleAt = draft.scheduleAt ? localDateTimeToIso(draft.scheduleAt) : null;
-    await updateShipment(row.shipmentId, {
-      expectedVersion: row.shipmentVersion,
-      expectedDeliveryDate: draft.transportDate,
-      ...(row.direction === 'IMPORT' ? { plannedReturnAt: scheduleAt } : { closingAt: scheduleAt }),
-    });
+    const appointmentChanged = (draft.customerAppointmentAt ?? '') !== formatVietnamDateTimeInput(line.customerAppointmentAt);
+    const currentScheduleAt = formatVietnamDateTimeInput(row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt);
+    const shipmentScheduleChanged = draft.transportDate !== row.transportDate || (draft.scheduleAt ?? '') !== currentScheduleAt;
+    let expectedVersion = row.shipmentVersion;
+    try {
+      if (appointmentChanged) {
+        const signature = JSON.stringify(['appointment', row.shipmentId, line.id, line.shipmentVersion, draft.customerAppointmentAt]);
+        const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+        editIdempotencyKeys.current[signature] = key;
+        const result = await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+          expectedShipmentVersion: line.shipmentVersion,
+          customerAppointmentAt: draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null,
+        }, key);
+        delete editIdempotencyKeys.current[signature];
+        expectedVersion = result.line.shipmentVersion;
+      }
+      if (shipmentScheduleChanged) {
+        await updateShipment(row.shipmentId, {
+          expectedVersion,
+          expectedDeliveryDate: draft.transportDate,
+          ...(row.direction === 'IMPORT' ? { plannedReturnAt: scheduleAt } : { closingAt: scheduleAt }),
+        });
+      }
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      await recoverConflict(row, 'schedule');
+      return;
+    }
     await finishSave();
-  }, [finishSave]);
+  }, [finishSave, recoverConflict]);
 
   const saveNotes = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => {
-    await updateShipment(row.shipmentId, {
-      expectedVersion: row.shipmentVersion,
-      customerNotes: draft.customerNotes,
-      operationalNotes: draft.operationalNotes,
-    });
+    try {
+      await updateShipment(row.shipmentId, {
+        expectedVersion: row.shipmentVersion,
+        customerNotes: draft.customerNotes,
+        operationalNotes: draft.operationalNotes,
+      });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      await recoverConflict(row, 'notes');
+      return;
+    }
     await finishSave();
-  }, [finishSave]);
+  }, [finishSave, recoverConflict]);
 
   return (
     <div className="shipments-detail-page">
