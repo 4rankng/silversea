@@ -366,26 +366,89 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
   });
 
-  it('persists quick schedule and note edits with the shipment optimistic version', async () => {
+  it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
+    ));
     renderPage();
     await screen.findByRole('table');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa lịch và ghi chú lô hàng BILL-12345' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
     fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
-    fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
-    fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
-    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Lưu ô' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3,
       expectedDeliveryDate: '2026-08-20',
-      operationalNotes: 'Ưu tiên cổng số 2',
-      customerNotes: 'LƯU CA SÁNG',
       plannedReturnAt: expect.any(String),
     })));
-    expect(apiPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('closingAt');
-    expect(await screen.findByText('Đã cập nhật lịch đóng/trả và ghi chú lô hàng.')).toBeTruthy();
+    expect(apiPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('customerNotes');
+    expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
+    fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
+    fireEvent.keyDown(screen.getByLabelText('Ghi chú nội bộ'), { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', {
+      expectedVersion: 4,
+      operationalNotes: 'Ưu tiên cổng số 2',
+      customerNotes: 'LƯU CA SÁNG',
+    }));
+    expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
+  });
+
+  it('cancels an inline cell edit with Escape without persisting', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-22' } });
+    fireEvent.keyDown(screen.getByLabelText('Ngày đóng/trả'), { key: 'Escape' });
+
+    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
+    expect(apiPut).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })));
+  });
+
+  it('does not treat Enter on the inline cancel button as a save', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    const cancelButton = within(masterRow()).getByRole('button', { name: 'Hủy' });
+    fireEvent.keyDown(cancelButton, { key: 'Enter' });
+    expect(apiPut).not.toHaveBeenCalled();
+    fireEvent.click(cancelButton);
+    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
+  });
+
+  it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
+    let resolveUpdate: ((value: unknown) => void) | undefined;
+    apiPut.mockImplementation(() => new Promise((resolve) => { resolveUpdate = resolve; }));
+    apiGet.mockResolvedValue(listResponse([
+      row,
+      { ...row, id: 2, billOrBookNumber: 'BILL-22222' },
+    ]));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
+    const notesInput = screen.getByLabelText('Ghi chú nội bộ');
+    fireEvent.keyDown(notesInput, { key: 'Enter', ctrlKey: true });
+    fireEvent.keyDown(notesInput, { key: 'Enter', ctrlKey: true });
+    expect(apiPut).toHaveBeenCalledTimes(1);
+    expect((screen.getByRole('button', { name: 'Lưu ô' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.keyDown(notesInput, { key: 'Escape' });
+    expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
+    resolveUpdate?.({ ...row, version: 4 });
+    await waitFor(() => expect(screen.queryByLabelText('Ghi chú nội bộ')).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })));
   });
 
   it('opens the governed create form and refreshes the dashboard after save', async () => {
