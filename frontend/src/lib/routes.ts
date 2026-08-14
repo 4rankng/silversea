@@ -192,7 +192,7 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.accounting, title: PAGE_CATALOG.accounting.title },
   { test: p => p === routes.accountingFuelEvidence, title: 'Soát OCR màn hình bơm' },
   { test: p => p === routes.treasury, title: 'Sổ quỹ / ngân hàng' },
-  { test: p => p.startsWith(routes.recoverableCosts), title: 'Chi phí thu hồi' },
+  { test: p => p.startsWith(routes.recoverableCosts), title: 'Chi phí cần kiểm tra' },
   { test: p => p.startsWith(routes.profit), title: PAGE_CATALOG.profit.title },
   { test: p => p.startsWith(routes.debt), title: PAGE_CATALOG.debt.title },
   { test: p => p.startsWith(routes.payables), title: PAGE_CATALOG.payables.title },

@@ -32,8 +32,8 @@
       "Docker"
     ],
     "description": "Vietnamese trucking logistics platform for SilverSea operations.",
-    "analyzedAt": "2026-08-14T11:12:40.980Z",
-    "gitCommitHash": "3d29bf8"
+    "analyzedAt": "2026-08-14T12:51:33.950Z",
+    "gitCommitHash": "b0d7638fe026c79bf0a7816deeb49db554bb673e"
   },
   "nodes": [
     {
@@ -4707,394 +4707,6 @@
         "application"
       ],
       "complexity": "simple"
-    },
-    {
-      "id": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "type": "file",
-      "name": "cus-shipment-workspace.service.ts",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "summary": "Implements cus shipment workspace service domain behavior for the backend service layer.",
-      "tags": [
-        "service",
-        "backend",
-        "domain-logic",
-        "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:businessDateNow",
-      "type": "function",
-      "name": "businessDateNow",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        170,
-        179
-      ],
-      "summary": "Implements businessDateNow behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildOperationalSummary",
-      "type": "function",
-      "name": "buildOperationalSummary",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        181,
-        244
-      ],
-      "summary": "Implements buildOperationalSummary behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildScopeConditions",
-      "type": "function",
-      "name": "buildScopeConditions",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        273,
-        285
-      ],
-      "summary": "Implements buildScopeConditions behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:assertCusShipmentScope",
-      "type": "function",
-      "name": "assertCusShipmentScope",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        287,
-        298
-      ],
-      "summary": "Implements assertCusShipmentScope behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:deriveCusBucket",
-      "type": "function",
-      "name": "deriveCusBucket",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        300,
-        310
-      ],
-      "summary": "Implements deriveCusBucket behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerSummary",
-      "type": "function",
-      "name": "buildContainerSummary",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        312,
-        323
-      ],
-      "summary": "Implements buildContainerSummary behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:isCurrentRecoveryFact",
-      "type": "function",
-      "name": "isCurrentRecoveryFact",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        325,
-        334
-      ],
-      "summary": "Implements isCurrentRecoveryFact behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:readSiteSnapshotSite",
-      "type": "function",
-      "name": "readSiteSnapshotSite",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        336,
-        349
-      ],
-      "summary": "Implements readSiteSnapshotSite behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSupportRows",
-      "type": "function",
-      "name": "loadSupportRows",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        351,
-        631
-      ],
-      "summary": "Implements loadSupportRows behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSelectors",
-      "type": "function",
-      "name": "loadSelectors",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        633,
-        696
-      ],
-      "summary": "Implements loadSelectors behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildListItem",
-      "type": "function",
-      "name": "buildListItem",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        698,
-        870
-      ],
-      "summary": "Implements buildListItem behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerLine",
-      "type": "function",
-      "name": "buildContainerLine",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        872,
-        931
-      ],
-      "summary": "Implements buildContainerLine behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentRow",
-      "type": "function",
-      "name": "loadShipmentRow",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        933,
-        954
-      ],
-      "summary": "Implements loadShipmentRow behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildWorkspaceDetail",
-      "type": "function",
-      "name": "buildWorkspaceDetail",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        956,
-        975
-      ],
-      "summary": "Implements buildWorkspaceDetail behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentPage",
-      "type": "function",
-      "name": "loadShipmentPage",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        977,
-        1051
-      ],
-      "summary": "Implements loadShipmentPage behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
-      "type": "function",
-      "name": "listCusShipmentWorkspace",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1053,
-        1096
-      ],
-      "summary": "Implements listCusShipmentWorkspace behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
-      "type": "function",
-      "name": "getCusShipmentWorkspaceDetail",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1098,
-        1104
-      ],
-      "summary": "Implements getCusShipmentWorkspaceDetail behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadOperationalSiteRecords",
-      "type": "function",
-      "name": "loadOperationalSiteRecords",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1119,
-        1164
-      ],
-      "summary": "Implements loadOperationalSiteRecords behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadExternalCarrier",
-      "type": "function",
-      "name": "loadExternalCarrier",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1166,
-        1181
-      ],
-      "summary": "Implements loadExternalCarrier behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadCarrierVehicle",
-      "type": "function",
-      "name": "loadCarrierVehicle",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1183,
-        1203
-      ],
-      "summary": "Implements loadCarrierVehicle behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:resolveInlineExternalCarrier",
-      "type": "function",
-      "name": "resolveInlineExternalCarrier",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1205,
-        1364
-      ],
-      "summary": "Implements resolveInlineExternalCarrier behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
-      "type": "function",
-      "name": "updateCusShipmentContainerLine",
-      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
-      "lineRange": [
-        1366,
-        1556
-      ],
-      "summary": "Implements updateCusShipmentContainerLine behavior within cus-shipment-workspace.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
     },
     {
       "id": "file:backend/src/services/customer-receivable-authority.service.ts",
@@ -20962,53 +20574,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "type": "file",
-      "name": "cus-shipment-workspace.test.ts",
-      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "summary": "Provides automated regression coverage for cus shipment workspace behavior in the backend/src/tests layer.",
-      "tags": [
-        "test",
-        "regression",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedShipment",
-      "type": "function",
-      "name": "seedShipment",
-      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "lineRange": [
-        53,
-        62
-      ],
-      "summary": "Implements seedShipment behavior within cus-shipment-workspace.test.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedContainer",
-      "type": "function",
-      "name": "seedContainer",
-      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
-      "lineRange": [
-        64,
-        75
-      ],
-      "summary": "Implements seedContainer behavior within cus-shipment-workspace.test.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:backend/src/tests/customer-commission-validation.test.ts",
       "type": "file",
       "name": "customer-commission-validation.test.ts",
@@ -27076,496 +26641,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:frontend/src/api/shipmentClient.ts",
-      "type": "file",
-      "name": "shipmentClient.ts",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "summary": "Provides the shipment Client frontend API client integration.",
-      "tags": [
-        "api-client",
-        "frontend",
-        "http",
-        "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
-      "type": "function",
-      "name": "quickCreateShipment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        152,
-        159
-      ],
-      "summary": "Implements quickCreateShipment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
-      "type": "function",
-      "name": "getShipmentPricingPreview",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        161,
-        165
-      ],
-      "summary": "Implements getShipmentPricingPreview behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
-      "type": "function",
-      "name": "getShipmentDetail",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        527,
-        529
-      ],
-      "summary": "Implements getShipmentDetail behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:updateShipment",
-      "type": "function",
-      "name": "updateShipment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        532,
-        537
-      ],
-      "summary": "Implements updateShipment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
-      "type": "function",
-      "name": "saveShipmentContainers",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        540,
-        545
-      ],
-      "summary": "Implements saveShipmentContainers behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
-      "type": "function",
-      "name": "saveShipmentCarrierAllocations",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        547,
-        555
-      ],
-      "summary": "Implements saveShipmentCarrierAllocations behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
-      "type": "function",
-      "name": "listOperationalSites",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        557,
-        562
-      ],
-      "summary": "Implements listOperationalSites behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
-      "type": "function",
-      "name": "createOperationalSite",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        586,
-        588
-      ],
-      "summary": "Implements createOperationalSite behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
-      "type": "function",
-      "name": "submitShipmentForDispatch",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        590,
-        605
-      ],
-      "summary": "Implements submitShipmentForDispatch behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
-      "type": "function",
-      "name": "getShipmentDispatchHandoff",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        607,
-        609
-      ],
-      "summary": "Implements getShipmentDispatchHandoff behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
-      "type": "function",
-      "name": "addShipmentDocument",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        611,
-        616
-      ],
-      "summary": "Implements addShipmentDocument behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
-      "type": "function",
-      "name": "replaceShipmentDocument",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        618,
-        624
-      ],
-      "summary": "Implements replaceShipmentDocument behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
-      "type": "function",
-      "name": "createShipmentDeclaration",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        626,
-        631
-      ],
-      "summary": "Implements createShipmentDeclaration behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
-      "type": "function",
-      "name": "updateShipmentDeclaration",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        633,
-        639
-      ],
-      "summary": "Implements updateShipmentDeclaration behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
-      "type": "function",
-      "name": "reviewShipmentChangeRequest",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        641,
-        650
-      ],
-      "summary": "Implements reviewShipmentChangeRequest behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
-      "type": "function",
-      "name": "reviewShipmentPod",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        652,
-        663
-      ],
-      "summary": "Implements reviewShipmentPod behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:completeShipment",
-      "type": "function",
-      "name": "completeShipment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        665,
-        675
-      ],
-      "summary": "Implements completeShipment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
-      "type": "function",
-      "name": "cancelShipmentFulfillment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        677,
-        688
-      ],
-      "summary": "Implements cancelShipmentFulfillment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
-      "type": "function",
-      "name": "downloadShipmentPodFile",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        690,
-        695
-      ],
-      "summary": "Implements downloadShipmentPodFile behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:listShipments",
-      "type": "function",
-      "name": "listShipments",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        697,
-        712
-      ],
-      "summary": "Implements listShipments behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
-      "type": "function",
-      "name": "listCusShipmentWorkspace",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        724,
-        737
-      ],
-      "summary": "Implements listCusShipmentWorkspace behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
-      "type": "function",
-      "name": "getCusShipmentWorkspaceDetail",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        739,
-        743
-      ],
-      "summary": "Implements getCusShipmentWorkspaceDetail behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
-      "type": "function",
-      "name": "updateCusShipmentDocumentCustody",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        745,
-        755
-      ],
-      "summary": "Implements updateCusShipmentDocumentCustody behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
-      "type": "function",
-      "name": "updateCusShipmentContainerLine",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        757,
-        768
-      ],
-      "summary": "Implements updateCusShipmentContainerLine behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
-      "type": "function",
-      "name": "confirmCusShipmentFinance",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        770,
-        780
-      ],
-      "summary": "Implements confirmCusShipmentFinance behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
-      "type": "function",
-      "name": "lockCusShipment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        782,
-        792
-      ],
-      "summary": "Implements lockCusShipment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
-      "type": "function",
-      "name": "requestCusShipmentReopen",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        794,
-        804
-      ],
-      "summary": "Implements requestCusShipmentReopen behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
-      "type": "function",
-      "name": "dispatchShipment",
-      "filePath": "frontend/src/api/shipmentClient.ts",
-      "lineRange": [
-        807,
-        812
-      ],
-      "summary": "Implements dispatchShipment behavior within shipmentClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:frontend/src/api/systemClient.ts",
       "type": "file",
       "name": "systemClient.ts",
@@ -28828,89 +27903,6 @@
         "test",
         "regression",
         "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:frontend/src/components/Layout.tsx",
-      "type": "file",
-      "name": "Layout.tsx",
-      "filePath": "frontend/src/components/Layout.tsx",
-      "summary": "Implements the Layout user-interface component for the frontend application.",
-      "tags": [
-        "component",
-        "frontend",
-        "ui",
-        "typescript",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
-      "type": "function",
-      "name": "getDefaultOpenSection",
-      "filePath": "frontend/src/components/Layout.tsx",
-      "lineRange": [
-        76,
-        79
-      ],
-      "summary": "Implements getDefaultOpenSection behavior within Layout.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/Layout.tsx:getNavItems",
-      "type": "function",
-      "name": "getNavItems",
-      "filePath": "frontend/src/components/Layout.tsx",
-      "lineRange": [
-        81,
-        310
-      ],
-      "summary": "Implements getNavItems behavior within Layout.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/Layout.tsx:getNavSections",
-      "type": "function",
-      "name": "getNavSections",
-      "filePath": "frontend/src/components/Layout.tsx",
-      "lineRange": [
-        312,
-        360
-      ],
-      "summary": "Implements getNavSections behavior within Layout.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/Layout.tsx:Layout",
-      "type": "function",
-      "name": "Layout",
-      "filePath": "frontend/src/components/Layout.tsx",
-      "lineRange": [
-        373,
-        791
-      ],
-      "summary": "Implements Layout behavior within Layout.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
       ],
       "complexity": "complex"
     },
@@ -47914,54 +46906,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:backend/src/routes/shipments.ts",
-      "type": "file",
-      "name": "shipments.ts",
-      "filePath": "backend/src/routes/shipments.ts",
-      "summary": "Defines HTTP route behavior for shipments within the backend API layer.",
-      "tags": [
-        "api-handler",
-        "routing",
-        "backend",
-        "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/routes/shipments.ts:runShipmentWrite",
-      "type": "function",
-      "name": "runShipmentWrite",
-      "filePath": "backend/src/routes/shipments.ts",
-      "lineRange": [
-        279,
-        296
-      ],
-      "summary": "Implements runShipmentWrite behavior within shipments.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
-      "type": "function",
-      "name": "toShipmentRecoveryFactPayload",
-      "filePath": "backend/src/routes/shipments.ts",
-      "lineRange": [
-        307,
-        333
-      ],
-      "summary": "Implements toShipmentRecoveryFactPayload behavior within shipments.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:backend/src/routes/trips.ts",
       "type": "file",
       "name": "trips.ts",
@@ -60588,19 +59532,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:shared/src/index.ts",
-      "type": "file",
-      "name": "index.ts",
-      "filePath": "shared/src/index.ts",
-      "summary": "Implements index as part of the shared/src application module.",
-      "tags": [
-        "typescript",
-        "application",
-        "module"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "file:backend/src/lib/logger.ts",
       "type": "file",
       "name": "logger.ts",
@@ -65530,20 +64461,6 @@
         "test",
         "typescript",
         "source-module"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:shared/src/schemas/cus-shipment-workspace.ts",
-      "type": "file",
-      "name": "cus-shipment-workspace.ts",
-      "filePath": "shared/src/schemas/cus-shipment-workspace.ts",
-      "summary": "Source module for shared/src/schemas/cus-shipment-workspace.ts.",
-      "tags": [
-        "application-code",
-        "typescript",
-        "source-module",
-        "tested"
       ],
       "complexity": "complex"
     },
@@ -76392,20 +75309,1178 @@
       "complexity": "moderate"
     },
     {
+      "id": "file:backend/src/routes/shipments.ts",
+      "type": "file",
+      "name": "shipments.ts",
+      "filePath": "backend/src/routes/shipments.ts",
+      "summary": "Defines the Express REST surface for shipment lifecycle, dispatch, accounting lock, recovery, and CUS workspace operations with validation, RBAC, idempotency, and audit integration.",
+      "tags": [
+        "api-handler",
+        "shipments",
+        "rbac",
+        "validation",
+        "idempotency"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/routes/shipments.ts:runShipmentWrite",
+      "type": "function",
+      "name": "runShipmentWrite",
+      "filePath": "backend/src/routes/shipments.ts",
+      "lineRange": [
+        280,
+        297
+      ],
+      "summary": "Supports the shipment workflow by implementing run shipment write behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
+      "type": "function",
+      "name": "toShipmentRecoveryFactPayload",
+      "filePath": "backend/src/routes/shipments.ts",
+      "lineRange": [
+        308,
+        334
+      ],
+      "summary": "Supports the shipment workflow by implementing to shipment recovery fact payload behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "type": "file",
+      "name": "cus-shipment-workspace.service.ts",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "summary": "Builds the CUS shipment workspace read models and controlled container-line updates, enforcing customer scope, finance-lock, carrier, and operational-site invariants.",
+      "tags": [
+        "service",
+        "shipments",
+        "customer-workspace",
+        "validation",
+        "transactions"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:businessDateNow",
+      "type": "function",
+      "name": "businessDateNow",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        172,
+        181
+      ],
+      "summary": "Supports the shipment workflow by implementing business date now behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildOperationalSummary",
+      "type": "function",
+      "name": "buildOperationalSummary",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        183,
+        244
+      ],
+      "summary": "Builds the operational summary projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildScopeConditions",
+      "type": "function",
+      "name": "buildScopeConditions",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        273,
+        285
+      ],
+      "summary": "Builds the scope conditions projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:assertCusShipmentScope",
+      "type": "function",
+      "name": "assertCusShipmentScope",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        287,
+        298
+      ],
+      "summary": "Enforces cus shipment scope invariants before continuing the shipment workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:deriveCusBucket",
+      "type": "function",
+      "name": "deriveCusBucket",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        300,
+        310
+      ],
+      "summary": "Builds the cus bucket projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerSummary",
+      "type": "function",
+      "name": "buildContainerSummary",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        312,
+        323
+      ],
+      "summary": "Builds the container summary projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:isCurrentRecoveryFact",
+      "type": "function",
+      "name": "isCurrentRecoveryFact",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        325,
+        334
+      ],
+      "summary": "Supports the shipment workflow by implementing is current recovery fact behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:readSiteSnapshotSite",
+      "type": "function",
+      "name": "readSiteSnapshotSite",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        336,
+        349
+      ],
+      "summary": "Supports the shipment workflow by implementing read site snapshot site behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSupportRows",
+      "type": "function",
+      "name": "loadSupportRows",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        351,
+        631
+      ],
+      "summary": "Loads support rows data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSelectors",
+      "type": "function",
+      "name": "loadSelectors",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        633,
+        696
+      ],
+      "summary": "Loads selectors data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildListItem",
+      "type": "function",
+      "name": "buildListItem",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        698,
+        870
+      ],
+      "summary": "Builds the list item projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerLine",
+      "type": "function",
+      "name": "buildContainerLine",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        872,
+        931
+      ],
+      "summary": "Builds the container line projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentRow",
+      "type": "function",
+      "name": "loadShipmentRow",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        933,
+        954
+      ],
+      "summary": "Loads shipment row data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:buildWorkspaceDetail",
+      "type": "function",
+      "name": "buildWorkspaceDetail",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        956,
+        975
+      ],
+      "summary": "Builds the workspace detail projection used by this workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentPage",
+      "type": "function",
+      "name": "loadShipmentPage",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        977,
+        1051
+      ],
+      "summary": "Loads shipment page data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
+      "type": "function",
+      "name": "listCusShipmentWorkspace",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1053,
+        1096
+      ],
+      "summary": "Loads cus shipment workspace data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
+      "type": "function",
+      "name": "getCusShipmentWorkspaceDetail",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1098,
+        1104
+      ],
+      "summary": "Retrieves cus shipment workspace detail for the shipment workflow.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentContainers",
+      "type": "function",
+      "name": "listCusShipmentContainers",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1113,
+        1150
+      ],
+      "summary": "Loads cus shipment containers data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadOperationalSiteRecords",
+      "type": "function",
+      "name": "loadOperationalSiteRecords",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1165,
+        1210
+      ],
+      "summary": "Loads operational site records data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadExternalCarrier",
+      "type": "function",
+      "name": "loadExternalCarrier",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1212,
+        1227
+      ],
+      "summary": "Loads external carrier data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:loadCarrierVehicle",
+      "type": "function",
+      "name": "loadCarrierVehicle",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1229,
+        1249
+      ],
+      "summary": "Loads carrier vehicle data for the CUS shipment workspace.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:resolveInlineExternalCarrier",
+      "type": "function",
+      "name": "resolveInlineExternalCarrier",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1251,
+        1410
+      ],
+      "summary": "Supports the shipment workflow by implementing resolve inline external carrier behavior.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
+      "type": "function",
+      "name": "updateCusShipmentContainerLine",
+      "filePath": "backend/src/services/cus-shipment-workspace.service.ts",
+      "lineRange": [
+        1412,
+        1602
+      ],
+      "summary": "Updates cus shipment container line while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "service",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "type": "file",
+      "name": "cus-shipment-workspace.test.ts",
+      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
+      "summary": "Exercises CUS shipment workspace queries and container-line mutation rules against seeded database records.",
+      "tags": [
+        "test",
+        "shipments",
+        "customer-workspace",
+        "database",
+        "validation"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedShipment",
+      "type": "function",
+      "name": "seedShipment",
+      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
+      "lineRange": [
+        54,
+        63
+      ],
+      "summary": "Supports the shipment workflow by implementing seed shipment behavior.",
+      "tags": [
+        "test-helper",
+        "shipments",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedContainer",
+      "type": "function",
+      "name": "seedContainer",
+      "filePath": "backend/src/tests/cus-shipment-workspace.test.ts",
+      "lineRange": [
+        65,
+        76
+      ],
+      "summary": "Supports the shipment workflow by implementing seed container behavior.",
+      "tags": [
+        "test-helper",
+        "shipments",
+        "database"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/api/shipmentClient.ts",
+      "type": "file",
+      "name": "shipmentClient.ts",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "summary": "Provides typed frontend transport helpers for the shipment API, including intake, dispatch, documentation, fulfillment, and CUS workspace workflows.",
+      "tags": [
+        "api-client",
+        "shipments",
+        "transport",
+        "type-definition",
+        "idempotency"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
+      "type": "function",
+      "name": "quickCreateShipment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        153,
+        160
+      ],
+      "summary": "Creates shipment through the typed shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
+      "type": "function",
+      "name": "getShipmentPricingPreview",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        162,
+        166
+      ],
+      "summary": "Retrieves shipment pricing preview for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
+      "type": "function",
+      "name": "getShipmentDetail",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        528,
+        530
+      ],
+      "summary": "Retrieves shipment detail for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:updateShipment",
+      "type": "function",
+      "name": "updateShipment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        533,
+        538
+      ],
+      "summary": "Updates shipment while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
+      "type": "function",
+      "name": "saveShipmentContainers",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        541,
+        546
+      ],
+      "summary": "Updates shipment containers while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
+      "type": "function",
+      "name": "saveShipmentCarrierAllocations",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        548,
+        556
+      ],
+      "summary": "Updates shipment carrier allocations while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
+      "type": "function",
+      "name": "listOperationalSites",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        558,
+        563
+      ],
+      "summary": "Loads operational sites data for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
+      "type": "function",
+      "name": "createOperationalSite",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        587,
+        589
+      ],
+      "summary": "Creates operational site through the typed shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
+      "type": "function",
+      "name": "submitShipmentForDispatch",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        591,
+        606
+      ],
+      "summary": "Supports the shipment workflow by implementing submit shipment for dispatch behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
+      "type": "function",
+      "name": "getShipmentDispatchHandoff",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        608,
+        610
+      ],
+      "summary": "Retrieves shipment dispatch handoff for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
+      "type": "function",
+      "name": "addShipmentDocument",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        612,
+        617
+      ],
+      "summary": "Supports the shipment workflow by implementing add shipment document behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
+      "type": "function",
+      "name": "replaceShipmentDocument",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        619,
+        625
+      ],
+      "summary": "Supports the shipment workflow by implementing replace shipment document behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
+      "type": "function",
+      "name": "createShipmentDeclaration",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        627,
+        632
+      ],
+      "summary": "Creates shipment declaration through the typed shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
+      "type": "function",
+      "name": "updateShipmentDeclaration",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        634,
+        640
+      ],
+      "summary": "Updates shipment declaration while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
+      "type": "function",
+      "name": "reviewShipmentChangeRequest",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        642,
+        651
+      ],
+      "summary": "Supports the shipment workflow by implementing review shipment change request behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
+      "type": "function",
+      "name": "reviewShipmentPod",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        653,
+        664
+      ],
+      "summary": "Supports the shipment workflow by implementing review shipment pod behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:completeShipment",
+      "type": "function",
+      "name": "completeShipment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        666,
+        676
+      ],
+      "summary": "Supports the shipment workflow by implementing complete shipment behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
+      "type": "function",
+      "name": "cancelShipmentFulfillment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        678,
+        689
+      ],
+      "summary": "Supports the shipment workflow by implementing cancel shipment fulfillment behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
+      "type": "function",
+      "name": "downloadShipmentPodFile",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        691,
+        696
+      ],
+      "summary": "Supports the shipment workflow by implementing download shipment pod file behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:listShipments",
+      "type": "function",
+      "name": "listShipments",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        698,
+        713
+      ],
+      "summary": "Loads shipments data for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
+      "type": "function",
+      "name": "listCusShipmentWorkspace",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        725,
+        738
+      ],
+      "summary": "Loads cus shipment workspace data for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:listCusShipmentContainers",
+      "type": "function",
+      "name": "listCusShipmentContainers",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        740,
+        753
+      ],
+      "summary": "Loads cus shipment containers data for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
+      "type": "function",
+      "name": "getCusShipmentWorkspaceDetail",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        755,
+        759
+      ],
+      "summary": "Retrieves cus shipment workspace detail for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
+      "type": "function",
+      "name": "updateCusShipmentDocumentCustody",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        761,
+        771
+      ],
+      "summary": "Updates cus shipment document custody while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
+      "type": "function",
+      "name": "updateCusShipmentContainerLine",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        773,
+        784
+      ],
+      "summary": "Updates cus shipment container line while preserving the applicable shipment workflow contracts.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
+      "type": "function",
+      "name": "confirmCusShipmentFinance",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        786,
+        796
+      ],
+      "summary": "Supports the shipment workflow by implementing confirm cus shipment finance behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
+      "type": "function",
+      "name": "lockCusShipment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        798,
+        808
+      ],
+      "summary": "Supports the shipment workflow by implementing lock cus shipment behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
+      "type": "function",
+      "name": "requestCusShipmentReopen",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        810,
+        820
+      ],
+      "summary": "Supports the shipment workflow by implementing request cus shipment reopen behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
+      "type": "function",
+      "name": "dispatchShipment",
+      "filePath": "frontend/src/api/shipmentClient.ts",
+      "lineRange": [
+        823,
+        828
+      ],
+      "summary": "Supports the shipment workflow by implementing dispatch shipment behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/Layout.tsx",
+      "type": "file",
+      "name": "Layout.tsx",
+      "filePath": "frontend/src/components/Layout.tsx",
+      "summary": "Provides the role-aware application shell, navigation structure, page titles, profile controls, and responsive layout behavior.",
+      "tags": [
+        "component",
+        "layout",
+        "navigation",
+        "rbac",
+        "responsive"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
+      "type": "function",
+      "name": "getDefaultOpenSection",
+      "filePath": "frontend/src/components/Layout.tsx",
+      "lineRange": [
+        77,
+        80
+      ],
+      "summary": "Retrieves default open section for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/Layout.tsx:getNavItems",
+      "type": "function",
+      "name": "getNavItems",
+      "filePath": "frontend/src/components/Layout.tsx",
+      "lineRange": [
+        82,
+        312
+      ],
+      "summary": "Retrieves nav items for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/Layout.tsx:getNavSections",
+      "type": "function",
+      "name": "getNavSections",
+      "filePath": "frontend/src/components/Layout.tsx",
+      "lineRange": [
+        314,
+        362
+      ],
+      "summary": "Retrieves nav sections for the shipment workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/Layout.tsx:Layout",
+      "type": "function",
+      "name": "Layout",
+      "filePath": "frontend/src/components/Layout.tsx",
+      "lineRange": [
+        375,
+        793
+      ],
+      "summary": "Renders the role-aware application shell, navigation, responsive chrome, and authenticated user controls.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
+      "type": "file",
+      "name": "ShipmentsDetailPage.test.tsx",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
+      "summary": "Tests the shipment container detail page state, search behavior, and rendering of operational ledger data.",
+      "tags": [
+        "test",
+        "shipments",
+        "react",
+        "container-ledger",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "type": "file",
+      "name": "ShipmentsDetailPage.tsx",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "summary": "Renders a paginated shipment container ledger with validated suffix search, loading/error recovery, and query-string state synchronization.",
+      "tags": [
+        "component",
+        "shipments",
+        "container-ledger",
+        "search",
+        "responsive"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "function",
+      "name": "ShipmentContainerLedgerSkeleton",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        24,
+        39
+      ],
+      "summary": "Supports the shipment workflow by implementing shipment container ledger skeleton behavior.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "function",
+      "name": "ShipmentsDetailPage",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        41,
+        207
+      ],
+      "summary": "Renders the shipments detail page user interface and coordinates its stateful workflow.",
+      "tags": [
+        "component",
+        "shipments",
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
       "id": "file:frontend/src/pages/ShipmentsPage.tsx",
       "type": "file",
       "name": "ShipmentsPage.tsx",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "summary": "Implements the customer shipment workspace for filtering, creating, viewing, editing, exporting, and actioning shipment records. It coordinates container operations, financial confirmation, locking, reopening, document custody, and responsive detail views.",
+      "summary": "Implements the high-density shipment workspace for reviewing shipment signals, container lines, operational state, and workflow actions.",
       "tags": [
-        "page",
+        "component",
         "shipments",
-        "customer-portal",
-        "workflow",
-        "react-component"
+        "workspace",
+        "container-ledger",
+        "operations"
       ],
-      "complexity": "complex",
-      "languageNotes": "Uses React hooks, typed workspace DTOs, optimistic local detail updates, and idempotency keys to coordinate asynchronous shipment mutations."
+      "complexity": "complex"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
@@ -76414,16 +76489,15 @@
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
         149,
-        177
+        175
       ],
-      "summary": "Renders concise financial loss and accounting-confirmation indicators for a shipment row.",
+      "summary": "Supports the shipment workflow by implementing finance evidence behavior.",
       "tags": [
         "component",
-        "finance",
-        "status",
-        "shipment"
+        "shipments",
+        "workflow"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
@@ -76431,15 +76505,14 @@
       "name": "accountingConfirmationLabel",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        195,
-        204
+        193,
+        202
       ],
-      "summary": "Converts accounting confirmation states and timestamps into Vietnamese user-facing labels.",
+      "summary": "Supports the shipment workflow by implementing accounting confirmation label behavior.",
       "tags": [
-        "utility",
-        "finance",
-        "localization",
-        "status"
+        "component",
+        "shipments",
+        "workflow"
       ],
       "complexity": "simple"
     },
@@ -76449,15 +76522,14 @@
       "name": "lineDraft",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        228,
-        240
+        226,
+        238
       ],
-      "summary": "Builds an editable container-operation draft from the persisted line, including carrier, vehicle, locations, and appointment values.",
+      "summary": "Supports the shipment workflow by implementing line draft behavior.",
       "tags": [
-        "utility",
-        "container",
-        "form-state",
-        "mapping"
+        "component",
+        "shipments",
+        "workflow"
       ],
       "complexity": "simple"
     },
@@ -76467,15 +76539,14 @@
       "name": "lineOperationalSignature",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        242,
-        253
+        240,
+        251
       ],
-      "summary": "Serializes mutable container-operation fields into a stable signature used to reset stale editing state.",
+      "summary": "Supports the shipment workflow by implementing line operational signature behavior.",
       "tags": [
-        "utility",
-        "container",
-        "state-sync",
-        "serialization"
+        "component",
+        "shipments",
+        "workflow"
       ],
       "complexity": "simple"
     },
@@ -76485,18 +76556,16 @@
       "name": "ContainerLineRow",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        259,
-        440
+        257,
+        445
       ],
-      "summary": "Renders and conditionally edits one shipment container line while enforcing field permissions, idempotent saves, validation, and dirty or saving notifications.",
+      "summary": "Supports the shipment workflow by implementing container line row behavior.",
       "tags": [
         "component",
-        "container",
-        "form-state",
-        "validation",
-        "api-client"
+        "shipments",
+        "workflow"
       ],
-      "complexity": "moderate"
+      "complexity": "complex"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
@@ -76504,17 +76573,16 @@
       "name": "ContainerLedger",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        442,
-        537
+        447,
+        544
       ],
-      "summary": "Manages the expandable container ledger, aggregating line-level dirty and saving state and requiring an explicit discard decision before closing or finishing edits.",
+      "summary": "Supports the shipment workflow by implementing container ledger behavior.",
       "tags": [
         "component",
-        "container",
-        "edit-workflow",
-        "state-management"
+        "shipments",
+        "workflow"
       ],
-      "complexity": "moderate"
+      "complexity": "complex"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
@@ -76522,35 +76590,16 @@
       "name": "deriveShipmentSignals",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        548,
-        584
+        555,
+        591
       ],
-      "summary": "Derives actionable shipment exceptions from schedule, vehicle, finance, document-custody, accounting, and action-readiness data.",
+      "summary": "Builds the shipment signals projection used by this workflow.",
       "tags": [
-        "utility",
-        "shipment",
-        "status",
-        "business-rules"
+        "component",
+        "shipments",
+        "workflow"
       ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:derivePrimaryShipmentSignal",
-      "type": "function",
-      "name": "derivePrimaryShipmentSignal",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        592,
-        599
-      ],
-      "summary": "Selects the highest-priority actionable shipment signal by applying the declared danger, warning, and info ordering.",
-      "tags": [
-        "utility",
-        "shipment",
-        "status-priority",
-        "business-rules"
-      ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
@@ -76558,15 +76607,14 @@
       "name": "ShipmentSignals",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        601,
-        616
+        608,
+        623
       ],
-      "summary": "Displays all derived shipment exception signals with severity-specific icons and accessible labels.",
+      "summary": "Supports the shipment workflow by implementing shipment signals behavior.",
       "tags": [
         "component",
-        "shipment",
-        "status",
-        "accessibility"
+        "shipments",
+        "workflow"
       ],
       "complexity": "simple"
     },
@@ -76576,17 +76624,16 @@
       "name": "ShipmentDetailContent",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        618,
-        663
+        625,
+        670
       ],
-      "summary": "Selects loading, error, or editable container-ledger content for a shipment detail surface.",
+      "summary": "Supports the shipment workflow by implementing shipment detail content behavior.",
       "tags": [
         "component",
-        "shipment-detail",
-        "container",
-        "error-handling"
+        "shipments",
+        "workflow"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
     },
     {
       "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
@@ -76594,16 +76641,44 @@
       "name": "ShipmentsPage",
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
       "lineRange": [
-        665,
-        1726
+        672,
+        1767
       ],
-      "summary": "Provides the full customer shipment workspace, synchronizing URL filters, list and detail loading, inline edits, exports, container changes, and finance or lock actions.",
+      "summary": "Renders the shipments page user interface and coordinates its stateful workflow.",
       "tags": [
-        "page",
+        "component",
         "shipments",
-        "customer-portal",
-        "workflow",
-        "api-client"
+        "workflow"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:shared/src/index.ts",
+      "type": "file",
+      "name": "index.ts",
+      "filePath": "shared/src/index.ts",
+      "summary": "Acts as the shared package public barrel, re-exporting domain constants, types, validation schemas, calculations, and navigation contracts.",
+      "tags": [
+        "barrel",
+        "entry-point",
+        "shared-contracts",
+        "type-definition",
+        "validation"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:shared/src/schemas/cus-shipment-workspace.ts",
+      "type": "file",
+      "name": "cus-shipment-workspace.ts",
+      "filePath": "shared/src/schemas/cus-shipment-workspace.ts",
+      "summary": "Defines Zod validation and response contracts for CUS shipment workspace lists, details, finance confirmation, locks, reopen actions, recovery, and container updates.",
+      "tags": [
+        "schema-definition",
+        "validation",
+        "shipments",
+        "customer-workspace",
+        "zod"
       ],
       "complexity": "complex"
     },
@@ -80967,237 +81042,6 @@
     },
     {
       "source": "file:backend/src/services/credit-limit.service.ts",
-      "target": "file:backend/src/services/trip-shared.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:businessDateNow",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildOperationalSummary",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildScopeConditions",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:assertCusShipmentScope",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:deriveCusBucket",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerSummary",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:isCurrentRecoveryFact",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:readSiteSnapshotSite",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSupportRows",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSelectors",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildListItem",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerLine",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentRow",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildWorkspaceDetail",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadOperationalSiteRecords",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadExternalCarrier",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadCarrierVehicle",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:resolveInlineExternalCarrier",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/db/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/db/schema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/errors.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/middleware/auth.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/services/application-owned-uniqueness.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "target": "file:backend/src/services/shipment-fulfillment.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
       "target": "file:backend/src/services/trip-shared.ts",
       "type": "imports",
       "direction": "forward",
@@ -94581,48 +94425,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedContainer",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "file:backend/src/db/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "file:backend/src/db/schema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "file:backend/src/middleware/auth.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
-      "target": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:backend/src/tests/customer-commission-validation.test.ts",
       "target": "file:backend/src/services/trip-mutations.service.ts",
       "type": "imports",
@@ -100412,412 +100214,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:completeShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:completeShipment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listShipments",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listShipments",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/api/shipmentClient.ts",
-      "target": "file:shared/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/api/systemClient.ts",
       "target": "file:frontend/src/lib/api/index.ts",
       "type": "imports",
@@ -101974,160 +101370,6 @@
     },
     {
       "source": "file:frontend/src/components/Layout.test.ts",
-      "target": "file:shared/src/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getNavItems",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getNavItems",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getNavSections",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:getNavSections",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:Layout",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "function:frontend/src/components/Layout.tsx:Layout",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/brand.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/layout/PasswordModal.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/layout/ProfileModal.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/layout/Sidebar.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/layout/Topbar.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/layout/types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/shared/OfflineBanner.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/hooks/useAuth.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/hooks/useBottomNavAnimations.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/hooks/useQueries.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/lib/role-helpers.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/Layout.tsx",
       "target": "file:shared/src/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -122987,174 +122229,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "function:backend/src/routes/shipments.ts:runShipmentWrite",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/errors.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/lib/validation.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/asyncHandler.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/auth.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/casbin.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/routes/utils/idempotency.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/routes/utils/pagination.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/audit-registry.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/audit-types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/carrier-fleet-vehicle.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/cus-shipment-workspace.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/dispatch-handoff.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/dispatch-planning.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/idempotency.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/pricing.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-coordination.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-intake.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-recovery.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/statement.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/trip-shared.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:backend/src/routes/trips.ts",
       "target": "function:backend/src/routes/trips.ts:getRequiredGovernanceReason",
       "type": "contains",
@@ -140515,13 +139589,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:shared/src/schemas/cus-shipment-workspace.ts",
-      "target": "file:shared/src/constants/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:shared/src/schemas/customerSchema.test.ts",
       "target": "file:shared/src/schemas/index.ts",
       "type": "imports",
@@ -143981,14 +143048,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/components/Layout.tsx",
-      "target": "file:frontend/src/components/Layout.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
       "source": "file:frontend/src/components/layout/Sidebar.tsx",
       "target": "file:frontend/src/components/layout/Sidebar.test.tsx",
       "type": "tested_by",
@@ -144615,14 +143674,6 @@
     {
       "source": "file:shared/src/company-info.ts",
       "target": "file:shared/src/company-info.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
-      "source": "file:shared/src/schemas/cus-shipment-workspace.ts",
-      "target": "file:shared/src/schemas/cus-shipment-workspace.test.ts",
       "type": "tested_by",
       "direction": "forward",
       "weight": 0.5,
@@ -145864,6 +144915,1210 @@
       "weight": 0.8
     },
     {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "function:backend/src/routes/shipments.ts:runShipmentWrite",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/lib/validation.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/asyncHandler.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/casbin.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/routes/utils/idempotency.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/routes/utils/pagination.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/audit-registry.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/audit-types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/carrier-fleet-vehicle.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/dispatch-handoff.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/dispatch-planning.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/idempotency.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/pricing.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-coordination.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-intake.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-recovery.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/statement.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:businessDateNow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildOperationalSummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildScopeConditions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:assertCusShipmentScope",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:deriveCusBucket",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerSummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:isCurrentRecoveryFact",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:readSiteSnapshotSite",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSupportRows",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadSelectors",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildListItem",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildContainerLine",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentRow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:buildWorkspaceDetail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadShipmentPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentWorkspace",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:getCusShipmentWorkspaceDetail",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentContainers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:listCusShipmentContainers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadOperationalSiteRecords",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadExternalCarrier",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:loadCarrierVehicle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:resolveInlineExternalCarrier",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "function:backend/src/services/cus-shipment-workspace.service.ts:updateCusShipmentContainerLine",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/services/application-owned-uniqueness.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/services/shipment-fulfillment.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "function:backend/src/tests/cus-shipment-workspace.test.ts:seedContainer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "target": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "target": "file:backend/src/tests/cus-shipment-workspace.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:quickCreateShipment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentPricingPreview",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDetail",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentContainers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:saveShipmentCarrierAllocations",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listOperationalSites",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:createOperationalSite",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:submitShipmentForDispatch",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getShipmentDispatchHandoff",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:addShipmentDocument",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:replaceShipmentDocument",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:createShipmentDeclaration",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipmentDeclaration",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentChangeRequest",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:reviewShipmentPod",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:completeShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:completeShipment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:cancelShipmentFulfillment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:downloadShipmentPodFile",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listShipments",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listShipments",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentContainers",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentContainers",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "function:frontend/src/api/shipmentClient.ts:dispatchShipment",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/api/shipmentClient.ts",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getDefaultOpenSection",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getNavItems",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getNavItems",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getNavSections",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:getNavSections",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:Layout",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "function:frontend/src/components/Layout.tsx:Layout",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/brand.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/layout/PasswordModal.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/layout/ProfileModal.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/layout/Sidebar.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/layout/Topbar.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/layout/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/components/shared/OfflineBanner.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/hooks/useAuth.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/hooks/useBottomNavAnimations.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/hooks/useQueries.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/lib/role-helpers.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:frontend/src/lib/routes.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/Layout.tsx",
+      "target": "file:shared/src/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
+      "target": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Alert.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Skeleton.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
       "source": "file:frontend/src/pages/ShipmentsPage.tsx",
       "target": "file:frontend/src/api/shipmentClient.ts",
       "type": "imports",
@@ -145948,165 +146203,18 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
-      "type": "contains",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
+      "type": "tested_by",
       "direction": "forward",
-      "weight": 1
+      "weight": 0.5
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
-      "type": "contains",
+      "source": "file:shared/src/schemas/cus-shipment-workspace.ts",
+      "target": "file:shared/src/constants/index.ts",
+      "type": "imports",
       "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:derivePrimaryShipmentSignal",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/lib/csv.ts:downloadCSV",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/components/shared/Breadcrumbs.tsx:Breadcrumbs",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/components/shared/StatusStrip.tsx:StatusStrip",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
+      "weight": 0.7
     },
     {
       "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
@@ -146505,7 +146613,7 @@
     {
       "id": "layer:automated-quality",
       "name": "Automated Quality",
-      "description": "Backend, frontend, and end-to-end tests plus recorded test-run context that protect TingTing logistics workflows.",
+      "description": "Backend, frontend, and staging test suites that protect TingTing logistics workflows and financial behavior.",
       "nodeIds": [
         "file:backend/src/tests/advance-settlement-code.test.ts",
         "file:backend/src/tests/app-owned-uniqueness-runtime.test.ts",
@@ -146521,7 +146629,6 @@
         "file:backend/src/tests/chiho-reconciliation.test.ts",
         "file:backend/src/tests/company-info-rbac.test.ts",
         "file:backend/src/tests/cross-customer-isolation.test.ts",
-        "file:backend/src/tests/cus-shipment-workspace.test.ts",
         "file:backend/src/tests/customer-commission-validation.test.ts",
         "file:backend/src/tests/customer-receivable-as-of.test.ts",
         "file:backend/src/tests/customer-workflow-migration-safety.test.ts",
@@ -146899,22 +147006,22 @@
         "file:frontend/src/hooks/useSyncedState.test.ts",
         "file:frontend/src/pages/ShipmentsPage.density.test.ts",
         "file:frontend/src/styles/base.test.ts",
-        "config:frontend/test-results/.last-run.json",
-        "document:frontend/test-results/o2c-lifecycle-O2C-Lifecycl-d48ed-transition-to-ready-by-date-chromium/error-context.md",
-        "file:frontend/test-results/o2c-lifecycle-O2C-Lifecycl-d48ed-transition-to-ready-by-date-chromium/video.webm",
         "file:frontend/vite.config.ts.test.js",
+        "file:qa_automation/test_staging.py",
         "file:shared/src/calculations/fifoAging.test.ts",
         "file:shared/src/calculations/iso6346.test.ts",
         "file:shared/src/calculations/tripDriverSalary.test.ts",
         "file:shared/src/governance/source-authority.test.ts",
         "file:shared/src/schemas/customer-service-finance.test.ts",
-        "file:shared/src/schemas/geotag.test.ts"
+        "file:shared/src/schemas/geotag.test.ts",
+        "file:backend/src/tests/cus-shipment-workspace.test.ts",
+        "file:frontend/src/pages/ShipmentsDetailPage.test.tsx"
       ]
     },
     {
       "id": "layer:documentation",
       "name": "Documentation",
-      "description": "Operational guidance, product requirements, design references, and workflow records for the SilverSea logistics platform.",
+      "description": "Operational guidance, product requirements, design references, customer artifacts, and workflow records for the SilverSea logistics platform.",
       "nodeIds": [
         "document:AGENTS.md",
         "document:CONTEXT.md",
@@ -146970,15 +147077,34 @@
         "document:frontend/docs/api-layers.md",
         "document:frontend/docs/design-system.md",
         "document:docs/blockers/QA-20260731.txt",
+        "file:docs/prd/archive/Module1.docx",
+        "file:docs/prd/archive/Module10.docx",
+        "file:docs/prd/archive/Module11.docx",
+        "file:docs/prd/archive/Module12.docx",
+        "file:docs/prd/archive/Module2.docx",
+        "file:docs/prd/archive/Module3.docx",
+        "file:docs/prd/archive/Module4.docx",
+        "file:docs/prd/archive/Module5.docx",
+        "file:docs/prd/archive/Module6.docx",
+        "file:docs/prd/archive/Module7.docx",
+        "file:docs/prd/archive/Module8.docx",
+        "file:docs/prd/archive/Module9.docx",
         "document:docs/quytrinh/CAU-HOI-LAM-RO-QUY-TRINH-O2C.md",
+        "file:docs/quytrinh/File Khách Hàng/29.7 - DATA PM.xlsx",
+        "file:docs/quytrinh/File Khách Hàng/29.7 - DEMO KẾ TOÁN.xlsx",
+        "file:docs/quytrinh/File Khách Hàng/BẢNG DEMO PHẦN MỀM 2026- CUS- ĐIỀU XE.xlsx",
+        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026 - HĐVC SS - MẪU VỚI VENDOR.docx",
+        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC (SONG NGỮ).docx",
+        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC.docx",
         "document:docs/quytrinh/HUONG-DAN-KIEM-THU-O2C-STAGING.md",
-        "document:frontend/src/hooks/animations/PAGE_ANALYSIS.md"
+        "document:frontend/src/hooks/animations/PAGE_ANALYSIS.md",
+        "document:frontend/test-results/o2c-lifecycle-O2C-Lifecycl-d48ed-transition-to-ready-by-date-chromium/error-context.md"
       ]
     },
     {
       "id": "layer:data-persistence",
       "name": "Data Persistence",
-      "description": "Drizzle schema, database access, migrations, and modeled table nodes that persist the platform’s operational and financial records.",
+      "description": "Drizzle database access, schema migrations, and seed-table nodes that persist operational and financial records.",
       "nodeIds": [
         "file:backend/src/db/backfill-faq-embeddings.ts",
         "file:backend/src/db/index.ts",
@@ -147004,7 +147130,7 @@
     {
       "id": "layer:infrastructure-delivery",
       "name": "Infrastructure & Delivery",
-      "description": "Container, deployment, runtime-service, and environment resources that build and operate the application.",
+      "description": "Container, compose, proxy, and repository runtime resources that build and operate the application.",
       "nodeIds": [
         "resource:backend/.dockerignore",
         "service:backend/Dockerfile",
@@ -147025,7 +147151,7 @@
     {
       "id": "layer:architecture-intelligence",
       "name": "Architecture Intelligence",
-      "description": "The repository-owned Understand-Anything graph and metadata used to map the application’s structure and dependencies.",
+      "description": "The repository-owned Understand-Anything graph and metadata used to map the application structure and dependencies.",
       "nodeIds": [
         "config:.ua/config.json",
         "config:.ua/fingerprints.json",
@@ -147056,7 +147182,6 @@
         "file:frontend/src/api/ocrSettingsClient.ts",
         "file:frontend/src/api/reportClient.ts",
         "file:frontend/src/api/salaryClient.ts",
-        "file:frontend/src/api/shipmentClient.ts",
         "file:frontend/src/api/systemClient.ts",
         "file:frontend/src/api/tireClient.ts",
         "file:frontend/src/api/tripClient.ts",
@@ -147075,7 +147200,6 @@
         "file:frontend/src/components/debt/PeriodFilter.tsx",
         "file:frontend/src/components/debt/PeriodSummaryCards.tsx",
         "file:frontend/src/components/finance/ProfitabilityReportPanel.tsx",
-        "file:frontend/src/components/Layout.tsx",
         "file:frontend/src/components/layout/NotificationBell.tsx",
         "file:frontend/src/components/layout/PasswordModal.tsx",
         "file:frontend/src/components/layout/ProfileModal.tsx",
@@ -147084,7 +147208,6 @@
         "file:frontend/src/components/layout/types.ts",
         "file:frontend/src/components/LocationAutocomplete.tsx",
         "file:frontend/src/components/SearchDropdown.tsx",
-        "file:frontend/src/components/UI.tsx",
         "file:frontend/src/components/shared/Alert.tsx",
         "file:frontend/src/components/shared/Banner.tsx",
         "file:frontend/src/components/shared/Breadcrumbs.tsx",
@@ -147618,6 +147741,8 @@
         "file:frontend/src/pages/portal/PortalPages.css",
         "file:frontend/src/test-setup.ts",
         "file:frontend/src/vite-env.d.ts",
+        "config:frontend/test-results/.last-run.json",
+        "file:frontend/test-results/o2c-lifecycle-O2C-Lifecycl-d48ed-transition-to-ready-by-date-chromium/video.webm",
         "file:frontend/vite.config.ts",
         "file:frontend/vitest.config.ts",
         "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
@@ -147626,9 +147751,9 @@
         "file:frontend/src/components/untitled-ui/base/input/label.tsx",
         "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
         "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
-        "file:frontend/src/pages/ShipmentsPage.tsx",
         "file:frontend/src/utils/cx.ts",
         "file:frontend/src/utils/is-react-component.ts",
+        "file:frontend/src/components/UI.tsx",
         "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
         "file:frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
         "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
@@ -147655,6 +147780,10 @@
         "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
         "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
         "file:frontend/src/hooks/use-resize-observer.ts",
+        "file:frontend/src/api/shipmentClient.ts",
+        "file:frontend/src/components/Layout.tsx",
+        "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+        "file:frontend/src/pages/ShipmentsPage.tsx",
         "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
         "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
         "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
@@ -147708,7 +147837,6 @@
         "file:backend/src/services/commission.service.ts",
         "file:backend/src/services/config.service.ts",
         "file:backend/src/services/credit-limit.service.ts",
-        "file:backend/src/services/cus-shipment-workspace.service.ts",
         "file:backend/src/services/customer-receivable-authority.service.ts",
         "file:backend/src/services/dashboard-stats.service.ts",
         "file:backend/src/services/dashboard-widgets.service.ts",
@@ -147842,7 +147970,6 @@
         "file:backend/src/routes/ocr.ts",
         "file:backend/src/routes/portal/index.ts",
         "file:backend/src/routes/recoverable-costs.ts",
-        "file:backend/src/routes/shipments.ts",
         "file:backend/src/routes/trips.ts",
         "file:backend/src/routes/upload.ts",
         "file:backend/src/routes/utils/crud-factory.ts",
@@ -147974,7 +148101,9 @@
         "file:backend/src/seed/data/pricing.ts",
         "file:backend/src/seed/data/reference.ts",
         "file:backend/src/seed/data/samples.ts",
-        "file:backend/src/seed/data/vehicles.ts"
+        "file:backend/src/seed/data/vehicles.ts",
+        "file:backend/src/routes/shipments.ts",
+        "file:backend/src/services/cus-shipment-workspace.service.ts"
       ]
     },
     {
@@ -147982,12 +148111,10 @@
       "name": "Shared Domain Contracts",
       "description": "Cross-package contracts, navigation definitions, validation, types, and financial calculations shared by backend and frontend.",
       "nodeIds": [
-        "file:shared/src/index.ts",
         "file:shared/src/calculations/billingDocument.ts",
         "file:shared/src/calculations/vehicleAlerts.ts",
         "file:shared/src/company-info.ts",
         "file:shared/src/constants/index.ts",
-        "file:shared/src/schemas/cus-shipment-workspace.ts",
         "file:shared/src/schemas/index.ts",
         "file:shared/src/types/index.ts",
         "file:shared/src/calculations/fuelSurcharge.ts",
@@ -148015,7 +148142,9 @@
         "file:shared/src/schemas/shipment-charge-proposal-link.ts",
         "file:shared/test-zod-null.ts",
         "file:shared/test-zod.ts",
-        "config:shared/tsconfig.json"
+        "config:shared/tsconfig.json",
+        "file:shared/src/index.ts",
+        "file:shared/src/schemas/cus-shipment-workspace.ts"
       ]
     },
     {
@@ -148033,26 +148162,7 @@
         "config:.codex/hooks.json",
         "config:.zcode/config.json",
         "file:.zcode/hooks/understand-staleness.sh",
-        "file:docs/prd/archive/Module1.docx",
-        "file:docs/prd/archive/Module10.docx",
-        "file:docs/prd/archive/Module11.docx",
-        "file:docs/prd/archive/Module12.docx",
-        "file:docs/prd/archive/Module2.docx",
-        "file:docs/prd/archive/Module3.docx",
-        "file:docs/prd/archive/Module4.docx",
-        "file:docs/prd/archive/Module5.docx",
-        "file:docs/prd/archive/Module6.docx",
-        "file:docs/prd/archive/Module7.docx",
-        "file:docs/prd/archive/Module8.docx",
-        "file:docs/prd/archive/Module9.docx",
-        "file:docs/quytrinh/File Khách Hàng/29.7 - DATA PM.xlsx",
-        "file:docs/quytrinh/File Khách Hàng/29.7 - DEMO KẾ TOÁN.xlsx",
-        "file:docs/quytrinh/File Khách Hàng/BẢNG DEMO PHẦN MỀM 2026- CUS- ĐIỀU XE.xlsx",
-        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026 - HĐVC SS - MẪU VỚI VENDOR.docx",
-        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC (SONG NGỮ).docx",
-        "file:docs/quytrinh/File Khách Hàng/FILE HỢP ĐỒNG MẪU UP PM/2026. HĐVC SS - NCC.docx",
         "file:eslint.config.mjs",
-        "file:qa_automation/test_staging.py",
         "file:screenshot_shipments.mjs",
         "file:tools/extract-excel-data.mjs",
         "file:tools/generate-seed-data.mjs",

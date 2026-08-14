@@ -1,0 +1,191 @@
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RecoverableCost } from '../api/customerServiceFinanceClient';
+import RecoverableCostsPage from './RecoverableCostsPage';
+
+const { listRecoverableCostsMock, requestRecoverableCostMock } = vi.hoisted(() => ({
+  listRecoverableCostsMock: vi.fn(),
+  requestRecoverableCostMock: vi.fn(),
+}));
+
+vi.mock('../api/customerServiceFinanceClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/customerServiceFinanceClient')>();
+  return {
+    ...actual,
+    customerServiceFinanceClient: {
+      ...actual.customerServiceFinanceClient,
+      listRecoverableCosts: listRecoverableCostsMock,
+      requestRecoverableCost: requestRecoverableCostMock,
+    },
+  };
+});
+
+function makeCost(overrides: Partial<RecoverableCost> = {}): RecoverableCost {
+  return {
+    id: 41,
+    version: 7,
+    tripId: 12,
+    tripCode: 'CH-2608-012',
+    shipmentId: 18,
+    shipmentCode: 'DNKM13333',
+    customerId: 4,
+    customerName: 'Công ty Long Minh',
+    expenseType: 'LIFT_ON',
+    expenseTypeName: 'Phí nâng container',
+    expenseDate: '2026-07-30',
+    buyAmount: 1_500_000,
+    sellAmount: 2_200_000,
+    recoverablePrincipalAmount: 1_500_000,
+    serviceFeeAmount: 700_000,
+    approvalStatus: 'PENDING',
+    invoiceNumber: '14578',
+    invoiceDate: '2026-07-30',
+    noInvoiceEvidenceTypes: [],
+    eligibility: { state: 'READY_FOR_REVIEW', blockedReason: null },
+    claim: null,
+    updatedAt: '2026-07-30T08:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function renderPage() {
+  return render(<MemoryRouter><RecoverableCostsPage /></MemoryRouter>);
+}
+
+describe('RecoverableCostsPage', () => {
+  beforeEach(() => {
+    listRecoverableCostsMock.mockReset();
+    requestRecoverableCostMock.mockReset();
+    listRecoverableCostsMock.mockResolvedValue({ items: [makeCost()], total: 1, page: 1, limit: 25 });
+    requestRecoverableCostMock.mockResolvedValue({ id: 901 });
+  });
+
+  it('renders the reconciliation ledger with full VND values and truthful existing fields', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Chi phí cần kiểm tra' })).toBeTruthy();
+    expect(screen.getByTestId('recoverable-cost-ledger')).toBeTruthy();
+    expect(screen.getByTestId('recoverable-cost-records')).toBeTruthy();
+    expect(screen.getAllByText('Công ty Long Minh').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('DNKM13333').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('1.500.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('700.000 ₫').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/\b2,2\s*(tr|M)\b/i)).toBeNull();
+  });
+
+  it('filters by approval status and resets the requested page to one', async () => {
+    listRecoverableCostsMock.mockResolvedValue({ items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })), total: 30, page: 1, limit: 25 });
+    renderPage();
+    await screen.findAllByText('Công ty Long Minh');
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 2, limit: 25, approvalStatus: undefined }));
+
+    fireEvent.change(screen.getByLabelText('Trạng thái phê duyệt'), { target: { value: 'APPROVED' } });
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 1, limit: 25, approvalStatus: 'APPROVED' }));
+  });
+
+  it('keeps blocker text visible and removes review actions from ineligible costs', async () => {
+    listRecoverableCostsMock.mockResolvedValue({
+      items: [makeCost({
+        approvalStatus: 'REJECTED',
+        eligibility: { state: 'BLOCKED', blockedReason: 'Chi phí chưa được phê duyệt.' },
+      })],
+      total: 1,
+      page: 1,
+      limit: 25,
+    });
+    renderPage();
+
+    expect((await screen.findAllByText('Chi phí chưa được phê duyệt.')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
+    expect(screen.getAllByText('Không cần thao tác').length).toBeGreaterThan(0);
+  });
+
+  it('uses a Vietnamese fallback instead of exposing an internal expense enum', async () => {
+    listRecoverableCostsMock.mockResolvedValue({
+      items: [makeCost({ expenseType: 'LIFT_ON', expenseTypeName: null })],
+      total: 1,
+      page: 1,
+      limit: 25,
+    });
+    renderPage();
+
+    expect((await screen.findAllByText('Khoản chi khác')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('LIFT_ON')).toBeNull();
+  });
+
+  it('submits the unchanged decision, evidence, version, and idempotency contract', async () => {
+    renderPage();
+    const reviewButtons = await screen.findAllByRole('button', { name: 'Kiểm tra' });
+    fireEvent.click(reviewButtons[0]);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Gửi yêu cầu kiểm tra chi phí' });
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Trả lại bổ sung/ }));
+    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Bổ sung biên nhận nâng container.' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    await waitFor(() => expect(requestRecoverableCostMock).toHaveBeenCalledWith(
+      41,
+      {
+        decision: 'REJECTED',
+        reason: 'Bổ sung biên nhận nâng container.',
+        expectedVersion: 7,
+        evidence: { reviewNote: 'Bổ sung biên nhận nâng container.', attachmentRefs: [] },
+      },
+      expect.any(String),
+    ));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('locks duplicate submission while a review request is pending', async () => {
+    let resolveRequest: ((value: unknown) => void) | undefined;
+    requestRecoverableCostMock.mockImplementation(() => new Promise((resolve) => { resolveRequest = resolve; }));
+    renderPage();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Kiểm tra' }))[0]);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Đã đối chiếu đủ chứng từ.' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    expect((within(dialog).getByRole('button', { name: 'Đang gửi…' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(dialog).getByRole('button', { name: 'Hủy' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(requestRecoverableCostMock).toHaveBeenCalledTimes(1);
+    resolveRequest?.({ id: 901 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('keeps the dialog open and exposes a retryable mutation error', async () => {
+    requestRecoverableCostMock.mockRejectedValueOnce(new Error('Mất kết nối'));
+    renderPage();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Kiểm tra' }))[0]);
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Nội dung kiểm tra'), { target: { value: 'Đã đối chiếu.' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' }));
+
+    expect((await within(dialog).findByRole('alert')).textContent).toContain('Không thể gửi yêu cầu kiểm tra');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Gửi yêu cầu' })).toBeTruthy();
+  });
+
+  it('renders useful loading, error retry, and filtered-empty states', async () => {
+    let resolveList: ((value: unknown) => void) | undefined;
+    listRecoverableCostsMock.mockImplementationOnce(() => new Promise((resolve) => { resolveList = resolve; }));
+    const { unmount } = renderPage();
+    expect(screen.getByRole('status').textContent).toContain('Đang tải danh sách chi phí cần kiểm tra');
+    resolveList?.({ items: [makeCost()], total: 1, page: 1, limit: 25 });
+    await screen.findAllByText('Công ty Long Minh');
+    unmount();
+
+    listRecoverableCostsMock.mockReset();
+    listRecoverableCostsMock.mockRejectedValueOnce(new Error('Mất kết nối'));
+    renderPage();
+    expect((await screen.findByRole('alert')).textContent).toContain('Không thể tải danh sách chi phí cần kiểm tra');
+    listRecoverableCostsMock.mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 25 });
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(await screen.findByText('Không có chi phí phù hợp')).toBeTruthy();
+  });
+});
