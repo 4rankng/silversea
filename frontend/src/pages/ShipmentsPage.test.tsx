@@ -378,7 +378,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
     fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
-    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Lưu ô' }));
+    fireEvent.keyDown(screen.getByLabelText('Giờ'), { key: 'Enter' });
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3,
@@ -391,7 +391,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
     fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
-    fireEvent.keyDown(screen.getByLabelText('Ghi chú nội bộ'), { key: 'Enter', ctrlKey: true });
+    fireEvent.keyDown(screen.getByLabelText('Ghi chú nội bộ'), { key: 'Enter' });
 
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', {
       expectedVersion: 4,
@@ -414,16 +414,27 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })));
   });
 
-  it('does not treat Enter on the inline cancel button as a save', async () => {
+  it('auto-saves when focus leaves the active cell without showing action buttons', async () => {
     renderPage();
     await screen.findByRole('table');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const cancelButton = within(masterRow()).getByRole('button', { name: 'Hủy' });
-    fireEvent.keyDown(cancelButton, { key: 'Enter' });
+    const dateInput = screen.getByLabelText('Ngày đóng/trả');
+    const timeInput = screen.getByLabelText('Giờ');
+    expect(screen.queryByRole('button', { name: 'Lưu ô' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hủy' })).toBeNull();
+
+    fireEvent.change(dateInput, { target: { value: '2026-08-21' } });
+    fireEvent.blur(dateInput, { relatedTarget: timeInput });
     expect(apiPut).not.toHaveBeenCalled();
-    fireEvent.click(cancelButton);
-    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
+
+    const searchInput = screen.getByRole('textbox', { name: 'Bill/Book hoặc tờ khai' });
+    searchInput.focus();
+    fireEvent.blur(timeInput, { relatedTarget: searchInput });
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-08-21' }));
+    await waitFor(() => expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull());
+    expect(document.activeElement).toBe(searchInput);
   });
 
   it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
@@ -438,10 +449,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
     const notesInput = screen.getByLabelText('Ghi chú nội bộ');
-    fireEvent.keyDown(notesInput, { key: 'Enter', ctrlKey: true });
-    fireEvent.keyDown(notesInput, { key: 'Enter', ctrlKey: true });
+    fireEvent.change(notesInput, { target: { value: 'Ưu tiên cổng số 3' } });
+    fireEvent.keyDown(notesInput, { key: 'Enter' });
+    fireEvent.keyDown(notesInput, { key: 'Enter' });
     expect(apiPut).toHaveBeenCalledTimes(1);
-    expect((screen.getByRole('button', { name: 'Lưu ô' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.keyDown(notesInput, { key: 'Escape' });
     expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
