@@ -169,6 +169,9 @@ importers:
       '@radix-ui/react-select':
         specifier: ^2.3.0
         version: 2.3.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tailwindcss/typography':
+        specifier: ^0.5.20
+        version: 0.5.20(tailwindcss@4.3.0)
       '@tanstack/react-query':
         specifier: ^5.100.14
         version: 5.100.14(react@19.2.6)
@@ -217,6 +220,12 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@4.3.0)
+      tailwindcss-react-aria-components:
+        specifier: ^2.2.0
+        version: 2.2.0(tailwindcss@4.3.0)
     devDependencies:
       '@eslint/js':
         specifier: ^9.0.0
@@ -2038,6 +2047,11 @@ packages:
     resolution: {integrity: sha512-F7HZGBeN9I0/AuuJS5PwcD8xayx5ri5GhjYUDBEVYUkexyA/giwbDNjRVrxSezE3T250OU2K/wp/ltWx3UOefg==}
     engines: {node: '>= 20'}
 
+  '@tailwindcss/typography@0.5.20':
+    resolution: {integrity: sha512-hwbzQuNUfcPvbegQFatVPl/MY/tcM9KLl963hQ5laJKPh81TEZ1+dNG9PirGvcaDBkp+BCshExAyKVPW91dozw==}
+    peerDependencies:
+      tailwindcss: '>=3.0.0 || >=4.0.0 || insiders'
+
   '@tailwindcss/vite@4.3.0':
     resolution: {integrity: sha512-t6J3OrB5Fc0ExuhohouH0fWUGMYL6PTLhW+E7zIk/pdbnJARZDCwjBznFnkh5ynRnIRSI4YjtTH0t6USjJISrw==}
     peerDependencies:
@@ -2707,6 +2721,11 @@ packages:
 
   css.escape@1.5.1:
     resolution: {integrity: sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==}
+
+  cssesc@3.0.0:
+    resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
+    engines: {node: '>=4'}
+    hasBin: true
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -4001,6 +4020,10 @@ packages:
   png-js@1.1.0:
     resolution: {integrity: sha512-PM/uYGzGdNSzqeOgly68+6wKQDL1SY0a/N+OEa/+br6LnHWOAJB0Npiamnodfq3jd2LS/i2fMeOKSAILjA+m5Q==}
 
+  postcss-selector-parser@6.0.10:
+    resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
+    engines: {node: '>=4'}
+
   postcss@8.5.16:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -4465,6 +4488,16 @@ packages:
 
   tailwind-merge@3.6.0:
     resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
+
+  tailwindcss-animate@1.0.7:
+    resolution: {integrity: sha512-bl6mpH3T7I3UFxuvDEXLxy/VuFxBk5bbzplh7tXI68mwMokNYd1t9qPBHlnyTwfa4JGC4zP516I1hYYtQ/vspA==}
+    peerDependencies:
+      tailwindcss: '>=3.0.0 || insiders'
+
+  tailwindcss-react-aria-components@2.2.0:
+    resolution: {integrity: sha512-iNVDSQd6haXWiu4RakjaYnCUnLw/nOEFSFHEelFeIkT/0f8HSrJ23fwt59F93yNw4FrjjHDXIGHgEtqProNcmQ==}
+    peerDependencies:
+      tailwindcss: ^4.0.0
 
   tailwindcss@4.3.0:
     resolution: {integrity: sha512-y6nxMGB1nMW9R6k96e5gdIFzcfL/gTJRNaqGes1YvkLnPVXzWgbqFF2yLC0T8G774n24cx3Pe8XrKoniCOAH+Q==}
@@ -6632,6 +6665,11 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.0
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.0
 
+  '@tailwindcss/typography@0.5.20(tailwindcss@4.3.0)':
+    dependencies:
+      postcss-selector-parser: 6.0.10
+      tailwindcss: 4.3.0
+
   '@tailwindcss/vite@4.3.0(vite@6.4.3(@types/node@22.19.19)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.3)(yaml@2.9.0))':
     dependencies:
       '@tailwindcss/node': 4.3.0
@@ -6880,10 +6918,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/eslint-plugin@8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.4.1(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)':
+  '@typescript-eslint/eslint-plugin@8.61.0(@typescript-eslint/parser@8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.61.0(eslint@10.4.1(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/parser': 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       '@typescript-eslint/scope-manager': 8.61.0
       '@typescript-eslint/type-utils': 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       '@typescript-eslint/utils': 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
@@ -7427,6 +7465,8 @@ snapshots:
       source-map-js: 1.2.1
 
   css.escape@1.5.1: {}
+
+  cssesc@3.0.0: {}
 
   csstype@3.2.3: {}
 
@@ -8836,6 +8876,11 @@ snapshots:
     dependencies:
       browserify-zlib: 0.2.0
 
+  postcss-selector-parser@6.0.10:
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
+
   postcss@8.5.16:
     dependencies:
       nanoid: 3.3.15
@@ -9437,6 +9482,14 @@ snapshots:
 
   tailwind-merge@3.6.0: {}
 
+  tailwindcss-animate@1.0.7(tailwindcss@4.3.0):
+    dependencies:
+      tailwindcss: 4.3.0
+
+  tailwindcss-react-aria-components@2.2.0(tailwindcss@4.3.0):
+    dependencies:
+      tailwindcss: 4.3.0
+
   tailwindcss@4.3.0: {}
 
   tapable@2.3.3: {}
@@ -9539,7 +9592,7 @@ snapshots:
 
   typescript-eslint@8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.61.0(@typescript-eslint/parser@8.61.0(eslint@10.4.1(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
+      '@typescript-eslint/eslint-plugin': 8.61.0(@typescript-eslint/parser@8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       '@typescript-eslint/parser': 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       '@typescript-eslint/typescript-estree': 8.61.0(typescript@5.9.3)
       '@typescript-eslint/utils': 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)

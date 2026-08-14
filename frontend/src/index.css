@@ -4,6 +4,7 @@
    Fonts are self-hosted via /public/fonts/fonts.css (linked in index.html) —
    Be Vietnam Pro (text/UI) + JetBrains Mono (numerics). */
 @import "./styles/tokens.css";     /* @import "tailwindcss" + :root design tokens */
+@import "./styles/globals.css";    /* Untitled UI v8 theme + plugins + utilities — MUST follow tokens.css (daisyUI) */
 @import "./styles/base.css";
 @import "./styles/typography.css";
 @import "./styles/utilities.css";
