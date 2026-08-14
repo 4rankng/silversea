@@ -1217,8 +1217,8 @@ export default function ShipmentsPage() {
         className="cus-workspace cus-workspace--worksheet"
         aria-labelledby="cus-workspace-title"
         aria-busy={loading}
-        aria-hidden={drawerId != null || createOpen ? true : undefined}
-        inert={drawerId != null || createOpen ? true : undefined}
+        aria-hidden={drawerId != null || createOpen ? true : false}
+        inert={drawerId != null || createOpen ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
         <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
