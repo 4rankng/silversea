@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "ebd153a2f298a15b4c27b243160c181eb37dcd20",
+  "gitCommitHash": "5bb23d9dd394e2884c6f49784a0ce1966aff6c98",
   "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
@@ -69328,7 +69328,7 @@
     },
     "frontend/src/components/UI.tsx": {
       "filePath": "frontend/src/components/UI.tsx",
-      "contentHash": "86ccf9229e6806852fcef26c39b1fb0046366162f7f335016a8b0cd44b54f040",
+      "contentHash": "e04bab5430a8d30a0e335ab69381c23f270cc3edeb205a3ebd12c02d5c6f0bc4",
       "functions": [
         {
           "name": "overlayEntrance",
@@ -69399,10 +69399,10 @@
         {
           "name": "Btn",
           "params": [
-            "{\n  variant = 'secondary',\n  size = 'md',\n  type = 'button',\n  icon,\n  children,\n  className = '',\n  onPointerDown: restPointerDown,\n  onPointerUp: restPointerUp,\n  onPointerLeave: restPointerLeave,\n  ...rest\n}"
+            "{\n  variant = 'secondary',\n  size = 'md',\n  type = 'button',\n  icon,\n  children,\n  className = '',\n  disabled,\n  ...rest\n}"
           ],
           "exported": true,
-          "lineCount": 31
+          "lineCount": 24
         },
         {
           "name": "Toolbar",
@@ -69426,7 +69426,7 @@
             "{ variant, children, dot = true }"
           ],
           "exported": true,
-          "lineCount": 8
+          "lineCount": 12
         },
         {
           "name": "PlateTag",
@@ -69442,7 +69442,7 @@
             "{ variant = 'neutral', children, className = '' }"
           ],
           "exported": true,
-          "lineCount": 15
+          "lineCount": 7
         },
         {
           "name": "FormGroup",
@@ -69450,7 +69450,7 @@
             "{ label, helpText, error, children, style }"
           ],
           "exported": true,
-          "lineCount": 22
+          "lineCount": 20
         },
         {
           "name": "Modal",
@@ -69527,12 +69527,6 @@
           ]
         },
         {
-          "source": "../hooks/animations/usePressAnimation",
-          "specifiers": [
-            "usePressAnimation"
-          ]
-        },
-        {
           "source": "./shared/Tooltip",
           "specifiers": [
             "Tooltip"
@@ -69542,6 +69536,32 @@
           "source": "../design-system/Sparkline",
           "specifiers": [
             "Sparkline"
+          ]
+        },
+        {
+          "source": "./untitled-ui/base/buttons/button",
+          "specifiers": [
+            "UIButton",
+            "UIButtonProps"
+          ]
+        },
+        {
+          "source": "./untitled-ui/base/badges/badges",
+          "specifiers": [
+            "UIBadge",
+            "UIBadgeWithDot"
+          ]
+        },
+        {
+          "source": "./untitled-ui/base/input/label",
+          "specifiers": [
+            "UILabel"
+          ]
+        },
+        {
+          "source": "./untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "UIHintText"
           ]
         }
       ],
@@ -69563,7 +69583,7 @@
         "ConfirmDialog",
         "useConfirm"
       ],
-      "totalLines": 630,
+      "totalLines": 650,
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/agent/AgentAssistant.test.tsx": {
@@ -110537,6 +110557,1664 @@
       "imports": [],
       "exports": [],
       "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/application/modals/modal.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "contentHash": "b8851cd1be03c4543dc6fba22818634fe37dc33cc0d4c8f42d1b19e454b11b03",
+      "functions": [
+        {
+          "name": "ModalOverlay",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "Modal",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "Dialog",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaDialogProps",
+            "AriaModalOverlayProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaDialog",
+            "AriaDialogTrigger",
+            "AriaModal",
+            "AriaModalOverlay"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "DialogTrigger",
+        "ModalOverlay",
+        "Modal",
+        "Dialog"
+      ],
+      "totalLines": 47,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/avatar.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "contentHash": "27dac9d68eed1afa7effd071a6525a1aa57d1221ce22f3369945a21436896d7c",
+      "functions": [
+        {
+          "name": "Avatar",
+          "params": [
+            "{\n    size = \"md\",\n    src,\n    alt,\n    initials,\n    placeholder,\n    placeholderIcon: PlaceholderIcon,\n    border,\n    badge,\n    status,\n    verified,\n    count,\n    focusable = false,\n    rounded = true,\n    className,\n    contentClassName,\n}"
+          ],
+          "exported": true,
+          "lineCount": 83
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "ReactNode",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "User01"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "./base-components",
+          "specifiers": [
+            "AvatarOnlineIndicator",
+            "VerifiedTick"
+          ]
+        },
+        {
+          "source": "./base-components/avatar-count",
+          "specifiers": [
+            "AvatarCount"
+          ]
+        }
+      ],
+      "exports": [
+        "Avatar"
+      ],
+      "totalLines": 162,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "contentHash": "f5a57258dabca9de53c4dccd5af90ed4c2f2d67fb775406475597a2bc489c1e7",
+      "functions": [
+        {
+          "name": "AvatarAddButton",
+          "params": [
+            "{ size, className, title = \"Add user\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "Plus"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButtonProps"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/tooltip/tooltip",
+          "specifiers": [
+            "AriaTooltip",
+            "AriaTooltipTrigger"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "AvatarAddButton"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "contentHash": "cdf8863dba22f6bcd07cba38fda37d63e2d7a3591699935abc532852b9683280",
+      "functions": [
+        {
+          "name": "AvatarCompanyIcon",
+          "params": [
+            "{ size, src, alt }"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "AvatarCompanyIcon"
+      ],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "contentHash": "d3964c9f232b6a0ca9e821d976c097e838b866359c1a40c778d7e3d1ba1f0bed",
+      "functions": [
+        {
+          "name": "AvatarCount",
+          "params": [
+            "{ count, className }"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "AvatarCount"
+      ],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "contentHash": "ba2578945eea3bc20bfe9ae33cf00c6995ae12487425ffaa75b3a0039783ac22",
+      "functions": [
+        {
+          "name": "AvatarOnlineIndicator",
+          "params": [
+            "{ size, status, className }"
+          ],
+          "exported": true,
+          "lineCount": 29
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "AvatarOnlineIndicator"
+      ],
+      "totalLines": 50,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/index.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/index.tsx",
+      "contentHash": "d630103c098195bb12b76683ddce85402dcc394feef45d2427e478209d2c2bd5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "contentHash": "eee2ff114bcd6266cb7b83400b22d9b37e6e881cd8e23469a30b7b03836f4748",
+      "functions": [
+        {
+          "name": "VerifiedTick",
+          "params": [
+            "{ size, className }"
+          ],
+          "exported": true,
+          "lineCount": 14
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "VerifiedTick"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/badges/badge-types.ts": {
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badge-types.ts",
+      "contentHash": "086f2d74cddd0decb0fa78b80609ff17968df7a9c09661d813243ead847d1501",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "badgeTypes"
+      ],
+      "totalLines": 265,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/badges/badges.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "contentHash": "9250b6cff1b7881ea52103a585e42c895d5b97c55a2435640136f26258374737",
+      "functions": [
+        {
+          "name": "Badge",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "BadgeWithDot",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 30
+        },
+        {
+          "name": "BadgeWithIcon",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 50
+        },
+        {
+          "name": "BadgeWithFlag",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "BadgeWithImage",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 29
+        },
+        {
+          "name": "BadgeWithButton",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 40
+        },
+        {
+          "name": "BadgeIcon",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 29
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "MouseEventHandler",
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "CloseX"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/foundations/dot-icon",
+          "specifiers": [
+            "Dot"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "./badge-types",
+          "specifiers": [
+            "BadgeColors",
+            "BadgeTypeToColorMap",
+            "BadgeTypes",
+            "FlagTypes",
+            "IconComponentType",
+            "Sizes"
+          ]
+        },
+        {
+          "source": "./badge-types",
+          "specifiers": [
+            "badgeTypes"
+          ]
+        }
+      ],
+      "exports": [
+        "filledColors",
+        "Badge",
+        "BadgeWithDot",
+        "BadgeWithIcon",
+        "BadgeWithFlag",
+        "BadgeWithImage",
+        "BadgeWithButton",
+        "BadgeIcon"
+      ],
+      "totalLines": 417,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "contentHash": "c109e26b9cd8235aa5fe246079faff724c5aea4b4a9d4de0a84d89cebc8bff99",
+      "functions": [
+        {
+          "name": "CheckboxBase",
+          "params": [
+            "{ className, isSelected, isDisabled, isIndeterminate, size = \"sm\", isFocusVisible = false }"
+          ],
+          "exported": true,
+          "lineCount": 41
+        },
+        {
+          "name": "Checkbox",
+          "params": [
+            "{ label, hint, size = \"sm\", className, ...ariaCheckboxProps }"
+          ],
+          "exported": true,
+          "lineCount": 53
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "Ref"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaCheckbox",
+            "AriaCheckboxProps"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "CheckboxBase",
+        "Checkbox"
+      ],
+      "totalLines": 119,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "contentHash": "316330a0ed329f151fb7803a63c91b66352feca2336b2d52d5bcdf1931eae97e",
+      "functions": [
+        {
+          "name": "RadioButtonBase",
+          "params": [
+            "{ className, isFocusVisible, isSelected, isDisabled, size = \"sm\" }"
+          ],
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "RadioButton",
+          "params": [
+            "{ label, hint, className, size = \"sm\", ...ariaRadioProps }"
+          ],
+          "exported": true,
+          "lineCount": 56
+        },
+        {
+          "name": "RadioGroup",
+          "params": [
+            "{ children, className, size = \"sm\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "Ref",
+            "createContext",
+            "useContext"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaRadio",
+            "AriaRadioGroup",
+            "AriaRadioGroupProps",
+            "AriaRadioProps"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "RadioButtonBase",
+        "RadioButton",
+        "RadioGroup"
+      ],
+      "totalLines": 123,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/combobox.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "contentHash": "683ac9ab94a1e9ba1844a84b9cabb645b78611c6cee22d8d4d9fd17567010c2a",
+      "functions": [
+        {
+          "name": "ComboBoxValue",
+          "params": [
+            "{ size, shortcut, placeholder, shortcutClassName, icon: IconProp, ref, ...otherProps }"
+          ],
+          "exported": false,
+          "lineCount": 70
+        },
+        {
+          "name": "ComboBox",
+          "params": [
+            "{\n    placeholder = \"Search\",\n    shortcut = true,\n    size = \"md\",\n    children,\n    items,\n    shortcutClassName,\n    icon,\n    hideRequiredIndicator,\n    ...otherProps\n}"
+          ],
+          "exported": true,
+          "lineCount": 70
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "FocusEventHandler",
+            "PointerEventHandler",
+            "ReactNode",
+            "Ref",
+            "RefAttributes"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "isValidElement",
+            "useCallback",
+            "useContext",
+            "useRef",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "SearchLg"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaComboBoxProps",
+            "AriaGroupProps",
+            "AriaListBoxProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaComboBox",
+            "AriaGroup",
+            "AriaInput",
+            "AriaListBox",
+            "ComboBoxStateContext"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/select/popover",
+          "specifiers": [
+            "Popover"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/select/select-shared",
+          "specifiers": [
+            "CommonProps",
+            "SelectContext",
+            "SelectItemType",
+            "sizes"
+          ]
+        },
+        {
+          "source": "@/hooks/use-resize-observer",
+          "specifiers": [
+            "useResizeObserver"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "@/utils/is-react-component",
+          "specifiers": [
+            "isReactComponent"
+          ]
+        }
+      ],
+      "exports": [
+        "ComboBox"
+      ],
+      "totalLines": 177,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/multi-select.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "contentHash": "df0315e48917df91951caee431ad1971890b37e8499081660cc06c468e08c18e",
+      "functions": [
+        {
+          "name": "MultiSelectFooter",
+          "params": [
+            "{ size = \"sm\", onReset, onSelectAll, className }"
+          ],
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "MultiSelectEmptyState",
+          "params": [
+            "{\n    title = \"No results found\",\n    description = \"Please try a different search term.\",\n    onClearSearch,\n    className,\n}"
+          ],
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "MultiSelectRoot",
+          "params": [
+            "{\n    items,\n    children,\n    size = \"md\",\n    selectedKeys,\n    defaultSelectedKeys,\n    onSelectionChange,\n    isDisabled,\n    isRequired,\n    isInvalid,\n    placeholder = \"Select\",\n    label,\n    hint,\n    tooltip,\n    hideRequiredIndicator,\n    popoverClassName,\n    className,\n    onReset,\n    onSelectAll,\n    showFooter = true,\n    showSearch = true,\n    emptyStateTitle,\n    emptyStateDescription,\n    selectedCountFormatter,\n    supportingText,\n}"
+          ],
+          "exported": false,
+          "lineCount": 161
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "RefAttributes"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "useCallback",
+            "useRef",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "ChevronDown",
+            "SearchLg"
+          ]
+        },
+        {
+          "source": "react-aria",
+          "specifiers": [
+            "useFilter"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "Selection"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaAutocomplete",
+            "AriaButton",
+            "AriaDialog",
+            "AriaDialogTrigger",
+            "AriaInput",
+            "AriaListBox",
+            "AriaPopover",
+            "AriaSearchField"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/buttons/button",
+          "specifiers": [
+            "Button"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/foundations/featured-icon/featured-icon",
+          "specifiers": [
+            "FeaturedIcon"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "./select-item",
+          "specifiers": [
+            "SelectItem"
+          ]
+        },
+        {
+          "source": "./select-shared",
+          "specifiers": [
+            "CommonProps",
+            "SelectContext",
+            "SelectItemType",
+            "sizes"
+          ]
+        }
+      ],
+      "exports": [
+        "MultiSelect"
+      ],
+      "totalLines": 329,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/popover.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "contentHash": "0e2f4789d6a7652aaf96ec04ff423debf9ad42ecfcf5ffd4815e1aa18eb5ff64",
+      "functions": [
+        {
+          "name": "Popover",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 26
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "RefAttributes"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaPopoverProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaPopover"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "Popover"
+      ],
+      "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/select-item.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "contentHash": "9a34174476fb15957d50b9a40900fe92b08104ee07f89a6b8f37b54611fdbbec",
+      "functions": [
+        {
+          "name": "SelectItem",
+          "params": [
+            "{\n    label,\n    id,\n    value,\n    avatarUrl,\n    supportingText,\n    isDisabled,\n    icon: Icon,\n    className,\n    children,\n    selectionIndicator = \"checkmark\",\n    selectionIndicatorAlign = \"right\",\n    ...props\n}"
+          ],
+          "exported": true,
+          "lineCount": 91
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "isValidElement",
+            "useContext"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "Check"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaListBoxItemProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaListBoxItem",
+            "AriaText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/avatar/avatar",
+          "specifiers": [
+            "Avatar"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/checkbox/checkbox",
+          "specifiers": [
+            "CheckboxBase"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "@/utils/is-react-component",
+          "specifiers": [
+            "isReactComponent"
+          ]
+        },
+        {
+          "source": "./select-shared",
+          "specifiers": [
+            "SelectItemType"
+          ]
+        },
+        {
+          "source": "./select-shared",
+          "specifiers": [
+            "SelectContext"
+          ]
+        }
+      ],
+      "exports": [
+        "SelectItem"
+      ],
+      "totalLines": 135,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/select-shared.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "contentHash": "3c12eb07c261221fa8457d3a5212501b09617e6dd894bb8a81ba16518f41c2b6",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "createContext"
+          ]
+        }
+      ],
+      "exports": [
+        "sizes",
+        "SelectContext"
+      ],
+      "totalLines": 51,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/select.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/select.tsx",
+      "contentHash": "ff8f8ccfc5755d9fb51acefe50600f3c1c384ff160e417cd4d1efa595cf5c072",
+      "functions": [
+        {
+          "name": "SelectValue",
+          "params": [
+            "{ isOpen, isFocused, isDisabled, size, placeholder, icon, ref }"
+          ],
+          "exported": false,
+          "lineCount": 59
+        },
+        {
+          "name": "Select",
+          "params": [
+            "{ placeholder = \"Select\", icon, size = \"md\", children, items, label, hint, tooltip, hideRequiredIndicator, className, ...rest }"
+          ],
+          "exported": true,
+          "lineCount": 31
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "ReactNode",
+            "Ref",
+            "RefAttributes"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "isValidElement"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "ChevronDown"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaSelectProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButton",
+            "AriaListBox",
+            "AriaSelect",
+            "AriaSelectValue"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/avatar/avatar",
+          "specifiers": [
+            "Avatar"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "@/utils/is-react-component",
+          "specifiers": [
+            "isReactComponent"
+          ]
+        },
+        {
+          "source": "./combobox",
+          "specifiers": [
+            "ComboBox"
+          ]
+        },
+        {
+          "source": "./popover",
+          "specifiers": [
+            "Popover"
+          ]
+        },
+        {
+          "source": "./select-item",
+          "specifiers": [
+            "SelectItem"
+          ]
+        },
+        {
+          "source": "./select-shared",
+          "specifiers": [
+            "CommonProps",
+            "SelectContext",
+            "SelectItemType",
+            "sizes"
+          ]
+        }
+      ],
+      "exports": [
+        "SelectContext",
+        "sizes",
+        "CommonProps",
+        "SelectItemType",
+        "Select"
+      ],
+      "totalLines": 136,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/select/tag-select.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "contentHash": "7c92697f46a1fa22b4de78320e944f4edbd72cdbb246c0ccdd39b695fa50e47c",
+      "functions": [
+        {
+          "name": "TagSelectBase",
+          "params": [
+            "{\n    items,\n    children,\n    size = \"sm\",\n    selectedItems,\n    onItemCleared,\n    onItemInserted,\n    valueFormatter,\n    shortcut,\n    placeholder = \"Search\",\n    icon,\n    // Omit name to avoid conflicts with the `Select` component\n    name: _name,\n    className,\n    ...props\n}"
+          ],
+          "exported": true,
+          "lineCount": 143
+        },
+        {
+          "name": "InnerTagSelect",
+          "params": [
+            "{ isDisabled, shortcut, shortcutClassName, placeholder, size = \"sm\" }"
+          ],
+          "exported": false,
+          "lineCount": 134
+        },
+        {
+          "name": "TagSelectTagsValue",
+          "params": [
+            "{\n    size = \"sm\",\n    shortcut,\n    placeholder,\n    shortcutClassName,\n    icon: Icon = SearchLg,\n    // Omit this prop to avoid invalid HTML attribute warning\n    isDisabled: _isDisabled,\n    ...otherProps\n}"
+          ],
+          "exported": true,
+          "lineCount": 51
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FocusEventHandler",
+            "KeyboardEvent",
+            "PointerEventHandler",
+            "RefAttributes",
+            "RefObject"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "React",
+            "createContext",
+            "useCallback",
+            "useContext",
+            "useRef",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "SearchLg"
+          ]
+        },
+        {
+          "source": "react-aria",
+          "specifiers": [
+            "FocusScope",
+            "useFilter",
+            "useFocusManager"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaComboBoxProps",
+            "AriaGroupProps",
+            "AriaListBoxProps",
+            "Key"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaComboBox",
+            "AriaGroup",
+            "AriaInput",
+            "AriaListBox",
+            "ComboBoxStateContext"
+          ]
+        },
+        {
+          "source": "react-stately",
+          "specifiers": [
+            "ListData"
+          ]
+        },
+        {
+          "source": "react-stately",
+          "specifiers": [
+            "useListData"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/avatar/avatar",
+          "specifiers": [
+            "Avatar"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/badges/badge-types",
+          "specifiers": [
+            "IconComponentType"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/select/popover",
+          "specifiers": [
+            "Popover"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/select/select-shared",
+          "specifiers": [
+            "SelectContext",
+            "SelectItemType",
+            "sizes"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/tags/base-components/tag-close-x",
+          "specifiers": [
+            "TagCloseX"
+          ]
+        },
+        {
+          "source": "@/hooks/use-resize-observer",
+          "specifiers": [
+            "useResizeObserver"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "./select-item",
+          "specifiers": [
+            "SelectItem"
+          ]
+        }
+      ],
+      "exports": [
+        "TagSelectBase",
+        "TagSelectTagsValue",
+        "TagSelect"
+      ],
+      "totalLines": 402,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "contentHash": "c288f52e05ab09897197d37c27d0c1f6ff86b098e5c7d11f1c6dc609cbcb51cb",
+      "functions": [
+        {
+          "name": "TagCheckbox",
+          "params": [
+            "{ className, isFocused, isSelected, isDisabled, size = \"sm\" }"
+          ],
+          "exported": true,
+          "lineCount": 32
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "TagCheckbox"
+      ],
+      "totalLines": 45,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "contentHash": "387598ee29b75bbf7c899fd1430844f1c3b142b42aa721222e4a4f29bbe60099",
+      "functions": [
+        {
+          "name": "TagCloseX",
+          "params": [
+            "{ size = \"md\", className, ...otherProps }"
+          ],
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "RefAttributes"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "XClose"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaButton",
+            "AriaButtonProps"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "TagCloseX"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/tags/tags.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "contentHash": "1bba98e7f3b6dd32b2460f008fea109527474cce201764316ef4f27a022306d5",
+      "functions": [
+        {
+          "name": "TagAvatar",
+          "params": [
+            "{ src, alt, contrastBorder = true, className }"
+          ],
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "TagGroup",
+          "params": [
+            "{ label, selectionMode = \"none\", size = \"sm\", children, ...otherProps }"
+          ],
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "Tag",
+          "params": [
+            "{\n    id,\n    avatarSrc,\n    avatarContrastBorder = true,\n    dot,\n    dotClassName,\n    isDisabled,\n    count,\n    className,\n    children,\n    onClose,\n}"
+          ],
+          "exported": true,
+          "lineCount": 71
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ImgHTMLAttributes",
+            "PropsWithChildren",
+            "RefAttributes",
+            "createContext",
+            "useContext",
+            "useState"
+          ]
+        },
+        {
+          "source": "@untitledui/icons",
+          "specifiers": [
+            "User01"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaTag",
+            "AriaTagGroup",
+            "AriaTagGroupProps",
+            "AriaTagList",
+            "AriaTagProps"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/foundations/dot-icon",
+          "specifiers": [
+            "Dot"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        },
+        {
+          "source": "./base-components/tag-checkbox",
+          "specifiers": [
+            "TagCheckbox"
+          ]
+        },
+        {
+          "source": "./base-components/tag-close-x",
+          "specifiers": [
+            "TagCloseX"
+          ]
+        }
+      ],
+      "exports": [
+        "TagAvatar",
+        "TagGroup",
+        "TagList",
+        "Tag"
+      ],
+      "totalLines": 185,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/textarea/textarea.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "contentHash": "8d76e234e5c92a77338a294447b5c8cecabb07f49e2b146c59d2675b1f29f79b",
+      "functions": [
+        {
+          "name": "getResizeHandleBg",
+          "params": [
+            "color"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "TextAreaBase",
+          "params": [
+            "{ className, size = \"md\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "TextArea",
+          "params": [
+            "{\n    label,\n    hint,\n    tooltip,\n    textAreaRef,\n    hideRequiredIndicator,\n    textAreaClassName,\n    placeholder,\n    className,\n    rows,\n    cols,\n    size = \"md\",\n    ...props\n}"
+          ],
+          "exported": true,
+          "lineCount": 41
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode",
+            "Ref"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "React"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaTextAreaProps",
+            "AriaTextFieldProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaTextArea",
+            "AriaTextField"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/hint-text",
+          "specifiers": [
+            "HintText"
+          ]
+        },
+        {
+          "source": "@/components/untitled-ui/base/input/label",
+          "specifiers": [
+            "Label"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "TextAreaBase",
+        "TextArea"
+      ],
+      "totalLines": 122,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/base/toggle/toggle.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "contentHash": "3d8bea33abce1d9f3377c252a0bc3883d48f42dfdba2a0bf64fbe889156af2b0",
+      "functions": [
+        {
+          "name": "ToggleBase",
+          "params": [
+            "{ className, isHovered, isDisabled, isFocusVisible, isSelected, slim, size = \"sm\" }"
+          ],
+          "exported": true,
+          "lineCount": 59
+        },
+        {
+          "name": "Toggle",
+          "params": [
+            "{ label, hint, className, size = \"sm\", slim, ...ariaSwitchProps }"
+          ],
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaSwitchProps"
+          ]
+        },
+        {
+          "source": "react-aria-components",
+          "specifiers": [
+            "AriaSwitch"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx"
+          ]
+        }
+      ],
+      "exports": [
+        "ToggleBase",
+        "Toggle"
+      ],
+      "totalLines": 139,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/foundations/dot-icon.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "contentHash": "05f66f4bba5af9c18134fb1337731b65a798698fa486d7c057d91794b17705a6",
+      "functions": [
+        {
+          "name": "Dot",
+          "params": [
+            "{ size = \"md\", ...props }"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "HTMLAttributes"
+          ]
+        }
+      ],
+      "exports": [
+        "Dot"
+      ],
+      "totalLines": 24,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx": {
+      "filePath": "frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "contentHash": "2c9e0227bcd87c88cc87c20ba119d701de61f855d0add2bc9360b8ecebebe06d",
+      "functions": [
+        {
+          "name": "FeaturedIcon",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 25
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "FC",
+            "ReactNode",
+            "Ref"
+          ]
+        },
+        {
+          "source": "react",
+          "specifiers": [
+            "isValidElement"
+          ]
+        },
+        {
+          "source": "@/utils/cx",
+          "specifiers": [
+            "cx",
+            "sortCx"
+          ]
+        },
+        {
+          "source": "@/utils/is-react-component",
+          "specifiers": [
+            "isReactComponent"
+          ]
+        }
+      ],
+      "exports": [
+        "FeaturedIcon"
+      ],
+      "totalLines": 155,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/hooks/use-resize-observer.ts": {
+      "filePath": "frontend/src/hooks/use-resize-observer.ts",
+      "contentHash": "321c8af4aa1381839b0459425f243151d2c56d2cdaed836cb28c56809f20eb5c",
+      "functions": [
+        {
+          "name": "hasResizeObserver",
+          "params": [],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "useResizeObserver",
+          "params": [
+            "options"
+          ],
+          "exported": true,
+          "lineCount": 34
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useEffect"
+          ]
+        },
+        {
+          "source": "@react-types/shared",
+          "specifiers": [
+            "RefObject"
+          ]
+        }
+      ],
+      "exports": [
+        "useResizeObserver"
+      ],
+      "totalLines": 68,
       "hasStructuralAnalysis": true
     }
   }

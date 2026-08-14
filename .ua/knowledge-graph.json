@@ -32,8 +32,8 @@
       "Docker"
     ],
     "description": "Vietnamese trucking logistics platform for SilverSea operations.",
-    "analyzedAt": "2026-08-14T08:23:40.882Z",
-    "gitCommitHash": "ebd153a2f298a15b4c27b243160c181eb37dcd20"
+    "analyzedAt": "2026-08-14T09:57:14.650Z",
+    "gitCommitHash": "5bb23d9dd394e2884c6f49784a0ce1966aff6c98"
   },
   "nodes": [
     {
@@ -29273,275 +29273,6 @@
         "application"
       ],
       "complexity": "simple"
-    },
-    {
-      "id": "file:frontend/src/components/UI.tsx",
-      "type": "file",
-      "name": "UI.tsx",
-      "filePath": "frontend/src/components/UI.tsx",
-      "summary": "Implements the UI user-interface component for the frontend application.",
-      "tags": [
-        "component",
-        "frontend",
-        "ui",
-        "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:overlayEntrance",
-      "type": "function",
-      "name": "overlayEntrance",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        14,
-        28
-      ],
-      "summary": "Implements overlayEntrance behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "function",
-      "name": "useConfirmShortcuts",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        72,
-        104
-      ],
-      "summary": "Implements useConfirmShortcuts behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "function",
-      "name": "KPI",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        135,
-        187
-      ],
-      "summary": "Implements KPI behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "function",
-      "name": "PageHeader",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        205,
-        232
-      ],
-      "summary": "Implements PageHeader behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "function",
-      "name": "Panel",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        246,
-        261
-      ],
-      "summary": "Implements Panel behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Card",
-      "type": "function",
-      "name": "Card",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        275,
-        288
-      ],
-      "summary": "Implements Card behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "function",
-      "name": "Btn",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        299,
-        329
-      ],
-      "summary": "Implements Btn behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "function",
-      "name": "Toolbar",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        338,
-        340
-      ],
-      "summary": "Implements Toolbar behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "function",
-      "name": "FilterPill",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        352,
-        364
-      ],
-      "summary": "Implements FilterPill behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "function",
-      "name": "StatusPill",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        376,
-        383
-      ],
-      "summary": "Implements StatusPill behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "function",
-      "name": "PlateTag",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        392,
-        394
-      ],
-      "summary": "Implements PlateTag behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "function",
-      "name": "Badge",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        404,
-        418
-      ],
-      "summary": "Implements Badge behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "function",
-      "name": "FormGroup",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        430,
-        451
-      ],
-      "summary": "Implements FormGroup behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "function",
-      "name": "Modal",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        465,
-        527
-      ],
-      "summary": "Implements Modal behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "function",
-      "name": "Drawer",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        543,
-        627
-      ],
-      "summary": "Implements Drawer behavior within UI.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
     },
     {
       "id": "file:frontend/src/components/shared/Alert.tsx",
@@ -75619,6 +75350,1464 @@
         "component"
       ],
       "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/UI.tsx",
+      "type": "file",
+      "name": "UI.tsx",
+      "filePath": "frontend/src/components/UI.tsx",
+      "summary": "Provides legacy-compatible shared React UI primitives, including metric cards, form groups, buttons, overlays, and confirmation keyboard behavior.",
+      "tags": [
+        "component",
+        "ui-primitives",
+        "overlay",
+        "accessibility",
+        "legacy"
+      ],
+      "complexity": "complex",
+      "languageNotes": "TypeScript React components bridge legacy class-based styling with Untitled UI primitives and Anime.js overlays."
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:overlayEntrance",
+      "type": "function",
+      "name": "overlayEntrance",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        17,
+        31
+      ],
+      "summary": "Animates an overlay and its content into view, respecting reduced-motion preferences.",
+      "tags": [
+        "animation",
+        "overlay",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
+      "type": "function",
+      "name": "useConfirmShortcuts",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        75,
+        107
+      ],
+      "summary": "Registers Enter and Escape dialog shortcuts while preserving textarea, contenteditable, and composition behavior.",
+      "tags": [
+        "hook",
+        "keyboard",
+        "accessibility",
+        "dialog"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:KPI",
+      "type": "function",
+      "name": "KPI",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        138,
+        190
+      ],
+      "summary": "Renders a KPI card with optional trend badge, sparkline, icon, and keyboard-accessible click handling.",
+      "tags": [
+        "component",
+        "kpi",
+        "dashboard",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:PageHeader",
+      "type": "function",
+      "name": "PageHeader",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        208,
+        235
+      ],
+      "summary": "Renders a page title area with optional back action, branded icon, description, and action slot.",
+      "tags": [
+        "component",
+        "page-header",
+        "navigation",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Panel",
+      "type": "function",
+      "name": "Panel",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        249,
+        264
+      ],
+      "summary": "Renders a reusable content panel with optional heading, subtitle, action, and flush body mode.",
+      "tags": [
+        "component",
+        "panel",
+        "layout",
+        "container"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Card",
+      "type": "function",
+      "name": "Card",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        278,
+        291
+      ],
+      "summary": "Preserves the legacy Card API by delegating its layout to the shared Panel primitive.",
+      "tags": [
+        "component",
+        "card",
+        "legacy",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Btn",
+      "type": "function",
+      "name": "Btn",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        313,
+        336
+      ],
+      "summary": "Adapts legacy button variants and touch-target sizes to the Untitled UI button component.",
+      "tags": [
+        "component",
+        "button",
+        "legacy",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Toolbar",
+      "type": "function",
+      "name": "Toolbar",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        345,
+        347
+      ],
+      "summary": "Wraps table filter controls in the established toolbar layout class.",
+      "tags": [
+        "component",
+        "toolbar",
+        "filters",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:FilterPill",
+      "type": "function",
+      "name": "FilterPill",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        359,
+        371
+      ],
+      "summary": "Renders a compact interactive filter control with active state, optional icon, and count.",
+      "tags": [
+        "component",
+        "filter",
+        "button",
+        "table"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:StatusPill",
+      "type": "function",
+      "name": "StatusPill",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        392,
+        403
+      ],
+      "summary": "Maps legacy status variants to Untitled UI badges, optionally showing a status dot.",
+      "tags": [
+        "component",
+        "status",
+        "badge",
+        "legacy"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:PlateTag",
+      "type": "function",
+      "name": "PlateTag",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        412,
+        414
+      ],
+      "summary": "Renders a vehicle registration plate using the shared plate styling hook.",
+      "tags": [
+        "component",
+        "vehicle",
+        "label",
+        "logistics"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Badge",
+      "type": "function",
+      "name": "Badge",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        424,
+        430
+      ],
+      "summary": "Adapts legacy badge variants to the Untitled UI color badge component.",
+      "tags": [
+        "component",
+        "badge",
+        "legacy",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:FormGroup",
+      "type": "function",
+      "name": "FormGroup",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        452,
+        471
+      ],
+      "summary": "Associates a form label with its child field and renders validation or help text.",
+      "tags": [
+        "component",
+        "form",
+        "validation",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Modal",
+      "type": "function",
+      "name": "Modal",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        485,
+        547
+      ],
+      "summary": "Renders a portal-based modal with focus trapping, animated visibility, backdrop close, and confirmation shortcuts.",
+      "tags": [
+        "component",
+        "modal",
+        "overlay",
+        "accessibility",
+        "animation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Drawer",
+      "type": "function",
+      "name": "Drawer",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        563,
+        647
+      ],
+      "summary": "Renders an animated side drawer with focus management, semantic dialog attributes, and optional footer content.",
+      "tags": [
+        "component",
+        "drawer",
+        "overlay",
+        "accessibility",
+        "animation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "type": "file",
+      "name": "modal.tsx",
+      "filePath": "frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "summary": "Wraps React Aria modal primitives with the project’s responsive overlay, animation, and utility-class styling.",
+      "tags": [
+        "component",
+        "modal",
+        "react-aria",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:ModalOverlay",
+      "type": "function",
+      "name": "ModalOverlay",
+      "filePath": "frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "lineRange": [
+        8,
+        25
+      ],
+      "summary": "Styles the React Aria modal backdrop with responsive viewport padding, blur, and enter or exit animations.",
+      "tags": [
+        "component",
+        "modal",
+        "overlay",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Modal",
+      "type": "function",
+      "name": "Modal",
+      "filePath": "frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "lineRange": [
+        27,
+        42
+      ],
+      "summary": "Styles React Aria modal content with bounded viewport height and animated transitions.",
+      "tags": [
+        "component",
+        "modal",
+        "accessibility",
+        "responsive"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Dialog",
+      "type": "function",
+      "name": "Dialog",
+      "filePath": "frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "lineRange": [
+        44,
+        46
+      ],
+      "summary": "Wraps the React Aria dialog surface with constrained scrolling and project utility classes.",
+      "tags": [
+        "component",
+        "dialog",
+        "accessibility",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "type": "file",
+      "name": "avatar.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "summary": "Provides a configurable avatar that supports images, initials, placeholders, borders, status indicators, verification, and count badges.",
+      "tags": [
+        "component",
+        "avatar",
+        "profile",
+        "accessibility"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses TypeScript discriminated size tokens and React state to fall back from failed images."
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/avatar.tsx:Avatar",
+      "type": "function",
+      "name": "Avatar",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "lineRange": [
+        79,
+        161
+      ],
+      "summary": "Renders avatar content with image-failure fallback and prioritised status, verification, count, or custom badge adornments.",
+      "tags": [
+        "component",
+        "avatar",
+        "profile",
+        "fallback",
+        "status"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "type": "file",
+      "name": "avatar-add-button.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "summary": "Provides a size-aware, tooltip-labelled circular action for adding a user to an avatar group.",
+      "tags": [
+        "component",
+        "avatar",
+        "button",
+        "tooltip"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx:AvatarAddButton",
+      "type": "function",
+      "name": "AvatarAddButton",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "lineRange": [
+        19,
+        33
+      ],
+      "summary": "Renders an accessible dashed add-user avatar button with an Untitled UI icon and tooltip.",
+      "tags": [
+        "component",
+        "avatar",
+        "button",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "type": "file",
+      "name": "avatar-company-icon.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "summary": "Renders a size-aware company-image badge positioned over an avatar.",
+      "tags": [
+        "component",
+        "avatar",
+        "badge",
+        "image"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx:AvatarCompanyIcon",
+      "type": "function",
+      "name": "AvatarCompanyIcon",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "lineRange": [
+        19,
+        25
+      ],
+      "summary": "Displays a company logo badge with avatar-relative sizing and contrast ring styling.",
+      "tags": [
+        "component",
+        "avatar",
+        "company",
+        "badge"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "type": "file",
+      "name": "avatar-count.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "summary": "Provides a small numeric badge for an avatar’s lower-right corner.",
+      "tags": [
+        "component",
+        "avatar",
+        "badge",
+        "count"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx:AvatarCount",
+      "type": "function",
+      "name": "AvatarCount",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "lineRange": [
+        9,
+        15
+      ],
+      "summary": "Renders a compact numeric count badge positioned on an avatar.",
+      "tags": [
+        "component",
+        "avatar",
+        "badge",
+        "count"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "type": "file",
+      "name": "avatar-online-indicator.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "summary": "Provides a glossy size-aware online or offline status indicator for an avatar.",
+      "tags": [
+        "component",
+        "avatar",
+        "status",
+        "indicator"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx:AvatarOnlineIndicator",
+      "type": "function",
+      "name": "AvatarOnlineIndicator",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "lineRange": [
+        21,
+        49
+      ],
+      "summary": "Renders a position-anchored availability dot with size tokens and reflective visual treatment.",
+      "tags": [
+        "component",
+        "avatar",
+        "status",
+        "indicator"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/index.tsx",
+      "type": "file",
+      "name": "index.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/index.tsx",
+      "summary": "Re-exports the public avatar base components for concise local imports.",
+      "tags": [
+        "barrel",
+        "avatar",
+        "exports",
+        "component"
+      ],
+      "complexity": "simple",
+      "languageNotes": "TypeScript barrel file composed entirely of re-exports."
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "type": "file",
+      "name": "verified-tick.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "summary": "Provides the scalable SVG verified-account adornment used on avatars.",
+      "tags": [
+        "component",
+        "avatar",
+        "verification",
+        "icon"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx:VerifiedTick",
+      "type": "function",
+      "name": "VerifiedTick",
+      "filePath": "frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "lineRange": [
+        20,
+        33
+      ],
+      "summary": "Renders the size-aware verified badge SVG with a white checkmark.",
+      "tags": [
+        "component",
+        "avatar",
+        "verification",
+        "icon"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/badges/badge-types.ts",
+      "type": "file",
+      "name": "badge-types.ts",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badge-types.ts",
+      "summary": "Defines badge variant, size, color, icon, and flag TypeScript types plus the canonical badge-type map.",
+      "tags": [
+        "type-definition",
+        "badge",
+        "design-system"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "type": "file",
+      "name": "badges.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "summary": "Provides the Untitled UI badge component family with color, size, dot, icon, flag, image, and dismiss-button variants.",
+      "tags": [
+        "component",
+        "badge",
+        "design-system",
+        "react"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:Badge",
+      "type": "function",
+      "name": "Badge",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        123,
+        145
+      ],
+      "summary": "Renders a typed pill or badge surface using the selected color, size, and variant styles.",
+      "tags": [
+        "component",
+        "badge",
+        "presentation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithDot",
+      "type": "function",
+      "name": "BadgeWithDot",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        155,
+        184
+      ],
+      "summary": "Renders a badge with a colored status dot and variant-specific spacing.",
+      "tags": [
+        "component",
+        "badge",
+        "status-indicator"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithIcon",
+      "type": "function",
+      "name": "BadgeWithIcon",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        196,
+        245
+      ],
+      "summary": "Renders a badge with an optional leading or trailing icon and responsive variant styling.",
+      "tags": [
+        "component",
+        "badge",
+        "icon"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithFlag",
+      "type": "function",
+      "name": "BadgeWithFlag",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        255,
+        283
+      ],
+      "summary": "Renders a badge with a country flag image alongside its content.",
+      "tags": [
+        "component",
+        "badge",
+        "image"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithImage",
+      "type": "function",
+      "name": "BadgeWithImage",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        293,
+        321
+      ],
+      "summary": "Renders a badge with a caller-provided image and shared variant styles.",
+      "tags": [
+        "component",
+        "badge",
+        "image"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithButton",
+      "type": "function",
+      "name": "BadgeWithButton",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        339,
+        378
+      ],
+      "summary": "Renders a badge with an accessible icon button for a caller-supplied action.",
+      "tags": [
+        "component",
+        "badge",
+        "event-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeIcon",
+      "type": "function",
+      "name": "BadgeIcon",
+      "filePath": "frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "lineRange": [
+        388,
+        416
+      ],
+      "summary": "Renders a compact icon-only badge using the shared badge variant and color tokens.",
+      "tags": [
+        "component",
+        "badge",
+        "icon"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "type": "file",
+      "name": "checkbox.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "summary": "Implements styled React Aria checkbox primitives with visual selection states, labels, and hint text.",
+      "tags": [
+        "component",
+        "checkbox",
+        "accessibility",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:CheckboxBase",
+      "type": "function",
+      "name": "CheckboxBase",
+      "filePath": "frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "lineRange": [
+        15,
+        55
+      ],
+      "summary": "Draws the checkbox control and its selected, indeterminate, disabled, and focus-visible states.",
+      "tags": [
+        "component",
+        "checkbox",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:Checkbox",
+      "type": "function",
+      "name": "Checkbox",
+      "filePath": "frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "lineRange": [
+        65,
+        117
+      ],
+      "summary": "Wraps React Aria Checkbox with the visual control, optional label, and supporting hint text.",
+      "tags": [
+        "component",
+        "checkbox",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "type": "file",
+      "name": "radio-buttons.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "summary": "Provides styled React Aria radio controls, shared size context, and a radio-group wrapper.",
+      "tags": [
+        "component",
+        "radio",
+        "accessibility",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButtonBase",
+      "type": "function",
+      "name": "RadioButtonBase",
+      "filePath": "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "lineRange": [
+        25,
+        41
+      ],
+      "summary": "Renders the visual radio indicator for selected, disabled, and focus-visible states.",
+      "tags": [
+        "component",
+        "radio",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButton",
+      "type": "function",
+      "name": "RadioButton",
+      "filePath": "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "lineRange": [
+        51,
+        106
+      ],
+      "summary": "Wraps a React Aria radio with shared group sizing, labels, hints, and interaction styling.",
+      "tags": [
+        "component",
+        "radio",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioGroup",
+      "type": "function",
+      "name": "RadioGroup",
+      "filePath": "frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "lineRange": [
+        114,
+        122
+      ],
+      "summary": "Provides a sized React Aria radio group through the shared radio context.",
+      "tags": [
+        "component",
+        "radio",
+        "context"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "type": "file",
+      "name": "combobox.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "summary": "Implements a searchable combo-box trigger with contextual value rendering and measured popover width.",
+      "tags": [
+        "component",
+        "combobox",
+        "select",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
+      "type": "function",
+      "name": "ComboBoxValue",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "lineRange": [
+        36,
+        105
+      ],
+      "summary": "Renders the combo-box trigger value, placeholder, optional icon, and keyboard shortcut hint.",
+      "tags": [
+        "component",
+        "combobox",
+        "presentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "function",
+      "name": "ComboBox",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "lineRange": [
+        107,
+        176
+      ],
+      "summary": "Composes a React Aria combo box with labels, validation hints, and a width-synchronized popover.",
+      "tags": [
+        "component",
+        "combobox",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "type": "file",
+      "name": "multi-select.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "summary": "Provides a compound multi-select field with search, selection management, footer actions, and an empty state.",
+      "tags": [
+        "component",
+        "multi-select",
+        "select",
+        "react-aria"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectFooter",
+      "type": "function",
+      "name": "MultiSelectFooter",
+      "filePath": "frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "lineRange": [
+        57,
+        70
+      ],
+      "summary": "Renders reset and select-all actions for the multi-select popover footer.",
+      "tags": [
+        "component",
+        "multi-select",
+        "event-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectEmptyState",
+      "type": "function",
+      "name": "MultiSelectEmptyState",
+      "filePath": "frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "lineRange": [
+        89,
+        109
+      ],
+      "summary": "Renders the no-results state and optional action to clear the active search.",
+      "tags": [
+        "component",
+        "multi-select",
+        "empty-state"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectRoot",
+      "type": "function",
+      "name": "MultiSelectRoot",
+      "filePath": "frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "lineRange": [
+        156,
+        316
+      ],
+      "summary": "Coordinates multi-selection, search filtering, trigger measurement, and the popover listbox workflow.",
+      "tags": [
+        "component",
+        "multi-select",
+        "react-aria",
+        "state-management"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "type": "file",
+      "name": "popover.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "summary": "Provides the styled, size-aware React Aria popover used by select controls.",
+      "tags": [
+        "component",
+        "popover",
+        "select",
+        "react-aria"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/popover.tsx:Popover",
+      "type": "function",
+      "name": "Popover",
+      "filePath": "frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "lineRange": [
+        11,
+        36
+      ],
+      "summary": "Wraps React Aria Popover with placement, animated entry and exit states, and size-specific maximum heights.",
+      "tags": [
+        "component",
+        "popover",
+        "animation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "type": "file",
+      "name": "select-item.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "summary": "Implements a selectable React Aria listbox item with avatar, icon, supporting text, and configurable selection indicators.",
+      "tags": [
+        "component",
+        "select",
+        "listbox",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/select-item.tsx:SelectItem",
+      "type": "function",
+      "name": "SelectItem",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "lineRange": [
+        44,
+        134
+      ],
+      "summary": "Renders a typed listbox option with visual selection feedback, metadata, and checkmark or checkbox indicators.",
+      "tags": [
+        "component",
+        "select",
+        "listbox",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "type": "file",
+      "name": "select-shared.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "summary": "Defines shared select item types, field props, size tokens, and the select-size context.",
+      "tags": [
+        "type-definition",
+        "select",
+        "context",
+        "design-system"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "type": "file",
+      "name": "select.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select.tsx",
+      "summary": "Provides the compound single-select control with labeled field states, contextual value rendering, items, and combo-box access.",
+      "tags": [
+        "component",
+        "select",
+        "react-aria",
+        "compound-component"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/select.tsx:SelectValue",
+      "type": "function",
+      "name": "SelectValue",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select.tsx",
+      "lineRange": [
+        36,
+        94
+      ],
+      "summary": "Renders the select trigger content for the selected option or placeholder, including icons and avatars.",
+      "tags": [
+        "component",
+        "select",
+        "presentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/select.tsx:Select",
+      "type": "function",
+      "name": "Select",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select.tsx",
+      "lineRange": [
+        96,
+        126
+      ],
+      "summary": "Composes React Aria Select with label, trigger, popover listbox, and validation hint support.",
+      "tags": [
+        "component",
+        "select",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "type": "file",
+      "name": "tag-select.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "summary": "Provides an accessible multi-select combobox that displays selections as removable tags and manages filtering, keyboard navigation, and responsive popover sizing.",
+      "tags": [
+        "component",
+        "select",
+        "tags",
+        "accessibility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectBase",
+      "type": "function",
+      "name": "TagSelectBase",
+      "filePath": "frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "lineRange": [
+        64,
+        206
+      ],
+      "summary": "Builds the stateful accessible tag-select control, including filtering, selected-item updates, and popover width observation.",
+      "tags": [
+        "component",
+        "select",
+        "state-management",
+        "accessibility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:InnerTagSelect",
+      "type": "function",
+      "name": "InnerTagSelect",
+      "filePath": "frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "lineRange": [
+        208,
+        341
+      ],
+      "summary": "Renders selected tags and the combobox input while coordinating focus movement and tag-removal keyboard interactions.",
+      "tags": [
+        "component",
+        "keyboard-navigation",
+        "tags",
+        "accessibility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectTagsValue",
+      "type": "function",
+      "name": "TagSelectTagsValue",
+      "filePath": "frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "lineRange": [
+        343,
+        393
+      ],
+      "summary": "Renders the tag-select value area with placeholder, icon, and disabled-state styling.",
+      "tags": [
+        "component",
+        "select",
+        "tags",
+        "presentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "type": "file",
+      "name": "tag-checkbox.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "summary": "Provides the visual checkbox indicator used for selectable tag items across supported sizes and interaction states.",
+      "tags": [
+        "component",
+        "checkbox",
+        "tags",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx:TagCheckbox",
+      "type": "function",
+      "name": "TagCheckbox",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "lineRange": [
+        12,
+        43
+      ],
+      "summary": "Renders a size-aware checkbox visual for tag selection, focus, and disabled states.",
+      "tags": [
+        "component",
+        "checkbox",
+        "tags",
+        "presentation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "type": "file",
+      "name": "tag-close-x.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "summary": "Provides the close-button icon control used to remove tags from tag lists and selectors.",
+      "tags": [
+        "component",
+        "button",
+        "tags",
+        "icon"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx:TagCloseX",
+      "type": "function",
+      "name": "TagCloseX",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "lineRange": [
+        18,
+        33
+      ],
+      "summary": "Renders a size-aware accessible remove control with the close icon styling for a tag.",
+      "tags": [
+        "component",
+        "button",
+        "tags",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "type": "file",
+      "name": "tags.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "summary": "Defines accessible tag-group, tag-list, avatar, and tag components with selection, optional status content, counts, and removal behavior.",
+      "tags": [
+        "component",
+        "tags",
+        "accessibility",
+        "react-aria"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagAvatar",
+      "type": "function",
+      "name": "TagAvatar",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "lineRange": [
+        16,
+        34
+      ],
+      "summary": "Renders a compact avatar for a tag and falls back to a user icon when the image is unavailable.",
+      "tags": [
+        "component",
+        "avatar",
+        "tags",
+        "fallback"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagGroup",
+      "type": "function",
+      "name": "TagGroup",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "lineRange": [
+        61,
+        69
+      ],
+      "summary": "Supplies tag selection mode and size through context around a React Aria tag group.",
+      "tags": [
+        "component",
+        "context",
+        "tags",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:Tag",
+      "type": "function",
+      "name": "Tag",
+      "filePath": "frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "lineRange": [
+        114,
+        184
+      ],
+      "summary": "Renders a selectable tag with optional avatar, status dot, count, checkbox, and removal action.",
+      "tags": [
+        "component",
+        "tags",
+        "selection",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "file",
+      "name": "textarea.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "summary": "Provides styled React Aria textarea primitives and a labeled field wrapper with helper text, validation, and responsive resize-handle styling.",
+      "tags": [
+        "component",
+        "textarea",
+        "form-control",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextAreaBase",
+      "type": "function",
+      "name": "TextAreaBase",
+      "filePath": "frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "lineRange": [
+        20,
+        50
+      ],
+      "summary": "Renders the base textarea with size variants, focus and validation states, and custom resize-handle assets.",
+      "tags": [
+        "component",
+        "textarea",
+        "form-control",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextArea",
+      "type": "function",
+      "name": "TextArea",
+      "filePath": "frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "lineRange": [
+        79,
+        119
+      ],
+      "summary": "Composes an accessible textarea field with optional label, tooltip, hint, sizing, and forwarded textarea properties.",
+      "tags": [
+        "component",
+        "textarea",
+        "form-control",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "type": "file",
+      "name": "toggle.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "summary": "Defines a React Aria switch control and its size-aware visual track and thumb for selectable boolean settings.",
+      "tags": [
+        "component",
+        "toggle",
+        "form-control",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:ToggleBase",
+      "type": "function",
+      "name": "ToggleBase",
+      "filePath": "frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "lineRange": [
+        17,
+        75
+      ],
+      "summary": "Renders the toggle track and moving thumb with selected, hover, focus, disabled, size, and slim variants.",
+      "tags": [
+        "component",
+        "toggle",
+        "state-styling",
+        "presentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:Toggle",
+      "type": "function",
+      "name": "Toggle",
+      "filePath": "frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "lineRange": [
+        99,
+        138
+      ],
+      "summary": "Composes an accessible switch with optional label and hint content around the base toggle visual.",
+      "tags": [
+        "component",
+        "toggle",
+        "form-control",
+        "accessibility"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "type": "file",
+      "name": "dot-icon.tsx",
+      "filePath": "frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "summary": "Provides a small status-dot foundation component with consistent size variants and icon-compatible properties.",
+      "tags": [
+        "component",
+        "icon",
+        "status-indicator",
+        "foundation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/foundations/dot-icon.tsx:Dot",
+      "type": "function",
+      "name": "Dot",
+      "filePath": "frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "lineRange": [
+        17,
+        23
+      ],
+      "summary": "Renders a size-aware circular status indicator with configurable SVG properties.",
+      "tags": [
+        "component",
+        "icon",
+        "status-indicator",
+        "foundation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "type": "file",
+      "name": "featured-icon.tsx",
+      "filePath": "frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "summary": "Provides a configurable featured-icon container with theme, color, size, and icon-content variants for prominent UI states.",
+      "tags": [
+        "component",
+        "icon",
+        "foundation",
+        "theming"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx:FeaturedIcon",
+      "type": "function",
+      "name": "FeaturedIcon",
+      "filePath": "frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "lineRange": [
+        130,
+        154
+      ],
+      "summary": "Renders a featured icon or supplied React content within a size, color, and visual-theme container.",
+      "tags": [
+        "component",
+        "icon",
+        "theming",
+        "presentation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/hooks/use-resize-observer.ts",
+      "type": "file",
+      "name": "use-resize-observer.ts",
+      "filePath": "frontend/src/hooks/use-resize-observer.ts",
+      "summary": "Provides a React hook that observes an element's size with ResizeObserver and falls back to window resize events when unavailable.",
+      "tags": [
+        "hook",
+        "resize-observer",
+        "browser-api",
+        "fallback"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/hooks/use-resize-observer.ts:useResizeObserver",
+      "type": "function",
+      "name": "useResizeObserver",
+      "filePath": "frontend/src/hooks/use-resize-observer.ts",
+      "lineRange": [
+        34,
+        67
+      ],
+      "summary": "Subscribes to element size changes and reliably cleans up either ResizeObserver or window resize listeners.",
+      "tags": [
+        "hook",
+        "resize-observer",
+        "lifecycle",
+        "browser-api"
+      ],
+      "complexity": "moderate"
     }
   ],
   "edges": [
@@ -99935,13 +101124,6 @@
     },
     {
       "source": "file:frontend/src/components/agent/AgentAssistant.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/agent/AgentAssistant.tsx",
       "target": "file:frontend/src/components/agent/InsightCard.tsx",
       "type": "imports",
       "direction": "forward",
@@ -100922,13 +102104,6 @@
     },
     {
       "source": "file:frontend/src/components/layout/PasswordModal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/layout/PasswordModal.tsx",
       "target": "file:frontend/src/components/layout/types.ts",
       "type": "imports",
       "direction": "forward",
@@ -100954,13 +102129,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/layout/ProfileModal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/components/layout/ProfileModal.tsx",
@@ -101264,258 +102432,6 @@
       "weight": 1
     },
     {
-      "source": "file:frontend/src/components/UI.overlay.test.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:overlayEntrance",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Card",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Card",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/components/shared/Tooltip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/design-system/Sparkline.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/animations/usePressAnimation.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/useAnimatedOverlay.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/useFocusTrap.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/shared/Alert.tsx",
       "target": "function:frontend/src/components/shared/Alert.tsx:Alert",
       "type": "contains",
@@ -101619,13 +102535,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/shared/EmptyState.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/components/shared/EmptyState.tsx",
@@ -102042,13 +102951,6 @@
     },
     {
       "source": "file:frontend/src/components/shipment/CarrierAllocationDialog.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/shipment/CarrierAllocationDialog.tsx",
       "target": "file:frontend/src/components/shipment/CarrierAllocationDialog.css",
       "type": "imports",
       "direction": "forward",
@@ -102154,13 +103056,6 @@
     },
     {
       "source": "file:frontend/src/components/shipment/OperationalSiteCreateDialog.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/shipment/OperationalSiteCreateDialog.tsx",
       "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -102195,13 +103090,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/components/shipment/OperationalSiteDetailsDialog.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/shipment/ShipmentCoordinationPanel.tsx",
       "target": "function:frontend/src/components/shipment/ShipmentCoordinationPanel.tsx:ShipmentCoordinationPanel",
       "type": "contains",
@@ -102218,13 +103106,6 @@
     {
       "source": "file:frontend/src/components/shipment/ShipmentCoordinationPanel.tsx",
       "target": "file:frontend/src/api/customerServiceFinanceClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/shipment/ShipmentCoordinationPanel.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -102301,13 +103182,6 @@
     },
     {
       "source": "file:frontend/src/components/shipment/TripPodReviewPanel.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/shipment/TripPodReviewPanel.tsx",
       "target": "file:shared/src/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -102337,13 +103211,6 @@
     {
       "source": "file:frontend/src/components/trip/AncillaryFeesCard.tsx",
       "target": "file:frontend/src/api/tripClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/trip/AncillaryFeesCard.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -103393,13 +104260,6 @@
     },
     {
       "source": "file:frontend/src/features/accounting/AccountingWorkspaceRoot.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/accounting/AccountingWorkspaceRoot.tsx",
       "target": "file:frontend/src/features/accounting/AccountingOverview.tsx",
       "type": "imports",
       "direction": "forward",
@@ -104275,13 +105135,6 @@
     },
     {
       "source": "file:frontend/src/features/dispatch/hooks/useDispatchMutations.ts",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/hooks/useDispatchMutations.ts",
       "target": "file:frontend/src/features/dispatch/utils.ts",
       "type": "imports",
       "direction": "forward",
@@ -104450,13 +105303,6 @@
     },
     {
       "source": "file:frontend/src/features/fleet/driver-card.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/driver-card.tsx",
       "target": "file:frontend/src/components/shared/StatusStrip.tsx",
       "type": "imports",
       "direction": "forward",
@@ -104499,13 +105345,6 @@
     },
     {
       "source": "file:frontend/src/features/fleet/DriverFormModal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/DriverFormModal.tsx",
       "target": "file:frontend/src/features/fleet/constants.ts",
       "type": "imports",
       "direction": "forward",
@@ -104545,13 +105384,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/fleet/trailer-card.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/fleet/trailer-card.tsx",
@@ -104618,13 +105450,6 @@
     },
     {
       "source": "file:frontend/src/features/fleet/TrailerFormModal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/TrailerFormModal.tsx",
       "target": "file:shared/src/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -104657,13 +105482,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/fleet/truck-card.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/fleet/truck-card.tsx",
@@ -104751,13 +105569,6 @@
     },
     {
       "source": "file:frontend/src/features/fleet/TruckFormModal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/fleet/TruckFormModal.tsx",
       "target": "file:frontend/src/features/fleet/constants.ts",
       "type": "imports",
       "direction": "forward",
@@ -104783,13 +105594,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/penalties/components/CancelPenaltyDialog.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/penalties/components/CancelPenaltyDialog.tsx",
@@ -104891,13 +105695,6 @@
     },
     {
       "source": "file:frontend/src/features/penalties/components/PenaltyFormDrawer.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/penalties/components/PenaltyFormDrawer.tsx",
       "target": "file:frontend/src/components/shared/Alert.tsx",
       "type": "imports",
       "direction": "forward",
@@ -104937,13 +105734,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/penalties/components/PenaltyTable.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/penalties/components/PenaltyTable.tsx",
@@ -105353,13 +106143,6 @@
     },
     {
       "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -105560,13 +106343,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/tires/tire-controls.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/tires/tire-controls.tsx",
@@ -106564,13 +107340,6 @@
     },
     {
       "source": "file:frontend/src/features/trip-detail/useTripDetailPage.ts",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/trip-detail/useTripDetailPage.ts",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -106746,13 +107515,6 @@
     },
     {
       "source": "file:frontend/src/features/users/components/UserForm.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/users/components/UserForm.tsx",
       "target": "file:frontend/src/features/users/utils.ts",
       "type": "imports",
       "direction": "forward",
@@ -106851,13 +107613,6 @@
     },
     {
       "source": "file:frontend/src/features/users/components/UserTable.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/users/components/UserTable.tsx",
       "target": "file:frontend/src/components/shared/StatusStrip.tsx",
       "type": "imports",
       "direction": "forward",
@@ -106936,13 +107691,6 @@
     {
       "source": "file:frontend/src/features/users/hooks/useUserMutations.ts",
       "target": "file:frontend/src/api/userClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/users/hooks/useUserMutations.ts",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -111422,13 +112170,6 @@
     },
     {
       "source": "file:frontend/src/pages/AdminAdvanceSettlementsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/AdminAdvanceSettlementsPage.tsx",
       "target": "file:frontend/src/components/shared/Money.tsx",
       "type": "imports",
       "direction": "forward",
@@ -111562,13 +112303,6 @@
     },
     {
       "source": "file:frontend/src/pages/AdminAdvancesPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/AdminAdvancesPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -111688,13 +112422,6 @@
     },
     {
       "source": "file:frontend/src/pages/AdvanceWorkspacePage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/AdvanceWorkspacePage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -111745,13 +112472,6 @@
     {
       "source": "file:frontend/src/pages/AuditLogPage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/AuditLogPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -111842,13 +112562,6 @@
     },
     {
       "source": "file:frontend/src/pages/ConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ConfigPage.tsx",
       "target": "file:frontend/src/context/SearchContext.tsx",
       "type": "imports",
       "direction": "forward",
@@ -111930,13 +112643,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/CustomersPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/CustomersPage.tsx",
@@ -112339,13 +113045,6 @@
     },
     {
       "source": "file:frontend/src/pages/DebtDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DebtDetailPage.tsx",
       "target": "file:frontend/src/components/billing/BillingDocumentsPanel.tsx",
       "type": "imports",
       "direction": "forward",
@@ -112480,13 +113179,6 @@
     {
       "source": "file:frontend/src/pages/DebtListPage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DebtListPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -112710,13 +113402,6 @@
     },
     {
       "source": "file:frontend/src/pages/DriverEarningsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DriverEarningsPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -112770,13 +113455,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/DriverPenaltyPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/DriverPenaltyPage.tsx",
@@ -112886,13 +113564,6 @@
     {
       "source": "file:frontend/src/pages/DriverTripDetailPage.tsx",
       "target": "file:frontend/src/api/driverClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DriverTripDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -113025,13 +113696,6 @@
     },
     {
       "source": "file:frontend/src/pages/DriverTripsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DriverTripsPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -113096,13 +113760,6 @@
     {
       "source": "file:frontend/src/pages/ExpenseEntryPage.tsx",
       "target": "file:frontend/src/api/keys.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ExpenseEntryPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -113235,13 +113892,6 @@
     },
     {
       "source": "file:frontend/src/pages/ExpenseListPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ExpenseListPage.tsx",
       "target": "file:frontend/src/components/shared/Alert.tsx",
       "type": "imports",
       "direction": "forward",
@@ -113362,13 +114012,6 @@
     {
       "source": "file:frontend/src/pages/FinancePage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/FinancePage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -113501,13 +114144,6 @@
     },
     {
       "source": "file:frontend/src/pages/FleetPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/FleetPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -113599,13 +114235,6 @@
     },
     {
       "source": "file:frontend/src/pages/ForwarderAdvancesPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ForwarderAdvancesPage.tsx",
       "target": "file:frontend/src/components/shared/HeroKpiRow.css",
       "type": "imports",
       "direction": "forward",
@@ -113673,13 +114302,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/ForwarderSettlementCreatePage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/ForwarderSettlementCreatePage.tsx",
@@ -113764,13 +114386,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/ForwarderSettlementsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/ForwarderSettlementsPage.tsx",
@@ -113900,13 +114515,6 @@
     },
     {
       "source": "file:frontend/src/pages/_designSystemPreview.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/_designSystemPreview.tsx",
       "target": "file:frontend/src/components/shared/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -114013,13 +114621,6 @@
     {
       "source": "file:frontend/src/pages/ForwarderTripDetailPage.tsx",
       "target": "file:frontend/src/api/keys.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ForwarderTripDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -114187,13 +114788,6 @@
     },
     {
       "source": "file:frontend/src/pages/ForwarderTripsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ForwarderTripsPage.tsx",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -114272,13 +114866,6 @@
     {
       "source": "file:frontend/src/pages/FuelEvidenceReviewPage.tsx",
       "target": "file:frontend/src/api/keys.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/FuelEvidenceReviewPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -114551,13 +115138,6 @@
     },
     {
       "source": "file:frontend/src/pages/PayableDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/PayableDetailPage.tsx",
       "target": "file:frontend/src/components/billing/BillingDocumentsPanel.tsx",
       "type": "imports",
       "direction": "forward",
@@ -114720,13 +115300,6 @@
     {
       "source": "file:frontend/src/pages/PayableListPage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/PayableListPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -114950,13 +115523,6 @@
     },
     {
       "source": "file:frontend/src/pages/ProfitPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ProfitPage.tsx",
       "target": "file:frontend/src/components/finance/ProfitabilityReportPanel.tsx",
       "type": "imports",
       "direction": "forward",
@@ -115090,13 +115656,6 @@
     },
     {
       "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/RecoverableCostsPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -115168,13 +115727,6 @@
     {
       "source": "file:frontend/src/pages/SalaryAttendancePage.tsx",
       "target": "file:frontend/src/api/salaryClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/SalaryAttendancePage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -115321,13 +115873,6 @@
     },
     {
       "source": "file:frontend/src/pages/SettlementPrintPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/SettlementPrintPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -115427,13 +115972,6 @@
     {
       "source": "file:frontend/src/pages/ShipmentDetailPage.tsx",
       "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -115573,13 +116111,6 @@
     },
     {
       "source": "file:frontend/src/pages/SupplierListPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/SupplierListPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -115706,13 +116237,6 @@
     },
     {
       "source": "file:frontend/src/pages/TreasuryPositionPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/TreasuryPositionPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -115752,13 +116276,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/TripDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/TripDetailPage.tsx",
@@ -115857,13 +116374,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/TripEditPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/TripEditPage.tsx",
@@ -116203,13 +116713,6 @@
     },
     {
       "source": "file:frontend/src/pages/TruckTiresPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/TruckTiresPage.tsx",
       "target": "file:frontend/src/components/shared/StatusStrip.tsx",
       "type": "imports",
       "direction": "forward",
@@ -116438,13 +116941,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/VehicleAllocationPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/VehicleAllocationPage.tsx",
@@ -116693,13 +117189,6 @@
     },
     {
       "source": "file:frontend/src/pages/clerk/ClerkShipmentDocsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/clerk/ClerkShipmentDocsPage.tsx",
       "target": "file:frontend/src/components/shipment/CarrierAllocationDialog.tsx",
       "type": "imports",
       "direction": "forward",
@@ -116819,13 +117308,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/AppSettingsConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/AppSettingsConfigPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -116924,13 +117406,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/CompanyInfoConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/CompanyInfoConfigPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -117016,13 +117491,6 @@
     {
       "source": "file:frontend/src/pages/config/CustomersConfigPage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/CustomersConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -117386,13 +117854,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/DebitNoteTemplateEditorPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/DebitNoteTemplateEditorPage.tsx",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -117519,13 +117980,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/DebitNoteTemplatesConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/DebitNoteTemplatesConfigPage.tsx",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -117583,13 +118037,6 @@
     {
       "source": "file:frontend/src/pages/config/FuelConfigPage.tsx",
       "target": "file:frontend/src/api/configClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/FuelConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -117666,13 +118113,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/MasterDataImportPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/MasterDataImportPage.tsx",
       "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -117709,13 +118149,6 @@
     {
       "source": "file:frontend/src/pages/config/PenaltyReasonsConfigPage.tsx",
       "target": "file:frontend/src/api/keys.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/PenaltyReasonsConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -117779,13 +118212,6 @@
     {
       "source": "file:frontend/src/pages/config/route-form-modal.tsx",
       "target": "file:frontend/src/components/LocationAutocomplete.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/route-form-modal.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -117856,13 +118282,6 @@
     {
       "source": "file:frontend/src/pages/config/RoutesConfigPage.tsx",
       "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/RoutesConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -117946,13 +118365,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/SalaryPeriodConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/SalaryPeriodConfigPage.tsx",
       "target": "file:frontend/src/components/config/Field.tsx",
       "type": "imports",
       "direction": "forward",
@@ -117999,13 +118411,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/config/TripExpenseConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/config/TripExpenseConfigPage.tsx",
@@ -118066,13 +118471,6 @@
     {
       "source": "file:frontend/src/pages/config/TruckOwnersConfigPage.tsx",
       "target": "file:frontend/src/api/keys.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/TruckOwnersConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -118520,13 +118918,6 @@
     },
     {
       "source": "file:frontend/src/pages/driver/DriverPayslipsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/driver/DriverPayslipsPage.tsx",
       "target": "file:frontend/src/hooks/animations/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -118594,13 +118985,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/driver/DriverTwoOrdersPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/driver/DriverTwoOrdersPage.tsx",
@@ -134256,13 +134640,6 @@
     },
     {
       "source": "file:frontend/src/pages/TripCreatePage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/TripCreatePage.tsx",
       "target": "file:frontend/src/components/trip/ActionBar.tsx",
       "type": "imports",
       "direction": "forward",
@@ -134774,13 +135151,6 @@
     },
     {
       "source": "file:frontend/src/pages/forwarder-trip-detail-sections.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/forwarder-trip-detail-sections.tsx",
       "target": "file:frontend/src/hooks/useQueries.ts",
       "type": "imports",
       "direction": "forward",
@@ -134998,13 +135368,6 @@
     },
     {
       "source": "file:frontend/src/pages/payables-fuel-invoices.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/payables-fuel-invoices.tsx",
       "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -135208,13 +135571,6 @@
     },
     {
       "source": "file:frontend/src/pages/portal/PortalDebitNotesPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/portal/PortalDebitNotesPage.tsx",
       "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -135314,13 +135670,6 @@
     {
       "source": "file:frontend/src/pages/portal/PortalShipmentDetailPage.tsx",
       "target": "file:frontend/src/api/customerServiceFinanceClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/portal/PortalShipmentDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -135608,13 +135957,6 @@
     {
       "source": "file:frontend/src/pages/salary-attendance-components.tsx",
       "target": "file:frontend/src/api/salaryClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/salary-attendance-components.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -139135,13 +139477,6 @@
     },
     {
       "source": "file:frontend/src/components/config/CrudTable.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/config/CrudTable.tsx",
       "target": "file:frontend/src/components/shared/Alert.tsx",
       "type": "imports",
       "direction": "forward",
@@ -139996,13 +140331,6 @@
     },
     {
       "source": "file:frontend/src/pages/config/TrailersConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/config/TrailersConfigPage.tsx",
       "target": "file:frontend/src/components/config/CrudTable.tsx",
       "type": "imports",
       "direction": "forward",
@@ -140063,13 +140391,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/config/TrucksConfigPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/config/TrucksConfigPage.tsx",
@@ -144667,13 +144988,6 @@
     },
     {
       "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
       "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
       "type": "imports",
       "direction": "forward",
@@ -145018,6 +145332,839 @@
     {
       "source": "file:frontend/src/utils/is-react-component.ts",
       "target": "function:frontend/src/utils/is-react-component.ts:isReactComponent",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/AssetIcon.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/shared/Tooltip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/design-system/Sparkline.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/hooks/animations/usePressAnimation.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/hooks/useAnimatedOverlay.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/hooks/useFocusTrap.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:overlayEntrance",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:KPI",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PageHeader",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Panel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Card",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Btn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Toolbar",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FilterPill",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:StatusPill",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PlateTag",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Badge",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FormGroup",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Modal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Drawer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:ModalOverlay",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Modal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Dialog",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/avatar.tsx:Avatar",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx:AvatarAddButton",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx:AvatarCompanyIcon",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx:AvatarCount",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx:AvatarOnlineIndicator",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx:VerifiedTick",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:KPI",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PageHeader",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Panel",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Card",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Btn",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Toolbar",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FilterPill",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:StatusPill",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PlateTag",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Badge",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FormGroup",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Modal",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Drawer",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:ModalOverlay",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Modal",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+      "target": "function:frontend/src/components/untitled-ui/application/modals/modal.tsx:Dialog",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/avatar.tsx:Avatar",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx:AvatarAddButton",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx:AvatarCompanyIcon",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx:AvatarCount",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx:AvatarOnlineIndicator",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx:VerifiedTick",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:Badge",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithDot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithIcon",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithFlag",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithImage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithButton",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeIcon",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:CheckboxBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:Checkbox",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButtonBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButton",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioGroup",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectFooter",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectEmptyState",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectRoot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/popover.tsx:Popover",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-item.tsx:SelectItem",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select.tsx:SelectValue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select.tsx:Select",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:Badge",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithDot",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithIcon",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithFlag",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithImage",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeWithButton",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:BadgeIcon",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:CheckboxBase",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx:Checkbox",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButtonBase",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioButton",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioGroup",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/popover.tsx:Popover",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-item.tsx:SelectItem",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select.tsx:Select",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:InnerTagSelect",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectTagsValue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx:TagCheckbox",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx:TagCloseX",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagAvatar",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagGroup",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:Tag",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextAreaBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextArea",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:ToggleBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:Toggle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/foundations/dot-icon.tsx:Dot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx:FeaturedIcon",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/hooks/use-resize-observer.ts",
+      "target": "function:frontend/src/hooks/use-resize-observer.ts:useResizeObserver",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectBase",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/tag-select.tsx:TagSelectTagsValue",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx:TagCheckbox",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx:TagCloseX",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagAvatar",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:TagGroup",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/tags/tags.tsx:Tag",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextAreaBase",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/textarea/textarea.tsx:TextArea",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:ToggleBase",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/toggle/toggle.tsx:Toggle",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/foundations/dot-icon.tsx:Dot",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+      "target": "function:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx:FeaturedIcon",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/hooks/use-resize-observer.ts",
+      "target": "function:frontend/src/hooks/use-resize-observer.ts:useResizeObserver",
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
@@ -146153,7 +147300,34 @@
         "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
         "file:frontend/src/pages/ShipmentsPage.tsx",
         "file:frontend/src/utils/cx.ts",
-        "file:frontend/src/utils/is-react-component.ts"
+        "file:frontend/src/utils/is-react-component.ts",
+        "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/avatar.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-add-button.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-company-icon.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-count.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/avatar-online-indicator.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/index.tsx",
+        "file:frontend/src/components/untitled-ui/base/avatar/base-components/verified-tick.tsx",
+        "file:frontend/src/components/untitled-ui/base/badges/badge-types.ts",
+        "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+        "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
+        "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+        "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-checkbox.tsx",
+        "file:frontend/src/components/untitled-ui/base/tags/base-components/tag-close-x.tsx",
+        "file:frontend/src/components/untitled-ui/base/tags/tags.tsx",
+        "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+        "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
+        "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
+        "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
+        "file:frontend/src/hooks/use-resize-observer.ts"
       ]
     },
     {

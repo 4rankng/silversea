@@ -5,6 +5,23 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
 describe('shipment container editor density', () => {
+  it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
+    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control__input\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*inherit;[^}]*outline:\s*0;/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control__input:focus-visible\s*\{[^}]*outline:\s*0;/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control\s*,[\s\S]*?border:\s*1px solid var\(--line-strong\);/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control:focus-within,[\s\S]*?outline:\s*2px solid/);
+  });
+
+  it('wraps note-editor guidance inside its fixed table column', () => {
+    expect(css).toMatch(/\.cus-note-editor-group\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-note-editor-group > small\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
+  });
+
+  it('keeps inline edit affordances visible in the stacked and touch layouts', () => {
+    expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
+    expect(css).toMatch(/@media \(hover: none\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
+  });
+
   it('uses two compact operational tiers instead of form cards', () => {
     expect(css).toMatch(/\.cus-container-record__tier\s*\{[\s\S]*?grid-template-columns:\s*78px minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.cus-container-record__facts--identity\s*\{\s*grid-template-columns:\s*1\.25fr repeat\(3, minmax\(0, 1fr\)\);/);

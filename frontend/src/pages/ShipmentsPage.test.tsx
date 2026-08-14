@@ -295,6 +295,42 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rows[0]?.[3]).toContain('4 Pallet');
   });
 
+  it('counts only plate-complete containers as assigned in the dispatch-readiness label', async () => {
+    const waitingForEveryPlate: ShipmentCusWorkspaceListItem = {
+      ...row,
+      id: 11,
+      billOrBookNumber: 'BILL-WAIT-ALL',
+      operational: {
+        ...row.operational,
+        vehicleReadiness: 'WAITING_PLATE',
+        totalContainers: 2,
+        assignedContainers: 2,
+        plateAssignedContainers: 0,
+        missingPlateContainers: 2,
+      },
+    };
+    const waitingForOnePlate: ShipmentCusWorkspaceListItem = {
+      ...row,
+      id: 12,
+      billOrBookNumber: 'BILL-WAIT-ONE',
+      operational: {
+        ...row.operational,
+        vehicleReadiness: 'WAITING_PLATE',
+        totalContainers: 2,
+        assignedContainers: 2,
+        plateAssignedContainers: 1,
+        missingPlateContainers: 1,
+      },
+    };
+    apiGet.mockResolvedValue(listResponse([waitingForEveryPlate, waitingForOnePlate]));
+
+    renderPage();
+
+    expect((await screen.findAllByText('Toàn bộ chưa phân xe')).length).toBe(1);
+    expect(screen.getByText('1 cont chưa phân xe')).toBeTruthy();
+    expect(screen.queryByText('0 cont chưa phân xe')).toBeNull();
+  });
+
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
     renderPage();
     await screen.findByRole('table');
@@ -352,6 +388,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-note-editor-group\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);[\s\S]*?max-width:\s*100%;/);
   });
 
   it('highlights a shipment whose closing or return date is not yet confirmed', async () => {
@@ -365,6 +402,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     expect(await screen.findByText('Chưa chốt ngày')).toBeTruthy();
     expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
+    expect(screen.getByText('Chờ chốt lịch')).toBeTruthy();
+    expect(screen.queryByText('Cần kiểm tra')).toBeNull();
+    expect(css).toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > th,[\s\S]*?\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > td\s*\{[^}]*background:/);
   });
 
   it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
@@ -376,6 +416,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     expect(screen.queryByText('Chọn để sửa')).toBeNull();
+    expect(within(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).getByText('Sửa')).toBeTruthy();
+    expect(within(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })).getByText('Sửa')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
@@ -1046,12 +1088,31 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rows[0]?.[5]).toContain('Giao buổi sáng');
   });
 
-  it('intentionally augments Col7 with a Cần kiểm tra attention flag', async () => {
-    // The spec lists Col7 as the status bucket only. This augmentation flags
-    // shipments needing operator attention (loss, pending recovery, disabled action).
-    expect(source).toContain('Cần kiểm tra');
+  it('shows the specific highest-priority exception instead of a generic attention flag', async () => {
     renderPage();
     await screen.findByRole('table');
-    expect(screen.getByText('Cần kiểm tra')).toBeTruthy();
+    expect(screen.getByText('Lỗ')).toBeTruthy();
+    expect(screen.queryByText('Cần kiểm tra')).toBeNull();
+  });
+
+  it('does not flag an ordinary disabled no-op row as an exception', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      finance: { ...row.finance, isLoss: false, hasPendingRecovery: false },
+      action: { kind: 'NONE' as const, label: '', enabled: false, disabledReason: null },
+    }]));
+
+    renderPage();
+    await screen.findByRole('table');
+    expect(screen.queryByText('Cần kiểm tra')).toBeNull();
+    expect(document.querySelector('.cus-attention-label')).toBeNull();
+  });
+
+  it('renders the combined-cargo marker in the classification cell', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, isCombined: true }]));
+
+    renderPage();
+    await screen.findByRole('table');
+    expect(within(masterRow()).getByText('Hàng kết hợp')).toBeTruthy();
   });
 });

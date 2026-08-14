@@ -8,6 +8,7 @@ import {
   Download,
   FileLock2,
   Loader2,
+  Pencil,
   Plus,
   RotateCcw,
   Save,
@@ -116,10 +117,10 @@ function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 }
 
 function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {
-  const { totalContainers, assignedContainers, vehicleReadiness } = item.operational;
+  const { totalContainers, plateAssignedContainers, vehicleReadiness } = item.operational;
   if (vehicleReadiness === 'READY') return 'Đã phân xe';
   if (vehicleReadiness === 'NO_CONTAINERS') return 'Không áp dụng điều xe';
-  const waiting = Math.max(0, totalContainers - assignedContainers);
+  const waiting = Math.max(0, totalContainers - plateAssignedContainers);
   if (waiting >= totalContainers) return 'Toàn bộ chưa phân xe';
   return `${waiting.toLocaleString('vi-VN')} cont chưa phân xe`;
 }
@@ -1195,7 +1196,7 @@ export default function ShipmentsPage() {
           [item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
           [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
           [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
-          [item.bucketLabel, (item.finance.isLoss || item.finance.hasPendingRecovery || !item.action.enabled) ? 'Cần kiểm tra' : ''].filter(Boolean).join('\n'),
+          [item.bucketLabel, deriveShipmentSignals(item)[0]?.label ?? ''].filter(Boolean).join('\n'),
         ]),
         {
           title: 'Kế hoạch lô hàng',
@@ -1437,7 +1438,8 @@ export default function ShipmentsPage() {
                 <tbody>
                   {items.map((item) => {
                     const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
-                    const needsAttention = Boolean(item.finance.isLoss || item.finance.hasPendingRecovery || !item.action.enabled);
+                    const primarySignal = deriveShipmentSignals(item)[0] ?? null;
+                    const PrimarySignalIcon = primarySignal?.icon;
                     const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
                     const editingSchedule = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'schedule';
                     const editingNotes = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'notes';
@@ -1504,7 +1506,10 @@ export default function ShipmentsPage() {
                             </div>
                           ) : (
                             <button id={`cus-inline-schedule-${item.id}`} type="button" className="cus-inline-trigger" disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô lịch trình lô hàng ${identity}`}>
-                              <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
+                              <span className="cus-inline-trigger__heading">
+                                <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
+                                <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>
+                              </span>
                               <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
                               <span>{vehicleReadinessLabel(item)}</span>
                             </button>
@@ -1536,7 +1541,10 @@ export default function ShipmentsPage() {
                             </div>
                           ) : (
                             <button id={`cus-inline-notes-${item.id}`} type="button" className="cus-inline-trigger cus-note-preview" title={item.customerNotes || item.operationalNotes || undefined} disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit} aria-label={`Sửa ô ghi chú lô hàng ${identity}`}>
-                              <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
+                              <span className="cus-inline-trigger__heading">
+                                <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
+                                <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>
+                              </span>
                               {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
                               {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
                               {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
@@ -1546,7 +1554,7 @@ export default function ShipmentsPage() {
                         <td data-label="Trạng thái">
                           <div className="cus-row-actions">
                             <WorkflowBadge item={item} />
-                            {needsAttention && <span className="cus-attention-label"><AlertTriangle size={13} aria-hidden="true" /> Cần kiểm tra</span>}
+                            {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
                             <button id={'cus-dashboard-detail-' + item.id} type="button" className="btn btn--secondary btn--sm cus-dashboard-detail" aria-haspopup="dialog" aria-controls={'cus-detail-drawer-' + item.id} aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel} onClick={() => openShipmentDetail(item.id)} disabled={editing}>Chi tiết</button>
                           </div>
                         </td>
