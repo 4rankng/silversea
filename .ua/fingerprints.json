@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "49b495d4e663466939ecb3830d9a523efe92d30a",
+  "gitCommitHash": "3d29bf8",
   "generatedAt": "2026-08-14T08:23:42.968Z",
   "files": {
     ".codex/context-manifest.json": {
@@ -80890,7 +80890,7 @@
     },
     "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx": {
       "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "contentHash": "0c6fe889ac61831c7fef4e750dc9b210ef72678c22b5923d745af6985b9722f8",
+      "contentHash": "878113c53589de8260e5c3885b8ac90b9eb518274da9f2e91f0c24f2578b6e1c",
       "functions": [
         {
           "name": "formatVnd",
@@ -80907,7 +80907,7 @@
             "{\n  readiness,\n  validationIssues,\n  pricingProjection,\n  pricingLoading,\n  pricingError,\n  saving,\n  submitError,\n  onNavigateSection,\n  onFocusIssue,\n  onSaveDraft,\n  onSubmitDispatch,\n}"
           ],
           "exported": true,
-          "lineCount": 127
+          "lineCount": 140
         }
       ],
       "classes": [],
@@ -80922,9 +80922,22 @@
           ]
         },
         {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "SHIPMENT_STATUS_LABELS",
+            "ShipmentStatus"
+          ]
+        },
+        {
           "source": "../../../api/shipmentClient",
           "specifiers": [
             "ShipmentPricingProjection"
+          ]
+        },
+        {
+          "source": "../../../components/shared/StatusStrip",
+          "specifiers": [
+            "StatusStrip"
           ]
         },
         {
@@ -80940,12 +80953,12 @@
       "exports": [
         "ShipmentCreateSummary"
       ],
-      "totalLines": 156,
+      "totalLines": 171,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx": {
       "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "contentHash": "f966a3e6abc8d32ed894544cd493dac14ff834111339d2c9f62dd907b2e0a670",
+      "contentHash": "ee52739b40027f09ca9fa179e48ef72d54f90f1fbf7f4c00c86ce32a9e671269",
       "functions": [
         {
           "name": "inferContainerBucket",
@@ -80966,20 +80979,12 @@
           "lineCount": 3
         },
         {
-          "name": "SearchableField",
-          "params": [
-            "{\n  id,\n  label,\n  value,\n  onChange,\n  options,\n  placeholder,\n  disabled,\n  required,\n  hint,\n  error,\n}"
-          ],
-          "exported": false,
-          "lineCount": 33
-        },
-        {
           "name": "ShipmentCreateWorkspace",
           "params": [
             "{\n  embedded = false,\n  onCancel,\n  onDirtyChange,\n  onSaved,\n}"
           ],
           "exported": true,
-          "lineCount": 603
+          "lineCount": 601
         }
       ],
       "classes": [],
@@ -81010,9 +81015,15 @@
         {
           "source": "../../../design-system",
           "specifiers": [
-            "EmptyState",
-            "SearchableSelect",
+            "EmptyState"
+          ]
+        },
+        {
+          "source": "./uui-fields",
+          "specifiers": [
+            "SearchableField",
             "SelectField",
+            "TextAreaField",
             "TextField"
           ]
         },
@@ -81119,7 +81130,7 @@
       "exports": [
         "ShipmentCreateWorkspace"
       ],
-      "totalLines": 728,
+      "totalLines": 684,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/shipment-create-model.test.ts": {
@@ -81156,7 +81167,7 @@
     },
     "frontend/src/features/shipments/create/shipment-create-model.ts": {
       "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "contentHash": "258fa5088be3f39d3c24b0b36e2475e71ed183237b0c1057ab0751c76147ec0a",
+      "contentHash": "51426846a0a544bf6e018d24b46dc637768842df58dc0f2dde13dce3343f6bbc",
       "functions": [
         {
           "name": "createEmptyContainer",
@@ -81185,7 +81196,7 @@
           ],
           "returnType": "ShipmentCreateReadiness",
           "exported": true,
-          "lineCount": 71
+          "lineCount": 74
         },
         {
           "name": "validateShipmentCreate",
@@ -81224,6 +81235,12 @@
           "specifiers": [
             "localDateTimeToIso"
           ]
+        },
+        {
+          "source": "@tingting/shared",
+          "specifiers": [
+            "ShipmentStatus"
+          ]
         }
       ],
       "exports": [
@@ -81234,7 +81251,7 @@
         "buildShipmentRootPayload",
         "buildShipmentContainerPayload"
       ],
-      "totalLines": 245,
+      "totalLines": 250,
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/use-shipment-create-workflow.ts": {
@@ -98339,7 +98356,7 @@
     },
     "frontend/src/pages/ShipmentsPage.embedded-create.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.embedded-create.test.tsx",
-      "contentHash": "3f103938404c20d38d94f16432967405396fdfd01437b04d700352263d6a5781",
+      "contentHash": "e97eb2d3d61ef7465abaf22b73a9d776f22e1fe0900760e0ac4f3389dbdb4ef4",
       "functions": [
         {
           "name": "listResponse",
@@ -100537,7 +100554,7 @@
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx",
-      "contentHash": "7be8da189e42d4e150f80b54b97759ae61b54482570abb9c6d80066a3f3f303e",
+      "contentHash": "5a8d690ead6eb96565b8891c7fb56d4fcd60cb3c258ee19f6b09c769f87a8526",
       "functions": [
         {
           "name": "renderPage",
@@ -100566,7 +100583,7 @@
             "value"
           ],
           "exported": false,
-          "lineCount": 20
+          "lineCount": 24
         }
       ],
       "classes": [],
@@ -100625,7 +100642,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 588,
+      "totalLines": 592,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.tsx": {
@@ -107322,7 +107339,7 @@
     },
     "frontend/src/test-setup.ts": {
       "filePath": "frontend/src/test-setup.ts",
-      "contentHash": "aa23c332a05ba98237e26c0ccd1966cbfe973fc658dd7616bb9f3250a7975999",
+      "contentHash": "c2ea1033928b1828a19a08d42a54964aa3bd8aa2a3d19f37938a9a102350332c",
       "functions": [
         {
           "name": "createStorage",
@@ -107342,7 +107359,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 51,
+      "totalLines": 67,
       "hasStructuralAnalysis": true
     },
     "frontend/src/utils/cx.ts": {
@@ -111104,23 +111121,23 @@
     },
     "frontend/src/components/untitled-ui/base/select/combobox.tsx": {
       "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "contentHash": "683ac9ab94a1e9ba1844a84b9cabb645b78611c6cee22d8d4d9fd17567010c2a",
+      "contentHash": "357937febf038361c4aa7c7ba804356296ca12bef716b934d42e57f601174600",
       "functions": [
         {
           "name": "ComboBoxValue",
           "params": [
-            "{ size, shortcut, placeholder, shortcutClassName, icon: IconProp, ref, ...otherProps }"
+            "{ size, shortcut, placeholder, shortcutClassName, icon: IconProp, openOnPress, ref, ...otherProps }"
           ],
           "exported": false,
-          "lineCount": 70
+          "lineCount": 76
         },
         {
           "name": "ComboBox",
           "params": [
-            "{\n    placeholder = \"Search\",\n    shortcut = true,\n    size = \"md\",\n    children,\n    items,\n    shortcutClassName,\n    icon,\n    hideRequiredIndicator,\n    ...otherProps\n}"
+            "{\n    placeholder = \"Search\",\n    shortcut = true,\n    size = \"md\",\n    children,\n    items,\n    shortcutClassName,\n    icon,\n    openOnPress = false,\n    hideRequiredIndicator,\n    ...otherProps\n}"
           ],
           "exported": true,
-          "lineCount": 70
+          "lineCount": 72
         }
       ],
       "classes": [],
@@ -111130,6 +111147,7 @@
           "specifiers": [
             "FC",
             "FocusEventHandler",
+            "MouseEventHandler",
             "PointerEventHandler",
             "ReactNode",
             "Ref",
@@ -111219,7 +111237,7 @@
       "exports": [
         "ComboBox"
       ],
-      "totalLines": 177,
+      "totalLines": 188,
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/untitled-ui/base/select/multi-select.tsx": {
@@ -112225,6 +112243,100 @@
         "useResizeObserver"
       ],
       "totalLines": 68,
+      "hasStructuralAnalysis": true
+    },
+    "frontend/src/features/shipments/create/uui-fields.tsx": {
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "contentHash": "7de1a46b74da70edfe26c13d600150d7be6d44347b417ecc63213960d99960fc",
+      "functions": [
+        {
+          "name": "asEvent",
+          "params": [
+            "value"
+          ],
+          "returnType": "HtmlInputEvent",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "UTextField",
+          "params": [
+            "{\n  label,\n  value,\n  onChange,\n  type = 'text',\n  placeholder,\n  disabled,\n  required,\n  error,\n  hint,\n  maxLength,\n  min,\n  step,\n}"
+          ],
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "USearchableField",
+          "params": [
+            "{\n  label,\n  value,\n  onChange,\n  options,\n  placeholder,\n  disabled,\n  required,\n  hint,\n  error,\n  allowsCustomValue,\n}"
+          ],
+          "exported": true,
+          "lineCount": 51
+        },
+        {
+          "name": "USelectField",
+          "params": [
+            "{\n  label,\n  value,\n  onChange,\n  options,\n  disabled,\n  required,\n  error,\n  hint,\n}"
+          ],
+          "exported": true,
+          "lineCount": 28
+        },
+        {
+          "name": "UTextAreaField",
+          "params": [
+            "{\n  label,\n  value,\n  onChange,\n  rows,\n  maxLength,\n  placeholder,\n  disabled,\n}"
+          ],
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/input/input",
+          "specifiers": [
+            "UUIInput"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/select/combobox",
+          "specifiers": [
+            "ComboBox"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/select/select-native",
+          "specifiers": [
+            "NativeSelect"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/select/select-item",
+          "specifiers": [
+            "SelectItem"
+          ]
+        },
+        {
+          "source": "../../../components/untitled-ui/base/textarea/textarea",
+          "specifiers": [
+            "UUITextArea"
+          ]
+        }
+      ],
+      "exports": [
+        "UTextField",
+        "USearchableField",
+        "USelectField",
+        "UTextAreaField"
+      ],
+      "totalLines": 211,
       "hasStructuralAnalysis": true
     }
   }

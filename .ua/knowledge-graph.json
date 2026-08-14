@@ -32,8 +32,8 @@
       "Docker"
     ],
     "description": "Vietnamese trucking logistics platform for SilverSea operations.",
-    "analyzedAt": "2026-08-14T10:13:15.429Z",
-    "gitCommitHash": "7c51d57ce39ae9200dac4c132014378b8c796bb6"
+    "analyzedAt": "2026-08-14T11:12:40.980Z",
+    "gitCommitHash": "3d29bf8"
   },
   "nodes": [
     {
@@ -33274,105 +33274,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "type": "file",
-      "name": "shipment-create-model.ts",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "summary": "Implements shipment create model as part of the frontend/src/features/shipments/create application module.",
-      "tags": [
-        "typescript",
-        "application",
-        "module",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
-      "type": "function",
-      "name": "createEmptyContainer",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "lineRange": [
-        85,
-        95
-      ],
-      "summary": "Implements createEmptyContainer behavior within shipment-create-model.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
-      "type": "function",
-      "name": "getShipmentCreateReadiness",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "lineRange": [
-        105,
-        175
-      ],
-      "summary": "Implements getShipmentCreateReadiness behavior within shipment-create-model.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
-      "type": "function",
-      "name": "validateShipmentCreate",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "lineRange": [
-        177,
-        187
-      ],
-      "summary": "Implements validateShipmentCreate behavior within shipment-create-model.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
-      "type": "function",
-      "name": "buildShipmentRootPayload",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "lineRange": [
-        194,
-        226
-      ],
-      "summary": "Implements buildShipmentRootPayload behavior within shipment-create-model.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
-      "type": "function",
-      "name": "buildShipmentContainerPayload",
-      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
-      "lineRange": [
-        228,
-        244
-      ],
-      "summary": "Implements buildShipmentContainerPayload behavior within shipment-create-model.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
       "type": "file",
       "name": "ShipmentContainerEditor.tsx",
@@ -33431,83 +33332,6 @@
         "application"
       ],
       "complexity": "simple"
-    },
-    {
-      "id": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "type": "file",
-      "name": "ShipmentCreateSummary.tsx",
-      "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "summary": "Implements Shipment Create Summary as part of the frontend/src/features/shipments/create application module.",
-      "tags": [
-        "typescript",
-        "application",
-        "module"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
-      "type": "function",
-      "name": "ShipmentCreateSummary",
-      "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "lineRange": [
-        29,
-        155
-      ],
-      "summary": "Implements ShipmentCreateSummary behavior within ShipmentCreateSummary.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "type": "file",
-      "name": "ShipmentCreateWorkspace.tsx",
-      "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "summary": "Implements Shipment Create Workspace as part of the frontend/src/features/shipments/create application module.",
-      "tags": [
-        "typescript",
-        "application",
-        "module"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:SearchableField",
-      "type": "function",
-      "name": "SearchableField",
-      "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "lineRange": [
-        84,
-        116
-      ],
-      "summary": "Implements SearchableField behavior within ShipmentCreateWorkspace.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
-      "type": "function",
-      "name": "ShipmentCreateWorkspace",
-      "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "lineRange": [
-        125,
-        727
-      ],
-      "summary": "Implements ShipmentCreateWorkspace behavior within ShipmentCreateWorkspace.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
     },
     {
       "id": "file:frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
@@ -75981,54 +75805,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "type": "file",
-      "name": "combobox.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "summary": "Implements a searchable combo-box trigger with contextual value rendering and measured popover width.",
-      "tags": [
-        "component",
-        "combobox",
-        "select",
-        "react-aria"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
-      "type": "function",
-      "name": "ComboBoxValue",
-      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "lineRange": [
-        36,
-        105
-      ],
-      "summary": "Renders the combo-box trigger value, placeholder, optional icon, and keyboard shortcut hint.",
-      "tags": [
-        "component",
-        "combobox",
-        "presentation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
-      "type": "function",
-      "name": "ComboBox",
-      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "lineRange": [
-        107,
-        176
-      ],
-      "summary": "Composes a React Aria combo box with labels, validation hints, and a width-synchronized popover.",
-      "tags": [
-        "component",
-        "combobox",
-        "react-aria"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
       "type": "file",
       "name": "multi-select.tsx",
@@ -76830,6 +76606,316 @@
         "api-client"
       ],
       "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "type": "file",
+      "name": "combobox.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "summary": "Provides a React Aria combobox control with searchable input, accessible label and hint support, optional leading icon, and a width-synchronized popover.",
+      "tags": [
+        "component",
+        "form-control",
+        "react-aria",
+        "design-system"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses React Aria state/context primitives and a resize observer to keep the listbox popover aligned with its trigger."
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
+      "type": "function",
+      "name": "ComboBoxValue",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "lineRange": [
+        39,
+        114
+      ],
+      "summary": "Renders the combobox input group, including selected-item text treatment, icon selection, keyboard shortcut indicator, and optional press-to-open behavior.",
+      "tags": [
+        "react-component",
+        "combobox",
+        "input-control",
+        "event-handler"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "function",
+      "name": "ComboBox",
+      "filePath": "frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "lineRange": [
+        116,
+        187
+      ],
+      "summary": "Composes the public combobox control from React Aria input and listbox primitives while measuring the trigger to size its popover.",
+      "tags": [
+        "react-component",
+        "combobox",
+        "react-aria",
+        "design-system"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "type": "file",
+      "name": "ShipmentCreateSummary.tsx",
+      "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "summary": "Renders the shipment-create readiness rail with navigable validation issues, calculated pricing preview, automatic status, and draft or dispatch actions.",
+      "tags": [
+        "component",
+        "shipment-create",
+        "validation",
+        "pricing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
+      "type": "function",
+      "name": "ShipmentCreateSummary",
+      "filePath": "frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "lineRange": [
+        31,
+        170
+      ],
+      "summary": "Presents section readiness and pricing feedback, directing users to invalid fields and invoking draft-save or dispatch submission callbacks.",
+      "tags": [
+        "react-component",
+        "shipment-create",
+        "validation",
+        "pricing"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "type": "file",
+      "name": "ShipmentCreateWorkspace.tsx",
+      "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "summary": "Implements the full CUS shipment-intake workspace, coordinating catalog and operational-site loading, FCL/LCL form state, carrier allocation, pricing preview, validation, and submission workflow.",
+      "tags": [
+        "component",
+        "shipment-create",
+        "workflow",
+        "form-state",
+        "carrier-allocation"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses React effects and memoized derived state to synchronize remote catalogs, pricing projections, validation readiness, and interactive form controls."
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
+      "type": "function",
+      "name": "ShipmentCreateWorkspace",
+      "filePath": "frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "lineRange": [
+        83,
+        683
+      ],
+      "summary": "Orchestrates shipment creation from data loading through field editing, site creation, carrier assignment, validation focus, draft saving, and dispatch submission.",
+      "tags": [
+        "react-component",
+        "shipment-create",
+        "workflow",
+        "form-state",
+        "api-client"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "type": "file",
+      "name": "shipment-create-model.ts",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "summary": "Defines shipment-create form and container models plus readiness validation and payload builders for root shipment and container persistence requests.",
+      "tags": [
+        "data-model",
+        "shipment-create",
+        "validation",
+        "payload-builder",
+        "type-definition"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Models the FCL and LCL input variants as TypeScript discriminants and converts local datetime inputs to API-ready ISO values."
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
+      "type": "function",
+      "name": "createEmptyContainer",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "lineRange": [
+        87,
+        97
+      ],
+      "summary": "Creates a uniquely keyed blank container draft for the FCL shipment editor.",
+      "tags": [
+        "factory",
+        "shipment-create",
+        "container",
+        "form-state"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
+      "type": "function",
+      "name": "getShipmentCreateReadiness",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "lineRange": [
+        107,
+        180
+      ],
+      "summary": "Validates FCL or LCL form requirements and derives section completion, the first invalid field, dispatch eligibility, and initial shipment status.",
+      "tags": [
+        "validation",
+        "shipment-create",
+        "business-rules",
+        "form-state"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
+      "type": "function",
+      "name": "validateShipmentCreate",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "lineRange": [
+        182,
+        192
+      ],
+      "summary": "Applies intent-specific validation, allowing draft saves with minimal identity data while requiring full readiness for dispatch submission.",
+      "tags": [
+        "validation",
+        "shipment-create",
+        "business-rules",
+        "submission"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
+      "type": "function",
+      "name": "buildShipmentRootPayload",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "lineRange": [
+        199,
+        231
+      ],
+      "summary": "Converts the form state and selected operational sites into the root shipment API payload with normalized numeric and datetime fields.",
+      "tags": [
+        "payload-builder",
+        "serialization",
+        "shipment-create",
+        "api-client"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
+      "type": "function",
+      "name": "buildShipmentContainerPayload",
+      "filePath": "frontend/src/features/shipments/create/shipment-create-model.ts",
+      "lineRange": [
+        233,
+        249
+      ],
+      "summary": "Filters populated container drafts and serializes them into container payload rows for shipment persistence.",
+      "tags": [
+        "payload-builder",
+        "serialization",
+        "container",
+        "shipment-create"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "type": "file",
+      "name": "uui-fields.tsx",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "summary": "Wraps Untitled UI input, combobox, native select, and textarea primitives in controlled field components used by the shipment-create form.",
+      "tags": [
+        "component",
+        "form-control",
+        "design-system",
+        "shipment-create"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+      "type": "function",
+      "name": "UTextField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        39,
+        69
+      ],
+      "summary": "Renders a controlled single-line Untitled UI input with labels, hints, required state, and inline error feedback.",
+      "tags": [
+        "react-component",
+        "form-control",
+        "input",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+      "type": "function",
+      "name": "USearchableField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        86,
+        136
+      ],
+      "summary": "Renders a controlled searchable combobox that maps form values to selectable option labels and supports optional custom values.",
+      "tags": [
+        "react-component",
+        "form-control",
+        "combobox",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+      "type": "function",
+      "name": "USelectField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        150,
+        177
+      ],
+      "summary": "Renders a controlled native select field with option mapping and standard field validation presentation.",
+      "tags": [
+        "react-component",
+        "form-control",
+        "select",
+        "validation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "function",
+      "name": "UTextAreaField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        189,
+        210
+      ],
+      "summary": "Renders a controlled multiline text field for shipment notes with configurable rows and character limits.",
+      "tags": [
+        "react-component",
+        "form-control",
+        "textarea",
+        "shipment-create"
+      ],
+      "complexity": "moderate"
     }
   ],
   "edges": [
@@ -105989,83 +106075,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "file:frontend/src/lib/shipment-operations.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
       "target": "function:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx:ShipmentContainerEditor",
       "type": "contains",
@@ -106096,153 +106105,6 @@
     {
       "source": "file:frontend/src/features/shipments/create/ShipmentCreateSections.tsx",
       "target": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "target": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:SearchableField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/api/tripClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/shared/Toast.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/shipment/CarrierAllocationDialog.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/shipment/CarrierAllocationSummary.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/shipment/OperationalSiteCreateDialog.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/shipment/OperationalSiteDetailsDialog.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/ShipmentCreateSections.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.css",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -144271,14 +144133,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
-      "target": "file:frontend/src/features/shipments/create/shipment-create-model.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
       "source": "file:frontend/src/features/tires/tireUtils.ts",
       "target": "file:frontend/src/features/tires/tireUtils.test.ts",
       "type": "tested_by",
@@ -145653,20 +145507,6 @@
       "weight": 1
     },
     {
-      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/select/multi-select.tsx:MultiSelectFooter",
       "type": "contains",
@@ -145795,13 +145635,6 @@
     {
       "source": "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx:RadioGroup",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
@@ -146263,13 +146096,6 @@
     },
     {
       "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
       "target": "function:frontend/src/components/shared/Breadcrumbs.tsx:Breadcrumbs",
       "type": "calls",
       "direction": "forward",
@@ -146279,6 +146105,398 @@
       "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
       "target": "function:frontend/src/components/shared/StatusStrip.tsx:StatusStrip",
       "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/hooks/use-resize-observer.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/utils/cx.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "file:frontend/src/utils/is-react-component.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "target": "file:frontend/src/components/shared/StatusStrip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "target": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/api/tripClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/components/shared/Toast.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/components/shipment/CarrierAllocationDialog.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/components/shipment/CarrierAllocationSummary.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/components/shipment/OperationalSiteCreateDialog.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/components/shipment/OperationalSiteDetailsDialog.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/ShipmentCreateSections.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.css",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "file:frontend/src/lib/shipment-operations.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "target": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+      "target": "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "target": "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+      "target": "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "exports",
       "direction": "forward",
       "weight": 0.8
     }
@@ -146946,11 +147164,8 @@
         "file:frontend/src/features/penalties/components/PenaltyTable.tsx",
         "file:frontend/src/features/penalties/hooks/usePenaltyMutations.ts",
         "file:frontend/src/features/penalties/utils.ts",
-        "file:frontend/src/features/shipments/create/shipment-create-model.ts",
         "file:frontend/src/features/shipments/create/ShipmentContainerEditor.tsx",
         "file:frontend/src/features/shipments/create/ShipmentCreateSections.tsx",
-        "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
-        "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
         "file:frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
         "file:frontend/src/features/tires/tire-controls.tsx",
         "file:frontend/src/features/tires/tire-dialogs.tsx",
@@ -147426,7 +147641,6 @@
         "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
         "file:frontend/src/components/untitled-ui/base/checkbox/checkbox.tsx",
         "file:frontend/src/components/untitled-ui/base/radio-buttons/radio-buttons.tsx",
-        "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
         "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
         "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
         "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
@@ -147440,7 +147654,25 @@
         "file:frontend/src/components/untitled-ui/base/toggle/toggle.tsx",
         "file:frontend/src/components/untitled-ui/foundations/dot-icon.tsx",
         "file:frontend/src/components/untitled-ui/foundations/featured-icon/featured-icon.tsx",
-        "file:frontend/src/hooks/use-resize-observer.ts"
+        "file:frontend/src/hooks/use-resize-observer.ts",
+        "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+        "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
+        "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
+        "file:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx",
+        "function:frontend/src/features/shipments/create/ShipmentCreateSummary.tsx:ShipmentCreateSummary",
+        "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+        "function:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx:ShipmentCreateWorkspace",
+        "file:frontend/src/features/shipments/create/shipment-create-model.ts",
+        "function:frontend/src/features/shipments/create/shipment-create-model.ts:createEmptyContainer",
+        "function:frontend/src/features/shipments/create/shipment-create-model.ts:getShipmentCreateReadiness",
+        "function:frontend/src/features/shipments/create/shipment-create-model.ts:validateShipmentCreate",
+        "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentRootPayload",
+        "function:frontend/src/features/shipments/create/shipment-create-model.ts:buildShipmentContainerPayload",
+        "file:frontend/src/features/shipments/create/uui-fields.tsx",
+        "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+        "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+        "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+        "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField"
       ]
     },
     {
