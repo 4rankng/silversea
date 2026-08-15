@@ -71,7 +71,9 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
                     Giao: {formatDate(item.expectedDeliveryDate)}
                   </div>
-                  <div className="master-plan-grid__line master-plan-grid__line--muted">Giờ: —</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--muted">
+                    Giờ: {formatHour(item.plannedReturnAt ?? item.closingAt)}
+                  </div>
                   <div className={`master-plan-grid__line${urgency === 'none' ? ' master-plan-grid__line--muted' : urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
                     Cutoff: {formatDateTime(item.customsCutoffAt)}
                   </div>

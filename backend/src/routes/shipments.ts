@@ -808,12 +808,20 @@ router.get(
       const raw = req.query[key];
       if (raw == null) return undefined;
       const values = Array.isArray(raw) ? raw : String(raw).split(',');
-      return values.map((value) => Number(value));
+      const parsed = values.map((value) => Number(value));
+      if (parsed.some((value) => !Number.isInteger(value) || value <= 0)) {
+        throw new ApiError(400, `Tham số ${key} không hợp lệ`);
+      }
+      return parsed;
     };
     const hour = (key: string) => {
       const raw = req.query[key];
       if (raw == null || raw === '') return undefined;
-      return Number(raw);
+      const parsed = Number(raw);
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 23) {
+        throw new ApiError(400, `Giờ lọc không hợp lệ (${key})`);
+      }
+      return parsed;
     };
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
