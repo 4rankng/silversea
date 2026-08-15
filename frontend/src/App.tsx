@@ -46,7 +46,6 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const ShipmentsDetailPage = lazy(() => import('./pages/ShipmentsDetailPage'));
-const VehicleAllocationPage = lazy(() => import('./pages/VehicleAllocationPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
@@ -69,7 +68,8 @@ const ForwarderSettlementCreatePage = lazy(() => import('./pages/ForwarderSettle
 const SettlementPrintPage = lazy(() => import('./pages/SettlementPrintPage'));
 const AdvanceWorkspacePage = lazy(() => import('./pages/AdvanceWorkspacePage'));
 
-const DispatchPage = lazy(() => import('./pages/DispatchPage'));
+const MasterPlanPage = lazy(() => import('./pages/MasterPlanPage'));
+const DispatchDetailPlanPage = lazy(() => import('./pages/DispatchDetailPlanPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const FleetPage = lazy(() => import('./pages/FleetPage'));
@@ -218,7 +218,11 @@ export function AppRoutes() {
             path="/dashboard"
             element={isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <Navigate to={homeRedirect} replace /> : page(<DashboardPage />)}
           />
-          <Route path="/dispatch" element={dispatchOnly(page(<DispatchPage />))} />
+          {/* Dispatch planning: /dispatch = Kế hoạch Tổng quát (shipment-level
+              carrier allocation), /dispatch-detail = Kế hoạch Chi tiết
+              (auto-split container grid with plate assignment). */}
+          <Route path="/dispatch" element={dispatchOnly(page(<MasterPlanPage />))} />
+          <Route path="/dispatch-detail" element={dispatchOnly(page(<DispatchDetailPlanPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
@@ -252,13 +256,6 @@ export function AppRoutes() {
           <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentsDetailPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
-          <Route path={routes.vehicleAllocation} element={dispatchOnly(page(<VehicleAllocationPage />))} />
-          {/* W5 20260805_04: dispatcher sidebar links to /dispatch/master-plan and
-              /dispatch/detailed-plan — these are the W5-spec tabs "Kế hoạch Tổng
-              quát" / "Kế hoạch Chi tiết". The VehicleAllocationPage already has
-              the right Tabs, so we mount it on both routes. */}
-          <Route path="/dispatch/master-plan" element={dispatchOnly(page(<VehicleAllocationPage initialTab="summary" />))} />
-          <Route path="/dispatch/detailed-plan" element={dispatchOnly(page(<VehicleAllocationPage initialTab="detail" />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

@@ -72,9 +72,9 @@ describe('MasterPlanGrid', () => {
     );
 
     expect(screen.getByText((_, element) =>
-      element?.className === 'master-plan-grid__chip' && element.textContent === "SilverSea: 2x40'")).toBeTruthy();
+      Boolean(element?.className.includes('master-plan-grid__chip')) && element?.textContent === "SilverSea: 2x40'")).toBeTruthy();
     expect(screen.getByText((_, element) =>
-      element?.className === 'master-plan-grid__chip' && element.textContent === "HÀ AN: 1x20'")).toBeTruthy();
+      Boolean(element?.className.includes('master-plan-grid__chip')) && element?.textContent === "HÀ AN: 1x20'")).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sửa phân bổ' })).toBeTruthy();
   });
 

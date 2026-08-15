@@ -31,6 +31,8 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       filters={EMPTY_DETAILED_PLAN_FILTERS}
       onFilterChange={vi.fn()}
       loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+      loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+      loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
       items={items}
       loading={false}
       error={null}
@@ -98,6 +100,8 @@ describe('DetailedPlanGrid', () => {
   it('shows the NHẬP badge for import rows', () => {
     renderGrid([row({ docs: { billNumber: 'B-1', tradeDirection: 'IMPORT', declarationNumbers: [] } })]);
     expect(screen.getByText('NHẬP')).toBeTruthy();
+    // Import rows label the date line "Nhận" instead of "Giao" (spec §3 col 1).
+    expect(screen.getByText('Nhận: 20/08/2026')).toBeTruthy();
   });
 
   it('shows the lot flag and plated row state when lotFullyPlated', () => {

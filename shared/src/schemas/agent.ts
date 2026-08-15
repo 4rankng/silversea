@@ -33,6 +33,7 @@ export const AGENT_ROUTE_KEYS = [
   // Top-level
   'dashboard',
   'dispatch',
+  'dispatchDetailPlan',
   'fleet',
   'fleetTires',
   'fleetTrailerTires',

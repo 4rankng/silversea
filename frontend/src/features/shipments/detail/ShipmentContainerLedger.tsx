@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
 import { AlertTriangle, Clock3 } from 'lucide-react';
@@ -143,10 +143,9 @@ function EditActions({
         onPress={onSave}
         isDisabled={saveDisabled || saving}
         isLoading={saving}
-        showTextWhileLoading
         iconLeading={!saving ? Save01 : undefined}
         aria-label={`Lưu ${label}`}
-      >Lưu</UUIButton>
+      />
       <UUIButton
         size="xs"
         color="secondary"
@@ -155,12 +154,13 @@ function EditActions({
         isDisabled={saving}
         iconLeading={XClose}
         aria-label={`Hủy ${label}`}
-      >Hủy</UUIButton>
+      />
     </div>
   );
 }
 
 function InlineEditor({
+  id,
   edit,
   onCancel,
   onSaveRoute,
@@ -173,6 +173,7 @@ function InlineEditor({
   onSaveContainer,
   routeOptions,
 }: {
+  id: string;
   edit: ActiveShipmentDetailEdit;
   onCancel: () => void;
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
@@ -348,13 +349,25 @@ function InlineEditor({
 
   return (
     <div
+      id={id}
       ref={editorRef}
       className="shipment-container-ledger__inline-editor"
       data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
-        if (event.key === 'Escape' && !saving) onCancel();
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && dirty && !saving) void save();
+        if (event.key === 'Escape' && !saving) {
+          event.preventDefault();
+          event.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (event.key !== 'Enter' || event.nativeEvent.isComposing || !dirty || saving) return;
+        const target = event.target as HTMLElement;
+        if (target.isContentEditable || target.tagName === 'SELECT' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
+        if (event.shiftKey && target.tagName === 'TEXTAREA') return;
+        if (event.shiftKey) return;
+        event.preventDefault();
+        void save();
       }}
     >
       <div className="shipment-container-ledger__editor-heading">
@@ -426,6 +439,7 @@ function InlineEditor({
         </div>
       )}
       <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
+      <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
     </div>
@@ -471,6 +485,23 @@ export function ShipmentContainerLedger({
 }: ShipmentContainerLedgerProps) {
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
+  const renderInlineEditor = (edit: ActiveShipmentDetailEdit, editorId: string) => (
+    <InlineEditor
+      key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`}
+      id={editorId}
+      edit={edit}
+      onCancel={onCancelEdit}
+      onSaveIdentity={onSaveIdentity}
+      onSaveDocuments={onSaveDocuments}
+      onSaveContainer={onSaveContainer}
+      onSaveRoute={onSaveRoute}
+      onSaveVehicle={onSaveVehicle}
+      onSaveSchedule={onSaveSchedule}
+      onSaveAppointment={onSaveAppointment}
+      onSaveNotes={onSaveNotes}
+      routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
+    />
+  );
   const editableCell = (
     row: ShipmentCusContainerFlatRow,
     mode: ShipmentDetailEditMode,
@@ -484,18 +515,21 @@ export function ShipmentContainerLedger({
     const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
     if (!enabled) return <div className={className}>{children}</div>;
     return (
-      <AriaButton
-        id={triggerId}
-        className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}
-        onPress={() => onStartEdit(row, mode, triggerId)}
-        isDisabled={busy || activeEdit != null}
-        aria-busy={busy || undefined}
-        aria-controls={expanded ? editorId : undefined}
-        aria-expanded={expanded}
-      >
-        <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
-        {children}
-      </AriaButton>
+      <div className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}`} data-mode={mode}>
+        <AriaButton
+          id={triggerId}
+          className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}
+          onPress={() => onStartEdit(row, mode, triggerId)}
+          isDisabled={busy || activeEdit != null}
+          aria-busy={busy || undefined}
+          aria-controls={expanded ? editorId : undefined}
+          aria-expanded={expanded}
+        >
+          <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
+          {children}
+        </AriaButton>
+        {expanded && activeEdit && renderInlineEditor(activeEdit, editorId)}
+      </div>
     );
   };
 
@@ -536,8 +570,7 @@ export function ShipmentContainerLedger({
               const scheduleTime = formatScheduleTime(row);
               const appointment = formatAppointment(row.customerAppointmentAt);
               return (
-                <Fragment key={row.id}>
-                <tr className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
+                <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
                   <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
                     {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
                     {editableCell(row, 'identity', ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY'), <div className="shipment-container-ledger__multiline">
@@ -587,14 +620,6 @@ export function ShipmentContainerLedger({
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}
                   </td>
                 </tr>
-                {edit && (
-                  <tr className="shipment-container-ledger__editor-row">
-                    <td id={`shipment-detail-edit-${edit.mode}-${row.id}-editor`} colSpan={7} data-label={`Chỉnh sửa ${modeLabelForTrigger(edit.mode)}`}>
-                      <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} />
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
               );
             })}
           </tbody>

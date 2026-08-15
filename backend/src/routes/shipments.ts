@@ -109,6 +109,7 @@ import {
   assignFulfillmentPlate,
   issueFulfillmentDispatchOrder,
   listDispatchDeliveryPointFacets,
+  listDispatchPortFacets,
   listDispatchDetailPlanRows,
   listDispatchFleet,
   listDispatchHandoffs,
@@ -848,6 +849,28 @@ router.get(
       actor: getUser(req),
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
     }));
+  }),
+);
+
+router.get(
+  '/dispatch-pickup-port-facets',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listDispatchPortFacets(
+      { actor: getUser(req), q: typeof req.query.q === 'string' ? req.query.q : undefined },
+      'pickup',
+    ));
+  }),
+);
+
+router.get(
+  '/dispatch-dropoff-port-facets',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listDispatchPortFacets(
+      { actor: getUser(req), q: typeof req.query.q === 'string' ? req.query.q : undefined },
+      'dropoff',
+    ));
   }),
 );
 

@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Dispatch master-plan screen (Kế hoạch Tổng quát) e2e — docx spec.
- * Covers: load with 7 columns + READY_FOR_DISPATCH-only request, filter
- * round-trip, allocation popover validation + partial save, and the
- * detail-tab handoff (backend dispatch-detail-plan-rows).
+ * Dispatch planning screens e2e — docx spec.
+ * Covers: /dispatch (Kế hoạch Tổng quát) load with 7 columns +
+ * READY_FOR_DISPATCH-only request, filter round-trip, allocation popover
+ * validation + partial save, and /dispatch-detail (Kế hoạch Chi tiết)
+ * container rows via backend dispatch-detail-plan-rows.
  *
  * Runs against the dev environment (frontend :7174 via playwright config).
  * Dispatcher account: dieuvan / Abc123.
@@ -26,10 +27,9 @@ test.describe('Dispatch master plan', () => {
     const listRequest = page.waitForRequest(
       (request) => request.url().includes('/api/shipments?') && request.url().includes('status=READY_FOR_DISPATCH'),
     );
-    await page.goto('/dispatch/master-plan');
+    await page.goto('/dispatch');
     await expect(listRequest).resolves.toBeTruthy();
 
-    await expect(page.getByRole('button', { name: 'Kế hoạch Tổng quát' })).toBeVisible();
     const headers = page.locator('.master-plan-grid thead th');
     await expect(headers).toHaveCount(7);
     await expect(headers.nth(0)).toHaveText('Thời gian & lịch trình');
@@ -37,7 +37,7 @@ test.describe('Dispatch master plan', () => {
   });
 
   test('filters round-trip to the API', async ({ page }) => {
-    await page.goto('/dispatch/master-plan');
+    await page.goto('/dispatch');
     await expect(page.locator('.master-plan-grid thead th').first()).toBeVisible();
 
     // Wait for the debounced reload triggered by the direction change.
@@ -55,7 +55,7 @@ test.describe('Dispatch master plan', () => {
   });
 
   test('allocation popover blocks over-allocation and saves partial', async ({ page }) => {
-    await page.goto('/dispatch/master-plan');
+    await page.goto('/dispatch');
     const firstRow = page.locator('.master-plan-grid tbody tr').first();
     await expect(firstRow).toBeVisible();
     const demandText = firstRow.locator('td').nth(4).textContent() ?? '';
@@ -87,11 +87,11 @@ test.describe('Dispatch master plan', () => {
     expect(demandText).toBeTruthy();
   });
 
-  test('detail tab loads container rows with carrier via dispatch-detail-plan-rows', async ({ page }) => {
+  test('detail screen loads container rows with carrier via dispatch-detail-plan-rows', async ({ page }) => {
     const rowsRequest = page.waitForRequest(
       (request) => request.url().includes('/dispatch-detail-plan-rows') && request.method() === 'GET',
     );
-    await page.goto('/dispatch/detailed-plan');
+    await page.goto('/dispatch-detail');
     await expect(rowsRequest).resolves.toBeTruthy();
 
     const detailRows = page.locator('.detailed-plan-grid tbody tr');

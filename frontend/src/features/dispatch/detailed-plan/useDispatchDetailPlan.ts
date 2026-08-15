@@ -3,6 +3,8 @@ import {
   assignDispatchDetailPlate,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
+  listDispatchDropoffPortFacets,
+  listDispatchPickupPortFacets,
   type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
@@ -14,6 +16,8 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   date: string;
   direction: 'IMPORT' | 'EXPORT' | '';
   assignmentStatus: 'UNASSIGNED' | 'ASSIGNED' | '';
+  pickupIds: number[];
+  dropoffIds: number[];
   deliveryPointIds: number[];
   hourFrom: number | '';
   hourTo: number | '';
@@ -24,12 +28,29 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   date: '',
   direction: '',
   assignmentStatus: '',
+  pickupIds: [],
+  dropoffIds: [],
   deliveryPointIds: [],
   hourFrom: '',
   hourTo: '',
 };
 
 export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
+
+/** Query params shared by the list, load-more, and refresh requests. */
+function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
+  return {
+    ...(q ? { q } : {}),
+    ...(filters.date ? { date: filters.date } : {}),
+    ...(filters.direction ? { direction: filters.direction } : {}),
+    ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
+    ...(filters.pickupIds.length > 0 ? { pickupIds: filters.pickupIds } : {}),
+    ...(filters.dropoffIds.length > 0 ? { dropoffIds: filters.dropoffIds } : {}),
+    ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
+    ...(filters.hourFrom !== '' ? { hourFrom: filters.hourFrom } : {}),
+    ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
+  };
+}
 
 /**
  * Data hook for the dispatch detail plan grid ("Kế hoạch Chi tiết Xe"):
@@ -63,13 +84,7 @@ export function useDispatchDetailPlan() {
     listDispatchDetailPlanRows({
       cursor: null,
       limit: PAGE_SIZE,
-      ...(debouncedQ ? { q: debouncedQ } : {}),
-      ...(filters.date ? { date: filters.date } : {}),
-      ...(filters.direction ? { direction: filters.direction } : {}),
-      ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
-      ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
-      ...(filters.hourFrom !== '' ? { hourFrom: filters.hourFrom } : {}),
-      ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
+      ...detailPlanQuery(filters, debouncedQ),
     })
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
@@ -83,7 +98,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
+  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
 
   const loadMore = useCallback(() => {
     if (!cursor || loadingMore) return;
@@ -94,13 +109,7 @@ export function useDispatchDetailPlan() {
     listDispatchDetailPlanRows({
       cursor,
       limit: PAGE_SIZE,
-      ...(debouncedQ ? { q: debouncedQ } : {}),
-      ...(filters.date ? { date: filters.date } : {}),
-      ...(filters.direction ? { direction: filters.direction } : {}),
-      ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
-      ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
-      ...(filters.hourFrom !== '' ? { hourFrom: filters.hourFrom } : {}),
-      ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
+      ...detailPlanQuery(filters, debouncedQ),
     })
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
@@ -114,7 +123,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải thêm dòng. Vui lòng thử lại.');
         setLoadingMore(false);
       });
-  }, [cursor, loadingMore, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
+  }, [cursor, loadingMore, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -182,13 +191,7 @@ export function useDispatchDetailPlan() {
     listDispatchDetailPlanRows({
       cursor: null,
       limit: PAGE_SIZE,
-      ...(debouncedQ ? { q: debouncedQ } : {}),
-      ...(filters.date ? { date: filters.date } : {}),
-      ...(filters.direction ? { direction: filters.direction } : {}),
-      ...(filters.assignmentStatus ? { assignmentStatus: filters.assignmentStatus } : {}),
-      ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
-      ...(filters.hourFrom !== '' ? { hourFrom: filters.hourFrom } : {}),
-      ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
+      ...detailPlanQuery(filters, debouncedQ),
     })
       .then((response) => {
         setItems(response.items);
@@ -200,10 +203,20 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
+  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
 
   const loadDeliveryPointFacets = useCallback(async (q?: string) => {
     const response = await listDispatchDeliveryPointFacets(q ? { q } : {});
+    return response.items;
+  }, []);
+
+  const loadPickupPortFacets = useCallback(async (q?: string) => {
+    const response = await listDispatchPickupPortFacets(q ? { q } : {});
+    return response.items;
+  }, []);
+
+  const loadDropoffPortFacets = useCallback(async (q?: string) => {
+    const response = await listDispatchDropoffPortFacets(q ? { q } : {});
     return response.items;
   }, []);
 
@@ -225,5 +238,7 @@ export function useDispatchDetailPlan() {
     clearLotBanner: () => setLotBanner(null),
     refresh,
     loadDeliveryPointFacets,
+    loadPickupPortFacets,
+    loadDropoffPortFacets,
   };
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { tripClient } from '../../../api/tripClient';
 import {
   saveShipmentCarrierAllocations,
@@ -10,6 +10,10 @@ import {
   validateCarrierAllocations,
   type CarrierAllocationOption,
 } from '../../../components/shipment/CarrierAllocationSummary';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
+import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
+import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
 import './DispatchAllocationPopover.css';
 
 const OWN_CARRIER_OPTION: CarrierAllocationOption = {
@@ -59,7 +63,6 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +83,10 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
   }, []);
 
   useEffect(() => {
-    closeButtonRef.current?.focus();
+    // Focus the dialog's close control so keyboard users land somewhere
+    // actionable; falls back to the dialog container itself.
+    const closeControl = dialogRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Đóng"]');
+    (closeControl ?? dialogRef.current)?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -186,13 +192,12 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         role="dialog"
         aria-modal="true"
         aria-label="Phân bổ phương tiện"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="dispatch-allocation-popover__header">
           <h3>Phân bổ phương tiện</h3>
-          <button ref={closeButtonRef} type="button" className="dispatch-allocation-popover__close" onClick={onClose} aria-label="Đóng">
-            <X size={16} />
-          </button>
+          <CloseButton size="xs" label="Đóng" slot={null} onPress={onClose} />
         </div>
         <p className="dispatch-allocation-popover__meta">
           {shipment.blNumber || shipment.bookingRef || shipment.shipmentCode} · {shipment.customerName ?? '—'}
@@ -201,31 +206,37 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         <div className="dispatch-allocation-popover__rows">
           {rows.map((row, index) => (
             <div key={index} className="dispatch-allocation-popover__row">
-              <select
+              <UUINativeSelect
+                className="dispatch-allocation-popover__carrier"
+                selectClassName="dispatch-allocation-popover__control"
+                size="sm"
                 value={row.carrierKey}
                 onChange={(event) => updateRow(index, { carrierKey: event.target.value })}
                 aria-label={`Nhà xe dòng ${index + 1}`}
-              >
-                {options.map((option) => (
-                  <option key={option.key} value={option.key} disabled={option.isActive === false}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <input
+                options={options.map((option) => ({
+                  label: option.label,
+                  value: option.key,
+                  disabled: option.isActive === false,
+                }))}
+              />
+              <UUIInput
+                className="dispatch-allocation-popover__count"
+                inputClassName="dispatch-allocation-popover__control"
                 type="number"
-                min={0}
+                size="sm"
                 placeholder="20'"
                 value={row.count20}
-                onChange={(event) => updateRow(index, { count20: event.target.value })}
+                onChange={(value) => updateRow(index, { count20: value })}
                 aria-label={`Số container 20' dòng ${index + 1}`}
               />
-              <input
+              <UUIInput
+                className="dispatch-allocation-popover__count"
+                inputClassName="dispatch-allocation-popover__control"
                 type="number"
-                min={0}
+                size="sm"
                 placeholder="40'"
                 value={row.count40}
-                onChange={(event) => updateRow(index, { count40: event.target.value })}
+                onChange={(value) => updateRow(index, { count40: value })}
                 aria-label={`Số container 40' dòng ${index + 1}`}
               />
               <button
@@ -241,9 +252,16 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           ))}
         </div>
 
-        <button type="button" className="dispatch-allocation-popover__add" onClick={addRow}>
-          <Plus size={14} /> Thêm nhà xe
-        </button>
+        <UUIButton
+          type="button"
+          size="sm"
+          color="secondary"
+          className="dispatch-allocation-popover__add"
+          iconLeading={<Plus size={16} aria-hidden="true" />}
+          onPress={addRow}
+        >
+          Thêm nhà xe
+        </UUIButton>
 
         <p className={`dispatch-allocation-popover__progress${validation.isExact ? '' : ' is-error'}`}>
           20': {validation.assigned20}/{demand.count20} · 40': {validation.assigned40}/{demand.count40}
@@ -256,15 +274,17 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         )}
 
         <div className="dispatch-allocation-popover__actions">
-          <button type="button" onClick={onClose} disabled={saving}>Hủy</button>
-          <button
-            type="button"
+          <UUIButton size="sm" color="secondary" onPress={onClose} isDisabled={saving}>Hủy</UUIButton>
+          <UUIButton
+            size="sm"
+            color="primary"
             className="dispatch-allocation-popover__save"
-            onClick={handleSave}
-            disabled={!validation.isExact || saving}
+            onPress={handleSave}
+            isDisabled={!validation.isExact || saving}
+            isLoading={saving}
           >
             {saving ? 'Đang lưu…' : 'Lưu'}
-          </button>
+          </UUIButton>
         </div>
       </div>
     </div>

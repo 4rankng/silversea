@@ -160,7 +160,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sửa')).toBeNull();
   });
 
-  it('uses compact Untitled UI icons for inline editor actions', async () => {
+  it('uses icon-only Untitled UI actions on a dedicated editor row', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
@@ -173,6 +173,13 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(cancel.className).toContain('shipment-container-ledger__edit-action');
     expect(save.querySelector('[data-icon="leading"]')).toBeTruthy();
     expect(cancel.querySelector('[data-icon="leading"]')).toBeTruthy();
+    expect(save.textContent).toBe('');
+    expect(cancel.textContent).toBe('');
+    const editor = save.closest('.shipment-container-ledger__inline-editor');
+    expect(editor?.id).toBe('shipment-detail-edit-route-12-editor');
+    expect(editor?.closest('.shipment-container-ledger__editor-row')).toBeNull();
+    expect(editor?.parentElement?.className).toContain('shipment-container-ledger__cell-editor');
+    expect(screen.getByText('Enter để lưu · Esc để hủy')).toBeTruthy();
   });
 
   it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
@@ -237,8 +244,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.click(routeTrigger);
     const liftField = await screen.findByLabelText('Điểm nâng');
     expect(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }).getAttribute('aria-expanded')).toBe('true');
-    const editorCell = liftField.closest('.shipment-container-ledger__editor-row')?.querySelector('td');
-    expect(editorCell?.getAttribute('colspan')).toBe('7');
+    const editor = liftField.closest('.shipment-container-ledger__inline-editor');
+    expect(editor?.id).toBe('shipment-detail-edit-route-12-editor');
+    expect(editor?.closest('.shipment-container-ledger__editor-row')).toBeNull();
     fireEvent.click(liftField);
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
@@ -257,8 +265,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Nhà máy'), { target: { value: 'Nhà máy mới' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu khách hàng và lộ trình CONT-002' }));
+    const factoryName = await screen.findByLabelText('Nhà máy');
+    fireEvent.change(factoryName, { target: { value: 'Nhà máy mới' } });
+    fireEvent.keyDown(factoryName, { key: 'Enter', code: 'Enter' });
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));

@@ -23,6 +23,8 @@ interface DetailedPlanGridProps {
   filters: DetailedPlanFilterState;
   onFilterChange: (patch: Partial<DetailedPlanFilterState>) => void;
   loadDeliveryPointFacets: (q?: string) => Promise<Array<{ id: number; name: string }>>;
+  loadPickupPortFacets: (q?: string) => Promise<Array<{ id: number; name: string }>>;
+  loadDropoffPortFacets: (q?: string) => Promise<Array<{ id: number; name: string }>>;
   items: DispatchDetailPlanRow[];
   loading: boolean;
   error: string | null;
@@ -46,6 +48,8 @@ export function DetailedPlanGrid({
   filters,
   onFilterChange,
   loadDeliveryPointFacets,
+  loadPickupPortFacets,
+  loadDropoffPortFacets,
   items,
   loading,
   error,
@@ -59,18 +63,18 @@ export function DetailedPlanGrid({
   if (error) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} />
-        <div className="vehicle-allocation-page__error" role="alert">{error}</div>
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} />
+        <div className="dispatch-plan-page__error" role="alert">{error}</div>
       </>
     );
   }
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} />
 
       {assignmentError && (
-        <div className="vehicle-allocation-page__error" role="alert">{assignmentError}</div>
+        <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
       )}
 
       {lotBanner && (
@@ -81,7 +85,7 @@ export function DetailedPlanGrid({
       )}
 
       {loading ? (
-        <div className="vehicle-allocation-page__loading">Đang tải dữ liệu…</div>
+        <div className="dispatch-plan-page__loading">Đang tải dữ liệu…</div>
       ) : items.length === 0 ? (
         <EmptyState
           illustration="/assets/illustrations/empty-dispatch.svg"
@@ -125,7 +129,7 @@ export function DetailedPlanGrid({
                 <tr key={row.fulfillmentId} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      Giao: {formatDate(row.time.deliveryDate)}
+                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatDate(row.time.deliveryDate)}
                     </div>
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                       Giờ: {row.time.runHour != null ? `${row.time.runHour}H` : '—'}

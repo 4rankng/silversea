@@ -52,7 +52,7 @@ import { BRAND } from '../brand';
 /**
  * Per-role primary section that should be expanded by default when the user
  * lands on their start page (e.g. /dashboard for ADMIN/MANAGER, /accounting for
- * ACCOUNTANT, /dispatch/master-plan for DISPATCHER, /my-trips for DRIVER, etc.).
+ * ACCOUNTANT, /dispatch for DISPATCHER, /my-trips for DRIVER, etc.).
  *
  * Per the O2C spec (Sidebar_update.md §II):
  *   "Khi truy cập trang bắt đầu, nhóm công việc trọng yếu nhất của vai trò đó
@@ -238,7 +238,7 @@ export function getNavItems(
     }
 
     /* ─────────────────────────────────────────────────────────────────────────
-       DISPATCHER: Resource allocation focus, default = /dispatch/master-plan
+       DISPATCHER: Resource allocation focus, default = /dispatch
        ───────────────────────────────────────────────────────────────────────── */
     case 'DISPATCHER': {
       return [

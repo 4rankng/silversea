@@ -2016,6 +2016,39 @@ export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; 
   return { items: rows };
 }
 
+// Distinct pickup/dropoff ports for the filter-bar multi-select facets
+// (spec §2 "Điểm Nâng / Hạ / Trả"). Scoped to the accountant's customer set
+// like the rows endpoint.
+export async function listDispatchPortFacets(
+  input: { actor: AuthUser; q?: string },
+  kind: 'pickup' | 'dropoff',
+) {
+  assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
+  const qPattern = buildPattern(input.q);
+  const portColumn = kind === 'pickup' ? s.shipmentContainers.pickupPortId : s.shipmentContainers.dropoffPortId;
+  const rows = await db.selectDistinct({ id: s.ports.id, name: s.ports.name })
+    .from(s.shipments)
+    .innerJoin(s.shipmentFulfillments, and(
+      eq(s.shipmentFulfillments.shipmentId, s.shipments.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .innerJoin(s.shipmentContainers, and(
+      eq(s.shipmentContainers.shipmentId, s.shipments.id),
+      isNotNull(portColumn),
+    ))
+    .innerJoin(s.ports, eq(s.ports.id, portColumn))
+    .where(and(
+      isNull(s.shipments.deletedAt),
+      eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+      accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
+      qPattern ? ilike(s.ports.name, qPattern) : undefined,
+    ))
+    .orderBy(asc(s.ports.name))
+    .limit(100);
+  return { items: rows };
+}
+
 interface PlateMutationResult {
   fulfillmentId: number;
   version: number;

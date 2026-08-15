@@ -104,8 +104,8 @@ describe('getNavItems', () => {
       ['Chi phí cần kiểm tra', '/recoverable-costs'],
     ]],
     [Role.DISPATCHER, [
-      ['Kế hoạch tổng quát', '/dispatch/master-plan'],
-      ['Kế hoạch chi tiết', '/dispatch/detailed-plan'],
+      ['Kế hoạch tổng quát', '/dispatch'],
+      ['Kế hoạch chi tiết', '/dispatch-detail'],
       ['Theo dõi Lộ trình', '/dispatch/live-tracking'],
       ['Danh mục Xe nội bộ', '/fleet/vehicles'],
       ['Danh mục Tài xế', '/fleet/drivers'],

@@ -30,14 +30,6 @@
   font-size: 16px;
 }
 
-.dispatch-allocation-popover__close {
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--text-secondary, #64748b);
-  padding: 4px;
-}
-
 .dispatch-allocation-popover__meta {
   margin: 0 0 12px;
   font-size: 13px;
@@ -52,31 +44,40 @@
 
 .dispatch-allocation-popover__row {
   display: grid;
-  grid-template-columns: 1fr 64px 64px 32px;
+  grid-template-columns: minmax(0, 1fr) 72px 72px 32px;
   gap: 8px;
   align-items: center;
 }
 
-.dispatch-allocation-popover__row input {
-  min-height: 40px;
-  text-align: center;
+/* UUI sm inputs/selects are w-full inside their wrappers — let the grid
+   columns size them. */
+.dispatch-allocation-popover__carrier,
+.dispatch-allocation-popover__count {
+  width: 100%;
+  min-width: 0;
 }
 
-.dispatch-allocation-popover__row select {
-  min-height: 40px;
+.dispatch-allocation-popover__control {
+  text-align: center;
 }
 
 .dispatch-allocation-popover__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 36px;
   min-width: 32px;
   border: none;
   background: none;
   color: var(--text-secondary, #94a3b8);
   cursor: pointer;
   padding: 4px;
+  border-radius: 6px;
+}
+
+.dispatch-allocation-popover__remove:hover:not(:disabled) {
+  background: var(--bg-hover, #f1f5f9);
+  color: var(--text-primary, #0f172a);
 }
 
 .dispatch-allocation-popover__remove:disabled {
@@ -85,17 +86,7 @@
 }
 
 .dispatch-allocation-popover__add {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   margin-top: 10px;
-  border: none;
-  background: none;
-  color: #2563eb;
-  font-size: 13px;
-  cursor: pointer;
-  min-height: 40px;
-  padding: 0 4px;
 }
 
 .dispatch-allocation-popover__progress {
@@ -121,22 +112,6 @@
   margin-top: 16px;
 }
 
-.dispatch-allocation-popover__actions button {
-  min-height: 40px;
-  padding: 7px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color, #cbd5e1);
-  background: #fff;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.dispatch-allocation-popover__save {
-  background: #2563eb !important;
-  border-color: #2563eb !important;
-  color: #fff !important;
-}
-
 @media (max-width: 520px) {
   .dispatch-allocation-popover {
     max-height: calc(100dvh - 24px);
@@ -148,7 +123,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
   }
 
-  .dispatch-allocation-popover__row select {
+  .dispatch-allocation-popover__carrier {
     grid-column: 1 / -1;
   }
 
@@ -156,13 +131,4 @@
     min-height: 44px;
     min-width: 40px;
   }
-
-  .dispatch-allocation-popover__actions button {
-    min-height: 44px;
-  }
-}
-
-.dispatch-allocation-popover__actions button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

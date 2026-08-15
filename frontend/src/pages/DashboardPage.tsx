@@ -231,7 +231,7 @@ export default function DashboardPage() {
     const ready = Math.max(0, totalActive - inTransit);
     
     // Utilization: percentage of the available fleet (total - maintenance) that is currently running (inTransit)
-    // This matches the logic in DispatchPage.tsx
+    // This matches the utilization formula documented on the dispatch fleet view.
     const utilizable = total - maintenance;
     const utilization = utilizable > 0 ? (inTransit / utilizable) * 100 : null;
     

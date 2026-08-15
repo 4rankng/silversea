@@ -228,6 +228,18 @@ export function listDispatchDeliveryPointFacets(filters: { q?: string } = {}) {
   );
 }
 
+export function listDispatchPickupPortFacets(filters: { q?: string } = {}) {
+  return api.get<{ items: Array<{ id: number; name: string }> }>(
+    `/shipments/dispatch-pickup-port-facets?${queryString(filters)}`,
+  );
+}
+
+export function listDispatchDropoffPortFacets(filters: { q?: string } = {}) {
+  return api.get<{ items: Array<{ id: number; name: string }> }>(
+    `/shipments/dispatch-dropoff-port-facets?${queryString(filters)}`,
+  );
+}
+
 export function assignDispatchDetailPlate(fulfillmentId: number, body: {
   expectedVersion: number;
   truckId?: number | null;

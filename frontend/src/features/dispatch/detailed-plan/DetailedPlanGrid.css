@@ -1,6 +1,6 @@
 /* "Kế hoạch Chi tiết" container-level grid — 6 multi-line columns per spec,
    mobile horizontal scroll confined to the grid area only. Follows the
-   vehicle-allocation-page__* BEM conventions. */
+   dispatch-plan-page__* BEM conventions. */
 
 .detailed-plan-filters {
   display: flex;

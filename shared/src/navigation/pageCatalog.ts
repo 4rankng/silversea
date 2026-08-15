@@ -69,10 +69,16 @@ export const PAGE_CATALOG = {
     agent: { description: 'Tổng quan — bảng điều khiển chính, KPI tháng.' },
   },
   dispatch: {
-    title: 'Điều vận & Phân xe',
+    title: 'Kế hoạch Tổng quát',
     path: '/dispatch',
     section: 'operations',
-    agent: { description: 'Điều vận & phân xe — danh sách chuyến cần điều động, bản đồ GPS.' },
+    agent: { description: 'Kế hoạch Tổng quát — phân bổ nhà xe cho lô hàng ở cấp lô, bước 1 của điều độ phương tiện.' },
+  },
+  dispatchDetailPlan: {
+    title: 'Kế hoạch Chi tiết Xe',
+    path: '/dispatch-detail',
+    section: 'operations',
+    agent: { description: 'Kế hoạch Chi tiết Xe — lưới container tự động rã từ phân bổ nhà xe, gán biển số từng chuyến, bước 2 của điều độ phương tiện.' },
   },
   fleet: {
     title: 'Đội xe',

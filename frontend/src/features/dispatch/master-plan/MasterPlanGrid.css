@@ -1,6 +1,6 @@
 /* Dispatch master-plan grid (Kế hoạch Tổng quát) — 7 multi-line columns,
    ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
-   vehicle-allocation-page__* BEM conventions. */
+   dispatch-plan-page__* BEM conventions. */
 
 .master-plan-filters {
   display: flex;
@@ -10,40 +10,17 @@
   margin-bottom: 14px;
 }
 
+/* UUI inputs/selects carry their own borders, focus rings, and sizing;
+   these rules only shape them inside the flex bar. */
+
 .master-plan-filters__search {
   flex: 1 1 240px;
   min-width: 200px;
 }
 
 .master-plan-filters__select {
-  min-width: 130px;
-}
-
-.master-plan-filters__search,
-.master-plan-filters__select,
-.master-plan-filters__date input {
-  min-height: 40px;
-  border: 1px solid var(--border-color, #cbd5e1);
-  border-radius: 7px;
-  background: var(--surface, #fff);
-  color: var(--text-primary, #0f172a);
-  font: inherit;
-}
-
-.master-plan-filters__search,
-.master-plan-filters__date input {
-  padding: 0 10px;
-}
-
-.master-plan-filters__select {
-  padding: 0 30px 0 10px;
-}
-
-.master-plan-filters__search:focus-visible,
-.master-plan-filters__select:focus-visible,
-.master-plan-filters__date input:focus-visible {
-  outline: 2px solid var(--accent, #16a34a);
-  outline-offset: 2px;
+  width: auto;
+  min-width: 150px;
 }
 
 .master-plan-filters__date {
@@ -54,7 +31,7 @@
   color: var(--text-secondary, #64748b);
 }
 
-.master-plan-filters__date input {
+.master-plan-filters__date-input {
   min-width: 132px;
 }
 
@@ -156,28 +133,11 @@
   margin-bottom: 6px;
 }
 
-.master-plan-grid__chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  background: #eef2ff;
-  color: #4338ca;
-  white-space: nowrap;
-}
+/* Chips and the allocate action are Untitled UI components — their color,
+   ring, and focus styling come from the kit. */
 
 .master-plan-grid__allocate-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color, #cbd5e1);
-  background: #fff;
-  font-size: 13px;
-  cursor: pointer;
   white-space: nowrap;
-}
-
-.master-plan-grid__allocate-btn:hover {
-  background: #f1f5f9;
 }
 
 @container (max-width: 900px) {

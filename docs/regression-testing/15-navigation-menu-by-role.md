@@ -214,12 +214,12 @@ Cấu trúc giống ADMIN nhưng:
 
 ## 4. DISPATCHER (Điều vận)
 
-**Trang bắt đầu:** `/dispatch/master-plan`
+**Trang bắt đầu:** `/dispatch`
 
 | Nhóm                  | Mục                           | Đường dẫn                    |
 | --------------------- | ----------------------------- | ---------------------------- |
-| Điều độ Phương tiện   | Kế hoạch Tổng quát (Gán Nhà xe) | `/dispatch/master-plan`     |
-|                       | Kế hoạch Chi tiết (Gán BKS)   | `/dispatch/detailed-plan`   |
+| Điều độ Phương tiện   | Kế hoạch Tổng quát (Gán Nhà xe) | `/dispatch`     |
+|                       | Kế hoạch Chi tiết (Gán BKS)   | `/dispatch-detail`   |
 |                       | Theo dõi Lộ trình              | `/dispatch/live-tracking`    |
 | Quản lý Tài nguyên   | Danh mục Xe nội bộ            | `/fleet/vehicles`            |
 |                       | Danh mục Tài xế                | `/fleet/drivers`             |
@@ -231,11 +231,11 @@ Cấu trúc giống ADMIN nhưng:
 - **Vai trò:** `dieuvan`
 - **Các bước:**
   1. Đăng nhập `dieuvan`.
-  2. Kiểm tra URL bắt đầu = `/dispatch/master-plan`.
+  2. Kiểm tra URL bắt đầu = `/dispatch`.
   3. Kiểm tra nhóm "Điều độ Phương tiện": 3 mục đúng.
   4. Kiểm tra nhóm "Quản lý Tài nguyên": 3 mục đúng.
 - **Kết quả mong đợi (Pass):**
-  - Bắt đầu `/dispatch/master-plan`.
+  - Bắt đầu `/dispatch`.
   - 6 mục đúng tên và đường dẫn.
 - **Bằng chứng:** ảnh trang bắt đầu + menu đầy đủ.
 
@@ -244,7 +244,7 @@ Cấu trúc giống ADMIN nhưng:
 - **Mã PRD:** DISPATCHER — RBAC
 - **Vai trò:** `dieuvan`
 - **Các bước:** thử `/dashboard`, `/debt`, `/accounting`, `/salary`, `/config`.
-- **Kết quả mong đợi (Pass):** redirect về `/dispatch/master-plan` hoặc 403.
+- **Kết quả mong đợi (Pass):** redirect về `/dispatch` hoặc 403.
 - **Bằng chứng:** ảnh redirect.
 
 ---
@@ -546,7 +546,7 @@ Khách hàng dùng **menu riêng** của Cổng khách hàng (NP-08):
   | Quản trị viên (ADMIN)    | `/dashboard`              |
   | Quản lý (MANAGER)        | `/dashboard`              |
   | Kế toán (ACCOUNTANT)     | `/accounting`             |
-  | Điều vận (DISPATCHER)    | `/dispatch/master-plan`   |
+  | Điều vận (DISPATCHER)    | `/dispatch`   |
   | Nhân viên chứng từ (CLERK) | `/shipments`             |
   | Nhân viên hiện trường (FORWARDER/Ops) | `/my-orders` |
   | Lái xe (DRIVER)          | `/my-trips`               |

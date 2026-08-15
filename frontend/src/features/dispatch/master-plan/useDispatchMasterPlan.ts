@@ -28,7 +28,7 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
  * Data hook for the dispatch master-plan screen ("Kế hoạch Tổng quát"):
  * READY_FOR_DISPATCH shipments only, server-side filters + pagination, with a
  * request-id race guard so a slow earlier response can never overwrite a newer
- * one (same pattern as DispatchPage.load).
+ * one (request-id race guard).
  */
 export function useDispatchMasterPlan() {
   const [filters, setFilters] = useState<MasterPlanFilters>(EMPTY_MASTER_PLAN_FILTERS);

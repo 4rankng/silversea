@@ -107,10 +107,13 @@ export const routes = {
 
   /* ── Dispatch planning ───────────────────────────────────────────────── */
 
-  dispatchMasterPlan: '/dispatch/master-plan',
-  dispatchDetailedPlan: '/dispatch/detailed-plan',
+  // /dispatch = Kế hoạch Tổng quát, /dispatch-detail = Kế hoạch Chi tiết —
+  // two separate screens per the SilverSea dispatch spec. Both derive from
+  // the catalog so the paths can't drift from titles/agent descriptions.
+  dispatchMasterPlan: PAGE_CATALOG.dispatch.path,
+  dispatchDetailedPlan: PAGE_CATALOG.dispatchDetailPlan.path,
+  dispatchDetailPlan: PAGE_CATALOG.dispatchDetailPlan.path,
   dispatchLiveTracking: '/dispatch/live-tracking',
-  vehicleAllocation: '/vehicle-allocation',
 
   /* ── Customer portal (Wave 2) ─────────────────────────────────────── */
 
@@ -142,7 +145,7 @@ export const routes = {
  * Role → Route mappings per O2C workflow specification:
  * - ADMIN/Manager → /dashboard
  * - ACCOUNTANT → /accounting
- * - DISPATCHER → /dispatch/master-plan
+ * - DISPATCHER → /dispatch
  * - CLERK/CUS → /shipments
  * - FORWARDER/OPS → /my-orders
  * - DRIVER → /my-trips
@@ -163,7 +166,7 @@ export function homeForRole(role: string): string {
     case 'ACCOUNTANT':
       return routes.accounting;
     case 'DISPATCHER':
-      return routes.dispatchMasterPlan;
+      return routes.dispatch;
     case 'ADMIN':
     case 'MANAGER':
     default:
@@ -182,6 +185,7 @@ type TitleRule = {
 // since no single catalog entry owns it.
 const titleRules: TitleRule[] = [
   { test: p => p === routes.dashboard, title: PAGE_CATALOG.dashboard.title },
+  { test: p => p === routes.dispatchDetailPlan, title: PAGE_CATALOG.dispatchDetailPlan.title },
   { test: p => p.startsWith(routes.dispatch), title: PAGE_CATALOG.dispatch.title },
   { test: p => p.startsWith(routes.fleet), title: PAGE_CATALOG.fleet.title },
   { test: p => /^\/trips\/(\d+)(?:\/edit)?$/.test(p), title: p => p.endsWith('/edit') ? PAGE_CATALOG.tripEdit.title : PAGE_CATALOG.tripDetail.title },

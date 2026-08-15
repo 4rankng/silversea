@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react';
 import type { DetailedPlanFilterState } from './useDispatchDetailPlan';
 
+export interface FacetItem {
+  id: number;
+  name: string;
+}
+
+type FacetLoader = (q?: string) => Promise<FacetItem[]>;
+
 interface DetailedPlanFiltersProps {
   filters: DetailedPlanFilterState;
   onChange: (patch: Partial<DetailedPlanFilterState>) => void;
-  loadDeliveryPointFacets: (q?: string) => Promise<Array<{ id: number; name: string }>>;
+  loadDeliveryPointFacets: FacetLoader;
+  loadPickupPortFacets: FacetLoader;
+  loadDropoffPortFacets: FacetLoader;
 }
 
 const ASSIGNMENT_OPTIONS: { value: DetailedPlanFilterState['assignmentStatus']; label: string }[] = [
@@ -13,14 +22,24 @@ const ASSIGNMENT_OPTIONS: { value: DetailedPlanFilterState['assignmentStatus']; 
   { value: 'ASSIGNED', label: 'Đã gán Biển số' },
 ];
 
-/** Filter bar for the dispatch detail plan grid (docx §4). */
-export function DetailedPlanFilters({ filters, onChange, loadDeliveryPointFacets }: DetailedPlanFiltersProps) {
-  const [facets, setFacets] = useState<Array<{ id: number; name: string }>>([]);
+/** Searchable multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả). */
+function FacetMultiSelect({
+  label,
+  selected,
+  onToggle,
+  loadFacets,
+}: {
+  label: string;
+  selected: number[];
+  onToggle: (id: number) => void;
+  loadFacets: FacetLoader;
+}) {
+  const [facets, setFacets] = useState<FacetItem[]>([]);
   const [facetSearch, setFacetSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    loadDeliveryPointFacets(facetSearch || undefined)
+    loadFacets(facetSearch || undefined)
       .then((items) => {
         if (!cancelled) setFacets(items);
       })
@@ -31,13 +50,68 @@ export function DetailedPlanFilters({ filters, onChange, loadDeliveryPointFacets
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facetSearch]);
 
-  const toggleDeliveryPoint = (id: number) => {
-    const next = filters.deliveryPointIds.includes(id)
-      ? filters.deliveryPointIds.filter((value) => value !== id)
-      : [...filters.deliveryPointIds, id];
-    onChange({ deliveryPointIds: next });
-  };
+  return (
+    <div className="detailed-plan-filters__points">
+      <label className="detailed-plan-filters__field">
+        <span className="detailed-plan-filters__label">{label}</span>
+        <input
+          type="search"
+          className="detailed-plan-filters__point-search"
+          placeholder="Tìm điểm…"
+          value={facetSearch}
+          onChange={(event) => setFacetSearch(event.target.value)}
+        />
+      </label>
+      {selected.length > 0 && (
+        <div className="detailed-plan-filters__point-chips">
+          {selected.map((id) => {
+            const facet = facets.find((item) => item.id === id);
+            return (
+              <button
+                key={id}
+                type="button"
+                className="detailed-plan-filters__point-chip"
+                onClick={() => onToggle(id)}
+              >
+                {facet?.name ?? `#${id}`} ✕
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="detailed-plan-filters__point-list" role="listbox" aria-label={`Danh sách ${label.toLowerCase()}`}>
+        {facets.slice(0, 20).map((facet) => {
+          const isSelected = selected.includes(facet.id);
+          return (
+            <button
+              key={facet.id}
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              className={`detailed-plan-filters__point-option${isSelected ? ' is-selected' : ''}`}
+              onClick={() => onToggle(facet.id)}
+            >
+              {facet.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
+function toggleId(list: number[], id: number): number[] {
+  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
+}
+
+/** Filter bar for the dispatch detail plan grid (docx §4). */
+export function DetailedPlanFilters({
+  filters,
+  onChange,
+  loadDeliveryPointFacets,
+  loadPickupPortFacets,
+  loadDropoffPortFacets,
+}: DetailedPlanFiltersProps) {
   return (
     <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
       <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
@@ -83,52 +157,24 @@ export function DetailedPlanFilters({ filters, onChange, loadDeliveryPointFacets
           ))}
         </select>
       </label>
-      <div className="detailed-plan-filters__points">
-        <label className="detailed-plan-filters__field">
-          <span className="detailed-plan-filters__label">Điểm trả</span>
-          <input
-            type="search"
-            className="detailed-plan-filters__point-search"
-            placeholder="Tìm điểm trả…"
-            value={facetSearch}
-            onChange={(event) => setFacetSearch(event.target.value)}
-          />
-        </label>
-        {filters.deliveryPointIds.length > 0 && (
-          <div className="detailed-plan-filters__point-chips">
-            {filters.deliveryPointIds.map((id) => {
-              const facet = facets.find((item) => item.id === id);
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className="detailed-plan-filters__point-chip"
-                  onClick={() => toggleDeliveryPoint(id)}
-                >
-                  {facet?.name ?? `#${id}`} ✕
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <div className="detailed-plan-filters__point-list" role="listbox" aria-label="Danh sách điểm trả hàng">
-          {facets.slice(0, 20).map((facet) => {
-            const selected = filters.deliveryPointIds.includes(facet.id);
-            return (
-              <button
-                key={facet.id}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                className={`detailed-plan-filters__point-option${selected ? ' is-selected' : ''}`}
-                onClick={() => toggleDeliveryPoint(facet.id)}
-              >
-                {facet.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <FacetMultiSelect
+        label="Điểm nâng"
+        selected={filters.pickupIds}
+        onToggle={(id) => onChange({ pickupIds: toggleId(filters.pickupIds, id) })}
+        loadFacets={loadPickupPortFacets}
+      />
+      <FacetMultiSelect
+        label="Điểm hạ"
+        selected={filters.dropoffIds}
+        onToggle={(id) => onChange({ dropoffIds: toggleId(filters.dropoffIds, id) })}
+        loadFacets={loadDropoffPortFacets}
+      />
+      <FacetMultiSelect
+        label="Điểm trả"
+        selected={filters.deliveryPointIds}
+        onToggle={(id) => onChange({ deliveryPointIds: toggleId(filters.deliveryPointIds, id) })}
+        loadFacets={loadDeliveryPointFacets}
+      />
       <div className="detailed-plan-filters__field detailed-plan-filters__hour">
         <span className="detailed-plan-filters__label">Giờ chạy</span>
         <div className="detailed-plan-filters__hour-inputs">

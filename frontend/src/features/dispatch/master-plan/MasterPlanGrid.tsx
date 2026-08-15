@@ -1,4 +1,6 @@
 import type { ShipmentListItem } from '../../../api/shipmentClient';
+import { Badge } from '../../../components/untitled-ui/base/badges/badges';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import './MasterPlanGrid.css';
 
 interface MasterPlanGridProps {
@@ -97,7 +99,11 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     {item.blNumber || item.bookingRef || '—'}
                   </div>
                   <div className="master-plan-grid__line">
-                    {item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}
+                    {item.tradeDirection === 'IMPORT' ? (
+                      <Badge type="pill-color" size="sm" color="blue">Nhập</Badge>
+                    ) : item.tradeDirection === 'EXPORT' ? (
+                      <Badge type="pill-color" size="sm" color="orange">Xuất</Badge>
+                    ) : '—'}
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.shippingLineName ?? '—'}</div>
                 </td>
@@ -127,20 +133,29 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                           entry.count40 > 0 ? `${entry.count40}x40'` : null,
                         ].filter(Boolean).join(' · ');
                         return (
-                          <span key={`${entry.carrierType}-${entry.externalCarrierId}`} className="master-plan-grid__chip">
+                          <Badge
+                            key={`${entry.carrierType}-${entry.externalCarrierId}`}
+                            type="pill-color"
+                            size="sm"
+                            color="indigo"
+                            className="master-plan-grid__chip"
+                          >
                             {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}
-                          </span>
+                          </Badge>
                         );
                       })}
                     </div>
                   )}
-                  <button
-                    type="button"
+                  <UUIButton
+                    size="sm"
+                    color="secondary"
                     className="master-plan-grid__allocate-btn"
-                    onClick={(event) => onAllocate(item, event.currentTarget)}
+                    // The press target may be the button's inner text span — resolve
+                    // back to the button itself for focus restoration.
+                    onPress={(event) => onAllocate(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                   >
                     {item.allocationStatus === 'FULLY_ALLOCATED' ? 'Sửa phân bổ' : 'Phân bổ'}
-                  </button>
+                  </UUIButton>
                 </td>
               </tr>
             );

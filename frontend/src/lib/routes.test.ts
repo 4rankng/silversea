@@ -11,7 +11,8 @@ import { PAGE_CATALOG, AGENT_ROUTE_KEYS } from '@tingting/shared';
 describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', () => {
   const cases: Record<string, string> = {
     '/dashboard': 'Tổng quan',
-    '/dispatch': 'Điều vận & Phân xe',
+    '/dispatch': 'Kế hoạch Tổng quát',
+    '/dispatch-detail': 'Kế hoạch Chi tiết Xe', // exact-match rule must beat the /dispatch startsWith rule
     '/fleet': 'Đội xe',
     '/fleet/5/tires': 'Đội xe',
     '/trips': 'Lệnh vận chuyển',
@@ -86,7 +87,7 @@ describe('homeForRole', () => {
   });
 
   it('routes DISPATCHER users to the dispatch workspace', () => {
-    expect(homeForRole('DISPATCHER')).toBe('/dispatch/master-plan');
+    expect(homeForRole('DISPATCHER')).toBe('/dispatch');
   });
 
   it('routes OPS and legacy FORWARDER users to the order-exchange workspace', () => {
@@ -117,7 +118,7 @@ describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
     }
   });
 
-  it('agent set includes all 37 navigable office destinations', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(37);
+  it('agent set includes all 38 navigable office destinations', () => {
+    expect(AGENT_ROUTE_KEYS).toHaveLength(38);
   });
 });

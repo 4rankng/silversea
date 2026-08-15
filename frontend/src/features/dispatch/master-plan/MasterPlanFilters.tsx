@@ -1,5 +1,9 @@
+import { Search } from 'lucide-react';
 import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
+import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
+import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
+import './MasterPlanGrid.css';
 
 interface MasterPlanFiltersProps {
   filters: FilterState;
@@ -17,50 +21,61 @@ const ALLOCATION_OPTIONS: { value: ShipmentAllocationStatus | ''; label: string 
 export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps) {
   return (
     <div className="master-plan-filters">
-      <input
-        type="search"
+      <UUIInput
         className="master-plan-filters__search"
+        inputClassName="master-plan-filters__control"
+        type="search"
+        size="sm"
+        icon={Search}
         placeholder="Tìm theo B/L, Booking, khách hàng…"
         value={filters.q}
-        onChange={(event) => onChange({ q: event.target.value })}
+        onChange={(value) => onChange({ q: value })}
         aria-label="Tìm kiếm lô hàng"
       />
-      <select
+      <UUINativeSelect
         className="master-plan-filters__select"
+        selectClassName="master-plan-filters__control"
+        size="sm"
         value={filters.tradeDirection}
         onChange={(event) => onChange({ tradeDirection: event.target.value as FilterState['tradeDirection'] })}
         aria-label="Chiều hàng"
-      >
-        <option value="">Tất cả</option>
-        <option value="IMPORT">Nhập</option>
-        <option value="EXPORT">Xuất</option>
-      </select>
-      <select
+        options={[
+          { label: 'Tất cả', value: '' },
+          { label: 'Nhập', value: 'IMPORT' },
+          { label: 'Xuất', value: 'EXPORT' },
+        ]}
+      />
+      <UUINativeSelect
         className="master-plan-filters__select"
+        selectClassName="master-plan-filters__control"
+        size="sm"
         value={filters.allocationStatus}
         onChange={(event) => onChange({ allocationStatus: event.target.value as FilterState['allocationStatus'] })}
         aria-label="Trạng thái phân bổ"
-      >
-        {ALLOCATION_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
+        options={ALLOCATION_OPTIONS.map((option) => ({ label: option.label, value: option.value }))}
+      />
       <label className="master-plan-filters__date">
         <span>Ngày giao</span>
-        <input
+        <UUIInput
+          className="master-plan-filters__date-input"
+          inputClassName="master-plan-filters__control"
           type="date"
+          size="sm"
           value={filters.deliveryDateFrom}
-          onChange={(event) => onChange({ deliveryDateFrom: event.target.value })}
+          onChange={(value) => onChange({ deliveryDateFrom: value })}
           aria-label="Ngày giao từ"
         />
       </label>
       <span className="master-plan-filters__date-sep">→</span>
       <label className="master-plan-filters__date">
         <span>đến</span>
-        <input
+        <UUIInput
+          className="master-plan-filters__date-input"
+          inputClassName="master-plan-filters__control"
           type="date"
+          size="sm"
           value={filters.deliveryDateTo}
-          onChange={(event) => onChange({ deliveryDateTo: event.target.value })}
+          onChange={(value) => onChange({ deliveryDateTo: value })}
           aria-label="Ngày giao đến"
         />
       </label>

@@ -25,6 +25,7 @@ const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
+const createdPortIds: number[] = [];
 const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
@@ -157,12 +158,17 @@ async function createAllocatedLot(args: {
   createdShipmentIds.push(shipment.id);
 
   const containerType = await createContainerType(`20G${createdContainerTypeIds.length}`);
+  const [pickupPort] = await db.insert(s.ports).values({ name: `Detail pickup port ${suffix}-${createdShipmentIds.length}` }).returning();
+  const [dropoffPort] = await db.insert(s.ports).values({ name: `Detail dropoff port ${suffix}-${createdShipmentIds.length}` }).returning();
+  createdPortIds.push(pickupPort.id, dropoffPort.id);
   const fulfillmentIds: number[] = [];
   for (let index = 0; index < containerCount; index += 1) {
     const [container] = await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
       containerTypeId: containerType.id,
       containerNumber: `MSCU${String(300000 + shipment.id).slice(-6)}${index}`,
+      pickupPortId: pickupPort.id,
+      dropoffPortId: dropoffPort.id,
       createdBy: adminUserId,
     }).returning();
     const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -303,6 +309,7 @@ after(async () => {
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
     if (createdTrailerIds.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
     if (createdContainerTypeIds.length > 0) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+    if (createdPortIds.length > 0) await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
     if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     if (createdCustomerIds.length > 0) await db.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds));
     if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -443,6 +450,71 @@ describe('dispatch detail plan rows', () => {
     );
     assert.equal(response.status, 200);
     assert.ok(response.data.items.some((item) => item.id === site.id));
+  });
+
+  test('pickup and dropoff port facet endpoints list distinct ports', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    // Resolve the lot's container ports from the row payload.
+    const rows = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(rows.status, 200);
+    const row = rows.data.items[0]!;
+    const pickupId = row.ports.pickupPortId;
+    const dropoffId = row.ports.dropoffPortId;
+    assert.ok(pickupId != null || dropoffId != null, 'fixture lot should reference ports');
+
+    const pickup = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
+      '/dispatch-pickup-port-facets',
+      { token: dispatcherToken },
+    );
+    assert.equal(pickup.status, 200);
+    if (pickupId != null) assert.ok(pickup.data.items.some((item) => item.id === pickupId));
+
+    const dropoff = await apiFetch<{ items: Array<{ id: number; name: string }> }>(
+      '/dispatch-dropoff-port-facets',
+      { token: dispatcherToken },
+    );
+    assert.equal(dropoff.status, 200);
+    if (dropoffId != null) assert.ok(dropoff.data.items.some((item) => item.id === dropoffId));
+  });
+
+  test('pickupIds and dropoffIds filters narrow the rows', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
+    const rows = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(rows.status, 200);
+    const pickupId = rows.data.items[0]!.ports.pickupPortId!;
+    const dropoffId = rows.data.items[0]!.ports.dropoffPortId!;
+
+    const pickupFiltered = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?pickupIds=${pickupId}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(pickupFiltered.status, 200);
+    assert.ok(pickupFiltered.data.items.some((item) => item.shipmentId === shipment.id));
+    const pickupExcluded = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?pickupIds=${pickupId + 1000000}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(pickupExcluded.status, 200);
+    assert.ok(!pickupExcluded.data.items.some((item) => item.shipmentId === shipment.id));
+
+    const dropoffFiltered = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?dropoffIds=${dropoffId}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(dropoffFiltered.status, 200);
+    assert.ok(dropoffFiltered.data.items.some((item) => item.shipmentId === shipment.id));
+    const dropoffExcluded = await apiFetch<{ items: DetailPlanRow[] }>(
+      `/dispatch-detail-plan-rows?dropoffIds=${dropoffId + 1000000}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(dropoffExcluded.status, 200);
+    assert.ok(!dropoffExcluded.data.items.some((item) => item.shipmentId === shipment.id));
   });
 });
 

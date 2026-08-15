@@ -1,0 +1,59 @@
+/* Shared shell for the two dispatch planning screens:
+   /dispatch (Kế hoạch Tổng quát) and /dispatch-detail (Kế hoạch Chi tiết). */
+.dispatch-plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px clamp(16px, 2vw, 28px) 32px;
+}
+
+.dispatch-plan-page > .page-header {
+  margin-bottom: 4px;
+}
+
+.dispatch-plan-page__workspace {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.dispatch-plan-page__error {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.dispatch-plan-page__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: var(--fg-3);
+}
+
+.dispatch-plan-page__load-more {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+}
+
+@media (max-width: 820px) {
+  .dispatch-plan-page {
+    gap: 12px;
+    padding-top: 14px;
+  }
+
+  .dispatch-plan-page__workspace {
+    border-radius: var(--radius-md);
+    padding: 12px;
+  }
+}

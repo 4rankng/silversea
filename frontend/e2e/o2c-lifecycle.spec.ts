@@ -117,7 +117,12 @@ test.describe('O2C Lifecycle', () => {
     await expect(page.locator('text=DH 1×40')).toBeVisible();
   });
 
-  test('OPS-007: Select vehicle from assigned carrier', async ({ page }) => {
+  // OPS-007/008/010 exercised the legacy dispatch console (issue dispatch
+  // order) that was removed when /dispatch became Kế hoạch Tổng quát. The
+  // replacement flow — carrier allocation on /dispatch + per-container plate
+  // assignment on /dispatch-detail — is covered by dispatch-master-plan.spec.ts.
+  // TODO: rewrite these lifecycle scenarios against the new planning flow.
+  test.skip('OPS-007: Select vehicle from assigned carrier', async ({ page }) => {
     // Login as DISPATCHER
     await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);
@@ -147,7 +152,7 @@ test.describe('O2C Lifecycle', () => {
     await expect(page.locator('text=Đã gán xe')).toBeVisible();
   });
 
-  test('OPS-008: Block conflicting vehicle, driver, and schedule', async ({ page }) => {
+  test.skip('OPS-008: Block conflicting vehicle, driver, and schedule', async ({ page }) => {
     // Login as DISPATCHER
     await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);
@@ -166,7 +171,7 @@ test.describe('O2C Lifecycle', () => {
     await expect(page.locator('text=Xung đột lịch điều xe')).toBeVisible();
   });
 
-  test('OPS-010: Issue dispatch order and transition to DISPATCHED', async ({ page }) => {
+  test.skip('OPS-010: Issue dispatch order and transition to DISPATCHED', async ({ page }) => {
     // Login as DISPATCHER
     await page.fill('input[name="username"]', USERS.dispatcher);
     await page.fill('input[name="password"]', PASSWORD);

@@ -117,4 +117,28 @@ describe('PlateAssignmentCell', () => {
     );
     expect(screen.getByText('CUS sẽ bổ sung')).toBeTruthy();
   });
+
+  it('appends the next fleet page when load-more is clicked', async () => {
+    useDesktopViewport();
+    const fleetMock = listDispatchFleetResources as ReturnType<typeof vi.fn>;
+    fleetMock.mockImplementation(async (_resource: string, filters: { cursor?: string | null }) => {
+      if (filters?.cursor === 'cursor-2') {
+        return { items: [{ id: 60, licensePlate: '51C-999.99' }], nextCursor: null, total: 1 };
+      }
+      return { items: [{ id: 9, licensePlate: '51C-123.45' }], nextCursor: 'cursor-2', total: 51 };
+    });
+    render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
+
+    screen.getByRole('button', { name: /chọn biển số xe/i }).click();
+    expect(await screen.findByText('51C-123.45')).toBeTruthy();
+
+    const loadMoreButton = await screen.findByRole('button', { name: /tải thêm/i });
+    (loadMoreButton as HTMLElement).click();
+
+    await waitFor(() => {
+      expect(screen.getByText('51C-999.99')).toBeTruthy();
+    });
+    // Second page exhausted the cursor — no further load-more affordance.
+    expect(screen.queryByRole('button', { name: /tải thêm/i })).toBeNull();
+  });
 });
