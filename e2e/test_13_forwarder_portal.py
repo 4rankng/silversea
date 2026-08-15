@@ -134,7 +134,11 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         'button[aria-label="Tài chính"], button[aria-label="Đội xe"], '
         'button[aria-label="Cấu hình"]'
     )
-    visible_navigation = [item.inner_text().strip() for item in page.locator('.sidebar-item, [class*="sidebar-item"]').all() if item.is_visible()]
+    visible_navigation = [
+        (item.get_attribute('aria-label') or item.inner_text()).strip()
+        for item in page.locator('.sidebar-item, [class*="sidebar-item"]').all()
+        if item.is_visible()
+    ]
     expected_navigation = ('Lệnh giao nhận', 'Yêu cầu Tạm ứng', 'Phiếu thanh toán / Hoàn ứng')
     if admin_links.count() == 0 and all(any(label in item for item in visible_navigation) for label in expected_navigation):
         results.pass_('TC-1308', f'FORWARDER sidebar limited (admin links: {admin_links.count()})')

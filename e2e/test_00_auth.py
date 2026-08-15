@@ -285,7 +285,11 @@ def test_auth(ctx: NepoTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(500)
     sidebar_items = page.locator('.sidebar-item, [class*="sidebar-item"]').all()
-    visible_items = [item.inner_text().strip() for item in sidebar_items if item.is_visible()]
+    visible_items = [
+        (item.get_attribute('aria-label') or item.inner_text()).strip()
+        for item in sidebar_items
+        if item.is_visible()
+    ]
     expected_ops_items = ('Lệnh giao nhận', 'Yêu cầu Tạm ứng', 'Phiếu thanh toán / Hoàn ứng')
     forbidden_office_items = ('Tài chính', 'Đội xe', 'Cấu hình')
     if all(any(label in item for item in visible_items) for label in expected_ops_items) and not any(
