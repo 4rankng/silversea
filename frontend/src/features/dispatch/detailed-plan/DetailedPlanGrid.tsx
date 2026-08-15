@@ -96,9 +96,17 @@ export function DetailedPlanGrid({
       ) : (
         <div className="detailed-plan-grid__wrapper">
           <table className="detailed-plan-grid">
+            <colgroup>
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
+            </colgroup>
             <thead>
               <tr>
-                <th>
+                <th scope="col">
                   <button
                     type="button"
                     className={`detailed-plan-grid__sort${sortKey === 'runHour' ? ' is-sorted' : ''}`}
@@ -108,7 +116,7 @@ export function DetailedPlanGrid({
                     Thời gian &amp; lịch trình {sortKey === 'runHour' ? '▲' : '↕'}
                   </button>
                 </th>
-                <th>
+                <th scope="col">
                   <button
                     type="button"
                     className={`detailed-plan-grid__sort${sortKey === 'deliveryPoint' ? ' is-sorted' : ''}`}
@@ -118,10 +126,10 @@ export function DetailedPlanGrid({
                     Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? '▲' : '↕'}
                   </button>
                 </th>
-                <th>Chứng từ</th>
-                <th>Container</th>
-                <th>Ghi chú</th>
-                <th>Điều phối</th>
+                <th scope="col">Chứng từ</th>
+                <th scope="col">Container</th>
+                <th scope="col">Ghi chú</th>
+                <th scope="col">Điều phối</th>
               </tr>
             </thead>
             <tbody>

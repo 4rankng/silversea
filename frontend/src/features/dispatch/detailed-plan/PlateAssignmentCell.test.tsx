@@ -58,7 +58,9 @@ describe('PlateAssignmentCell', () => {
   it('loads the own-fleet TRUCK population for OWN rows', async () => {
     useDesktopViewport();
     mockFleet([{ id: 9, licensePlate: '51C-123.45' }, { id: 10, licensePlate: '51C-678.90' }]);
-    render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
+    const { container } = render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
+
+    expect(container.querySelector('.plate-assignment__select')).toBeTruthy();
 
     await waitFor(() => {
       expect(listDispatchFleetResources).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ limit: 50 }));

@@ -4,7 +4,24 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 180px;
+  min-width: 0;
+}
+
+.plate-assignment__select,
+.plate-assignment__select .searchable-select__trigger {
+  min-width: 0;
+}
+
+.plate-assignment__select .searchable-select__trigger {
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.plate-assignment__select .searchable-select__value,
+.plate-assignment__select .searchable-select__placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .plate-assignment__carrier {

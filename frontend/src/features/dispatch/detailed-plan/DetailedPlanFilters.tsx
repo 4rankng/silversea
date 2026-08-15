@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
+import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
 import type { DetailedPlanFilterState } from './useDispatchDetailPlan';
 
 export interface FacetItem {
@@ -36,15 +38,35 @@ function FacetMultiSelect({
 }) {
   const [facets, setFacets] = useState<FacetItem[]>([]);
   const [facetSearch, setFacetSearch] = useState('');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isLoadingFacets, setIsLoadingFacets] = useState(false);
+  const [activeFacetIndex, setActiveFacetIndex] = useState<number | null>(null);
+  const listboxId = useId();
+  const optionIdPrefix = useId();
+  const visibleFacets = facets.slice(0, 20);
+
+  const closePicker = () => {
+    setIsPickerOpen(false);
+    setActiveFacetIndex(null);
+  };
+
+  const selectFacet = (id: number) => {
+    onToggle(id);
+    closePicker();
+  };
 
   useEffect(() => {
     let cancelled = false;
+    setIsLoadingFacets(true);
     loadFacets(facetSearch || undefined)
       .then((items) => {
         if (!cancelled) setFacets(items);
       })
       .catch(() => {
         if (!cancelled) setFacets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingFacets(false);
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,12 +76,54 @@ function FacetMultiSelect({
     <div className="detailed-plan-filters__points">
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">{label}</span>
-        <input
+        <UUIInput
           type="search"
           className="detailed-plan-filters__point-search"
           placeholder="Tìm điểm…"
           value={facetSearch}
-          onChange={(event) => setFacetSearch(event.target.value)}
+          onChange={(value) => {
+            setFacetSearch(value);
+            setActiveFacetIndex(null);
+          }}
+          aria-label={`Tìm ${label.toLowerCase()}`}
+          inputProps={{
+            onFocus: () => setIsPickerOpen(true),
+            onBlur: closePicker,
+            onKeyDown: (event) => {
+              if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setIsPickerOpen(true);
+                setActiveFacetIndex((current) => visibleFacets.length > 0
+                  ? Math.min((current ?? -1) + 1, visibleFacets.length - 1)
+                  : null);
+              }
+              if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setIsPickerOpen(true);
+                setActiveFacetIndex((current) => visibleFacets.length > 0
+                  ? Math.max((current ?? visibleFacets.length) - 1, 0)
+                  : null);
+              }
+              if (event.key === 'Enter' && activeFacetIndex != null) {
+                const activeFacet = visibleFacets[activeFacetIndex];
+                if (activeFacet) {
+                  event.preventDefault();
+                  selectFacet(activeFacet.id);
+                }
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                closePicker();
+              }
+            },
+            role: 'combobox',
+            'aria-autocomplete': 'list',
+            'aria-controls': isPickerOpen ? listboxId : undefined,
+            'aria-activedescendant': isPickerOpen && activeFacetIndex != null ? `${optionIdPrefix}-${visibleFacets[activeFacetIndex]?.id}` : undefined,
+            'aria-expanded': isPickerOpen,
+            'aria-haspopup': 'listbox',
+          }}
+          size="sm"
         />
       </label>
       {selected.length > 0 && (
@@ -79,23 +143,34 @@ function FacetMultiSelect({
           })}
         </div>
       )}
-      <div className="detailed-plan-filters__point-list" role="listbox" aria-label={`Danh sách ${label.toLowerCase()}`}>
-        {facets.slice(0, 20).map((facet) => {
-          const isSelected = selected.includes(facet.id);
-          return (
-            <button
-              key={facet.id}
-              type="button"
-              role="option"
-              aria-selected={isSelected}
-              className={`detailed-plan-filters__point-option${isSelected ? ' is-selected' : ''}`}
-              onClick={() => onToggle(facet.id)}
-            >
-              {facet.name}
-            </button>
-          );
-        })}
-      </div>
+      {isPickerOpen && (
+        <div className="detailed-plan-filters__point-picker">
+          <div id={listboxId} className="detailed-plan-filters__point-list" role="listbox" aria-label={`Danh sách ${label.toLowerCase()}`} aria-busy={isLoadingFacets}>
+            {!isLoadingFacets && visibleFacets.map((facet, index) => {
+            const isSelected = selected.includes(facet.id);
+            return (
+              <div
+                key={facet.id}
+                id={`${optionIdPrefix}-${facet.id}`}
+                role="option"
+                aria-selected={isSelected}
+                className={`detailed-plan-filters__point-option${isSelected ? ' is-selected' : ''}${activeFacetIndex === index ? ' is-active' : ''}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActiveFacetIndex(index)}
+                onClick={() => selectFacet(facet.id)}
+              >
+                {facet.name}
+              </div>
+            );
+            })}
+          </div>
+          {(isLoadingFacets || visibleFacets.length === 0) && (
+            <span className="detailed-plan-filters__point-feedback" role="status">
+              {isLoadingFacets ? 'Đang tìm điểm…' : 'Không tìm thấy điểm phù hợp.'}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -116,46 +191,52 @@ export function DetailedPlanFilters({
     <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
       <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
         <span className="detailed-plan-filters__label">Tìm nhanh</span>
-        <input
+        <UUIInput
           type="search"
           className="detailed-plan-filters__search"
           placeholder="Bill, khách hàng, container…"
           value={filters.q}
-          onChange={(event) => onChange({ q: event.target.value })}
+          onChange={(value) => onChange({ q: value })}
+          size="sm"
+          aria-label="Tìm nhanh"
         />
       </label>
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Ngày chạy</span>
-        <input
+        <UUIInput
           type="date"
           className="detailed-plan-filters__date"
           value={filters.date}
-          onChange={(event) => onChange({ date: event.target.value })}
+          onChange={(value) => onChange({ date: value })}
+          size="sm"
+          aria-label="Ngày chạy"
         />
       </label>
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Chiều hàng</span>
-        <select
+        <UUINativeSelect
           className="detailed-plan-filters__select"
           value={filters.direction}
           onChange={(event) => onChange({ direction: event.target.value as DetailedPlanFilterState['direction'] })}
-        >
-          <option value="">Nhập/Xuất</option>
-          <option value="IMPORT">Nhập</option>
-          <option value="EXPORT">Xuất</option>
-        </select>
+          size="sm"
+          aria-label="Chiều hàng"
+          options={[
+            { value: '', label: 'Nhập/Xuất' },
+            { value: 'IMPORT', label: 'Nhập' },
+            { value: 'EXPORT', label: 'Xuất' },
+          ]}
+        />
       </label>
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Phân xe</span>
-        <select
+        <UUINativeSelect
           className="detailed-plan-filters__select"
           value={filters.assignmentStatus}
           onChange={(event) => onChange({ assignmentStatus: event.target.value as DetailedPlanFilterState['assignmentStatus'] })}
-        >
-          {ASSIGNMENT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
+          size="sm"
+          aria-label="Phân xe"
+          options={ASSIGNMENT_OPTIONS.map((option) => ({ label: option.label, value: option.value }))}
+        />
       </label>
       <FacetMultiSelect
         label="Điểm nâng"
@@ -178,29 +259,27 @@ export function DetailedPlanFilters({
       <div className="detailed-plan-filters__field detailed-plan-filters__hour">
         <span className="detailed-plan-filters__label">Giờ chạy</span>
         <div className="detailed-plan-filters__hour-inputs">
-          <label>
-            <span className="sr-only">Giờ từ</span>
-            <input
-              type="number"
-              min={0}
-              max={23}
-              placeholder="Từ"
-              value={filters.hourFrom}
-              onChange={(event) => onChange({ hourFrom: event.target.value === '' ? '' : Number(event.target.value) })}
-            />
-          </label>
+          <UUIInput
+            type="number"
+            className="detailed-plan-filters__hour-control"
+            placeholder="Từ"
+            value={String(filters.hourFrom)}
+            onChange={(value) => onChange({ hourFrom: value === '' ? '' : Number(value) })}
+            size="sm"
+            aria-label="Giờ từ"
+            inputProps={{ min: 0, max: 23 }}
+          />
           <span aria-hidden="true">→</span>
-          <label>
-            <span className="sr-only">Giờ đến</span>
-            <input
-              type="number"
-              min={0}
-              max={23}
-              placeholder="Đến"
-              value={filters.hourTo}
-              onChange={(event) => onChange({ hourTo: event.target.value === '' ? '' : Number(event.target.value) })}
-            />
-          </label>
+          <UUIInput
+            type="number"
+            className="detailed-plan-filters__hour-control"
+            placeholder="Đến"
+            value={String(filters.hourTo)}
+            onChange={(value) => onChange({ hourTo: value === '' ? '' : Number(value) })}
+            size="sm"
+            aria-label="Giờ đến"
+            inputProps={{ min: 0, max: 23 }}
+          />
         </div>
       </div>
     </section>

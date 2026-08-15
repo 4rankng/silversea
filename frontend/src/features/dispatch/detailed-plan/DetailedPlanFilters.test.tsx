@@ -7,7 +7,7 @@ import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
 describe('DetailedPlanFilters', () => {
   it('provides visible labels and forwards dispatch-specific filter changes', async () => {
     const onChange = vi.fn();
-    render(
+    const { container } = render(
       <DetailedPlanFilters
         filters={EMPTY_DETAILED_PLAN_FILTERS}
         onChange={onChange}
@@ -16,6 +16,8 @@ describe('DetailedPlanFilters', () => {
         loadDropoffPortFacets={vi.fn().mockResolvedValue([{ id: 9, name: 'ICD Mỹ Đình' }])}
       />,
     );
+
+    expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(7);
 
     expect(screen.getByText('Tìm nhanh')).toBeTruthy();
     expect(screen.getByText('Phân xe')).toBeTruthy();
@@ -30,16 +32,118 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ q: 'BILL-001' });
     expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
 
+    fireEvent.focus(screen.getByLabelText('Tìm điểm trả'));
     await waitFor(() => expect(screen.getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
     fireEvent.click(screen.getByRole('option', { name: 'KCN Vân Trung' }));
     expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [42] });
+    expect(screen.queryByRole('option', { name: 'KCN Vân Trung' })).toBeNull();
 
+    fireEvent.focus(screen.getByLabelText('Tìm điểm nâng'));
     await waitFor(() => expect(screen.getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
     fireEvent.click(screen.getByRole('option', { name: 'Cảng Hải Phòng' }));
     expect(onChange).toHaveBeenCalledWith({ pickupIds: [7] });
+    expect(screen.queryByRole('option', { name: 'Cảng Hải Phòng' })).toBeNull();
 
+    fireEvent.focus(screen.getByLabelText('Tìm điểm hạ'));
     await waitFor(() => expect(screen.getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
     fireEvent.click(screen.getByRole('option', { name: 'ICD Mỹ Đình' }));
     expect(onChange).toHaveBeenCalledWith({ dropoffIds: [9] });
+    expect(screen.queryByRole('option', { name: 'ICD Mỹ Đình' })).toBeNull();
+  });
+
+  it('closes an open point picker with Escape or focus loss', async () => {
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    const pointSearch = screen.getByLabelText('Tìm điểm trả');
+    fireEvent.focus(pointSearch);
+    await waitFor(() => expect(pointSearch.getAttribute('aria-expanded')).toBe('true'));
+    await waitFor(() => expect(screen.getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
+    fireEvent.keyDown(pointSearch, { key: 'Escape' });
+    expect(screen.queryByRole('option', { name: 'KCN Vân Trung' })).toBeNull();
+    await waitFor(() => expect(pointSearch.getAttribute('aria-expanded')).toBe('false'));
+
+    fireEvent.focus(pointSearch);
+    await waitFor(() => expect(screen.getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
+    fireEvent.blur(pointSearch);
+    expect(screen.queryByRole('option', { name: 'KCN Vân Trung' })).toBeNull();
+  });
+
+  it('lets a keyboard user choose the active point result', async () => {
+    const onChange = vi.fn();
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    const pointSearch = screen.getByLabelText('Tìm điểm trả');
+    fireEvent.focus(pointSearch);
+    await waitFor(() => expect(screen.getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
+    fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
+    expect(pointSearch.getAttribute('aria-activedescendant')).toContain('42');
+    fireEvent.keyDown(pointSearch, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [42] });
+    expect(screen.queryByRole('option', { name: 'KCN Vân Trung' })).toBeNull();
+  });
+
+  it('resets keyboard navigation when a narrower point search replaces the results', async () => {
+    const onChange = vi.fn();
+    const loadDeliveryPointFacets = vi.fn((query?: string) => Promise.resolve(
+      query
+        ? [{ id: 9, name: 'ICD Mỹ Đình' }]
+        : [{ id: 42, name: 'KCN Vân Trung' }, { id: 7, name: 'Cảng Hải Phòng' }],
+    ));
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={onChange}
+        loadDeliveryPointFacets={loadDeliveryPointFacets}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    const pointSearch = screen.getByLabelText('Tìm điểm trả');
+    fireEvent.focus(pointSearch);
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Cảng Hải Phòng' })).toBeTruthy());
+    fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
+    fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
+    expect(pointSearch.getAttribute('aria-activedescendant')).toContain('7');
+
+    fireEvent.change(pointSearch, { target: { value: 'Mỹ' } });
+    await waitFor(() => expect(screen.getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
+    expect(pointSearch.getAttribute('aria-activedescendant')).toBeNull();
+    fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
+    fireEvent.keyDown(pointSearch, { key: 'Enter' });
+
+    expect(onChange).toHaveBeenCalledWith({ deliveryPointIds: [9] });
+  });
+
+  it('explains when an opened point picker has no matching locations', async () => {
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    fireEvent.focus(screen.getByLabelText('Tìm điểm trả'));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Không tìm thấy điểm phù hợp.'));
   });
 });

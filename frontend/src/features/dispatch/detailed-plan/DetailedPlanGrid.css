@@ -3,9 +3,9 @@
    dispatch-plan-page__* BEM conventions. */
 
 .detailed-plan-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
   margin-bottom: 14px;
   padding: 12px;
@@ -15,15 +15,14 @@
 }
 
 .detailed-plan-filters__field {
-  display: flex;
-  flex: 0 1 160px;
+  display: grid;
   flex-direction: column;
   gap: 5px;
-  min-width: 120px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__field--search {
-  flex-basis: 240px;
+  grid-column: span 2;
 }
 
 .detailed-plan-filters__label {
@@ -34,24 +33,21 @@
 
 .detailed-plan-filters__search {
   width: 100%;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__select,
 .detailed-plan-filters__date {
-  min-width: 120px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__points {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 6px;
   min-width: 200px;
-  flex: 0 1 240px;
 }
 
 .detailed-plan-filters__points > .detailed-plan-filters__field {
-  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -83,6 +79,17 @@
   overflow-y: auto;
 }
 
+.detailed-plan-filters__point-picker {
+  display: grid;
+  gap: 4px;
+}
+
+.detailed-plan-filters__point-feedback {
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .detailed-plan-filters__point-option {
   border: 1px solid var(--border-color, #e2e8f0);
   background: var(--bg-card, #fff);
@@ -98,8 +105,13 @@
   color: var(--color-fg-brand-primary, #005a2d);
 }
 
+.detailed-plan-filters__point-option.is-active {
+  border-color: var(--border-color-brand, #10b956);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-color-brand, #10b956) 22%, transparent);
+}
+
 .detailed-plan-filters__hour {
-  min-width: 150px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__hour-inputs {
@@ -110,8 +122,8 @@
   font-size: 13px;
 }
 
-.detailed-plan-filters__hour-inputs input {
-  width: 64px;
+.detailed-plan-filters__hour-control {
+  min-width: 0;
 }
 
 .detailed-plan-grid__lot-banner {
@@ -143,8 +155,16 @@
   width: 100%;
   min-width: 1020px;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 13px;
 }
+
+.detailed-plan-grid__col--schedule { width: 13%; }
+.detailed-plan-grid__col--route { width: 22%; }
+.detailed-plan-grid__col--documents { width: 15%; }
+.detailed-plan-grid__col--container { width: 14%; }
+.detailed-plan-grid__col--notes { width: 18%; }
+.detailed-plan-grid__col--assignment { width: 18%; }
 
 .detailed-plan-grid thead th {
   text-align: left;
@@ -190,7 +210,8 @@
 /* Multi-line cells wrap instead of clipping the spec's line stack. */
 .detailed-plan-grid__cell {
   white-space: normal !important;
-  max-width: 260px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .detailed-plan-grid__line {
@@ -262,6 +283,12 @@
   color: var(--text-secondary, #94a3b8);
 }
 
+@media (max-width: 1100px) {
+  .detailed-plan-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .detailed-plan-filters {
     align-items: stretch;
@@ -271,7 +298,7 @@
   .detailed-plan-filters__field,
   .detailed-plan-filters__field--search,
   .detailed-plan-filters__points {
-    flex-basis: 100%;
+    grid-column: 1 / -1;
     min-width: 0;
   }
 

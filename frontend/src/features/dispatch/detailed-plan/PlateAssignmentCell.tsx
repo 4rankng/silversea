@@ -174,6 +174,7 @@ export function PlateAssignmentCell({ row, onAssign, disabled = false }: PlateAs
     <div className="plate-assignment">
       <div className="plate-assignment__carrier">{row.dispatch.carrierName ?? '—'}</div>
       <SearchableSelect
+        className="plate-assignment__select"
         id={`plate-${row.fulfillmentId}`}
         value={selectedValue}
         onChange={handleChange}

@@ -64,13 +64,13 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
         </colgroup>
         <thead>
           <tr>
-            <th>Thời gian &amp; lịch trình</th>
-            <th>Khách hàng &amp; nhà máy</th>
-            <th>Chứng từ &amp; hãng tàu</th>
-            <th>Địa điểm nâng/hạ</th>
-            <th>Tổng quan hàng hóa</th>
-            <th>Ghi chú</th>
-            <th>Phân bổ nhà xe</th>
+            <th scope="col">Thời gian &amp; lịch trình</th>
+            <th scope="col">Khách hàng &amp; nhà máy</th>
+            <th scope="col">Chứng từ &amp; hãng tàu</th>
+            <th scope="col">Địa điểm nâng/hạ</th>
+            <th scope="col">Tổng quan hàng hóa</th>
+            <th scope="col">Ghi chú</th>
+            <th scope="col">Phân bổ nhà xe</th>
           </tr>
         </thead>
         <tbody>

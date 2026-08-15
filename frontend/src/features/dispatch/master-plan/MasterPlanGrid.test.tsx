@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -98,6 +100,13 @@ describe('MasterPlanGrid', () => {
       'Ghi chú',
       'Phân bổ nhà xe',
     ]);
+  });
+
+  it('keeps allocation chips inside their table cell instead of letting a long carrier label overflow', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).toContain('.master-plan-grid__chip {');
+    expect(css).toContain('max-inline-size: 100%');
+    expect(css).toContain('text-overflow: ellipsis');
   });
 });
 
