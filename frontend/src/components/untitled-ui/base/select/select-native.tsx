@@ -14,15 +14,17 @@ interface NativeSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>
 
 const styles = {
     sm: {
-        root: "py-2 pl-3 text-sm",
+        // Always reserve the trailing icon lane. Without it, a long selected
+        // label can paint underneath the chevron and hide the select affordance.
+        root: "py-2 pl-3 pr-10 text-sm",
         icon: "size-4 right-2.5 stroke-[2.25px]",
     },
     md: {
-        root: "py-2 pl-3 text-md",
+        root: "py-2 pl-3 pr-10 text-md",
         icon: "size-4 stroke-[2.25px] right-3",
     },
     lg: {
-        root: "py-2.5 px-3.5 text-md",
+        root: "py-2.5 pl-3.5 pr-11 text-md",
         icon: "size-5 right-3",
     },
 };
