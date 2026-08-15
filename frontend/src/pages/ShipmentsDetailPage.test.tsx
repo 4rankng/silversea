@@ -114,6 +114,11 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
+    const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
+    const rowWarning = screen.getAllByText('Thiếu ngày vận chuyển').find((element) => element.classList.contains('shipment-container-ledger__row-warning'));
+    expect(rowWarning).toBeTruthy();
+    expect(missingDateIdentityCell.contains(rowWarning ?? null)).toBe(true);
+    expect(missingDateIdentityCell.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();

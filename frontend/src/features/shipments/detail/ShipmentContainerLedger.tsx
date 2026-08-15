@@ -572,11 +572,11 @@ export function ShipmentContainerLedger({
               return (
                 <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
                   <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
+                      {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
                     </div>)}
                   </th>
                   <td data-label="Chứng từ & hãng tàu" className={`${documentsEditable ? 'shipment-container-ledger__editable-cell' : ''}${edit?.mode === 'documents' ? ' shipment-container-ledger__editing-cell' : ''}`}>
