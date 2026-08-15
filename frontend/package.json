@@ -42,7 +42,7 @@
     "react-aria-components": "^1.20.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.18.0",
+    "react-router-dom": "^7.18.2",
     "react-stately": "^3.49.0",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.6.0",
