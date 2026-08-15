@@ -33,6 +33,10 @@ describe('Untitled UI flat-surface control boundaries', () => {
     expect(select).toContain('root: "py-2.5 pl-3.5 pr-11 text-md"');
   });
 
+  it('constrains native selects to their layout column when a selected label is long', () => {
+    expect(read('src/components/untitled-ui/base/select/select-native.tsx')).toContain('w-full min-w-0 max-w-full appearance-none');
+  });
+
   it('gives select popovers a real boundary under the app-wide no-shadow contract', () => {
     expect(read('src/components/untitled-ui/base/select/popover.tsx')).toContain('border border-secondary');
     expect(read('src/components/untitled-ui/base/select/multi-select.tsx')).toContain('border border-secondary');

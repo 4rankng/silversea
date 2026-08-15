@@ -50,7 +50,7 @@ export const NativeSelect = ({ label, hint, options, className, selectClassName,
                     aria-describedby={hint ? hintId : undefined}
                     aria-labelledby={label ? labelId : undefined}
                     className={cx(
-                        "appearance-none rounded-lg border border-primary bg-primary font-medium text-primary outline-focus-ring transition duration-100 ease-linear placeholder:text-fg-quaternary focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
+                        "w-full min-w-0 max-w-full appearance-none rounded-lg border border-primary bg-primary font-medium text-primary outline-focus-ring transition duration-100 ease-linear placeholder:text-fg-quaternary focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
 
                         styles[size].root,
 
