@@ -173,13 +173,6 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
                       <span className="cmd-palette__item-label">{cmd.label}</span>
                       {cmd.hint && <span className="cmd-palette__item-hint">{cmd.hint}</span>}
                     </span>
-                    {cmd.shortcut && cmd.shortcut.length > 0 && (
-                      <span className="cmd-palette__shortcut" aria-hidden="true">
-                        {cmd.shortcut.map((k, i) => (
-                          <kbd key={i} className="cmd-palette__kbd">{k}</kbd>
-                        ))}
-                      </span>
-                    )}
                   </button>
                 </li>
               );
@@ -187,11 +180,6 @@ export function CommandPalette({ open, commands, onClose, placeholder = 'Tìm l�
           </ul>
         )}
 
-        <div className="cmd-palette__foot" aria-hidden="true">
-          <span><kbd className="cmd-palette__kbd">↑</kbd><kbd className="cmd-palette__kbd">↓</kbd> di chuyển</span>
-          <span><kbd className="cmd-palette__kbd">↵</kbd> chọn</span>
-          <span><kbd className="cmd-palette__kbd">Esc</kbd> đóng</span>
-        </div>
       </div>
     </div>,
     document.body,

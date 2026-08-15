@@ -105,6 +105,29 @@ describe('SearchableSelect', () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
+  it('owns Escape while open instead of dismissing a parent editor', async () => {
+    const onParentKeyDown = vi.fn();
+    render(
+      <div onKeyDown={onParentKeyDown}>
+        <SearchableSelect
+          id="routeId"
+          value=""
+          onChange={() => {}}
+          options={ROUTES}
+          searchPlaceholder="Tìm tuyến đường…"
+        />
+      </div>,
+    );
+
+    const trigger = screen.getByRole('button', { name: /Chọn một mục/ });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onParentKeyDown).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
   it('uses a top-level mobile sheet that closes on selection, close, backdrop, and Escape', async () => {
     useMobileViewport();
     function ControlledSelect() {

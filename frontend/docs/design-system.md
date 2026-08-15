@@ -66,3 +66,11 @@ following list maps pages to their target primitives:
 The migration from per-page implementations to primitives is incremental.
 Migrate one page at a time; the primitives are designed to be drop-in
 replacements for the most-copied snippets, not a full rewrite.
+
+## Untitled UI source
+
+Untitled UI React components live under `src/components/untitled-ui/` and are
+retrieved with the pinned version-8 workflow in
+[`untitled-ui.md`](./untitled-ui.md). Use those accessible source primitives as
+the component layer, then compose them through the product-specific design
+system and feature modules above.

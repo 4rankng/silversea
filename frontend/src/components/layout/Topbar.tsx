@@ -199,7 +199,7 @@ function Topbar({
           aria-label={sidebarOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
           aria-expanded={sidebarOpen}
           aria-controls="sidebar-navigation"
-          title="Ẩn / hiện menu (⌘B)"
+          title="Ẩn / hiện menu"
           onClick={onToggleSidebar}
         >
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -225,7 +225,6 @@ function Topbar({
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
           />
-          {!searchQuery && <kbd>⌘ K</kbd>}
           {searchQuery.length > 0 && (
             <SearchDropdown
               items={matchedItems}

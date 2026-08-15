@@ -22,7 +22,7 @@ export function DesignSystemPreview() {
   useCommandHotkey(() => setShowPalette(true));
 
   const commands: CommandItem[] = [
-    { id: 'new-trip', label: 'Tạo chuyến mới', icon: FilePlus, shortcut: ['Ctrl', 'N'], group: 'Chuyến', run: () => alert('demo') },
+    { id: 'new-trip', label: 'Tạo chuyến mới', icon: FilePlus, group: 'Chuyến', run: () => alert('demo') },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, hint: 'Tổng quan', group: 'Điều hướng', run: () => alert('demo') },
     { id: 'fleet', label: 'Đội xe', icon: Truck, group: 'Điều hướng', run: () => alert('demo') },
     { id: 'archive', label: 'Lưu trữ', icon: Archive, group: 'Điều hướng', run: () => alert('demo') },
@@ -155,9 +155,6 @@ export function DesignSystemPreview() {
       {/* T4 — Command palette */}
       <section>
         <h2 style={sectionH2}>T4 · Command palette</h2>
-        <p style={{ color: 'var(--ink-3)', marginTop: 0 }}>
-          Press <kbd style={kbdStyle}>Ctrl</kbd>+<kbd style={kbdStyle}>K</kbd> or click below.
-        </p>
         <button
           type="button"
           onClick={() => setShowPalette(true)}
@@ -178,8 +175,3 @@ export function DesignSystemPreview() {
 
 const sectionH2: CSSProperties = { fontSize: 'var(--fs-lg)', marginBottom: 12, color: 'var(--ink)' };
 const labelStyle: CSSProperties = { fontSize: 'var(--fs-xs)', color: 'var(--ink-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' };
-const kbdStyle: CSSProperties = {
-  display: 'inline-block', padding: '2px 6px', borderRadius: 4,
-  background: 'var(--surface-3)', border: '1px solid var(--line)',
-  fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-2)',
-};

@@ -171,6 +171,7 @@ export function SearchableSelect({
   const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       close();
       return;
     }

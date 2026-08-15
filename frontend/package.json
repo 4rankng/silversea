@@ -16,7 +16,12 @@
     "generate:brand": "node scripts/generate-transting-brand-assets.mjs",
     "check:ui": "node scripts/check-ui-contract.mjs && node scripts/check-brand-contract.mjs",
     "check:brand": "node scripts/check-brand-contract.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "uui:login": "npx --yes untitledui@0.1.63 login",
+    "uui:search": "npx --yes untitledui@0.1.63 search --lib-version 8",
+    "uui:add:base": "npx --yes untitledui@0.1.63 add --dir . --path components/untitled-ui --type base --lib-version 8",
+    "uui:add:application": "npx --yes untitledui@0.1.63 add --dir . --path components/untitled-ui --type application --lib-version 8",
+    "uui:add:foundations": "npx --yes untitledui@0.1.63 add --dir . --path components/untitled-ui --type foundations --lib-version 8"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.17",
