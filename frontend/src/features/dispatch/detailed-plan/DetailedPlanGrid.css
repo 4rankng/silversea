@@ -164,7 +164,7 @@
   min-width: 1020px;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 13px;
+  font-size: var(--ops-table-supporting-size);
 }
 
 .detailed-plan-grid__col--schedule { width: 13%; }
@@ -177,8 +177,8 @@
 .detailed-plan-grid thead th {
   text-align: left;
   padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary, #64748b);
@@ -223,27 +223,37 @@
 }
 
 .detailed-plan-grid__line {
-  line-height: 1.45;
+  line-height: var(--ops-table-supporting-line-height);
 }
 
 .detailed-plan-grid__line--strong {
-  font-weight: 600;
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
 }
 
 .detailed-plan-grid__line--muted {
   color: var(--text-secondary, #94a3b8);
-  font-size: 12px;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
 }
 
 .detailed-plan-grid__line--italic {
   font-style: italic;
 }
 
+.detailed-plan-grid__line--notes {
+  color: var(--text-secondary, #64748b);
+  font-size: var(--ops-table-note-size);
+  font-weight: var(--ops-table-note-weight);
+  line-height: var(--ops-table-note-line-height);
+}
+
 .detailed-plan-grid__badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--ops-table-supporting-size);
   font-weight: 600;
 }
 
@@ -262,7 +272,7 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--ops-table-supporting-size);
   background: var(--background-color-success-primary, #ecfdf5);
   color: var(--color-fg-success-primary, #065f46);
 }
@@ -271,7 +281,7 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--ops-table-supporting-size);
   background: var(--background-color-brand-primary, #f2faf5);
   color: var(--color-fg-brand-primary, #005a2d);
 }
@@ -280,7 +290,7 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--ops-table-supporting-size);
   background: var(--background-color-warning-primary, #fef3c7);
   color: var(--color-fg-warning-primary, #92400e);
 }

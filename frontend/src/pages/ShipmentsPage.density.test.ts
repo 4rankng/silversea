@@ -19,9 +19,10 @@ describe('shipment container editor density', () => {
   });
 
   it('uses one compact typography scale for table values and metadata', () => {
-    expect(css).toMatch(/\.cus-dashboard-table\s*\{[^}]*font-size:\s*13px;/);
-    expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*14px;/);
-    expect(css).toMatch(/\.cus-multiline-cell span\s*\{[^}]*font-size:\s*11px;/);
+    expect(pageSource).toContain('cus-dashboard-table ops-table');
+    expect(css).toMatch(/\.cus-dashboard-table\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);/);
+    expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
+    expect(css).toMatch(/\.cus-multiline-cell span\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\);/);
   });
 
   it('binds touch-friendly cell triggers to an explicit edit dialog', () => {

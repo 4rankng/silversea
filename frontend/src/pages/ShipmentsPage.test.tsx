@@ -331,7 +331,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     const customerNote = await screen.findByText('Giao buổi sáng');
     expect(customerNote.className).toContain('cus-note-preview__customer');
-    expect(css).toMatch(/\.cus-note-preview > \.cus-note-preview__customer\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*var\(--fw-medium\);/);
+    expect(css).toMatch(/\.cus-note-preview > \.cus-note-preview__customer\s*\{[^}]*font-size:\s*var\(--ops-table-note-size\);[^}]*font-weight:\s*var\(--ops-table-note-weight\);/);
     expect(source).not.toContain('<strong>{customerNoteLines[0]');
   });
 
@@ -1126,10 +1126,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
-    expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(source).toContain('cus-cargo-summary__containers');
     expect(source).toContain('kg ·');
-    expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*12px;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);

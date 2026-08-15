@@ -4,6 +4,7 @@ import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient'
 import { PlateAssignmentCell } from './PlateAssignmentCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
+import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
 
 function formatDate(iso: string | null | undefined): string {
@@ -95,7 +96,7 @@ export function DetailedPlanGrid({
         />
       ) : (
         <div className="detailed-plan-grid__wrapper">
-          <table className="detailed-plan-grid">
+          <table className="detailed-plan-grid ops-table">
             <colgroup>
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
@@ -185,7 +186,7 @@ export function DetailedPlanGrid({
                     )}
                   </td>
                   <td className="detailed-plan-grid__cell">
-                    <div className="detailed-plan-grid__line">
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
                       Xe: {row.notes.vehicleNote ?? '—'}
                     </div>
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">

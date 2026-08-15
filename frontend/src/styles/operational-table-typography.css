@@ -1,0 +1,22 @@
+/*
+ * Operational table typography contract.
+ *
+ * Use `ops-table` on data-dense comparison grids. Page CSS maps each grid's
+ * existing primary/supporting/meta/note roles to these tokens instead of
+ * inventing a new font scale per route.
+ */
+.ops-table {
+  --ops-table-header-size: 11px;
+  --ops-table-header-line-height: 1.35;
+  --ops-table-header-weight: var(--fw-semibold, 600);
+  --ops-table-primary-size: 13px;
+  --ops-table-primary-line-height: 1.35;
+  --ops-table-primary-weight: var(--fw-semibold, 600);
+  --ops-table-supporting-size: 12px;
+  --ops-table-supporting-line-height: 1.4;
+  --ops-table-meta-size: 11px;
+  --ops-table-meta-line-height: 1.4;
+  --ops-table-note-size: 12px;
+  --ops-table-note-line-height: 1.4;
+  --ops-table-note-weight: var(--fw-medium, 500);
+}

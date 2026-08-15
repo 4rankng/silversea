@@ -507,7 +507,7 @@
   border-spacing: 0;
   table-layout: fixed;
   color: var(--ink);
-  font-size: 13px;
+  font-size: var(--ops-table-supporting-size);
 }
 
 .cus-dashboard-table col.cus-dashboard-col--customer { width: 16%; }
@@ -527,9 +527,9 @@
   border-bottom: 1px solid var(--line-strong);
   background: var(--surface-2);
   color: var(--ink-2);
-  font-size: 11px;
-  font-weight: var(--fw-bold);
-  line-height: 1.35;
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
+  line-height: var(--ops-table-header-line-height);
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -587,10 +587,10 @@
   white-space: nowrap;
 }
 
-.cus-multiline-cell strong { color: var(--ink); font-size: 14px; font-weight: var(--fw-bold); line-height: 1.3; }
-.cus-multiline-cell span { color: var(--ink-3); font-size: 11px; line-height: 1.35; }
+.cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
+.cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
 .cus-multiline-cell--mono { font-family: var(--font-mono); }
-.cus-multiline-cell--mono strong { font-size: 13px; letter-spacing: .01em; }
+.cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { font-variant-numeric: tabular-nums; }
 
 /* Cargo is compact supporting data: show every container type, then keep its
@@ -599,17 +599,17 @@
 .cus-multiline-cell .cus-cargo-summary__containers {
   overflow: visible;
   color: var(--ink-2);
-  font-size: 12px;
-  font-weight: var(--fw-semibold);
-  line-height: 1.35;
+  font-size: var(--ops-table-supporting-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-supporting-line-height);
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 .cus-multiline-cell .cus-cargo-summary__metrics {
   overflow: visible;
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -652,7 +652,7 @@
   transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.cus-inline-trigger strong { color: var(--ink); font-size: 14px; line-height: 1.3; }
+.cus-inline-trigger strong { color: var(--ink); font-size: var(--ops-table-primary-size); line-height: var(--ops-table-primary-line-height); }
 .cus-inline-trigger:not(:disabled):hover {
   background: var(--surface-2);
   border-color: var(--line-strong);
@@ -713,9 +713,9 @@
 }
 .cus-note-preview > .cus-note-preview__customer {
   color: var(--ink-2);
-  font-size: 12px;
-  font-weight: var(--fw-medium);
-  line-height: 1.4;
+  font-size: var(--ops-table-note-size);
+  font-weight: var(--ops-table-note-weight);
+  line-height: var(--ops-table-note-line-height);
 }
 .cus-note-preview > .cus-note-preview__customer--empty {
   color: var(--ink-3);

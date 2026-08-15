@@ -1,6 +1,7 @@
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
 interface MasterPlanGridProps {
@@ -52,7 +53,7 @@ function formatWeight(kg: number | null): string {
 export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
   return (
     <div className="master-plan-grid__wrapper">
-      <table className="master-plan-grid">
+      <table className="master-plan-grid ops-table">
         <colgroup>
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />

@@ -86,7 +86,7 @@
   min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 13px;
+  font-size: var(--ops-table-supporting-size);
 }
 
 .master-plan-grid__col--schedule { width: 14%; }
@@ -100,13 +100,13 @@
 .master-plan-grid thead th {
   text-align: left;
   padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary, #64748b);
   border-bottom: 2px solid var(--border-color, #e2e8f0);
-  line-height: 1.35;
+  line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -124,7 +124,7 @@
 }
 
 .master-plan-grid__line {
-  line-height: 1.5;
+  line-height: var(--ops-table-supporting-line-height);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -136,12 +136,16 @@
 }
 
 .master-plan-grid__line--strong {
-  font-weight: 600;
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
   color: var(--text-primary, #0f172a);
 }
 
 .master-plan-grid__line--muted {
   color: var(--text-secondary, #64748b);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
 }
 
 .master-plan-grid__line--soon {
@@ -157,6 +161,9 @@
 .master-plan-grid__line--notes {
   white-space: normal;
   color: var(--text-secondary, #64748b);
+  font-size: var(--ops-table-note-size);
+  font-weight: var(--ops-table-note-weight);
+  line-height: var(--ops-table-note-line-height);
 }
 
 .master-plan-grid__cell--action {
@@ -187,7 +194,7 @@
 @container (max-width: 900px) {
   .master-plan-grid {
     display: block;
-    font-size: 14px;
+    font-size: var(--ops-table-supporting-size);
   }
 
   .master-plan-grid colgroup,

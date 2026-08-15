@@ -47,6 +47,7 @@ import {
 import { downloadCSV } from '../lib/csv';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
+import '../styles/operational-table-typography.css';
 import './ShipmentsPage.css';
 
 const PAGE_SIZE = 20;
@@ -1548,7 +1549,7 @@ export default function ShipmentsPage() {
               Bảng lô hàng gồm bảy nhóm thông tin. Chọn trực tiếp ô dữ liệu được phép để sửa; nhấn Enter để lưu và Escape để hủy. Mở Chi tiết để chỉnh từng container.
             </p>
             <div className="cus-dashboard-viewport" role="region" aria-label="Bảng tổng hợp lô hàng" aria-describedby="cus-worksheet-instructions" tabIndex={0}>
-              <table className="cus-dashboard-table">
+              <table className="cus-dashboard-table ops-table">
                 <caption className="sr-only">Tổng hợp lô hàng theo bảy nhóm thông tin</caption>
                 <colgroup>
                   <col className="cus-dashboard-col--customer" />
