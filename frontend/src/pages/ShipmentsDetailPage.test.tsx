@@ -160,7 +160,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sửa')).toBeNull();
   });
 
-  it('uses icon-only Untitled UI actions on a dedicated editor row', async () => {
+  it('uses icon-only Untitled UI actions and keeps the keyboard hint in their footer row', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
@@ -179,7 +179,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(editor?.id).toBe('shipment-detail-edit-route-12-editor');
     expect(editor?.closest('.shipment-container-ledger__editor-row')).toBeNull();
     expect(editor?.parentElement?.className).toContain('shipment-container-ledger__cell-editor');
-    expect(screen.getByText('Enter để lưu · Esc để hủy')).toBeTruthy();
+    const hint = screen.getByText('Enter để lưu · Esc để hủy');
+    expect(hint.closest('.shipment-container-ledger__editor-footer')).toContain(save);
   });
 
   it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
@@ -214,6 +215,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i), { target: { value: 'abcd' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
+  });
+
+  it('makes active filters legible and clears them without requiring an empty result', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-15&customerId=7&direction=IMPORT&searchSuffix=abcd']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    expect(await screen.findByText('Đang lọc')).toBeTruthy();
+    expect(screen.getByText(/Mã cuối: ABCD/)).toBeTruthy();
+    expect(screen.getByText(/Từ ngày: 15\/08\/2026/)).toBeTruthy();
+    expect(screen.getByText(/Khách hàng: Công ty Silver Sea/)).toBeTruthy();
+    expect(screen.getByText(/Chiều hàng: Nhập/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    expect(screen.queryByText('Đang lọc')).toBeNull();
   });
 
   it('rejects an invalid suffix without issuing a filtered request', async () => {

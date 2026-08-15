@@ -196,6 +196,18 @@ export default function ShipmentsDetailPage() {
   const totalContainers = data?.total ?? 0;
   const customers = data?.filterOptions.customers ?? [];
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo);
+  const activeFilterSummary = [
+    suffixParam ? `Mã cuối: ${suffixParam}` : null,
+    dateFrom && dateTo
+      ? `Ngày vận chuyển: ${dateFrom.split('-').reverse().join('/')} – ${dateTo.split('-').reverse().join('/')}`
+      : dateFrom
+        ? `Từ ngày: ${dateFrom.split('-').reverse().join('/')}`
+        : dateTo
+          ? `Đến ngày: ${dateTo.split('-').reverse().join('/')}`
+          : null,
+    customerId ? `Khách hàng: ${customers.find((customer) => customer.id === customerId)?.name ?? `#${customerId}`}` : null,
+    direction ? `Chiều hàng: ${direction === 'IMPORT' ? 'Nhập' : 'Xuất'}` : null,
+  ].filter((summary): summary is string => Boolean(summary));
 
   const resetFilters = () => {
     appliedSearchRef.current = '';
@@ -462,6 +474,12 @@ export default function ShipmentsDetailPage() {
             <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
             <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
           </div>
+          {hasFilters && (
+            <div className="shipments-detail-filters__meta">
+              <p role="status" aria-live="polite"><span>Đang lọc</span>{activeFilterSummary.join(' · ')}</p>
+              <UUIButton size="xs" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>
+            </div>
+          )}
         </div>
 
         {error && <Alert variant="error" style="soft" className="shipments-detail-error" icon={<AlertCircle size={18} />} action={<UUIButton size="sm" color="secondary" onPress={() => void loadRows()}>Thử lại</UUIButton>}>{error}</Alert>}

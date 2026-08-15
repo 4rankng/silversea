@@ -438,8 +438,10 @@ function InlineEditor({
           <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
         </div>
       )}
-      <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
-      <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
+      <div className="shipment-container-ledger__editor-footer">
+        <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
+        <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
+      </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
     </div>

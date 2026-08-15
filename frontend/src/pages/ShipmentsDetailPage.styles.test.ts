@@ -15,6 +15,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select,\s*\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
     expect(css).toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size:\s*inherit;/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
+    expect(css).toMatch(/\.shipments-detail-filters__meta\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/);
+    expect(css).toMatch(/\.shipments-detail-filters__meta p\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.shipments-detail-filters__reset\s*\{[^}]*min-height:\s*32px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters__reset\s*\{[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
@@ -61,7 +65,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?\.shipment-container-ledger__cell-editor--expanded\s*\{[^}]*grid-column:\s*1 \/ -1;/);
   });
 
-  it('makes editable values the cell trigger without pencil controls and keeps bounded cell-anchored editor trays', () => {
+  it('makes editable values the cell trigger without pencil controls and keeps bounded stacked editor trays', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*display:\s*block;[^}]*background:\s*transparent;[^}]*cursor:\s*text;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*touch-action:\s*manipulation;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:not\(\.shipment-container-ledger__cell-trigger--read-only\):not\(\[disabled\]\):hover/);
@@ -71,13 +75,16 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toContain('.shipment-container-ledger__editor-row');
     expect(css).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*overflow:\s*visible !important;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\s*\{[^}]*position:\s*relative;/);
-    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100% \+ 6px\);[^}]*width:\s*clamp\(320px, 42vw, 560px\);[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100% \+ 6px\);[^}]*display:\s*flex;[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*width:\s*min\(420px, calc\(100vw - 28px\)\);[^}]*flex-direction:\s*column;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="notes"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__edit-actions\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*justify-content:\s*flex-end;[^}]*border-top:\s*1px solid var\(--line-2\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*32px;[^}]*min-width:\s*32px;[^}]*min-height:\s*32px;[^}]*padding:\s*0;/);
-    expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*9px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid input,[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;[^}]*border-top:\s*1px solid var\(--line-2\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*36px;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding:\s*0;/);
+    expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*11px;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
   });
