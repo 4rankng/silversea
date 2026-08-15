@@ -48,6 +48,66 @@ describe('shipment container schedule', () => {
     assert.equal(savedContainer.customerAppointmentAt?.toISOString(), '2026-08-20T12:00:00.000Z');
     assert.equal(handoff.status, 'UNSEEN');
   });
+
+  test('an explicit shipment-level delivery date is never clobbered by container dates', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `Container schedule explicit ${suffix}` })
+      .returning();
+    customerIds.push(customer.id);
+    const [containerType] = await db.insert(s.containerTypes)
+      .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Explicit ${suffix}` })
+      .returning();
+    containerTypeIds.push(containerType.id);
+
+    const shipment = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-09-01',
+    });
+    shipmentIds.push(shipment.id);
+
+    await batchUpsertShipmentContainers(shipment.id, null, [{
+      containerTypeId: containerType.id,
+      containerNumber: null,
+      customerAppointmentAt: '2026-08-20T12:00:00.000Z',
+    }]);
+
+    const [savedShipment] = await db.select({ expectedDeliveryDate: s.shipments.expectedDeliveryDate })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id));
+    assert.equal(savedShipment.expectedDeliveryDate, '2026-09-01');
+  });
+
+  test('a second reconcile does not duplicate the handoff or status history', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `Container schedule idem ${suffix}` })
+      .returning();
+    customerIds.push(customer.id);
+    const [containerType] = await db.insert(s.containerTypes)
+      .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Idem ${suffix}` })
+      .returning();
+    containerTypeIds.push(containerType.id);
+
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+
+    const row = {
+      containerTypeId: containerType.id,
+      containerNumber: null,
+      customerAppointmentAt: '2026-08-20T12:00:00.000Z',
+    };
+    await batchUpsertShipmentContainers(shipment.id, null, [row]);
+    await batchUpsertShipmentContainers(shipment.id, null, [row]);
+
+    const handoffs = await db.select({ id: s.dispatchHandoffs.id })
+      .from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    const readyHistory = await db.select({ id: s.shipmentStatusHistory.id })
+      .from(s.shipmentStatusHistory)
+      .where(and(eq(s.shipmentStatusHistory.shipmentId, shipment.id), eq(s.shipmentStatusHistory.toStatus, 'READY_FOR_DISPATCH')));
+    assert.equal(handoffs.length, 1);
+    assert.equal(readyHistory.length, 1);
+  });
 });
 
 after(async () => {

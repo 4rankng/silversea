@@ -235,7 +235,12 @@ export function buildShipmentRootPayload(
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),
     plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
-    expectedDeliveryDate: form.cargoMode === 'LCL' ? form.expectedDeliveryDate || null : null,
+    // FCL: omit entirely — the server derives this from per-container dates,
+    // and sending null on a retry would wipe a date already derived from a
+    // partially-saved attempt. LCL keeps the shipment-level date.
+    ...(form.cargoMode === 'LCL'
+      ? { expectedDeliveryDate: form.expectedDeliveryDate || null }
+      : {}),
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,

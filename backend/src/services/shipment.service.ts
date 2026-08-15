@@ -3083,7 +3083,9 @@ async function reconcileShipmentContainersInTx(
         reason: 'Đã bổ sung ngày đóng/trả theo container và sẵn sàng điều xe.',
         changedBy: userId,
       });
-      await ensureReadyShipmentHandoff(tx, updatedShipment, userId);
+      // Both reconcile callers bump version to preBump+1 after this returns;
+      // snapshot that final version so handoffVersion matches the shipment.
+      await ensureReadyShipmentHandoff(tx, { ...updatedShipment, version: shipment.version + 1 }, userId);
     }
   }
 

@@ -63,6 +63,8 @@ interface ContainerRow {
   shippingLineName: string;
   pickupPortId: string;
   dropoffPortId: string;
+  /** Ngày giao/đóng trả của container — phải giữ nguyên qua lần lưu này (reconcile là full replace). */
+  customerAppointmentAt: string | null;
 }
 
 interface ShipmentFormState {
@@ -101,6 +103,7 @@ function toRow(c: ShipmentContainer): ContainerRow {
     shippingLineName: c.shippingLineName ?? '',
     pickupPortId: c.pickupPortId != null ? String(c.pickupPortId) : '',
     dropoffPortId: c.dropoffPortId != null ? String(c.dropoffPortId) : '',
+    customerAppointmentAt: c.customerAppointmentAt ?? null,
   };
 }
 
@@ -112,6 +115,7 @@ const EMPTY_ROW: ContainerRow = {
   shippingLineName: '',
   pickupPortId: '',
   dropoffPortId: '',
+  customerAppointmentAt: null,
 };
 
 const EMPTY_DOC_FORM = {
@@ -545,6 +549,7 @@ export default function ClerkShipmentDocsPage() {
           shippingLineName: r.shippingLineName.trim() || null,
           pickupPortId: r.pickupPortId ? Number(r.pickupPortId) : null,
           dropoffPortId: r.dropoffPortId ? Number(r.dropoffPortId) : null,
+          customerAppointmentAt: r.customerAppointmentAt ?? null,
         })),
       });
       let nextVersion = res.shipmentVersion;
