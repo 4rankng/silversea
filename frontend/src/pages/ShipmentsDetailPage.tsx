@@ -40,6 +40,19 @@ import './ShipmentsDetailPage.css';
 
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function readIsoDate(value: string | null): string {
+  if (!value || !ISO_DATE_PATTERN.test(value)) return '';
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value ? '' : value;
+}
+
+function readPositiveInteger(value: string | null, fallback = 0): number {
+  if (!value || !/^\d+$/.test(value)) return fallback;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 function safeError(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback;
@@ -77,11 +90,15 @@ function ShipmentContainerLedgerSkeleton() {
 export default function ShipmentsDetailPage() {
   const today = useMemo(() => formatVietnamDateInput(new Date()), []);
   const [searchParams, setSearchParams] = useSearchParams();
-  const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
-  const suffixParam = searchParams.get('searchSuffix') ?? '';
-  const dateFrom = searchParams.get('transportDateFrom') ?? '';
-  const dateTo = searchParams.get('transportDateTo') ?? '';
-  const customerId = Math.max(0, Number(searchParams.get('customerId') || 0) || 0);
+  const page = readPositiveInteger(searchParams.get('page'), 1);
+  const rawSuffix = searchParams.get('searchSuffix') ?? '';
+  const suffixParam = SEARCH_PATTERN.test(rawSuffix) ? rawSuffix.toUpperCase() : '';
+  const parsedDateFrom = readIsoDate(searchParams.get('transportDateFrom'));
+  const parsedDateTo = readIsoDate(searchParams.get('transportDateTo'));
+  const datesAreOrdered = !parsedDateFrom || !parsedDateTo || parsedDateFrom <= parsedDateTo;
+  const dateFrom = datesAreOrdered ? parsedDateFrom : '';
+  const dateTo = datesAreOrdered ? parsedDateTo : '';
+  const customerId = readPositiveInteger(searchParams.get('customerId'));
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);

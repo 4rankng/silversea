@@ -44,6 +44,8 @@ interface DispatchAllocationPopoverProps {
   onClose: () => void;
   /** Called with the refreshed row after a successful save. */
   onSaved: (updated: ShipmentListItem) => void;
+  /** The master-plan action that opened this dialog, restored after it closes. */
+  returnFocusTarget?: HTMLElement | null;
 }
 
 /**
@@ -51,12 +53,13 @@ interface DispatchAllocationPopoverProps {
  * 20'/40' counts, MAX-mode validation (over-allocation blocks save, partial
  * allowed), save via the existing carrier-allocations API with 409 retry.
  */
-export function DispatchAllocationPopover({ shipment, onClose, onSaved }: DispatchAllocationPopoverProps) {
+export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFocusTarget }: DispatchAllocationPopoverProps) {
   const [options, setOptions] = useState<CarrierAllocationOption[]>([OWN_CARRIER_OPTION]);
   const [rows, setRows] = useState<AllocationRow[]>(() => prefillRows(shipment));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,12 +80,17 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
   }, []);
 
   useEffect(() => {
+    closeButtonRef.current?.focus();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      returnFocusTarget?.focus();
+    };
+  }, [onClose, returnFocusTarget]);
 
   const demand = useMemo(() => ({
     count20: shipment.containerCount20,
@@ -182,7 +190,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
       >
         <div className="dispatch-allocation-popover__header">
           <h3>Phân bổ phương tiện</h3>
-          <button type="button" className="dispatch-allocation-popover__close" onClick={onClose} aria-label="Đóng">
+          <button ref={closeButtonRef} type="button" className="dispatch-allocation-popover__close" onClick={onClose} aria-label="Đóng">
             <X size={16} />
           </button>
         </div>

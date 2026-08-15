@@ -48,6 +48,13 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toMatch(/\.csc-mode\s+span(?:\s*\{|::before)/);
   });
 
+  it('uses a restrained single-hue selected state for cargo mode', () => {
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*background:\s*var\(--surface\);[^}]*color:\s*var\(--fg-2\);/);
+    expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*border-color:\s*color-mix\(in srgb,\s*var\(--accent-2\) 48%,\s*var\(--line-2\)\);[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--fg-1\);/);
+    expect(css).toMatch(/\.csc-mode input:checked \+ span::before\s*\{[^}]*border-color:\s*var\(--accent-2\);[^}]*background:\s*var\(--accent-2\);/);
+    expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*var\(--brand-subtle/);
+  });
+
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(source).toContain('className="csc-identity-grid"');
     expect(source).toContain('className="csc-identity-grid__customer"');
@@ -88,8 +95,10 @@ describe('shipment create responsive layout', () => {
   });
 
   it('renders the add-container action as a compact grouped button', () => {
-    expect(css).toMatch(/\.csc-add-container\s*\{[^}]*display:\s*inline-flex;[^}]*width:\s*fit-content;[^}]*justify-self:\s*start;/);
+    expect(css).toMatch(/\.csc-add-container\s*\{[^}]*display:\s*inline-flex;[^}]*width:\s*fit-content;[^}]*justify-self:\s*end;/);
     expect(css).toMatch(/\.csc-add-container\s+svg\s*\{[^}]*flex:\s*0 0 auto;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-add-container\s*\{[^}]*width:\s*100%;[^}]*justify-self:\s*stretch;/);
+    expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
   it('keeps a long desktop validation list bounded without hiding any issue', () => {

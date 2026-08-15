@@ -3,7 +3,7 @@ import './MasterPlanGrid.css';
 
 interface MasterPlanGridProps {
   items: ShipmentListItem[];
-  onAllocate: (shipment: ShipmentListItem) => void;
+  onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
 }
 
 function formatDate(iso: string | null | undefined): string {
@@ -51,6 +51,15 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
   return (
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid">
+        <colgroup>
+          <col className="master-plan-grid__col master-plan-grid__col--schedule" />
+          <col className="master-plan-grid__col master-plan-grid__col--customer" />
+          <col className="master-plan-grid__col master-plan-grid__col--documents" />
+          <col className="master-plan-grid__col master-plan-grid__col--locations" />
+          <col className="master-plan-grid__col master-plan-grid__col--cargo" />
+          <col className="master-plan-grid__col master-plan-grid__col--notes" />
+          <col className="master-plan-grid__col master-plan-grid__col--allocation" />
+        </colgroup>
         <thead>
           <tr>
             <th>Thời gian &amp; lịch trình</th>
@@ -67,7 +76,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             return (
               <tr key={item.id} className="master-plan-grid__row">
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
                     Giao: {formatDate(item.expectedDeliveryDate)}
                   </div>
@@ -78,12 +87,12 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     Cutoff: {formatDateTime(item.customsCutoffAt)}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.deliveryLocation ?? '—'}</div>
                 </td>
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
                     {item.blNumber || item.bookingRef || '—'}
                   </div>
@@ -92,11 +101,11 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.shippingLineName ?? '—'}</div>
                 </td>
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
                   <div className="master-plan-grid__line">Nâng: {item.pickupLocation ?? '—'}</div>
                   <div className="master-plan-grid__line">Hạ: {item.deliveryLocation ?? '—'}</div>
                 </td>
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
                     {item.containerTypeSummary ?? '—'}
                   </div>
@@ -104,12 +113,12 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     {formatWeight(item.totalCargoWeightKg)}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell">
+                <td className="master-plan-grid__cell" data-label="Ghi chú">
                   <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes ?? undefined}>
                     {item.operationalNotes ?? '—'}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--action">
+                <td className="master-plan-grid__cell master-plan-grid__cell--action" data-label="Phân bổ nhà xe">
                   {item.carrierAllocationSummary.length > 0 && (
                     <div className="master-plan-grid__chips">
                       {item.carrierAllocationSummary.map((entry) => {
@@ -128,7 +137,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <button
                     type="button"
                     className="master-plan-grid__allocate-btn"
-                    onClick={() => onAllocate(item)}
+                    onClick={(event) => onAllocate(item, event.currentTarget)}
                   >
                     {item.allocationStatus === 'FULLY_ALLOCATED' ? 'Sửa phân bổ' : 'Phân bổ'}
                   </button>

@@ -78,11 +78,26 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByRole('button', { name: 'Sửa phân bổ' })).toBeTruthy();
   });
 
-  it('fires onAllocate with the row payload', () => {
+  it('fires onAllocate with the row payload and its allocation trigger', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Phân bổ' }));
-    expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    const trigger = screen.getByRole('button', { name: 'Phân bổ' });
+    fireEvent.click(trigger);
+    expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
+  });
+
+  it('labels every shipment field group for the stacked narrow-screen layout', () => {
+    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
+
+    expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
+      'Thời gian & lịch trình',
+      'Khách hàng & nhà máy',
+      'Chứng từ & hãng tàu',
+      'Địa điểm nâng/hạ',
+      'Tổng quan hàng hóa',
+      'Ghi chú',
+      'Phân bổ nhà xe',
+    ]);
   });
 });
 

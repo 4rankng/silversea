@@ -21,6 +21,11 @@ describe('Untitled UI flat-surface control boundaries', () => {
     expect(read('src/components/untitled-ui/base/input/input.tsx')).toContain('overflow-hidden rounded-lg border border-primary');
   });
 
+  it('keeps the textarea focus outline active and avoids double borders in composed native selects', () => {
+    expect(read('src/components/untitled-ui/base/textarea/textarea.tsx')).not.toContain('focus:outline-hidden');
+    expect(read('src/components/untitled-ui/base/select/select-native.tsx')).toContain('in-data-input-wrapper:border-0');
+  });
+
   it('gives select popovers a real boundary under the app-wide no-shadow contract', () => {
     expect(read('src/components/untitled-ui/base/select/popover.tsx')).toContain('border border-secondary');
     expect(read('src/components/untitled-ui/base/select/multi-select.tsx')).toContain('border border-secondary');

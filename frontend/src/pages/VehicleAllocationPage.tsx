@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowLeft, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, Pagination } from '../design-system';
@@ -21,10 +21,18 @@ export default function VehicleAllocationPage({ initialTab = 'summary' as Vehicl
   const masterPlan = useDispatchMasterPlan();
   const detailPlan = useDispatchDetailPlan();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
+  const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const handleAllocate = (shipment: ShipmentListItem) => {
+  const handleAllocate = (shipment: ShipmentListItem, trigger: HTMLButtonElement) => {
+    allocationTriggerRef.current = trigger;
     setAllocating(shipment);
   };
+
+  const isDetailedPlan = activeTab === 'detail';
+  const pageTitle = isDetailedPlan ? 'Kế hoạch chi tiết xe' : 'Phân bổ phương tiện';
+  const pageDescription = isDetailedPlan
+    ? 'Gom chuyến, kiểm tra lịch chạy và gán biển số theo từng container.'
+    : 'Kế hoạch phân bổ nhà xe cho các lô hàng';
 
   return (
     <div className="vehicle-allocation-page page-anim">
@@ -33,7 +41,7 @@ export default function VehicleAllocationPage({ initialTab = 'summary' as Vehicl
         items={[
           { label: 'Tổng quan', to: '/dashboard' },
           { label: 'Điều phối', to: '/dispatch' },
-          { label: 'Phân xe' },
+          { label: isDetailedPlan ? 'Kế hoạch chi tiết xe' : 'Phân xe' },
         ]}
       />
 
@@ -46,9 +54,9 @@ export default function VehicleAllocationPage({ initialTab = 'summary' as Vehicl
       </button>
 
       <PageHeader
-        title="Phân bổ phương tiện"
+        title={pageTitle}
         iconName="truck"
-        description="Kế hoạch phân bổ nhà xe cho các lô hàng"
+        description={pageDescription}
       />
 
       <section className="vehicle-allocation-page__workspace">
@@ -142,6 +150,7 @@ export default function VehicleAllocationPage({ initialTab = 'summary' as Vehicl
           shipment={allocating}
           onClose={() => setAllocating(null)}
           onSaved={(updated) => masterPlan.replaceItem(updated)}
+          returnFocusTarget={allocationTriggerRef.current}
         />
       )}
     </div>

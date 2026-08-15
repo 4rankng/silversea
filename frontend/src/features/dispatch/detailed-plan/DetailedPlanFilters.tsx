@@ -39,51 +39,61 @@ export function DetailedPlanFilters({ filters, onChange, loadDeliveryPointFacets
   };
 
   return (
-    <div className="detailed-plan-filters">
-      <input
-        type="search"
-        className="detailed-plan-filters__search"
-        placeholder="Tìm theo Bill, khách hàng, container…"
-        value={filters.q}
-        onChange={(event) => onChange({ q: event.target.value })}
-        aria-label="Tìm kiếm dòng kế hoạch"
-      />
-      <input
-        type="date"
-        className="detailed-plan-filters__date"
-        value={filters.date}
-        onChange={(event) => onChange({ date: event.target.value })}
-        aria-label="Ngày chạy"
-      />
-      <select
-        className="detailed-plan-filters__select"
-        value={filters.direction}
-        onChange={(event) => onChange({ direction: event.target.value as DetailedPlanFilterState['direction'] })}
-        aria-label="Chiều hàng"
-      >
-        <option value="">Nhập/Xuất</option>
-        <option value="IMPORT">Nhập</option>
-        <option value="EXPORT">Xuất</option>
-      </select>
-      <select
-        className="detailed-plan-filters__select"
-        value={filters.assignmentStatus}
-        onChange={(event) => onChange({ assignmentStatus: event.target.value as DetailedPlanFilterState['assignmentStatus'] })}
-        aria-label="Trạng thái gán biển số"
-      >
-        {ASSIGNMENT_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-      <div className="detailed-plan-filters__points" aria-label="Điểm trả hàng">
+    <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
+      <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
+        <span className="detailed-plan-filters__label">Tìm nhanh</span>
         <input
           type="search"
-          className="detailed-plan-filters__point-search"
-          placeholder="Điểm trả…"
-          value={facetSearch}
-          onChange={(event) => setFacetSearch(event.target.value)}
-          aria-label="Tìm điểm trả hàng"
+          className="detailed-plan-filters__search"
+          placeholder="Bill, khách hàng, container…"
+          value={filters.q}
+          onChange={(event) => onChange({ q: event.target.value })}
         />
+      </label>
+      <label className="detailed-plan-filters__field">
+        <span className="detailed-plan-filters__label">Ngày chạy</span>
+        <input
+          type="date"
+          className="detailed-plan-filters__date"
+          value={filters.date}
+          onChange={(event) => onChange({ date: event.target.value })}
+        />
+      </label>
+      <label className="detailed-plan-filters__field">
+        <span className="detailed-plan-filters__label">Chiều hàng</span>
+        <select
+          className="detailed-plan-filters__select"
+          value={filters.direction}
+          onChange={(event) => onChange({ direction: event.target.value as DetailedPlanFilterState['direction'] })}
+        >
+          <option value="">Nhập/Xuất</option>
+          <option value="IMPORT">Nhập</option>
+          <option value="EXPORT">Xuất</option>
+        </select>
+      </label>
+      <label className="detailed-plan-filters__field">
+        <span className="detailed-plan-filters__label">Phân xe</span>
+        <select
+          className="detailed-plan-filters__select"
+          value={filters.assignmentStatus}
+          onChange={(event) => onChange({ assignmentStatus: event.target.value as DetailedPlanFilterState['assignmentStatus'] })}
+        >
+          {ASSIGNMENT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </label>
+      <div className="detailed-plan-filters__points">
+        <label className="detailed-plan-filters__field">
+          <span className="detailed-plan-filters__label">Điểm trả</span>
+          <input
+            type="search"
+            className="detailed-plan-filters__point-search"
+            placeholder="Tìm điểm trả…"
+            value={facetSearch}
+            onChange={(event) => setFacetSearch(event.target.value)}
+          />
+        </label>
         {filters.deliveryPointIds.length > 0 && (
           <div className="detailed-plan-filters__point-chips">
             {filters.deliveryPointIds.map((id) => {
@@ -119,28 +129,34 @@ export function DetailedPlanFilters({ filters, onChange, loadDeliveryPointFacets
           })}
         </div>
       </div>
-      <label className="detailed-plan-filters__hour">
-        <span>Giờ</span>
-        <input
-          type="number"
-          min={0}
-          max={23}
-          placeholder="Từ"
-          value={filters.hourFrom}
-          onChange={(event) => onChange({ hourFrom: event.target.value === '' ? '' : Number(event.target.value) })}
-          aria-label="Giờ từ"
-        />
-        <span>→</span>
-        <input
-          type="number"
-          min={0}
-          max={23}
-          placeholder="Đến"
-          value={filters.hourTo}
-          onChange={(event) => onChange({ hourTo: event.target.value === '' ? '' : Number(event.target.value) })}
-          aria-label="Giờ đến"
-        />
-      </label>
-    </div>
+      <div className="detailed-plan-filters__field detailed-plan-filters__hour">
+        <span className="detailed-plan-filters__label">Giờ chạy</span>
+        <div className="detailed-plan-filters__hour-inputs">
+          <label>
+            <span className="sr-only">Giờ từ</span>
+            <input
+              type="number"
+              min={0}
+              max={23}
+              placeholder="Từ"
+              value={filters.hourFrom}
+              onChange={(event) => onChange({ hourFrom: event.target.value === '' ? '' : Number(event.target.value) })}
+            />
+          </label>
+          <span aria-hidden="true">→</span>
+          <label>
+            <span className="sr-only">Giờ đến</span>
+            <input
+              type="number"
+              min={0}
+              max={23}
+              placeholder="Đến"
+              value={filters.hourTo}
+              onChange={(event) => onChange({ hourTo: event.target.value === '' ? '' : Number(event.target.value) })}
+            />
+          </label>
+        </div>
+      </div>
+    </section>
   );
 }

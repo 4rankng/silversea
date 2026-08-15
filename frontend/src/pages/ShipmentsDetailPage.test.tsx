@@ -150,8 +150,16 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT&searchSuffix=abcde']}><ShipmentsDetailPage /></MemoryRouter>);
 
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=abcde&transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCDE&transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT'));
     expect(await screen.findByRole('option', { name: 'Công ty Silver Sea' })).toBeTruthy();
+  });
+
+  it('ignores malformed or inverted URL filters instead of sending an invalid API query', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter initialEntries={['/?page=-2&transportDateFrom=2026-08-31&transportDateTo=2026-08-01&customerId=7.5&direction=SIDEWAYS&searchSuffix=ABC!']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    expect(await screen.findByRole('heading', { name: 'Công việc container theo tất cả các ngày' })).toBeTruthy();
   });
 
   it('applies date, customer, direction, and valid suffix changes immediately', async () => {

@@ -110,6 +110,24 @@ describe('DispatchAllocationPopover', () => {
     expect((screen.getByLabelText("Số container 40' dòng 1") as HTMLInputElement).value).toBe('1');
   });
 
+  it('focuses its close control then restores focus to the allocation trigger', async () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    const rendered = render(
+      <DispatchAllocationPopover
+        shipment={shipment()}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+        returnFocusTarget={trigger}
+      />,
+    );
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Đóng' })));
+    rendered.unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
   it('flags duplicate vendor rows', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 

@@ -27,6 +27,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*box-shadow:\s*none;/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/);
     expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr;/);
   });
@@ -46,6 +47,17 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__multiline > small\s*\{[^}]*word-break:\s*break-word;/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+  });
+
+  it('uses a dense intermediate ledger grid without empty half-width bands', () => {
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > td\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*8px 10px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > :nth-child\(7\)\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).not.toContain('tbody > tr > :nth-child(4),');
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?tbody > tr > td\s*\{[^}]*grid-template-columns:\s*88px minmax\(0, 1fr\);/);
+    expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-column:\s*2;/);
   });
 
   it('makes editable values the cell trigger without pencil controls and keeps bounded editor trays', () => {
