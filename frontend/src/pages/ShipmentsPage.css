@@ -561,7 +561,16 @@
 .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > th,
 .cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td { background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%); }
 
-.cus-dashboard-row .status-strip { left: 0; top: 0; bottom: 0; }
+.cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
+
+.cus-dashboard-cell--editable { padding: 0 !important; }
+.cus-dashboard-cell--editable > .cus-inline-trigger {
+  height: 100%;
+  min-height: 100%;
+  padding: 10px;
+  border-radius: 0;
+}
+.cus-dashboard-cell--identity > .cus-inline-trigger { padding-left: 14px; }
 
 .cus-multiline-cell {
   display: grid;
@@ -607,7 +616,7 @@
   gap: 3px;
   width: 100%;
   min-height: 44px;
-  padding: 5px 6px;
+  padding: 10px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink-3);
@@ -733,6 +742,32 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
+  .cus-dashboard-cell--editable::before { display: none; }
+  .cus-dashboard-cell--editable > .cus-inline-trigger {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(112px, .42fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 10px 12px;
+    position: relative;
+  }
+  .cus-dashboard-cell--editable > .cus-inline-trigger::before {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    width: calc(42% - 14px);
+    min-width: 0;
+    color: var(--ink-3);
+    content: attr(data-cell-label);
+    font-size: 11px;
+    font-weight: var(--fw-bold);
+    line-height: 1.35;
+    text-transform: uppercase;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .cus-dashboard-cell--editable > .cus-inline-trigger > * { grid-column: 2; }
   .cus-row-actions { grid-template-columns: repeat(2, minmax(0, auto)); align-items: center; }
 }
 
@@ -740,6 +775,8 @@
   .cus-dashboard-table tbody > tr { grid-template-columns: 1fr; }
   .cus-dashboard-table tbody > tr > th,
   .cus-dashboard-table tbody > tr > td { grid-template-columns: 98px minmax(0, 1fr); min-height: 72px; padding: 11px 12px; }
+  .cus-dashboard-cell--editable > .cus-inline-trigger { grid-template-columns: 98px minmax(0, 1fr); }
+  .cus-dashboard-cell--editable > .cus-inline-trigger::before { width: 86px; }
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
   .cus-quick-edit-modal__fields input,
   .cus-quick-edit-modal__fields select { min-height: 44px; }

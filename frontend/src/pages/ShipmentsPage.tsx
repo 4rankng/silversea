@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -1054,16 +1054,6 @@ export default function ShipmentsPage() {
     });
   };
 
-  const openQuickEditFromCell = (
-    item: ShipmentCusWorkspaceListItem,
-    field: ShipmentQuickEditDraft['field'],
-    enabled: boolean,
-  ) => (event: ReactMouseEvent<HTMLTableCellElement>) => {
-    if (!enabled || quickEditDraft || savingQuickEdit) return;
-    if (event.target instanceof Element && event.target.closest('button, input, textarea, select, a, [role="button"]')) return;
-    startQuickEdit(item, field);
-  };
-
   const closeQuickEdit = () => {
     if (!quickEditDraft || quickEditSaveRef.current) return;
     quickEditFocusTargetRef.current = `cus-inline-${quickEditDraft.field}-${quickEditDraft.shipmentId}`;
@@ -1592,39 +1582,40 @@ export default function ShipmentsPage() {
                         key={item.id}
                         className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
                       >
-                        <th scope="row" data-label="Khách hàng & nhà máy" onClick={openQuickEditFromCell(item, 'identity', item.fieldAccess.factoryName.mode !== 'READ_ONLY')}>
+                        <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-                          <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
+                          <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
                             <strong>{item.customerName || '—'}</strong>
                             <span>{item.factoryName || 'Chưa có nhà máy'}</span>
                             <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
                           </span></button>
                         </th>
-                        <td data-label="Chứng từ" onClick={openQuickEditFromCell(item, 'documents', item.fieldAccess.blNumber.mode !== 'READ_ONLY' || item.fieldAccess.bookingRef.mode !== 'READ_ONLY')}>
-                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
+                        <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
+                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
                             <strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
                             <span>{item.declarationNumber || 'Chưa có tờ khai'}</span>
                           </span></button>
                         </td>
-                        <td data-label="Phân loại & hãng tàu" onClick={openQuickEditFromCell(item, 'classification', item.fieldAccess.tradeDirection.mode !== 'READ_ONLY' || item.fieldAccess.shippingLineName.mode !== 'READ_ONLY')}>
-                          <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell">
+                        <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
+                          <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell">
                             <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
                             <span>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
                             {item.isCombined && <span className="cus-combined-tag">Hàng kết hợp</span>}
                           </span></button>
                         </td>
-                        <td data-label="Tổng quan hàng hóa" onClick={openQuickEditFromCell(item, 'cargo', ['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].some((key) => item.fieldAccess[key as 'packageCount'].mode !== 'READ_ONLY'))}>
-                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric">
+                        <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
+                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric">
                             <strong>{item.containerSummary || worksheetQuantity(item)}</strong>
                             <span>{formatQuantity(item.weightKg)} kg</span>
                             <span>{item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
                           </span></button>
                         </td>
-                        <td data-label="Lịch trình & điều xe" onClick={openQuickEditFromCell(item, 'schedule', item.operational.transportDateEditable)}>
+                        <td data-label="Lịch trình & điều xe" className="cus-dashboard-cell--editable">
                           <button
                             id={`cus-inline-schedule-${item.id}`}
                             type="button"
                             className="cus-inline-trigger"
+                            data-cell-label="Lịch trình & điều xe"
                             disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
                             aria-haspopup="dialog"
                             aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
@@ -1635,11 +1626,12 @@ export default function ShipmentsPage() {
                             <span>{vehicleReadinessLabel(item)}</span>
                           </button>
                         </td>
-                        <td data-label="Ghi chú" onClick={openQuickEditFromCell(item, 'notes', item.operational.transportDateEditable)}>
+                        <td data-label="Ghi chú" className="cus-dashboard-cell--editable">
                           <button
                             id={`cus-inline-notes-${item.id}`}
                             type="button"
                             className="cus-inline-trigger cus-note-preview"
+                            data-cell-label="Ghi chú"
                             title={item.customerNotes || item.operationalNotes || undefined}
                             disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
                             aria-haspopup="dialog"

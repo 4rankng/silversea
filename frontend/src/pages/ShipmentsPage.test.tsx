@@ -464,15 +464,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
-  it('opens one compact edit dialog from the whole editable cell and reserves the drawer for Chi tiết', async () => {
+  it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', async () => {
     renderPage();
     const table = await screen.findByRole('table');
     const rowElement = masterRow();
     const scheduleButton = within(rowElement).getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
     const scheduleCell = scheduleButton.closest('td');
     expect(scheduleCell).toBeTruthy();
+    expect(within(scheduleCell!).getAllByRole('button')).toEqual([scheduleButton]);
 
-    fireEvent.click(scheduleCell!);
+    fireEvent.click(scheduleButton);
     expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).contains(screen.getByLabelText('Ngày đóng/trả'))).toBe(true);
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
@@ -480,13 +481,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
     const notesCell = notesButton.closest('td');
     expect(notesCell).toBeTruthy();
+    expect(within(notesCell!).getAllByRole('button')).toEqual([notesButton]);
 
-    fireEvent.click(notesCell!);
+    fireEvent.click(notesButton);
     expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).contains(screen.getByLabelText('Ghi chú cho khách'))).toBe(true);
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(within(rowElement).getByText('Công ty Silver Sea'));
+    fireEvent.click(within(rowElement).getByRole('button', { name: 'Sửa ô khách hàng và nhà máy BILL-12345' }));
     expect(screen.getByLabelText('Nhà máy')).toBeTruthy();
     expect(screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' })).toBeTruthy();
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
@@ -498,7 +500,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
   });
 
-  it('opens the matching edit dialog from unused space in every editable cell', async () => {
+  it('uses exactly one full-cell button to open the matching edit dialog', async () => {
     renderPage();
     await screen.findByRole('table');
     const rowElement = masterRow();
@@ -513,14 +515,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     for (const { button, dialog } of cells) {
       const trigger = within(rowElement).getByRole('button', { name: button });
-      const cell = trigger.closest('th, td');
+      const cell = trigger.closest<HTMLElement>('th, td');
       expect(cell).toBeTruthy();
-      fireEvent.click(cell!);
+      expect(within(cell!).getAllByRole('button')).toEqual([trigger]);
+      fireEvent.click(trigger);
       expect(await screen.findByRole('dialog', { name: dialog })).toBeTruthy();
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('dialog', { name: dialog })).toBeNull());
       await waitFor(() => expect(document.activeElement).toBe(trigger));
     }
+    expect(source).not.toContain('openQuickEditFromCell');
+    expect(source).not.toContain('ReactMouseEvent');
+    expect(source).toContain('data-cell-label="Chứng từ"');
+    expect(css).toMatch(/\.cus-dashboard-cell--editable\s*\{[^}]*padding:\s*0 !important;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--editable::before\s*\{\s*display:\s*none;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
   });
 
   it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
