@@ -47,7 +47,7 @@ describe('MasterPlanGrid', () => {
     ]);
 
     expect(screen.getByText(/Giao: 20\/08\/2026/)).toBeTruthy();
-    expect(screen.getByText(/Cutoff:/)).toBeTruthy();
+    expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();

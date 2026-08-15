@@ -86,7 +86,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     Giờ: {formatHour(item.plannedReturnAt ?? item.closingAt)}
                   </div>
                   <div className={`master-plan-grid__line${urgency === 'none' ? ' master-plan-grid__line--muted' : urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
-                    Cutoff: {formatDateTime(item.customsCutoffAt)}
+                    Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
