@@ -14,7 +14,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter \[data-label\],[\s\S]*?\.shipments-detail-filter > label\s*\{[^}]*font-size:\s*11px;/);
     expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select,\s*\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
     expect(css).toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size:\s*inherit;/);
-    expect(css).toMatch(/\.shipments-detail-filters__actions button\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).not.toContain('.shipments-detail-filters__actions');
     expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
@@ -23,8 +23,18 @@ describe('shipment detail workboard styling', () => {
 
   it('keeps filter controls visibly bounded and usable as a responsive grid', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
-    expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipments-detail-filters__actions button\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*border:\s*1px solid var\(--line-2\);[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
+    expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/);
+    expect(css).toMatch(/@media \(max-width:\s*390px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr;/);
+  });
+
+  it('separates the workspace from the page canvas without decorative shadows', () => {
+    expect(css).toMatch(/\.shipments-detail-workspace\s*\{[^}]*border:\s*1px solid var\(--line-strong\);[^}]*border-top:\s*3px solid var\(--brand\);[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.shipments-detail-workspace__header\s*\{[^}]*background:\s*var\(--surface-3\);/);
+    expect(css).not.toMatch(/\.shipments-detail-workspace\s*\{[^}]*box-shadow:/);
   });
 
   it('fits desktop columns to the workspace and lets headings wrap instead of forcing horizontal scroll', () => {
@@ -38,16 +48,20 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
   });
 
-  it('pairs readable values with explicit compact edit actions and bounded editor trays', () => {
-    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;[^}]*background:\s*transparent;/);
-    expect(css).toMatch(/\.shipment-container-ledger__edit-button\s*\{[^}]*color:\s*var\(--ink-3\);/);
+  it('makes editable values the cell trigger without pencil controls and keeps bounded editor trays', () => {
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*display:\s*block;[^}]*background:\s*transparent;[^}]*cursor:\s*text;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*touch-action:\s*manipulation;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:not\(\.shipment-container-ledger__cell-trigger--read-only\):not\(\[disabled\]\):hover/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\);/);
+    expect(css).not.toContain('.shipment-container-ledger__edit-button');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > \.shipment-container-ledger__editor-row > td\s*\{[^}]*background:\s*var\(--surface-2\);/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > \.shipment-container-ledger__editor-row > td\s*\{[^}]*overflow:\s*visible;/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 760px\) auto;[^}]*width:\s*fit-content;[^}]*max-width:\s*100%;/);
     expect(css).toMatch(/\.shipment-container-ledger__inline-editor\[data-mode="appointment"\]\s*\{[^}]*grid-template-columns:\s*minmax\(280px, 420px\) auto;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-button\s*\{[^}]*min-width:\s*44px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?min-height:\s*40px;/);
   });
 
   it('defines warning states with both row and vehicle-specific treatments', () => {

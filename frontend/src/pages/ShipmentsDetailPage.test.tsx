@@ -92,7 +92,7 @@ beforeEach(() => {
 });
 
 describe('ShipmentsDetailPage — DOCX container workboard', () => {
-  it('loads today by default and renders the seven multi-line groups with warning semantics', async () => {
+  it('loads all dates by default and renders the seven multi-line groups with warning semantics', async () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
@@ -102,25 +102,37 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     }
     expect(screen.getByText('TK-001')).toBeTruthy();
     const classificationCell = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-001/ });
-    expect(classificationCell.getAttribute('aria-label')).toBe('Chỉnh sửa chiều hàng và hãng tàu CONT-001');
-    expect(classificationCell.querySelector('[data-icon]')).toBeTruthy();
-    expect(screen.getByText(/MSC/)).toBeTruthy();
+    expect(classificationCell.textContent).toContain('Nhập');
+    expect(classificationCell.textContent).toContain('MSC');
+    expect(classificationCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
-    expect(identityCell.getAttribute('aria-label')).toBe('Chỉnh sửa ô khách hàng và lộ trình CONT-001');
-    expect(screen.getAllByText('Công ty Silver Sea').length).toBeGreaterThan(0);
+    expect(identityCell.textContent).toContain('Công ty Silver Sea');
+    expect(identityCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
-    expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
+    expect(screen.getByRole('heading', { name: 'Công việc container theo tất cả các ngày' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Áp dụng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tất cả ngày' })).toBeNull();
+    expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
+    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
   });
 
-  it('opens explicit value-cell edit actions with Enter and Space', async () => {
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
+  it('opens value-cell editors with click, Enter, and Space without pencil controls', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
-    const enterTrigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
+    const clickTrigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
+    expect(clickTrigger.textContent).toContain('Công ty Silver Sea');
+    expect(clickTrigger.querySelector('[data-icon]')).toBeNull();
+    fireEvent.click(clickTrigger);
+    const clickEditor = (await screen.findByLabelText('Nhà máy')).closest('.shipment-container-ledger__inline-editor')!;
+    fireEvent.keyDown(clickEditor, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ })));
+
+    const enterTrigger = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
     fireEvent.keyDown(enterTrigger, { key: 'Enter', code: 'Enter' });
     fireEvent.keyUp(enterTrigger, { key: 'Enter', code: 'Enter' });
     const enterEditor = (await screen.findByLabelText('Nhà máy')).closest('.shipment-container-ledger__inline-editor')!;
@@ -142,13 +154,30 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(await screen.findByRole('option', { name: 'Công ty Silver Sea' })).toBeTruthy();
   });
 
+  it('applies date, customer, direction, and valid suffix changes immediately', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-001');
+    fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '2026-08-15' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
+
+    fireEvent.change(screen.getByLabelText('Khách hàng'), { target: { value: '7' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7'));
+
+    fireEvent.change(screen.getByLabelText('Nhập / Xuất'), { target: { value: 'IMPORT' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
+
+    fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i), { target: { value: 'abcd' } });
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
+  });
+
   it('rejects an invalid suffix without issuing a filtered request', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
     await screen.findByText('CONT-001');
     const input = screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i);
-    fireEvent.change(input, { target: { value: 'ABC123' } });
-    fireEvent.submit(input.closest('form')!);
+    fireEvent.change(input, { target: { value: 'ABC!' } });
     expect(await screen.findByText('Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledTimes(1);
   });

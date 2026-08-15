@@ -214,8 +214,8 @@ const MultiSelectRoot = ({
                         onClick={onResize}
                         className={(state) =>
                             cx(
-                                "relative flex w-full cursor-pointer items-center rounded-lg bg-primary shadow-xs ring-1 ring-primary outline-hidden transition duration-100 ease-linear ring-inset",
-                                (state.isFocusVisible || state.isPressed) && "ring-2 ring-brand",
+                                "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                                (state.isFocusVisible || state.isPressed) && "border-brand outline-2 outline-offset-1",
                                 state.isDisabled && "cursor-not-allowed opacity-50",
                             )
                         }
@@ -252,7 +252,7 @@ const MultiSelectRoot = ({
                         style={{ width: popoverWidth || undefined }}
                         className={(state) =>
                             cx(
-                                "w-(--trigger-width) origin-(--trigger-anchor-point) overflow-hidden rounded-lg bg-primary shadow-lg ring-1 ring-secondary_alt outline-hidden will-change-transform",
+                                "w-(--trigger-width) origin-(--trigger-anchor-point) overflow-hidden rounded-lg border border-secondary bg-primary outline-hidden will-change-transform",
                                 state.isEntering &&
                                     "duration-150 ease-out animate-in fade-in placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",
                                 state.isExiting &&

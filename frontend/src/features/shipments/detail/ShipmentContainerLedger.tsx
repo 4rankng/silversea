@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Edit01 } from '@untitledui/icons';
+import { Button as AriaButton } from 'react-aria-components';
 import { AlertTriangle, Save, X } from 'lucide-react';
 import type {
   ShipmentCusContainerFlatRow,
@@ -8,7 +8,6 @@ import type {
 } from '@tingting/shared';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
-import { ButtonUtility } from '../../../components/untitled-ui/base/buttons/button-utility';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
@@ -481,24 +480,19 @@ export function ShipmentContainerLedger({
     const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
     const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
     if (!enabled) return <div className={className}>{children}</div>;
-    const editLabel = `Chỉnh sửa ${mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}${modeLabelForTrigger(mode)} ${row.containerNumber || `container số ${row.ordinal}`}`;
     return (
-      <div className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}>
-        <div className="shipment-container-ledger__cell-value">{children}</div>
-        <ButtonUtility
-          id={triggerId}
-          className="shipment-container-ledger__edit-button"
-          size="xs"
-          color="tertiary"
-          icon={Edit01}
-          tooltip={editLabel}
-          onPress={() => onStartEdit(row, mode, triggerId)}
-          isDisabled={busy || activeEdit != null}
-          aria-busy={busy || undefined}
-          aria-controls={expanded ? editorId : undefined}
-          aria-expanded={expanded}
-        />
-      </div>
+      <AriaButton
+        id={triggerId}
+        className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}
+        onPress={() => onStartEdit(row, mode, triggerId)}
+        isDisabled={busy || activeEdit != null}
+        aria-busy={busy || undefined}
+        aria-controls={expanded ? editorId : undefined}
+        aria-expanded={expanded}
+      >
+        <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
+        {children}
+      </AriaButton>
     );
   };
 

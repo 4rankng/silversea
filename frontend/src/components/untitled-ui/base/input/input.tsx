@@ -95,21 +95,21 @@ export const InputBase = ({
             ref={groupRef}
             className={({ isFocusWithin, isDisabled, isInvalid }) =>
                 cx(
-                    "group/input relative flex w-full flex-row place-content-center place-items-center rounded-lg bg-primary shadow-xs ring-1 ring-primary transition-shadow duration-100 ease-linear ring-inset",
+                    "group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
 
-                    isFocusWithin && !isDisabled && "ring-2 ring-brand",
+                    isFocusWithin && !isDisabled && "border-brand outline-2 outline-offset-1",
 
                     // Disabled state styles
                     isDisabled && "cursor-not-allowed opacity-50",
                     "group-disabled:cursor-not-allowed group-disabled:opacity-50",
 
                     // Invalid state styles
-                    isInvalid && "ring-error_subtle",
-                    "group-invalid:ring-error_subtle",
+                    isInvalid && "border-error_subtle",
+                    "group-invalid:border-error_subtle",
 
                     // Invalid state with focus-within styles
-                    isInvalid && isFocusWithin && "ring-2 ring-error",
-                    isFocusWithin && "group-invalid:ring-2 group-invalid:ring-error",
+                    isInvalid && isFocusWithin && "border-error outline-error",
+                    isFocusWithin && "group-invalid:border-error group-invalid:outline-error",
 
                     context?.wrapperClassName,
                     wrapperClassName,

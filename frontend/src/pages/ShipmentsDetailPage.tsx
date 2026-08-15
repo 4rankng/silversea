@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, CalendarDays, RotateCcw, Search } from 'lucide-react';
+import { AlertCircle, RotateCcw, Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import type {
   ShipmentCusContainerFlatResponse,
@@ -77,11 +77,10 @@ function ShipmentContainerLedgerSkeleton() {
 export default function ShipmentsDetailPage() {
   const today = useMemo(() => formatVietnamDateInput(new Date()), []);
   const [searchParams, setSearchParams] = useSearchParams();
-  const allDates = searchParams.get('dateScope') === 'all';
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const suffixParam = searchParams.get('searchSuffix') ?? '';
-  const dateFrom = allDates ? '' : searchParams.get('transportDateFrom') ?? today;
-  const dateTo = allDates ? '' : searchParams.get('transportDateTo') ?? today;
+  const dateFrom = searchParams.get('transportDateFrom') ?? '';
+  const dateTo = searchParams.get('transportDateTo') ?? '';
   const customerId = Math.max(0, Number(searchParams.get('customerId') || 0) || 0);
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
@@ -90,42 +89,48 @@ export default function ShipmentsDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [dateError, setDateError] = useState<string | null>(null);
   const [activeEdit, setActiveEdit] = useState<ActiveShipmentDetailEdit | null>(null);
   const [editLoadingRowId, setEditLoadingRowId] = useState<number | null>(null);
   const [editError, setEditError] = useState<{ rowId: number; message: string } | null>(null);
   const [editNotice, setEditNotice] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const editRequestSequence = useRef(0);
+  const appliedSearchRef = useRef(suffixParam);
   const editIdempotencyKeys = useRef<Record<string, string>>({});
   const restoreFocusId = useRef<string | null>(null);
   const loadRowsRef = useRef<() => Promise<void>>(async () => {});
-
-  useEffect(() => {
-    if (allDates || searchParams.has('transportDateFrom') || searchParams.has('transportDateTo')) return;
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('transportDateFrom', today);
-      next.set('transportDateTo', today);
-      return next;
-    }, { replace: true });
-  }, [allDates, searchParams, setSearchParams, today]);
 
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (!value) next.delete(key);
       else next.set(key, value);
-      if (key === 'transportDateFrom' || key === 'transportDateTo') next.delete('dateScope');
       if (key !== 'page') next.delete('page');
       return next;
     }, { replace: true });
   }, [setSearchParams]);
 
+  const updateSearch = useCallback((rawValue: string) => {
+    const value = rawValue.toUpperCase();
+    const isEmptyOrPartial = /^[A-Z0-9]{0,3}$/.test(value);
+    const isValid = SEARCH_PATTERN.test(value);
+    setSearchInput(value);
+    setSearchError(isEmptyOrPartial || isValid ? null : 'Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.');
+
+    const nextSuffix = isValid ? value : '';
+    if (nextSuffix === suffixParam) return;
+    appliedSearchRef.current = nextSuffix;
+    updateParam('searchSuffix', nextSuffix || null);
+  }, [suffixParam, updateParam]);
+
   useEffect(() => {
+    if (appliedSearchRef.current === suffixParam) return;
+    appliedSearchRef.current = suffixParam;
     setSearchInput(suffixParam);
     setSearchError(null);
-    setDateError(null);
+  }, [suffixParam]);
+
+  useEffect(() => {
     editRequestSequence.current += 1;
     setActiveEdit(null);
     setEditLoadingRowId(null);
@@ -173,24 +178,13 @@ export default function ShipmentsDetailPage() {
   const totalPages = data?.totalPages ?? 0;
   const totalContainers = data?.total ?? 0;
   const customers = data?.filterOptions.customers ?? [];
-  const hasFilters = Boolean(suffixParam || customerId || direction || allDates || dateFrom !== today || dateTo !== today);
+  const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo);
 
   const resetFilters = () => {
+    appliedSearchRef.current = '';
     setSearchInput('');
     setSearchError(null);
-    setDateError(null);
-    setSearchParams({ transportDateFrom: today, transportDateTo: today }, { replace: true });
-  };
-
-  const showAllDates = () => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete('transportDateFrom');
-      next.delete('transportDateTo');
-      next.delete('page');
-      next.set('dateScope', 'all');
-      return next;
-    }, { replace: true });
+    setSearchParams({}, { replace: true });
   };
 
   const cancelEdit = useCallback(() => {
@@ -434,42 +428,29 @@ export default function ShipmentsDetailPage() {
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-workspace__intro">
             <span className="shipments-detail-eyebrow">Sổ điều hành container</span>
-            <h2 id="shipment-container-ledger-title">Công việc container {allDates ? 'theo toàn bộ ngày' : `ngày ${dateFrom === dateTo ? dateFrom.split('-').reverse().join('/') : `${dateFrom} – ${dateTo}`}`}</h2>
+            <h2 id="shipment-container-ledger-title">Công việc container {dateFrom && dateTo
+              ? `từ ${dateFrom.split('-').reverse().join('/')} đến ${dateTo.split('-').reverse().join('/')}`
+              : dateFrom
+                ? `từ ngày ${dateFrom.split('-').reverse().join('/')}`
+                : dateTo
+                  ? `đến ngày ${dateTo.split('-').reverse().join('/')}`
+                  : 'theo tất cả các ngày'}</h2>
             <p>Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.</p>
           </div>
 
-          <form className="shipments-detail-filters" noValidate onSubmit={(event) => {
-            event.preventDefault();
-            const value = searchInput.trim().toUpperCase();
-            if (value && !SEARCH_PATTERN.test(value)) {
-              setSearchError('Nhập đúng 4 hoặc 5 ký tự chữ và số cuối.');
-              return;
-            }
-            if (dateFrom && dateTo && dateFrom > dateTo) {
-              setDateError('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.');
-              return;
-            }
-            setSearchError(null);
-            setDateError(null);
-            updateParam('searchSuffix', value || null);
-          }}>
-            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={(value) => { setSearchInput(value); setSearchError(null); }} placeholder="Nhập 4–5 ký tự cuối" hint={searchError ?? 'Tìm theo 4–5 ký tự cuối.'} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 5, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
-            <UUIInput label="Từ ngày vận chuyển" size="sm" type="date" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} isInvalid={Boolean(dateError)} className="shipments-detail-filter" />
-            <UUIInput label="Đến ngày vận chuyển" size="sm" type="date" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} hint={dateError ?? undefined} isInvalid={Boolean(dateError)} className="shipments-detail-filter" />
+          <div className="shipments-detail-filters">
+            <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập 4–5 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 5, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
+            <UUIInput label="Từ ngày vận chuyển" size="sm" type="date" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
+            <UUIInput label="Đến ngày vận chuyển" size="sm" type="date" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
             <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
-            <div className="shipments-detail-filters__actions">
-              <UUIButton size="sm" color="primary" type="submit" iconLeading={<Search aria-hidden="true" />}>Áp dụng</UUIButton>
-              <UUIButton size="sm" color="secondary" onPress={showAllDates} iconLeading={<CalendarDays aria-hidden="true" />}>Tất cả ngày</UUIButton>
-              {hasFilters && <UUIButton size="sm" color="tertiary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Về hôm nay</UUIButton>}
-            </div>
-          </form>
+          </div>
         </div>
 
         {error && <Alert variant="error" style="soft" className="shipments-detail-error" icon={<AlertCircle size={18} />} action={<UUIButton size="sm" color="secondary" onPress={() => void loadRows()}>Thử lại</UUIButton>}>{error}</Alert>}
 
         {loading ? <ShipmentContainerLedgerSkeleton /> : error ? null : items.length === 0 ? (
-          <EmptyState icon={Search} title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi bộ lọc hoặc trở về hôm nay để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Về hôm nay</UUIButton> : undefined} />
+          <EmptyState icon={Search} title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
           <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveIdentity={saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={saveContainer} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveAppointment={saveAppointment} onSaveNotes={saveNotes} />
           <Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />

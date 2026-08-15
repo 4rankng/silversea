@@ -29,7 +29,7 @@ export const TextAreaBase = ({ className, size = "md", ...props }: TextAreaBaseP
             }
             className={(state) =>
                 cx(
-                    "w-full scroll-py-3 rounded-lg bg-primary text-primary shadow-xs ring-1 ring-primary transition duration-100 ease-linear ring-inset placeholder:text-placeholder autofill:rounded-lg autofill:text-primary focus:outline-hidden",
+                    "w-full scroll-py-3 rounded-lg border border-primary bg-primary text-primary outline-focus-ring transition duration-100 ease-linear placeholder:text-placeholder autofill:rounded-lg autofill:text-primary focus:outline-hidden",
 
                     size === "sm" && "p-3 text-sm",
                     size === "md" && "px-3.5 py-3 text-md",
@@ -37,10 +37,10 @@ export const TextAreaBase = ({ className, size = "md", ...props }: TextAreaBaseP
                     // Resize handle
                     "[&::-webkit-resizer]:bg-(image:--resize-handle-bg) [&::-webkit-resizer]:bg-contain dark:[&::-webkit-resizer]:bg-(image:--resize-handle-bg-dark)",
 
-                    state.isFocused && !state.isDisabled && "ring-2 ring-brand",
+                    state.isFocused && !state.isDisabled && "border-brand outline-2 outline-offset-1",
                     state.isDisabled && "cursor-not-allowed opacity-50",
-                    state.isInvalid && "ring-error_subtle",
-                    state.isInvalid && state.isFocused && "ring-2 ring-error",
+                    state.isInvalid && "border-error_subtle",
+                    state.isInvalid && state.isFocused && "border-error outline-error",
 
                     typeof className === "function" ? className(state) : className,
                 )

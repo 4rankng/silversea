@@ -13,7 +13,8 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
     <div className="csc-container-editor">
       {rows}
       <button type="button" className="csc-add-container" onClick={onAdd} disabled={saving}>
-        <Plus size={18} style={{ verticalAlign: 'middle', marginRight: 7 }} />Thêm container
+        <Plus size={16} aria-hidden="true" />
+        <span>Thêm container</span>
       </button>
     </div>
   );

@@ -20,10 +20,10 @@ export function ShipmentCreateSection({ id, number, title, description, children
 }
 
 export const shipmentCreateGridStyle: CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16, minWidth: 0,
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12, minWidth: 0,
 };
 
 const sectionStyle: CSSProperties = {
   border: '1px solid var(--border-2)', borderRadius: 10, padding: 16,
-  display: 'grid', gap: 16, background: 'var(--surface-1)', minWidth: 0,
+  display: 'grid', gap: 12, background: 'var(--surface-1)', minWidth: 0,
 };
