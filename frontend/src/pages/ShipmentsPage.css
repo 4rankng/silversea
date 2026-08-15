@@ -593,6 +593,28 @@
 .cus-multiline-cell--mono strong { font-size: 13px; letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { font-variant-numeric: tabular-nums; }
 
+/* Cargo is compact supporting data: show every container type, then keep its
+   two measurements together on one quiet line instead of clipping either. */
+.cus-multiline-cell.cus-cargo-summary { gap: 2px; }
+.cus-multiline-cell .cus-cargo-summary__containers {
+  overflow: visible;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.cus-multiline-cell .cus-cargo-summary__metrics {
+  overflow: visible;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .cus-direction-badge,
 .cus-combined-tag {
   justify-self: start;
@@ -688,6 +710,16 @@
   text-overflow: ellipsis;
   word-break: break-word;
   min-width: 0;
+}
+.cus-note-preview > .cus-note-preview__customer {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+.cus-note-preview > .cus-note-preview__customer--empty {
+  color: var(--ink-3);
+  font-weight: var(--fw-regular);
 }
 .cus-inline-edit-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.35; }
 

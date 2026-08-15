@@ -317,6 +317,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rows[0]?.[3]).toContain('4 Pallet');
   });
 
+  it('shows every container type in a compact cargo summary without an ellipsis', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, containerSummary: '1x40HC + 1x20DC' }]));
+
+    renderPage();
+    const containerSummary = await screen.findByText('1x40HC + 1x20DC');
+    expect(containerSummary.className).toContain('cus-cargo-summary__containers');
+    expect(within(masterRow()).getByText('25.000 kg · 52,5 CBM')).toBeTruthy();
+  });
+
+  it('renders note previews as compact supporting text rather than table headings', async () => {
+    renderPage();
+
+    const customerNote = await screen.findByText('Giao buổi sáng');
+    expect(customerNote.className).toContain('cus-note-preview__customer');
+    expect(css).toMatch(/\.cus-note-preview > \.cus-note-preview__customer\s*\{[^}]*font-size:\s*12px;[^}]*font-weight:\s*var\(--fw-medium\);/);
+    expect(source).not.toContain('<strong>{customerNoteLines[0]');
+  });
+
   it('counts only plate-complete containers as assigned in the dispatch-readiness label', async () => {
     const waitingForEveryPlate: ShipmentCusWorkspaceListItem = {
       ...row,
@@ -1109,6 +1127,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*13px;/);
+    expect(source).toContain('cus-cargo-summary__containers');
+    expect(source).toContain('kg ·');
+    expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*12px;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);

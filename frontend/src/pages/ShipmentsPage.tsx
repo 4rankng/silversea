@@ -1604,10 +1604,9 @@ export default function ShipmentsPage() {
                           </span></button>
                         </td>
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
-                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric">
-                            <strong>{item.containerSummary || worksheetQuantity(item)}</strong>
-                            <span>{formatQuantity(item.weightKg)} kg</span>
-                            <span>{item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
+                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
+                            <strong className="cus-cargo-summary__containers">{item.containerSummary || worksheetQuantity(item)}</strong>
+                            <span className="cus-cargo-summary__metrics">{formatQuantity(item.weightKg)} kg · {item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
                           </span></button>
                         </td>
                         <td data-label="Lịch trình & điều xe" className="cus-dashboard-cell--editable">
@@ -1638,7 +1637,7 @@ export default function ShipmentsPage() {
                             aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
                             onClick={() => startQuickEdit(item, 'notes')}
                           >
-                            <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
+                            <span className={`cus-note-preview__customer${customerNoteLines[0] ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</span>
                             {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
                             {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
                             {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
