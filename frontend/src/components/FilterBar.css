@@ -123,7 +123,7 @@
 }
 .filter-pill svg { width: 14px; height: 14px; }
 .filter-pill__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   padding: 2px 7px;

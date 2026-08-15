@@ -25,7 +25,7 @@ function popupHtml(v: LiveFleetVehicle): string {
   const e = escapeHtml;
   const color = LIVE_STATUS_COLOR[v.status];
   const label = LIVE_STATUS_LABEL[v.status];
-  const mono = 'font-family:var(--font-mono);';
+  const mono = 'font-family:var(--font-data);';
   const sans = 'font-family:var(--font-body);';
   return `<div style="min-width:210px; ${sans} font-size:13px; line-height:1.5;">
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">

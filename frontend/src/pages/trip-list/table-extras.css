@@ -59,7 +59,7 @@
   flex-direction: column;
   gap: 1px;
   font-size: var(--fs-xs);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink-2);
   margin-top: 2px;
 }

@@ -69,7 +69,7 @@
 }
 
 .salary-summary-dark__big {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0;
@@ -117,7 +117,7 @@
 }
 
 .salary-summary-dark__row-val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600;
   color: var(--ink-2);
   font-size: var(--fs-xs);
@@ -248,7 +248,7 @@
 }
 .payslip-row:last-of-type { border-bottom: none; }
 .payslip-label { color: var(--fg-2); font-weight: 500; }
-.payslip-value { font-weight: 700; font-family: var(--font-mono); color: var(--fg-1); }
+.payslip-value { font-weight: 700; font-family: var(--font-data); color: var(--fg-1); }
 .payslip-value.is-negative { color: var(--danger); }
 .payslip-value.is-positive { color: var(--success); }
 

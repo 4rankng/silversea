@@ -280,7 +280,7 @@
   align-items: center;
   padding: 3px 10px;
   border-radius: 6px;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   background: var(--surface-3);
@@ -289,9 +289,9 @@
 }
 
 .sp-date-cell {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
+
   color: var(--ink-2);
 }
 

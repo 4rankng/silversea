@@ -125,7 +125,7 @@
   font-size: var(--fs-xs);
   line-height: 1.35;
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 500;
 }
 
@@ -253,7 +253,7 @@
   padding: 12px 16px;
   background: linear-gradient(180deg, var(--surface-2) 0%, rgba(247, 248, 250, 0.8) 100%);
   border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--ink-3);
@@ -280,8 +280,8 @@
 
 .expense-table tbody td.num {
   text-align: right;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
 }
 
 .expense-table tbody tr {
@@ -313,7 +313,7 @@
 /* ── Amount Cell ────────────────────────────────────────────────────────── */
 
 .expense-amount {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-sm);
   letter-spacing: 0;
@@ -376,7 +376,7 @@
 /* ── Plate Tag ──────────────────────────────────────────────────────────── */
 
 .expense-plate {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600;
   font-size: var(--fs-xs);
   padding: 2px 8px;
@@ -415,7 +415,7 @@
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   background: transparent;
   border: 1px solid transparent;
   cursor: pointer;
@@ -665,7 +665,7 @@
 
   .expense-list-page .expense-mobile-card__component {
     color: var(--ink);
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: 12px;
     line-height: 1.35;
   }

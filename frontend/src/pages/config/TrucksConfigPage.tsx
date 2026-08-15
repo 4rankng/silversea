@@ -46,7 +46,7 @@ export default function TrucksConfigPage() {
       emptyTitle="Chưa có xe đầu kéo"
       emptyHint="Thêm xe đầu kéo để bắt đầu phân chuyến và theo dõi bảo dưỡng."
       columns={[
-        { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-mono)' }}>{t.licensePlate}</span> },
+        { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-data)' }}>{t.licensePlate}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRUCK_STATUS_LABELS[t.status] || t.status}</StatusPill> },
       ]}
       renderForm={(p) => <TruckForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}

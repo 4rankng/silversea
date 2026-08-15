@@ -61,7 +61,7 @@
 
 /* ============================================================================
  * TransTing -- Wireframe Design System
- * Be Vietnam Pro (Vietnamese-aware text/UI) + JetBrains Mono (numerics).
+ * Be Vietnam Pro is the single Vietnamese-aware UI family.
  * Deep emerald shell and primary actions, signal-green accent.
  * ========================================================================== */
 
@@ -218,15 +218,13 @@
   --t-slow: 240ms var(--ease);
   --t-spring: 300ms var(--ease-spring);
 
-  /* --- Type families — Be Vietnam Pro (text/UI) + JetBrains Mono (numerics),
-         both self-hosted from /public/fonts/fonts.css. --- */
+  /* --- Type family — Be Vietnam Pro, self-hosted from /public/fonts/fonts.css. --- */
   --font-display: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-data: var(--font-body);
   /* legacy aliases */
   --ff-sans: var(--font-display);
-  --ff-mono: var(--font-mono);
 
   /* --- Type scale --- */
   --fs-2xs: 12px;

@@ -107,7 +107,7 @@ const pageStyles = `
   }
   .pr-fine .k { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
   .pr-fine .v {
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: 16px; font-weight: 700;
     letter-spacing: 0;
     color: var(--ink);
@@ -116,7 +116,7 @@ const pageStyles = `
   .pr-usage { text-align: right; }
   .pr-usage .k { font-size: var(--fs-xs); color: var(--ink-3); font-weight: 600; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
   .pr-usage .v { font-size: 12px; font-weight: 600; color: var(--ink-2); }
-  .pr-usage .v b { font-family: var(--font-mono); color: var(--accent); font-size: 14px; }
+  .pr-usage .v b { font-family: var(--font-data); color: var(--accent); font-size: 14px; }
   .pr-usage.zero .v b { color: var(--ink-3); }
 
   /* ── Animations ── */
@@ -201,7 +201,7 @@ function PenaltyReasonForm({
       <FormGroup label="Mức phạt mặc định (VNĐ)">
         <input
           className="pr-form-input"
-          style={{ fontFamily: 'var(--font-mono)' }}
+          style={{ fontFamily: 'var(--font-data)' }}
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -383,7 +383,7 @@ export default function PenaltyReasonsConfigPage() {
             <span className="kpi__label">Tổng tiền phạt</span>
             <div className="kpi__icon kpi--success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg></div>
           </div>
-          <div className="kpi__value" style={{ fontFamily: 'var(--font-mono)' }}>
+          <div className="kpi__value" style={{ fontFamily: 'var(--font-data)' }}>
             {fmt(totalAmount)}<span className="kpi__value-unit">đ</span>
           </div>
           <div className="kpi__meta">Đã ghi nhận trong tháng</div>
@@ -397,7 +397,7 @@ export default function PenaltyReasonsConfigPage() {
           <div className="kpi__value" style={{ fontSize: topReasonText.length > 15 ? '18px' : '24px', letterSpacing: '-0.02em' }} title={topReasonText}>
             {topReasonText}
           </div>
-          <div className="kpi__meta" style={{ fontFamily: 'var(--font-mono)' }}>
+          <div className="kpi__meta" style={{ fontFamily: 'var(--font-data)' }}>
             {topReasonCount > 0 ? `${topReasonCount} lượt vi phạm` : 'Chưa có thống kê'}
           </div>
         </div>

@@ -9,7 +9,7 @@
 .fwd-detail-hero__eyebrow { display: block; margin-bottom: 3px; color: var(--fg-3); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
 .fwd-detail-hero__title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .fwd-detail-hero__title { min-width: 0; margin: 0; color: var(--fg-1); font-size: 20px; font-weight: 750; line-height: 1.3; letter-spacing: -.015em; overflow-wrap: anywhere; }
-.fwd-detail-hero__trip-code { color: var(--fg-3); font-family: var(--font-mono); font-size: 11px; }
+.fwd-detail-hero__trip-code { color: var(--fg-3); font-family: var(--font-data); font-size: 11px; }
 .fwd-detail-hero__subtitle { margin: 3px 0 0; color: var(--fg-3); font-size: 12px; line-height: 1.45; }
 
 .fwd-detail--embedded .fwd-detail-hero { display: none; }

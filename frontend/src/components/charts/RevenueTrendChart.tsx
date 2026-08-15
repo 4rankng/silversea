@@ -123,7 +123,7 @@ export function RevenueTrendChart({
         {gridValues.map((v, i) => (
           <g key={i}>
             <line x1={mL} y1={Y(v)} x2={W - mR} y2={Y(v)} stroke="#EEF1EF" strokeWidth="1" />
-            <text x={mL - 10} y={Y(v) + 3.5} textAnchor="end" fontFamily="JetBrains Mono, monospace" fill="#56655C">
+            <text x={mL - 10} y={Y(v) + 3.5} textAnchor="end" fontFamily="var(--font-data)" fill="#56655C">
               {v === 0
                 ? <tspan fontSize="11">0</tspan>
                 : <><tspan fontSize="11">{fmtY(v)}</tspan><tspan fontSize="9">tr₫</tspan></>
@@ -134,7 +134,7 @@ export function RevenueTrendChart({
 
         {/* X-axis month labels */}
         {months.map((m, i) => (
-          <text key={i} x={X(i)} y={H - 10} textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="11"
+          <text key={i} x={X(i)} y={H - 10} textAnchor="middle" fontFamily="var(--font-data)" fontSize="11"
                 fill={i === activeIdx ? '#005A2D' : i === currentIdx ? '#005A2D' : '#8A988F'}
                 fontWeight={i === activeIdx || i === currentIdx ? '700' : '400'}>
             {m}
@@ -200,25 +200,25 @@ export function RevenueTrendChart({
             zIndex: 10,
           }}
         >
-          <div style={{ textAlign: 'center', fontFamily: '"JetBrains Mono", monospace', fontSize: '12px', fontWeight: 600, color: '#56655C', marginBottom: '8px' }}>
+          <div style={{ textAlign: 'center', fontFamily: 'var(--font-data)', fontSize: '12px', fontWeight: 600, color: '#56655C', marginBottom: '8px' }}>
             {months[activeIdx]}
           </div>
           <div style={{ height: 1, background: '#EEF1EF', margin: '0 -14px 8px -14px' }} />
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: '12px', alignItems: 'center', marginBottom: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-data)', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#005A2D' }} />
               Doanh thu
             </div>
-            <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '12.5px', fontWeight: 700, color: '#005A2D', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: '#005A2D', whiteSpace: 'nowrap' }}>
               {fmtTip(revenue[activeIdx] || 0)}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: '12px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: '"JetBrains Mono", monospace', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-data)', fontSize: '12px', color: '#56655C', whiteSpace: 'nowrap' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} />
               LN gộp
             </div>
-            <div style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '12.5px', fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
+            <div style={{ fontFamily: 'var(--font-data)', fontSize: '12.5px', fontWeight: 700, color: '#2563EB', whiteSpace: 'nowrap' }}>
               {fmtTip(gross[activeIdx] || 0)}
             </div>
           </div>

@@ -165,7 +165,7 @@
     font-weight: 700;
     color: var(--ink);
     line-height: 1.35;
-    font-variant-numeric: tabular-nums;
+
   }
 
   .mobile-day-row__dow {
@@ -220,7 +220,7 @@
   }
 
   .mobile-day-row__trip-badge {
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: var(--fs-2xs);
     font-weight: 700;
     color: var(--accent-ink);

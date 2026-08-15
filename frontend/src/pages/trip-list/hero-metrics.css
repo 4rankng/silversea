@@ -156,7 +156,7 @@
   line-height: 1.35; letter-spacing: 0;
   color: var(--ink);
 }
-.trip-list-page .metric-value.d-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.trip-list-page .metric-value.d-mono { font-family: var(--font-data); }
 .trip-list-page .metric-unit { font-size: var(--fs-sm); color: var(--ink-3); font-weight: 500; margin-left: 4px; line-height: 1.35; }
 .trip-list-page .metric-delta {
   margin-top: 8px;

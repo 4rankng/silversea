@@ -65,7 +65,7 @@
   overflow-wrap: anywhere;
 }
 .trip-list-page .trip-mcard__id {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3);
   display: inline-flex; align-items: center; gap: 6px;
   flex-wrap: wrap;
@@ -94,7 +94,7 @@
   flex-wrap: wrap;
   gap: 3px 8px;
   color: var(--ink-2);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   line-height: 1.35;
 }
@@ -113,7 +113,7 @@
   color: var(--ink-3); text-transform: uppercase; font-weight: 600;
 }
 .trip-list-page .trip-mcard__meta .val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
 }
 .trip-list-page .trip-mcard__meta .val.warn { color: var(--d-amber); }
@@ -188,7 +188,7 @@
   display: block;
   margin-top: 2px;
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
   overflow-wrap: anywhere;

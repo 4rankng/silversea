@@ -269,7 +269,7 @@
   display: flex; align-items: center; gap: 6px;
 }
 .trip-list-page .trip-id {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 500;
   color: var(--ink-3);
 }
@@ -297,7 +297,7 @@
 
 /* License plate — styled block like actual vehicle plates */
 .trip-list-page .plate {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600; font-size: var(--fs-xs);
   color: var(--ink);
   background: var(--surface-2);
@@ -308,7 +308,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-feature-settings: "tnum";
+
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
@@ -381,7 +381,7 @@
 
 .trip-list-page .container-tag {
   display: inline-block;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   background: var(--surface-3);
@@ -401,7 +401,7 @@
 
 .trip-list-page .cons-cell { min-width: 0; }
 .trip-list-page .cons-main {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600; font-size: var(--fs-sm);
   display: flex; align-items: center; gap: 6px;
   color: var(--ink);
@@ -439,7 +439,7 @@
   font-size: var(--fs-xs);
   color: var(--fg-2);
   font-weight: 500;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   white-space: nowrap;
   line-height: 1.35;
 }
@@ -466,7 +466,7 @@
 }
 
 .trip-list-page .money {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600; font-size: var(--fs-sm);
   text-align: right;
   color: var(--ink);
@@ -576,7 +576,7 @@
   border-radius: 8px;
   background: var(--surface);
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   text-align: right;

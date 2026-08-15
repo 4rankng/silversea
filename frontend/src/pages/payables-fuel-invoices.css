@@ -51,7 +51,7 @@
   color: var(--ink-3, #8b919b);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   margin-bottom: 4px;
 }
 
@@ -171,7 +171,7 @@
   color: var(--ink-3, #8b919b);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .fuel-invoice-detail__metrics {

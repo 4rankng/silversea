@@ -55,7 +55,7 @@
   font-size: var(--fs-2xl);
   font-weight: 300;
   color: var(--fg-3);
-  font-variant-numeric: tabular-nums;
+
 }
 
 @media (max-width: 640px) {

@@ -19,23 +19,21 @@
 .typo-label { font-size: var(--fs-sm); font-weight: 500; line-height: var(--lh-normal); color: var(--ink); }
 .typo-caption { font-size: var(--fs-xs); font-weight: 400; line-height: var(--lh-normal); color: var(--ink-3); }
 .typo-eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--ink-3);
 }
-.typo-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.typo-mono { font-family: var(--font-data); }
 .typo-num,
 .num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-family: var(--font-data);
 }
 .text-muted { color: var(--ink-3); }
 .typo-code {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   background: var(--surface-3);
   padding: 1px 6px;

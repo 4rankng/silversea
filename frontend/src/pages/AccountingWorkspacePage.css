@@ -33,7 +33,7 @@
 .accounting-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .accounting-kpi { display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
 .accounting-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-3); font-size: 13px; font-weight: 700; }
-.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(20px, 2vw, 28px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(20px, 2vw, 28px); line-height: 1.15; }
 .accounting-kpi small { color: var(--fg-3); font-size: 12px; }
 .accounting-kpi--positive .accounting-kpi__head { color: var(--success); }
 .accounting-kpi--danger .accounting-kpi__head { color: var(--danger); }
@@ -66,7 +66,7 @@
 .accounting-register__table-wrap { max-height: min(58vh, 620px); overflow: auto; }
 .accounting-register table { width: 100%; min-width: 1040px; border-collapse: collapse; color: var(--fg-2); font-size: 13px; }
 .accounting-register th { position: sticky; top: 0; z-index: 1; padding: 11px 12px; background: var(--bg-2); color: var(--fg-3); font-size: 12px; text-align: left; }
-.accounting-register td { padding: 12px; border-top: 1px solid var(--border-1); vertical-align: top; font-variant-numeric: tabular-nums; }
+.accounting-register td { padding: 12px; border-top: 1px solid var(--border-1); vertical-align: top; }
 .accounting-register td strong,
 .accounting-register td small { display: block; }
 .accounting-register td small { margin-top: 3px; color: var(--fg-3); }
@@ -111,7 +111,7 @@
   .accounting-transport-card dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
   .accounting-transport-card dl div { min-width: 0; }
   .accounting-transport-card dt { color: var(--fg-3); font-size: 11px; }
-  .accounting-transport-card dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--fg-1); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .accounting-transport-card dd { margin: 3px 0 0; overflow-wrap: anywhere; color: var(--fg-1); font-size: 13px; font-weight: 700; }
 }
 
 @media (max-width: 700px) {

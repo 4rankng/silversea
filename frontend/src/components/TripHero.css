@@ -37,7 +37,7 @@
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: var(--tracking-eyebrow);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 .trip-hero__title-row {
   display: flex;

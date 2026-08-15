@@ -273,7 +273,7 @@ export default function RoutesConfigPage() {
             </table>
           </div>
           <div className="table-foot">
-            <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-mono)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalCount}</strong> tuyến đường</span>
+            <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> tuyến đường</span>
           </div>
         </div>
 

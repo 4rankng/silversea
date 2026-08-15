@@ -99,7 +99,7 @@
 .settlement-detail__advance-amount {
   font-weight: 600;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .settlement-detail__advance-reason {
@@ -171,8 +171,8 @@
 
 /* Utility classes */
 .expense-grid .u-right { text-align: right; }
-.expense-grid .u-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.expense-grid .u-mono { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); white-space: nowrap; }
+.expense-grid .u-num { white-space: nowrap; }
+.expense-grid .u-mono { font-family: var(--font-data); font-size: var(--fs-xs); white-space: nowrap; }
 .expense-grid .u-muted { color: var(--ink-2); white-space: nowrap; }
 .expense-grid .u-wrap { word-break: break-word; overflow-wrap: break-word; }
 .expense-grid .u-bold { font-weight: 700; }
@@ -230,7 +230,7 @@
   font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .settlement-detail__summary-value--positive {
@@ -484,7 +484,7 @@
 .settlement-editor-hint { margin: -4px 0 12px; color: var(--ink-3); font-size: var(--fs-xs); }
 .settlement-link-list { display: grid; gap: 8px; }
 .settlement-link-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
-.settlement-link-option strong { font-family: var(--font-mono); font-size: var(--fs-sm); }
+.settlement-link-option strong { font-family: var(--font-data); font-size: var(--fs-sm); }
 .settlement-expense-actions { display: grid; }
 .settlement-expense-option { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .settlement-expense-option > label { display: flex; align-items: center; gap: 10px; min-width: 0; }

@@ -96,7 +96,7 @@
 }
 
 .user-handle {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 12px;
   color: var(--ink-3);
   margin-top: 2px;
@@ -708,7 +708,7 @@
   }
 
   .users-mobile-card__handle {
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: 12px;
     color: var(--ink-3);
     margin-top: 1px;
@@ -1057,7 +1057,7 @@
 /* License-plate badge for the assigned-truck ("Xe") column on driver rows.
    Vantai plate pattern — light variant: mono, hairline border, no truncation. */
 .users-admin-page .user-truck-plate {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600;
   font-size: var(--fs-xs);
   color: var(--ink);
@@ -1066,7 +1066,7 @@
   border: 1px solid var(--line-2);
   border-radius: 6px;
   letter-spacing: 0.02em;
-  font-feature-settings: "tnum";
+
   white-space: nowrap;
   display: inline-block;
 }

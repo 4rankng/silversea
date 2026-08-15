@@ -178,9 +178,9 @@
   margin-top: 5px;
   overflow-wrap: anywhere;
   color: var(--ink, var(--fg-1));
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: clamp(21px, 2vw, 26px);
-  font-variant-numeric: tabular-nums;
+
   line-height: 1.1;
 }
 
@@ -224,7 +224,7 @@
   border-radius: 999px;
   background: var(--surface-3, var(--bg-3));
   color: var(--ink-2, var(--fg-2));
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 800;
 }
@@ -418,8 +418,8 @@
 }
 
 .credit-override-queue__money-grid strong {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
 }
 
 .credit-override-queue__reason {

@@ -63,9 +63,9 @@
 }
 
 .portal-page__headline-stat strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
-  font-variant-numeric: tabular-nums;
+
   line-height: 1.2;
 }
 
@@ -133,9 +133,9 @@
 }
 
 .portal-panel__totals strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-md);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .portal-list {
@@ -211,9 +211,9 @@ a.portal-list__row:focus-visible {
 }
 
 .portal-list__datum strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .portal-list__aside {
@@ -300,10 +300,10 @@ a.portal-list__row:focus-visible {
 
 .portal-debit-row__amount {
   grid-column: 2;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .portal-debit-row__dates {
@@ -325,10 +325,10 @@ a.portal-list__row:focus-visible {
 
 .portal-debit-row__dates dd {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .portal-actions {
@@ -566,9 +566,9 @@ a.portal-list__row:focus-visible {
 }
 
 .portal-balance-equation > div strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums;
+
   line-height: var(--lh-snug);
 }
 
@@ -577,7 +577,7 @@ a.portal-list__row:focus-visible {
   width: 34px;
   place-items: center;
   color: var(--ink-4);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xl);
   font-weight: var(--fw-bold);
 }
@@ -690,8 +690,8 @@ a.portal-list__row:focus-visible {
 }
 
 .portal-table__number {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
   text-align: right !important;
   white-space: nowrap;
 }

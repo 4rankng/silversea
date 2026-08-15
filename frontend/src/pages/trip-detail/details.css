@@ -141,7 +141,7 @@ a.tdp-instructions-value:hover {
 }
 .tdp-adjustment-amount {
   font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   white-space: nowrap;
 }
 .tdp-adjustment-amount--pos { color: var(--success, #00B14F); }

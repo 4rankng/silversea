@@ -395,14 +395,14 @@
 }
 
 .billing-builder__container-summary strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 12px;
   font-weight: 650;
   color: var(--ink-2);
 }
 
 .billing-builder__container-summary span {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   line-height: 1.35;
   font-weight: 600;
@@ -772,7 +772,7 @@
   }
 
   .billing-builder__mobile-container-head strong {
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: 12px;
     font-weight: 650;
     color: var(--ink-2);

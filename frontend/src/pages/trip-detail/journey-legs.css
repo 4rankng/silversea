@@ -120,7 +120,7 @@
   border-radius: 8px;
   background: var(--brand, #005A2D);
   color: var(--fg-on-brand);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   display: grid;
@@ -200,7 +200,7 @@
 }
 
 .leg-fuel {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);

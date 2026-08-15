@@ -269,7 +269,7 @@
   height: 20px;
   border-radius: 999px;
   padding: 0 7px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 700;
   display: grid;

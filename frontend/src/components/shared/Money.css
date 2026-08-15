@@ -15,7 +15,7 @@
 /* Digits + sign inherit size / weight / color from the parent context. */
 .money__num,
 .money__sign {
-  font-family: var(--font-mono, inherit);
+  font-family: var(--font-data);
   line-height: 1.35;
 }
 

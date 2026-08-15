@@ -183,7 +183,7 @@ export function PenaltyTable({
             <span className="penalty-kpi-meta">
               <span>Khấu trừ vào bảng lương</span>
               <span className="sep">·</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-2)' }}>YTD {formatCurrency(ytdTotal)}</span>
+              <span style={{ fontFamily: 'var(--font-data)', color: 'var(--ink-2)' }}>YTD {formatCurrency(ytdTotal)}</span>
             </span>
           }
         />
@@ -300,7 +300,7 @@ export function PenaltyTable({
           </div>
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>TB: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
+              <span>TB: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
               <span style={{ opacity: 0.5 }}>·</span>
               <span>{driversOver90} đạt 90 ngày</span>
             </div>
@@ -381,7 +381,7 @@ export function PenaltyTable({
           </div>
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>TB chuỗi an toàn: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
+              <span>TB chuỗi an toàn: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
               <span style={{ opacity: 0.5 }}>·</span>
               <span>{driversOver90} lái xe đạt mốc 90 ngày</span>
               <span style={{ opacity: 0.5 }}>·</span>
@@ -523,7 +523,7 @@ export function PenaltyTable({
                 })}
               </div>
               <div className="penalty-table-foot">
-                <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-mono)' }}>{filteredPenalties.length}</strong> biên bản</span>
+                <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filteredPenalties.length}</strong> biên bản</span>
               </div>
             </>
           )}
@@ -591,7 +591,7 @@ export function PenaltyTable({
           )}
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>Cập nhật lần cuối: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>{formatDate(new Date().toISOString().slice(0, 10))}</strong></span>
+              <span>Cập nhật lần cuối: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{formatDate(new Date().toISOString().slice(0, 10))}</strong></span>
             </div>
             <a
               href="/config/penalty-reasons"

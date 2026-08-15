@@ -13,7 +13,7 @@ interface LiveTrackingCardProps {
   vehicle: LiveFleetVehicle;
 }
 
-const MONO = "'JetBrains Mono', monospace";
+const DATA = 'var(--font-data)';
 
 /**
  * Helper to determine if a telemetry field has a valid, non-empty value.
@@ -31,7 +31,7 @@ function hasVal(val: unknown): boolean {
 function Num({ value, unit }: { value: number | null | undefined; unit?: string }) {
   if (value === null || value === undefined) return <span style={{ color: '#9CA3AF' }}>—</span>;
   return (
-    <span style={{ fontFamily: MONO }}>
+    <span style={{ fontFamily: DATA }}>
       {value.toLocaleString('vi-VN')}
       {unit ? ` ${unit}` : ''}
     </span>

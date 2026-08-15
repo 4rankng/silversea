@@ -112,7 +112,7 @@ function ExpenseTypeForm({
               onChange={(event) => setCode(event.target.value.toUpperCase())}
               placeholder="LIFTING"
               style={{
-                fontFamily: 'var(--font-mono)',
+                fontFamily: 'var(--font-data)',
                 fontSize: 13,
                 ...(isDuplicate ? { borderColor: 'var(--danger)' } : {}),
                 ...(item ? { background: 'var(--bg-2)', color: 'var(--fg-3)', cursor: 'not-allowed' } : {}),
@@ -316,7 +316,7 @@ export default function ForwarderExpenseTypesConfigPage() {
         columns={[
           {
             header: 'Mã',
-            render: (item) => <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--fg-1)' }}>{item.code}</span>,
+            render: (item) => <span style={{ fontFamily: 'var(--font-data)', fontWeight: 600, color: 'var(--fg-1)' }}>{item.code}</span>,
           },
           {
             header: 'Tên',

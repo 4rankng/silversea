@@ -47,7 +47,7 @@
   font-weight: var(--fw-semibold);
 }
 .tc-summary-card__big {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
   font-weight: var(--fw-bold);
   letter-spacing: 0;
@@ -86,7 +86,7 @@
   gap: 6px;
 }
 .tc-summary-row__val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-semibold);
 }
 .tc-summary-row__val--neg { color: var(--danger); }
@@ -165,7 +165,7 @@
 }
 .tc-totals__revenue-value {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
   font-weight: var(--fw-extrabold);
   color: var(--ink);
@@ -200,7 +200,7 @@
 }
 .tc-totals__revenue-split dd {
   margin: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink);
   font-weight: var(--fw-semibold);
 }
@@ -224,7 +224,7 @@
   font-weight: var(--fw-semibold);
 }
 .tc-totals__alloc-head .money {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink);
   font-weight: var(--fw-bold);
 }
@@ -278,7 +278,7 @@
 .tc-totals__alloc-legend .tc-totals__legend-dot--salary { background: #B45309; }
 .tc-totals__alloc-legend .tc-totals__legend-dot--other  { background: var(--ink-4, #BABDC3); }
 .tc-totals__alloc-legend strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-semibold);
   color: var(--ink);
 }
@@ -316,7 +316,7 @@
   flex: 0 0 auto;
 }
 .tc-totals-row__val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-bold);
   color: var(--danger);
   white-space: nowrap;
@@ -369,7 +369,7 @@
   white-space: normal;
 }
 .tc-totals-breakdown__row .money {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--danger);
   font-weight: var(--fw-semibold);
   flex: 0 0 auto;
@@ -405,7 +405,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 20px;
   font-weight: var(--fw-extrabold);
   letter-spacing: var(--tracking-tight);

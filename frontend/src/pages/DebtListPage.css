@@ -201,7 +201,7 @@
 .debt-aging__dot--danger { background: var(--danger); }
 
 .debt-aging-card__label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   text-transform: uppercase;
@@ -230,7 +230,7 @@
 }
 
 .debt-aging-card__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink-3);
 }
@@ -516,7 +516,7 @@
 
   /* Mobile card amount styling */
   .debt-list-page .m-card .debt-list-page__amount {
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0;

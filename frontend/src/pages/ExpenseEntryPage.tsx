@@ -601,7 +601,7 @@ export default function ExpenseEntryPage() {
                     value={form.amount ? formatAmountDisplay(form.amount) : ''}
                     onChange={e => set('amount', parseAmountInput(e.target.value))}
                     placeholder="0"
-                    style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 600, color: 'var(--accent-2)' }}
+                    style={{ fontFamily: 'var(--font-data)', fontSize: 16, fontWeight: 600, color: 'var(--accent-2)' }}
                   />
                   <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-4)', pointerEvents: 'none', fontWeight: 500 }}>
                     đ

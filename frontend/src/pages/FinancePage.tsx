@@ -304,7 +304,7 @@ export default function FinancePage() {
                         <svg viewBox="0 0 200 200" width={140} height={140} style={{ flexShrink: 0 }} role="img" aria-label={`Cơ cấu chi phí tháng ${month}/${year}`}>
                           {arcs.map((a, i) => <path key={i} d={a.path} fill={a.fill} stroke="#FFFFFF" strokeWidth={2.5} />)}
                           <text x={cx} y={cy - 7} textAnchor="middle" fontSize="12" fill="var(--ink-2)" fontFamily="var(--font-sans)">Tổng chi phí</text>
-                          <text x={cx} y={cy + 11} textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-mono)">{compactNum(total)}</text>
+                          <text x={cx} y={cy + 11} textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-data)">{compactNum(total)}</text>
                         </svg>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, width: '100%' }}>
@@ -313,7 +313,7 @@ export default function FinancePage() {
                             <span style={{ width: 10, height: 10, background: a.fill, borderRadius: 2, flexShrink: 0 }} />
                             <span style={{ flex: 1, color: 'var(--ink-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
                             <span style={{ fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--ink)', marginRight: 4 }}>{formatNumber(a.value)}₫</span>
-                            <span style={{ color: 'var(--ink-3)', flexShrink: 0, fontFamily: 'var(--font-mono)' }}>{a.pct.toFixed(0)}%</span>
+                            <span style={{ color: 'var(--ink-3)', flexShrink: 0, fontFamily: 'var(--font-data)' }}>{a.pct.toFixed(0)}%</span>
                           </div>
                         ))}
                       </div>
@@ -364,7 +364,7 @@ export default function FinancePage() {
                       const fill = isNegative ? 'var(--danger)' : '#059669';
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>
-                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-mono)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{t.name}</text>
+                          <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{t.name}</text>
                           <rect x={barX} y={4} width={w} height={14} fill={fill} rx={3} opacity={0.85} />
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />

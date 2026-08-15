@@ -790,7 +790,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                       borderColor: 'rgba(0, 107, 63, 0.22)',
                     }}
                   >
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
+                    <span style={{ fontFamily: 'var(--font-data)', fontWeight: 700 }}>{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
                     {selectedExpenseContainer.sealNumber && (
                       <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>Seal {selectedExpenseContainer.sealNumber}</span>
                     )}
@@ -839,7 +839,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                       value={expenseForm.invoiceNumber}
                       onChange={e => setExpenseForm(f => ({ ...f, invoiceNumber: e.target.value }))}
                       placeholder="Số hóa đơn"
-                      style={{ fontFamily: 'var(--font-mono)' }}
+                      style={{ fontFamily: 'var(--font-data)' }}
                     />
                   </FormGroup>
                   <FormGroup label="Ngày hóa đơn">
@@ -863,7 +863,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                       if (expenseErrors.declarationNumber) setExpenseErrors(err => ({ ...err, declarationNumber: undefined }));
                     }}
                     placeholder="Số tờ khai"
-                    style={{ fontFamily: 'var(--font-mono)' }}
+                    style={{ fontFamily: 'var(--font-data)' }}
                   />
                   {expenseErrors.declarationNumber && (
                     <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--danger)', display: 'block', marginTop: 2 }}>

@@ -78,9 +78,9 @@
 .info-row--hero .info-row__icon svg { width: 18px; height: 18px; }
 .info-row--hero .info-row__label { font-size: var(--fs-2xs); }
 .info-row--hero .info-row__value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-family: var(--font-data);
+
+
   font-size: var(--fs-display);
   font-weight: var(--fw-semibold);
   letter-spacing: 0;

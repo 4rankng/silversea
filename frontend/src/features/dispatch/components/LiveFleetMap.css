@@ -6,7 +6,7 @@
   border-radius: 6px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   color: var(--ink, #111827);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs, 12px);
   font-weight: 600;
   line-height: 1.35;

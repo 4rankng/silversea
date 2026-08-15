@@ -85,7 +85,7 @@
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
 }
 .adv-page .adv-kpi__label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--ink-3);
@@ -93,7 +93,7 @@
   letter-spacing: 0.08em;
 }
 .adv-page .adv-kpi__value {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0;
@@ -141,7 +141,7 @@
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;      /* dashboard .lbl letter-spacing */
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;
@@ -193,12 +193,12 @@
   white-space: normal;
 }
 .adv-page .adv-amount {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-sm);             /* dashboard values: 13px mono 700 */
   color: var(--ink);
   text-align: right;
-  font-variant-numeric: tabular-nums;
+
   letter-spacing: 0;
 }
 .adv-page .adv-date {
@@ -330,12 +330,12 @@
 }
 
 .adv-page .adv-mcard__amount {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-bold);
   font-size: var(--fs-lg);
   color: var(--ink);
   margin-bottom: 10px;
-  font-variant-numeric: tabular-nums;
+
 }
 
 .adv-page .adv-mcard__meta {

@@ -88,8 +88,8 @@
   margin-bottom: 6px;
   color: var(--ink);
   overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+
+
 }
 .kpi__value-unit {
   font-size: var(--fs-xs);
@@ -235,9 +235,9 @@
 }
 .metric-strip__label svg { width: 13px; height: 13px; color: var(--ink-3); }
 .metric-strip__value {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-family: var(--font-data);
+
+
   font-size: var(--fs-2xl);
   font-weight: var(--fw-semibold);
   letter-spacing: 0;
@@ -270,7 +270,7 @@
   gap: 2px;
   font-size: var(--fs-2xs);
   font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
+
   padding: 2px 6px;
   border-radius: var(--radius-full);
   line-height: 1;

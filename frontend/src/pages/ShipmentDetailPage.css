@@ -175,7 +175,7 @@
 
 .shipment-detail__doc-key {
   color: var(--fg-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 12px;
   flex: 1;
   overflow: hidden;

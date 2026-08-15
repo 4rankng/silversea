@@ -207,7 +207,7 @@
 
 .ttp-serial {
   position: relative;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-data);
   font-weight: 600;
 }
 
@@ -635,7 +635,7 @@
 .ttp-dialog-head p {
   margin: 4px 0 0;
   color: var(--fg-3);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-data);
   font-size: 12px;
   font-weight: 600;
 }

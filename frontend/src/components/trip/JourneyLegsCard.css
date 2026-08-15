@@ -13,7 +13,7 @@
   border: 1px solid var(--border-2);
 }
 .form-summary strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 /* Journey empty state */

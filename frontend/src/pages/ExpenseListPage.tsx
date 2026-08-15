@@ -428,10 +428,10 @@ export default function ExpenseListPage() {
         <div className="expense-table-foot">
           <span>
             Đang hiển thị{' '}
-            <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>
+            <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>
               {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)}
             </strong>{' '}
-            trên <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{total}</strong> phiếu
+            trên <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{total}</strong> phiếu
           </span>
           <div className="expense-pagination">
             <button className="expense-page-btn" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>

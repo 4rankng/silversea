@@ -52,8 +52,8 @@
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
   line-height: 1.25;
   word-break: break-word;
 }

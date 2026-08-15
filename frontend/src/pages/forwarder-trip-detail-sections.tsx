@@ -77,7 +77,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     value={containerForm.containerNumber}
                     onChange={e => setContainerForm(f => ({ ...f, containerNumber: e.target.value }))}
                     placeholder="MSKU 123456 7"
-                    style={{ fontFamily: 'var(--font-mono)' }}
+                    style={{ fontFamily: 'var(--font-data)' }}
                   />
                 </FormGroup>
                 <FormGroup label="Số seal" style={{ flex: 1, minWidth: 120 }}>
@@ -86,7 +86,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     value={containerForm.sealNumber}
                     onChange={e => setContainerForm(f => ({ ...f, sealNumber: e.target.value }))}
                     placeholder="SEAL-001"
-                    style={{ fontFamily: 'var(--font-mono)' }}
+                    style={{ fontFamily: 'var(--font-data)' }}
                   />
                 </FormGroup>
                 <FormGroup label="Ghi chú" style={{ flex: 2, minWidth: 140 }}>
@@ -138,10 +138,10 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                 >
                   <Package size={14} style={{ color: 'var(--brand)', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-mono)' }}>{getForwarderContainerDisplayLabel(c)}</span>
+                    <span style={{ fontWeight: 600, fontSize: 13, fontFamily: 'var(--font-data)' }}>{getForwarderContainerDisplayLabel(c)}</span>
                     {c.sealNumber && (
                       <span style={{ color: 'var(--fg-3)', fontSize: 12, marginLeft: 12 }}>
-                        Seal: <span style={{ fontFamily: 'var(--font-mono)' }}>{c.sealNumber}</span>
+                        Seal: <span style={{ fontFamily: 'var(--font-data)' }}>{c.sealNumber}</span>
                       </span>
                     )}
                   </div>

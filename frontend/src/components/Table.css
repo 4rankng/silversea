@@ -428,7 +428,7 @@ thead th {
 thead th.num,
 td.num {
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 tbody td {
   padding: 14px 18px;
@@ -471,7 +471,7 @@ tbody tr:last-child td { border-bottom: none; }
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: 500;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   line-height: 1.35;
   background: transparent;
   border: none;
@@ -484,7 +484,7 @@ tbody tr:last-child td { border-bottom: none; }
 .tt-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .tt-table thead th {
   text-align: left;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink-2);
@@ -507,8 +507,8 @@ tbody tr:last-child td { border-bottom: none; }
 .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.04); }
 .tt-table tbody tr:last-child td { border-bottom: none; }
 .tt-table td.num {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
   text-align: right;
   font-weight: 600;
   color: var(--ink);

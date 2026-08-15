@@ -22,7 +22,7 @@ export const fleetStyles = {
   errorBanner: { textAlign: 'center', color: 'var(--danger)', padding: '8px 20px' },
   swatchSuccess: { background: 'var(--success)' },
   swatchWarning: { background: 'var(--warning)' },
-  salaryMono: { fontFamily: 'var(--font-mono)', color: 'var(--ink)' },
+  salaryMono: { fontFamily: 'var(--font-data)', color: 'var(--ink)' },
   dotSep: { opacity: 0.5 },
   actionRow: { display: 'flex', gap: 8 },
   metaRow: { display: 'flex', alignItems: 'center', gap: 8 },
@@ -31,5 +31,5 @@ export const fleetStyles = {
   textSuccess: { color: 'var(--success)', fontWeight: 600 },
   textWarning: { color: 'var(--warning)', fontWeight: 600 },
   textMuted: { opacity: 0.4 },
-  fontMono: { fontFamily: 'var(--font-mono)' },
+  fontMono: { fontFamily: 'var(--font-data)' },
 } as const;

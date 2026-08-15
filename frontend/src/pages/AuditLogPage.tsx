@@ -216,7 +216,7 @@ export default function AuditLogPage() {
               <span className={`audit-method audit-method--${entry.method}`}>
                 {entry.method}
               </span>
-              <span style={{ fontSize: 12, lineHeight: 1.5, fontFamily: 'var(--font-mono)', color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
+              <span style={{ fontSize: 12, lineHeight: 1.5, fontFamily: 'var(--font-data)', color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
                 {entry.path}
               </span>
             </div>
@@ -249,7 +249,7 @@ export default function AuditLogPage() {
                   padding: 10,
 fontSize: 13,
                   color: 'var(--ink)',
-                  fontFamily: 'var(--font-mono)',
+                  fontFamily: 'var(--font-data)',
                   overflow: 'auto',
                   maxHeight: 220,
                   margin: 0,
@@ -462,7 +462,7 @@ fontSize: 13,
                           <div style={{ fontSize: 12, color: 'var(--ink)', fontWeight: 500 }}>
                             {formatTimeShort(entry.timestamp)}
                           </div>
-                          <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-2)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                          <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-2)', fontFamily: 'var(--font-data)', marginTop: 2 }}>
                             {formatExactTime(entry.timestamp).split(' ')[0]}
                           </div>
                         </td>

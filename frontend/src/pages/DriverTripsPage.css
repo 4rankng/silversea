@@ -78,8 +78,8 @@
   grid-row: 1;
   font-size: 15px;
   font-weight: 700;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
   color: var(--fg-1);
   white-space: nowrap;
   align-self: center;

@@ -101,7 +101,7 @@
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
 }
 .as-page .as-kpi__label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--ink-3);
@@ -109,7 +109,7 @@
   letter-spacing: 0.08em;
 }
 .as-page .as-kpi__value {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0;
@@ -191,7 +191,7 @@
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   white-space: normal;
   overflow: visible;
   overflow-wrap: anywhere;
@@ -237,7 +237,7 @@
 .as-page .as-settlement-summary a,
 .as-page .as-settlement-summary strong {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   text-decoration: none;
@@ -253,7 +253,7 @@
   min-width: 0;
 }
 .as-page .as-code-link {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-semibold);
   font-size: var(--fs-sm);
   color: var(--brand, var(--ink));
@@ -290,7 +290,7 @@
 }
 .as-page .as-date-customer .as-date {
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   text-align: left;
 }
@@ -304,7 +304,7 @@
 }
 .as-page .as-container-count {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   text-align: center;
@@ -333,7 +333,7 @@
 }
 .as-page .as-expense-chip strong {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
@@ -347,7 +347,7 @@
   align-items: flex-start;
   gap: 4px;
   min-width: 0;
-  font-variant-numeric: tabular-nums;
+
 }
 .as-page .as-scope__primary {
   color: var(--ink-2);
@@ -363,12 +363,12 @@
 }
 .as-page .as-amount,
 .as-page .as-refund {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-sm);
   color: var(--ink);
   text-align: right;
-  font-variant-numeric: tabular-nums;
+
   letter-spacing: 0;
 }
 .as-page .as-refund {
@@ -546,7 +546,7 @@
   text-transform: uppercase;
 }
 .as-page .as-mcard__code {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-bold);
   font-size: var(--fs-md);
   color: var(--brand, var(--ink));
@@ -587,12 +587,12 @@
   font-weight: var(--fw-semibold);
 }
 .as-page .as-mcard__amount-value {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: var(--fw-bold);
   font-size: clamp(1.35rem, 6vw, 1.7rem);
   line-height: 1.15;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+
   letter-spacing: -0.025em;
 }
 .as-page .as-mcard__refund {
@@ -606,7 +606,7 @@
 }
 .as-page .as-mcard__refund strong {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
 }
 .as-page .as-mcard__scope {
@@ -626,7 +626,7 @@
 }
 .as-page .as-mcard__scope-head time {
   color: var(--ink-2);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   letter-spacing: 0;
   text-transform: none;
@@ -651,7 +651,7 @@
 }
 .as-page .as-mcard__scope-grid strong {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-md);
   line-height: 1.2;
 }
@@ -687,14 +687,14 @@
 }
 .as-page .as-mcard__plan-head a {
   color: var(--brand);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: var(--fw-bold);
   text-decoration: none;
 }
 .as-page .as-mcard__plan-head strong {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   white-space: nowrap;
 }

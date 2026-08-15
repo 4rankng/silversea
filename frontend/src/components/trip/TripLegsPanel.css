@@ -12,7 +12,7 @@
 }
 
 .trip-legs__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--accent);
@@ -118,11 +118,11 @@
 }
 
 .trip-legs__km {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
+
   letter-spacing: 0;
 }
 

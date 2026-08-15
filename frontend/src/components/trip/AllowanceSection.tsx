@@ -77,7 +77,7 @@ export function AllowanceSection() {
 
       <div style={{ fontSize: 12, color: "var(--fg-2)", marginTop: -6, marginBottom: 14, fontWeight: 600, display: "flex", gap: 6 }}>
         <span>Lái xe thực lĩnh:</span>
-        <span style={{ color: "var(--brand, #10B981)", fontFamily: "var(--font-mono)" }}>
+        <span style={{ color: "var(--brand, #10B981)", fontFamily: "var(--font-data)" }}>
           {(() => {
             const base = Number(roadAllowanceBaseApplied) || 0;
             const discount = Number(tollsDiscount) || 0;

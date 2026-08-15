@@ -83,7 +83,7 @@
 }
 
 .penalty-empty-stat .val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--ink);
@@ -244,7 +244,7 @@
 }
 
 .penalty-vio-type-meta .code {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink-3);
   font-size: var(--fs-2xs);
 }
@@ -255,7 +255,7 @@
 }
 
 .penalty-vio-type-fine .amt {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--ink);

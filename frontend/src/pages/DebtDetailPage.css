@@ -90,7 +90,7 @@
   font-weight: 500;
 }
 .dd-sub .dd-mono {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink-2);
   font-weight: 600;
 }
@@ -166,7 +166,7 @@
   min-width: 0;
   margin-top: 8px;
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 20px;
   line-height: 1.2;
   font-weight: 850;
@@ -241,7 +241,7 @@
 }
 
 .dd-sum-total {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-2xl);
   line-height: 1.35;
@@ -281,7 +281,7 @@
 }
 .dd-sum-update b {
   display: block;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink-2);
   font-size: var(--fs-sm);
 }
@@ -362,7 +362,7 @@
 }
 
 .dd-ac-val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-lg);
   margin-top: 12px;
@@ -542,7 +542,7 @@
   display: block;
   margin-top: 6px;
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-md);
   font-weight: 850;
   overflow-wrap: anywhere;
@@ -552,7 +552,7 @@
   display: block;
   margin-top: 4px;
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
 }
@@ -603,7 +603,7 @@
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .dd-ledger--standalone,
@@ -777,7 +777,7 @@
   background: var(--surface);
   font-size: var(--fs-xs);
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
 }
 
@@ -795,7 +795,7 @@
 }
 
 .dd-route-card-total b {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 24px;
   line-height: 1.25;
   color: var(--ink);
@@ -803,7 +803,7 @@
 
 .dd-route-card-total em {
   font-style: normal;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   color: #00803a;
@@ -854,7 +854,7 @@
 }
 
 .dd-accounting-row--container b {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 750;
   color: var(--ink-2);
@@ -863,7 +863,7 @@
 .dd-accounting-row--container em {
   margin-left: 8px;
   font-style: normal;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--ink-3);
@@ -882,7 +882,7 @@
 
 .dd-accounting-row--entry span:first-child,
 .dd-accounting-row--container strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 900;
 }
 
@@ -957,14 +957,14 @@
 .dd-breakdown-head span {
   display: inline-block;
   margin-top: 3px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 700;
 }
 
 .dd-breakdown-head strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   color: var(--ink);
   white-space: nowrap;
@@ -999,7 +999,7 @@
 
 .dd-trip-date,
 .dd-single-date {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--ink-2);
@@ -1026,7 +1026,7 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 0;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 650;
@@ -1047,7 +1047,7 @@
   display: grid;
   justify-items: end;
   gap: 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .dd-trip-money strong {
@@ -1091,7 +1091,7 @@
 }
 
 .dd-fee-line b {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink);
   white-space: nowrap;
@@ -1123,7 +1123,7 @@
 }
 
 .dd-single-card > strong {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -1137,7 +1137,7 @@
   border-radius: 7px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 650;
@@ -1285,7 +1285,7 @@
 .dd-fuel-row .dd-fuel-vehicle,
 .dd-expense-row .dd-expense-vehicle {
   color: var(--ink);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 750;
   white-space: nowrap;
 }
@@ -1356,7 +1356,7 @@
   .dd-ledger-mobile-card__head time {
     flex-shrink: 0;
     color: var(--ink-3);
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: var(--fs-xs);
     font-weight: 700;
   }
@@ -1395,7 +1395,7 @@
   .dd-ledger-mobile-card__body small {
     margin-top: 3px;
     color: var(--ink-3);
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: var(--fs-2xs);
     line-height: 1.4;
   }
@@ -1431,7 +1431,7 @@
   .dd-ledger-mobile-card__amounts dd {
     margin: 4px 0 0;
     color: var(--ink);
-    font-family: var(--font-mono);
+    font-family: var(--font-data);
     font-size: clamp(10px, 2.8vw, 13px);
     font-weight: 750;
     line-height: 1.35;
@@ -1477,7 +1477,7 @@
   display: block;
   margin-top: 3px;
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 600;
   line-height: 1.4;
@@ -1509,7 +1509,7 @@
 }
 
 .dd-td-date {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 500;
   color: var(--ink-2);
   font-size: var(--fs-sm);
@@ -1614,7 +1614,7 @@
 /* ─── Number Cells ──────────────────────────────────────────────────────────── */
 
 .dd-num {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 600;
   text-align: right;
   white-space: nowrap;
@@ -1649,7 +1649,7 @@
   color: var(--accent);
 }
 .dd-td-note .dd-code {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 500;

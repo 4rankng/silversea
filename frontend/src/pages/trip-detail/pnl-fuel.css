@@ -37,11 +37,11 @@
 .swatch--road       { background: #C2CAC6; }
 
 .pl-row .v {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--ink);
-  font-feature-settings: "tnum" 1;
+
   text-align: right;
   min-width: 0;
   word-break: break-word;
@@ -119,7 +119,7 @@
 }
 
 .pl-total .v {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--accent-2, #00984A);
@@ -180,7 +180,7 @@
 }
 
 .bullet-head .bv {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);

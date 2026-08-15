@@ -51,7 +51,7 @@ export default function TrailersConfigPage() {
       emptyTitle="Chưa có rơ-moóc"
       emptyHint="Thêm rơ-moóc đầu tiên để bắt đầu phân chuyến."
       columns={[
-        { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-mono)' }}>{t.licensePlate}</span> },
+        { header: 'Biển số', render: (t) => <span style={{ fontWeight: 600, color: 'var(--fg-1)', fontFamily: 'var(--font-data)' }}>{t.licensePlate}</span> },
         { header: 'Loại', render: (t) => <span style={{ color: 'var(--fg-2)' }}>{TRAILER_TYPE_LABELS[t.type] || t.type}</span> },
         { header: 'Trạng thái', render: (t) => <StatusPill variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}>{TRAILER_STATUS_LABELS[t.status] || t.status}</StatusPill> },
       ]}

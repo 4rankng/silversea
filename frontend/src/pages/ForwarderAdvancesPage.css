@@ -383,7 +383,7 @@
 }
 
 .fadv-settlement-summary__value {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 0;

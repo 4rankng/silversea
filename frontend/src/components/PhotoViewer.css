@@ -45,7 +45,7 @@
 }
 
 .pv-counter {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   color: rgba(255, 255, 255, 0.7);
@@ -91,7 +91,7 @@
 }
 
 .pv-zoom-label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   color: rgba(255, 255, 255, 0.5);
   min-width: 38px;

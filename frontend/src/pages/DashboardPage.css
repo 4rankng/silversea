@@ -19,7 +19,7 @@
 }
 .hbar-row:last-child { border-bottom: none; }
 .hbar-row__label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--ink);
@@ -46,7 +46,7 @@
   font-weight: 700;
   color: var(--ink);
   text-align: right;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .toplist { display: flex; flex-direction: column; }
@@ -60,7 +60,7 @@
 }
 .toplist__row:last-child { border-bottom: none; }
 .toplist__rank {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--ink-3);
@@ -72,8 +72,8 @@
   font-weight: 600; font-size: var(--fs-sm); color: var(--ink); margin-bottom: 2px;
 }
 .toplist__meta { font-size: var(--fs-2xs); color: var(--ink-3); }
-.toplist__value { font-weight: 700; font-size: var(--fs-sm); color: var(--ink); text-align: right; font-family: var(--font-mono); }
-.toplist__value-sub { font-size: var(--fs-2xs); color: var(--ink-3); text-align: right; margin-top: 2px; font-family: var(--font-mono); }
+.toplist__value { font-weight: 700; font-size: var(--fs-sm); color: var(--ink); text-align: right; font-family: var(--font-data); }
+.toplist__value-sub { font-size: var(--fs-2xs); color: var(--ink-3); text-align: right; margin-top: 2px; font-family: var(--font-data); }
 
 .todo {
   display: flex;
@@ -100,11 +100,11 @@
 .todo__icon--info { background: var(--accent-soft); color: var(--accent); }
 .todo__body { flex: 1; min-width: 0; }
 .todo__title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); margin-bottom: 3px; line-height: 1.3; }
-.todo__meta { font-size: var(--fs-2xs); color: var(--ink-3); display: flex; gap: 10px; font-family: var(--font-mono); }
+.todo__meta { font-size: var(--fs-2xs); color: var(--ink-3); display: flex; gap: 10px; font-family: var(--font-data); }
 
 /* Chart visuals */
 .linechart__grid { stroke: var(--line); stroke-width: 1px; }
-.linechart__axis-label { fill: var(--ink-3); font-size: var(--fs-2xs); font-family: var(--font-mono); }
+.linechart__axis-label { fill: var(--ink-3); font-size: var(--fs-2xs); font-family: var(--font-data); }
 .linechart__area { fill: url(#chart-gradient-rev); opacity: 0.15; }
 .linechart__line { stroke-width: 2.5px; stroke-linecap: round; stroke-linejoin: round; fill: none; }
 .linechart__line--revenue { stroke: var(--accent); }
@@ -134,13 +134,13 @@
 }
 .aging__donut-label { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
 .aging__total { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; color: var(--ink); line-height: 1.35; }
-.aging__total-label { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+.aging__total-label { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
 .aging__list { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .aging__row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); }
 .aging__dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .aging__row-label { flex: 1; color: var(--ink-2); }
-.aging__row-value { font-family: var(--font-mono); font-weight: 600; color: var(--ink); }
-.aging__row-pct { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--ink-3); min-width: 30px; text-align: right; }
+.aging__row-value { font-family: var(--font-data); font-weight: 600; color: var(--ink); }
+.aging__row-pct { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); min-width: 30px; text-align: right; }
 
 /* Risk dots */
 .risk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
@@ -277,7 +277,7 @@
   max-width: none !important;
   max-height: none !important;
 }
-.dash-wf .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.dash-wf .num { font-family: var(--font-data); letter-spacing: 0; }
 .dash-wf .lbl {
   font-family: var(--font-body);
   letter-spacing: 0; font-size: 13px; font-weight: 650;
@@ -390,7 +390,7 @@
 }
 .dash-wf .wf-kpi .row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dash-wf .wf-kpi .delta {
-  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600;
+  font-family: var(--font-data); font-size: var(--fs-2xs); font-weight: 600;
   display: inline-flex; align-items: center; gap: 3px;
   padding: 2px 7px; border-radius: 20px;
   white-space: nowrap;
@@ -399,7 +399,7 @@
 .dash-wf .wf-kpi .delta.down { color: var(--wf-red); background: #FBE5E3; }
 .dash-wf .wf-kpi .delta.flat { color: var(--wf-ink-2); background: var(--wf-bg); }
 .dash-wf .wf-kpi .delta.warn { color: var(--wf-amber); background: var(--wf-amber-soft); }
-.dash-wf .wf-kpi .val { font-family: var(--font-mono); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; margin-top: 9px; line-height: 1.35; }
+.dash-wf .wf-kpi .val { font-family: var(--font-data); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; margin-top: 9px; line-height: 1.35; }
 .dash-wf .wf-kpi .val i { font-style: normal; font-size: 15px; color: var(--wf-ink-3); font-weight: 500; margin-left: 1px; }
 .dash-wf .wf-kpi .foot { font-size: var(--fs-2xs); color: var(--wf-ink-2); margin-top: 7px; }
 
@@ -512,7 +512,7 @@
 /* Override the global `.plate` pill (UI.css gives it a dark bg + white text);
    inside the dashboard's "Lợi nhuận theo xe" widget we want bare mono text. */
 .dash-wf .wf-vrow .plate {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--wf-ink);
@@ -526,27 +526,27 @@
 }
 .dash-wf .wf-vrow .bar { height: 7px; border-radius: 5px; background: var(--wf-bg); overflow: hidden; }
 .dash-wf .wf-vrow .bar i { display: block; height: 100%; border-radius: 5px; background: var(--wf-green); }
-.dash-wf .wf-vrow .pct { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600; color: var(--wf-ink-2); text-align: right; }
+.dash-wf .wf-vrow .pct { font-family: var(--font-data); font-size: var(--fs-xs); font-weight: 600; color: var(--wf-ink-2); text-align: right; }
 
 .dash-wf .wf-rlist { padding: 8px 8px 8px; display: flex; flex-direction: column; }
 .dash-wf .wf-rrow { display: flex; align-items: center; gap: 11px; padding: 8px; border-radius: 9px; }
 .dash-wf .wf-rrow:hover { background: var(--wf-bg); }
-.dash-wf .wf-rrow .rk { width: 20px; height: 20px; border-radius: 6px; background: var(--wf-green-soft); color: var(--wf-green-700); font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700; display: grid; place-items: center; flex: 0 0 auto; }
+.dash-wf .wf-rrow .rk { width: 20px; height: 20px; border-radius: 6px; background: var(--wf-green-soft); color: var(--wf-green-700); font-family: var(--font-data); font-size: var(--fs-2xs); font-weight: 700; display: grid; place-items: center; flex: 0 0 auto; }
 .dash-wf .wf-rrow .rt { font-size: var(--fs-xs); font-weight: 600; flex: 1; min-width: 0; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
-.dash-wf .wf-rrow .rv { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600; color: var(--wf-green-700); }
+.dash-wf .wf-rrow .rv { font-family: var(--font-data); font-size: var(--fs-xs); font-weight: 600; color: var(--wf-green-700); }
 
 .dash-wf .wf-fleet .body { padding: 12px 16px 15px; }
 .dash-wf .wf-seg { display: flex; height: 9px; border-radius: 6px; overflow: hidden; margin-bottom: 13px; gap: 2px; }
 .dash-wf .wf-seg i { display: block; height: 100%; border-radius: 3px; }
 .dash-wf .wf-fstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
 .dash-wf .wf-fstat { padding: 9px 10px; border: 1px solid var(--wf-border); border-radius: 10px; background: var(--wf-card); }
-.dash-wf .wf-fstat .v { font-family: var(--font-mono); font-size: var(--fs-xl); font-weight: 700; line-height: 1.35; display: flex; align-items: center; gap: 6px; }
+.dash-wf .wf-fstat .v { font-family: var(--font-data); font-size: var(--fs-xl); font-weight: 700; line-height: 1.35; display: flex; align-items: center; gap: 6px; }
 .dash-wf .wf-fstat .v .pip { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-.dash-wf .wf-fstat .k { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-2xs); font-weight: 600; color: var(--wf-ink-3); margin-top: 6px; }
+.dash-wf .wf-fstat .k { font-family: var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-2xs); font-weight: 600; color: var(--wf-ink-3); margin-top: 6px; }
 .dash-wf .wf-util { display: flex; align-items: center; gap: 11px; margin-top: 13px; }
 .dash-wf .wf-util .track { flex: 1; height: 8px; border-radius: 5px; background: var(--wf-bg); overflow: hidden; }
 .dash-wf .wf-util .track i { display: block; height: 100%; border-radius: 5px; background: var(--wf-green); }
-.dash-wf .wf-util .pct { font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 700; color: var(--wf-green-700); }
+.dash-wf .wf-util .pct { font-family: var(--font-data); font-size: var(--fs-sm); font-weight: 700; color: var(--wf-green-700); }
 .dash-wf .wf-util .cap { font-size: var(--fs-2xs); color: var(--wf-ink-3); }
 
 .dash-wf .wf-cost { min-height: 216px; }
@@ -628,17 +628,17 @@
 }
 .dash-wf .wf-cost-summary__value {
   grid-column: 1;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xl);
   line-height: 1.2;
   color: var(--wf-ink);
-  font-variant-numeric: tabular-nums;
+
 }
 .dash-wf .wf-cost-summary__meta {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   color: var(--wf-ink-3);
   white-space: nowrap;
@@ -686,10 +686,10 @@
 }
 .dash-wf .wf-cost-row__amount,
 .dash-wf .wf-cost-row__pct {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+
   white-space: nowrap;
 }
 .dash-wf .wf-cost-row__amount {
@@ -767,7 +767,7 @@
   min-height: 24px;
   padding: 3px 8px;
   border-radius: 999px;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
@@ -852,7 +852,7 @@
   color: var(--wf-ink-2);
 }
 .dash-wf .wf-aurow .lab .t {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   color: var(--wf-ink-3);
   white-space: nowrap;
@@ -1149,7 +1149,7 @@
   gap: 10px;
   margin-bottom: 8px;
   color: var(--wf-ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -1317,7 +1317,7 @@
    jitter), amount right-aligned in mono, urgent items get a red rail. */
 .dash-wf .approval-queue .wf-card-h__count,
 .dash-wf .approval-queue__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-xs);
   color: var(--wf-green-700);
@@ -1373,7 +1373,7 @@
 .dash-wf .approval-queue__page-label {
   min-width: 76px;
   text-align: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--wf-ink-3);
@@ -1421,7 +1421,7 @@
   padding: 4px 6px 8px;
 }
 .dash-wf .approval-queue__group-head {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: var(--fs-2xs);
@@ -1504,7 +1504,7 @@
   overflow-wrap: anywhere;
 }
 .dash-wf .approval-queue__tag {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: var(--fs-2xs);
@@ -1515,7 +1515,7 @@
   border-radius: 4px;
 }
 .dash-wf .approval-queue__amt {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-xs);
   color: var(--wf-ink);

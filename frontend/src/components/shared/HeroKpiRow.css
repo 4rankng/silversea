@@ -161,7 +161,7 @@
 }
 
 .hero-kpi-mini__value {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-lg);
   font-weight: 700;
   letter-spacing: 0;

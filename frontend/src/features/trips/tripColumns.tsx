@@ -142,7 +142,7 @@ export function buildTripColumns(
               onClick={(e) => e.stopPropagation()}
             >
               <div className="trip-name">
-                <span style={{ fontFamily: 'var(--font-mono)' }}>{tripCode}</span>
+                <span style={{ fontFamily: 'var(--font-data)' }}>{tripCode}</span>
                 <span className="trip-meta-sep">·</span>
                 <span className="trip-date">{formatDayMonth(trip.departureDate)}</span>
               </div>

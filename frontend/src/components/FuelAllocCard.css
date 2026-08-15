@@ -33,8 +33,8 @@
   font-size: 26px;
   font-weight: 800;
   color: var(--brand);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
 }
 .fuel-alloc-card__body {
   padding: 12px 20px;

@@ -589,9 +589,9 @@
 
 .cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
 .cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
-.cus-multiline-cell--mono { font-family: var(--font-mono); }
+.cus-multiline-cell--mono { font-family: var(--font-data); }
 .cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
-.cus-multiline-cell--numeric strong { font-variant-numeric: tabular-nums; }
+.cus-multiline-cell--numeric strong { }
 
 /* Cargo is compact supporting data: show every container type, then keep its
    two measurements together on one quiet line instead of clipping either. */
@@ -672,7 +672,7 @@
 .cus-schedule-missing { color: var(--warn, #a15c00) !important; }
 
 .cus-quick-edit-modal { display: grid; gap: 14px; }
-.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-mono); font-size: 11px; line-height: 1.35; }
+.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: 11px; line-height: 1.35; }
 .cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: 12px; font-weight: var(--fw-semibold); }
 .cus-quick-edit-modal__fields input,
@@ -1008,7 +1008,7 @@
   display: grid;
   gap: 10px;
   color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
+
 }
 
 .cus-finance-loss,
@@ -1060,7 +1060,7 @@
   color: var(--warning-deep);
 }
 
-.cus-finance-evidence strong { font-variant-numeric: tabular-nums; }
+.cus-finance-evidence strong { }
 
 /* Workflow badge modifiers emitted dynamically:
    `cus-workflow-badge--${item.bucket.toLowerCase()}` */
@@ -1160,9 +1160,9 @@
 }
 
 .cus-shipment-drawer .drawer__subtitle {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+
 }
 
 .cus-shipment-drawer .drawer__body {
@@ -1212,9 +1212,9 @@
 
 .cus-container-ledger__head span {
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
+
 }
 
 /* Each container reads in two passes: identify it first, then scan or edit its
@@ -1295,8 +1295,8 @@
 
 .cus-container-fact--number dd,
 .cus-container-fact--ordinal dd {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-data);
+
   font-weight: var(--fw-semibold);
 }
 

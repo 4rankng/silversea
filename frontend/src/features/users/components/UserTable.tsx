@@ -330,7 +330,7 @@ export function UserTable({
           return (
             <div className="table-foot users-table-foot">
               <span className="users-table-foot__summary">
-                Hiển thị <strong style={{ fontFamily: 'var(--font-mono)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-mono)' }}>{filtered.length}</strong> tài khoản
+                Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> tài khoản
               </span>
               {totalPages > 1 && (
                 <div className="users-pagination" aria-label="Phân trang tài khoản">

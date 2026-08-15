@@ -122,12 +122,12 @@
   text-align: left;
 }
 .topbar-date__label {
-  font-variant-numeric: tabular-nums;
+
   line-height: 1.35;
 }
 .topbar-date__period {
   font-size: var(--fs-xs);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   color: var(--ink-3);
   font-weight: 600;
   line-height: 1.35;
@@ -191,7 +191,7 @@
   font-size: 13px;
   font-weight: 800;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+
   letter-spacing: 0;
 }
 .month-picker__year-nav {
@@ -231,7 +231,7 @@
   color: var(--ink);
   font-family: inherit;
   cursor: pointer;
-  font-variant-numeric: tabular-nums;
+
   transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
 }
 .month-picker__cell-code {
@@ -452,7 +452,7 @@
   right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 600;
   padding: 2px 6px;
@@ -477,7 +477,7 @@
   border-radius: 999px;
   background: var(--accent-2);
   color: var(--fg-on-brand);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   display: grid; place-items: center;

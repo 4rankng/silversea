@@ -805,7 +805,7 @@ export default function DebtDetailPage() {
             padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 8,
             fontSize: 13, color: 'var(--fg-2)',
           }}>
-            Còn nợ: <strong style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>
+            Còn nợ: <strong style={{ color: 'var(--danger)', fontFamily: 'var(--font-data)' }}>
               {formatCurrency(totalOutstanding)}
             </strong> ({unpaidTrips.length} chuyến chưa thu)
           </div>

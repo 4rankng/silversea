@@ -64,7 +64,7 @@
   content: none;
 }
 .profit-hero__label {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   color: var(--accent-ink);
   text-transform: uppercase;
@@ -128,7 +128,7 @@
 .partner-card__role { font-size: var(--fs-xs); color: var(--ink-3); }
 .partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0; }
 .partner-card__amount { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; line-height: 1.25; margin-bottom: 6px; color: var(--ink); }
-.partner-card__amount-label { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 6px; }
+.partner-card__amount-label { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 6px; }
 
 .calc-breakdown { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .calc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -140,7 +140,7 @@
 }
 .calc-row__label { font-size: var(--fs-sm); color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .calc-row__label--bold { color: var(--ink); font-weight: 600; }
-.calc-row__op { font-family: var(--font-mono); font-weight: 700; color: var(--ink-3); width: 16px; display: inline-block; text-align: center; flex-shrink: 0; }
+.calc-row__op { font-family: var(--font-data); font-weight: 700; color: var(--ink-3); width: 16px; display: inline-block; text-align: center; flex-shrink: 0; }
 .calc-row__value { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
 .calc-row__value--neg { color: var(--danger); }
 .calc-row__value--positive { color: var(--sb-bg); }
@@ -172,7 +172,7 @@
   gap: 8px;
 }
 .profit-history-item__period {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   font-size: var(--fs-2xs);
   color: var(--sb-bg);
@@ -197,7 +197,7 @@
   justify-content: space-between;
 }
 .profit-history-item__amount {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--sb-bg);

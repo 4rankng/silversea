@@ -96,7 +96,7 @@
 .driver-select-card__salary {
   font-size: var(--fs-2xs);
   font-weight: 600;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .driver-select-card.is-active .driver-select-card__salary {
@@ -283,7 +283,7 @@
   overflow: visible;
   overflow-wrap: anywhere;
   white-space: normal;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 
 .cal-cell-note-dot {

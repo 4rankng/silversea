@@ -48,33 +48,3 @@
   font-display: swap;
   src: url('./BeVietnamPro-ExtraBold.ttf') format('truetype');
 }
-
-/* JetBrains Mono -- tabular numbers and code */
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('./JetBrainsMono-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('./JetBrainsMono-Medium.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('./JetBrainsMono-SemiBold.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'JetBrains Mono';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('./JetBrainsMono-Bold.ttf') format('truetype');
-}

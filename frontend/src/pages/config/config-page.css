@@ -18,7 +18,7 @@
   padding: 14px 18px;
   vertical-align: middle;
 }
-.cfg-page .tt-table tbody td.num { font-variant-numeric: tabular-nums; }
+.cfg-page .tt-table tbody td.num { }
 
 /* Subtle row hover — keep readable density */
 .cfg-page .tt-table tbody tr:hover { background: rgba(0, 177, 79, 0.035); }
@@ -59,7 +59,7 @@
   padding: 4px 9px;
   margin-left: 8px;
   border-radius: 999px;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -149,7 +149,7 @@
   gap: 8px;
 }
 .cfg-page .cfg-section__heading-pill {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: uppercase;
@@ -645,7 +645,7 @@
     white-space: nowrap;
   }
   .routes-table tbody td[data-label].num {
-    font-variant-numeric: tabular-nums;
+
   }
 
   /* First cell (route name) is the card headline.
@@ -808,7 +808,7 @@
 
 .cfg-feature__state {
   color: var(--ink-3);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 600;
 }

@@ -3,13 +3,22 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const sourceRoot = resolve(process.cwd(), 'src');
+const frontendRoot = resolve(process.cwd());
 const printableDocumentSource = join(sourceRoot, 'pages/config/debit-note-template-editor.css');
+const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return sourceFiles(path);
     return /\.(?:css|ts|tsx)$/.test(entry.name) && !/\.test\.(?:ts|tsx)$/.test(entry.name) ? [path] : [];
+  });
+}
+
+function fontAssetFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    return entry.isDirectory() ? fontAssetFiles(path) : [path];
   });
 }
 
@@ -21,7 +30,7 @@ function declaredFontFamilies(source: string): string[] {
 }
 
 describe('frontend font-family contract', () => {
-  it('uses only the shared typography tokens outside font assets', () => {
+  it('uses a single shared UI family outside the print-document canvas', () => {
     const declarations = sourceFiles(sourceRoot)
       // The debit-note canvas intentionally models a print-ready legal document,
       // rather than an application UI surface.
@@ -29,6 +38,18 @@ describe('frontend font-family contract', () => {
       .flatMap((path) => declaredFontFamilies(readFileSync(path, 'utf8')));
 
     expect(declarations.length).toBeGreaterThan(0);
-    expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|mono)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
+    expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|data)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
+    const applicationSource = [
+      ...sourceFiles(sourceRoot),
+      join(frontendRoot, 'index.html'),
+    ].map((path) => readFileSync(path, 'utf8')).join('\n');
+
+    expect(applicationSource).not.toMatch(/(?:--font-mono|--ff-mono|JetBrains Mono)/);
+    // The bundled Be Vietnam Pro files use proportional figures. Table values
+    // that need a shared edge use their existing end alignment instead of a
+    // no-op OpenType tabular-numeral declaration.
+    expect(applicationSource).not.toMatch(/font-(?:variant-numeric\s*:\s*tabular-nums|feature-settings\s*:\s*["']tnum)/);
+    expect(readFileSync(join(fontAssetRoot, 'fonts.css'), 'utf8')).not.toContain('JetBrains Mono');
+    expect(fontAssetFiles(fontAssetRoot).filter((path) => /jetbrains/i.test(path))).toEqual([]);
   });
 });

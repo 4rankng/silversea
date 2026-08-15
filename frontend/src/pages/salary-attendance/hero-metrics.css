@@ -126,7 +126,7 @@
   line-height: 1.35; letter-spacing: 0;
   color: var(--ink);
 }
-.salary-page .metric-value.d-mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.salary-page .metric-value.d-mono { font-family: var(--font-data); }
 .salary-page .metric-value-unit {
   font-size: var(--fs-sm); line-height: 1.35; color: var(--ink-3); font-weight: 500; margin-left: 2px;
 }

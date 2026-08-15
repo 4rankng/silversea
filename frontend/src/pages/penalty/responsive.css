@@ -145,7 +145,7 @@
 }
 
 .penalty-m-card__id {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-2xs);
   font-weight: 600;
   color: var(--ink-3);
@@ -192,7 +192,7 @@
 }
 
 .penalty-m-card__meta .val {
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--fs-sm); font-weight: 600; color: var(--ink);
 }
 
