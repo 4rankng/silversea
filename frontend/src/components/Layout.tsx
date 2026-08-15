@@ -372,12 +372,28 @@ function getPageTitle(pathname: string): string {
 
 // ─── Layout component ─────────────────────────────────────────────────────
 
+/**
+ * Wide-desktop threshold aligned with `--content-max-w` (tokens.css): below it
+ * the content column is width-constrained anyway, so the sidebar's 248px rail
+ * steals space from wide tables (e.g. /shipments, /shipments-detail). On such
+ * viewports the sidebar starts collapsed to its 48px icon rail and reopens only
+ * on explicit user action (topbar toggle / Cmd-B).
+ */
+export const WIDE_DESKTOP_MIN_WIDTH = 1440;
+
+/** Viewports that are desktop-class (≥1024px) but below the wide-desktop threshold. */
+export const COMPACT_DESKTOP_MEDIA_QUERY = `(min-width: 1024px) and (max-width: ${WIDE_DESKTOP_MIN_WIDTH - 1}px)`;
+
+export function resolveInitialSidebarOpen(viewportWidth: number): boolean {
+  return viewportWidth >= WIDE_DESKTOP_MIN_WIDTH;
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, updateUser } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const bottomNavRef = useBottomNavAnimations({ ready: !!user && user.role === 'DRIVER' });
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
+  const [sidebarOpen, setSidebarOpen] = useState(() => resolveInitialSidebarOpen(window.innerWidth));
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -406,10 +422,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const media = window.matchMedia('(max-width: 1023px)');
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
-      setSidebarOpen(!event.matches);
+      // Entering desktop from mobile may land in the compact-desktop range,
+      // where the sidebar must stay collapsed for full-width tables.
+      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleViewportChange);
     return () => media.removeEventListener('change', handleViewportChange);
+  }, []);
+
+  // Compact desktop (1024–1439px): collapse the sidebar so wide tables get full
+  // width; reopen when growing past the wide-desktop threshold. Mirrors the
+  // mobile listener above — one state set per crossing, manual toggles persist
+  // until the next crossing. Resolves from window.innerWidth rather than
+  // event.matches so a 1024→1023 shrink (where both listeners fire) never
+  // leaves the mobile drawer open: resolve() is false at every boundary this
+  // query can flip, and the compact listener runs after the mobile one.
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_DESKTOP_MEDIA_QUERY);
+    const handleCompactDesktopChange = () => {
+      setSidebarOpen(resolveInitialSidebarOpen(window.innerWidth));
+    };
+    media.addEventListener('change', handleCompactDesktopChange);
+    return () => media.removeEventListener('change', handleCompactDesktopChange);
   }, []);
 
   const openProfileModal = () => {

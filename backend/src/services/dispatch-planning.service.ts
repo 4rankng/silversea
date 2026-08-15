@@ -46,6 +46,32 @@ export interface ListDispatchFleetInput {
   q?: string;
 }
 
+export interface ListDispatchDetailPlanRowsInput {
+  actor: AuthUser;
+  cursor?: string | null;
+  limit?: number;
+  q?: string;
+  date?: string;
+  direction?: 'IMPORT' | 'EXPORT';
+  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED';
+  pickupIds?: number[];
+  dropoffIds?: number[];
+  deliveryPointIds?: number[];
+  hourFrom?: number;
+  hourTo?: number;
+}
+
+export interface AssignFulfillmentPlateInput {
+  fulfillmentId: number;
+  expectedVersion: number;
+  truckId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  plateNumber?: string | null;
+  clear?: boolean;
+  idempotencyKey: string;
+  actor: DispatchActor;
+}
+
 export interface AcceptDispatchHandoffInput {
   shipmentId: number;
   handoffId: number;
@@ -106,7 +132,7 @@ type DispatchQueueStatus = 'READY' | 'DISPATCHED';
 type DispatchFleetResource = ListDispatchFleetInput['resource'];
 const DEFAULT_DISPATCH_HANDOFF_STATUSES: readonly DispatchHandoffStatus[] = ['UNSEEN', 'SEEN'];
 
-type DispatchCursorScope = 'dispatch-handoffs' | 'dispatch-queue';
+type DispatchCursorScope = 'dispatch-handoffs' | 'dispatch-queue' | 'dispatch-detail-plan';
 
 interface DispatchListCursorPayload {
   v: 1;
@@ -157,6 +183,8 @@ interface IssueOrderMutationResult {
 }
 
 const DEFAULT_ROUTE_SERVICE_SPEED_KPH = 35;
+// Matches shipment.service.ts display name for the owned fleet.
+const INTERNAL_FLEET_CARRIER_NAME = 'SilverSea';
 const DEFAULT_ROUTE_SERVICE_BUFFER_MINUTES = 30;
 const TRAILER_CAPACITY_KG: Record<'20FT' | '40FT', number> = {
   '20FT': 18_000,
@@ -1727,4 +1755,485 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
     },
     replayed: outcome.replayed,
   };
+}
+
+// ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
+// One row per active fulfillment (container or LCL shipment). Rows exist as
+// soon as CUS allocates a carrier on the master-plan screen (READY_FOR_DISPATCH
+// with plannedCarrierType set), before any handoff resolution or trip — so
+// unlike listDispatchQueue there is NO accepted-handoff join here.
+
+const DISPATCH_DETAIL_PLAN_CARRIER_TYPES = ['OWN', 'EXTERNAL'] as const;
+
+function normalizeIdList(raw: readonly (number | string)[] | null | undefined, label: string): number[] | null {
+  if (!raw?.length) return null;
+  const result: number[] = [];
+  const seen = new Set<number>();
+  for (const value of raw) {
+    const id = typeof value === 'number' ? value : Number(value);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new ApiError(400, `${label} không hợp lệ.`);
+    }
+    if (seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+  }
+  return result.length > 0 ? result : null;
+}
+
+function normalizeHour(raw: number | undefined, label: string): number | null {
+  if (raw == null) return null;
+  if (!Number.isInteger(raw) || raw < 0 || raw > 23) {
+    throw new ApiError(400, `${label} phải trong khoảng 0-23.`);
+  }
+  return raw;
+}
+
+// Hour granularity of the run window — coalesce closingAt then plannedReturnAt,
+// same precedence the dispatch-queue date filter uses.
+function dispatchDetailRunHourSql() {
+  return sql<number>`extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`;
+}
+
+export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
+  assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
+  const cursor = parseCursor(input.cursor, 'dispatch-detail-plan');
+  const limit = normalizeLimit(input.limit, 50);
+  const qPattern = buildPattern(input.q);
+  const date = normalizeDate(input.date);
+  const pickupIds = normalizeIdList(input.pickupIds, 'pickupIds');
+  const dropoffIds = normalizeIdList(input.dropoffIds, 'dropoffIds');
+  const deliveryPointIds = normalizeIdList(input.deliveryPointIds, 'deliveryPointIds');
+  const hourFrom = normalizeHour(input.hourFrom, 'hourFrom');
+  const hourTo = normalizeHour(input.hourTo, 'hourTo');
+
+  return db.transaction(async (tx) => {
+    const rows = await tx.select({
+      fulfillmentId: s.shipmentFulfillments.id,
+      fulfillmentVersion: s.shipmentFulfillments.version,
+      fulfillmentType: s.shipmentFulfillments.fulfillmentType,
+      cargoMode: s.shipmentFulfillments.cargoMode,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
+      plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+      shipmentId: s.shipments.id,
+      shipmentVersion: s.shipments.version,
+      shipmentCode: s.shipments.shipmentCode,
+      bookingRef: s.shipments.bookingRef,
+      blNumber: s.shipments.blNumber,
+      tradeDirection: s.shipments.tradeDirection,
+      closingAt: s.shipments.closingAt,
+      plannedReturnAt: s.shipments.plannedReturnAt,
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+      operationalNotes: s.shipments.operationalNotes,
+      customerNotes: s.shipments.customerNotes,
+      packageType: s.shipments.packageType,
+      packageCount: s.shipments.packageCount,
+      cargoWeightKg: s.shipments.cargoWeightKg,
+      customerId: s.customers.id,
+      customerName: s.customers.name,
+      operationalSiteId: s.shipments.operationalSiteId,
+      containerNumber: s.shipmentContainers.containerNumber,
+      containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      containerTypeId: s.shipmentContainers.containerTypeId,
+      containerTypeName: s.containerTypes.name,
+      containerTypeCode: s.containerTypes.code,
+      pickupPortId: s.shipmentContainers.pickupPortId,
+      dropoffPortId: s.shipmentContainers.dropoffPortId,
+      tripId: s.trips.id,
+      tripStatus: s.trips.status,
+    }).from(s.shipmentFulfillments)
+      .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
+      .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
+      .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+      .leftJoin(s.trips, and(
+        eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+        ne(s.trips.status, TripStatus.CANCELED),
+        isNull(s.trips.deletedAt),
+      ))
+      .where(and(
+        isNull(s.shipmentFulfillments.canceledAt),
+        isNull(s.shipments.deletedAt),
+        eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+        inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
+        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
+        cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
+        input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
+        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
+        pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
+        dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
+        deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
+        hourFrom != null ? sql`${dispatchDetailRunHourSql()} >= ${hourFrom}` : undefined,
+        hourTo != null ? sql`${dispatchDetailRunHourSql()} <= ${hourTo}` : undefined,
+        input.assignmentStatus === 'UNASSIGNED'
+          ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
+          : undefined,
+        input.assignmentStatus === 'ASSIGNED'
+          ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
+          : undefined,
+        qPattern ? or(
+          ilike(s.customers.name, qPattern),
+          ilike(s.shipments.shipmentCode, qPattern),
+          ilike(s.shipments.bookingRef, qPattern),
+          ilike(s.shipments.blNumber, qPattern),
+          ilike(s.shipmentContainers.containerNumber, qPattern),
+        ) : undefined,
+      ))
+      .orderBy(desc(s.shipmentFulfillments.id))
+      .limit(limit + 1);
+
+    const pageRows = rows.slice(0, limit);
+    const shipmentIds = pageRows.map((row) => row.shipmentId);
+    const carrierIds = pageRows
+      .map((row) => row.plannedExternalCarrierId)
+      .filter((id): id is number => id != null);
+    const portIds = pageRows.flatMap((row) => [row.pickupPortId, row.dropoffPortId]).filter((id): id is number => id != null);
+    const [declarations, carriers, ports, platedCounts] = await Promise.all([
+      loadDeclarationNumbers(tx, shipmentIds),
+      carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: s.customers.name }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
+      portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: s.ports.name }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
+      shipmentIds.length === 0 ? [] : tx.select({
+        shipmentId: s.shipmentFulfillments.shipmentId,
+        total: sql<number>`count(*)`,
+        plated: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`,
+      }).from(s.shipmentFulfillments)
+        .where(and(
+          inArray(s.shipmentFulfillments.shipmentId, [...new Set(shipmentIds)]),
+          isNull(s.shipmentFulfillments.canceledAt),
+        ))
+        .groupBy(s.shipmentFulfillments.shipmentId),
+    ]);
+    const carriersById = new Map(carriers.map((row) => [row.id, row]));
+    const portsById = new Map(ports.map((row) => [row.id, row]));
+    const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
+
+    return {
+      items: pageRows.map((row) => {
+        const snapshot = (row.siteSnapshot ?? {}) as Record<string, unknown>;
+        const deliverySite = toFrozenSiteSummary(snapshot.deliverySite);
+        const plated = platedByShipment.get(row.shipmentId);
+        return {
+          fulfillmentId: row.fulfillmentId,
+          version: row.fulfillmentVersion,
+          shipmentId: row.shipmentId,
+          shipmentVersion: row.shipmentVersion,
+          shipmentCode: row.shipmentCode,
+          fulfillmentType: row.fulfillmentType,
+          cargoMode: row.cargoMode,
+          taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
+          time: {
+            deliveryDate: row.expectedDeliveryDate,
+            runHour: row.closingAt != null || row.plannedReturnAt != null
+              ? new Date(row.closingAt ?? row.plannedReturnAt!).getUTCHours()
+              : null,
+          },
+          customerRoute: {
+            customerName: row.customerName,
+            factoryName: deliverySite.name,
+            deliveryPoint: deliverySite.address,
+          },
+          docs: {
+            billNumber: row.blNumber || row.bookingRef,
+            tradeDirection: row.tradeDirection,
+            declarationNumbers: declarations.get(row.shipmentId) ?? [],
+          },
+          container: {
+            containerNumber: row.containerNumber,
+            containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
+            cargoWeightKg: row.containerCargoWeightKg ?? row.cargoWeightKg,
+          },
+          notes: {
+            vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,
+            customerNote: row.customerNotes,
+          },
+          dispatch: {
+            carrierType: row.plannedCarrierType,
+            carrierName: row.plannedCarrierType === 'OWN'
+              ? INTERNAL_FLEET_CARRIER_NAME
+              : row.plannedExternalCarrierId
+                ? carriersById.get(row.plannedExternalCarrierId)?.name ?? null
+                : null,
+            externalCarrierId: row.plannedExternalCarrierId,
+            externalCarrierVehicleId: row.plannedExternalCarrierVehicleId,
+            assignedPlate: row.plannedVehiclePlateNumber,
+          },
+          ports: {
+            pickupPortId: row.pickupPortId,
+            pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,
+            dropoffPortId: row.dropoffPortId,
+            dropoffPortName: row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null,
+          },
+          lotFullyPlated: plated != null && plated.total > 0 && plated.plated === plated.total,
+        };
+      }),
+      limit,
+      nextCursor: rows.length > limit ? encodeDescendingIdCursor('dispatch-detail-plan', pageRows.at(-1)!.fulfillmentId) : null,
+    };
+  });
+}
+
+// Distinct dropoff delivery points for the filter-bar multi-select facet.
+export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; q?: string }) {
+  assertDispatchReadActor(input.actor);
+  const qPattern = buildPattern(input.q);
+  const rows = await db.selectDistinct({ id: s.operationalSites.id, name: s.operationalSites.name })
+    .from(s.shipments)
+    .innerJoin(s.shipmentFulfillments, and(
+      eq(s.shipmentFulfillments.shipmentId, s.shipments.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .innerJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+    .where(and(
+      isNull(s.shipments.deletedAt),
+      eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+      qPattern ? ilike(s.operationalSites.name, qPattern) : undefined,
+    ))
+    .orderBy(asc(s.operationalSites.name))
+    .limit(100);
+  return { items: rows };
+}
+
+interface PlateMutationResult {
+  fulfillmentId: number;
+  version: number;
+  lotFullyPlated: boolean;
+  driverNotified: boolean;
+  assignedPlate: string | null;
+  assignedDriverId: number | null;
+  assignedDriverName: string | null;
+  driverHint: string | null;
+}
+
+// Same display normalization the carrier vehicle catalog uses
+// (carrier-fleet-vehicle.service.ts formatPlate): trim, uppercase, collapse
+// internal whitespace.
+function normalizeFreeTextPlate(value: string): string {
+  return value.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+export async function assignFulfillmentPlate(input: AssignFulfillmentPlateInput): Promise<PlateMutationResult & { replayed: boolean }> {
+  assertDispatchActor(input.actor);
+  const outcome = await runIdempotent<PlateMutationResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      fulfillmentId: input.fulfillmentId,
+      expectedVersion: input.expectedVersion,
+      truckId: input.truckId ?? null,
+      externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
+      plateNumber: input.plateNumber ?? null,
+      clear: input.clear === true,
+    },
+    createdBy: input.actor.userId,
+    entityType: 'shipment_fulfillments',
+    getEntityId: (result) => result.fulfillmentId,
+    create: (tx) => assignFulfillmentPlateInTx(tx, input),
+  });
+
+  const result = outcome.result;
+  if (!outcome.replayed && result.driverNotified) {
+    const notificationPayload = buildPlateAssignmentNotificationPayload(result);
+    if (hasExplicitNotificationTarget(notificationPayload)) {
+      await sendNotificationPush(notificationPayload).catch((error) => {
+        console.error('Plate-assignment push delivery failed after commit:', error);
+      });
+    }
+  }
+  return { ...result, replayed: outcome.replayed };
+}
+
+function buildPlateAssignmentNotificationPayload(result: PlateMutationResult): NotificationPayload {
+  return {
+    type: NotificationType.TRIP_DISPATCHED,
+    title: 'Phân công chạy mới',
+    message: result.assignedPlate
+      ? `Bạn được phân công chạy xe biển ${result.assignedPlate}`
+      : 'Bạn có phân công chạy mới',
+    relatedEntityType: 'shipment_fulfillments',
+    relatedEntityId: result.fulfillmentId,
+    targetDriverId: result.assignedDriverId ?? undefined,
+  };
+}
+
+async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateInput): Promise<PlateMutationResult> {
+  const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.id, input.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .limit(1)
+    .for('update');
+  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+  if (fulfillment.version !== input.expectedVersion) {
+    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  const carrierType = fulfillment.plannedCarrierType;
+  if (carrierType !== 'OWN' && carrierType !== 'EXTERNAL') {
+    throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
+  }
+
+  await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
+
+  let plannedVehiclePlateNumber: string | null = null;
+  let plannedExternalCarrierVehicleId: number | null = null;
+  let assignedTruckId: number | null = null;
+  let assignedDriverId: number | null = null;
+  let assignedDriverName: string | null = null;
+  let driverHint: string | null = null;
+
+  if (input.clear === true) {
+    // Clear path: both carrier types allowed; un-assign everything.
+  } else if (carrierType === 'OWN') {
+    if (input.truckId == null) {
+      throw new ApiError(400, 'Xe nội bộ phải chọn biển số từ đội xe công ty.');
+    }
+    if (input.plateNumber != null || input.externalCarrierVehicleId != null) {
+      throw new ApiError(400, 'Nhà xe nội bộ không dùng biển số tự do hoặc xe nhà thầu.');
+    }
+    const [truck] = await tx.select({
+      id: s.trucks.id,
+      licensePlate: s.trucks.licensePlate,
+      status: s.trucks.status,
+      deletedAt: s.trucks.deletedAt,
+    }).from(s.trucks).where(eq(s.trucks.id, input.truckId)).limit(1);
+    if (!truck || truck.deletedAt || truck.status !== 'ACTIVE') {
+      throw new ApiError(409, 'Xe đầu kéo không còn hiệu lực.');
+    }
+    const [driver] = await tx.select({
+      id: s.drivers.id,
+      name: s.drivers.name,
+      userId: s.drivers.userId,
+      status: s.drivers.status,
+      deletedAt: s.drivers.deletedAt,
+    }).from(s.drivers)
+      .where(and(
+        eq(s.drivers.assignedTruckId, truck.id),
+        isNull(s.drivers.deletedAt),
+        eq(s.drivers.status, 'ACTIVE'),
+      ))
+      .limit(1);
+    plannedVehiclePlateNumber = truck.licensePlate;
+    assignedTruckId = truck.id;
+    if (driver) {
+      assignedDriverId = driver.id;
+      assignedDriverName = driver.name;
+      if (driver.userId == null) driverHint = 'Lái xe chưa có tài khoản đăng nhập.';
+    } else {
+      driverHint = 'Chưa có lái xe gắn với xe.';
+    }
+  } else {
+    // EXTERNAL: catalog pick, free text, or empty (CUS fills later).
+    if (input.externalCarrierVehicleId != null) {
+      if (input.plateNumber != null) {
+        throw new ApiError(400, 'Chỉ chọn một nguồn biển số: xe nhà thầu hoặc nhập tay.');
+      }
+      const [vehicle] = await tx.select({
+        id: s.carrierFleetVehicles.id,
+        carrierId: s.carrierFleetVehicles.carrierId,
+        licensePlate: s.carrierFleetVehicles.licensePlate,
+        isActive: s.carrierFleetVehicles.isActive,
+        deletedAt: s.carrierFleetVehicles.deletedAt,
+      }).from(s.carrierFleetVehicles)
+        .where(eq(s.carrierFleetVehicles.id, input.externalCarrierVehicleId))
+        .limit(1);
+      if (!vehicle || vehicle.deletedAt || !vehicle.isActive) {
+        throw new ApiError(409, 'Xe nhà thầu không còn hiệu lực.');
+      }
+      if (fulfillment.plannedExternalCarrierId != null && vehicle.carrierId !== fulfillment.plannedExternalCarrierId) {
+        throw new ApiError(409, 'Xe không thuộc nhà xe được phân công.');
+      }
+      plannedVehiclePlateNumber = vehicle.licensePlate;
+      plannedExternalCarrierVehicleId = vehicle.id;
+    } else if (input.plateNumber != null) {
+      const normalized = normalizeFreeTextPlate(input.plateNumber);
+      const trimmed = input.plateNumber.trim();
+      if (trimmed.length < 4 || trimmed.length > 20) {
+        throw new ApiError(400, 'Biển số xe không hợp lệ.');
+      }
+      plannedVehiclePlateNumber = normalized;
+      // Match against the vendor catalog so a typed plate matching an existing
+      // entry links to it instead of creating a phantom free-text plate.
+      if (fulfillment.plannedExternalCarrierId != null) {
+        const normalizedCatalogKey = normalized.replace(/[^A-Z0-9]/g, '');
+        const [match] = await tx.select({
+          id: s.carrierFleetVehicles.id,
+        }).from(s.carrierFleetVehicles)
+          .where(and(
+            eq(s.carrierFleetVehicles.carrierId, fulfillment.plannedExternalCarrierId),
+            eq(s.carrierFleetVehicles.normalizedPlate, normalizedCatalogKey),
+            isNull(s.carrierFleetVehicles.deletedAt),
+          ))
+          .limit(1);
+        plannedExternalCarrierVehicleId = match?.id ?? null;
+      }
+    }
+    // else: empty assignment (bypass) — plate stays null, allowed for EXTERNAL.
+  }
+
+  // Notify only when the truck actually changes (dedupe re-assign of same truck).
+  const sameTruck = assignedTruckId != null
+    && fulfillment.plannedVehiclePlateNumber === plannedVehiclePlateNumber
+    && fulfillment.plannedExternalCarrierVehicleId === plannedExternalCarrierVehicleId;
+  const shouldNotifyDriver = carrierType === 'OWN'
+    && input.clear !== true
+    && assignedTruckId != null
+    && !sameTruck
+    && assignedDriverId != null;
+
+  const [updated] = await tx.update(s.shipmentFulfillments).set({
+    plannedVehiclePlateNumber,
+    plannedExternalCarrierVehicleId,
+    version: fulfillment.version + 1,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.shipmentFulfillments.id, fulfillment.id),
+    eq(s.shipmentFulfillments.version, fulfillment.version),
+  )).returning();
+  if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+
+  const lotFullyPlated = await recomputeLotFullyPlated(tx, fulfillment.shipmentId);
+
+  if (shouldNotifyDriver) {
+    await persistNotificationInTx(tx, buildPlateAssignmentNotificationPayload({
+      fulfillmentId: fulfillment.id,
+      version: updated.version,
+      lotFullyPlated,
+      driverNotified: true,
+      assignedPlate: plannedVehiclePlateNumber,
+      assignedDriverId,
+      assignedDriverName,
+      driverHint,
+    }));
+  }
+
+  return {
+    fulfillmentId: fulfillment.id,
+    version: updated.version,
+    lotFullyPlated,
+    driverNotified: shouldNotifyDriver,
+    assignedPlate: plannedVehiclePlateNumber,
+    assignedDriverId,
+    assignedDriverName,
+    driverHint,
+  };
+}
+
+async function recomputeLotFullyPlated(tx: Tx, shipmentId: number): Promise<boolean> {
+  const [counts] = await tx.select({
+    total: sql<number>`count(*)`,
+    plated: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+  const total = Number(counts?.total ?? 0);
+  const plated = Number(counts?.plated ?? 0);
+  return total > 0 && plated === total;
 }

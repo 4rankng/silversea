@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Role } from '@tingting/shared';
 
-import { getNavItems, getNavSections, getDefaultOpenSection, PRIMARY_SECTION_BY_ROLE } from './Layout';
+import {
+  getNavItems,
+  getNavSections,
+  getDefaultOpenSection,
+  PRIMARY_SECTION_BY_ROLE,
+  resolveInitialSidebarOpen,
+  COMPACT_DESKTOP_MEDIA_QUERY,
+} from './Layout';
 
 describe('getNavItems', () => {
   it.each([
@@ -283,5 +290,19 @@ describe('getDefaultOpenSection / PRIMARY_SECTION_BY_ROLE', () => {
     expect(getDefaultOpenSection(undefined)).toBeUndefined();
     expect(getDefaultOpenSection('')).toBeUndefined();
     expect(getDefaultOpenSection('NOT_A_ROLE' as unknown as Role)).toBeUndefined();
+  });
+});
+
+describe('resolveInitialSidebarOpen / COMPACT_DESKTOP_MEDIA_QUERY', () => {
+  it('starts with the sidebar open only on wide desktop viewports (≥1440px)', () => {
+    expect(resolveInitialSidebarOpen(1920)).toBe(true);
+    expect(resolveInitialSidebarOpen(1440)).toBe(true);
+    expect(resolveInitialSidebarOpen(1439)).toBe(false);
+    expect(resolveInitialSidebarOpen(1280)).toBe(false);
+    expect(resolveInitialSidebarOpen(1024)).toBe(false);
+  });
+
+  it('scopes the compact-desktop range to 1024–1439px so mobile (≤1023px) stays untouched', () => {
+    expect(COMPACT_DESKTOP_MEDIA_QUERY).toBe('(min-width: 1024px) and (max-width: 1439px)');
   });
 });

@@ -360,12 +360,11 @@ async function assertIntakeReady(
 
   if (containers.length === 0) throw new ApiError(409, 'Hàng nguyên container cần ít nhất một container.');
   const incomplete = containers.find((container) => (
-    !container.containerNumber?.trim()
-    || container.containerTypeId == null
+    container.containerTypeId == null
     || container.pickupPortId == null
     || container.dropoffPortId == null
   ));
-  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ số container, loại, cảng nâng và cảng hạ.');
+  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ loại, cảng nâng và cảng hạ.');
   const containerTypeIds = [...new Set(containers.map((container) => container.containerTypeId)
     .filter((id): id is number => id != null))];
   const activeContainerTypes = await tx.select({ id: s.containerTypes.id }).from(s.containerTypes)

@@ -73,6 +73,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_FULFILLMENTS_DECOMPOSE: 'shipments.fulfillments.decompose',
   SHIPMENT_SUBMIT_FOR_DISPATCH: 'shipments.submit-for-dispatch',
   SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN: 'shipments.carrier-allocations.assign',
+  SHIPMENT_FULFILLMENT_PLATE_ASSIGN: 'shipments.fulfillments.plate.assign',
   SHIPMENT_ACCOUNTING_LOCK_ACTIVATE: 'shipments.accounting-lock.activate',
   SHIPMENT_CUS_FINANCE_CONFIRM: 'shipments.cus.finance-confirm',
   SHIPMENT_CUS_PROPOSAL_BILLING_REVIEW: 'shipments.cus.proposal-billing.review',

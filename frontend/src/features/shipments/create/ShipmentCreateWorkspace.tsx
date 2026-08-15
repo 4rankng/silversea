@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, Plus, Trash2 } from 'lucide-react';
+import { Eye, Plus, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import {
   USearchableField as SearchableField,
@@ -265,13 +265,10 @@ export function ShipmentCreateWorkspace() {
 
   return (
     <div className="csc-page">
-      <button type="button" className="csc-back" onClick={goBack} aria-label="Quay lại">
-        <ArrowLeft size={18} /> Quay lại
-      </button>
       <header className="csc-header">
         <span className="csc-header__eyebrow">Lô hàng CUS</span>
         <h1>Tạo lô hàng mới</h1>
-        <p>Lưu bản nháp để bổ sung sau, hoặc hoàn tất thông tin rồi gửi sang điều phối.</p>
+        <p>Thông tin lịch vận hành sẽ tự xác định trạng thái lô hàng và thời điểm Điều vận có thể tiếp nhận.</p>
       </header>
 
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
@@ -386,7 +383,7 @@ export function ShipmentCreateWorkspace() {
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
                     <TextField label="Thể tích (m³)" type="number" min="0" step="0.01" value={row.cargoVolumeCbm} onChange={(event) => updateContainer(row.key, 'cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
-                    <TextField label="Ngày đóng/trả" type="date" value={row.closingDate} onChange={(event) => updateContainer(row.key, 'closingDate', event.target.value)} disabled={Boolean(saving)} />
+                    <TextField label="Ngày giao dự kiến" type="date" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
               ))}</>}
@@ -448,7 +445,7 @@ export function ShipmentCreateWorkspace() {
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
-            <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
+            {form.cargoMode === 'LCL' && <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>}
           </div>
           {form.cargoMode === 'LCL' && (
             <div className="csc-extra-dates">
@@ -473,8 +470,8 @@ export function ShipmentCreateWorkspace() {
           submitError={submitError}
           onNavigateSection={navigateSection}
           onFocusIssue={focusIssue}
-          onSaveDraft={() => void save('DRAFT')}
-          onSubmitDispatch={() => void save('SUBMIT')}
+          onCreate={() => void save('DRAFT')}
+          onCancel={goBack}
         />
       </form>
       <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={() => setDetailSite(null)} />
@@ -496,7 +493,7 @@ export function ShipmentCreateWorkspace() {
           </>
         )}
       >
-        <p>Thông tin chưa lưu sẽ bị mất. Hãy lưu nháp hoặc xác nhận bỏ thay đổi trước khi quay lại.</p>
+        <p>Thông tin chưa lưu sẽ bị mất. Hãy tạo lô hàng hoặc xác nhận bỏ thay đổi.</p>
       </Modal>
     </div>
   );

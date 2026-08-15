@@ -1,0 +1,19 @@
+/* In-grid plate assignment (col 6 of the detail-plan grid). */
+
+.plate-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.plate-assignment__carrier {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+}
+
+.plate-assignment__hint {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-secondary, #94a3b8);
+}

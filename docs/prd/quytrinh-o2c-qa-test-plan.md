@@ -141,7 +141,7 @@ Các route/label sau chỉ dùng để tìm màn hình. Nếu label thực tế 
 
 | Vai trò | Route | Dẫn đường UI hiện hành |
 | --- | --- | --- |
-| CUS | `/shipments/new` | `Tạo lô hàng mới`, `Lưu bản nháp`, `Gửi sang điều phối` |
+| CUS | `/shipments/new` | `Tạo lô hàng mới`, `Tạo lô hàng`, `Huỷ` |
 | Dispatcher | `/dispatch` | `Điều phối chuyến xe`, `Tiếp nhận`, `Phát hành lệnh điều xe` |
 | Driver | `/my-trips` | Bốn milestone nghiệp vụ và nút `Gửi chờ duyệt phí` |
 | Ops | `/my-forwarder-trips` | `Chi phí phát sinh`, `Thêm`, `Đã kê xong` |
@@ -271,9 +271,9 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | --- | --- |
 | Vai trò | CUS |
 | Tiền điều kiện | Có khách, tuyến, bảng giá cước, fuel config, route dẫn đường `/shipments/new` |
-| Hành động | 1. Đăng nhập `cus`, mở `/shipments/new`. 2. Tạo lô FCL với Booking/BL và 2 container/seal ở Mục 4.3; lưu bằng `Lưu bản nháp`. 3. Đối chiếu từng trường với bộ chứng từ chuẩn bị. 4. Ghi cước master, giá dầu gốc/hiện tại, số lít định mức và tỷ lệ chia sẻ; tính tay `phụ phí = (giá hiện tại − giá gốc) × số lít định mức × tỷ lệ chia sẻ`. 5. Tạo lô LCL đối chứng, nhập kho lấy hàng, loại bao bì, số lượng, kg, CBM và ghi chú; lưu nháp. 6. Mở lại cả hai lô và ghi `shipmentId`/trạng thái. |
-| PRD kỳ vọng | FCL và LCL hiển thị đúng bộ trường; cước dự kiến tự lấy theo Khách × Tuyến; phụ phí xăng dầu tự tính đúng công thức; giá read-only; cả hai lô là `NEW/Mới tạo` |
-| FAIL nếu | Thiếu trường FCL/LCL; không có cước hoặc phụ phí hiển thị; cho gõ tay giá; công thức sai; dữ liệu mở lại sai; lô nháp không ở `NEW` |
+| Hành động | 1. Đăng nhập `cus`, mở `/shipments/new`. 2. Tạo lô FCL với Booking/BL và 2 dòng container; để trống số container ở một dòng, nhập ngày giao dự kiến riêng cho từng dòng, rồi bấm `Tạo lô hàng`. 3. Đối chiếu từng trường với bộ chứng từ chuẩn bị. 4. Ghi cước master, giá dầu gốc/hiện tại, số lít định mức và tỷ lệ chia sẻ; tính tay `phụ phí = (giá hiện tại − giá gốc) × số lít định mức × tỷ lệ chia sẻ`. 5. Tạo lô LCL đối chứng, nhập kho lấy hàng, loại bao bì, số lượng, kg, CBM, ngày giao và ghi chú; bấm `Tạo lô hàng`. 6. Mở lại cả hai lô và ghi `shipmentId`/trạng thái. |
+| PRD kỳ vọng | FCL và LCL hiển thị đúng bộ trường; FCL cho phép số container trống và lưu ngày giao theo từng container; cước dự kiến tự lấy theo Khách × Tuyến; phụ phí xăng dầu tự tính đúng công thức; giá read-only; trạng thái được tự xác định từ lịch đã lưu. |
+| FAIL nếu | Thiếu trường FCL/LCL; ép nhập số container khi chưa có; ngày giao FCL chỉ lưu được ở cấp lô; không có cước hoặc phụ phí hiển thị; cho gõ tay giá; công thức sai; dữ liệu mở lại sai. |
 | Bằng chứng | Ảnh form FCL/LCL; ảnh giá read-only; phép tính tay; ảnh detail và hai shipment ID |
 | Phụ thuộc | TC-MO2C-02 |
 
@@ -283,9 +283,9 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | --- | --- |
 | Vai trò | CUS, sau đó Dispatcher |
 | Tiền điều kiện | Hai lô `Mới tạo`; có xe nhà, xe ngoài và tài xế phù hợp |
-| Hành động | 1. CUS mở FCL và LCL, bấm `Gửi sang điều phối`; xác nhận không còn ở nháp. 2. Đăng nhập `dieuvan`, mở `/dispatch`, bấm `Tiếp nhận`. 3. Rã FCL thành đúng 2 fulfillment/container và kiểm tra dữ liệu gán nháp đi theo từng dòng. 4. Gán FCL cho Xe nhà; gán LCL cho Xe ngoài. 5. Thử gán cùng xe nhà cho một chuyến trùng thời gian. 6. Sau khi thấy xung đột bị chặn, sửa về thời gian/xe hợp lệ và bấm `Phát hành lệnh điều xe`. 7. Ghi fulfillment/trip ID, tag xe và trạng thái. |
-| PRD kỳ vọng | Handoff CUS → Điều phối rõ ràng; FCL rã đúng 2 dòng; lệnh hợp lệ được phát; xung đột xe bận bị chặn; tag `Xe nhà`/`Xe ngoài` theo đúng trip; shipment chuyển `DISPATCHED/Đã điều xe` |
-| FAIL nếu | Điều phối nhìn thấy lô chưa gửi; rã sai số dòng; không chặn xe bận; sai tag; thiếu push/in-app lệnh cho Driver; phát lệnh khi thiếu quyền hoặc shipment không sang `DISPATCHED` |
+| Hành động | 1. CUS tạo FCL có ngày giao dự kiến trên ít nhất một container, cùng LCL có ngày giao; xác nhận trạng thái được tự xác định. 2. Đăng nhập `dieuvan`, mở `/dispatch`, bấm `Tiếp nhận`. 3. Rã FCL thành đúng 2 fulfillment/container và kiểm tra dữ liệu theo từng dòng. 4. Gán FCL cho Xe nhà; gán LCL cho Xe ngoài. 5. Thử gán cùng xe nhà cho một chuyến trùng thời gian. 6. Sau khi thấy xung đột bị chặn, sửa về thời gian/xe hợp lệ và bấm `Phát hành lệnh điều xe`. 7. Ghi fulfillment/trip ID, tag xe và trạng thái. |
+| PRD kỳ vọng | Ngày/hạn vận hành hoặc ngày giao của container tự xác định trạng thái và hiển thị lô cho Điều phối; FCL rã đúng 2 dòng; lệnh hợp lệ được phát; xung đột xe bận bị chặn; tag `Xe nhà`/`Xe ngoài` theo đúng trip; shipment chuyển `DISPATCHED/Đã điều xe` |
+| FAIL nếu | Lô có lịch vận hành hoặc ngày giao container không đến được Điều phối; rã sai số dòng; không chặn xe bận; sai tag; thiếu push/in-app lệnh cho Driver; phát lệnh khi thiếu quyền hoặc shipment không sang `DISPATCHED` |
 | BLOCKED nếu | Chưa có xe/tài xế phù hợp để kiểm thử conflict |
 | Bằng chứng | Ảnh trước/sau handoff; ảnh gộp/rã; ảnh conflict; ảnh lệnh đã phát; entity IDs và trạng thái |
 | Phụ thuộc | TC-MO2C-03 |

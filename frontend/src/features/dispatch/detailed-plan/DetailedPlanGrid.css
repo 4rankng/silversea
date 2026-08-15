@@ -1,0 +1,232 @@
+/* "Kế hoạch Chi tiết" container-level grid — 6 multi-line columns per spec,
+   mobile horizontal scroll confined to the grid area only. Follows the
+   vehicle-allocation-page__* BEM conventions. */
+
+.detailed-plan-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.detailed-plan-filters__search {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.detailed-plan-filters__select,
+.detailed-plan-filters__date {
+  min-width: 120px;
+}
+
+.detailed-plan-filters__points {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  flex: 0 1 240px;
+}
+
+.detailed-plan-filters__point-search {
+  width: 100%;
+}
+
+.detailed-plan-filters__point-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.detailed-plan-filters__point-chip {
+  border: none;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  background: #eef2ff;
+  color: #4338ca;
+  cursor: pointer;
+}
+
+.detailed-plan-filters__point-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.detailed-plan-filters__point-option {
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-card, #fff);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detailed-plan-filters__point-option.is-selected {
+  background: #eef2ff;
+  border-color: #4338ca;
+  color: #4338ca;
+}
+
+.detailed-plan-filters__hour {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.detailed-plan-filters__hour input {
+  width: 64px;
+}
+
+.detailed-plan-grid__lot-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 13px;
+}
+
+.detailed-plan-grid__lot-banner button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+.detailed-plan-grid__wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.detailed-plan-grid {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detailed-plan-grid thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #64748b);
+  border-bottom: 2px solid var(--border-color, #e2e8f0);
+  white-space: nowrap;
+}
+
+.detailed-plan-grid__sort {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.detailed-plan-grid__sort.is-sorted {
+  color: #4338ca;
+}
+
+.detailed-plan-grid__row:hover {
+  background: var(--bg-hover, #f8fafc);
+}
+
+.detailed-plan-grid__row--plated {
+  background: #f0fdf9;
+}
+
+.detailed-plan-grid td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-color, #eef2f7);
+  vertical-align: top;
+}
+
+/* Multi-line cells wrap instead of clipping the spec's line stack. */
+.detailed-plan-grid__cell {
+  white-space: normal !important;
+  max-width: 260px;
+}
+
+.detailed-plan-grid__line {
+  line-height: 1.45;
+}
+
+.detailed-plan-grid__line--strong {
+  font-weight: 600;
+}
+
+.detailed-plan-grid__line--muted {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+}
+
+.detailed-plan-grid__line--italic {
+  font-style: italic;
+}
+
+.detailed-plan-grid__badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.detailed-plan-grid__badge--export {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.detailed-plan-grid__badge--import {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.detailed-plan-grid__lot-flag {
+  margin-top: 4px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.detailed-plan-grid__vendor {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.detailed-plan-grid__unassigned {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.detailed-plan-grid__empty {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--text-secondary, #94a3b8);
+}

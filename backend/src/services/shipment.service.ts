@@ -30,6 +30,7 @@ import {
   canonicalShipmentStatus,
   NotificationType,
   Role,
+  round2dp,
   TripStatus,
   shipmentContainerBatchSchema,
   TripPodStatus,
@@ -411,9 +412,183 @@ export interface ListShipmentsOptions {
   dateTo?: string;
   /** W4 20260805_03 filter: exact-ish match on blNumber. */
   blNumber?: string;
+  /** Dispatch master-plan filter: lower bound on expectedDeliveryDate (Ngày giao hàng). */
+  deliveryDateFrom?: string;
+  /** Dispatch master-plan filter: upper bound on expectedDeliveryDate. */
+  deliveryDateTo?: string;
+  /** Dispatch master-plan filter: derived carrier-allocation coverage. */
+  allocationStatus?: AllocationStatus;
   limit?: number;
   offset?: number;
   actor?: AuthUser;
+}
+
+/** Dispatch master-plan: how much of the container demand has a planned carrier. */
+export type AllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
+export const ALLOCATION_STATUSES: AllocationStatus[] = [
+  'NOT_ALLOCATED',
+  'PARTIALLY_ALLOCATED',
+  'FULLY_ALLOCATED',
+];
+
+/**
+ * Bucket a free-text container type into the 20'/40' size classes the carrier
+ * allocation model works in. Mirrors the frontend `inferContainerBucket` in
+ * ClerkShipmentDocsPage (kept separate — backend cannot import frontend code).
+ */
+function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
+  const normalized = (label ?? '').toUpperCase();
+  if (normalized.includes('20')) return 20;
+  if (normalized.includes('40')) return 40;
+  return null;
+}
+
+interface ShipmentContainerAggregates {
+  containerCount20: number;
+  containerCount40: number;
+  /** e.g. "2 * 40HC + 1 * 20DC" — grouped by raw container type code. */
+  containerTypeSummary: string | null;
+  totalCargoWeightKg: number | null;
+  allocationStatus: AllocationStatus;
+}
+
+function computeContainerAggregates(
+  containers: Array<{ containerTypeCode: string | null; containerTypeName: string | null; cargoWeightKg: string | null }>,
+  allocatedCount20: number,
+  allocatedCount40: number,
+): ShipmentContainerAggregates {
+  const countByType = new Map<string, number>();
+  let containerCount20 = 0;
+  let containerCount40 = 0;
+  let totalWeight = 0;
+  let hasWeight = false;
+  for (const container of containers) {
+    const bucket = inferContainerBucket(`${container.containerTypeCode ?? ''} ${container.containerTypeName ?? ''}`.trim());
+    if (bucket === 20) containerCount20 += 1;
+    if (bucket === 40) containerCount40 += 1;
+    const typeLabel = container.containerTypeCode ?? container.containerTypeName;
+    if (typeLabel) countByType.set(typeLabel, (countByType.get(typeLabel) ?? 0) + 1);
+    const weight = Number(container.cargoWeightKg);
+    if (!isNaN(weight) && weight > 0) {
+      totalWeight += weight;
+      hasWeight = true;
+    }
+  }
+  const typeParts = [...countByType.entries()].map(([code, count]) => `${count} * ${code}`);
+  const allocationStatus: AllocationStatus = containers.length === 0 || (containerCount20 + containerCount40) === 0
+    ? 'NOT_ALLOCATED'
+    : allocatedCount20 === 0 && allocatedCount40 === 0
+      ? 'NOT_ALLOCATED'
+      : allocatedCount20 >= containerCount20 && allocatedCount40 >= containerCount40
+        ? 'FULLY_ALLOCATED'
+        : 'PARTIALLY_ALLOCATED';
+  return {
+    containerCount20,
+    containerCount40,
+    containerTypeSummary: typeParts.length > 0 ? typeParts.join(' + ') : null,
+    totalCargoWeightKg: hasWeight ? round2dp(totalWeight) : null,
+    allocationStatus,
+  };
+}
+
+export interface ShipmentCarrierAllocationSummaryEntry {
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierLabel: string;
+  count20: number;
+  count40: number;
+}
+
+/**
+ * Dispatch master-plan enrichment: container aggregates + allocation status per
+ * shipment, plus per-carrier 20'/40' counts for chip rendering. Batched (3
+ * queries for the whole page) — no N+1.
+ */
+async function loadShipmentDispatchAggregates(
+  shipmentIds: number[],
+): Promise<Map<number, ShipmentContainerAggregates & {
+  carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
+}>> {
+  const ids = [...new Set(shipmentIds)];
+  const empty = new Map();
+  if (ids.length === 0) return empty;
+
+  const [containerRows, fulfillmentRows] = await Promise.all([
+    db.select({
+      shipmentId: s.shipmentContainers.shipmentId,
+      containerTypeCode: s.containerTypes.code,
+      containerTypeName: s.containerTypes.name,
+      cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+    }).from(s.shipmentContainers)
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+      .where(inArray(s.shipmentContainers.shipmentId, ids))
+      .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
+    db.select({
+      shipmentId: s.shipmentFulfillments.shipmentId,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      containerTypeCode: s.containerTypes.code,
+      containerTypeName: s.containerTypes.name,
+    }).from(s.shipmentFulfillments)
+      .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+      .where(and(
+        inArray(s.shipmentFulfillments.shipmentId, ids),
+        isNull(s.shipmentFulfillments.canceledAt),
+      ))
+      .orderBy(asc(s.shipmentFulfillments.shipmentId), asc(s.shipmentFulfillments.id)),
+  ]);
+
+  const carrierIds = [...new Set(
+    fulfillmentRows
+      .filter((row) => row.plannedCarrierType === 'EXTERNAL' && row.plannedExternalCarrierId != null)
+      .map((row) => row.plannedExternalCarrierId as number),
+  )];
+  const carriersById = carrierIds.length > 0
+    ? new Map((await db.select({ id: s.customers.id, name: s.customers.name })
+      .from(s.customers)
+      .where(inArray(s.customers.id, carrierIds))).map((row) => [row.id, row.name]))
+    : new Map<number, string | null>();
+
+  const containersByShipment = new Map<number, Array<typeof containerRows[number]>>();
+  for (const row of containerRows) {
+    const bucket = containersByShipment.get(row.shipmentId);
+    if (bucket) bucket.push(row);
+    else containersByShipment.set(row.shipmentId, [row]);
+  }
+
+  const result = new Map<number, ShipmentContainerAggregates & {
+    carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
+  }>();
+  for (const id of ids) {
+    const containers = containersByShipment.get(id) ?? [];
+    // Group live fulfillments per carrier and bucket each assigned container.
+    const byCarrier = new Map<string, ShipmentCarrierAllocationSummaryEntry>();
+    let allocatedCount20 = 0;
+    let allocatedCount40 = 0;
+    for (const fulfillment of fulfillmentRows.filter((row) => row.shipmentId === id)) {
+      if (!fulfillment.plannedCarrierType) continue;
+      const bucket = inferContainerBucket(`${fulfillment.containerTypeCode ?? ''} ${fulfillment.containerTypeName ?? ''}`.trim());
+      if (!bucket) continue;
+      const carrierType = fulfillment.plannedCarrierType as 'OWN' | 'EXTERNAL';
+      const key = carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${fulfillment.plannedExternalCarrierId}`;
+      const current = byCarrier.get(key) ?? {
+        carrierType,
+        externalCarrierId: fulfillment.plannedExternalCarrierId,
+        carrierLabel: carrierType === 'OWN'
+          ? INTERNAL_FLEET_CARRIER_NAME
+          : carriersById.get(fulfillment.plannedExternalCarrierId ?? -1) ?? 'Nhà xe chưa xác định',
+        count20: 0,
+        count40: 0,
+      };
+      if (bucket === 20) { current.count20 += 1; allocatedCount20 += 1; }
+      if (bucket === 40) { current.count40 += 1; allocatedCount40 += 1; }
+      byCarrier.set(key, current);
+    }
+    const aggregates = computeContainerAggregates(containers, allocatedCount20, allocatedCount40);
+    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()] });
+  }
+  return result;
 }
 
 export type ShipmentUpdateResult = typeof s.shipments.$inferSelect & {
@@ -1213,21 +1388,49 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       conditions.push(lte(s.shipments.customsCutoffAt, inclusive));
     }
   }
+  // Dispatch master-plan: delivery-date range filters on expectedDeliveryDate
+  // (a plain date column, so no end-of-day bump is needed — equality matches).
+  if (options.deliveryDateFrom) {
+    conditions.push(gte(s.shipments.expectedDeliveryDate, options.deliveryDateFrom));
+  }
+  if (options.deliveryDateTo) {
+    conditions.push(lte(s.shipments.expectedDeliveryDate, options.deliveryDateTo));
+  }
+
+  // allocationStatus is derived from container/fulfillment aggregates and
+  // cannot live in the WHERE clause. When filtering on it, resolve the full
+  // matching id set first, filter by the derived status, and paginate that id
+  // list — keeps `total` exact and the page consistent. The id list is already
+  // paginated, so the main query below must not apply offset/limit again.
+  let derivedTotal: number | null = null;
+  let paginatedByIds = false;
+  if (options.allocationStatus) {
+    const idRows = await db.select({ id: s.shipments.id }).from(s.shipments)
+      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .where(and(...conditions))
+      .orderBy(desc(s.shipments.createdAt));
+    const aggregatesById = await loadShipmentDispatchAggregates(idRows.map((row) => row.id));
+    const matching = idRows.filter((row) =>
+      (aggregatesById.get(row.id)?.allocationStatus ?? 'NOT_ALLOCATED') === options.allocationStatus);
+    derivedTotal = matching.length;
+    const pageIds = matching.slice(offset, offset + limit).map((row) => row.id);
+    conditions.push(inArray(s.shipments.id, pageIds.length > 0 ? pageIds : [-1]));
+    paginatedByIds = true;
+  }
 
   // Join customers so the list can show a human-readable customer name
   // instead of a bare `customerId` ("KH #2698" is meaningless to users).
   // leftJoin (not innerJoin): a shipment whose customer was hard-deleted
   // must still appear, with customerName = null.
+  const rowsQuery = db.select({
+    shipment: s.shipments,
+    customerName: s.customers.name,
+  }).from(s.shipments)
+    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .where(and(...conditions))
+    .orderBy(desc(s.shipments.createdAt));
   const [items, totalRows] = await Promise.all([
-    db.select({
-      shipment: s.shipments,
-      customerName: s.customers.name,
-    }).from(s.shipments)
-      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      .where(and(...conditions))
-      .orderBy(desc(s.shipments.createdAt))
-      .limit(limit)
-      .offset(offset),
+    paginatedByIds ? rowsQuery : rowsQuery.limit(limit).offset(offset),
     db.select({ value: count() }).from(s.shipments)
       .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
       .where(and(...conditions)),
@@ -1241,7 +1444,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   );
   // Flatten `shipment` + `customerName` into a single object so the route
   // layer returns `{ ...shipmentColumns, customerName }` directly.
-  const flatItems = items.map((row) => ({
+  const dispatchAggregatesByShipmentId = await loadShipmentDispatchAggregates(
+    items.map((row) => row.shipment.id),
+  );
+  const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),
     customerName: row.customerName,
     cargoSummary: summariesByShipmentId.get(row.shipment.id)?.cargoSummary ?? null,
@@ -1249,8 +1455,15 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,
     vehiclePlateSummary: summariesByShipmentId.get(row.shipment.id)?.vehiclePlateSummary ?? null,
     declarationNumber: declarationByShipmentId.get(row.shipment.id) ?? null,
-  }));
-  return { items: flatItems, total, page, limit };
+    containerCount20: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerCount20 ?? 0,
+    containerCount40: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerCount40 ?? 0,
+    containerTypeSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTypeSummary ?? null,
+    totalCargoWeightKg: dispatchAggregatesByShipmentId.get(row.shipment.id)?.totalCargoWeightKg ?? null,
+    allocationStatus: dispatchAggregatesByShipmentId.get(row.shipment.id)?.allocationStatus ?? 'NOT_ALLOCATED',
+    carrierAllocationSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.carrierAllocationSummary ?? [],
+  });
+  const flatItems = items.map(enrichRow);
+  return { items: flatItems, total: derivedTotal ?? total, page, limit };
 }
 
 // ─── Update (optimistic-lock) ───────────────────────────────────────────────
@@ -2761,13 +2974,39 @@ export async function downloadShipmentPodFile(
   return getShipmentPodFileForDownload({ shipmentId, fileId });
 }
 
+/**
+ * Earliest non-null container appointment date (Ngày đóng/trả per container)
+ * as YYYY-MM-DD — null when no container carries a date. Containers of the
+ * same shipment may close on different days, so the shipment-level
+ * `expectedDeliveryDate` follows the earliest one.
+ */
+function deriveExpectedDeliveryDateFromContainers(
+  containers: ReadonlyArray<{ customerAppointmentAt?: string | null }>,
+): string | null {
+  let earliest: string | null = null;
+  for (const container of containers) {
+    if (!container.customerAppointmentAt) continue;
+    // Date part only — appointment timestamps arrive as ISO strings.
+    const day = container.customerAppointmentAt.slice(0, 10);
+    if (!earliest || day < earliest) earliest = day;
+  }
+  return earliest;
+}
+
 async function reconcileShipmentContainersInTx(
   tx: Tx,
   shipmentId: number,
   userId: number | null,
   containers: ShipmentContainerInput[],
 ) {
-  const [shipment] = await tx.select({ shippingLineName: s.shipments.shippingLineName })
+  const [shipment] = await tx.select({
+    shippingLineName: s.shipments.shippingLineName,
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    closingAt: s.shipments.closingAt,
+    plannedReturnAt: s.shipments.plannedReturnAt,
+    status: s.shipments.status,
+    version: s.shipments.version,
+  })
     .from(s.shipments)
     .where(eq(s.shipments.id, shipmentId))
     .limit(1)
@@ -2819,6 +3058,32 @@ async function reconcileShipmentContainersInTx(
         .values({ ...payload, createdBy: userId })
         .returning({ id: s.shipmentContainers.id });
       if (inserted) upserted.push(inserted);
+    }
+  }
+
+  // Per-container delivery dates drive the shipment-level expected delivery
+  // date when the caller never set one: earliest container Ngày đóng/trả wins
+  // and may flip PENDING_DATE → READY_FOR_DISPATCH (+ handoff), mirroring the
+  // updateShipment date-gate. An explicit shipment-level date is never
+  // overwritten by a later reconcile.
+  const derivedDate = deriveExpectedDeliveryDateFromContainers(synchronizedContainers);
+  if (derivedDate && shipment.expectedDeliveryDate == null) {
+    const becomesReady = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE') === 'PENDING_DATE'
+      && !hasDispatchDate(shipment);
+    const [updatedShipment] = await tx.update(s.shipments).set({
+      expectedDeliveryDate: derivedDate,
+      ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
+      updatedAt: new Date(),
+    }).where(eq(s.shipments.id, shipmentId)).returning();
+    if (becomesReady) {
+      await tx.insert(s.shipmentStatusHistory).values({
+        shipmentId,
+        fromStatus: shipment.status ?? 'PENDING_DATE',
+        toStatus: 'READY_FOR_DISPATCH',
+        reason: 'Đã bổ sung ngày đóng/trả theo container và sẵn sàng điều xe.',
+        changedBy: userId,
+      });
+      await ensureReadyShipmentHandoff(tx, updatedShipment, userId);
     }
   }
 

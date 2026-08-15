@@ -8,8 +8,10 @@
 }
 
 .app-main:not(.driver-mode) .app-body > .shipments-detail-page { width: 100%; max-width: none; margin-inline: 0; }
-.shipments-detail-page > .breadcrumbs { margin-bottom: 0; }
+.shipments-detail-page > .d-breadcrumbs { margin-bottom: 0; font-size: var(--fs-xs); }
 .shipments-detail-page > .page-header { margin-bottom: 2px; padding-bottom: 0; }
+.shipments-detail-page .page-title { font-size: var(--fs-2xl); }
+.shipments-detail-page .page-subtitle { font-size: var(--fs-xs); }
 
 .shipments-detail-workspace {
   min-width: 0;
@@ -30,8 +32,8 @@
 .shipments-detail-eyebrow { display: block; margin-bottom: 4px; color: var(--ink-3); font-size: 10px; font-weight: var(--fw-bold); letter-spacing: .08em; line-height: 1.3; text-transform: uppercase; }
 .shipments-detail-workspace__intro h2,
 .shipments-detail-workspace__intro p { margin: 0; }
-.shipments-detail-workspace__intro h2 { color: var(--ink); font-family: var(--font-display); font-size: 17px; font-weight: var(--fw-semibold); line-height: 1.35; }
-.shipments-detail-workspace__intro p { max-width: 90ch; margin-top: 4px; color: var(--ink-2); font-size: 12px; line-height: 1.45; }
+.shipments-detail-workspace__intro h2 { color: var(--ink); font-family: var(--font-display); font-size: var(--fs-md); font-weight: var(--fw-semibold); line-height: 1.35; }
+.shipments-detail-workspace__intro p { max-width: 90ch; margin-top: 4px; color: var(--ink-2); font-size: var(--fs-xs); line-height: 1.45; }
 
 .shipments-detail-filters {
   display: grid;
@@ -45,10 +47,11 @@
 .shipments-detail-filter > label { color: var(--ink-2); font-size: 11px; font-weight: var(--fw-semibold); }
 .shipments-detail-filter input,
 .shipments-detail-filter select,
-.shipments-detail-filter [data-input-wrapper] { min-height: 40px; background: var(--surface); box-shadow: none; }
+.shipments-detail-filter [data-input-wrapper] { min-height: 40px; background: var(--surface); box-shadow: none; font-size: var(--fs-xs); }
+.shipments-detail-filter input::placeholder { font-size: inherit; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
 .shipments-detail-filters__actions { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 6px; align-items: center; }
-.shipments-detail-filters__actions button { min-height: 40px; }
+.shipments-detail-filters__actions button { min-height: 40px; font-size: var(--fs-xs); }
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
@@ -56,7 +59,7 @@
 .shipment-container-summary > div { display: flex; min-width: 0; align-items: baseline; justify-content: space-between; gap: 10px; padding: 9px 12px; border-right: 1px solid var(--line); }
 .shipment-container-summary > div:last-child { border-right: 0; }
 .shipment-container-summary dt { color: var(--ink-3); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.3; }
-.shipment-container-summary dd { margin: 0; color: var(--ink); font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); }
+.shipment-container-summary dd { margin: 0; color: var(--ink); font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); }
 .shipment-container-summary__attention { background: var(--warning-soft); }
 .shipment-container-summary__attention dd { color: var(--warning-text); }
 .shipment-container-summary__danger { background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
@@ -91,7 +94,7 @@
 .shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
-.shipment-container-ledger__multiline > strong { font-size: 12px; }
+.shipment-container-ledger__multiline > strong { font-size: inherit; }
 .shipment-container-ledger__multiline > span { color: var(--ink-2); }
 .shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; }
 .shipment-container-ledger__code { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
@@ -218,6 +221,7 @@
 
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
+  .shipments-detail-page .page-title { font-size: var(--fs-xl); }
   .shipments-detail-workspace { border-inline: 0; border-radius: 0; }
   .shipments-detail-workspace__header { padding: 14px 12px; }
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }

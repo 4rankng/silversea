@@ -19,7 +19,7 @@ const container: ShipmentContainerDraft = {
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
-  closingDate: '',
+  expectedDeliveryDate: '',
 };
 
 describe('shipment create model', () => {
@@ -33,8 +33,7 @@ describe('shipment create model', () => {
       'shipment-booking-ref',
       'shipment-trade-direction',
       'shipment-route',
-      'container-row-1-number',
-      'shipment-expected-delivery',
+      'container-expected-delivery',
     ]);
     expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
   });
@@ -127,9 +126,8 @@ describe('shipment create model', () => {
       routeId: '11',
       bookingRef: 'BK-FCL',
       tradeDirection: 'IMPORT' as const,
-      expectedDeliveryDate: '2026-08-14',
     };
-    const readiness = getShipmentCreateReadiness(form, [container]);
+    const readiness = getShipmentCreateReadiness(form, [{ ...container, expectedDeliveryDate: '2026-08-14' }]);
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
   });
@@ -147,11 +145,11 @@ describe('shipment create model', () => {
 
     const missingSchedule = getShipmentCreateReadiness(form, [container]);
     expect(missingSchedule.issues).toContainEqual(expect.objectContaining({
-      fieldId: 'shipment-expected-delivery',
+      fieldId: 'container-expected-delivery',
       sectionId: 'schedule',
     }));
 
-    expect(getShipmentCreateReadiness({ ...form, closingAt: '2026-08-14T09:00' }, [container]).dispatchReady).toBe(true);
+    expect(getShipmentCreateReadiness(form, [{ ...container, expectedDeliveryDate: '2026-08-14' }]).dispatchReady).toBe(true);
   });
 
   it('rejects zero-valued LCL quantities and preserves the common factory detail', () => {
@@ -185,14 +183,29 @@ describe('shipment create model', () => {
     });
   });
 
-  it('maps the per-container closing date to customerAppointmentAt (ISO)', () => {
+  it('maps the per-container expected delivery date to customerAppointmentAt (ISO)', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', shippingLineName: 'MSC' };
-    expect(buildShipmentContainerPayload(form, [{ ...container, closingDate: '2026-08-20' }])).toMatchObject([
+    expect(buildShipmentContainerPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }])).toMatchObject([
       { customerAppointmentAt: '2026-08-20T12:00:00.000Z' },
     ]);
     expect(buildShipmentContainerPayload(form, [container])).toMatchObject([
       { customerAppointmentAt: null },
     ]);
+  });
+
+  it('uses a container delivery date for FCL readiness while keeping the root date empty', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      bookingRef: 'BK-FCL-DATE',
+      tradeDirection: 'IMPORT' as const,
+    };
+    const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '', expectedDeliveryDate: '2026-08-20' }]);
+
+    expect(readiness.initialStatus).toBe('READY_FOR_DISPATCH');
+    expect(readiness.dispatchReady).toBe(true);
+    expect(buildShipmentRootPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }], []).expectedDeliveryDate).toBeNull();
   });
 
   it('formats LCL extra delivery dates into operationalNotes and only for LCL', () => {

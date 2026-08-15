@@ -644,6 +644,249 @@ describe('listShipmentsPaginated', () => {
   });
 });
 
+describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
+  async function mkContainerType(code: string, name: string) {
+    const [ct] = await db.insert(s.containerTypes).values({ code, name }).returning();
+    createdContainerTypeIds.push(ct.id);
+    return ct;
+  }
+
+  async function mkContainer(shipmentId: number, containerTypeId: number, cargoWeightKg?: string) {
+    const [row] = await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerTypeId,
+      containerNumber: `MPL-${Math.random().toString(36).slice(2, 9)}`,
+      ...(cargoWeightKg != null ? { cargoWeightKg } : {}),
+    }).returning();
+    return row;
+  }
+
+  async function mkCarrierFulfillment(
+    shipmentId: number,
+    shipmentContainerId: number,
+    version: number,
+    plannedCarrierType: 'OWN' | 'EXTERNAL' = 'OWN',
+  ) {
+    const [row] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId,
+      sourceShipmentVersion: version,
+      siteSnapshot: {},
+      plannedCarrierType,
+    }).returning();
+    return row;
+  }
+
+  test('READY_FOR_DISPATCH filter returns enriched rows and excludes PENDING_DATE', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const ct20 = await mkContainerType(`20DC${tag}`, "20'DC");
+    const ct40 = await mkContainerType(`40HC${tag}`, "40'HC");
+
+    const ready = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(ready.id);
+    await mkContainer(ready.id, ct20.id, '12000.00');
+    await mkContainer(ready.id, ct20.id, '8000.50');
+    await mkContainer(ready.id, ct40.id, '21000.25');
+
+    const pending = await createShipment({ customerId: customer.id });
+    createdShipmentIds.push(pending.id);
+
+    const result = await listShipmentsPaginated({
+      customerId: customer.id,
+      status: 'READY_FOR_DISPATCH',
+      page: 1,
+      limit: 20,
+    });
+
+    const ids = result.items.map((row) => row.id);
+    assert.ok(ids.includes(ready.id), 'ready shipment is listed');
+    assert.ok(!ids.includes(pending.id), 'PENDING_DATE shipment is excluded');
+
+    const row = result.items.find((item) => item.id === ready.id)!;
+    assert.equal(row.containerCount20, 2);
+    assert.equal(row.containerCount40, 1);
+    assert.equal(row.containerTypeSummary, `2 * 20DC${tag} + 1 * 40HC${tag}`);
+    assert.equal(row.totalCargoWeightKg, 41000.75);
+    assert.equal(row.allocationStatus, 'NOT_ALLOCATED');
+    assert.deepEqual(row.carrierAllocationSummary, []);
+  });
+
+  test('derives allocationStatus for zero-container, partial, and full allocation', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const ct20 = await mkContainerType(`20DC${tag}`, "20'DC");
+    const ct40 = await mkContainerType(`40HC${tag}`, "40'HC");
+
+    // Zero containers → NOT_ALLOCATED.
+    const empty = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(empty.id);
+
+    // Partial: two containers, only one has a planned carrier.
+    const partial = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(partial.id);
+    const partialContainers = [
+      await mkContainer(partial.id, ct40.id),
+      await mkContainer(partial.id, ct40.id),
+    ];
+    await mkCarrierFulfillment(partial.id, partialContainers[0]!.id, partial.version);
+
+    // Full: every container has a live planned carrier.
+    const full = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(full.id);
+    const fullContainers = [
+      await mkContainer(full.id, ct20.id),
+      await mkContainer(full.id, ct40.id),
+    ];
+    await mkCarrierFulfillment(full.id, fullContainers[0]!.id, full.version);
+    await mkCarrierFulfillment(full.id, fullContainers[1]!.id, full.version);
+
+    const result = await listShipmentsPaginated({
+      customerId: customer.id,
+      page: 1,
+      limit: 20,
+    });
+    const statusById = new Map(result.items.map((row) => [row.id, row.allocationStatus]));
+    assert.equal(statusById.get(empty.id), 'NOT_ALLOCATED');
+    assert.equal(statusById.get(partial.id), 'PARTIALLY_ALLOCATED');
+    assert.equal(statusById.get(full.id), 'FULLY_ALLOCATED');
+
+    const fullRow = result.items.find((row) => row.id === full.id)!;
+    assert.deepEqual(fullRow.carrierAllocationSummary, [
+      { carrierType: 'OWN', externalCarrierId: null, carrierLabel: 'SilverSea', count20: 1, count40: 1 },
+    ]);
+  });
+
+  test('deliveryDateFrom/deliveryDateTo bound expectedDeliveryDate inclusively', async () => {
+    const customer = await mkCustomer();
+    const early = await createShipment({
+      customerId: customer.id,
+      expectedDeliveryDate: '2026-08-10',
+    });
+    const mid = await createShipment({
+      customerId: customer.id,
+      expectedDeliveryDate: '2026-08-15',
+    });
+    const late = await createShipment({
+      customerId: customer.id,
+      expectedDeliveryDate: '2026-08-20',
+    });
+    createdShipmentIds.push(early.id, mid.id, late.id);
+
+    const exactBounds = await listShipmentsPaginated({
+      customerId: customer.id,
+      deliveryDateFrom: '2026-08-10',
+      deliveryDateTo: '2026-08-20',
+      page: 1,
+      limit: 20,
+    });
+    assert.deepEqual(
+      new Set(exactBounds.items.map((row) => row.id)),
+      new Set([early.id, mid.id, late.id]),
+      'both boundary dates are included',
+    );
+
+    const openFrom = await listShipmentsPaginated({
+      customerId: customer.id,
+      deliveryDateFrom: '2026-08-11',
+      page: 1,
+      limit: 20,
+    });
+    assert.deepEqual(
+      new Set(openFrom.items.map((row) => row.id)),
+      new Set([mid.id, late.id]),
+      'deliveryDateFrom excludes the earlier boundary',
+    );
+
+    const openTo = await listShipmentsPaginated({
+      customerId: customer.id,
+      deliveryDateTo: '2026-08-19',
+      page: 1,
+      limit: 20,
+    });
+    assert.deepEqual(
+      new Set(openTo.items.map((row) => row.id)),
+      new Set([early.id, mid.id]),
+      'deliveryDateTo excludes the later boundary',
+    );
+  });
+
+  test('allocationStatus filter keeps totals and page boundaries consistent', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const ct20 = await mkContainerType(`20DC${tag}`, "20'DC");
+
+    const unallocated: number[] = [];
+    for (let i = 0; i < 2; i += 1) {
+      const shipment = await createShipment({
+        customerId: customer.id,
+        cargoMode: 'FCL',
+        expectedDeliveryDate: '2026-08-15',
+      });
+      createdShipmentIds.push(shipment.id);
+      unallocated.push(shipment.id);
+      await mkContainer(shipment.id, ct20.id);
+    }
+
+    const allocated = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(allocated.id);
+    const container = await mkContainer(allocated.id, ct20.id);
+    await mkCarrierFulfillment(allocated.id, container.id, allocated.version);
+
+    const page1 = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'NOT_ALLOCATED',
+      page: 1,
+      limit: 1,
+    });
+    const page2 = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'NOT_ALLOCATED',
+      page: 2,
+      limit: 1,
+    });
+
+    assert.equal(page1.total, 2);
+    assert.equal(page1.items.length, 1);
+    assert.ok(unallocated.includes(page1.items[0]!.id));
+    assert.equal(page2.total, 2);
+    assert.equal(page2.items.length, 1);
+    assert.ok(unallocated.includes(page2.items[0]!.id));
+    assert.notEqual(page1.items[0]!.id, page2.items[0]!.id, 'page 2 is not a repeat of page 1');
+
+    const allocatedOnly = await listShipmentsPaginated({
+      customerId: customer.id,
+      allocationStatus: 'FULLY_ALLOCATED',
+      page: 1,
+      limit: 10,
+    });
+    assert.deepEqual(allocatedOnly.items.map((row) => row.id), [allocated.id]);
+    assert.equal(allocatedOnly.total, 1);
+  });
+});
+
 describe('updateShipment (optimistic lock)', () => {
   test('bumps version on update', async () => {
     const customer = await mkCustomer();

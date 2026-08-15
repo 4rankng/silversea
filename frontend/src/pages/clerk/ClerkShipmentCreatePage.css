@@ -121,7 +121,16 @@
 .csc-summary__actions { display: grid; gap: 9px; }.csc-summary__actions p { margin: 0 0 2px; color: var(--fg-3); font-size: 12px; line-height: 1.5; }
 .csc-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; border-radius: 9px; font: inherit; font-weight: 750; cursor: pointer; }.csc-button:disabled { cursor: not-allowed; opacity: .65; }.csc-button--secondary { border: 1px solid var(--border-2); background: var(--surface); color: var(--fg-1); }.csc-button--primary { border: 1px solid var(--accent, #2563eb); background: var(--accent, #2563eb); color: #fff; }
 @media (max-width: 1100px), (max-height: 720px) { .csc-workspace { grid-template-columns: 1fr; }.csc-summary { position: static; grid-row: auto; }.csc-summary__section { min-width: 0; } }
-@media (min-width: 1101px) and (min-height: 721px) { .csc-container-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+@media (min-width: 1101px) and (min-height: 721px) {
+  .csc-container-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .csc-validation-summary ol {
+    max-height: min(24vh, 168px);
+    padding-right: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
 @media (max-width: 640px) { .csc-page { padding: 14px 14px 30px; }.csc-header { margin-bottom: 16px; }.csc-section { padding: 16px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-grid { grid-template-columns: minmax(0, 1fr) !important; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 @media (max-width: 340px) { .csc-page { padding-inline: 12px; }.csc-section, .csc-summary__section, .csc-validation-summary, .csc-submit-error { padding: 13px !important; }.csc-section__heading > span { display: none; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

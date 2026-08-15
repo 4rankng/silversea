@@ -58,6 +58,8 @@ import {
   getShipment,
   getShipmentDetail,
   listShipmentsPaginated,
+  ALLOCATION_STATUSES,
+  type AllocationStatus,
   reviewTripPodSubmission,
   updateShipment,
   transitionShipmentStatus,
@@ -104,7 +106,10 @@ import {
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
 import {
   acceptDispatchHandoff,
+  assignFulfillmentPlate,
   issueFulfillmentDispatchOrder,
+  listDispatchDeliveryPointFacets,
+  listDispatchDetailPlanRows,
   listDispatchFleet,
   listDispatchHandoffs,
   listDispatchQueue,
@@ -687,6 +692,29 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'dateTo không hợp lệ' });
   }
 
+  // Dispatch master-plan ("Kế hoạch Tổng quát") filters: delivery-date range on
+  // expectedDeliveryDate and derived carrier-allocation coverage.
+  const deliveryDateFrom = typeof req.query.deliveryDateFrom === 'string' && req.query.deliveryDateFrom.trim().length > 0
+    ? req.query.deliveryDateFrom.trim()
+    : undefined;
+  const deliveryDateTo = typeof req.query.deliveryDateTo === 'string' && req.query.deliveryDateTo.trim().length > 0
+    ? req.query.deliveryDateTo.trim()
+    : undefined;
+  if (deliveryDateFrom && isNaN(new Date(deliveryDateFrom).getTime())) {
+    return res.status(400).json({ error: 'deliveryDateFrom không hợp lệ' });
+  }
+  if (deliveryDateTo && isNaN(new Date(deliveryDateTo).getTime())) {
+    return res.status(400).json({ error: 'deliveryDateTo không hợp lệ' });
+  }
+  const allocationStatusVal = req.query.allocationStatus as string | undefined;
+  let allocationStatus: AllocationStatus | undefined;
+  if (allocationStatusVal !== undefined && allocationStatusVal.trim().length > 0) {
+    if (!ALLOCATION_STATUSES.includes(allocationStatusVal as AllocationStatus)) {
+      return res.status(400).json({ error: 'Trạng thái phân bổ không hợp lệ' });
+    }
+    allocationStatus = allocationStatusVal as AllocationStatus;
+  }
+
   const result = await listShipmentsPaginated({
     page,
     limit,
@@ -697,6 +725,9 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     blNumber,
     dateFrom,
     dateTo,
+    deliveryDateFrom,
+    deliveryDateTo,
+    allocationStatus,
     actor: getUser(req),
   });
   res.json(result);
@@ -757,6 +788,83 @@ router.get(
       cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
+    }));
+  }),
+);
+
+router.get(
+  '/dispatch-detail-plan-rows',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const directionRaw = typeof req.query.direction === 'string' ? req.query.direction.trim().toUpperCase() : '';
+    if (directionRaw && directionRaw !== 'IMPORT' && directionRaw !== 'EXPORT') {
+      throw new ApiError(400, 'direction không hợp lệ.');
+    }
+    const assignmentStatusRaw = typeof req.query.assignmentStatus === 'string' ? req.query.assignmentStatus.trim().toUpperCase() : '';
+    if (assignmentStatusRaw && assignmentStatusRaw !== 'UNASSIGNED' && assignmentStatusRaw !== 'ASSIGNED') {
+      throw new ApiError(400, 'assignmentStatus không hợp lệ.');
+    }
+    const idList = (key: string) => {
+      const raw = req.query[key];
+      if (raw == null) return undefined;
+      const values = Array.isArray(raw) ? raw : String(raw).split(',');
+      return values.map((value) => Number(value));
+    };
+    const hour = (key: string) => {
+      const raw = req.query[key];
+      if (raw == null || raw === '') return undefined;
+      return Number(raw);
+    };
+    res.json(await listDispatchDetailPlanRows({
+      actor: getUser(req),
+      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+      date: typeof req.query.date === 'string' ? req.query.date : undefined,
+      direction: directionRaw ? directionRaw as 'IMPORT' | 'EXPORT' : undefined,
+      assignmentStatus: assignmentStatusRaw ? assignmentStatusRaw as 'UNASSIGNED' | 'ASSIGNED' : undefined,
+      pickupIds: idList('pickupIds'),
+      dropoffIds: idList('dropoffIds'),
+      deliveryPointIds: idList('deliveryPointIds'),
+      hourFrom: hour('hourFrom'),
+      hourTo: hour('hourTo'),
+    }));
+  }),
+);
+
+router.get(
+  '/dispatch-delivery-point-facets',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listDispatchDeliveryPointFacets({
+      actor: getUser(req),
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+    }));
+  }),
+);
+
+router.patch(
+  '/dispatch-detail-plan-rows/:fulfillmentId/plate',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const fulfillmentId = Number(req.params.fulfillmentId);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      throw new ApiError(400, 'fulfillmentId không hợp lệ.');
+    }
+    const user = getUser(req);
+    const { expectedVersion, truckId, externalCarrierVehicleId, plateNumber, clear } = req.body ?? {};
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      throw new ApiError(400, 'expectedVersion không hợp lệ.');
+    }
+    res.json(await assignFulfillmentPlate({
+      fulfillmentId,
+      expectedVersion,
+      truckId: truckId ?? null,
+      externalCarrierVehicleId: externalCarrierVehicleId ?? null,
+      plateNumber: plateNumber ?? null,
+      clear: clear === true,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? `plate-${fulfillmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
   }),
 );

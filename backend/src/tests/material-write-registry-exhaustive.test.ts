@@ -147,6 +147,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
+  ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN',
+  }],
   ['shipments.ts|POST|/:id/pod-reviews/:submissionId/review', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',

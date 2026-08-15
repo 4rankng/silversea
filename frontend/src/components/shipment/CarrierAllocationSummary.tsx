@@ -52,6 +52,12 @@ export function validateCarrierAllocations(
   }>,
   demand: CarrierAllocationDemand,
   options: ReadonlyArray<CarrierAllocationOption>,
+  /**
+   * EXACT (default, clerk submit flow): totals must match demand exactly.
+   * MAX (dispatch master-plan): under-allocation is allowed — only overflow
+   * (docx rule B: tổng phân bổ > tổng lô hàng) is an error.
+   */
+  mode: 'EXACT' | 'MAX' = 'EXACT',
 ): CarrierAllocationValidation {
   const errors: string[] = [];
   const seenCarrierKeys = new Set<string>();
@@ -86,11 +92,20 @@ export function validateCarrierAllocations(
     assigned40 += parsed40;
   });
 
-  if (assigned20 !== demand.count20) {
-    errors.push(`Container 20' đang gán ${assigned20}/${demand.count20}.`);
-  }
-  if (assigned40 !== demand.count40) {
-    errors.push(`Container 40' đang gán ${assigned40}/${demand.count40}.`);
+  if (mode === 'EXACT') {
+    if (assigned20 !== demand.count20) {
+      errors.push(`Container 20' đang gán ${assigned20}/${demand.count20}.`);
+    }
+    if (assigned40 !== demand.count40) {
+      errors.push(`Container 40' đang gán ${assigned40}/${demand.count40}.`);
+    }
+  } else {
+    if (assigned20 > demand.count20) {
+      errors.push(`Container 20' vượt số lượng: gán ${assigned20}/${demand.count20}.`);
+    }
+    if (assigned40 > demand.count40) {
+      errors.push(`Container 40' vượt số lượng: gán ${assigned40}/${demand.count40}.`);
+    }
   }
 
   return {

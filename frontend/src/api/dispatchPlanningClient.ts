@@ -176,3 +176,75 @@ export function issueDispatchOrder(item: DispatchQueueItem, body: {
     { headers: { 'Idempotency-Key': crypto.randomUUID() } },
   );
 }
+
+// ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
+
+export interface DispatchDetailPlanRow {
+  fulfillmentId: number;
+  version: number;
+  shipmentId: number;
+  shipmentVersion: number;
+  shipmentCode: string | null;
+  fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
+  cargoMode: 'FCL' | 'LCL';
+  taskStatus: 'READY' | 'DISPATCHED';
+  time: { deliveryDate: string | null; runHour: number | null };
+  customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
+  docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
+  container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
+  notes: { vehicleNote: string | null; customerNote: string | null };
+  dispatch: {
+    carrierType: 'OWN' | 'EXTERNAL';
+    carrierName: string | null;
+    externalCarrierId: number | null;
+    externalCarrierVehicleId: number | null;
+    assignedPlate: string | null;
+  };
+  ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
+  lotFullyPlated: boolean;
+}
+
+export interface DispatchDetailPlanFilters {
+  q?: string;
+  date?: string;
+  direction?: 'IMPORT' | 'EXPORT' | '';
+  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | '';
+  pickupIds?: number[];
+  dropoffIds?: number[];
+  deliveryPointIds?: number[];
+  hourFrom?: number | '';
+  hourTo?: number | '';
+}
+
+export function listDispatchDetailPlanRows(filters: { cursor?: string | null; limit?: number } & DispatchDetailPlanFilters = {}) {
+  return api.get<CursorPaginatedResponse<DispatchDetailPlanRow>>(
+    `/shipments/dispatch-detail-plan-rows?${queryString(filters as Record<string, string | number | Array<string> | null | undefined>)}`,
+  );
+}
+
+export function listDispatchDeliveryPointFacets(filters: { q?: string } = {}) {
+  return api.get<{ items: Array<{ id: number; name: string }> }>(
+    `/shipments/dispatch-delivery-point-facets?${queryString(filters)}`,
+  );
+}
+
+export function assignDispatchDetailPlate(fulfillmentId: number, body: {
+  expectedVersion: number;
+  truckId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  plateNumber?: string | null;
+  clear?: boolean;
+}) {
+  return api.patch<{
+    fulfillmentId: number;
+    version: number;
+    lotFullyPlated: boolean;
+    driverNotified: boolean;
+    assignedPlate: string | null;
+    assignedDriverId: number | null;
+    assignedDriverName: string | null;
+    driverHint: string | null;
+  }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/plate`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}

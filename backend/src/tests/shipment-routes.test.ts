@@ -1167,6 +1167,20 @@ describe('GET /', () => {
     const r = await testFetch('/?status=BOGUS', { token: adminToken });
     assert.equal(r.status, 400);
   });
+
+  test('rejects invalid dispatch master-plan filters with 400', async () => {
+    const bogusAllocation = await testFetch('/?allocationStatus=BOGUS', { token: adminToken });
+    assert.equal(bogusAllocation.status, 400);
+    assert.match(bogusAllocation.data.error, /Trạng thái phân bổ/);
+
+    const bogusFrom = await testFetch('/?deliveryDateFrom=not-a-date', { token: adminToken });
+    assert.equal(bogusFrom.status, 400);
+    assert.match(bogusFrom.data.error, /deliveryDateFrom/);
+
+    const bogusTo = await testFetch('/?deliveryDateTo=not-a-date', { token: adminToken });
+    assert.equal(bogusTo.status, 400);
+    assert.match(bogusTo.data.error, /deliveryDateTo/);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

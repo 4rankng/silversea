@@ -1,0 +1,131 @@
+/* "Phân bổ phương tiện" popover for the dispatch master-plan grid. */
+
+.dispatch-allocation-popover__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.dispatch-allocation-popover {
+  width: min(520px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  padding: 18px 20px;
+}
+
+.dispatch-allocation-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.dispatch-allocation-popover__header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.dispatch-allocation-popover__close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary, #64748b);
+  padding: 4px;
+}
+
+.dispatch-allocation-popover__meta {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.dispatch-allocation-popover__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dispatch-allocation-popover__row {
+  display: grid;
+  grid-template-columns: 1fr 64px 64px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.dispatch-allocation-popover__row input {
+  text-align: center;
+}
+
+.dispatch-allocation-popover__remove {
+  border: none;
+  background: none;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.dispatch-allocation-popover__remove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dispatch-allocation-popover__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.dispatch-allocation-popover__progress {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.dispatch-allocation-popover__progress.is-error {
+  color: #dc2626;
+}
+
+.dispatch-allocation-popover__error {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.dispatch-allocation-popover__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.dispatch-allocation-popover__actions button {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dispatch-allocation-popover__save {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #fff !important;
+}
+
+.dispatch-allocation-popover__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

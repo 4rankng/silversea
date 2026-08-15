@@ -51,10 +51,10 @@ Không dùng `admin` để giả lập CUS, Điều phối, Ops, Driver hoặc C
 ### Bước 1 — CUS tạo hai lô và bàn giao
 
 1. Đăng nhập tài khoản CUS, mở **Tạo lô hàng mới** (`/shipments/new`).
-2. Tạo lô FCL với Booking/BL có mã đợt chạy, hai container/seal. Lưu bản nháp, kiểm tra lại sau khi mở lại lô.
+2. Tạo lô FCL với Booking/BL có mã đợt chạy, hai dòng container. Có thể để trống số container; nhập ngày giao dự kiến riêng theo từng container. Bấm **Tạo lô hàng**, kiểm tra lại sau khi mở lại lô.
 3. Tạo lô LCL đối chứng với đầy đủ bao bì, số lượng, kg, CBM và ghi chú.
 4. Form tạo lô chỉ thu thập dữ liệu vận hành (Booking/BL, container/seal, tuyến, ngày); không có trường giá để nhập tay. Ngay khi tạo lô, hệ thống phải tự áp mã tính cước theo bảng giá. Kế toán/CUS nhập tham số **giá dầu hiện tại** theo dữ liệu được phê duyệt; hệ thống tự tính phụ phí xăng dầu từ tham số này, giá dầu gốc, định mức và tỷ lệ chia sẻ. Mở lại lô để kiểm tra các giá đã tính là chỉ đọc.
-5. Ghi mã lô và trạng thái `NEW/Mới tạo`, sau đó bấm **Gửi sang điều phối** cho cả hai lô.
+5. Ghi mã lô và trạng thái tự động. Lô có ngày giao ở cấp LCL, ngày giao trên container FCL, hạn hạ hoặc thời điểm trả container phải xuất hiện để Điều phối tiếp nhận; lô thiếu các mốc này ở trạng thái chờ chốt lịch.
 
 ### Bước 2 — Dispatcher điều xe
 

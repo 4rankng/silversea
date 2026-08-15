@@ -34,4 +34,10 @@ describe('shipment create responsive layout', () => {
       /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important;/,
     );
   });
+
+  it('keeps a long desktop validation list bounded without hiding any issue', () => {
+    expect(css).toMatch(
+      /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,
+    );
+  });
 });

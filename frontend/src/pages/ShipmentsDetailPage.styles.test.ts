@@ -5,6 +5,22 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.css'), 'utf8');
 
 describe('shipment detail workboard styling', () => {
+  it('uses a compact hierarchy and explicitly downsizes the filter controls', () => {
+    expect(css).toMatch(/\.shipments-detail-page > \.d-breadcrumbs\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-page \.page-title\s*\{[^}]*font-size:\s*var\(--fs-2xl\);/);
+    expect(css).toMatch(/\.shipments-detail-page \.page-subtitle\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-workspace__intro h2\s*\{[^}]*font-size:\s*var\(--fs-md\);/);
+    expect(css).toMatch(/\.shipments-detail-workspace__intro p\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-filter \[data-label\],[\s\S]*?\.shipments-detail-filter > label\s*\{[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select,\s*\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size:\s*inherit;/);
+    expect(css).toMatch(/\.shipments-detail-filters__actions button\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
+    expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-page \.page-title\s*\{[^}]*font-size:\s*var\(--fs-xl\);/);
+  });
+
   it('keeps filter controls visibly bounded and usable as a responsive grid', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
     expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*background:\s*var\(--surface\);/);

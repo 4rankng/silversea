@@ -183,7 +183,9 @@ export interface ShipmentContainer {
   containerNumber: string | null;
   sealNumber: string | null;
   cargoWeightKg: string | null;
+  cargoVolumeCbm?: string | null;
   shippingLineName?: string | null;
+  customerAppointmentAt?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
   plannedCarrierType?: 'OWN' | 'EXTERNAL' | null;
@@ -327,6 +329,7 @@ export interface ShipmentContainerBatch {
     cargoWeightKg?: string | number | null;
     cargoVolumeCbm?: string | number | null;
     shippingLineName?: string | null;
+    customerAppointmentAt?: string | null;
     pickupPortId?: number | null;
     dropoffPortId?: number | null;
     notes?: string | null;
@@ -493,8 +496,27 @@ export interface ShipmentChangeRequestReviewResponse {
   message: string;
 }
 
+/** Dispatch master-plan: how much of the container demand has a planned carrier. */
+export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
+
+/** Per-carrier 20'/40' planned allocation counts (dispatch master-plan chips). */
+export interface ShipmentCarrierAllocationSummaryEntry {
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierLabel: string;
+  count20: number;
+  count40: number;
+}
+
 export interface ShipmentListItem extends Shipment {
   customerName: string | null;
+  containerCount20: number;
+  containerCount40: number;
+  /** e.g. "2 * 40HC + 1 * 20DC" */
+  containerTypeSummary: string | null;
+  totalCargoWeightKg: number | null;
+  allocationStatus: ShipmentAllocationStatus;
+  carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
 }
 
 export interface ShipmentListResponse {
@@ -701,6 +723,15 @@ export async function listShipments(params?: {
   customerId?: number;
   status?: ShipmentStatus;
   q?: string;
+  tradeDirection?: 'IMPORT' | 'EXPORT';
+  blNumber?: string;
+  /** Filters on customsCutoffAt. */
+  dateFrom?: string;
+  dateTo?: string;
+  /** Dispatch master-plan: filters on expectedDeliveryDate. */
+  deliveryDateFrom?: string;
+  deliveryDateTo?: string;
+  allocationStatus?: ShipmentAllocationStatus;
 }): Promise<ShipmentListResponse> {
   const query = new URLSearchParams();
   if (params?.page != null) query.set('page', String(params.page));
@@ -708,6 +739,13 @@ export async function listShipments(params?: {
   if (params?.customerId != null) query.set('customerId', String(params.customerId));
   if (params?.status != null) query.set('status', params.status);
   if (params?.q) query.set('q', params.q);
+  if (params?.tradeDirection) query.set('tradeDirection', params.tradeDirection);
+  if (params?.blNumber) query.set('blNumber', params.blNumber);
+  if (params?.dateFrom) query.set('dateFrom', params.dateFrom);
+  if (params?.dateTo) query.set('dateTo', params.dateTo);
+  if (params?.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
+  if (params?.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
+  if (params?.allocationStatus) query.set('allocationStatus', params.allocationStatus);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);
 }

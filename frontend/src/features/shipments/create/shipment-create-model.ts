@@ -42,8 +42,8 @@ export interface ShipmentContainerDraft {
   dropoffPortId: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
-  /** Ngày đóng/trả container (doc Create Shipment Block 2, per-row date picker). */
-  closingDate: string;
+  /** Ngày giao dự kiến của riêng container này. */
+  expectedDeliveryDate: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -103,7 +103,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     dropoffPortId: '',
     cargoWeightKg: '',
     cargoVolumeCbm: '',
-    closingDate: '',
+    expectedDeliveryDate: '',
   };
 }
 
@@ -138,15 +138,14 @@ export function getShipmentCreateReadiness(
     containers.forEach((row, index) => {
       const prefix = `container-${row.key}`;
       const label = `Container ${index + 1}`;
-      if (!row.containerNumber) issues.push(issue(`${prefix}-number`, `${label}: nhập số container.`, 'cargo'));
       if (!row.containerTypeId) issues.push(issue(`${prefix}-type`, `${label}: chọn loại container.`, 'cargo'));
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
     });
-    if (!form.expectedDeliveryDate && !form.closingAt && !form.plannedReturnAt) {
+    if (!containers.some((row) => row.expectedDeliveryDate) && !form.closingAt && !form.plannedReturnAt) {
       issues.push(issue(
-        'shipment-expected-delivery',
-        'Nhập ngày giao dự kiến, hạn hạ container hoặc thời điểm trả container trước khi gửi điều phối.',
+        'container-expected-delivery',
+        'Nhập ngày giao dự kiến cho ít nhất một container, hạn hạ container hoặc thời điểm trả container.',
         'schedule',
       ));
     }
@@ -173,7 +172,8 @@ export function getShipmentCreateReadiness(
   return {
     draftReady: Boolean(form.customerId),
     dispatchReady: issues.length === 0,
-    initialStatus: form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
+    initialStatus: (form.cargoMode === 'FCL' && containers.some((row) => row.expectedDeliveryDate))
+      || form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
       ? ShipmentStatus.READY_FOR_DISPATCH
       : ShipmentStatus.PENDING_DATE,
     issues,
@@ -189,7 +189,7 @@ export function validateShipmentCreate(
   if (intent === 'DRAFT') {
     return readiness.draftReady
       ? []
-      : [issue('shipment-customer', 'Chọn khách hàng để lưu bản nháp.', 'identity')];
+      : [issue('shipment-customer', 'Chọn khách hàng để tạo lô hàng.', 'identity')];
   }
   return readiness.issues;
 }
@@ -219,7 +219,7 @@ export function buildShipmentRootPayload(
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),
     plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
-    expectedDeliveryDate: form.expectedDeliveryDate || null,
+    expectedDeliveryDate: form.cargoMode === 'LCL' ? form.expectedDeliveryDate || null : null,
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
@@ -249,9 +249,9 @@ export function buildShipmentContainerPayload(
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
-    customerAppointmentAt: row.closingDate
+    customerAppointmentAt: row.expectedDeliveryDate
       // UTC noon so the calendar date survives timezone conversion on either side.
-      ? `${row.closingDate}T12:00:00.000Z`
+      ? `${row.expectedDeliveryDate}T12:00:00.000Z`
       : null,
   }));
 }

@@ -1,0 +1,140 @@
+/* Dispatch master-plan grid (Kế hoạch Tổng quát) — 7 multi-line columns,
+   ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
+   vehicle-allocation-page__* BEM conventions. */
+
+.master-plan-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.master-plan-filters__search {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.master-plan-filters__select {
+  min-width: 130px;
+}
+
+.master-plan-filters__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.master-plan-filters__date-sep {
+  color: var(--text-secondary, #94a3b8);
+}
+
+.master-plan-grid__wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.master-plan-grid {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.master-plan-grid thead th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #64748b);
+  border-bottom: 2px solid var(--border-color, #e2e8f0);
+  white-space: nowrap;
+}
+
+.master-plan-grid__row:hover {
+  background: var(--bg-hover, #f8fafc);
+}
+
+.master-plan-grid__cell {
+  padding: 10px 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-color, #eef2f7);
+}
+
+.master-plan-grid__line {
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.master-plan-grid__line + .master-plan-grid__line {
+  margin-top: 2px;
+}
+
+.master-plan-grid__line--strong {
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.master-plan-grid__line--muted {
+  color: var(--text-secondary, #64748b);
+}
+
+.master-plan-grid__line--soon {
+  color: #d97706;
+  font-weight: 500;
+}
+
+.master-plan-grid__line--urgent {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.master-plan-grid__line--notes {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  color: var(--text-secondary, #64748b);
+}
+
+.master-plan-grid__cell--action {
+  min-width: 150px;
+}
+
+.master-plan-grid__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.master-plan-grid__chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #eef2ff;
+  color: #4338ca;
+  white-space: nowrap;
+}
+
+.master-plan-grid__allocate-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.master-plan-grid__allocate-btn:hover {
+  background: #f1f5f9;
+}
