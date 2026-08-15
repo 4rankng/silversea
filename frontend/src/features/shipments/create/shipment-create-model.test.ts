@@ -221,7 +221,9 @@ describe('shipment create model', () => {
 
     expect(readiness.initialStatus).toBe('READY_FOR_DISPATCH');
     expect(readiness.dispatchReady).toBe(true);
-    expect(buildShipmentRootPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }], []).expectedDeliveryDate).toBeNull();
+    // FCL omits the shipment-level date entirely — the server derives it from
+    // per-container dates, so the field must not even be sent as null.
+    expect(buildShipmentRootPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }], []).expectedDeliveryDate).toBeUndefined();
   });
 
   it('formats LCL extra delivery dates into operationalNotes and only for LCL', () => {

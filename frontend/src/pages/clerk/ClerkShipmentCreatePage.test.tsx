@@ -151,7 +151,8 @@ describe('ClerkShipmentCreatePage', () => {
         customerAppointmentAt: '2026-08-14T12:00:00.000Z',
       })],
     })));
-    expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT', expectedDeliveryDate: null });
+    expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
+    expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
     expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
