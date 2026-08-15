@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button as AriaButton } from 'react-aria-components';
+import { Edit01 } from '@untitledui/icons';
 import { AlertTriangle, Save, X } from 'lucide-react';
 import type {
   ShipmentCusContainerFlatRow,
@@ -8,6 +8,7 @@ import type {
 } from '@tingting/shared';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { ButtonUtility } from '../../../components/untitled-ui/base/buttons/button-utility';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
@@ -347,12 +348,17 @@ function InlineEditor({
     <div
       ref={editorRef}
       className="shipment-container-ledger__inline-editor"
+      data-mode={mode}
       tabIndex={-1}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !saving) onCancel();
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && dirty && !saving) void save();
       }}
     >
+      <div className="shipment-container-ledger__editor-heading">
+        <strong>Chỉnh sửa {modeLabel}</strong>
+        <span>{row.containerNumber || `Container số ${row.ordinal}`}</span>
+      </div>
       {mode === 'identity' && (
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
@@ -418,7 +424,6 @@ function InlineEditor({
         </div>
       )}
       <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
-      <small className="shipment-container-ledger__escape-hint">Escape để hủy · Ctrl/Cmd + Enter để lưu.</small>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
     </div>
@@ -476,19 +481,24 @@ export function ShipmentContainerLedger({
     const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
     const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
     if (!enabled) return <div className={className}>{children}</div>;
+    const editLabel = `Chỉnh sửa ${mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}${modeLabelForTrigger(mode)} ${row.containerNumber || `container số ${row.ordinal}`}`;
     return (
-      <AriaButton
-        id={triggerId}
-        className={className}
-        onPress={() => onStartEdit(row, mode, triggerId)}
-        isDisabled={busy || activeEdit != null}
-        aria-busy={busy || undefined}
-        aria-controls={expanded ? editorId : undefined}
-        aria-expanded={expanded}
-      >
-        <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
-        {children}
-      </AriaButton>
+      <div className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}>
+        <div className="shipment-container-ledger__cell-value">{children}</div>
+        <ButtonUtility
+          id={triggerId}
+          className="shipment-container-ledger__edit-button"
+          size="xs"
+          color="tertiary"
+          icon={Edit01}
+          tooltip={editLabel}
+          onPress={() => onStartEdit(row, mode, triggerId)}
+          isDisabled={busy || activeEdit != null}
+          aria-busy={busy || undefined}
+          aria-controls={expanded ? editorId : undefined}
+          aria-expanded={expanded}
+        />
+      </div>
     );
   };
 

@@ -37,8 +37,10 @@ vi.mock('../../components/UI', () => ({
 
 import ClerkShipmentCreatePage from './ClerkShipmentCreatePage';
 
+const longCustomerName = 'Công ty Cổ phần Vận tải và Logistics Biển Bắc';
+
 const bootstrap = {
-  customers: [{ id: 7, name: 'Công ty Long Minh' }],
+  customers: [{ id: 7, name: longCustomerName }],
   routes: [{ id: 11, name: 'Cát Lái — Sóng Thần' }],
   ports: [{ id: 21, name: 'Cảng Cát Lái' }, { id: 22, name: 'Cảng ICD Sóng Thần' }],
   containerTypes: [{ id: 31, code: '40HC', name: 'Container 40 feet cao' }],
@@ -98,6 +100,20 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu bản nháp|Gửi sang điều phối/ })).toBeNull();
+  });
+
+  it('renders long customer names in the customer-specific dropdown treatment', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    const combobox = screen.getByRole('combobox', { name: /^Khách hàng/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+
+    const option = await screen.findByRole('option', { name: longCustomerName });
+    expect(option.className).toContain('csc-customer-option');
+    expect(document.querySelector('.csc-customer-popover')).toBeTruthy();
+    expect(combobox.closest('.csc-customer-field')).toBeTruthy();
   });
 
   it('requires a customer before creating a shipment', async () => {

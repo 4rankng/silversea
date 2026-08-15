@@ -102,22 +102,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     }
     expect(screen.getByText('TK-001')).toBeTruthy();
     const classificationCell = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-001/ });
-    expect(classificationCell.textContent).toContain('Nhập');
-    expect(classificationCell.textContent).toContain('MSC');
-    expect(screen.getByRole('button', { name: /Chỉnh sửa chiều hàng và hãng tàu CONT-001.*Nhập.*MSC/ })).toBe(classificationCell);
-    expect(classificationCell.getAttribute('aria-label')).toBeNull();
+    expect(classificationCell.getAttribute('aria-label')).toBe('Chỉnh sửa chiều hàng và hãng tàu CONT-001');
+    expect(classificationCell.querySelector('[data-icon]')).toBeTruthy();
+    expect(screen.getByText(/MSC/)).toBeTruthy();
     expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
-    expect(identityCell.textContent).toContain('Công ty Silver Sea');
-    expect(identityCell.textContent).not.toContain('Sửa');
+    expect(identityCell.getAttribute('aria-label')).toBe('Chỉnh sửa ô khách hàng và lộ trình CONT-001');
+    expect(screen.getAllByText('Công ty Silver Sea').length).toBeGreaterThan(0);
     expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
   });
 
-  it('opens value-cell editors with Enter and Space without requiring a visible edit button', async () => {
+  it('opens explicit value-cell edit actions with Enter and Space', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 

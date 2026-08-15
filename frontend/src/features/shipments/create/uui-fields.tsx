@@ -79,6 +79,10 @@ interface USearchableFieldProps {
   required?: boolean;
   hint?: ReactNode;
   error?: string;
+  className?: string;
+  popoverClassName?: string;
+  optionClassName?: string;
+  shortcut?: boolean;
   /** Allow free-typed values that don't match any option (e.g. Hãng tàu). */
   allowsCustomValue?: boolean;
 }
@@ -93,11 +97,15 @@ export function USearchableField({
   required,
   hint,
   error,
+  className,
+  popoverClassName,
+  optionClassName,
+  shortcut,
   allowsCustomValue,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   return (
-    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}`}>
+    <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
         aria-label={label}
         label={label}
@@ -120,12 +128,15 @@ export function USearchableField({
         isInvalid={Boolean(error)}
         hint={typeof (error ?? hint) === 'string' ? (error ?? hint) as string : undefined}
         hideRequiredIndicator={!required}
+        shortcut={shortcut}
+        popoverClassName={popoverClassName}
         className="csc-uui-field csc-control-boundary"
       >
         {(item: { id: string | number; label?: string; supportingText?: string }) => (
           <SelectItem
             id={item.id}
             data-value={String(item.id)}
+            className={optionClassName}
             label={item.label}
             supportingText={item.supportingText}
           />

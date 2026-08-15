@@ -35,6 +35,29 @@ describe('shipment create responsive layout', () => {
     );
   });
 
+  it('styles only cargo option labels as radio cards, not the required marker', () => {
+    expect(source).toContain('className="csc-mode__option"');
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.csc-mode__option::before\s*\{[^}]*border-radius:\s*50%;/);
+    expect(css).not.toMatch(/\.csc-mode\s+span(?:\s*\{|::before)/);
+  });
+
+  it('gives customer identity the widest column and reflows cleanly by viewport', () => {
+    expect(source).toContain('className="csc-identity-grid"');
+    expect(source).toContain('className="csc-identity-grid__customer"');
+    expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  });
+
+  it('lets customer names use the trigger width and wrap inside a wider menu', () => {
+    expect(source).toContain('popoverClassName="csc-customer-popover"');
+    expect(source).toContain('optionClassName="csc-customer-option"');
+    expect(css).toMatch(/\.csc-customer-popover\s*\{[^}]*min-width:\s*min\(32rem,\s*calc\(100vw - 32px\)\);[^}]*background:\s*var\(--surface,\s*#fff\);/);
+    expect(css).toMatch(/\.csc-customer-popover \.csc-customer-option \[slot='label'\]\s*\{[^}]*white-space:\s*normal;/);
+  });
+
   it('keeps a long desktop validation list bounded without hiding any issue', () => {
     expect(css).toMatch(
       /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,

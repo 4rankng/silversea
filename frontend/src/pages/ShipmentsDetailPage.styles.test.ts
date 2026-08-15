@@ -38,14 +38,16 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
   });
 
-  it('turns editable values into restrained cell triggers without persistent edit-button chrome', () => {
-    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*background:\s*transparent;[^}]*text-align:\s*left;/);
-    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\);/);
+  it('pairs readable values with explicit compact edit actions and bounded editor trays', () => {
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;[^}]*background:\s*transparent;/);
+    expect(css).toMatch(/\.shipment-container-ledger__edit-button\s*\{[^}]*color:\s*var\(--ink-3\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > \.shipment-container-ledger__editor-row > td\s*\{[^}]*background:\s*var\(--surface-2\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > \.shipment-container-ledger__editor-row > td\s*\{[^}]*overflow:\s*visible;/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 760px\) auto;[^}]*width:\s*fit-content;[^}]*max-width:\s*100%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__inline-editor\[data-mode="appointment"\]\s*\{[^}]*grid-template-columns:\s*minmax\(280px, 420px\) auto;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).not.toMatch(/shipment-container-ledger__edit-trigger/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-button\s*\{[^}]*min-width:\s*44px;/);
   });
 
   it('defines warning states with both row and vehicle-specific treatments', () => {
