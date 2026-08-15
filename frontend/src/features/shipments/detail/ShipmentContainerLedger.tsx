@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { AlertTriangle, Save, X } from 'lucide-react';
+import { Save01, XClose } from '@untitledui/icons';
+import { AlertTriangle, Clock3 } from 'lucide-react';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -136,21 +137,23 @@ function EditActions({
   return (
     <div className="shipment-container-ledger__edit-actions">
       <UUIButton
-        size="sm"
+        size="xs"
         color="primary"
+        className="shipment-container-ledger__edit-action"
         onPress={onSave}
         isDisabled={saveDisabled || saving}
         isLoading={saving}
         showTextWhileLoading
-        iconLeading={!saving ? <Save aria-hidden="true" /> : undefined}
+        iconLeading={!saving ? Save01 : undefined}
         aria-label={`Lưu ${label}`}
       >Lưu</UUIButton>
       <UUIButton
-        size="sm"
+        size="xs"
         color="secondary"
+        className="shipment-container-ledger__edit-action"
         onPress={onCancel}
         isDisabled={saving}
-        iconLeading={<X aria-hidden="true" />}
+        iconLeading={XClose}
         aria-label={`Hủy ${label}`}
       >Hủy</UUIButton>
     </div>
@@ -502,7 +505,7 @@ export function ShipmentContainerLedger({
         <div><dt>Container trên trang</dt><dd>{rows.length.toLocaleString('vi-VN')}</dd></div>
         <div><dt>Tổng container phù hợp</dt><dd>{totalContainers.toLocaleString('vi-VN')}</dd></div>
         <div className={missingDateCount ? 'shipment-container-summary__attention' : ''}><dt>Thiếu ngày vận chuyển</dt><dd>{missingDateCount.toLocaleString('vi-VN')}</dd></div>
-        <div className={missingVehicleTodayCount ? 'shipment-container-summary__danger' : ''}><dt>Hôm nay thiếu xe</dt><dd>{missingVehicleTodayCount.toLocaleString('vi-VN')}</dd></div>
+        <div className={missingVehicleTodayCount ? 'shipment-container-summary__attention' : ''}><dt>Hôm nay chờ phân xe</dt><dd>{missingVehicleTodayCount.toLocaleString('vi-VN')}</dd></div>
       </dl>
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
         <table>
@@ -570,8 +573,15 @@ export function ShipmentContainerLedger({
                       {editableCell(row, 'appointment', row.customerAppointmentEditable, <span className="shipment-container-ledger__appointment">{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span>)}
                     </div>
                   </td>
-                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-alert' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
-                    {editableCell(row, 'vehicle', row.carrierEditable || row.plateEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>)}
+                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
+                    {editableCell(row, 'vehicle', row.carrierEditable || row.plateEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
+                      {missingVehicleToday && <span className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" /> Chờ phân xe</span>}
+                      <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
+                      {row.plateNumber
+                        ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
+                        : <span className="shipment-container-ledger__plate shipment-container-ledger__plate--missing">Chưa gán biển số</span>}
+                      {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
+                    </div>)}
                   </td>
                   <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}

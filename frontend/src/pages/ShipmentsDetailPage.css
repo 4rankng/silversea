@@ -70,8 +70,6 @@
 .shipment-container-summary dd { margin: 0; color: var(--ink); font-family: var(--font-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); }
 .shipment-container-summary__attention { background: var(--warning-soft); }
 .shipment-container-summary__attention dd { color: var(--warning-text); }
-.shipment-container-summary__danger { background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
-.shipment-container-summary__danger dd { color: var(--danger); }
 
 .shipment-container-ledger { position: relative; max-height: min(64vh, 760px); min-width: 0; overflow-x: hidden; overflow-y: auto; background: var(--surface); scrollbar-gutter: stable; }
 .shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -99,7 +97,7 @@
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
-.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge),
+.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: inherit; }
@@ -120,10 +118,13 @@
 .shipment-container-ledger__route i { justify-self: start; color: var(--ink-4); font-style: normal; transform: rotate(90deg); }
 .shipment-container-ledger__schedule { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: var(--fw-bold); letter-spacing: .03em; }
-.shipment-container-ledger__vehicle-alert { color: var(--danger) !important; }
-.shipment-container-ledger__vehicle-alert .shipment-container-ledger__missing,
-.shipment-container-ledger__vehicle-alert .shipment-container-ledger__plate { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 32%, var(--line)); background: color-mix(in srgb, var(--danger) 6%, var(--surface)); }
-.shipment-container-ledger__vehicle-guidance { color: var(--danger); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; }
+.shipment-container-ledger__vehicle { gap: 4px; }
+.shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 52%, var(--surface)) !important; }
+.shipment-container-ledger tbody > tr:hover > .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)) !important; }
+.shipment-container-ledger__vehicle-state { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 4px; color: var(--warning-text) !important; font-size: 10px; font-weight: var(--fw-bold); line-height: 1.3; white-space: nowrap; }
+.shipment-container-ledger__vehicle-state svg { width: 13px; height: 13px; }
+.shipment-container-ledger__plate--missing { border-color: color-mix(in srgb, var(--warning) 42%, var(--line)); background: var(--warning-soft); color: var(--warning-text) !important; font-weight: var(--fw-semibold); }
+.shipment-container-ledger__vehicle-guidance { color: var(--ink-2); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.35; }
 
 .shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
 .shipment-container-ledger__cell-stack > .shipment-container-ledger__cell-trigger + .shipment-container-ledger__cell-trigger { padding-top: 5px; border-top: 1px solid var(--line); }
@@ -199,8 +200,8 @@
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
 .shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: 9px; line-height: 1.35; }
-.shipment-container-ledger__edit-actions { display: flex; flex-wrap: wrap; gap: 5px; }
-.shipment-container-ledger__edit-actions button { min-height: 36px; }
+.shipment-container-ledger__edit-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.shipment-container-ledger__edit-action { min-height: 32px; padding: 6px 8px; font-size: 11px; }
 .shipment-container-ledger__escape-hint { color: var(--ink-3); font-size: 9px; }
 .shipment-container-ledger__edit-error { display: block; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; }
 .shipment-container-ledger__recovery { display: block; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; }
@@ -235,7 +236,7 @@
   .shipment-container-ledger tbody > .shipment-container-ledger__editor-row { display: block; width: 100%; border-bottom: 1px solid var(--line-2); }
   .shipment-container-ledger tbody > .shipment-container-ledger__editor-row > td { display: block; width: 100%; min-height: 0; border-right: 0; border-bottom: 0; }
   .shipment-container-ledger__cell-trigger,
-  .shipment-container-ledger__edit-actions button { min-height: 40px; }
+  .shipment-container-ledger__edit-action { min-height: 40px; }
 }
 
 @media (max-width: 760px) {
@@ -262,7 +263,7 @@
   .shipment-container-ledger__editor-row .shipment-container-ledger__editor-grid--schedule { grid-template-columns: minmax(0, 1fr); }
   .shipment-container-ledger__editor-row .shipment-container-ledger__edit-actions { grid-column: auto; }
   .shipment-container-ledger__cell-trigger,
-  .shipment-container-ledger__edit-actions button { min-height: 44px; }
+  .shipment-container-ledger__edit-action { min-height: 44px; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
 }

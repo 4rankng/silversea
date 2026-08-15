@@ -72,13 +72,20 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 760px\) auto;[^}]*width:\s*fit-content;[^}]*max-width:\s*100%;/);
     expect(css).toMatch(/\.shipment-container-ledger__inline-editor\[data-mode="appointment"\]\s*\{[^}]*grid-template-columns:\s*minmax\(280px, 420px\) auto;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?min-height:\s*44px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?min-height:\s*40px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*32px;[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
   });
 
-  it('defines warning states with both row and vehicle-specific treatments', () => {
+  it('uses a distinct, non-destructive pending state when today still needs vehicle allocation', () => {
     expect(css).toMatch(/shipment-container-ledger__row--missing-date/);
-    expect(css).toMatch(/shipment-container-ledger__vehicle-alert/);
+    expect(css).toMatch(/shipment-container-ledger__vehicle-pending/);
+    expect(css).toMatch(/shipment-container-ledger__vehicle-state/);
+    expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-guidance/);
+    expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
+    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
+    expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
+    expect(css).not.toMatch(/shipment-container-ledger__vehicle-guidance\s*\{[^}]*var\(--danger\)/);
   });
 });

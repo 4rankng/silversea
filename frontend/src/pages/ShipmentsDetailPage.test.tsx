@@ -120,6 +120,20 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
   });
 
+  it('presents today\'s unassigned vehicle as an amber operational state, not a destructive error', async () => {
+    apiGet.mockResolvedValueOnce({
+      ...response,
+      items: response.items.map((item) => item.id === 12 ? { ...item, transportDate: today } : item),
+    });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    const pendingVehicleCell = (await screen.findByText('Chờ phân xe')).closest('td');
+    expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
+    expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
+    expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
+    expect(pendingVehicleCell?.textContent).toContain('Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.');
+  });
+
   it('opens value-cell editors with click, Enter, and Space without pencil controls', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
@@ -144,6 +158,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.keyUp(spaceTrigger, { key: ' ', code: 'Space' });
     expect(await screen.findByLabelText('Nhà máy')).toBeTruthy();
     expect(screen.queryByText('Sửa')).toBeNull();
+  });
+
+  it('uses compact Untitled UI icons for inline editor actions', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
+
+    const save = await screen.findByRole('button', { name: 'Lưu hành trình CONT-002' });
+    const cancel = screen.getByRole('button', { name: 'Hủy hành trình CONT-002' });
+    expect(save.className).toContain('shipment-container-ledger__edit-action');
+    expect(cancel.className).toContain('shipment-container-ledger__edit-action');
+    expect(save.querySelector('[data-icon="leading"]')).toBeTruthy();
+    expect(cancel.querySelector('[data-icon="leading"]')).toBeTruthy();
   });
 
   it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
