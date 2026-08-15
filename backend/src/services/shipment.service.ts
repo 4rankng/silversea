@@ -433,13 +433,14 @@ export const ALLOCATION_STATUSES: AllocationStatus[] = [
 
 /**
  * Bucket a free-text container type into the 20'/40' size classes the carrier
- * allocation model works in. Mirrors the frontend `inferContainerBucket` in
- * ClerkShipmentDocsPage (kept separate — backend cannot import frontend code).
+ * allocation model works in. Uses the same anchored regex as
+ * `containerSizeBucket` in shipment-intake.service.ts so aggregate counts can
+ * never disagree with the enforcement path.
  */
 function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
-  const normalized = (label ?? '').toUpperCase();
-  if (normalized.includes('20')) return 20;
-  if (normalized.includes('40')) return 40;
+  const normalized = (label ?? '').toUpperCase().trim();
+  if (/^20(?:\D|$)/.test(normalized)) return 20;
+  if (/^40(?:\D|$)/.test(normalized)) return 40;
   return null;
 }
 
@@ -557,6 +558,14 @@ async function loadShipmentDispatchAggregates(
     else containersByShipment.set(row.shipmentId, [row]);
   }
 
+  // Group once — the per-shipment loop below then reads its slice in O(1).
+  const fulfillmentsByShipment = new Map<number, Array<typeof fulfillmentRows[number]>>();
+  for (const row of fulfillmentRows) {
+    const bucket = fulfillmentsByShipment.get(row.shipmentId);
+    if (bucket) bucket.push(row);
+    else fulfillmentsByShipment.set(row.shipmentId, [row]);
+  }
+
   const result = new Map<number, ShipmentContainerAggregates & {
     carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
   }>();
@@ -566,7 +575,7 @@ async function loadShipmentDispatchAggregates(
     const byCarrier = new Map<string, ShipmentCarrierAllocationSummaryEntry>();
     let allocatedCount20 = 0;
     let allocatedCount40 = 0;
-    for (const fulfillment of fulfillmentRows.filter((row) => row.shipmentId === id)) {
+    for (const fulfillment of fulfillmentsByShipment.get(id) ?? []) {
       if (!fulfillment.plannedCarrierType) continue;
       const bucket = inferContainerBucket(`${fulfillment.containerTypeCode ?? ''} ${fulfillment.containerTypeName ?? ''}`.trim());
       if (!bucket) continue;

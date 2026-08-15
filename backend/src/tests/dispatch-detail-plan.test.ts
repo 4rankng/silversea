@@ -326,7 +326,7 @@ describe('dispatch detail plan rows', () => {
     const row = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
     assert.equal(row.shipmentId, shipment.id);
     assert.equal(row.taskStatus, 'READY');
-    assert.equal(row.time.runHour, 8);
+    assert.equal(row.time.runHour, 15);
     assert.equal(row.customerRoute.customerName, shipment.customerId != null ? row.customerRoute.customerName : null);
     assert.ok(row.customerRoute.factoryName);
     assert.ok(row.customerRoute.deliveryPoint);
@@ -370,10 +370,13 @@ describe('dispatch detail plan rows', () => {
 
   test('hour range and direction filters apply', async () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
-    const inRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=7&hourTo=9&direction=EXPORT`);
+    // Fixture closes at 08:00Z = 15:00 Asia/Ho_Chi_Minh — filters and display
+    // both operate in the business timezone.
+    const inRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=14&hourTo=16&direction=EXPORT`);
     assert.equal(inRange.status, 200, JSON.stringify(inRange.data));
     assert.equal(inRange.data.items.length, 1);
-    const outOfRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=10`);
+    assert.equal(inRange.data.items[0]!.time.runHour, 15);
+    const outOfRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=16`);
     assert.equal(outOfRange.data.items.length, 0);
     const wrongDirection = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&direction=IMPORT`);
     assert.equal(wrongDirection.data.items.length, 0);
@@ -382,6 +385,54 @@ describe('dispatch detail plan rows', () => {
   test('invalid hour filter is rejected with 400', async () => {
     const response = await fetchRows(dispatcherToken, '?hourFrom=24');
     assert.equal(response.status, 400);
+  });
+
+  test('malformed PATCH body types are rejected with 400', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const numericPlate = await apiFetch(`/dispatch-detail-plan-rows/${fulfillmentIds[0]}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: 1, plateNumber: 123 },
+    });
+    assert.equal(numericPlate.status, 400);
+    const stringTruckId = await apiFetch(`/dispatch-detail-plan-rows/${fulfillmentIds[0]}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: 1, truckId: 'abc' },
+    });
+    assert.equal(stringTruckId.status, 400);
+  });
+
+  test('ACCOUNTANT read is customer-scoped and address-redacted', async () => {
+    const { shipment, site } = await createAllocatedLot({ carrierType: 'OWN' });
+    // Scope the accountant to this lot's customer only.
+    const accountant = await mkUser(Role.ACCOUNTANT, 'accountant-scoped');
+    await db.insert(s.userCustomerLinks).values({ userId: accountant.id, customerId: shipment.customerId });
+    const scopedToken = jwt.sign({
+      userId: accountant.id,
+      username: accountant.username,
+      email: null,
+      fullName: null,
+      role: Role.ACCOUNTANT,
+      customerId: shipment.customerId,
+      customerIds: [shipment.customerId],
+    }, config.jwtSecret);
+
+    const scoped = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?q=${shipment.shipmentCode}`, {
+      token: scopedToken,
+    });
+    assert.equal(scoped.status, 200, JSON.stringify(scoped.data));
+    assert.equal(scoped.data.items.length, 1);
+    // Site address is redacted for accountants; the site name stays.
+    assert.equal(scoped.data.items[0]!.customerRoute.deliveryPoint, null);
+    assert.equal(scoped.data.items[0]!.customerRoute.factoryName, site.name);
+
+    // Unscoped accountant (no customer links) is refused.
+    const unscoped = await mkUser(Role.ACCOUNTANT, 'accountant-unscoped');
+    const unscopedResponse = await apiFetch('/dispatch-detail-plan-rows', {
+      token: signToken(unscoped),
+    });
+    assert.equal(unscopedResponse.status, 403);
   });
 
   test('delivery point facet endpoint lists distinct sites', async () => {
@@ -537,7 +588,8 @@ describe('dispatch detail plan plate assignment', () => {
     });
     assert.equal(first.data.driverNotified, true);
 
-    // Clear then re-assign same truck
+    // Clear then re-assign the same truck: the dedupe check finds the prior
+    // notification for this fulfillment+driver+plate pair and stays silent.
     const cleared = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
@@ -545,10 +597,6 @@ describe('dispatch detail plan plate assignment', () => {
     });
     assert.equal(cleared.status, 200);
 
-    // Re-assign same truck — notification dedupe is per fulfillment+truck pair
-    // only when the plate does not change; a clear→re-assign sequence notifies
-    // again only if the plate changed in between. Here it is the same plate but
-    // the row transitioned through unassigned, so notify fires again.
     const reassign = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
@@ -556,6 +604,7 @@ describe('dispatch detail plan plate assignment', () => {
     });
     assert.equal(reassign.status, 200);
     assert.equal(reassign.data.assignedPlate, truck.licensePlate);
+    assert.equal(reassign.data.driverNotified, false, 'same truck re-assign must not re-notify');
   });
 
   test('truck without assigned driver still allows assignment with hint', async () => {
@@ -580,7 +629,7 @@ describe('dispatch detail plan plate assignment', () => {
     assert.equal(response.data.driverHint, 'Chưa có lái xe gắn với xe.');
   });
 
-  test('ACCOUNTANT cannot assign plates', async () => {
+  test('CUS cannot assign plates', async () => {
     const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const response = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillmentIds[0]}/plate`, {
       method: 'PATCH',
@@ -588,5 +637,48 @@ describe('dispatch detail plan plate assignment', () => {
       body: { expectedVersion: 1 },
     });
     assert.equal(response.status, 403);
+  });
+
+  test('accounting-locked shipment rejects plate changes', async () => {
+    const { shipment, fulfillmentIds, customer } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [billingDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
+      entityName: customer.name,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+      debitNoteStatus: 'SENT',
+      issuedAt: new Date(),
+      createdBy: adminUserId,
+    }).returning();
+    try {
+      await db.insert(s.shipmentAccountingLocks).values({
+        shipmentId: shipment.id,
+        billingDocumentId: billingDoc.id,
+        billingDocumentVersion: billingDoc.version,
+        billingPeriodSnapshot: {
+          rangeFrom: billingDoc.rangeFrom,
+          rangeTo: billingDoc.rangeTo,
+          issuedAt: billingDoc.issuedAt!.toISOString(),
+        },
+        shipmentVersionAtLock: shipment.version,
+        reason: 'Kết thúc chu kỳ công nợ',
+        activatedBy: adminUserId,
+      });
+      const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+      const response = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+        method: 'PATCH',
+        token: dispatcherToken,
+        body: { expectedVersion: fulfillment.version, truckId: truck.id },
+      });
+      assert.equal(response.status, 409);
+      assert.ok(String((response.data as { error?: string }).error ?? '').includes('khóa'), JSON.stringify(response.data));
+    } finally {
+      await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDoc.id));
+    }
   });
 });

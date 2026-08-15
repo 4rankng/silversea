@@ -114,22 +114,28 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
     setSaving(true);
     setError(null);
     try {
-      await saveShipmentCarrierAllocations(shipment.id, {
-        expectedVersion: shipment.version,
-        carrierAllocations: rows
-          .filter((row) => row.carrierKey)
-          .map((row) => {
-            const option = options.find((candidate) => candidate.key === row.carrierKey);
-            return {
-              carrierType: option?.carrierType ?? 'OWN',
-              externalCarrierId: option?.externalCarrierId ?? null,
-              count20: Number(row.count20 || 0),
-              count40: Number(row.count40 || 0),
-            };
-          }),
-      });
-      // Re-derive the row from the saved state (read-time derivation) so chips
-      // and allocationStatus refresh without a full list refetch.
+      const response = await saveShipmentCarrierAllocations(
+        shipment.id,
+        {
+          expectedVersion: shipment.version,
+          carrierAllocations: rows
+            .filter((row) => row.carrierKey)
+            .map((row) => {
+              const option = options.find((candidate) => candidate.key === row.carrierKey);
+              return {
+                carrierType: option?.carrierType ?? 'OWN',
+                externalCarrierId: option?.externalCarrierId ?? null,
+                count20: Number(row.count20 || 0),
+                count40: Number(row.count40 || 0),
+              };
+            }),
+        },
+        undefined,
+        'partial',
+      );
+      // Re-derive the row from the saved state so chips and allocationStatus
+      // refresh without a list refetch — propagating the server's new version
+      // so an immediate re-edit doesn't 409 on a stale expectedVersion.
       const summary = rows
         .filter((row) => row.carrierKey)
         .map((row) => {
@@ -137,7 +143,8 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
           return {
             carrierType: option?.carrierType ?? ('OWN' as const),
             externalCarrierId: option?.externalCarrierId ?? null,
-            carrierLabel: option?.label ?? 'Nhà xe chưa xác định',
+            // Match the backend's chip labels (INTERNAL_FLEET_CARRIER_NAME).
+            carrierLabel: option?.carrierType === 'OWN' ? 'SilverSea' : option?.label ?? 'Nhà xe chưa xác định',
             count20: Number(row.count20 || 0),
             count40: Number(row.count40 || 0),
           };
@@ -145,6 +152,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
         .filter((entry) => entry.count20 > 0 || entry.count40 > 0);
       onSaved({
         ...shipment,
+        version: response.shipment.version,
         carrierAllocationSummary: summary,
         allocationStatus: validation.assigned20 >= demand.count20 && validation.assigned40 >= demand.count40
           ? 'FULLY_ALLOCATED'
@@ -154,7 +162,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved }: Dispat
     } catch (err) {
       const status = (err as { status?: number }).status;
       if (status === 409) {
-        setError('Lô hàng vừa được người khác cập nhật. Đã tải lại số mới — vui lòng thử lại.');
+        setError('Lô hàng đã thay đổi. Vui lòng đóng và mở lại để lấy số liệu mới.');
       } else {
         setError('Không thể lưu phân bổ. Vui lòng thử lại.');
       }

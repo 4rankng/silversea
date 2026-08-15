@@ -35,6 +35,12 @@ export interface AssignShipmentCarriersCommand {
   expectedVersion: number;
   actor: AuthUser;
   carrierAllocations: NonNullable<SubmitShipmentForDispatchInput['carrierAllocations']>;
+  /**
+   * Dispatch master-plan mode: under-allocation is allowed (docx rule B only
+   * forbids overflow). Containers beyond the allocated totals keep their
+   * existing planned carrier cleared.
+   */
+  allowPartial?: boolean;
   transaction?: Tx;
 }
 
@@ -50,6 +56,7 @@ async function persistCarrierAllocations(
   shipment: typeof s.shipments.$inferSelect,
   actorId: number,
   allocations: NonNullable<SubmitShipmentForDispatchInput['carrierAllocations']>,
+  allowPartial = false,
 ) {
   const fulfillmentRows = await ensureShipmentFulfillmentsInTx(tx, {
     shipmentId: shipment.id,
@@ -107,14 +114,20 @@ async function persistCarrierAllocations(
   }
   const total20 = allocations.reduce((sum, row) => sum + row.count20, 0);
   const total40 = allocations.reduce((sum, row) => sum + row.count40, 0);
-  if (total20 !== bucket20.length || total40 !== bucket40.length) {
+  if (total20 > bucket20.length || total40 > bucket40.length) {
+    throw new ApiError(
+      409,
+      `Phân bổ vượt số lượng container: 20' ${total20}/${bucket20.length}, 40' ${total40}/${bucket40.length}.`,
+    );
+  }
+  if (!allowPartial && (total20 !== bucket20.length || total40 !== bucket40.length)) {
     throw new ApiError(
       409,
       `Phân bổ nhà xe chưa khớp: 20' ${total20}/${bucket20.length}, 40' ${total40}/${bucket40.length}.`,
     );
   }
 
-  const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId: number | null }>();
+  const assignmentByContainer = new Map<number, { carrierType: 'OWN' | 'EXTERNAL' | null; externalCarrierId: number | null }>();
   let index20 = 0;
   let index40 = 0;
   for (const allocation of allocations) {
@@ -132,8 +145,17 @@ async function persistCarrierAllocations(
       assignmentByContainer.set(bucket40[index40++]!, carrier);
     }
   }
-  if (assignmentByContainer.size !== containerRows.length) {
+  if (!allowPartial && assignmentByContainer.size !== containerRows.length) {
     throw new ApiError(409, 'Mỗi container phải được gán đúng một nhà xe.');
+  }
+  // Partial mode: containers beyond the allocated totals get no carrier —
+  // clear any stale planned carrier so coverage always mirrors the request.
+  if (allowPartial) {
+    for (const containerId of [...bucket20, ...bucket40]) {
+      if (!assignmentByContainer.has(containerId)) {
+        assignmentByContainer.set(containerId, { carrierType: null, externalCarrierId: null });
+      }
+    }
   }
 
   for (const fulfillment of fulfillmentRows) {
@@ -480,7 +502,7 @@ export async function submitShipmentForDispatch(input: SubmitShipmentForDispatch
 }
 
 export async function assignShipmentCarriers(input: AssignShipmentCarriersCommand) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CUS].includes(input.actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(input.actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền gán nhà xe cho lô hàng.');
   }
   const execute = async (tx: Tx) => {
@@ -507,7 +529,7 @@ export async function assignShipmentCarriers(input: AssignShipmentCarriersComman
       throw new ApiError(409, 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.');
     }
 
-    await persistCarrierAllocations(tx, shipment, input.actor.userId, input.carrierAllocations);
+    await persistCarrierAllocations(tx, shipment, input.actor.userId, input.carrierAllocations, input.allowPartial === true);
     const nextVersion = shipment.version + 1;
     const now = new Date();
     const [updatedShipment] = await tx.update(s.shipments).set({

@@ -87,6 +87,9 @@ export function useDispatchDetailPlan() {
 
   const loadMore = useCallback(() => {
     if (!cursor || loadingMore) return;
+    // Snapshot the request id so an in-flight load-more is dropped when the
+    // filter effect has since reset the list (it bumps the ref).
+    const requestId = requestIdRef.current;
     setLoadingMore(true);
     listDispatchDetailPlanRows({
       cursor,
@@ -100,12 +103,14 @@ export function useDispatchDetailPlan() {
       ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
     })
       .then((response) => {
+        if (requestIdRef.current !== requestId) return;
         setItems((prev) => [...prev, ...response.items]);
         setNextCursor(response.nextCursor);
         setCursor(response.nextCursor);
         setLoadingMore(false);
       })
       .catch(() => {
+        if (requestIdRef.current !== requestId) return;
         setError('Không thể tải thêm dòng. Vui lòng thử lại.');
         setLoadingMore(false);
       });

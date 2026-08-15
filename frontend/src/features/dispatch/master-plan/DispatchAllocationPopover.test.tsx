@@ -69,7 +69,7 @@ describe('DispatchAllocationPopover', () => {
     expect(saveShipmentCarrierAllocations).toHaveBeenCalledWith(1, expect.objectContaining({
       expectedVersion: 4,
       carrierAllocations: [expect.objectContaining({ carrierType: 'OWN', count20: 1, count40: 0 })],
-    }));
+    }), undefined, 'partial');
     expect(onSaved.mock.calls[0][0].allocationStatus).toBe('PARTIALLY_ALLOCATED');
   });
 
@@ -83,7 +83,7 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
 
-    expect(await screen.findByText(/vừa được người khác cập nhật/i)).toBeTruthy();
+    expect(await screen.findByText(/Vui lòng đóng và mở lại/i)).toBeTruthy();
   });
 
   it('pre-fills rows from existing allocations', async () => {

@@ -843,6 +843,17 @@ router.get(
   }),
 );
 
+const assignFulfillmentPlateSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  truckId: z.number().int().positive().nullish(),
+  externalCarrierVehicleId: z.number().int().positive().nullish(),
+  plateNumber: z.string().trim().min(1).max(20).nullish(),
+  clear: z.boolean().optional(),
+}).strict().refine(
+  (value) => [value.truckId, value.externalCarrierVehicleId, value.plateNumber].filter((field) => field != null && field !== '').length <= 1,
+  { message: 'Chỉ chọn một nguồn biển số.' },
+);
+
 router.patch(
   '/dispatch-detail-plan-rows/:fulfillmentId/plate',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
@@ -851,19 +862,17 @@ router.patch(
     if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
       throw new ApiError(400, 'fulfillmentId không hợp lệ.');
     }
+    const parsed = assignFulfillmentPlateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
-    const { expectedVersion, truckId, externalCarrierVehicleId, plateNumber, clear } = req.body ?? {};
-    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
-      throw new ApiError(400, 'expectedVersion không hợp lệ.');
-    }
     res.json(await assignFulfillmentPlate({
       fulfillmentId,
-      expectedVersion,
-      truckId: truckId ?? null,
-      externalCarrierVehicleId: externalCarrierVehicleId ?? null,
-      plateNumber: plateNumber ?? null,
-      clear: clear === true,
-      idempotencyKey: getRequestIdempotencyKey(req) ?? `plate-${fulfillmentId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      expectedVersion: parsed.data.expectedVersion,
+      truckId: parsed.data.truckId ?? null,
+      externalCarrierVehicleId: parsed.data.externalCarrierVehicleId ?? null,
+      plateNumber: parsed.data.plateNumber ?? null,
+      clear: parsed.data.clear === true,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
   }),
@@ -966,12 +975,15 @@ router.post(
 
 router.post(
   '/:id/carrier-allocations',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
     const parsed = assignShipmentCarriersSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
+    // Dispatch master-plan popover saves partial allocations (docx allows
+    // under-allocation); the clerk submit flow keeps exact-match.
+    const allowPartial = req.query.mode === 'partial';
     const { result } = await runShipmentWrite(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN,
@@ -982,6 +994,7 @@ router.post(
           expectedVersion: parsed.data.expectedVersion,
           carrierAllocations: parsed.data.carrierAllocations,
           actor: getUser(req),
+          ...(allowPartial ? { allowPartial: true } : {}),
           transaction: tx,
         });
         return {

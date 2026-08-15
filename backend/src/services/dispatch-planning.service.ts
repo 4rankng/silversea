@@ -1790,9 +1790,25 @@ function normalizeHour(raw: number | undefined, label: string): number | null {
 }
 
 // Hour granularity of the run window — coalesce closingAt then plannedReturnAt,
-// same precedence the dispatch-queue date filter uses.
+// same precedence the dispatch-queue date filter uses. Pinned to the business
+// timezone so the JS-side display hour and the SQL filters agree regardless of
+// the Postgres session timezone.
+const DISPATCH_BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
 function dispatchDetailRunHourSql() {
-  return sql<number>`extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`;
+  return sql<number>`extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})`;
+}
+
+function dispatchDetailRunDateSql() {
+  return sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})`;
+}
+
+// Display-side hour in the same business timezone (matches the SQL filter).
+function dispatchDetailDisplayHour(closingAt: Date | null, plannedReturnAt: Date | null): number | null {
+  const value = closingAt ?? plannedReturnAt;
+  if (value == null) return null;
+  // 7 = Asia/Ho_Chi_Minh offset (+07, no DST).
+  return new Date(value.getTime() + 7 * 60 * 60 * 1000).getUTCHours();
 }
 
 export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
@@ -1865,7 +1881,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
         input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
-        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
+        date ? eq(dispatchDetailRunDateSql(), date) : undefined,
         pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
         dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
         deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
@@ -1916,7 +1932,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     return {
       items: pageRows.map((row) => {
         const snapshot = (row.siteSnapshot ?? {}) as Record<string, unknown>;
-        const deliverySite = toFrozenSiteSummary(snapshot.deliverySite);
+        const deliverySite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.deliverySite));
         const plated = platedByShipment.get(row.shipmentId);
         return {
           fulfillmentId: row.fulfillmentId,
@@ -1929,9 +1945,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
           time: {
             deliveryDate: row.expectedDeliveryDate,
-            runHour: row.closingAt != null || row.plannedReturnAt != null
-              ? new Date(row.closingAt ?? row.plannedReturnAt!).getUTCHours()
-              : null,
+            runHour: dispatchDetailDisplayHour(row.closingAt, row.plannedReturnAt),
           },
           customerRoute: {
             customerName: row.customerName,
@@ -1979,8 +1993,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
 }
 
 // Distinct dropoff delivery points for the filter-bar multi-select facet.
+// Scoped to the accountant's customer set like the rows endpoint.
 export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; q?: string }) {
   assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const qPattern = buildPattern(input.q);
   const rows = await db.selectDistinct({ id: s.operationalSites.id, name: s.operationalSites.name })
     .from(s.shipments)
@@ -1992,6 +2008,7 @@ export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; 
     .where(and(
       isNull(s.shipments.deletedAt),
       eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+      accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       qPattern ? ilike(s.operationalSites.name, qPattern) : undefined,
     ))
     .orderBy(asc(s.operationalSites.name))
@@ -2176,14 +2193,37 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
     // else: empty assignment (bypass) — plate stays null, allowed for EXTERNAL.
   }
 
-  // Notify only when the truck actually changes (dedupe re-assign of same truck).
+  // Notify only when the truck actually changes (dedupe re-assign of same
+  // truck): skip when the stored plate/vehicle is already identical, OR when a
+  // notification for this fulfillment+driver+plate pair was already delivered
+  // (covers clear → re-assign of the same truck).
   const sameTruck = assignedTruckId != null
     && fulfillment.plannedVehiclePlateNumber === plannedVehiclePlateNumber
     && fulfillment.plannedExternalCarrierVehicleId === plannedExternalCarrierVehicleId;
+  let previouslyNotified = false;
+  if (!sameTruck && assignedDriverId != null && plannedVehiclePlateNumber != null) {
+    // Notifications are user-keyed; resolve the assigned driver's login user.
+    const [driverRow] = await tx.select({ userId: s.drivers.userId }).from(s.drivers)
+      .where(eq(s.drivers.id, assignedDriverId))
+      .limit(1);
+    if (driverRow?.userId != null) {
+      const [prior] = await tx.select({ id: s.notifications.id }).from(s.notifications)
+        .where(and(
+          eq(s.notifications.type, NotificationType.TRIP_DISPATCHED),
+          eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+          eq(s.notifications.relatedEntityId, fulfillment.id),
+          eq(s.notifications.userId, driverRow.userId),
+          sql`${s.notifications.message} like ${`%${plannedVehiclePlateNumber}%`}`,
+        ))
+        .limit(1);
+      previouslyNotified = prior != null;
+    }
+  }
   const shouldNotifyDriver = carrierType === 'OWN'
     && input.clear !== true
     && assignedTruckId != null
     && !sameTruck
+    && !previouslyNotified
     && assignedDriverId != null;
 
   const [updated] = await tx.update(s.shipmentFulfillments).set({

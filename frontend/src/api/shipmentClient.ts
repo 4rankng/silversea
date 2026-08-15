@@ -571,8 +571,11 @@ export async function saveShipmentCarrierAllocations(
   id: number,
   body: { expectedVersion: number; carrierAllocations: ShipmentCarrierAllocationGroup[] },
   idempotencyKey?: string,
+  /** `partial` allows under-allocation (dispatch master-plan). Default: exact. */
+  mode?: 'partial',
 ): Promise<ShipmentCarrierAllocationResponse> {
-  return api.post<ShipmentCarrierAllocationResponse>(`/shipments/${id}/carrier-allocations`, body, {
+  const suffix = mode === 'partial' ? '?mode=partial' : '';
+  return api.post<ShipmentCarrierAllocationResponse>(`/shipments/${id}/carrier-allocations${suffix}`, body, {
     headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() },
   });
 }
