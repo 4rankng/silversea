@@ -40,4 +40,12 @@ describe('shipment create responsive layout', () => {
       /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,
     );
   });
+
+  it('uses the full workspace width and keeps actions in the form flow', () => {
+    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*14px;[^}]*min-width:\s*0;/);
+    expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(280px, 320px)');
+    expect(css).not.toContain('.csc-readiness');
+    expect(css).toMatch(/\.csc-summary\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
+    expect(css).not.toContain('position: sticky');
+  });
 });

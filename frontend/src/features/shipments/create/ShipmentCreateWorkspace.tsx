@@ -18,6 +18,7 @@ import { OperationalSiteDetailsDialog } from '../../../components/shipment/Opera
 import { OperationalSiteCreateDialog } from '../../../components/shipment/OperationalSiteCreateDialog';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
+  createContainerFromPrevious,
   createEmptyContainer,
   getShipmentCreateReadiness,
   type CargoMode,
@@ -230,15 +231,6 @@ export function ShipmentCreateWorkspace() {
     if (control instanceof HTMLElement) control.focus({ preventScroll: true });
   }
 
-  function navigateSection(sectionId: 'identity' | 'route' | 'cargo' | 'schedule') {
-    const section = document.getElementById(`shipment-section-${sectionId}`);
-    if (!section) return;
-    const reduceMotion = typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    section.focus({ preventScroll: true });
-  }
-
   function goBack() {
     if (isDirty) {
       setBackConfirmOpen(true);
@@ -372,7 +364,10 @@ export function ShipmentCreateWorkspace() {
           {form.cargoMode === 'FCL' ? (
             <ShipmentContainerEditor
               saving={Boolean(saving)}
-              onAdd={() => setContainers((current) => [...current, newContainer()])}
+              onAdd={() => setContainers((current) => [
+                ...current,
+                createContainerFromPrevious(current[current.length - 1]),
+              ])}
               rows={<>{containers.map((row, index) => (
                 <div key={row.key} className="csc-container-record">
                   <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))}><Trash2 size={18} /></button>}</div>
@@ -382,7 +377,6 @@ export function ShipmentCreateWorkspace() {
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
-                    <TextField label="Thể tích (m³)" type="number" min="0" step="0.01" value={row.cargoVolumeCbm} onChange={(event) => updateContainer(row.key, 'cargoVolumeCbm', event.target.value)} disabled={Boolean(saving)} />
                     <TextField label="Ngày giao dự kiến" type="date" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
@@ -468,7 +462,6 @@ export function ShipmentCreateWorkspace() {
           validationIssues={validationIssues}
           saving={saving}
           submitError={submitError}
-          onNavigateSection={navigateSection}
           onFocusIssue={focusIssue}
           onCreate={() => void save('DRAFT')}
           onCancel={goBack}

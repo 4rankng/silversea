@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   buildShipmentContainerPayload,
+  createContainerFromPrevious,
   buildShipmentRootPayload,
   createEmptyContainer,
   getShipmentCreateReadiness,
@@ -94,6 +95,21 @@ describe('shipment create model', () => {
 
   it('initializes per-container cargoVolumeCbm as empty string on a new draft', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
+  });
+
+  it('copies a preceding container while requiring a new container number', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
+    const copied = createContainerFromPrevious({
+      ...container,
+      expectedDeliveryDate: '2026-08-20',
+    });
+
+    expect(copied).toMatchObject({
+      ...container,
+      key: 'row-2',
+      containerNumber: '',
+      expectedDeliveryDate: '2026-08-20',
+    });
   });
 
   it('requires only LCL-specific cargo and schedule fields for dispatch', () => {

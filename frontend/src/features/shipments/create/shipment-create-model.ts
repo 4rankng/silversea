@@ -107,6 +107,22 @@ export function createEmptyContainer(): ShipmentContainerDraft {
   };
 }
 
+/**
+ * Start a new FCL row from the preceding row's operational data. The physical
+ * container number is the only value that must be entered again.
+ */
+export function createContainerFromPrevious(
+  previous?: ShipmentContainerDraft,
+): ShipmentContainerDraft {
+  if (!previous) return createEmptyContainer();
+
+  return {
+    ...previous,
+    key: crypto.randomUUID(),
+    containerNumber: '',
+  };
+}
+
 function issue(
   fieldId: string,
   message: string,

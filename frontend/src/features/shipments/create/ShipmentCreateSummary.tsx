@@ -1,11 +1,10 @@
-import { AlertCircle, Check, Circle, X } from 'lucide-react';
+import { AlertCircle, Check, X } from 'lucide-react';
 import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import type {
   SaveIntent,
   ShipmentCreateIssue,
   ShipmentCreateReadiness,
-  ShipmentCreateSectionId,
 } from './shipment-create-model';
 
 interface ShipmentCreateSummaryProps {
@@ -13,7 +12,6 @@ interface ShipmentCreateSummaryProps {
   validationIssues: ShipmentCreateIssue[];
   saving: SaveIntent | null;
   submitError: string | null;
-  onNavigateSection: (sectionId: ShipmentCreateSectionId) => void;
   onFocusIssue: (fieldId: string) => void;
   onCreate: () => void;
   onCancel: () => void;
@@ -24,7 +22,6 @@ export function ShipmentCreateSummary({
   validationIssues,
   saving,
   submitError,
-  onNavigateSection,
   onFocusIssue,
   onCreate,
   onCancel,
@@ -50,15 +47,8 @@ export function ShipmentCreateSummary({
 
       {submitError && <div className="csc-submit-error" role="alert">{submitError}</div>}
 
-      {validationIssues.length === 0 && (
-        <section className="csc-summary__section" aria-labelledby="csc-readiness-title">
-          <div className="csc-summary__heading">
-            <div>
-              <span className="csc-summary__eyebrow">Tiến độ</span>
-              <h2 id="csc-readiness-title">Sẵn sàng điều phối</h2>
-            </div>
-            <strong>{readiness.sections.filter((section) => section.complete).length}/4</strong>
-          </div>
+      <section className="csc-summary__section csc-summary__actions" aria-label="Thao tác tạo lô hàng">
+        {validationIssues.length === 0 && (
           <div
             className="csc-status-preview"
             data-tone={readiness.initialStatus === ShipmentStatus.READY_FOR_DISPATCH ? 'ready' : 'pending'}
@@ -72,30 +62,7 @@ export function ShipmentCreateSummary({
             <strong>{SHIPMENT_STATUS_LABELS[readiness.initialStatus]}</strong>
             <small>Hệ thống xác định từ ngày giao, hạn hạ hoặc thời điểm trả container.</small>
           </div>
-          <nav className="csc-readiness" aria-label="Đi đến phần nhập liệu">
-            {readiness.sections.map((section, index) => (
-              <button
-                key={section.id}
-                type="button"
-                data-status={section.complete ? 'complete' : 'incomplete'}
-                onClick={() => onNavigateSection(section.id)}
-                aria-label={`${section.label}: ${section.complete ? 'đã đủ thông tin' : `còn thiếu ${section.missingCount} mục`}`}
-              >
-                <span className="csc-readiness__index">{index + 1}</span>
-                <span>
-                  <strong>{section.label}</strong>
-                  <small>{section.complete ? 'Đã đủ thông tin' : `Còn thiếu ${section.missingCount} mục`}</small>
-                </span>
-                {section.complete
-                  ? <Check size={18} aria-hidden="true" />
-                  : <Circle size={18} aria-hidden="true" />}
-              </button>
-            ))}
-          </nav>
-        </section>
-      )}
-
-      <section className="csc-summary__section csc-summary__actions" aria-label="Thao tác tạo lô hàng">
+        )}
         <p>Tạo lô hàng để lưu thông tin. Hệ thống tự xác định trạng thái và hiển thị cho Điều vận theo ngày giao, hạn hạ hoặc thời điểm trả container.</p>
         <button type="button" className="csc-button csc-button--primary" onClick={onCreate} disabled={Boolean(saving)}>
           <Check size={18} aria-hidden="true" />

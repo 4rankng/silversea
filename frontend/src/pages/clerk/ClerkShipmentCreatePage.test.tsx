@@ -117,6 +117,22 @@ describe('ClerkShipmentCreatePage', () => {
     expect(await screen.findByTestId('dossier')).toBeTruthy();
   });
 
+  it('hides the FCL volume field and copies the previous container when adding a row', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    expect(screen.queryByLabelText('Thể tích (m³)')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '2026-08-20' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+
+    expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
+    expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
+    expect(screen.getAllByLabelText('Ngày giao dự kiến').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20', '2026-08-20']);
+  });
+
   it('persists an FCL container delivery date with an optional container number', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
