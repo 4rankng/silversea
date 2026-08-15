@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
 import { AlertTriangle, Clock3 } from 'lucide-react';
@@ -504,6 +504,11 @@ export function ShipmentContainerLedger({
       routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
     />
   );
+  const openFromCell = (row: ShipmentCusContainerFlatRow, mode: ShipmentDetailEditMode, enabled: boolean) => (event: ReactMouseEvent<HTMLTableCellElement>) => {
+    if (!enabled || editLoadingRowId === row.id || activeEdit != null) return;
+    if (event.target instanceof Element && event.target.closest('button, input, textarea, select, a, [role="button"]')) return;
+    onStartEdit(row, mode, `shipment-detail-edit-${mode}-${row.id}`);
+  };
   const editableCell = (
     row: ShipmentCusContainerFlatRow,
     mode: ShipmentDetailEditMode,
@@ -571,45 +576,51 @@ export function ShipmentContainerLedger({
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const scheduleTime = formatScheduleTime(row);
               const appointment = formatAppointment(row.customerAppointmentAt);
+              const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
+              const documentsEditable = ['blNumber', 'bookingRef'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
+              const classificationEditable = ['tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY');
+              const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
+              const routeEditable = row.liftSiteEditable || row.dropoffSiteEditable;
+              const vehicleEditable = row.carrierEditable || row.plateEditable;
               return (
                 <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
-                  <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'identity', identityEditable)}>
                     {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
-                    {editableCell(row, 'identity', ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY'), <div className="shipment-container-ledger__multiline">
+                    {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
                     </div>)}
                   </th>
-                  <td data-label="Chứng từ & hãng tàu" className={edit?.mode === 'documents' || edit?.mode === 'classification' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Chứng từ & hãng tàu" className={edit?.mode === 'documents' || edit?.mode === 'classification' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'documents', documentsEditable)}>
                     <div className="shipment-container-ledger__cell-stack">
-                      {editableCell(row, 'documents', ['blNumber', 'bookingRef'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY'), <div className="shipment-container-ledger__multiline">
+                      {editableCell(row, 'documents', documentsEditable, <div className="shipment-container-ledger__multiline">
                         <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>)}
-                      {editableCell(row, 'classification', ['tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY'), <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>)}
+                      {editableCell(row, 'classification', classificationEditable, <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>)}
                     </div>
                   </td>
-                  <td data-label="Thông số container" className={edit?.mode === 'container' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {editableCell(row, 'container', row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY', <div className="shipment-container-ledger__multiline">
+                  <td data-label="Thông số container" className={edit?.mode === 'container' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'container', containerEditable)}>
+                    {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
                       <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>)}
                   </td>
-                  <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {editableCell(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
+                  <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'route', routeEditable)}>
+                    {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
-                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' || edit?.mode === 'appointment' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' || edit?.mode === 'appointment' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'schedule', row.shipmentScheduleEditable)}>
                     <div className="shipment-container-ledger__cell-stack">
                       {editableCell(row, 'schedule', row.shipmentScheduleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
                       {editableCell(row, 'appointment', row.customerAppointmentEditable, <span className="shipment-container-ledger__appointment">{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span>)}
                     </div>
                   </td>
-                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
-                    {editableCell(row, 'vehicle', row.carrierEditable || row.plateEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
+                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`} onClick={openFromCell(row, 'vehicle', vehicleEditable)}>
+                    {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
                       {missingVehicleToday && <span className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" /> Chờ phân xe</span>}
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
@@ -618,7 +629,7 @@ export function ShipmentContainerLedger({
                       {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
                     </div>)}
                   </td>
-                  <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined} onClick={openFromCell(row, 'notes', row.shipmentNotesEditable)}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}
                   </td>
                 </tr>

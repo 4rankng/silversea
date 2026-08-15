@@ -410,7 +410,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?overflow-x:\s*clip;/);
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.cus-note-editor-group\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);[\s\S]*?max-width:\s*100%;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
   it('highlights a shipment whose closing or return date is not yet confirmed', async () => {
@@ -438,14 +438,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    expect(screen.queryByText('Chọn để sửa')).toBeNull();
-    expect(within(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).getByText('Sửa')).toBeTruthy();
-    expect(within(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })).getByText('Sửa')).toBeTruthy();
-
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-20' } });
     fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
-    fireEvent.keyDown(screen.getByLabelText('Giờ'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3,
@@ -458,7 +454,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
     fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
-    fireEvent.keyDown(screen.getByLabelText('Ghi chú nội bộ'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', {
       expectedVersion: 4,
@@ -468,7 +464,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
-  it('opens inline editors from the whole editable cell and reserves the drawer for Chi tiết', async () => {
+  it('opens one compact edit dialog from the whole editable cell and reserves the drawer for Chi tiết', async () => {
     renderPage();
     const table = await screen.findByRole('table');
     const rowElement = masterRow();
@@ -477,26 +473,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(scheduleCell).toBeTruthy();
 
     fireEvent.click(scheduleCell!);
-    expect(screen.getByLabelText('Ngày đóng/trả')).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).contains(screen.getByLabelText('Ngày đóng/trả'))).toBe(true);
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
-    fireEvent.keyDown(screen.getByLabelText('Ngày đóng/trả'), { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
     const notesCell = notesButton.closest('td');
     expect(notesCell).toBeTruthy();
 
     fireEvent.click(notesCell!);
-    expect(screen.getByLabelText('Ghi chú cho khách')).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).contains(screen.getByLabelText('Ghi chú cho khách'))).toBe(true);
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
-    fireEvent.keyDown(screen.getByLabelText('Ghi chú cho khách'), { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.click(within(rowElement).getByText('Công ty Silver Sea'));
     expect(screen.getByLabelText('Nhà máy')).toBeTruthy();
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' })).toBeTruthy();
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
-    fireEvent.keyDown(screen.getByLabelText('Nhà máy'), { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     fireEvent.click(masterRowDetailButton());
     expect(await screen.findByRole('dialog')).toBeTruthy();
@@ -504,28 +498,58 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
   });
 
+  it('opens the matching edit dialog from unused space in every editable cell', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    const rowElement = masterRow();
+    const cells: Array<{ button: string; dialog: string }> = [
+      { button: 'Sửa ô khách hàng và nhà máy BILL-12345', dialog: 'Chỉnh sửa Khách hàng & nhà máy' },
+      { button: 'Sửa ô chứng từ BILL-12345', dialog: 'Chỉnh sửa Chứng từ' },
+      { button: 'Sửa ô phân loại và hãng tàu BILL-12345', dialog: 'Chỉnh sửa Phân loại & hãng tàu' },
+      { button: 'Sửa ô tổng quan hàng hóa BILL-12345', dialog: 'Chỉnh sửa Tổng quan hàng hóa' },
+      { button: 'Sửa ô lịch trình lô hàng BILL-12345', dialog: 'Chỉnh sửa Lịch trình' },
+      { button: 'Sửa ô ghi chú lô hàng BILL-12345', dialog: 'Chỉnh sửa Ghi chú' },
+    ];
+
+    for (const { button, dialog } of cells) {
+      const trigger = within(rowElement).getByRole('button', { name: button });
+      const cell = trigger.closest('th, td');
+      expect(cell).toBeTruthy();
+      fireEvent.click(cell!);
+      expect(await screen.findByRole('dialog', { name: dialog })).toBeTruthy();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: dialog })).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(trigger));
+    }
+  });
+
   it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô phân loại và hãng tàu BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
-    fireEvent.keyDown(screen.getByLabelText('Hãng tàu'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3, tradeDirection: 'IMPORT', shippingLineName: 'ONE',
     })));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Số kiện'), { target: { value: '24' } });
-    fireEvent.keyDown(screen.getByLabelText('Số kiện'), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3, packageCount: 24,
     })));
   });
 
-  it('does not open inline editors or the drawer from locked shipment cells', async () => {
+  it('does not open edit dialogs or the drawer from locked shipment cells', async () => {
+    const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
+      key,
+      { ...access, mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+    ])) as typeof row.fieldAccess;
     const lockedRow: ShipmentCusWorkspaceListItem = {
       ...row,
       bucket: ShipmentCusBucket.LOCKED,
       bucketLabel: 'Đã khóa',
+      fieldAccess: lockedFieldAccess,
       operational: { ...row.operational, transportDateEditable: false },
     };
     apiGet.mockResolvedValue(listResponse([lockedRow]));
@@ -533,17 +557,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     const rowElement = masterRow();
-    const scheduleCell = within(rowElement)
-      .getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })
-      .closest('td');
-    const notesCell = within(rowElement)
-      .getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })
-      .closest('td');
-    expect(scheduleCell).toBeTruthy();
-    expect(notesCell).toBeTruthy();
-
-    fireEvent.click(scheduleCell!);
-    fireEvent.click(notesCell!);
+    for (const name of [
+      'Sửa ô khách hàng và nhà máy BILL-12345',
+      'Sửa ô chứng từ BILL-12345',
+      'Sửa ô phân loại và hãng tàu BILL-12345',
+      'Sửa ô tổng quan hàng hóa BILL-12345',
+      'Sửa ô lịch trình lô hàng BILL-12345',
+      'Sửa ô ghi chú lô hàng BILL-12345',
+    ]) {
+      const cell = within(rowElement).getByRole('button', { name }).closest('th, td');
+      expect(cell).toBeTruthy();
+      fireEvent.click(cell!);
+    }
 
     expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
     expect(screen.queryByLabelText('Ghi chú cho khách')).toBeNull();
@@ -551,40 +576,40 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
-  it('cancels an inline cell edit with Escape without persisting', async () => {
+  it('cancels a cell dialog with Escape without persisting', async () => {
     renderPage();
     await screen.findByRole('table');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-22' } });
-    fireEvent.keyDown(screen.getByLabelText('Ngày đóng/trả'), { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
     expect(apiPut).not.toHaveBeenCalled();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })));
   });
 
-  it('auto-saves when focus leaves the active cell without showing action buttons', async () => {
+  it('requires explicit save instead of saving when focus leaves the edit dialog', async () => {
     renderPage();
     await screen.findByRole('table');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     const dateInput = screen.getByLabelText('Ngày đóng/trả');
     const timeInput = screen.getByLabelText('Giờ');
-    expect(screen.queryByRole('button', { name: 'Lưu ô' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Hủy' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hủy' })).toBeTruthy();
 
     fireEvent.change(dateInput, { target: { value: '2026-08-21' } });
     fireEvent.blur(dateInput, { relatedTarget: timeInput });
     expect(apiPut).not.toHaveBeenCalled();
 
-    const searchInput = screen.getByRole('textbox', { name: 'Bill/Book hoặc tờ khai' });
-    searchInput.focus();
-    fireEvent.blur(timeInput, { relatedTarget: searchInput });
+    fireEvent.blur(timeInput, { relatedTarget: dateInput });
+    expect(apiPut).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
     expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-08-21' }));
     await waitFor(() => expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull());
-    expect(document.activeElement).toBe(searchInput);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
   });
 
   it('keeps Shift+Enter as a note newline without saving the cell', async () => {
@@ -614,12 +639,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
     const notesInput = screen.getByLabelText('Ghi chú nội bộ');
     fireEvent.change(notesInput, { target: { value: 'Ưu tiên cổng số 3' } });
-    fireEvent.keyDown(notesInput, { key: 'Enter' });
-    fireEvent.keyDown(notesInput, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(apiPut).toHaveBeenCalledTimes(1);
     expect((notesInput as HTMLTextAreaElement).disabled).toBe(true);
     expect((screen.getByLabelText('Ghi chú cho khách') as HTMLTextAreaElement).disabled).toBe(true);
-    fireEvent.keyDown(notesInput, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
@@ -1063,7 +1088,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
     expect(css).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{\s*grid-template-columns:\s*1fr;/);
-    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?min-height:\s*44px;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?min-height:\s*44px;/);
     expect(source).toContain('tabIndex={0}');
     expect(source).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
@@ -1073,12 +1098,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
-    expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
-    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
-    expect(css).toMatch(/\.cus-quick-edit\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.cus-quick-edit > \*\s*\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-quick-edit small\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__help\s*\{[^}]*font-size:\s*11px;/);
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
   });
 

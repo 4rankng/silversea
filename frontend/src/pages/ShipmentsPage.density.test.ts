@@ -13,20 +13,22 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.cus-worksheet-toolbar \.shipment-uui-control:focus-within,[\s\S]*?outline:\s*2px solid/);
   });
 
-  it('wraps note-editor guidance inside its fixed table column', () => {
-    expect(css).toMatch(/\.cus-note-editor-group\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.cus-note-editor-group > small\s*\{[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
+  it('keeps edit fields in one bounded dialog instead of expanding a table column', () => {
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__help\s*\{[^}]*font-size:\s*11px;/);
   });
 
-  it('keeps inline edit affordances visible in the stacked and touch layouts', () => {
-    expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
-    expect(css).toMatch(/@media \(hover: none\)[\s\S]*?\.cus-inline-trigger:not\(:disabled\) \.cus-inline-edit-affordance\s*\{[^}]*opacity:\s*1;/);
+  it('uses one compact typography scale for table values and metadata', () => {
+    expect(css).toMatch(/\.cus-dashboard-table\s*\{[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*14px;/);
+    expect(css).toMatch(/\.cus-multiline-cell span\s*\{[^}]*font-size:\s*11px;/);
   });
 
-  it('binds touch-friendly inline editing directly to schedule and note controls', () => {
-    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*touch-action:\s*manipulation;/);
-    expect(pageSource).toMatch(/aria-label=\{`Sửa ô lịch trình[^]*?onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*startQuickEdit\(item, 'schedule'\);/);
-    expect(pageSource).toMatch(/aria-label=\{`Sửa ô ghi chú[^]*?onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*startQuickEdit\(item, 'notes'\);/);
+  it('binds touch-friendly cell triggers to an explicit edit dialog', () => {
+    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*44px;[^}]*touch-action:\s*manipulation;/);
+    expect(pageSource).toContain('aria-haspopup="dialog"');
+    expect(pageSource).toContain("startQuickEdit(item, 'schedule')");
+    expect(pageSource).toContain("startQuickEdit(item, 'notes')");
   });
 
   it('uses two compact operational tiers instead of form cards', () => {

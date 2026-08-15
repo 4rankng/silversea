@@ -160,6 +160,18 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sửa')).toBeNull();
   });
 
+  it('opens an editor when the surrounding visual cell is clicked', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    const trigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô thông số container CONT-002/ });
+    const cell = trigger.closest('td');
+    expect(cell).toBeTruthy();
+    fireEvent.click(cell!);
+
+    expect(await screen.findByLabelText('Số container')).toBeTruthy();
+  });
+
   it('uses icon-only Untitled UI actions and keeps the keyboard hint in their footer row', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);

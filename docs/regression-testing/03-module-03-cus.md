@@ -127,14 +127,14 @@ container, chỉ dùng chung nhiều container khi người có thẩm quyền x
   1. Mở `/shipments`, rồi `/shipments-detail`. Xác nhận trang tổng quan cho sửa trực tiếp các nhóm dữ liệu lô hàng; trang chi tiết mặc định lọc theo ngày vận chuyển hiện tại và có thể chọn “Tất cả ngày”, khoảng ngày, khách hàng, chiều nhập/xuất hoặc tìm 4–5 ký tự cuối của container, Bill/Booking hoặc tờ khai.
   2. Kiểm tra bảng có đúng bảy nhóm: khách hàng/lộ trình, chứng từ/hãng tàu, thông số container, địa điểm nâng/hạ, lịch trình, phân xe và ghi chú.
   3. Xác nhận dòng thiếu ngày vận chuyển có cảnh báo màu hổ phách; dòng của hôm nay chưa phân nhà xe hoặc biển số hiển thị trạng thái hổ phách “Chờ phân xe”, biển số dạng mã và hướng dẫn phối hợp Điều vận.
-  4. Bấm “Sửa” ở từng nhóm được phép: nhận diện, Bill/Booking, chiều hàng/hãng tàu, hàng hóa, thông số container, nâng/hạ, lịch trình, giờ hẹn, phân xe và ghi chú. Thay đổi dữ liệu rồi bấm “Lưu”; nhóm yêu cầu phê duyệt phải báo đã gửi yêu cầu thay vì giả vờ đã cập nhật trực tiếp.
+  4. Bấm vào từng ô dữ liệu được phép trên `/shipments` để mở hộp chỉnh sửa gọn; ở `/shipments-detail`, chọn nhóm tương ứng trong dòng container. Kiểm tra nhận diện, Bill/Booking, chiều hàng/hãng tàu, hàng hóa, thông số container, nâng/hạ, lịch trình, giờ hẹn, phân xe và ghi chú. Thay đổi dữ liệu rồi bấm “Lưu thay đổi” hoặc “Lưu”; nhóm yêu cầu phê duyệt phải báo đã gửi yêu cầu thay vì giả vờ đã cập nhật trực tiếp.
   5. Thử một lần lưu khi phiên bản đã cũ; xác nhận hệ thống tải bản mới, bỏ bản nháp cũ có thông báo và không ghi đè dữ liệu mới hơn. Giờ hẹn container và lịch trình lô hàng phải lưu độc lập, không để lại thay đổi một nửa.
-  6. Mở chỉnh sửa nhưng bấm “Hủy” hoặc Escape; xác nhận dữ liệu chưa lưu bị bỏ và tiêu điểm trở về nút “Sửa”. Với textarea, thử Ctrl/Cmd+Enter để lưu.
+  6. Mở chỉnh sửa nhưng bấm “Hủy” hoặc Escape; xác nhận dữ liệu chưa lưu bị bỏ và tiêu điểm trở về ô đã mở hộp chỉnh sửa. Với textarea, Shift+Enter chỉ xuống dòng, không tự lưu.
   7. Gửi thử payload chi phí đầu vào hoặc đầu ra vào endpoint cập nhật dòng container bằng phiên CUS.
   8. Thử lại ở 1440, 768, 390 và 320px; xác nhận không có cuộn ngang, bộ lọc không tạo request cũ ghi đè kết quả mới, và chỉ một editor hoạt động tại một thời điểm.
 - **Kết quả mong đợi (Pass):**
   - Workboard tải đúng dữ liệu theo bộ lọc URL và chỉ trả về khách hàng thuộc phạm vi của actor CUS.
-  - Chỉ “Sửa” mới hiển thị ô nhập; nút không xuất hiện cho nhóm chỉ đọc. Quyền, trạng thái khóa/điều phối, phiên bản lạc hậu và idempotency được kiểm tra ở API.
+  - Chỉ ô dữ liệu có quyền sửa mới mở hộp hoặc vùng nhập; nhóm chỉ đọc không có tương tác chỉnh sửa. Quyền, trạng thái khóa/điều phối, phiên bản lạc hậu và idempotency được kiểm tra ở API.
   - Lưu thành công làm mới các dòng container cùng lô; không tạo đường ghi mới hoặc làm mất thay đổi của dòng khác.
   - API từ chối payload chi phí của CUS với `403` và không tạo bản ghi chi phí; việc ẩn chi phí không chỉ là xử lý giao diện.
   - Không có cuộn ngang ở các kích thước đã thử; loading, lỗi, rỗng và filtered-empty đều có trạng thái rõ ràng.

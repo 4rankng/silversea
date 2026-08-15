@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -8,7 +8,6 @@ import {
   Download,
   FileLock2,
   Loader2,
-  Pencil,
   Plus,
   RotateCcw,
   Save,
@@ -147,6 +146,69 @@ interface ShipmentQuickEditDraft {
   packageType: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
+}
+
+function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
+  const labels: Record<ShipmentQuickEditDraft['field'], string> = {
+    identity: 'Khách hàng & nhà máy',
+    documents: 'Chứng từ',
+    classification: 'Phân loại & hãng tàu',
+    cargo: 'Tổng quan hàng hóa',
+    schedule: 'Lịch trình',
+    notes: 'Ghi chú',
+  };
+  return `Chỉnh sửa ${labels[field]}`;
+}
+
+function ShipmentQuickEditFields({
+  draft,
+  item,
+  saving,
+  error,
+  onChange,
+}: {
+  draft: ShipmentQuickEditDraft;
+  item: ShipmentCusWorkspaceListItem;
+  saving: boolean;
+  error: string | null;
+  onChange: (draft: ShipmentQuickEditDraft) => void;
+}) {
+  const update = (patch: Partial<ShipmentQuickEditDraft>) => onChange({ ...draft, ...patch });
+
+  return (
+    <div className="cus-quick-edit-modal__fields">
+      {draft.field === 'identity' && <>
+        <label><span>Khách hàng</span><input value={item.customerName ?? ''} disabled title={item.fieldAccess.customerId.reason} /></label>
+        <label><span>Nhà máy</span><input autoFocus value={draft.factoryName} onChange={(event) => update({ factoryName: event.target.value })} maxLength={255} disabled={saving} /></label>
+      </>}
+      {draft.field === 'documents' && <>
+        <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving} /></label>
+        <label><span>Số Booking</span><input value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving} /></label>
+        <p className="cus-quick-edit-modal__help">Tờ khai được quản lý trong hồ sơ chứng từ.</p>
+      </>}
+      {draft.field === 'classification' && <>
+        <label><span>Xuất / Nhập</span><select autoFocus value={draft.tradeDirection} onChange={(event) => update({ tradeDirection: event.target.value as ShipmentQuickEditDraft['tradeDirection'] })} disabled={saving}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+        <label><span>Hãng tàu</span><input value={draft.shippingLineName} onChange={(event) => update({ shippingLineName: event.target.value })} maxLength={255} disabled={saving} /></label>
+      </>}
+      {draft.field === 'cargo' && <>
+        <label><span>Số kiện</span><input autoFocus type="number" min="1" value={draft.packageCount} onChange={(event) => update({ packageCount: event.target.value })} disabled={saving || item.fieldAccess.packageCount.mode === 'READ_ONLY'} /></label>
+        <label><span>Loại kiện</span><input value={draft.packageType} onChange={(event) => update({ packageType: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.packageType.mode === 'READ_ONLY'} /></label>
+        <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={draft.cargoWeightKg} onChange={(event) => update({ cargoWeightKg: event.target.value })} disabled={saving || item.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} title={item.fieldAccess.cargoWeightKg.reason} /></label>
+        <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={draft.cargoVolumeCbm} onChange={(event) => update({ cargoVolumeCbm: event.target.value })} disabled={saving || item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
+      </>}
+      {draft.field === 'schedule' && <>
+        <label><span>Ngày đóng/trả</span><input autoFocus disabled={saving} type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>
+        <label><span>Giờ</span><input disabled={saving} type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>
+        <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
+      </>}
+      {draft.field === 'notes' && <>
+        <label><span>Ghi chú cho khách</span><textarea autoFocus disabled={saving} rows={3} maxLength={2000} value={draft.customerNote} onChange={(event) => update({ customerNote: event.target.value })} /></label>
+        <label><span>Ghi chú nội bộ</span><textarea disabled={saving} rows={3} maxLength={2000} value={draft.operationalNote} onChange={(event) => update({ operationalNote: event.target.value })} /></label>
+        <p className="cus-quick-edit-modal__help">Shift+Enter để xuống dòng.</p>
+      </>}
+      {error && <p className="cus-inline-edit-error" role="alert">{error}</p>}
+    </div>
+  );
 }
 
 function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['dispatchStatus']): string {
@@ -971,6 +1033,8 @@ export default function ShipmentsPage() {
     }
     setError(null);
     setQuickEditError(null);
+    const trigger = document.getElementById(`cus-inline-${field}-${item.id}`);
+    if (trigger instanceof HTMLButtonElement && !trigger.disabled) trigger.focus();
     setQuickEditDraft({
       shipmentId: item.id,
       field,
@@ -988,6 +1052,16 @@ export default function ShipmentsPage() {
       cargoWeightKg: item.raw.cargoWeightKg ?? '',
       cargoVolumeCbm: item.raw.cargoVolumeCbm ?? '',
     });
+  };
+
+  const openQuickEditFromCell = (
+    item: ShipmentCusWorkspaceListItem,
+    field: ShipmentQuickEditDraft['field'],
+    enabled: boolean,
+  ) => (event: ReactMouseEvent<HTMLTableCellElement>) => {
+    if (!enabled || quickEditDraft || savingQuickEdit) return;
+    if (event.target instanceof Element && event.target.closest('button, input, textarea, select, a, [role="button"]')) return;
+    startQuickEdit(item, field);
   };
 
   const closeQuickEdit = () => {
@@ -1212,6 +1286,9 @@ export default function ShipmentsPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, data?.totalPages ?? Math.ceil(total / PAGE_SIZE));
   const drawerItem = items.find((item) => item.id === drawerId) ?? null;
+  const quickEditItem = quickEditDraft
+    ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
+    : null;
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
 
@@ -1507,13 +1584,7 @@ export default function ShipmentsPage() {
                     const primarySignal = derivePrimaryShipmentSignal(item);
                     const PrimarySignalIcon = primarySignal?.icon;
                     const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
-                    const editingIdentity = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'identity';
-                    const editingDocuments = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'documents';
-                    const editingClassification = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'classification';
-                    const editingCargo = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'cargo';
-                    const editingSchedule = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'schedule';
-                    const editingNotes = quickEditDraft?.shipmentId === item.id && quickEditDraft.field === 'notes';
-                    const editing = editingIdentity || editingDocuments || editingClassification || editingCargo || editingSchedule || editingNotes;
+                    const editing = quickEditDraft?.shipmentId === item.id;
                     const customerNoteLines = noteLines(item.customerNotes);
                     const operationalNoteLines = noteLines(item.operationalNotes);
                     return (
@@ -1521,143 +1592,65 @@ export default function ShipmentsPage() {
                         key={item.id}
                         className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
                       >
-                        <th scope="row" data-label="Khách hàng & nhà máy" onDoubleClick={() => startQuickEdit(item, 'identity')}>
+                        <th scope="row" data-label="Khách hàng & nhà máy" onClick={openQuickEditFromCell(item, 'identity', item.fieldAccess.factoryName.mode !== 'READ_ONLY')}>
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-                          {editingIdentity && quickEditDraft ? <div className="cus-quick-edit" onKeyDown={(event) => { if (event.key === 'Escape') closeQuickEdit(); if (event.key === 'Enter') { event.preventDefault(); void saveQuickEdit(item); } }}>
-                            <label><span>Khách hàng</span><input value={item.customerName ?? ''} disabled title={item.fieldAccess.customerId.reason} /></label>
-                            <label><span>Nhà máy</span><input autoFocus value={quickEditDraft.factoryName} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, factoryName: event.target.value })} maxLength={255} disabled={savingQuickEdit} /></label>
-                            <small>Enter lưu · Escape hoàn tác</small>
-                            {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
-                          </div> : <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
+                          <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
                             <strong>{item.customerName || '—'}</strong>
                             <span>{item.factoryName || 'Chưa có nhà máy'}</span>
                             <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
-                          </span><em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em></button>}
+                          </span></button>
                         </th>
-                        <td data-label="Chứng từ" onDoubleClick={() => startQuickEdit(item, 'documents')}>
-                          {editingDocuments && quickEditDraft ? <div className="cus-quick-edit" onKeyDown={(event) => { if (event.key === 'Escape') closeQuickEdit(); if (event.key === 'Enter') { event.preventDefault(); void saveQuickEdit(item); } }}>
-                            <label><span>Số Bill</span><input autoFocus value={quickEditDraft.blNumber} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, blNumber: event.target.value })} maxLength={100} disabled={savingQuickEdit} /></label>
-                            <label><span>Số Booking</span><input value={quickEditDraft.bookingRef} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, bookingRef: event.target.value })} maxLength={100} disabled={savingQuickEdit} /></label>
-                            <small>Tờ khai được quản lý trong hồ sơ chứng từ · Enter lưu · Escape hoàn tác</small>
-                          </div> : <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
+                        <td data-label="Chứng từ" onClick={openQuickEditFromCell(item, 'documents', item.fieldAccess.blNumber.mode !== 'READ_ONLY' || item.fieldAccess.bookingRef.mode !== 'READ_ONLY')}>
+                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
                             <strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
                             <span>{item.declarationNumber || 'Chưa có tờ khai'}</span>
-                          </span><em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em></button>}
+                          </span></button>
                         </td>
-                        <td data-label="Phân loại & hãng tàu" onDoubleClick={() => startQuickEdit(item, 'classification')}>
-                          {editingClassification && quickEditDraft ? <div className="cus-quick-edit" onKeyDown={(event) => { if (event.key === 'Escape') closeQuickEdit(); if (event.key === 'Enter') { event.preventDefault(); void saveQuickEdit(item); } }}>
-                            <label><span>Nhập / Xuất</span><select autoFocus value={quickEditDraft.tradeDirection} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, tradeDirection: event.target.value as ShipmentQuickEditDraft['tradeDirection'] })}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
-                            <label><span>Hãng tàu</span><input value={quickEditDraft.shippingLineName} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, shippingLineName: event.target.value })} maxLength={255} /></label>
-                          </div> : <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell">
+                        <td data-label="Phân loại & hãng tàu" onClick={openQuickEditFromCell(item, 'classification', item.fieldAccess.tradeDirection.mode !== 'READ_ONLY' || item.fieldAccess.shippingLineName.mode !== 'READ_ONLY')}>
+                          <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell">
                             <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
                             <span>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
                             {item.isCombined && <span className="cus-combined-tag">Hàng kết hợp</span>}
-                          </span><em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em></button>}
+                          </span></button>
                         </td>
-                        <td data-label="Tổng quan hàng hóa" onDoubleClick={() => startQuickEdit(item, 'cargo')}>
-                          {editingCargo && quickEditDraft ? <div className="cus-quick-edit" onKeyDown={(event) => { if (event.key === 'Escape') closeQuickEdit(); if (event.key === 'Enter') { event.preventDefault(); void saveQuickEdit(item); } }}>
-                            <label><span>Số kiện</span><input autoFocus type="number" min="1" value={quickEditDraft.packageCount} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, packageCount: event.target.value })} disabled={item.fieldAccess.packageCount.mode === 'READ_ONLY'} /></label>
-                            <label><span>Loại kiện</span><input value={quickEditDraft.packageType} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, packageType: event.target.value })} maxLength={100} disabled={item.fieldAccess.packageType.mode === 'READ_ONLY'} /></label>
-                            <label><span>Trọng lượng kg</span><input type="number" min="0" step="0.01" value={quickEditDraft.cargoWeightKg} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, cargoWeightKg: event.target.value })} disabled={item.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} title={item.fieldAccess.cargoWeightKg.reason} /></label>
-                            <label><span>Thể tích CBM</span><input type="number" min="0" step="0.001" value={quickEditDraft.cargoVolumeCbm} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, cargoVolumeCbm: event.target.value })} disabled={item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
-                          </div> : <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric">
+                        <td data-label="Tổng quan hàng hóa" onClick={openQuickEditFromCell(item, 'cargo', ['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].some((key) => item.fieldAccess[key as 'packageCount'].mode !== 'READ_ONLY'))}>
+                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric">
                             <strong>{item.containerSummary || worksheetQuantity(item)}</strong>
                             <span>{formatQuantity(item.weightKg)} kg</span>
                             <span>{item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
-                          </span><em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em></button>}
+                          </span></button>
                         </td>
-                        <td
-                          data-label="Lịch trình & điều xe"
-                          onClick={() => {
-                            if (!editingSchedule && item.operational.transportDateEditable && !quickEditDraft && !savingQuickEdit) {
-                              startQuickEdit(item, 'schedule');
-                            }
-                          }}
-                        >
-                          {editingSchedule && quickEditDraft ? (
-                            <div className="cus-quick-edit" aria-busy={savingQuickEdit} onBlur={(event) => {
-                              if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
-                              void saveQuickEdit(item, { restoreFocus: false });
-                            }} onKeyDown={(event) => {
-                              if (event.key === 'Escape') closeQuickEdit();
-                              if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.target instanceof HTMLInputElement) {
-                                event.preventDefault();
-                                void saveQuickEdit(item);
-                              }
-                            }}>
-                              <label><span>Ngày đóng/trả</span><input autoFocus disabled={savingQuickEdit} type="date" value={quickEditDraft.date} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, date: event.target.value })} /></label>
-                              <label><span>Giờ</span><input disabled={savingQuickEdit} type="time" value={quickEditDraft.time} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, time: event.target.value })} /></label>
-                              <small>{vehicleReadinessLabel(item)}</small>
-                              <small className="cus-inline-edit-hint">Enter hoặc rời ô để tự lưu · Escape để hoàn tác</small>
-                              {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
-                            </div>
-                          ) : (
-                            <button
-                              id={`cus-inline-schedule-${item.id}`}
-                              type="button"
-                              className="cus-inline-trigger"
-                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
-                              aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                startQuickEdit(item, 'schedule');
-                              }}
-                            >
-                              <span className="cus-inline-trigger__heading">
-                                <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
-                                <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>
-                              </span>
-                              <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
-                              <span>{vehicleReadinessLabel(item)}</span>
-                            </button>
-                          )}
+                        <td data-label="Lịch trình & điều xe" onClick={openQuickEditFromCell(item, 'schedule', item.operational.transportDateEditable)}>
+                          <button
+                            id={`cus-inline-schedule-${item.id}`}
+                            type="button"
+                            className="cus-inline-trigger"
+                            disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
+                            aria-haspopup="dialog"
+                            aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
+                            onClick={() => startQuickEdit(item, 'schedule')}
+                          >
+                            <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
+                            <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
+                            <span>{vehicleReadinessLabel(item)}</span>
+                          </button>
                         </td>
-                        <td
-                          data-label="Ghi chú"
-                          onClick={() => {
-                            if (!editingNotes && item.operational.transportDateEditable && !quickEditDraft && !savingQuickEdit) {
-                              startQuickEdit(item, 'notes');
-                            }
-                          }}
-                        >
-                          {editingNotes && quickEditDraft ? (
-                            <div className="cus-note-editor-group" aria-busy={savingQuickEdit} onBlur={(event) => {
-                              if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget as Node)) return;
-                              void saveQuickEdit(item, { restoreFocus: false });
-                            }} onKeyDown={(event) => {
-                              if (event.key === 'Escape') closeQuickEdit();
-                              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.target instanceof HTMLTextAreaElement) {
-                                event.preventDefault();
-                                void saveQuickEdit(item);
-                              }
-                            }}>
-                              <label className="cus-note-editor"><span>Ghi chú cho khách</span><textarea autoFocus disabled={savingQuickEdit} rows={2} maxLength={2000} value={quickEditDraft.customerNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, customerNote: event.target.value })} /></label>
-                              <label className="cus-note-editor cus-note-editor--internal"><span>Ghi chú nội bộ</span><textarea disabled={savingQuickEdit} rows={2} maxLength={2000} value={quickEditDraft.operationalNote} onChange={(event) => setQuickEditDraft({ ...quickEditDraft, operationalNote: event.target.value })} /></label>
-                              <small>Enter hoặc rời ô để tự lưu · Shift+Enter xuống dòng · Escape hoàn tác</small>
-                              {quickEditError && <span className="cus-inline-edit-error" role="alert">{quickEditError}</span>}
-                            </div>
-                          ) : (
-                            <button
-                              id={`cus-inline-notes-${item.id}`}
-                              type="button"
-                              className="cus-inline-trigger cus-note-preview"
-                              title={item.customerNotes || item.operationalNotes || undefined}
-                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
-                              aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                startQuickEdit(item, 'notes');
-                              }}
-                            >
-                              <span className="cus-inline-trigger__heading">
-                                <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
-                                <em className="cus-inline-edit-affordance"><Pencil size={11} aria-hidden="true" /> Sửa</em>
-                              </span>
-                              {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
-                              {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
-                              {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
-                            </button>
-                          )}
+                        <td data-label="Ghi chú" onClick={openQuickEditFromCell(item, 'notes', item.operational.transportDateEditable)}>
+                          <button
+                            id={`cus-inline-notes-${item.id}`}
+                            type="button"
+                            className="cus-inline-trigger cus-note-preview"
+                            title={item.customerNotes || item.operationalNotes || undefined}
+                            disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
+                            aria-haspopup="dialog"
+                            aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
+                            onClick={() => startQuickEdit(item, 'notes')}
+                          >
+                            <strong>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</strong>
+                            {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
+                            {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
+                            {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
+                          </button>
                         </td>
                         <td data-label="Trạng thái">
                           <div className="cus-row-actions">
@@ -1678,6 +1671,47 @@ export default function ShipmentsPage() {
           </>
         )}
       </section>
+
+      <Modal
+        isOpen={quickEditDraft != null && quickEditItem != null}
+        title={quickEditDraft ? quickEditTitle(quickEditDraft.field) : 'Chỉnh sửa lô hàng'}
+        onClose={closeQuickEdit}
+        maxWidth={520}
+        footer={<>
+          <UUIButton size="sm" color="secondary" className="cus-quick-edit-modal__action" onPress={closeQuickEdit} isDisabled={savingQuickEdit}>Hủy</UUIButton>
+          <UUIButton
+            size="sm"
+            color="primary"
+            className="cus-quick-edit-modal__action"
+            isLoading={savingQuickEdit}
+            showTextWhileLoading
+            onPress={() => { if (quickEditItem) void saveQuickEdit(quickEditItem); }}
+            iconLeading={<Save size={16} aria-hidden="true" />}
+          >
+            Lưu thay đổi
+          </UUIButton>
+        </>}
+      >
+        {quickEditDraft && quickEditItem && (
+          <form
+            className="cus-quick-edit-modal"
+            aria-busy={savingQuickEdit}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveQuickEdit(quickEditItem);
+            }}
+          >
+            <p className="cus-quick-edit-modal__context">{quickEditItem.billOrBookNumber || quickEditItem.declarationNumber || quickEditItem.customerName || 'Lô hàng'}</p>
+            <ShipmentQuickEditFields
+              draft={quickEditDraft}
+              item={quickEditItem}
+              saving={savingQuickEdit}
+              error={quickEditError}
+              onChange={setQuickEditDraft}
+            />
+          </form>
+        )}
+      </Modal>
 
       <Drawer
         isOpen={drawerId != null}
