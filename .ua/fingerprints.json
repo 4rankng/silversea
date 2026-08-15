@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "6b6416a5e469f532548d09f22744ad045098c187",
-  "generatedAt": "2026-08-14T18:06:27.269Z",
+  "gitCommitHash": "d8e6dfb78e6b8a15dfe2ad681e8a679ce460a1f6",
+  "generatedAt": "2026-08-15T02:31:41.501Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -110451,7 +110451,7 @@
     },
     "frontend/src/pages/ShipmentsDetailPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "contentHash": "e55adb4ea78e5775ab4237c3df839e6722a8dbaebcd1a6f40e93c97c7fd98810",
+      "contentHash": "0c7142f39c35226cdb98425bb2eff9ef1af4cefc73c739ffee50cf7899dac88c",
       "functions": [],
       "classes": [
         "ApiError"
@@ -110466,7 +110466,7 @@
         "./ShipmentsDetailPage"
       ],
       "exports": [],
-      "totalLines": 362,
+      "totalLines": 411,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.tsx": {
@@ -110698,50 +110698,41 @@
     },
     "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx": {
       "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "contentHash": "f75a7a70e4308c49a9a39a47fa7f6bed13ca9c9c5851fd1fd06ac51f22f641c1",
+      "contentHash": "58af3fe9967b66a603229276edca397d9a71e4def05445e17c866224dee1646c",
       "functions": [
-        "modeLabelForTrigger",
-        "directionLabel",
-        "formatDate",
-        "formatScheduleTime",
-        "formatAppointment",
-        "fallback",
         "EditActions",
         "InlineEditor",
-        "save",
         "ShipmentContainerLedger",
-        "editButton"
+        "directionLabel",
+        "editableCell",
+        "fallback",
+        "formatAppointment",
+        "formatDate",
+        "formatScheduleTime",
+        "modeLabelForTrigger",
+        "save"
       ],
       "classes": [],
       "imports": [
-        "react",
-        "lucide-react",
-        "@tingting/shared",
         "../../../components/untitled-ui/base/badges/badges",
         "../../../components/untitled-ui/base/buttons/button",
         "../../../components/untitled-ui/base/textarea/textarea",
         "../../../design-system",
-        "../../../lib/shipment-operations"
+        "../../../lib/shipment-operations",
+        "@tingting/shared",
+        "lucide-react",
+        "react",
+        "react-aria-components"
       ],
       "exports": [
-        "ShipmentDetailEditMode",
-        "ActiveShipmentDetailEdit",
-        "ShipmentRouteDraft",
-        "ShipmentIdentityDraft",
-        "ShipmentDocumentsDraft",
-        "ShipmentContainerDraft",
-        "ShipmentVehicleDraft",
-        "ShipmentScheduleDraft",
-        "ShipmentAppointmentDraft",
-        "ShipmentNotesDraft",
         "ShipmentContainerLedger"
       ],
-      "totalLines": 579,
+      "totalLines": 592,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.styles.test.ts": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "contentHash": "6a68156983424081fe57685c81bcae8289dc7d43cbaa3d9055f2190408b70b3b",
+      "contentHash": "d28c79d158a9bd190b34a1369e5e5a667fb22cca713e21ac350c38b3ae9c81b0",
       "functions": [],
       "classes": [],
       "imports": [
@@ -110767,7 +110758,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 29,
+      "totalLines": 57,
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts": {

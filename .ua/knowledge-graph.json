@@ -76870,91 +76870,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "type": "file",
-      "name": "ShipmentContainerLedger.tsx",
-      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "summary": "Renders the container-level shipment detail ledger with permission-aware inline editing for identity, documents, routing, scheduling, vehicle, and notes data.",
-      "tags": [
-        "react",
-        "component",
-        "shipment-detail",
-        "inline-editing"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:modeLabelForTrigger",
-      "type": "function",
-      "name": "modeLabelForTrigger",
-      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "lineRange": [
-        80,
-        90
-      ],
-      "summary": "Maps a shipment detail editing mode to the Vietnamese label used by its edit trigger.",
-      "tags": [
-        "utility",
-        "editing",
-        "localization"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
-      "type": "function",
-      "name": "EditActions",
-      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "lineRange": [
-        122,
-        157
-      ],
-      "summary": "Provides the save and cancel controls for an inline shipment-detail editor.",
-      "tags": [
-        "react",
-        "component",
-        "editing",
-        "actions"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
-      "type": "function",
-      "name": "InlineEditor",
-      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "lineRange": [
-        159,
-        425
-      ],
-      "summary": "Maintains mode-specific field drafts and submits the appropriate permitted update for one container row.",
-      "tags": [
-        "react",
-        "form",
-        "inline-editing",
-        "shipment-detail"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
-      "type": "function",
-      "name": "ShipmentContainerLedger",
-      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "lineRange": [
-        446,
-        578
-      ],
-      "summary": "Displays paginated container details as an operational ledger, highlighting missing transport dates and same-day vehicle gaps.",
-      "tags": [
-        "react",
-        "table",
-        "shipment-detail",
-        "operations"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "type": "file",
       "name": "ShipmentsDetailPage.tsx",
@@ -77320,6 +77235,95 @@
       ],
       "complexity": "complex",
       "languageNotes": "Uses Node's built-in test runner with Zod safeParse assertions to verify strict runtime contracts."
+    },
+    {
+      "id": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "type": "file",
+      "name": "ShipmentContainerLedger.tsx",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "summary": "Renders the shipment-detail container ledger and its inline editors for customer, document, container, routing, scheduling, vehicle, and notes data. It exposes controlled save callbacks while respecting field-level edit permissions and presenting operational warnings.",
+      "tags": [
+        "component",
+        "shipment-detail",
+        "container-ledger",
+        "inline-editing",
+        "accessibility"
+      ],
+      "complexity": "complex",
+      "languageNotes": "TypeScript React component with discriminated edit modes, controlled draft state, and typed callback contracts."
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:modeLabelForTrigger",
+      "type": "function",
+      "name": "modeLabelForTrigger",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        81,
+        91
+      ],
+      "summary": "Maps each shipment-detail edit mode to a Vietnamese label used in edit triggers and accessible text.",
+      "tags": [
+        "utility",
+        "edit-mode",
+        "localization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
+      "type": "function",
+      "name": "EditActions",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        123,
+        158
+      ],
+      "summary": "Renders accessible save and cancel controls for an inline shipment editor, including loading and disabled states.",
+      "tags": [
+        "component",
+        "inline-editing",
+        "form-actions",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
+      "type": "function",
+      "name": "InlineEditor",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        160,
+        426
+      ],
+      "summary": "Manages draft state and validation for the selected shipment field group, then sends typed edits through the appropriate save callback. It supports keyboard save and cancellation, focus management, and conditional forms for each operational edit mode.",
+      "tags": [
+        "component",
+        "inline-editing",
+        "form-validation",
+        "shipment-detail",
+        "event-handler"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "function",
+      "name": "ShipmentContainerLedger",
+      "filePath": "frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "lineRange": [
+        447,
+        591
+      ],
+      "summary": "Displays each container as an editable operational ledger row with completeness counters, status signals, and a contextual inline editor. It delegates persistence to its parent while allowing edits only where the supplied field access permits them.",
+      "tags": [
+        "component",
+        "shipment-detail",
+        "container-ledger",
+        "data-table",
+        "accessibility"
+      ],
+      "complexity": "complex"
     }
   ],
   "edges": [
@@ -144859,41 +144863,6 @@
       "type": "contains"
     },
     {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/lib/shipment-operations.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "file:frontend/src/lib/api/index.ts",
       "type": "imports",
@@ -144959,13 +144928,6 @@
     {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -145097,26 +145059,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:modeLabelForTrigger",
-      "type": "contains"
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
-      "type": "contains"
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
-      "type": "contains"
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
-      "type": "contains"
-    },
-    {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
       "type": "contains"
@@ -145192,13 +145134,6 @@
       "type": "contains"
     },
     {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
       "type": "exports",
@@ -145253,6 +145188,90 @@
       "type": "tested_by",
       "direction": "forward",
       "weight": 0.5
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "file:frontend/src/lib/shipment-operations.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:modeLabelForTrigger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "target": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
+      "target": "function:frontend/src/lib/shipment-operations.ts:formatVietnamDateTimeInput",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
+      "target": "function:frontend/src/lib/shipment-operations.ts:formatVietnamDateTimeInput",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
     }
   ],
   "layers": [
@@ -146480,14 +146499,15 @@
         "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
         "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
         "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-        "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
-        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
-        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger",
         "file:frontend/src/pages/ShipmentsDetailPage.tsx",
         "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
         "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
-        "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage"
+        "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+        "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:modeLabelForTrigger",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:EditActions",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:InlineEditor",
+        "function:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx:ShipmentContainerLedger"
       ]
     },
     {
