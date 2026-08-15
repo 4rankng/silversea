@@ -5,8 +5,9 @@ import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 /**
  * Topbar entrance animation — subtle glassmorphism fade-in on page load.
  *
- * Animates the topbar and its child elements (toggle, search, actions)
- * with a staggered fade-down entrance.
+ * Animates the topbar's child elements (toggle, search, actions) with a
+ * staggered fade-down entrance. The shell itself remains visible at all
+ * times: this is progressive enhancement, not a layout dependency.
  *
  * Uses anime.js v4 createScope for automatic cleanup.
  * Respects prefers-reduced-motion.
@@ -21,18 +22,12 @@ export function useTopbarEntrance() {
     if (!root) return;
 
     const scope = createScope({ root }).add(() => {
+      // Keep the reserved shell area visible even if anime.js cannot start.
+      utils.set(root, { opacity: 1, translateY: 0 });
+
       if (prefersReduced) {
-        utils.set(root, { opacity: 1 });
         return;
       }
-
-      // Topbar container fade-down entrance
-      animate(root, {
-        opacity: [0, 1],
-        translateY: [-6, 0],
-        duration: 300,
-        ease: 'out(3)',
-      });
 
       // Stagger child elements: toggle, search, breadcrumb, actions
       const children = root.querySelectorAll(
