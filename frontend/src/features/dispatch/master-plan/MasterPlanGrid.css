@@ -67,7 +67,11 @@
   }
 
   .master-plan-filters__date-range {
-    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .master-plan-filters__date-label {
+    grid-column: 1 / -1;
   }
 }
 

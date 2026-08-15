@@ -140,6 +140,8 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('grid-template-columns: minmax(280px, 1fr) 132px 204px minmax(396px, 1.12fr)');
     expect(css).toContain('grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr)');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
+    expect(css).toContain('.master-plan-filters__date-label {\n    grid-column: 1 / -1;');
     expect(css).toContain('.master-plan-filters__date-range');
   });
 });
