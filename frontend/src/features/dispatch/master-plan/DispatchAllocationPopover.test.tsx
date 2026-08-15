@@ -57,7 +57,10 @@ describe('DispatchAllocationPopover', () => {
 
   it('saves a partial allocation and reports the derived row', async () => {
     const onSaved = vi.fn();
-    vi.mocked(saveShipmentCarrierAllocations).mockResolvedValue({} as never);
+    vi.mocked(saveShipmentCarrierAllocations).mockResolvedValue({
+      shipment: { id: 1, version: 5 },
+      assignments: [],
+    } as never);
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={onSaved} />);
 
     await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
@@ -71,6 +74,8 @@ describe('DispatchAllocationPopover', () => {
       carrierAllocations: [expect.objectContaining({ carrierType: 'OWN', count20: 1, count40: 0 })],
     }), undefined, 'partial');
     expect(onSaved.mock.calls[0][0].allocationStatus).toBe('PARTIALLY_ALLOCATED');
+    // Server's fresh version is propagated so an immediate re-edit doesn't 409.
+    expect(onSaved.mock.calls[0][0].version).toBe(5);
   });
 
   it('reports a retry message on 409 conflict', async () => {

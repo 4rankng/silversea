@@ -147,6 +147,65 @@ describe('shipment intake submission', () => {
     assert.equal(external.assignments[0]?.plannedExternalCarrierId, carrier.id);
   });
 
+  test('allowPartial saves under-allocation as DISPATCHER, rejects overflow, and clears uncovered carriers', async () => {
+    const dispatcher = await actor(Role.DISPATCHER);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `INTAKE-PARTIAL-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: dispatcher.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    await db.insert(s.shipmentContainers).values([
+      { shipmentId: shipment.id, containerTypeId: ref.containerType.id, containerNumber: 'PART0000001', createdBy: dispatcher.userId },
+      { shipmentId: shipment.id, containerTypeId: ref.containerType.id, containerNumber: 'PART0000002', createdBy: dispatcher.userId },
+    ]);
+
+    // Partial: allocate 1 of 2 → allowed, second container unassigned.
+    const partial = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      actor: dispatcher,
+      carrierAllocations: [{ carrierType: 'OWN', count20: 1, count40: 0 }],
+      allowPartial: true,
+    });
+    const carriersAfterPartial = await db.select({
+      containerId: s.shipmentFulfillments.shipmentContainerId,
+      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+    }).from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    const assigned = carriersAfterPartial.filter((row) => row.plannedCarrierType != null);
+    const cleared = carriersAfterPartial.filter((row) => row.plannedCarrierType == null);
+    assert.equal(assigned.length, 1);
+    assert.equal(cleared.length, 1);
+
+    // Overflow: request 3 when the shipment only has 2 containers → 409.
+    await assert.rejects(
+      () => assignShipmentCarriers({
+        shipmentId: shipment.id,
+        expectedVersion: partial.shipment.version,
+        actor: dispatcher,
+        carrierAllocations: [{ carrierType: 'OWN', count20: 3, count40: 0 }],
+        allowPartial: true,
+      }),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
+    );
+
+    // Zeroing out the allocation clears the previous carrier too.
+    const emptied = await assignShipmentCarriers({
+      shipmentId: shipment.id,
+      expectedVersion: partial.shipment.version,
+      actor: dispatcher,
+      carrierAllocations: [],
+      allowPartial: true,
+    });
+    assert.equal(emptied.shipment.version, partial.shipment.version + 1);
+  });
+
   test('atomically moves a complete FCL draft to the dispatch queue and replays once', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
