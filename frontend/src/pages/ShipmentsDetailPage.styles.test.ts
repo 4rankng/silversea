@@ -18,6 +18,18 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow:\s*hidden;/);
     expect(css).toMatch(/\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.shipment-container-ledger__multiline > small\s*\{[^}]*word-break:\s*break-word;/);
+    expect(css).toMatch(/tbody > tr > td::before\s*\{[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+  });
+
+  it('turns editable values into restrained cell triggers without persistent edit-button chrome', () => {
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*background:\s*transparent;[^}]*text-align:\s*left;/);
+    expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > \.shipment-container-ledger__editor-row > td\s*\{[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__editor-row \.shipment-container-ledger__inline-editor\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(css).not.toMatch(/shipment-container-ledger__edit-trigger/);
   });
 
   it('defines warning states with both row and vehicle-specific treatments', () => {

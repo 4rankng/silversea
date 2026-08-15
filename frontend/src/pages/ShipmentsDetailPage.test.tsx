@@ -101,12 +101,38 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
     }
     expect(screen.getByText('TK-001')).toBeTruthy();
-    expect(screen.getByText((_, element) => element?.textContent === 'Nhập · MSC')).toBeTruthy();
+    const classificationCell = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-001/ });
+    expect(classificationCell.textContent).toContain('Nhập');
+    expect(classificationCell.textContent).toContain('MSC');
+    expect(screen.getByRole('button', { name: /Chỉnh sửa chiều hàng và hãng tàu CONT-001.*Nhập.*MSC/ })).toBe(classificationCell);
+    expect(classificationCell.getAttribute('aria-label')).toBeNull();
     expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
+    const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
+    expect(identityCell.textContent).toContain('Công ty Silver Sea');
+    expect(identityCell.textContent).not.toContain('Sửa');
+    expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
+  });
+
+  it('opens value-cell editors with Enter and Space without requiring a visible edit button', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    const enterTrigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
+    fireEvent.keyDown(enterTrigger, { key: 'Enter', code: 'Enter' });
+    fireEvent.keyUp(enterTrigger, { key: 'Enter', code: 'Enter' });
+    const enterEditor = (await screen.findByLabelText('Nhà máy')).closest('.shipment-container-ledger__inline-editor')!;
+    fireEvent.keyDown(enterEditor, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ })));
+
+    const spaceTrigger = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
+    fireEvent.keyDown(spaceTrigger, { key: ' ', code: 'Space' });
+    fireEvent.keyUp(spaceTrigger, { key: ' ', code: 'Space' });
+    expect(await screen.findByLabelText('Nhà máy')).toBeTruthy();
+    expect(screen.queryByText('Sửa')).toBeNull();
   });
 
   it('passes URL-backed customer, direction, date, and suffix filters to the flat endpoint', async () => {
@@ -142,8 +168,13 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
-    fireEvent.click(await screen.findByLabelText('Điểm nâng'));
+    const routeTrigger = screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ });
+    fireEvent.click(routeTrigger);
+    const liftField = await screen.findByLabelText('Điểm nâng');
+    expect(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }).getAttribute('aria-expanded')).toBe('true');
+    const editorCell = liftField.closest('.shipment-container-ledger__editor-row')?.querySelector('td');
+    expect(editorCell?.getAttribute('colspan')).toBe('7');
+    fireEvent.click(liftField);
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
 
@@ -154,20 +185,37 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
   it('edits the previously read-only identity and document cells through the shipment authority', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response)
+      .mockResolvedValueOnce(detail).mockResolvedValueOnce(response)
       .mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
     apiPut.mockResolvedValue({ version: 8, changeMode: 'DIRECT', changeRequestId: null });
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ô khách hàng và lộ trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Nhà máy'), { target: { value: 'Nhà máy mới' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu khách hàng và lộ trình CONT-002' }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa ô chứng từ và hãng tàu CONT-002' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chứng từ và hãng tàu CONT-002' }));
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, blNumber: 'BILL-NEW' })));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Hủy chứng từ và hãng tàu CONT-002' })).toBeNull());
+    const classificationTrigger = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-002/ });
+    fireEvent.click(classificationTrigger);
+    const classificationEditor = (await screen.findByRole('button', { name: 'Lưu chiều hàng và hãng tàu CONT-002' })).closest('.shipment-container-ledger__inline-editor')!;
+    const directionSelect = classificationEditor.querySelector('select')!;
+    fireEvent.change(directionSelect, { target: { value: 'IMPORT' } });
+    fireEvent.change(classificationEditor.querySelector('input')!, { target: { value: 'ONE' } });
+    const saveClassification = screen.getByRole('button', { name: 'Lưu chiều hàng và hãng tàu CONT-002' });
+    await waitFor(() => expect(saveClassification.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(saveClassification);
+    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', {
+      expectedVersion: 7,
+      tradeDirection: 'IMPORT',
+      shippingLineName: 'ONE',
+    }));
   });
 
   it('edits container identity and cargo through the idempotent container authority', async () => {
@@ -176,7 +224,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ô thông số container CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa ô thông số container CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Số container'), { target: { value: 'MSCU1234566' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12500.5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thông số container CONT-002' }));
@@ -196,7 +244,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
     fireEvent.click(await screen.findByLabelText('Điểm nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
@@ -206,10 +254,11 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(apiPost.mock.calls[0]?.[2]?.headers?.['Idempotency-Key']).toBe(apiPost.mock.calls[1]?.[2]?.headers?.['Idempotency-Key']);
 
     apiGet.mockResolvedValueOnce(detail);
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
     const editor = (await screen.findByLabelText('Điểm nâng')).closest('.shipment-container-ledger__inline-editor')!;
     fireEvent.keyDown(editor, { key: 'Escape' });
     expect(screen.queryByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ })));
   });
 
   it('saves shipment-scoped schedule through the existing versioned shipment update', async () => {
@@ -218,7 +267,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-22' } });
     fireEvent.change(screen.getByLabelText('Giờ đóng hàng'), { target: { value: '09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
@@ -236,7 +285,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
 
@@ -260,8 +309,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    expect(screen.queryByRole('button', { name: 'Chỉnh sửa lịch trình CONT-002' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
+    expect(screen.queryByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
     expect((await screen.findByLabelText('Giờ hẹn khách')).hasAttribute('disabled')).toBe(false);
   });
 
@@ -274,7 +323,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa phân xe CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa phân xe CONT-002/ }));
 
     expect((await screen.findByLabelText('Nhà xe')).textContent).toContain('Đội xe SilverSea');
     expect(screen.getByText('Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.')).toBeTruthy();
@@ -291,7 +340,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
     fireEvent.click(await screen.findByLabelText('Điểm nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
@@ -324,7 +373,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa điểm nâng hạ CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
     fireEvent.click(await screen.findByLabelText('Điểm nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
@@ -350,7 +399,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa giờ hẹn khách CONT-002' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
     fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
 

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, LoaderCircle, PencilLine, Save, X } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Button as AriaButton } from 'react-aria-components';
+import { AlertTriangle, Save, X } from 'lucide-react';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -463,21 +464,31 @@ export function ShipmentContainerLedger({
 }: ShipmentContainerLedgerProps) {
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
-  const editButton = (row: ShipmentCusContainerFlatRow, mode: ShipmentDetailEditMode, enabled: boolean) => {
-    if (!enabled) return null;
+  const editableCell = (
+    row: ShipmentCusContainerFlatRow,
+    mode: ShipmentDetailEditMode,
+    enabled: boolean,
+    children: ReactNode,
+  ) => {
     const triggerId = `shipment-detail-edit-${mode}-${row.id}`;
+    const editorId = `${triggerId}-editor`;
     const busy = editLoadingRowId === row.id;
+    const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
+    const className = `shipment-container-ledger__cell-trigger${enabled ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
+    if (!enabled) return <div className={className}>{children}</div>;
     return (
-      <UUIButton
+      <AriaButton
         id={triggerId}
-        size="sm"
-        color="tertiary"
-        className="shipment-container-ledger__edit-trigger"
+        className={className}
         onPress={() => onStartEdit(row, mode, triggerId)}
         isDisabled={busy || activeEdit != null}
-        iconLeading={busy ? <LoaderCircle className="shipment-container-ledger__spinner" aria-hidden="true" /> : <PencilLine aria-hidden="true" />}
-        aria-label={`Chỉnh sửa ${mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}${modeLabelForTrigger(mode)} ${row.containerNumber || `container số ${row.ordinal}`}`}
-      >{busy ? 'Đang mở' : 'Sửa'}</UUIButton>
+        aria-busy={busy || undefined}
+        aria-controls={expanded ? editorId : undefined}
+        aria-expanded={expanded}
+      >
+        <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
+        {children}
+      </AriaButton>
     );
   };
 
@@ -518,56 +529,58 @@ export function ShipmentContainerLedger({
               const scheduleTime = formatScheduleTime(row);
               const appointment = formatAppointment(row.customerAppointmentAt);
               return (
-                <tr key={row.id} className={missingDate ? 'shipment-container-ledger__row--missing-date' : undefined}>
+                <Fragment key={row.id}>
+                <tr className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
                   <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
                     {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
-                    {edit?.mode === 'identity' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
+                    {editableCell(row, 'identity', ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY'), <div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
-                    </div>{editButton(row, 'identity', ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY'))}</>}
+                    </div>)}
                   </th>
                   <td data-label="Chứng từ & hãng tàu" className={edit?.mode === 'documents' || edit?.mode === 'classification' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'documents' || edit?.mode === 'classification' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
-                      <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
-                      <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
-                      <span><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b> · {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
-                    </div><div className="shipment-container-ledger__cell-actions">{editButton(row, 'documents', ['blNumber', 'bookingRef'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY'))}{editButton(row, 'classification', ['tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY'))}</div></>}
+                    <div className="shipment-container-ledger__cell-stack">
+                      {editableCell(row, 'documents', ['blNumber', 'bookingRef'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY'), <div className="shipment-container-ledger__multiline">
+                        <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
+                        <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
+                      </div>)}
+                      {editableCell(row, 'classification', ['tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY'), <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>)}
+                    </div>
                   </td>
                   <td data-label="Thông số container" className={edit?.mode === 'container' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'container' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <><div className="shipment-container-ledger__multiline">
+                    {editableCell(row, 'container', row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY', <div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
                       <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
-                    </div>{editButton(row, 'container', row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY')}</>}
+                    </div>)}
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'route' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
-                      <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>
-                      {editButton(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable)}
-                    </>}
+                    {editableCell(row, 'route', row.liftSiteEditable || row.dropoffSiteEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={edit?.mode === 'schedule' || edit?.mode === 'appointment' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'schedule' || edit?.mode === 'appointment' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
-                      <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span><span>{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span></div>
-                      <div className="shipment-container-ledger__cell-actions">{editButton(row, 'schedule', row.shipmentScheduleEditable)}{editButton(row, 'appointment', row.customerAppointmentEditable)}</div>
-                    </>}
+                    <div className="shipment-container-ledger__cell-stack">
+                      {editableCell(row, 'schedule', row.shipmentScheduleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
+                      {editableCell(row, 'appointment', row.customerAppointmentEditable, <span className="shipment-container-ledger__appointment">{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span>)}
+                    </div>
                   </td>
                   <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-alert' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
-                    {edit?.mode === 'vehicle' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
-                      <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>
-                      {editButton(row, 'vehicle', row.carrierEditable || row.plateEditable)}
-                    </>}
+                    {editableCell(row, 'vehicle', row.carrierEditable || row.plateEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.carrierName, 'Chưa có nhà xe')}</strong><span className="shipment-container-ledger__plate">{fallback(row.plateNumber, 'Chưa có biển số')}</span>{missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Cần phối hợp Điều vận hoặc tự điền xe trước giờ chạy.</small>}</div>)}
                   </td>
                   <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {edit?.mode === 'notes' ? <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} /> : <>
-                      <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>
-                      {editButton(row, 'notes', row.shipmentNotesEditable)}
-                    </>}
+                    {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}
                   </td>
                 </tr>
+                {edit && (
+                  <tr className="shipment-container-ledger__editor-row">
+                    <td id={`shipment-detail-edit-${edit.mode}-${row.id}-editor`} colSpan={7} data-label={`Chỉnh sửa ${modeLabelForTrigger(edit.mode)}`}>
+                      <InlineEditor key={`${edit.mode}-${edit.detail.summary.version}-${edit.line.shipmentVersion}`} edit={edit} onCancel={onCancelEdit} onSaveIdentity={onSaveIdentity} onSaveDocuments={onSaveDocuments} onSaveContainer={onSaveContainer} onSaveRoute={onSaveRoute} onSaveVehicle={onSaveVehicle} onSaveSchedule={onSaveSchedule} onSaveAppointment={onSaveAppointment} onSaveNotes={onSaveNotes} routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
