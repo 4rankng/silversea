@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusContainerFlatResponse, ShipmentCusWorkspaceDetail } from '@tingting/shared';
@@ -101,10 +101,14 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
     }
     expect(screen.getByText('TK-001')).toBeTruthy();
-    const classificationCell = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-001/ });
-    expect(classificationCell.textContent).toContain('Nhập');
-    expect(classificationCell.textContent).toContain('MSC');
-    expect(classificationCell.querySelector('[data-icon]')).toBeNull();
+    const documentsCell = screen.getByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
+    expect(documentsCell.textContent).toContain('Nhập');
+    expect(documentsCell.textContent).toContain('MSC');
+    expect(documentsCell.querySelector('[data-icon]')).toBeNull();
+    const documentsTableCell = documentsCell.closest('td');
+    expect(documentsTableCell).toBeTruthy();
+    expect(documentsTableCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
+    expect(within(documentsTableCell!).getAllByRole('button')).toEqual([documentsCell]);
     expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
@@ -118,6 +122,27 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByRole('button', { name: 'Tất cả ngày' })).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
+  });
+
+  it('keeps a fully read-only document group as a labelled value, not an editable cell', async () => {
+    const readOnlyDocuments = {
+      ...directShipmentAccess,
+      blNumber: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+      bookingRef: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+      tradeDirection: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+      shippingLineName: { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
+    };
+    apiGet.mockResolvedValueOnce({
+      ...response,
+      items: response.items.map((row) => row.id === 12 ? { ...row, shipmentFieldAccess: readOnlyDocuments } : row),
+    });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    const documentCell = screen.getByText('BOOK-67890').closest('td');
+    expect(documentCell?.getAttribute('data-label')).toBe('Chứng từ & hãng tàu');
+    expect(documentCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(false);
+    expect(within(documentCell!).queryByRole('button', { name: /Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ })).toBeNull();
   });
 
   it('presents today\'s unassigned vehicle as an amber operational state, not a destructive error', async () => {
@@ -160,14 +185,15 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sửa')).toBeNull();
   });
 
-  it('opens an editor when the surrounding visual cell is clicked', async () => {
+  it('opens an editor from the cell\'s single control', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     const trigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô thông số container CONT-002/ });
     const cell = trigger.closest('td');
     expect(cell).toBeTruthy();
-    fireEvent.click(cell!);
+    expect(within(cell!).getAllByRole('button')).toEqual([trigger]);
+    fireEvent.click(trigger);
 
     expect(await screen.findByLabelText('Số container')).toBeTruthy();
   });
@@ -299,22 +325,15 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
+    const documentEditor = (await screen.findByLabelText('Số Bill')).closest<HTMLElement>('.shipment-container-ledger__inline-editor')!;
+    fireEvent.change(within(documentEditor).getByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
+    fireEvent.change(within(documentEditor).getByLabelText('Nhập / Xuất'), { target: { value: 'IMPORT' } });
+    fireEvent.change(within(documentEditor).getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chứng từ và hãng tàu CONT-002' }));
-    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, blNumber: 'BILL-NEW' })));
-
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Hủy chứng từ và hãng tàu CONT-002' })).toBeNull());
-    const classificationTrigger = screen.getByRole('button', { name: /^Chỉnh sửa chiều hàng và hãng tàu CONT-002/ });
-    fireEvent.click(classificationTrigger);
-    const classificationEditor = (await screen.findByRole('button', { name: 'Lưu chiều hàng và hãng tàu CONT-002' })).closest('.shipment-container-ledger__inline-editor')!;
-    const directionSelect = classificationEditor.querySelector('select')!;
-    fireEvent.change(directionSelect, { target: { value: 'IMPORT' } });
-    fireEvent.change(classificationEditor.querySelector('input')!, { target: { value: 'ONE' } });
-    const saveClassification = screen.getByRole('button', { name: 'Lưu chiều hàng và hãng tàu CONT-002' });
-    await waitFor(() => expect(saveClassification.hasAttribute('disabled')).toBe(false));
-    fireEvent.click(saveClassification);
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', {
       expectedVersion: 7,
+      blNumber: 'BILL-NEW',
+      bookingRef: 'BOOK-67890',
       tradeDirection: 'IMPORT',
       shippingLineName: 'ONE',
     }));

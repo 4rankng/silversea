@@ -132,6 +132,16 @@
 
 .shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
 .shipment-container-ledger__cell-stack > .shipment-container-ledger__cell-trigger + .shipment-container-ledger__cell-trigger { padding-top: 5px; border-top: 1px solid var(--line); }
+.shipment-container-ledger__editable-cell { position: relative; padding: 0 !important; }
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor { position: absolute; inset: 0; }
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 10px;
+}
 .shipment-container-ledger__cell-trigger {
   display: block;
   width: calc(100% + 8px);
@@ -236,6 +246,37 @@
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell::before { display: none; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor {
+    position: static;
+    inset: auto;
+    display: block;
+    grid-column: 1 / -1;
+    height: auto;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 68px;
+    padding: 8px 10px;
+    position: relative;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    width: 88px;
+    color: var(--ink-3);
+    content: attr(data-cell-label);
+    font-size: 9px;
+    font-weight: var(--fw-bold);
+    letter-spacing: .035em;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    text-transform: uppercase;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger > .shipment-container-ledger__cell-stack { grid-column: 2; }
   .shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor { position: static; width: 100%; max-width: none; margin-top: 6px; }
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
@@ -298,6 +339,9 @@
   .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__edit-error { grid-column: 2; }
   .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor--expanded,
   .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-editor--expanded { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor { grid-column: 1 / -1; }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger { grid-template-columns: 88px minmax(0, 1fr); }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before { width: 80px; }
   .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__row-warning { margin-bottom: 0; }
   .shipment-container-ledger__cell-trigger { grid-column: 2; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }

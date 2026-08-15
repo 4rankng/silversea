@@ -65,7 +65,6 @@ function canEditMode(
 ): boolean {
   if (mode === 'identity') return ['factoryName', 'routeId', 'deliveryLocation'].some((field) => detail.summary.fieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
   if (mode === 'documents') return ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => detail.summary.fieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
-  if (mode === 'classification') return ['tradeDirection', 'shippingLineName'].some((field) => detail.summary.fieldAccess[field as 'tradeDirection'].mode !== 'READ_ONLY');
   if (mode === 'container') return ['containerNumber', 'containerTypeId', 'cargoWeightKg', 'cargoVolumeCbm'].some((field) => line.fieldAccess[field as 'containerNumber'].mode !== 'READ_ONLY');
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
@@ -334,14 +333,15 @@ export default function ShipmentsDetailPage() {
     try {
       const response = await updateShipment(row.shipmentId, {
         expectedVersion: activeEdit.detail.summary.version,
-        ...(activeEdit.mode === 'documents'
-          ? { blNumber: draft.blNumber, bookingRef: draft.bookingRef }
-          : { tradeDirection: draft.tradeDirection, shippingLineName: draft.shippingLineName }),
+        blNumber: draft.blNumber,
+        bookingRef: draft.bookingRef,
+        tradeDirection: draft.tradeDirection,
+        shippingLineName: draft.shippingLineName,
       });
       if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
-      await recoverConflict(row, activeEdit.mode === 'classification' ? 'classification' : 'documents');
+      await recoverConflict(row, 'documents');
       return;
     }
     await finishSave();
