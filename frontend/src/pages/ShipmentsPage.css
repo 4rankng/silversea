@@ -666,7 +666,8 @@
 .cus-inline-trigger:not(:disabled):hover .cus-inline-edit-affordance,
 .cus-inline-trigger:not(:disabled):focus-visible .cus-inline-edit-affordance { opacity: 1; }
 
-.cus-quick-edit { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 7px; }
+.cus-quick-edit { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.cus-quick-edit > * { min-width: 0; }
 .cus-quick-edit label,
 .cus-note-editor { display: grid; gap: 3px; min-width: 0; color: var(--ink-3); font-size: 11px; font-weight: var(--fw-semibold); }
 .cus-quick-edit input,
@@ -685,7 +686,7 @@
   font-size: var(--fs-xs);
 }
 .cus-quick-edit select { appearance: auto; }
-.cus-quick-edit small { grid-column: 1 / -1; color: var(--ink-3); }
+.cus-quick-edit small { grid-column: 1 / -1; min-width: 0; color: var(--ink-3); overflow-wrap: anywhere; }
 .cus-inline-edit-hint { font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .cus-note-editor textarea { resize: vertical; line-height: 1.35; }
 .cus-note-editor-group {

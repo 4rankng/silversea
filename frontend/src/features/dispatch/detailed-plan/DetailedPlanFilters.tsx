@@ -83,6 +83,7 @@ function FacetMultiSelect({
           value={facetSearch}
           onChange={(value) => {
             setFacetSearch(value);
+            setIsLoadingFacets(true);
             setActiveFacetIndex(null);
           }}
           aria-label={`Tìm ${label.toLowerCase()}`}
@@ -93,18 +94,18 @@ function FacetMultiSelect({
               if (event.key === 'ArrowDown') {
                 event.preventDefault();
                 setIsPickerOpen(true);
-                setActiveFacetIndex((current) => visibleFacets.length > 0
+                setActiveFacetIndex((current) => !isLoadingFacets && visibleFacets.length > 0
                   ? Math.min((current ?? -1) + 1, visibleFacets.length - 1)
                   : null);
               }
               if (event.key === 'ArrowUp') {
                 event.preventDefault();
                 setIsPickerOpen(true);
-                setActiveFacetIndex((current) => visibleFacets.length > 0
+                setActiveFacetIndex((current) => !isLoadingFacets && visibleFacets.length > 0
                   ? Math.max((current ?? visibleFacets.length) - 1, 0)
                   : null);
               }
-              if (event.key === 'Enter' && activeFacetIndex != null) {
+              if (event.key === 'Enter' && !isLoadingFacets && activeFacetIndex != null) {
                 const activeFacet = visibleFacets[activeFacetIndex];
                 if (activeFacet) {
                   event.preventDefault();
@@ -119,7 +120,7 @@ function FacetMultiSelect({
             role: 'combobox',
             'aria-autocomplete': 'list',
             'aria-controls': isPickerOpen ? listboxId : undefined,
-            'aria-activedescendant': isPickerOpen && activeFacetIndex != null ? `${optionIdPrefix}-${visibleFacets[activeFacetIndex]?.id}` : undefined,
+            'aria-activedescendant': isPickerOpen && !isLoadingFacets && activeFacetIndex != null ? `${optionIdPrefix}-${visibleFacets[activeFacetIndex]?.id}` : undefined,
             'aria-expanded': isPickerOpen,
             'aria-haspopup': 'listbox',
           }}
@@ -187,6 +188,19 @@ export function DetailedPlanFilters({
   loadPickupPortFacets,
   loadDropoffPortFacets,
 }: DetailedPlanFiltersProps) {
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const advancedFiltersId = useId();
+  const activeAdvancedFilterCount = [
+    filters.date,
+    filters.direction,
+    filters.assignmentStatus,
+    filters.pickupIds.length > 0,
+    filters.dropoffIds.length > 0,
+    filters.deliveryPointIds.length > 0,
+    filters.hourFrom !== '',
+    filters.hourTo !== '',
+  ].filter(Boolean).length;
+
   return (
     <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
       <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
@@ -201,17 +215,27 @@ export function DetailedPlanFilters({
           aria-label="Tìm nhanh"
         />
       </label>
-      <label className="detailed-plan-filters__field">
-        <span className="detailed-plan-filters__label">Ngày chạy</span>
-        <UUIInput
-          type="date"
-          className="detailed-plan-filters__date"
-          value={filters.date}
-          onChange={(value) => onChange({ date: value })}
-          size="sm"
-          aria-label="Ngày chạy"
-        />
-      </label>
+      <button
+        type="button"
+        className="detailed-plan-filters__advanced-toggle"
+        aria-expanded={isAdvancedFiltersOpen}
+        aria-controls={advancedFiltersId}
+        onClick={() => setIsAdvancedFiltersOpen((isOpen) => !isOpen)}
+      >
+        {isAdvancedFiltersOpen ? 'Ẩn bộ lọc' : activeAdvancedFilterCount > 0 ? `Bộ lọc (${activeAdvancedFilterCount})` : 'Thêm bộ lọc'}
+      </button>
+      <div id={advancedFiltersId} className={`detailed-plan-filters__advanced${isAdvancedFiltersOpen ? ' is-open' : ''}`}>
+        <label className="detailed-plan-filters__field">
+          <span className="detailed-plan-filters__label">Ngày chạy</span>
+          <UUIInput
+            type="date"
+            className="detailed-plan-filters__date"
+            value={filters.date}
+            onChange={(value) => onChange({ date: value })}
+            size="sm"
+            aria-label="Ngày chạy"
+          />
+        </label>
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Chiều hàng</span>
         <UUINativeSelect
@@ -281,6 +305,7 @@ export function DetailedPlanFilters({
             inputProps={{ min: 0, max: 23 }}
           />
         </div>
+      </div>
       </div>
     </section>
   );

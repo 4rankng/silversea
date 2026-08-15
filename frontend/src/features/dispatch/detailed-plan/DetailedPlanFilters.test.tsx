@@ -101,11 +101,10 @@ describe('DetailedPlanFilters', () => {
 
   it('resets keyboard navigation when a narrower point search replaces the results', async () => {
     const onChange = vi.fn();
-    const loadDeliveryPointFacets = vi.fn((query?: string) => Promise.resolve(
-      query
-        ? [{ id: 9, name: 'ICD Mỹ Đình' }]
-        : [{ id: 42, name: 'KCN Vân Trung' }, { id: 7, name: 'Cảng Hải Phòng' }],
-    ));
+    let resolveNarrowSearch: ((items: Array<{ id: number; name: string }>) => void) | undefined;
+    const loadDeliveryPointFacets = vi.fn((query?: string) => query
+      ? new Promise<Array<{ id: number; name: string }>>((resolve) => { resolveNarrowSearch = resolve; })
+      : Promise.resolve([{ id: 42, name: 'KCN Vân Trung' }, { id: 7, name: 'Cảng Hải Phòng' }]));
     render(
       <DetailedPlanFilters
         filters={EMPTY_DETAILED_PLAN_FILTERS}
@@ -124,6 +123,9 @@ describe('DetailedPlanFilters', () => {
     expect(pointSearch.getAttribute('aria-activedescendant')).toContain('7');
 
     fireEvent.change(pointSearch, { target: { value: 'Mỹ' } });
+    fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
+    expect(pointSearch.getAttribute('aria-activedescendant')).toBeNull();
+    resolveNarrowSearch?.([{ id: 9, name: 'ICD Mỹ Đình' }]);
     await waitFor(() => expect(screen.getByRole('option', { name: 'ICD Mỹ Đình' })).toBeTruthy());
     expect(pointSearch.getAttribute('aria-activedescendant')).toBeNull();
     fireEvent.keyDown(pointSearch, { key: 'ArrowDown' });
@@ -145,5 +147,22 @@ describe('DetailedPlanFilters', () => {
 
     fireEvent.focus(screen.getByLabelText('Tìm điểm trả'));
     await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Không tìm thấy điểm phù hợp.'));
+  });
+
+  it('keeps advanced filters compact but discoverable on a phone viewport', () => {
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={vi.fn()}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    const toggle = screen.getByRole('button', { name: 'Thêm bộ lọc' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ẩn bộ lọc' }).getAttribute('aria-expanded')).toBe('true');
   });
 });

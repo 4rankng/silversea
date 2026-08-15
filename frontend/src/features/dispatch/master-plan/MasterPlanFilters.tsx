@@ -54,8 +54,8 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
         aria-label="Trạng thái phân bổ"
         options={ALLOCATION_OPTIONS.map((option) => ({ label: option.label, value: option.value }))}
       />
-      <label className="master-plan-filters__date">
-        <span>Ngày giao</span>
+      <div className="master-plan-filters__date-range" role="group" aria-label="Khoảng ngày giao">
+        <span className="master-plan-filters__date-label">Ngày giao</span>
         <UUIInput
           className="master-plan-filters__date-input"
           inputClassName="master-plan-filters__control"
@@ -65,10 +65,7 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
           onChange={(value) => onChange({ deliveryDateFrom: value })}
           aria-label="Ngày giao từ"
         />
-      </label>
-      <span className="master-plan-filters__date-sep">→</span>
-      <label className="master-plan-filters__date">
-        <span>đến</span>
+        <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
         <UUIInput
           className="master-plan-filters__date-input"
           inputClassName="master-plan-filters__control"
@@ -78,7 +75,7 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
           onChange={(value) => onChange({ deliveryDateTo: value })}
           aria-label="Ngày giao đến"
         />
-      </label>
+      </div>
     </div>
   );
 }

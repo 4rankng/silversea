@@ -1048,16 +1048,20 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         throw new ApiError(400, 'carrierId là bắt buộc khi tải xe của nhà xe.');
       }
       const carrierId = input.carrierId as number;
-      const [carrier] = await tx.select({ id: s.customers.id })
+      const [carrier] = await tx.select({ id: s.customers.id, status: s.customers.status })
         .from(s.customers)
         .where(and(
           eq(s.customers.id, carrierId),
           eq(s.customers.isCarrier, true),
-          eq(s.customers.status, 'ACTIVE'),
           isNull(s.customers.deletedAt),
         ))
         .limit(1);
-      if (!carrier) throw new ApiError(404, 'Không tìm thấy nhà xe hoạt động.');
+      // Detailed plans retain historical carrier assignments. A missing,
+      // deleted, non-carrier, or locked record has no assignable live fleet,
+      // but is not an error when the dispatcher opens that row's selector.
+      if (!carrier || carrier.status !== 'ACTIVE') {
+        return { items: [], total: 0, limit, nextCursor: null };
+      }
       const vehicleWhere = and(
         eq(s.carrierFleetVehicles.carrierId, carrierId),
         eq(s.carrierFleetVehicles.isActive, true),

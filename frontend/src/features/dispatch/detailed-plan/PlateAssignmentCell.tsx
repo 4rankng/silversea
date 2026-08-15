@@ -34,6 +34,7 @@ function mapFleetResponse(
 const OWN_TRUCK_PREFIX = 'truck:';
 const EXTERNAL_VEHICLE_PREFIX = 'vehicle:';
 const FREE_TEXT_PREFIX = 'free:';
+const CURRENT_PLATE_PREFIX = 'current:';
 
 interface PlateAssignmentCellProps {
   row: DispatchDetailPlanRow;
@@ -59,19 +60,20 @@ export function PlateAssignmentCell({ row, onAssign, disabled = false }: PlateAs
 
   const currentValue = row.dispatch.assignedPlate ?? '';
 
-  // Resolve the current value to the matching catalog option so the select
-  // shows the check state correctly.
+  // Preserve the persisted plate while the live fleet list is loading or when
+  // its carrier is no longer active. A current option is display-only: users
+  // may clear it or choose a live vehicle, but cannot accidentally reassign it.
   const selectedValue = useMemo(() => {
     if (!currentValue) return '';
-    if (isOwn) {
-      const truckOption = options.find((option) => option.label === currentValue);
-      return truckOption?.value ?? '';
-    }
-    if (row.dispatch.externalCarrierVehicleId != null) {
-      return `${EXTERNAL_VEHICLE_PREFIX}${row.dispatch.externalCarrierVehicleId}`;
-    }
-    return `${FREE_TEXT_PREFIX}${currentValue}`;
-  }, [currentValue, isOwn, options, row.dispatch.externalCarrierVehicleId]);
+    return options.find((option) => option.label === currentValue)?.value
+      ?? `${CURRENT_PLATE_PREFIX}${currentValue}`;
+  }, [currentValue, options]);
+
+  const selectableOptions = useMemo(() => (
+    currentValue && !options.some((option) => option.label === currentValue)
+      ? [{ value: `${CURRENT_PLATE_PREFIX}${currentValue}`, label: currentValue }, ...options]
+      : options
+  ), [currentValue, options]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +156,7 @@ export function PlateAssignmentCell({ row, onAssign, disabled = false }: PlateAs
       }
       return;
     }
+    if (value.startsWith(CURRENT_PLATE_PREFIX)) return;
     setSaving(true);
     try {
       if (value.startsWith(OWN_TRUCK_PREFIX)) {
@@ -179,7 +182,7 @@ export function PlateAssignmentCell({ row, onAssign, disabled = false }: PlateAs
         value={selectedValue}
         onChange={handleChange}
         onSearchChange={setSearchQuery}
-        options={options}
+        options={selectableOptions}
         placeholder={isOwn ? 'Chọn biển số xe' : 'Chọn hoặc nhập biển số'}
         searchPlaceholder="Tìm biển số xe…"
         emptyMessage={loadingOptions ? 'Đang tải…' : 'Không tìm thấy xe phù hợp.'}

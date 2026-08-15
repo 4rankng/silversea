@@ -194,7 +194,7 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell">
                     <PlateAssignmentCell row={row} onAssign={onAssignPlate} />
-                    {row.lotFullyPlated && (
+                    {row.lotFullyPlated && !row.dispatch.assignedPlate && (
                       <div className="detailed-plan-grid__lot-flag">Đã phân xe</div>
                     )}
                   </td>

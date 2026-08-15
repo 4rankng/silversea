@@ -130,4 +130,13 @@ describe('MasterPlanFilters', () => {
     fireEvent.change(screen.getByLabelText('Ngày giao đến'), { target: { value: '2026-08-31' } });
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
   });
+
+  it('keeps the complete delivery-date range in one responsive control group', () => {
+    const { container } = render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '' }} onChange={vi.fn()} />);
+    expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
+
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).toContain('grid-template-columns: minmax(260px, 420px)');
+    expect(css).toContain('.master-plan-filters__date-range');
+  });
 });

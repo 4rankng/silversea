@@ -1030,6 +1030,42 @@ describe('dispatch fulfillment workflow routes', () => {
     assert.equal(carrierSearch.data.items.length, 2);
     assert.equal(typeof carrierSearch.data.nextCursor, 'string');
 
+    const [inactiveCarrier] = await db.insert(s.customers).values({
+      name: `${countToken} Nhà xe ngừng hoạt động`,
+      isCarrier: true,
+      status: 'LOCKED',
+    }).returning({ id: s.customers.id });
+    createdCustomerIds.push(inactiveCarrier!.id);
+    await db.insert(s.carrierFleetVehicles).values({
+      carrierId: inactiveCarrier!.id,
+      licensePlate: `${countToken}-INACTIVE`,
+      normalizedPlate: `${countToken}INACTIVE`,
+    });
+
+    const inactiveCarrierVehicles = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>(`/dispatch-fleet?resource=EXTERNAL_VEHICLE&carrierId=${inactiveCarrier!.id}`, {
+      token: managerToken,
+    });
+    assert.equal(inactiveCarrierVehicles.status, 200);
+    assert.deepEqual(inactiveCarrierVehicles.data.items, []);
+    assert.equal(inactiveCarrierVehicles.data.total, 0);
+    assert.equal(inactiveCarrierVehicles.data.nextCursor, null);
+
+    const removedCarrierVehicles = await apiFetch<{
+      items: Array<{ id: number }>;
+      total: number;
+      nextCursor: string | null;
+    }>('/dispatch-fleet?resource=EXTERNAL_VEHICLE&carrierId=999999999', {
+      token: managerToken,
+    });
+    assert.equal(removedCarrierVehicles.status, 200);
+    assert.deepEqual(removedCarrierVehicles.data.items, []);
+    assert.equal(removedCarrierVehicles.data.total, 0);
+    assert.equal(removedCarrierVehicles.data.nextCursor, null);
+
     const malformedCursor = await apiFetch<{ error?: string }>('/dispatch-fleet?resource=TRUCK&cursor=not-a-valid-cursor', {
       token: managerToken,
     });

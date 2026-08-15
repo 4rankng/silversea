@@ -1076,6 +1076,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
     expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.cus-quick-edit input,[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
+    expect(css).toMatch(/\.cus-quick-edit\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(css).toMatch(/\.cus-quick-edit > \*\s*\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.cus-quick-edit small\s*\{[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
   });
 

@@ -70,6 +70,19 @@ describe('PlateAssignmentCell', () => {
     expect(await screen.findByText('51C-123.45')).toBeTruthy();
   });
 
+  it('keeps a persisted external plate visible after its locked carrier returns no live vehicles', async () => {
+    useDesktopViewport();
+    mockFleet([]);
+    render(<PlateAssignmentCell row={ownRow({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe đã khóa', externalCarrierId: 77, externalCarrierVehicleId: null, assignedPlate: '51H-123.45' },
+    })} onAssign={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 }));
+    });
+    expect(screen.getByRole('button', { name: /51H-123\.45/i })).toBeTruthy();
+  });
+
   it('loads the vendor vehicle population for EXTERNAL rows with carrierId', async () => {
     useDesktopViewport();
     mockFleet([{ id: 31, licensePlate: '51H-888.88' }]);

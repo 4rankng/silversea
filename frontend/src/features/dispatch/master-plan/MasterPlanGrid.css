@@ -3,8 +3,8 @@
    dispatch-plan-page__* BEM conventions. */
 
 .master-plan-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(130px, 150px) minmax(180px, 220px) minmax(270px, 300px);
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
@@ -14,31 +14,51 @@
    these rules only shape them inside the flex bar. */
 
 .master-plan-filters__search {
-  flex: 1 1 300px;
-  min-width: 200px;
-  max-inline-size: 420px;
+  min-width: 0;
 }
 
 .master-plan-filters__select {
-  width: auto;
-  min-width: 150px;
-  max-inline-size: 220px;
+  min-width: 0;
+  width: 100%;
 }
 
-.master-plan-filters__date {
-  display: inline-flex;
+.master-plan-filters__date-range {
+  display: grid;
+  grid-template-columns: auto minmax(104px, 1fr) auto minmax(104px, 1fr);
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 13px;
   color: var(--text-secondary, #64748b);
 }
 
 .master-plan-filters__date-input {
-  min-width: 132px;
+  min-width: 0;
 }
 
 .master-plan-filters__date-sep {
   color: var(--text-secondary, #94a3b8);
+}
+
+@media (max-width: 1180px) {
+  .master-plan-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .master-plan-filters__search,
+  .master-plan-filters__date-range {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .master-plan-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .master-plan-filters__date-range {
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  }
 }
 
 .master-plan-grid__wrapper {

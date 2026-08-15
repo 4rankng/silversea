@@ -104,10 +104,20 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Nhận: 20/08/2026')).toBeTruthy();
   });
 
-  it('shows the lot flag and plated row state when lotFullyPlated', () => {
+  it('shows the lot flag only when a fully plated lot has no visible plate in this row', () => {
     const { container } = renderGrid([row({ lotFullyPlated: true })]);
     expect(screen.getByText('Đã phân xe')).toBeTruthy();
     expect(container.querySelector('.detailed-plan-grid__row--plated')).toBeTruthy();
+  });
+
+  it('does not repeat the fully plated status when the assigned plate is already visible', () => {
+    renderGrid([row({
+      lotFullyPlated: true,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-123.45' },
+    })]);
+
+    expect(screen.getByRole('button', { name: /51C-123\.45/i })).toBeTruthy();
+    expect(screen.queryByText('Đã phân xe')).toBeNull();
   });
 
   it('renders the vendor placeholder hint for unassigned EXTERNAL rows', () => {
