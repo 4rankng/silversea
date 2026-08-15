@@ -175,7 +175,7 @@
 
 .shipment-detail__doc-key {
   color: var(--fg-3);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   flex: 1;
   overflow: hidden;

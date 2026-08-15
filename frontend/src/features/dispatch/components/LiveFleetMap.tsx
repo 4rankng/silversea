@@ -25,8 +25,8 @@ function popupHtml(v: LiveFleetVehicle): string {
   const e = escapeHtml;
   const color = LIVE_STATUS_COLOR[v.status];
   const label = LIVE_STATUS_LABEL[v.status];
-  const mono = "font-family:'JetBrains Mono', monospace;";
-  const sans = "font-family:'Be Vietnam Pro', sans-serif;";
+  const mono = 'font-family:var(--font-mono);';
+  const sans = 'font-family:var(--font-body);';
   return `<div style="min-width:210px; ${sans} font-size:13px; line-height:1.5;">
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
       <strong style="font-size:14px;">${e(v.licensePlate)}</strong>

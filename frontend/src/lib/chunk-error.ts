@@ -39,7 +39,7 @@ function renderFallback(): void {
   const root = document.getElementById('root');
   if (!root) return;
   root.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:1.5rem;color:#1f2937">' +
+    '<div style="display:flex;align-items:center;justify-content:center;height:100dvh;font-family:var(--font-body);text-align:center;padding:1.5rem;color:#1f2937">' +
     '<div>' +
     '<p style="font-size:1.05rem;font-weight:600;margin:0 0 .35rem">Phiên bản mới đã sẵn sàng.</p>' +
     '<p style="margin:0;color:#6b7280">Vui lòng tải lại trang để tiếp tục.</p>' +
