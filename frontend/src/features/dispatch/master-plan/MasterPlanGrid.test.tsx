@@ -118,10 +118,12 @@ describe('MasterPlanFilters', () => {
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
 
-    fireEvent.change(screen.getByLabelText('Chiều hàng'), { target: { value: 'IMPORT' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Chiều hàng' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
-    fireEvent.change(screen.getByLabelText('Trạng thái phân bổ'), { target: { value: 'NOT_ALLOCATED' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Trạng thái phân bổ' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
     fireEvent.change(screen.getByLabelText('Ngày giao từ'), { target: { value: '2026-08-01' } });
@@ -136,7 +138,8 @@ describe('MasterPlanFilters', () => {
     expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('grid-template-columns: minmax(260px, 420px)');
+    expect(css).toContain('grid-template-columns: minmax(280px, 1fr) 132px 204px minmax(396px, 1.12fr)');
+    expect(css).toContain('grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('.master-plan-filters__date-range');
   });
 });

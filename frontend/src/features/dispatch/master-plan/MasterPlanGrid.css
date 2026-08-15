@@ -4,7 +4,7 @@
 
 .master-plan-filters {
   display: grid;
-  grid-template-columns: minmax(260px, 420px) minmax(130px, 150px) minmax(180px, 220px) minmax(270px, 300px);
+  grid-template-columns: minmax(280px, 1fr) 132px 204px minmax(396px, 1.12fr);
   align-items: center;
   gap: 10px;
   margin-bottom: 14px;
@@ -24,7 +24,7 @@
 
 .master-plan-filters__date-range {
   display: grid;
-  grid-template-columns: auto minmax(104px, 1fr) auto minmax(104px, 1fr);
+  grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr);
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -32,8 +32,18 @@
   color: var(--text-secondary, #64748b);
 }
 
+.master-plan-filters__date-label {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .master-plan-filters__date-input {
   min-width: 0;
+}
+
+.master-plan-filters__date-input input {
+  min-width: 0;
+  padding-inline: 10px;
 }
 
 .master-plan-filters__date-sep {
