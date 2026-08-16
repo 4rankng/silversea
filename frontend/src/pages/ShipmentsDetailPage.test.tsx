@@ -122,7 +122,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.queryByText('Sửa')).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Công việc container theo tất cả các ngày' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Danh sách container' })).toBeTruthy();
+    expect(screen.queryByText('Sổ điều hành container')).toBeNull();
+    expect(screen.queryByText('Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tất cả ngày' })).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
@@ -239,7 +241,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter initialEntries={['/?page=-2&transportDateFrom=2026-08-31&transportDateTo=2026-08-01&customerId=7.5&direction=SIDEWAYS&searchSuffix=ABC!']}><ShipmentsDetailPage /></MemoryRouter>);
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(await screen.findByRole('heading', { name: 'Công việc container theo tất cả các ngày' })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: 'Danh sách container' })).toBeTruthy();
   });
 
   it('applies date, customer, direction, and valid suffix changes immediately', async () => {

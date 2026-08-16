@@ -453,20 +453,8 @@ export default function ShipmentsDetailPage() {
       <PageHeader title="Chi tiết lô hàng" iconName="cargo" description="Bảng điều hành có thể chỉnh trực tiếp từng ô dữ liệu được phép của lô hàng và container." />
       {editNotice && <Alert variant="success">{editNotice}</Alert>}
 
-      <section className="shipments-detail-workspace" aria-labelledby="shipment-container-ledger-title" aria-busy={loading}>
+      <section className="shipments-detail-workspace" aria-label="Danh sách container" aria-busy={loading}>
         <div className="shipments-detail-workspace__header">
-          <div className="shipments-detail-workspace__intro">
-            <span className="shipments-detail-eyebrow">Sổ điều hành container</span>
-            <h2 id="shipment-container-ledger-title">Công việc container {dateFrom && dateTo
-              ? `từ ${dateFrom.split('-').reverse().join('/')} đến ${dateTo.split('-').reverse().join('/')}`
-              : dateFrom
-                ? `từ ngày ${dateFrom.split('-').reverse().join('/')}`
-                : dateTo
-                  ? `đến ngày ${dateTo.split('-').reverse().join('/')}`
-                  : 'theo tất cả các ngày'}</h2>
-            <p>Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.</p>
-          </div>
-
           <div className="shipments-detail-filters">
             <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập 4–5 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 5, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
             <UUIInput label="Từ ngày vận chuyển" size="sm" type="date" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
