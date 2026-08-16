@@ -70991,19 +70991,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:frontend/src/styles/base.test.ts",
-      "type": "file",
-      "name": "base.test.ts",
-      "filePath": "frontend/src/styles/base.test.ts",
-      "summary": "Verifies expected behavior and regression coverage for base test.",
-      "tags": [
-        "test",
-        "verification",
-        "typescript"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:frontend/src/test-setup.ts",
       "type": "file",
       "name": "test-setup.ts",
@@ -72294,138 +72281,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "file",
-      "name": "input.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
-      "summary": "Defines composable text input primitives with labels, hints, tooltips, icons, password visibility, and grouped-field styling.",
-      "tags": [
-        "component",
-        "form",
-        "input",
-        "design-system"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:InputBase",
-      "type": "function",
-      "name": "InputBase",
-      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
-      "lineRange": [
-        42,
-        199
-      ],
-      "summary": "Renders the core React Aria input group with contextual sizing, icons, validation feedback, shortcuts, and password visibility control.",
-      "tags": [
-        "component",
-        "input",
-        "react-aria",
-        "validation"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:TextField",
-      "type": "function",
-      "name": "TextField",
-      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
-      "lineRange": [
-        209,
-        222
-      ],
-      "summary": "Provides a styled React Aria text-field wrapper and shares input presentation settings through context.",
-      "tags": [
-        "component",
-        "form",
-        "context",
-        "react-aria"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
-      "type": "function",
-      "name": "Input",
-      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
-      "lineRange": [
-        253,
-        306
-      ],
-      "summary": "Composes label, base input, and hint text into a labelled field with required and validation affordances.",
-      "tags": [
-        "component",
-        "form",
-        "input",
-        "validation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "type": "file",
-      "name": "label.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
-      "summary": "Provides a form label primitive with required indicators, invalid-state styling, and optional explanatory tooltip content.",
-      "tags": [
-        "component",
-        "form",
-        "label",
-        "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
-      "type": "function",
-      "name": "Label",
-      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
-      "lineRange": [
-        17,
-        51
-      ],
-      "summary": "Renders an accessible label with optional required marker and tooltip guidance.",
-      "tags": [
-        "component",
-        "label",
-        "tooltip",
-        "accessibility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "file",
-      "name": "select-native.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "summary": "Provides an accessible native select control with Untitled UI label, hint, sizing, and dropdown-icon treatment.",
-      "tags": [
-        "component",
-        "form",
-        "select",
-        "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
-      "type": "function",
-      "name": "NativeSelect",
-      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "lineRange": [
-        30,
-        96
-      ],
-      "summary": "Renders a labelled native select with generated ARIA identifiers, options, helper text, and responsive visual states.",
-      "tags": [
-        "component",
-        "select",
-        "form",
-        "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
       "type": "file",
       "name": "tooltip.tsx",
@@ -72592,293 +72447,6 @@
         "component"
       ],
       "complexity": "simple"
-    },
-    {
-      "id": "file:frontend/src/components/UI.tsx",
-      "type": "file",
-      "name": "UI.tsx",
-      "filePath": "frontend/src/components/UI.tsx",
-      "summary": "Provides legacy-compatible shared React UI primitives, including metric cards, form groups, buttons, overlays, and confirmation keyboard behavior.",
-      "tags": [
-        "component",
-        "ui-primitives",
-        "overlay",
-        "accessibility",
-        "legacy"
-      ],
-      "complexity": "complex",
-      "languageNotes": "TypeScript React components bridge legacy class-based styling with Untitled UI primitives and Anime.js overlays."
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:overlayEntrance",
-      "type": "function",
-      "name": "overlayEntrance",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        17,
-        31
-      ],
-      "summary": "Animates an overlay and its content into view, respecting reduced-motion preferences.",
-      "tags": [
-        "animation",
-        "overlay",
-        "accessibility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "function",
-      "name": "useConfirmShortcuts",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        75,
-        107
-      ],
-      "summary": "Registers Enter and Escape dialog shortcuts while preserving textarea, contenteditable, and composition behavior.",
-      "tags": [
-        "hook",
-        "keyboard",
-        "accessibility",
-        "dialog"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "function",
-      "name": "KPI",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        138,
-        190
-      ],
-      "summary": "Renders a KPI card with optional trend badge, sparkline, icon, and keyboard-accessible click handling.",
-      "tags": [
-        "component",
-        "kpi",
-        "dashboard",
-        "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "function",
-      "name": "PageHeader",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        208,
-        235
-      ],
-      "summary": "Renders a page title area with optional back action, branded icon, description, and action slot.",
-      "tags": [
-        "component",
-        "page-header",
-        "navigation",
-        "layout"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "function",
-      "name": "Panel",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        249,
-        264
-      ],
-      "summary": "Renders a reusable content panel with optional heading, subtitle, action, and flush body mode.",
-      "tags": [
-        "component",
-        "panel",
-        "layout",
-        "container"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Card",
-      "type": "function",
-      "name": "Card",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        278,
-        291
-      ],
-      "summary": "Preserves the legacy Card API by delegating its layout to the shared Panel primitive.",
-      "tags": [
-        "component",
-        "card",
-        "legacy",
-        "adapter"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "function",
-      "name": "Btn",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        313,
-        336
-      ],
-      "summary": "Adapts legacy button variants and touch-target sizes to the Untitled UI button component.",
-      "tags": [
-        "component",
-        "button",
-        "legacy",
-        "adapter"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "function",
-      "name": "Toolbar",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        345,
-        347
-      ],
-      "summary": "Wraps table filter controls in the established toolbar layout class.",
-      "tags": [
-        "component",
-        "toolbar",
-        "filters",
-        "layout"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "function",
-      "name": "FilterPill",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        359,
-        371
-      ],
-      "summary": "Renders a compact interactive filter control with active state, optional icon, and count.",
-      "tags": [
-        "component",
-        "filter",
-        "button",
-        "table"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "function",
-      "name": "StatusPill",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        392,
-        403
-      ],
-      "summary": "Maps legacy status variants to Untitled UI badges, optionally showing a status dot.",
-      "tags": [
-        "component",
-        "status",
-        "badge",
-        "legacy"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "function",
-      "name": "PlateTag",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        412,
-        414
-      ],
-      "summary": "Renders a vehicle registration plate using the shared plate styling hook.",
-      "tags": [
-        "component",
-        "vehicle",
-        "label",
-        "logistics"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "function",
-      "name": "Badge",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        424,
-        430
-      ],
-      "summary": "Adapts legacy badge variants to the Untitled UI color badge component.",
-      "tags": [
-        "component",
-        "badge",
-        "legacy",
-        "adapter"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "function",
-      "name": "FormGroup",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        452,
-        471
-      ],
-      "summary": "Associates a form label with its child field and renders validation or help text.",
-      "tags": [
-        "component",
-        "form",
-        "validation",
-        "accessibility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "function",
-      "name": "Modal",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        485,
-        547
-      ],
-      "summary": "Renders a portal-based modal with focus trapping, animated visibility, backdrop close, and confirmation shortcuts.",
-      "tags": [
-        "component",
-        "modal",
-        "overlay",
-        "accessibility",
-        "animation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "function",
-      "name": "Drawer",
-      "filePath": "frontend/src/components/UI.tsx",
-      "lineRange": [
-        563,
-        647
-      ],
-      "summary": "Renders an animated side drawer with focus management, semantic dialog attributes, and optional footer content.",
-      "tags": [
-        "component",
-        "drawer",
-        "overlay",
-        "accessibility",
-        "animation"
-      ],
-      "complexity": "moderate"
     },
     {
       "id": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
@@ -73542,20 +73110,6 @@
         "select",
         "listbox",
         "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
-      "type": "file",
-      "name": "select-shared.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/select/select-shared.tsx",
-      "summary": "Defines shared select item types, field props, size tokens, and the select-size context.",
-      "tags": [
-        "type-definition",
-        "select",
-        "context",
-        "design-system"
       ],
       "complexity": "moderate"
     },
@@ -74647,92 +74201,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "type": "file",
-      "name": "uui-fields.tsx",
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "summary": "Wraps Untitled UI input, combobox, native select, and textarea primitives in controlled field components used by the shipment-create form.",
-      "tags": [
-        "component",
-        "form-control",
-        "design-system",
-        "shipment-create"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
-      "type": "function",
-      "name": "UTextField",
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "lineRange": [
-        39,
-        69
-      ],
-      "summary": "Renders a controlled single-line Untitled UI input with labels, hints, required state, and inline error feedback.",
-      "tags": [
-        "react-component",
-        "form-control",
-        "input",
-        "validation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
-      "type": "function",
-      "name": "USearchableField",
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "lineRange": [
-        86,
-        136
-      ],
-      "summary": "Renders a controlled searchable combobox that maps form values to selectable option labels and supports optional custom values.",
-      "tags": [
-        "react-component",
-        "form-control",
-        "combobox",
-        "validation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
-      "type": "function",
-      "name": "USelectField",
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "lineRange": [
-        150,
-        177
-      ],
-      "summary": "Renders a controlled native select field with option mapping and standard field validation presentation.",
-      "tags": [
-        "react-component",
-        "form-control",
-        "select",
-        "validation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
-      "type": "function",
-      "name": "UTextAreaField",
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "lineRange": [
-        189,
-        210
-      ],
-      "summary": "Renders a controlled multiline text field for shipment notes with configurable rows and character limits.",
-      "tags": [
-        "react-component",
-        "form-control",
-        "textarea",
-        "shipment-create"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
       "type": "file",
       "name": "RecoverableCostsWorkspace.tsx",
@@ -75219,23 +74687,6 @@
       "tags": [
         "test",
         "helper"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
-      "type": "file",
-      "name": "ClerkShipmentCreatePage.styles.test.ts",
-      "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
-      "lineRange": [
-        1,
-        37
-      ],
-      "summary": "Guards visible control boundaries and responsive styling on the standalone shipment-create page.",
-      "tags": [
-        "test",
-        "shipment",
-        "regression"
       ],
       "complexity": "simple"
     },
@@ -76816,220 +76267,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "type": "file",
-      "name": "ShipmentsPage.tsx",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "summary": "High-volume shipment workspace with filtering, status signals, quick edits, container-ledger editing, export, and workflow actions.",
-      "tags": [
-        "component",
-        "page",
-        "workflow",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:quickEditTitle",
-      "type": "function",
-      "name": "quickEditTitle",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        154,
-        164
-      ],
-      "summary": "Implements quickEditTitle behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "editing",
-        "workflow",
-        "component"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentQuickEditFields",
-      "type": "function",
-      "name": "ShipmentQuickEditFields",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        166,
-        215
-      ],
-      "summary": "Implements ShipmentQuickEditFields behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "editing",
-        "workflow",
-        "component"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
-      "type": "function",
-      "name": "FinanceEvidence",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        225,
-        251
-      ],
-      "summary": "Implements FinanceEvidence behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
-      "type": "function",
-      "name": "accountingConfirmationLabel",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        270,
-        279
-      ],
-      "summary": "Implements accountingConfirmationLabel behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
-      "type": "function",
-      "name": "lineDraft",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        303,
-        315
-      ],
-      "summary": "Implements lineDraft behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
-      "type": "function",
-      "name": "lineOperationalSignature",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        317,
-        328
-      ],
-      "summary": "Implements lineOperationalSignature behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "type": "function",
-      "name": "ContainerLineRow",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        334,
-        522
-      ],
-      "summary": "Implements ContainerLineRow behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
-      "type": "function",
-      "name": "ContainerLedger",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        524,
-        621
-      ],
-      "summary": "Implements ContainerLedger behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
-      "type": "function",
-      "name": "deriveShipmentSignals",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        632,
-        668
-      ],
-      "summary": "Implements deriveShipmentSignals behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
-      "type": "function",
-      "name": "ShipmentSignals",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        685,
-        700
-      ],
-      "summary": "Implements ShipmentSignals behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
-      "type": "function",
-      "name": "ShipmentDetailContent",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        702,
-        747
-      ],
-      "summary": "Implements ShipmentDetailContent behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "function",
-      "name": "ShipmentsPage",
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "lineRange": [
-        749,
-        1872
-      ],
-      "summary": "Implements ShipmentsPage behavior within ShipmentsPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "complex"
-    },
-    {
       "id": "file:shared/src/schemas/cus-shipment-workspace.ts",
       "type": "file",
       "name": "cus-shipment-workspace.ts",
@@ -77938,6 +77175,794 @@
         "render-helper"
       ],
       "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/UI.tsx",
+      "type": "file",
+      "name": "UI.tsx",
+      "filePath": "frontend/src/components/UI.tsx",
+      "summary": "Legacy shared UI kit providing page chrome and overlay primitives (KPI, PageHeader, Panel, Card, Modal, Drawer, pills, badges, form groups) that now delegates button, badge, and label rendering to Untitled UI base controls aligned to the 34px compact control-density rhythm.",
+      "tags": [
+        "ui-kit",
+        "component",
+        "overlay",
+        "design-system",
+        "legacy"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Re-exports ConfirmDialog/useConfirm from confirm-dialog.tsx; Btn maps its legacy sm/md sizes onto UUI Button via BTN_SIZE_MAP so small controls keep the compact token height."
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "file",
+      "name": "input.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
+      "summary": "Untitled UI text input module whose InputBase/TextField/Input stack derives size-driven min-heights (32px sm inner input, 34px wrapper, 44px touch floor via max-md) from the shared control-density contract.",
+      "tags": [
+        "component",
+        "input",
+        "untitled-ui",
+        "form-control",
+        "design-system"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "type": "file",
+      "name": "label.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
+      "summary": "Untitled UI form label with required indicator, invalid-state coloring, and optional help tooltip, scaling to xs text inside sm-sized controls.",
+      "tags": [
+        "component",
+        "label",
+        "untitled-ui",
+        "form-control",
+        "accessibility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/control-density.styles.test.ts",
+      "type": "file",
+      "name": "control-density.styles.test.ts",
+      "filePath": "frontend/src/components/control-density.styles.test.ts",
+      "summary": "Pins the control-density contract: 34/40/44px tokens in tokens.css, base-layer native form resets, the legacy small-button mapping in UI.tsx and Button.css, and a recursive scan forbidding page/feature stylesheets from owning UUI field dimensions.",
+      "tags": [
+        "test",
+        "css",
+        "design-tokens",
+        "regression"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "type": "file",
+      "name": "form-control-boundaries.test.ts",
+      "filePath": "frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "summary": "Asserts every UUI form control keeps a real border boundary instead of shadow-only edges, clipped rounded corners, a trailing icon lane in each native-select size, and popover borders under the app-wide no-shadow contract.",
+      "tags": [
+        "test",
+        "css",
+        "design-system",
+        "regression"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/input/input.test.tsx",
+      "type": "file",
+      "name": "input.test.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.test.tsx",
+      "summary": "Renders Input to verify the sm compact field contract (32px inner input, 34px wrapper, 42/44px touch floor) and the reserved invalid-state icon padding.",
+      "tags": [
+        "test",
+        "component",
+        "rtl",
+        "form-control"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select-native.test.tsx",
+      "type": "file",
+      "name": "select-native.test.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.test.tsx",
+      "summary": "Renders NativeSelect to verify data-input-size=sm wiring and the 34px compact select classes with the mobile touch floor.",
+      "tags": [
+        "test",
+        "component",
+        "rtl",
+        "form-control"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:overlayEntrance",
+      "type": "function",
+      "name": "overlayEntrance",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        17,
+        31
+      ],
+      "summary": "Animejs-driven entrance animation for overlay surfaces, honoring the reduced-motion preference.",
+      "tags": [
+        "animation",
+        "overlay",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
+      "type": "function",
+      "name": "useConfirmShortcuts",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        75,
+        107
+      ],
+      "summary": "Window-level keyboard shortcuts (Esc/Enter) that wire confirm and cancel callbacks into overlay dialogs.",
+      "tags": [
+        "hook",
+        "keyboard",
+        "overlay"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:KPI",
+      "type": "function",
+      "name": "KPI",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        138,
+        190
+      ],
+      "summary": "KPI stat card with asset watermark, sparkline trend, unit/meta rows, and optional click-through navigation.",
+      "tags": [
+        "component",
+        "kpi",
+        "dashboard"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:PageHeader",
+      "type": "function",
+      "name": "PageHeader",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        204,
+        224
+      ],
+      "summary": "Page title header with icon, description, action slot, and optional back navigation.",
+      "tags": [
+        "component",
+        "header"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Panel",
+      "type": "function",
+      "name": "Panel",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        238,
+        253
+      ],
+      "summary": "Titled content panel with subtitle, action slot, and flush mode.",
+      "tags": [
+        "component",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Card",
+      "type": "function",
+      "name": "Card",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        267,
+        280
+      ],
+      "summary": "Titled card container with optional padding removal.",
+      "tags": [
+        "component",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Btn",
+      "type": "function",
+      "name": "Btn",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        302,
+        325
+      ],
+      "summary": "Legacy button facade that maps sm/md sizes onto the Untitled UI Button so small buttons keep the 34px compact control rhythm.",
+      "tags": [
+        "component",
+        "button",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Toolbar",
+      "type": "function",
+      "name": "Toolbar",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        334,
+        336
+      ],
+      "summary": "Flex toolbar row for grouping page actions.",
+      "tags": [
+        "component",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:FilterPill",
+      "type": "function",
+      "name": "FilterPill",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        348,
+        360
+      ],
+      "summary": "Toggleable filter chip with icon and active count badge.",
+      "tags": [
+        "component",
+        "filter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:StatusPill",
+      "type": "function",
+      "name": "StatusPill",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        381,
+        392
+      ],
+      "summary": "Colored status pill wrapping the UUI dot badge.",
+      "tags": [
+        "component",
+        "status"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:PlateTag",
+      "type": "function",
+      "name": "PlateTag",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        401,
+        403
+      ],
+      "summary": "License-plate tag styled as a compact mono chip.",
+      "tags": [
+        "component",
+        "tag"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Badge",
+      "type": "function",
+      "name": "Badge",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        413,
+        419
+      ],
+      "summary": "Neutral/semantic badge wrapping the UUI color badge.",
+      "tags": [
+        "component",
+        "badge"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:FormGroup",
+      "type": "function",
+      "name": "FormGroup",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        441,
+        460
+      ],
+      "summary": "Label plus control plus hint/error field group with generated ids and cloned control wiring.",
+      "tags": [
+        "component",
+        "form"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Modal",
+      "type": "function",
+      "name": "Modal",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        474,
+        536
+      ],
+      "summary": "Portal-rendered animated modal with focus trap, confirm shortcuts, and footer actions.",
+      "tags": [
+        "component",
+        "modal",
+        "overlay"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/UI.tsx:Drawer",
+      "type": "function",
+      "name": "Drawer",
+      "filePath": "frontend/src/components/UI.tsx",
+      "lineRange": [
+        552,
+        636
+      ],
+      "summary": "Side drawer with spring entrance/exit animations, focus trap, confirm shortcuts, and header graphic slot.",
+      "tags": [
+        "component",
+        "drawer",
+        "overlay"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:InputBase",
+      "type": "function",
+      "name": "InputBase",
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
+      "lineRange": [
+        42,
+        201
+      ],
+      "summary": "Core input renderer handling leading/trailing icons, password visibility toggle, tooltips, invalid state, and the size-driven compact height classes.",
+      "tags": [
+        "component",
+        "input",
+        "core"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:TextField",
+      "type": "function",
+      "name": "TextField",
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
+      "lineRange": [
+        211,
+        224
+      ],
+      "summary": "React Aria TextField wrapper that publishes size and per-part class names through TextFieldContext.",
+      "tags": [
+        "component",
+        "input",
+        "context"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
+      "type": "function",
+      "name": "Input",
+      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
+      "lineRange": [
+        255,
+        309
+      ],
+      "summary": "Self-contained labeled input composing TextField with Label, HintText, and the shared compact size contract.",
+      "tags": [
+        "component",
+        "input",
+        "form-control"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
+      "type": "function",
+      "name": "Label",
+      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
+      "lineRange": [
+        17,
+        51
+      ],
+      "summary": "React Aria label with required indicator, invalid coloring, help tooltip trigger, and sm-control text scaling.",
+      "tags": [
+        "component",
+        "label",
+        "form-control"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "file",
+      "name": "select-native.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "summary": "Native HTML select styled to the UUI control contract: token-driven min-heights per size, a reserved trailing chevron lane, full-width clamping, and appearance reset for long selected labels.",
+      "tags": [
+        "component",
+        "select",
+        "untitled-ui",
+        "form-control",
+        "native-element"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "type": "file",
+      "name": "select-shared.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "summary": "Shared select building blocks: the SelectItemType/CommonProps contracts, the sm/md/lg sizing class map (34px compact sm with 44px max-md floor), and the SelectContext consumed by every select variant.",
+      "tags": [
+        "type-definition",
+        "select",
+        "untitled-ui",
+        "sizing",
+        "shared"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Exports only types, a const size-class map, and a React context — no component functions."
+    },
+    {
+      "id": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "type": "file",
+      "name": "uui-fields.tsx",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "summary": "Field adapters for the shipment create form that wrap UUI Input, ComboBox, NativeSelect, and TextArea with a uniform value/onChange string API, md sizing passed through to the controls, and the csc-control-boundary class.",
+      "tags": [
+        "component",
+        "form-field",
+        "adapter",
+        "untitled-ui",
+        "shipments"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "type": "file",
+      "name": "ShipmentsPage.tsx",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "summary": "CUS shipment worksheet page: URL-synced filters and pagination over the shipment workspace list, drawer-based detail with an editable container-line ledger, inline quick-edit, finance/lock/reopen actions, and CSV export.",
+      "tags": [
+        "page",
+        "worksheet",
+        "shipments",
+        "frontend",
+        "data-table"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "type": "file",
+      "name": "ClerkShipmentCreatePage.styles.test.ts",
+      "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "summary": "Style-contract tests for the clerk shipment create page: visible control boundaries and focus states, shrinkable container grids, radio-card cargo mode, compact desktop density with mobile touch targets, and bounded validation lists.",
+      "tags": [
+        "test",
+        "css",
+        "layout",
+        "regression"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/styles/base.test.ts",
+      "type": "file",
+      "name": "base.test.ts",
+      "filePath": "frontend/src/styles/base.test.ts",
+      "summary": "Guards base.css: document-scroll containment for the authenticated app shell and form font inheritance confined to @layer base so component size utilities can win.",
+      "tags": [
+        "test",
+        "css",
+        "base-layer",
+        "regression"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
+      "type": "function",
+      "name": "NativeSelect",
+      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "lineRange": [
+        32,
+        98
+      ],
+      "summary": "Native select with label/hint wiring, per-size min-heights and chevron lanes, input-group composition styles, and clamped width.",
+      "tags": [
+        "component",
+        "select",
+        "form-control"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+      "type": "function",
+      "name": "UTextField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        39,
+        70
+      ],
+      "summary": "Text field adapter wrapping UUI Input with a string value/onChange API, md sizing, and the csc-control-boundary class.",
+      "tags": [
+        "component",
+        "form-field",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+      "type": "function",
+      "name": "USearchableField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        91,
+        149
+      ],
+      "summary": "Searchable combo field adapter normalizing option lists, selected-label lookup, custom values, and popover class pass-through.",
+      "tags": [
+        "component",
+        "form-field",
+        "adapter",
+        "combobox"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+      "type": "function",
+      "name": "USelectField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        163,
+        191
+      ],
+      "summary": "Native select adapter exposing a plain options/value API over UUI NativeSelect.",
+      "tags": [
+        "component",
+        "form-field",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "function",
+      "name": "UTextAreaField",
+      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
+      "lineRange": [
+        203,
+        225
+      ],
+      "summary": "Textarea adapter wrapping UUI TextArea with row count and character limit pass-through.",
+      "tags": [
+        "component",
+        "form-field",
+        "adapter"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:quickEditTitle",
+      "type": "function",
+      "name": "quickEditTitle",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        154,
+        164
+      ],
+      "summary": "Maps quick-edit field keys to Vietnamese dialog titles.",
+      "tags": [
+        "utility",
+        "i18n"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentQuickEditFields",
+      "type": "function",
+      "name": "ShipmentQuickEditFields",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        166,
+        215
+      ],
+      "summary": "Form fields for the inline quick-edit dialog, producing an immutable draft patch per change.",
+      "tags": [
+        "component",
+        "form",
+        "quick-edit"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
+      "type": "function",
+      "name": "FinanceEvidence",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        225,
+        251
+      ],
+      "summary": "Finance evidence block showing declared vs actual amounts, variance, and accounting confirmation state.",
+      "tags": [
+        "component",
+        "finance"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
+      "type": "function",
+      "name": "accountingConfirmationLabel",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        270,
+        279
+      ],
+      "summary": "Human label for the accounting confirmation state including its timestamp.",
+      "tags": [
+        "utility",
+        "finance",
+        "i18n"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
+      "type": "function",
+      "name": "lineDraft",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        303,
+        315
+      ],
+      "summary": "Builds an editable string draft from a container line for row editing.",
+      "tags": [
+        "utility",
+        "draft"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
+      "type": "function",
+      "name": "lineOperationalSignature",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        317,
+        328
+      ],
+      "summary": "JSON signature of a container line used to detect genuine operational changes while editing.",
+      "tags": [
+        "utility",
+        "dirty-tracking"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "type": "function",
+      "name": "ContainerLineRow",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        334,
+        522
+      ],
+      "summary": "Editable container-line row with carrier/vehicle/site searchable selects, dispatch status, appointment times, and idempotent save through updateCusShipmentContainerLine.",
+      "tags": [
+        "component",
+        "container-line",
+        "editing"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
+      "type": "function",
+      "name": "ContainerLedger",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        524,
+        621
+      ],
+      "summary": "Owns the set of container-line rows: dirty/saving tracking, discard confirmation flow, and edit-session state.",
+      "tags": [
+        "component",
+        "ledger",
+        "state"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
+      "type": "function",
+      "name": "deriveShipmentSignals",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        632,
+        668
+      ],
+      "summary": "Derives operational signals (schedule, vehicle, accounting, notes) from a shipment row.",
+      "tags": [
+        "utility",
+        "signals"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
+      "type": "function",
+      "name": "ShipmentSignals",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        685,
+        700
+      ],
+      "summary": "Renders the derived shipment signal chips in priority order.",
+      "tags": [
+        "component",
+        "signals"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
+      "type": "function",
+      "name": "ShipmentDetailContent",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        702,
+        747
+      ],
+      "summary": "Detail body composing loading/error states with the container ledger for a shipment.",
+      "tags": [
+        "component",
+        "detail"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "function",
+      "name": "ShipmentsPage",
+      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
+      "lineRange": [
+        749,
+        1872
+      ],
+      "summary": "Page component: URL-synced filters and pagination, worksheet list rendering, drawer detail loading, quick-edit, finance/lock/reopen actions, custody updates, and CSV export.",
+      "tags": [
+        "page",
+        "worksheet",
+        "entry-point"
+      ],
+      "complexity": "complex"
     }
   ],
   "edges": [
@@ -141855,69 +141880,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "file:frontend/src/utils/cx.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "target": "file:frontend/src/utils/cx.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "target": "file:frontend/src/utils/cx.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
       "target": "file:frontend/src/utils/cx.ts",
       "type": "imports",
@@ -141927,41 +141889,6 @@
     {
       "source": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/input/hint-text.tsx:HintText",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:InputBase",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:TextField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
       "type": "contains",
       "direction": "forward",
       "weight": 1
@@ -142023,41 +141950,6 @@
       "weight": 0.8
     },
     {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:InputBase",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:TextField",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx:Tooltip",
       "type": "exports",
@@ -142105,153 +141997,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/components/AssetIcon.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/components/shared/Tooltip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/design-system/Sparkline.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/animations/usePressAnimation.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/useAnimatedOverlay.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "file:frontend/src/hooks/useFocusTrap.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:overlayEntrance",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Card",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
     },
     {
       "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
@@ -142315,104 +142060,6 @@
       "type": "contains",
       "direction": "forward",
       "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:KPI",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PageHeader",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Panel",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Card",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Btn",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Toolbar",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FilterPill",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:StatusPill",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:PlateTag",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Badge",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:FormGroup",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Modal",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/components/UI.tsx",
-      "target": "function:frontend/src/components/UI.tsx:Drawer",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
     },
     {
       "source": "file:frontend/src/components/untitled-ui/application/modals/modal.tsx",
@@ -143480,21 +143127,7 @@
     },
     {
       "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
       "target": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -143521,41 +143154,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBoxValue",
       "type": "contains",
@@ -143570,81 +143168,11 @@
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
       "target": "function:frontend/src/components/untitled-ui/base/select/combobox.tsx:ComboBox",
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
@@ -143844,13 +143372,6 @@
     },
     {
       "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/features/shipments/create/uui-fields.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
       "target": "file:frontend/src/components/shared/Toast.tsx",
       "type": "imports",
       "direction": "forward",
@@ -143915,13 +143436,6 @@
     {
       "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
       "target": "file:frontend/src/features/shipments/create/use-shipment-create-workflow.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -144931,97 +144445,6 @@
       "weight": 0.8
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:quickEditTitle",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentQuickEditFields",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
       "source": "file:frontend/src/features/dispatch/master-plan/MasterPlanGrid.test.tsx",
       "target": "file:frontend/src/api/shipmentClient.ts",
       "type": "imports",
@@ -145059,83 +144482,6 @@
     {
       "source": "file:frontend/src/hooks/useClickOutside.ts",
       "target": "file:frontend/src/lib/overlayState.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/shared/StatusStrip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/hooks/useAuth.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/csv.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/lib/routes.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -145310,20 +144656,6 @@
     {
       "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
       "target": "file:frontend/src/components/shipment/CarrierAllocationSummary.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -145953,13 +145285,6 @@
     },
     {
       "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
       "target": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
       "type": "imports",
       "direction": "forward",
@@ -146051,13 +145376,6 @@
     },
     {
       "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
       "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
@@ -146142,28 +145460,7 @@
     },
     {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 1
@@ -146197,16 +145494,863 @@
       "weight": 1
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
-      "target": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:overlayEntrance",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:useConfirmShortcuts",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:KPI",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PageHeader",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Panel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Card",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Btn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Toolbar",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FilterPill",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:StatusPill",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:PlateTag",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Badge",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:FormGroup",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Modal",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/UI.tsx:Drawer",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:InputBase",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:TextField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/AssetIcon.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
-      "target": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/hooks/useAnimatedOverlay.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/hooks/useFocusTrap.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/shared/Tooltip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/design-system/Sparkline.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/badges/badges.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "file:frontend/src/components/confirm-dialog.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "file:frontend/src/utils/cx.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "target": "file:frontend/src/utils/cx.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/styles/tokens.css",
       "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/styles/base.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/components/Button.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/pages/ShipmentsPage.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/control-density.styles.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-shared.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/multi-select.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/tag-select.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+      "target": "file:frontend/src/components/untitled-ui/base/select/popover.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.test.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.test.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/components/UI.tsx:Modal",
+      "target": "function:frontend/src/hooks/useAnimatedOverlay.ts:useAnimatedOverlay",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/components/UI.tsx:Modal",
+      "target": "function:frontend/src/hooks/useFocusTrap.ts:useFocusTrap",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/components/UI.tsx:Drawer",
+      "target": "function:frontend/src/hooks/useAnimatedOverlay.ts:useAnimatedOverlay",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/components/UI.tsx:Drawer",
+      "target": "function:frontend/src/hooks/useFocusTrap.ts:useFocusTrap",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/badges/badges.tsx:Badge",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/UI.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USearchableField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:USelectField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/features/shipments/create/uui-fields.tsx:UTextAreaField",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:quickEditTitle",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentQuickEditFields",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:FinanceEvidence",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:accountingConfirmationLabel",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineDraft",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:lineOperationalSignature",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLedger",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:deriveShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentSignals",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentDetailContent",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/label.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "target": "file:frontend/src/utils/cx.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/combobox.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-item.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/shared/StatusStrip.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/lib/csv.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/lib/routes.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/hooks/useAuth.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "file:frontend/src/pages/ShipmentsPage.css",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "target": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "target": "file:frontend/src/features/shipments/create/ShipmentCreateWorkspace.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "target": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
+      "target": "file:frontend/src/features/shipments/create/ShipmentCreateSections.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/styles/base.test.ts",
+      "target": "file:frontend/src/styles/base.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:listCusShipmentWorkspace",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:getCusShipmentWorkspaceDetail",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateShipment",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentDocumentCustody",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:confirmCusShipmentFinance",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:lockCusShipment",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/api/shipmentClient.ts:requestCusShipmentReopen",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ShipmentsPage",
+      "target": "function:frontend/src/lib/csv.ts:downloadCSV",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/ShipmentsPage.tsx:ContainerLineRow",
+      "target": "function:frontend/src/api/shipmentClient.ts:updateCusShipmentContainerLine",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/label.tsx:Label",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/shipments/create/uui-fields.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/input/input.tsx:Input",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/select/select-native.tsx:NativeSelect",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
+      "type": "renders",
       "direction": "forward",
       "weight": 1
     }
@@ -146623,7 +146767,11 @@
         "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
         "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
         "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
-        "file:frontend/src/features/dispatch/master-plan/MasterPlanGrid.test.tsx"
+        "file:frontend/src/features/dispatch/master-plan/MasterPlanGrid.test.tsx",
+        "file:frontend/src/components/control-density.styles.test.ts",
+        "file:frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts",
+        "file:frontend/src/components/untitled-ui/base/input/input.test.tsx",
+        "file:frontend/src/components/untitled-ui/base/select/select-native.test.tsx"
       ]
     },
     {

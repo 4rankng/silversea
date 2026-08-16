@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "bd6e5cfc6ad9c79aaf4afca52a79eb7e3bf5c033",
-  "generatedAt": "2026-08-16T11:15:18.754Z",
+  "gitCommitHash": "445800ad5c7a2ab1684894c2675ca3768eb6823b",
+  "generatedAt": "2026-08-16T12:02:37.103Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -68371,246 +68371,11 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/UI.tsx": {
-      "filePath": "frontend/src/components/UI.tsx",
-      "contentHash": "e04bab5430a8d30a0e335ab69381c23f270cc3edeb205a3ebd12c02d5c6f0bc4",
+      "contentHash": "7f4da2c82d74bd1a4012a215fb12228fb7875b1f8fe21c7b7eedadb508dd3153",
       "functions": [
-        {
-          "name": "overlayEntrance",
-          "params": [
-            "overlay",
-            "content",
-            "prefersReduced"
-          ],
-          "exported": false,
-          "lineCount": 15
-        },
-        {
-          "name": "overlayExit",
-          "params": [
-            "overlay",
-            "content",
-            "onDone"
-          ],
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "usePortalTarget",
-          "params": [],
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "useConfirmShortcuts",
-          "params": [
-            "opts"
-          ],
-          "exported": true,
-          "lineCount": 33
-        },
-        {
-          "name": "KPI",
-          "params": [
-            "{ label, value, unit, icon: Icon, assetIconName, meta, variant = 'default', compact, onClick, trend }"
-          ],
-          "exported": true,
-          "lineCount": 53
-        },
-        {
-          "name": "PageHeader",
-          "params": [
-            "{ title, description, action, onBack, iconName }"
-          ],
-          "exported": true,
-          "lineCount": 28
-        },
-        {
-          "name": "Panel",
-          "params": [
-            "{ title, subtitle, action, children, flush, className = '', style }"
-          ],
-          "exported": true,
-          "lineCount": 16
-        },
-        {
-          "name": "Card",
-          "params": [
-            "{ title, subtitle, action, children, style, className = '', noPadding = false }"
-          ],
-          "exported": true,
-          "lineCount": 14
-        },
-        {
-          "name": "Btn",
-          "params": [
-            "{\n  variant = 'secondary',\n  size = 'md',\n  type = 'button',\n  icon,\n  children,\n  className = '',\n  disabled,\n  ...rest\n}"
-          ],
-          "exported": true,
-          "lineCount": 24
-        },
-        {
-          "name": "Toolbar",
-          "params": [
-            "{ children, className = '' }"
-          ],
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "FilterPill",
-          "params": [
-            "{ active, onClick, children, icon, count }"
-          ],
-          "exported": true,
-          "lineCount": 13
-        },
-        {
-          "name": "StatusPill",
-          "params": [
-            "{ variant, children, dot = true }"
-          ],
-          "exported": true,
-          "lineCount": 12
-        },
-        {
-          "name": "PlateTag",
-          "params": [
-            "{ plate, className = '' }"
-          ],
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "Badge",
-          "params": [
-            "{ variant = 'neutral', children, className = '' }"
-          ],
-          "exported": true,
-          "lineCount": 7
-        },
-        {
-          "name": "FormGroup",
-          "params": [
-            "{ label, helpText, error, children, style }"
-          ],
-          "exported": true,
-          "lineCount": 20
-        },
-        {
-          "name": "Modal",
-          "params": [
-            "{ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 540 }"
-          ],
-          "exported": true,
-          "lineCount": 63
-        },
-        {
-          "name": "Drawer",
-          "params": [
-            "{ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic }"
-          ],
-          "exported": true,
-          "lineCount": 85
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "React",
-            "useEffect",
-            "useId",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "react-dom",
-          "specifiers": [
-            "createPortal"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "ArrowLeft",
-            "ArrowDownRight",
-            "ArrowUpRight",
-            "X"
-          ]
-        },
-        {
-          "source": "animejs",
-          "specifiers": [
-            "animate",
-            "utils",
-            "spring"
-          ]
-        },
-        {
-          "source": "./AssetIcon",
-          "specifiers": [
-            "AssetIcon",
-            "AssetIconName"
-          ]
-        },
-        {
-          "source": "../hooks/useAnimatedOverlay",
-          "specifiers": [
-            "isTopOverlayToken",
-            "useAnimatedOverlay",
-            "EntranceFn",
-            "ExitFn"
-          ]
-        },
-        {
-          "source": "../hooks/useFocusTrap",
-          "specifiers": [
-            "useFocusTrap"
-          ]
-        },
-        {
-          "source": "./shared/Tooltip",
-          "specifiers": [
-            "Tooltip"
-          ]
-        },
-        {
-          "source": "../design-system/Sparkline",
-          "specifiers": [
-            "Sparkline"
-          ]
-        },
-        {
-          "source": "./untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UIButton",
-            "UIButtonProps"
-          ]
-        },
-        {
-          "source": "./untitled-ui/base/badges/badges",
-          "specifiers": [
-            "UIBadge",
-            "UIBadgeWithDot"
-          ]
-        },
-        {
-          "source": "./untitled-ui/base/input/label",
-          "specifiers": [
-            "UILabel"
-          ]
-        },
-        {
-          "source": "./untitled-ui/base/input/hint-text",
-          "specifiers": [
-            "UIHintText"
-          ]
-        }
-      ],
-      "exports": [
+        "usePortalTarget",
         "useConfirmShortcuts",
+        "handler",
         "KPI",
         "PageHeader",
         "Panel",
@@ -68623,12 +68388,43 @@
         "Badge",
         "FormGroup",
         "Modal",
-        "Drawer",
-        "ConfirmDialog",
-        "useConfirm"
+        "Drawer"
       ],
-      "totalLines": 650,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import React, { useEffect, useId, useRef, useState } from 'react'",
+        "import { createPortal } from 'react-dom'",
+        "import { ArrowLeft, ArrowDownRight, ArrowUpRight, X } from 'lucide-react'",
+        "import { animate, utils, spring } from 'animejs'",
+        "import { AssetIcon, type AssetIconName } from './AssetIcon'",
+        "import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay'",
+        "import { useFocusTrap } from '../hooks/useFocusTrap'",
+        "import { Tooltip } from './shared/Tooltip'",
+        "import { Sparkline } from '../design-system/Sparkline'",
+        "import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitled-ui/base/buttons/button'",
+        "import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/base/badges/badges'",
+        "import { Label as UILabel } from './untitled-ui/base/input/label'",
+        "import { HintText as UIHintText } from './untitled-ui/base/input/hint-text'"
+      ],
+      "exports": [
+        "export function useConfirmShortcuts(opts: {",
+        "export interface KPITrend {",
+        "export function KPI({ label, value, unit, icon: Icon, assetIconName, meta, variant = 'default', compact, onClick, trend }: KPIProps) {",
+        "export function PageHeader({ title, action, onBack }: PageHeaderProps) {",
+        "export function Panel({ title, subtitle, action, children, flush, className = '', style }: PanelProps) {",
+        "export function Card({ title, subtitle, action, children, style, className = '', noPadding = false }: CardProps) {",
+        "export function Btn({",
+        "export function Toolbar({ children, className = '' }: ToolbarProps) {",
+        "export function FilterPill({ active, onClick, children, icon, count }: FilterPillProps) {",
+        "export type PillVariant = 'success' | 'warn' | 'danger' | 'info' | 'neutral';",
+        "export function StatusPill({ variant, children, dot = true }: StatusPillProps) {",
+        "export function PlateTag({ plate, className = '' }: PlateTagProps) {",
+        "export function Badge({ variant = 'neutral', children, className = '' }: BadgeProps) {",
+        "export function FormGroup({ label, helpText, error, children, style }: FormGroupProps) {",
+        "export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480 }: ModalProps) {",
+        "export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic }: DrawerProps) {",
+        "export { ConfirmDialog, useConfirm } from './confirm-dialog';"
+      ]
     },
     "frontend/src/components/agent/AgentAssistant.test.tsx": {
       "filePath": "frontend/src/components/agent/AgentAssistant.test.tsx",
@@ -74929,220 +74725,66 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/untitled-ui/base/input/input.tsx": {
-      "filePath": "frontend/src/components/untitled-ui/base/input/input.tsx",
-      "contentHash": "39f3827cd2a764ed5c54191c02cc59975314ab45b556bb6af84752932f12b815",
+      "contentHash": "cfeb343a7d8fd832e06a36da406c7a258d89e04280b4cc095227ae23fc6506ef",
       "functions": [
-        {
-          "name": "InputBase",
-          "params": [
-            "{\n    ref,\n    tooltip,\n    shortcut,\n    groupRef,\n    size = \"md\",\n    isInvalid,\n    isDisabled,\n    isRequired,\n    icon: Icon,\n    placeholder,\n    wrapperClassName,\n    tooltipClassName,\n    inputClassName,\n    iconClassName,\n    type = \"text\",\n    ...inputProps\n}"
-          ],
-          "exported": true,
-          "lineCount": 158
-        },
-        {
-          "name": "TextField",
-          "params": [
-            "{ className, size = \"md\", inputClassName, wrapperClassName, iconClassName, tooltipClassName, ...props }"
-          ],
-          "exported": true,
-          "lineCount": 14
-        },
-        {
-          "name": "Input",
-          "params": [
-            "{\n    size = \"md\",\n    placeholder,\n    icon: Icon,\n    label,\n    hint,\n    shortcut,\n    hideRequiredIndicator,\n    className,\n    ref,\n    groupRef,\n    tooltip,\n    iconClassName,\n    inputClassName,\n    wrapperClassName,\n    tooltipClassName,\n    inputProps,\n    type = \"text\",\n    ...props\n}"
-          ],
-          "exported": true,
-          "lineCount": 54
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "ComponentType",
-            "HTMLAttributes",
-            "ReactNode",
-            "Ref",
-            "createContext",
-            "useContext",
-            "useState"
-          ]
-        },
-        {
-          "source": "@untitledui/icons",
-          "specifiers": [
-            "Eye",
-            "EyeOff",
-            "HelpCircle",
-            "InfoCircle"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaInputProps",
-            "AriaTextFieldProps"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaButton",
-            "AriaGroup",
-            "AriaInput",
-            "AriaTextField"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/input/hint-text",
-          "specifiers": [
-            "HintText"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/input/label",
-          "specifiers": [
-            "Label"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/tooltip/tooltip",
-          "specifiers": [
-            "Tooltip",
-            "TooltipTrigger"
-          ]
-        },
-        {
-          "source": "@/utils/cx",
-          "specifiers": [
-            "cx",
-            "sortCx"
-          ]
-        }
-      ],
-      "exports": [
         "InputBase",
         "TextField",
         "Input"
       ],
-      "totalLines": 309,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import { type ComponentType, type HTMLAttributes, type ReactNode, type Ref, createContext, useContext, useState } from \"react\"",
+        "import { Eye, EyeOff, HelpCircle, InfoCircle } from \"@untitledui/icons\"",
+        "import type { InputProps as AriaInputProps, TextFieldProps as AriaTextFieldProps } from \"react-aria-components\"",
+        "import { Button as AriaButton, Group as AriaGroup, Input as AriaInput, TextField as AriaTextField } from \"react-aria-components\"",
+        "import { HintText } from \"@/components/untitled-ui/base/input/hint-text\"",
+        "import { Label } from \"@/components/untitled-ui/base/input/label\"",
+        "import { Tooltip, TooltipTrigger } from \"@/components/untitled-ui/base/tooltip/tooltip\"",
+        "import { cx, sortCx } from \"@/utils/cx\""
+      ],
+      "exports": [
+        "export interface InputBaseProps extends Omit<AriaInputProps, \"size\"> {",
+        "export const InputBase = ({",
+        "export interface TextFieldProps extends AriaTextFieldProps, TextFieldContextProps {}",
+        "export const TextField = ({ className, size = \"md\", inputClassName, wrapperClassName, iconClassName, tooltipClassName, ...props }: TextFieldProps) => {",
+        "export interface InputProps",
+        "export const Input = ({"
+      ]
     },
     "frontend/src/components/untitled-ui/base/input/label.tsx": {
-      "filePath": "frontend/src/components/untitled-ui/base/input/label.tsx",
-      "contentHash": "16cba57ebad9624c662510125d7c7c5c48f644141ab548343cac6daced3d92a5",
+      "contentHash": "4c6b6f95fba876f6dbf836e10a8eb4d24bb519ee12c98f75a3d8a9a6950926c0",
       "functions": [
-        {
-          "name": "Label",
-          "params": [
-            "{ isInvalid, isRequired, tooltip, tooltipDescription, className, ...props }"
-          ],
-          "exported": true,
-          "lineCount": 35
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "ReactNode",
-            "Ref"
-          ]
-        },
-        {
-          "source": "@untitledui/icons",
-          "specifiers": [
-            "HelpCircle"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaLabelProps"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaLabel"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/tooltip/tooltip",
-          "specifiers": [
-            "Tooltip",
-            "TooltipTrigger"
-          ]
-        },
-        {
-          "source": "@/utils/cx",
-          "specifiers": [
-            "cx"
-          ]
-        }
-      ],
-      "exports": [
         "Label"
       ],
-      "totalLines": 54,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import type { ReactNode, Ref } from \"react\"",
+        "import { HelpCircle } from \"@untitledui/icons\"",
+        "import type { LabelProps as AriaLabelProps } from \"react-aria-components\"",
+        "import { Label as AriaLabel } from \"react-aria-components\"",
+        "import { Tooltip, TooltipTrigger } from \"@/components/untitled-ui/base/tooltip/tooltip\"",
+        "import { cx } from \"@/utils/cx\""
+      ],
+      "exports": [
+        "export const Label = ({ isInvalid, isRequired, tooltip, tooltipDescription, className, ...props }: LabelProps) => {"
+      ]
     },
     "frontend/src/components/untitled-ui/base/select/select-native.tsx": {
-      "filePath": "frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "contentHash": "0b36a4767462df232f0ab02485bedfc0eb70d58d6a3c35c621bcca1c647d5eaa",
+      "contentHash": "53878e38d84bde3181cf132f628f5107eca9a1c9314902022174ce75f0cd5d04",
       "functions": [
-        {
-          "name": "NativeSelect",
-          "params": [
-            "{ label, hint, options, className, selectClassName, size = \"md\", ...props }"
-          ],
-          "exported": true,
-          "lineCount": 67
-        }
+        "NativeSelect"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "SelectHTMLAttributes",
-            "useId"
-          ]
-        },
-        {
-          "source": "@untitledui/icons",
-          "specifiers": [
-            "ChevronDown"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/input/hint-text",
-          "specifiers": [
-            "HintText"
-          ]
-        },
-        {
-          "source": "@/components/untitled-ui/base/input/label",
-          "specifiers": [
-            "Label"
-          ]
-        },
-        {
-          "source": "@/utils/cx",
-          "specifiers": [
-            "cx"
-          ]
-        }
+        "import { type SelectHTMLAttributes, useId } from \"react\"",
+        "import { ChevronDown } from \"@untitledui/icons\"",
+        "import { HintText } from \"@/components/untitled-ui/base/input/hint-text\"",
+        "import { Label } from \"@/components/untitled-ui/base/input/label\"",
+        "import { cx } from \"@/utils/cx\""
       ],
       "exports": [
-        "NativeSelect"
-      ],
-      "totalLines": 97,
-      "hasStructuralAnalysis": true
+        "export const NativeSelect = ({ label, hint, options, className, selectClassName, size = \"md\", ...props }: NativeSelectProps) => {"
+      ]
     },
     "frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx": {
       "filePath": "frontend/src/components/untitled-ui/base/tooltip/tooltip.tsx",
@@ -97267,405 +96909,73 @@
       "exports": []
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
-      "filePath": "frontend/src/pages/ShipmentsPage.tsx",
-      "contentHash": "cabdff4adc405a56155c588d34bf5d8ceae54c3d730a2aa47dd0fb4b2c2ee17b",
+      "contentHash": "ae0d9da493cdd78bad383e3ffadc0fb9bf1eefe98dfe9db16b1abb4fae896d08",
       "functions": [
-        {
-          "name": "formatMoney",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "formatQuantity",
-          "params": [
-            "value",
-            "maximumFractionDigits"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "formatDate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "formatDateTime",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "directionLabel",
-          "params": [
-            "direction"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "worksheetQuantity",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "scheduleTimestamp",
-          "params": [
-            "item"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "scheduleTime",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "vehicleReadinessLabel",
-          "params": [
-            "item"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "noteLines",
-          "params": [
-            "note"
-          ],
-          "returnType": "string[]",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "quickEditTitle",
-          "params": [
-            "field"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 11
-        },
-        {
-          "name": "ShipmentQuickEditFields",
-          "params": [
-            "{\n  draft,\n  item,\n  saving,\n  error,\n  onChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 50
-        },
-        {
-          "name": "dispatchStatusLabel",
-          "params": [
-            "status"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "FinanceEvidence",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 27
-        },
-        {
-          "name": "WorkflowBadge",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "accountingConfirmationLabel",
-          "params": [
-            "confirmation"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "safeError",
-          "params": [
-            "error",
-            "fallback"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "toLocalDateTime",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "lineDraft",
-          "params": [
-            "line"
-          ],
-          "returnType": "ContainerLineDraft",
-          "exported": false,
-          "lineCount": 13
-        },
-        {
-          "name": "lineOperationalSignature",
-          "params": [
-            "line"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "idempotencySignature",
-          "params": [
-            "...parts"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "ContainerLineRow",
-          "params": [
-            "{\n  detail,\n  line,\n  onSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onDirtyChange,\n  editing,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 189
-        },
-        {
-          "name": "ContainerLedger",
-          "params": [
-            "{\n  detail,\n  onLineSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onCollapse,\n  onDirtyChange,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 98
-        },
-        {
-          "name": "deriveShipmentSignals",
-          "params": [
-            "item"
-          ],
-          "returnType": "ShipmentSignal[]",
-          "exported": false,
-          "lineCount": 37
-        },
-        {
-          "name": "derivePrimaryShipmentSignal",
-          "params": [
-            "item"
-          ],
-          "returnType": "ShipmentSignal | null",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "ShipmentSignals",
-          "params": [
-            "{ item }"
-          ],
-          "exported": false,
-          "lineCount": 16
-        },
-        {
-          "name": "ShipmentDetailContent",
-          "params": [
-            "{\n  detail,\n  loading,\n  error,\n  onRetry,\n  onLineSaved,\n  getIdempotencyKey,\n  clearIdempotencyKey,\n  idPrefix,\n  onCollapse,\n  onDirtyChange,\n  onSavingChange,\n}"
-          ],
-          "exported": false,
-          "lineCount": 46
-        },
-        {
-          "name": "ShipmentsPage",
-          "params": [],
-          "exported": true,
-          "lineCount": 1124
-        }
+        "formatMoney",
+        "formatQuantity",
+        "formatDate",
+        "formatDateTime",
+        "directionLabel",
+        "worksheetQuantity",
+        "scheduleTimestamp",
+        "scheduleTime",
+        "vehicleReadinessLabel",
+        "noteLines",
+        "quickEditTitle",
+        "ShipmentQuickEditFields",
+        "update",
+        "dispatchStatusLabel",
+        "FinanceEvidence",
+        "WorkflowBadge",
+        "accountingConfirmationLabel",
+        "safeError",
+        "toLocalDateTime",
+        "lineDraft",
+        "lineOperationalSignature",
+        "idempotencySignature",
+        "ContainerLineRow",
+        "updateDraft",
+        "ContainerLedger",
+        "requestCollapse",
+        "requestFinishEditing",
+        "discardChanges",
+        "deriveShipmentSignals",
+        "derivePrimaryShipmentSignal",
+        "ShipmentSignals",
+        "ShipmentDetailContent",
+        "ShipmentsPage",
+        "submitSearch",
+        "clearFilters",
+        "startQuickEdit",
+        "closeQuickEdit",
+        "openAction",
+        "shipmentActionButton",
+        "closeAction"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useMemo",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "useNavigate",
-            "useSearchParams"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "AlertTriangle",
-            "CalendarClock",
-            "ChevronRight",
-            "CircleCheck",
-            "CircleDollarSign",
-            "Download",
-            "FileLock2",
-            "Loader2",
-            "Plus",
-            "RotateCcw",
-            "Save",
-            "Search",
-            "Truck",
-            "X"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "SHIPMENT_CUS_BUCKET_LABELS",
-            "SHIPMENT_DOCUMENT_CUSTODY_LABELS",
-            "SHIPMENT_STATUS_LABELS",
-            "ShipmentCusBucket",
-            "ShipmentDocumentCustody",
-            "Role",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail",
-            "ShipmentCusWorkspaceListItem",
-            "ShipmentCusWorkspaceListResponse"
-          ]
-        },
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../components/shared/Breadcrumbs",
-          "specifiers": [
-            "Breadcrumbs"
-          ]
-        },
-        {
-          "source": "../components/shared/StatusStrip",
-          "specifiers": [
-            "StatusStrip",
-            "StatusSwatch"
-          ]
-        },
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "Drawer",
-            "Modal",
-            "PageHeader"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UUIButton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/input/input",
-          "specifiers": [
-            "UUIInput"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/select/select-native",
-          "specifiers": [
-            "UUINativeSelect"
-          ]
-        },
-        {
-          "source": "../design-system",
-          "specifiers": [
-            "EmptyState",
-            "Pagination",
-            "SearchableSelect"
-          ]
-        },
-        {
-          "source": "../api/shipmentClient",
-          "specifiers": [
-            "getCusShipmentWorkspaceDetail",
-            "confirmCusShipmentFinance",
-            "listCusShipmentWorkspace",
-            "lockCusShipment",
-            "requestCusShipmentReopen",
-            "updateCusShipmentContainerLine",
-            "updateCusShipmentDocumentCustody",
-            "updateShipment"
-          ]
-        },
-        {
-          "source": "../lib/csv",
-          "specifiers": [
-            "downloadCSV"
-          ]
-        },
-        {
-          "source": "../lib/routes",
-          "specifiers": [
-            "routes"
-          ]
-        },
-        {
-          "source": "../hooks/useAuth",
-          "specifiers": [
-            "useAuth"
-          ]
-        },
-        {
-          "source": "../styles/operational-table-typography.css",
-          "specifiers": []
-        },
-        {
-          "source": "./ShipmentsPage.css",
-          "specifiers": []
-        }
+        "import { useCallback, useEffect, useMemo, useRef, useState } from 'react'",
+        "import { useNavigate, useSearchParams } from 'react-router-dom'",
+        "import {\n  AlertTriangle,\n  CalendarClock,\n  ChevronRight,\n  CircleCheck,\n  CircleDollarSign,\n  Download,\n  FileLock2,\n  Loader2,\n  Plus,\n  RotateCcw,\n  Save,\n  Search,\n  Truck,\n  X,\n} from 'lucide-react'",
+        "import {\n  SHIPMENT_CUS_BUCKET_LABELS,\n  SHIPMENT_DOCUMENT_CUSTODY_LABELS,\n  SHIPMENT_STATUS_LABELS,\n  ShipmentCusBucket,\n  ShipmentDocumentCustody,\n  Role,\n  type ShipmentCusWorkspaceContainerLine,\n  type ShipmentCusWorkspaceDetail,\n  type ShipmentCusWorkspaceListItem,\n  type ShipmentCusWorkspaceListResponse,\n} from '@tingting/shared'",
+        "import { ApiError } from '../lib/api'",
+        "import { Breadcrumbs } from '../components/shared/Breadcrumbs'",
+        "import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip'",
+        "import { Drawer, Modal, PageHeader } from '../components/UI'",
+        "import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button'",
+        "import { Input as UUIInput } from '../components/untitled-ui/base/input/input'",
+        "import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native'",
+        "import { EmptyState, Pagination, SearchableSelect } from '../design-system'",
+        "import {\n  getCusShipmentWorkspaceDetail,\n  confirmCusShipmentFinance,\n  listCusShipmentWorkspace,\n  lockCusShipment,\n  requestCusShipmentReopen,\n  updateCusShipmentContainerLine,\n  updateCusShipmentDocumentCustody,\n  updateShipment,\n} from '../api/shipmentClient'",
+        "import { downloadCSV } from '../lib/csv'",
+        "import { routes } from '../lib/routes'",
+        "import { useAuth } from '../hooks/useAuth'",
+        "import '../styles/operational-table-typography.css'",
+        "import './ShipmentsPage.css'"
       ],
       "exports": [
-        "ShipmentsPage"
-      ],
-      "totalLines": 1873,
-      "hasStructuralAnalysis": true
+        "export default function ShipmentsPage() {"
+      ]
     },
     "frontend/src/pages/SupplierListPage.css": {
       "filePath": "frontend/src/pages/SupplierListPage.css",
@@ -106032,35 +105342,15 @@
       "hasStructuralAnalysis": false
     },
     "frontend/src/styles/base.test.ts": {
-      "filePath": "frontend/src/styles/base.test.ts",
-      "contentHash": "7c1b063a584dc78911e113775b6d22843386f50db67f3a8951b58944e55975ae",
+      "contentHash": "61532a37b0fdefcc66ab111425695bc1430a63a0371442818866d9b51c5e12b5",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "node:fs",
-          "specifiers": [
-            "readFileSync"
-          ]
-        },
-        {
-          "source": "node:path",
-          "specifiers": [
-            "resolve"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "describe",
-            "expect",
-            "it"
-          ]
-        }
+        "import { readFileSync } from 'node:fs'",
+        "import { resolve } from 'node:path'",
+        "import { describe, expect, it } from 'vitest'"
       ],
-      "exports": [],
-      "totalLines": 13,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "frontend/src/styles/responsive.css": {
       "filePath": "frontend/src/styles/responsive.css",
@@ -109627,31 +108917,19 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/untitled-ui/base/select/select-shared.tsx": {
-      "filePath": "frontend/src/components/untitled-ui/base/select/select-shared.tsx",
-      "contentHash": "3c12eb07c261221fa8457d3a5212501b09617e6dd894bb8a81ba16518f41c2b6",
+      "contentHash": "34aa4b963df8f9a76662db5924692185b14cb408f0d1e77ba3f1d7e478d5aaef",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "FC",
-            "ReactNode"
-          ]
-        },
-        {
-          "source": "react",
-          "specifiers": [
-            "createContext"
-          ]
-        }
+        "import type { FC, ReactNode } from \"react\"",
+        "import { createContext } from \"react\""
       ],
       "exports": [
-        "sizes",
-        "SelectContext"
-      ],
-      "totalLines": 51,
-      "hasStructuralAnalysis": true
+        "export type SelectItemType = {",
+        "export interface CommonProps {",
+        "export const sizes = {",
+        "export const SelectContext = createContext<{ size: \"sm\" | \"md\" | \"lg\" }>({ size: \"md\" });"
+      ]
     },
     "frontend/src/components/untitled-ui/base/select/select.tsx": {
       "filePath": "frontend/src/components/untitled-ui/base/select/select.tsx",
@@ -110372,98 +109650,29 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/shipments/create/uui-fields.tsx": {
-      "filePath": "frontend/src/features/shipments/create/uui-fields.tsx",
-      "contentHash": "35e801317117c3e0f935196258333d06c42eb568392d0c2c4b00625ea224edfa",
+      "contentHash": "d4b2db6eac5f9a24669a7b0667b3600c89e5d5ae91f87db14f5d7d8b7893aa92",
       "functions": [
-        {
-          "name": "asEvent",
-          "params": [
-            "value"
-          ],
-          "returnType": "HtmlInputEvent",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "UTextField",
-          "params": [
-            "{\n  label,\n  value,\n  onChange,\n  type = 'text',\n  placeholder,\n  disabled,\n  required,\n  error,\n  hint,\n  maxLength,\n  min,\n  step,\n}"
-          ],
-          "exported": true,
-          "lineCount": 31
-        },
-        {
-          "name": "USearchableField",
-          "params": [
-            "{\n  label,\n  value,\n  onChange,\n  options,\n  placeholder,\n  disabled,\n  required,\n  hint,\n  error,\n  allowsCustomValue,\n}"
-          ],
-          "exported": true,
-          "lineCount": 51
-        },
-        {
-          "name": "USelectField",
-          "params": [
-            "{\n  label,\n  value,\n  onChange,\n  options,\n  disabled,\n  required,\n  error,\n  hint,\n}"
-          ],
-          "exported": true,
-          "lineCount": 28
-        },
-        {
-          "name": "UTextAreaField",
-          "params": [
-            "{\n  label,\n  value,\n  onChange,\n  rows,\n  maxLength,\n  placeholder,\n  disabled,\n}"
-          ],
-          "exported": true,
-          "lineCount": 22
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "ReactNode"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/input/input",
-          "specifiers": [
-            "UUIInput"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/select/combobox",
-          "specifiers": [
-            "ComboBox"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/select/select-native",
-          "specifiers": [
-            "NativeSelect"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/select/select-item",
-          "specifiers": [
-            "SelectItem"
-          ]
-        },
-        {
-          "source": "../../../components/untitled-ui/base/textarea/textarea",
-          "specifiers": [
-            "UUITextArea"
-          ]
-        }
-      ],
-      "exports": [
+        "asEvent",
         "UTextField",
         "USearchableField",
         "USelectField",
         "UTextAreaField"
       ],
-      "totalLines": 211,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import type { ReactNode } from 'react'",
+        "import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input'",
+        "import { ComboBox } from '../../../components/untitled-ui/base/select/combobox'",
+        "import { NativeSelect } from '../../../components/untitled-ui/base/select/select-native'",
+        "import { SelectItem } from '../../../components/untitled-ui/base/select/select-item'",
+        "import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea'"
+      ],
+      "exports": [
+        "export function UTextField({",
+        "export function USearchableField({",
+        "export function USelectField({",
+        "export function UTextAreaField({"
+      ]
     },
     "frontend/src/pages/ShipmentsDetailPage.test.tsx": {
       "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
@@ -110876,35 +110085,15 @@
       "exports": []
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts": {
-      "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
-      "contentHash": "0422cdd64d394f8343acfef57b09c117a60bdbb0384942b0cdc0e45c5059a413",
+      "contentHash": "a2d99dd72a3d0ce3f5930dab0e3a79788b2e64ac06a572f1eb8526ad07fc3993",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "node:fs",
-          "specifiers": [
-            "readFileSync"
-          ]
-        },
-        {
-          "source": "node:path",
-          "specifiers": [
-            "resolve"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "describe",
-            "expect",
-            "it"
-          ]
-        }
+        "import { readFileSync } from 'node:fs'",
+        "import { resolve } from 'node:path'",
+        "import { describe, expect, it } from 'vitest'"
       ],
-      "exports": [],
-      "totalLines": 38,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx": {
       "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
@@ -111361,6 +110550,54 @@
         "export interface FacetItem {",
         "export function DetailedPlanFilters({"
       ]
+    },
+    "frontend/src/components/control-density.styles.test.ts": {
+      "contentHash": "89f46e21762ab3fafa489d894efb022bffd624b0bf8d455811e5d53e040f46f8",
+      "functions": [
+        "read"
+      ],
+      "classes": [],
+      "imports": [
+        "import { readFileSync, readdirSync } from 'node:fs'",
+        "import { join, resolve } from 'node:path'",
+        "import { describe, expect, it } from 'vitest'"
+      ],
+      "exports": []
+    },
+    "frontend/src/components/untitled-ui/base/form-control-boundaries.test.ts": {
+      "contentHash": "ccd6268942b7b385294088cf0ba0f86fe1f00f083b84907e5b95a05e5cf06281",
+      "functions": [
+        "read"
+      ],
+      "classes": [],
+      "imports": [
+        "import { readFileSync } from 'node:fs'",
+        "import { resolve } from 'node:path'",
+        "import { describe, expect, it } from 'vitest'"
+      ],
+      "exports": []
+    },
+    "frontend/src/components/untitled-ui/base/input/input.test.tsx": {
+      "contentHash": "173e2090756ff07b2282cf4e8b9a991d1150b0d3978086a2150d26ae2bf05a11",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "import { render, screen } from '@testing-library/react'",
+        "import { describe, expect, it } from 'vitest'",
+        "import { Input } from './input'"
+      ],
+      "exports": []
+    },
+    "frontend/src/components/untitled-ui/base/select/select-native.test.tsx": {
+      "contentHash": "f0e125a65fbb0b8bf6038702cdd43a92bc7611c9c8480c820e01ea7bd305443f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "import { render, screen } from '@testing-library/react'",
+        "import { describe, expect, it } from 'vitest'",
+        "import { NativeSelect } from './select-native'"
+      ],
+      "exports": []
     }
   },
   "frontend/cus-qa-overflow.mjs": {
