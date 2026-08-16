@@ -42,9 +42,7 @@ const createdTireIds = new Set<number>();
 let server: http.Server;
 let baseUrl = '';
 let adminId = 0;
-let managerId = 0;
 let accountantId = 0;
-let driverId = 0;
 let adminToken = '';
 let managerToken = '';
 let accountantToken = '';
@@ -198,9 +196,7 @@ before(async () => {
   const driver = await mkUser(`q23-driver-${suffix}`, 'DRIVER');
 
   adminId = admin.id;
-  managerId = manager.id;
   accountantId = accountant.id;
-  driverId = driver.id;
   adminToken = sign({ ...admin, username: admin.username ?? `admin-${admin.id}` });
   managerToken = sign({ ...manager, username: manager.username ?? `manager-${manager.id}` });
   accountantToken = sign({ ...accountant, username: accountant.username ?? `accountant-${accountant.id}` });

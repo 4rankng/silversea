@@ -1446,50 +1446,54 @@ export default function ShipmentsPage() {
             />
           </div>
 
-          <div className="cus-worksheet-toolbar__actions">
-            {canCreateShipment && (
+          <div className="cus-worksheet-toolbar__actions" aria-label="Thao tác lô hàng">
+            <div className="cus-worksheet-toolbar__action-group">
+              {canCreateShipment && (
+                <UUIButton
+                  size="sm"
+                  color="primary"
+                  className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
+                  onPress={() => navigate(routes.shipmentNew)}
+                  iconLeading={<Plus size={17} aria-hidden="true" />}
+                >
+                  Tạo lô mới
+                </UUIButton>
+              )}
               <UUIButton
                 size="sm"
-                color="primary"
-                className="shipment-uui-button shipment-uui-button--primary cus-create-shipment"
-                onPress={() => navigate(routes.shipmentNew)}
-                iconLeading={<Plus size={17} aria-hidden="true" />}
+                color="secondary"
+                type="submit"
+                className="shipment-uui-button shipment-uui-button--secondary"
+                iconLeading={<Search size={16} aria-hidden="true" />}
               >
-                Tạo lô mới
+                Tìm kiếm
               </UUIButton>
-            )}
-            <UUIButton
-              size="sm"
-              color="secondary"
-              type="submit"
-              className="shipment-uui-button shipment-uui-button--secondary"
-              iconLeading={<Search size={16} aria-hidden="true" />}
-            >
-              Tìm kiếm
-            </UUIButton>
-            {hasFilters && (
+            </div>
+            <div className="cus-worksheet-toolbar__action-group cus-worksheet-toolbar__action-group--utility">
+              {hasFilters && (
+                <UUIButton
+                  size="sm"
+                  color="tertiary"
+                  className="shipment-uui-button shipment-uui-button--tertiary"
+                  onPress={clearFilters}
+                  iconLeading={<RotateCcw size={16} aria-hidden="true" />}
+                >
+                  Xóa lọc
+                </UUIButton>
+              )}
               <UUIButton
                 size="sm"
-                color="tertiary"
-                className="shipment-uui-button shipment-uui-button--tertiary"
-                onPress={clearFilters}
-                iconLeading={<RotateCcw size={16} aria-hidden="true" />}
+                color="secondary"
+                isDisabled={exporting || loading}
+                isLoading={exporting}
+                className="shipment-uui-button shipment-uui-button--secondary"
+                onPress={() => void exportWorksheet()}
+                iconLeading={<Download size={16} aria-hidden="true" />}
+                showTextWhileLoading
               >
-                Xóa lọc
+                Tải XLSX
               </UUIButton>
-            )}
-            <UUIButton
-              size="sm"
-              color="secondary"
-              isDisabled={exporting || loading}
-              isLoading={exporting}
-              className="shipment-uui-button shipment-uui-button--secondary"
-              onPress={() => void exportWorksheet()}
-              iconLeading={<Download size={16} aria-hidden="true" />}
-              showTextWhileLoading
-            >
-              Tải XLSX
-            </UUIButton>
+            </div>
           </div>
         </form>
 
@@ -1513,10 +1517,6 @@ export default function ShipmentsPage() {
           </div>
         )}
 
-        <div className="cus-worksheet-meta" role="status" aria-live="polite">
-          <strong>{resultLabel}</strong>
-          <span>Bảy nhóm thông tin chính, mỗi lô hàng trên một dòng.</span>
-        </div>
 
         {notice && <div className="cus-notice cus-notice--success" role="status">{notice}</div>}
         {error && (

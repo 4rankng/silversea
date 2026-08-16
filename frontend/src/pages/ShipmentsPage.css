@@ -20,17 +20,16 @@
 
 .cus-worksheet-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-  padding: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px 16px 0;
   border-bottom: 0;
   background: transparent;
 }
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(148px, 1fr));
   gap: 8px 12px;
   min-width: 0;
   align-items: end;
@@ -38,10 +37,23 @@
 
 .cus-worksheet-toolbar__actions {
   display: flex;
-  gap: 6px;
+  gap: 10px;
   align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.cus-worksheet-toolbar__action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-worksheet-toolbar__action-group--utility {
   justify-content: flex-end;
-  white-space: nowrap;
 }
 
 /* Dense desktop controls keep this high-frequency worksheet scannable. The
@@ -186,39 +198,20 @@
   outline-offset: 2px;
 }
 
-/* Flat toolbar: keep filters and actions on the same row when there is room,
-   wrap to a second row at narrow widths. */
-@container (min-width: 1420px) {
-  .cus-worksheet-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-}
-
-@container (max-width: 1100px) {
-  .cus-worksheet-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-worksheet-toolbar__actions {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-}
-
-@container (max-width: 720px) {
+/* Give each date, direction, and status control enough room to retain its
+   selected value. The search field gets a dedicated full row before controls
+   become narrow enough to obscure operational data. */
+@container (max-width: 980px) {
   .cus-worksheet-toolbar__filters {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-@media (min-width: 701px) and (max-width: 1100px) {
-  .cus-worksheet-toolbar {
-    grid-template-columns: 1fr;
+  .cus-worksheet-toolbar__filters .cus-search-field {
+    grid-column: 1 / -1;
   }
 
   .cus-worksheet-toolbar__actions {
-    flex-wrap: wrap;
-    justify-content: flex-start;
+    align-items: flex-start;
   }
 }
 
@@ -226,7 +219,8 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 0 0;
+  margin: 0 16px;
+  padding: 10px 0 0;
   border-bottom: 0;
   color: var(--ink-2, #53615a);
   font-size: 12px;
@@ -380,7 +374,7 @@
 
   .cus-worksheet-toolbar {
     grid-template-columns: 1fr;
-    padding: 0;
+    padding: 14px 12px 0;
   }
 
   .cus-worksheet-toolbar__filters {
@@ -388,9 +382,16 @@
   }
 
   .cus-worksheet-toolbar__actions {
-    grid-column: auto;
-    justify-content: stretch;
-    flex-wrap: wrap;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .cus-worksheet-toolbar__action-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
   }
 
   .cus-worksheet-toolbar__actions .shipment-uui-button {
@@ -419,6 +420,7 @@
   }
 
   .cus-worksheet-meta {
+    margin-inline: 12px;
     align-items: flex-start;
     flex-direction: column;
   }
@@ -430,8 +432,8 @@
     grid-template-columns: 1fr;
   }
 
-  .cus-worksheet-toolbar__actions {
-    flex-wrap: wrap;
+  .cus-worksheet-toolbar__action-group {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -907,7 +909,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 0 0;
+  margin: 0 16px;
+  padding: 10px 0 0;
   border-top: 0;
   background: transparent;
 }

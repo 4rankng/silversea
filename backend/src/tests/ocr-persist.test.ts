@@ -33,7 +33,6 @@ let tripB: number;
 let containerA: number; // belongs to tripA
 let adminId: number;
 let driverUserId: number;
-let driverId: number; // a real drivers row, but NOT the driver of tripA/tripB
 let imgBuffer: Buffer;
 const createdStorageKeys: string[] = [];
 const createdTripIds: number[] = [];
@@ -121,7 +120,9 @@ before(async () => {
     userId: driverUserId,
     name: `QA ${NS} driver`,
   }).returning({ id: s.drivers.id });
-  driverId = drv.id;
+  // The driver record is created only to assert that an unrelated row doesn't
+  // accidentally satisfy the new "trip driver" guard.
+  void drv;
 
   // A container row linked to tripA — used for the happy-path link assertion
   // and the cross-trip (container-not-belonging) 400 case.

@@ -44,13 +44,9 @@ import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
 import { Role } from '@tingting/shared';
 import { requireRoles } from '../middleware/casbin';
 import {
-  installTire,
   installTireInTx,
-  removeTire,
   removeTireInTx,
-  disposeTire,
   disposeTireInTx,
-  transferTire,
   transferTireInTx,
   isHttpError,
   assertTireSerialAvailable,

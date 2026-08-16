@@ -163,9 +163,6 @@ describe('M10.2 slice 1 — container-number validation', () => {
       ]),
     );
     // The original seeded container is still the only row.
-    const [row] = await db.select({ num: s.shipmentContainers.containerNumber })
-      .from(s.shipmentContainers)
-      .where(inArray(s.shipmentContainers.shipmentId, [shipment.id]));
     // One row, original number — the rejected batch wrote nothing.
     const rows = await db.select({ num: s.shipmentContainers.containerNumber })
       .from(s.shipmentContainers)

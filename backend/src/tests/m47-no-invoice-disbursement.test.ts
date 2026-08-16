@@ -32,7 +32,6 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdFetIds: number[] = [];
 const createdExpenseIds: number[] = [];
-const createdPhotoIds: number[] = [];
 const createdAuditIds: number[] = [];
 const createdUserIds: number[] = [];
 let makerId: number;
@@ -131,25 +130,6 @@ async function mkExpense(opts: {
   return e;
 }
 
-async function addExpensePhoto(expenseId: number) {
-  const [photo] = await db.insert(s.tripExpensePhotos).values({
-    tripExpenseId: expenseId,
-    storageKey: `m47/${suffix}/${expenseId}.jpg`,
-    uploadedBy: makerId,
-  }).returning();
-  createdPhotoIds.push(photo.id);
-  await db.insert(s.photoGeotags).values({
-    entityType: 'trip_expense_photo',
-    entityId: photo.id,
-    lat: 10.8231,
-    lng: 106.6297,
-    accuracy: 15,
-    gpsAt: new Date(),
-    source: 'phone',
-    recordedBy: makerId,
-  });
-}
-
 /** Run transitionApproval in a rollback-only tx so the guard fires but
  *  no PENDING row is left APPROVED. */
 async function runApproveTx(
@@ -177,12 +157,6 @@ after(async () => {
   const namePattern = `M47 %${suffix}%`;
   try {
     if (createdAuditIds.length > 0) await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditIds));
-    if (createdPhotoIds.length > 0) {
-      await db.delete(s.photoGeotags).where(and(
-        eq(s.photoGeotags.entityType, 'trip_expense_photo'),
-        inArray(s.photoGeotags.entityId, createdPhotoIds),
-      ));
-    }
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, createdExpenseIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));

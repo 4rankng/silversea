@@ -173,7 +173,7 @@ describe('Q23 GPS job commands', () => {
     let attempts = 0;
     const deps: AdminGpsDeps = {
       selectBackfillTripIds: async () => ({ tripIds: [], truncated: false }),
-      captureAndDeriveTripGps: async (tripId) => {
+      captureAndDeriveTripGps: async (_tripId) => {
         attempts += 1;
         throw new Error('simulated gps failure');
       },

@@ -1131,18 +1131,6 @@ function reminderPortalFallbackErrorMessage(
   return [baseMessage, REMINDER_PORTAL_FALLBACK_PENDING_MARKER].filter(Boolean).join(' ');
 }
 
-function isDebtOffsetAdjustmentRow(note: string | null, txnId: number): boolean {
-  if (!note) return false;
-  return note === 'Đối trừ công nợ khách hàng và nhà cung cấp'
-    || note === 'Hoàn tác đối trừ công nợ khách hàng và nhà cung cấp'
-    || note === `Đối trừ công nợ #${txnId}`
-    || note === `Hoàn tác đối trừ công nợ #${txnId}`;
-}
-
-function isServiceFeeAdjustmentRow(note: string | null): boolean {
-  return note?.startsWith('Điều chỉnh phí chi hộ chuyến') ?? false;
-}
-
 function reminderPortalFallbackMessage(reminderSummary: ReminderSummary): string {
   return `Quý khách có lịch nhắc ${describeStages(reminderSummary.items)} vào ngày ${reminderSummary.referenceDate}. Vui lòng kiểm tra công nợ và liên hệ bộ phận kế toán nếu cần đối chiếu.`;
 }

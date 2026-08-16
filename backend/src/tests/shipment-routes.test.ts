@@ -86,7 +86,6 @@ let adminUserId: number;
 let managerUserId: number;
 let accountantUserId: number;
 let clerkUserId: number;
-let dispatcherUserId: number;
 let driverUserId: number;
 let clerkBusinessUnitId: number;
 let secondaryClerkBusinessUnitId: number;
@@ -289,7 +288,6 @@ before(async () => {
   managerUserId = manager.id;
   accountantUserId = accountant.id;
   clerkUserId = clerk.id;
-  dispatcherUserId = dispatcher.id;
   driverUserId = driver.id;
 
   const customerRow = await mkCustomer();

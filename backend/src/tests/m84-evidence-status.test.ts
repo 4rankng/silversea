@@ -76,12 +76,12 @@ async function setup() {
   return { user: u, driver: d, trip, fulfillment };
 }
 
-let tc = 0;
+
 
 describe('M8.4 slice 4 — advisory evidence-readiness', () => {
   test('No evidence → not ready, milestone and e-POD requirements are missing', async () => {
     const { trip } = await setup();
-    tc++;
+
     const st = await getCompletionEvidenceStatus(trip.id);
     assert.equal(st.ready, false);
     assert.ok(st.missing.includes('Đã lấy vỏ / Lấy hàng'));
@@ -94,7 +94,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
 
   test('Submitted POD without delivered sequence → still blocked', async () => {
     const { trip, driver, user, fulfillment } = await setup();
-    tc++;
+
     for (const eventType of [
       DriverProgressEventType.ORDER_RECEIVED,
       DriverProgressEventType.PICKED_UP,
@@ -152,7 +152,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
 
   test('Full milestone sequence + submitted POD → ready', async () => {
     const { trip, driver, user, fulfillment } = await setup();
-    tc++;
+
     for (const eventType of [
       DriverProgressEventType.ORDER_RECEIVED,
       DriverProgressEventType.PICKED_UP,
@@ -208,7 +208,7 @@ describe('M8.4 slice 4 — advisory evidence-readiness', () => {
 
   test('Missing field lists correct Vietnamese labels', async () => {
     const { trip } = await setup();
-    tc++;
+
     const st = await getCompletionEvidenceStatus(trip.id);
     for (const label of st.missing) {
       assert.ok(label.length > 0 && /[à-ỹÀ-Ỹ]/.test(label), `Vietnamese label: ${label}`);

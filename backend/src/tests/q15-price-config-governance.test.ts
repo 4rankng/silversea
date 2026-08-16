@@ -63,10 +63,6 @@ const uniqueContainerCode = `Q15-${Math.random().toString(36).slice(2, 10).toUpp
 const uniqueTruckPlate = `Q15-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 let requestCounter = 0;
 
-function rowVersion(row: { updatedAt: Date }): number {
-  return Math.max(1, Math.floor(row.updatedAt.getTime() / 1000));
-}
-
 async function api(
   method: string,
   path: string,
@@ -332,7 +328,10 @@ after(async () => {
 });
 
 describe('Q15 governed material config resources', { concurrency: false }, () => {
-  const materialCases: Array<ResourceCase<any>> = [
+  // Each case in the table has its own row shape; the loop only relies on the
+  // shared lifecycle (create / mutate / fetch / expect*) so we widen the row
+  // type to `unknown` rather than `any`.
+  const materialCases: Array<ResourceCase<RowWithUpdatedAt>> = [
     {
       name: 'pricing tables',
       endpoint: '/api/pricing-tables',

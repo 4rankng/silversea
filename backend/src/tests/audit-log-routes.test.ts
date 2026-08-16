@@ -40,7 +40,6 @@ let adminToken: string;
 let managerToken: string;
 let accountantToken: string;
 let adminId: number;
-let managerId: number;
 let accountantId: number;
 let scopedRouteId: number;
 let scopedCargoTypeId: number;
@@ -261,7 +260,6 @@ before(async () => {
   const manager = await mkUser(`audit-manager-${suffix}`, Role.MANAGER);
   const accountant = await mkUser(`audit-accountant-${suffix}`, Role.ACCOUNTANT);
   adminId = admin.id;
-  managerId = manager.id;
   accountantId = accountant.id;
   adminToken = sign(admin);
   managerToken = sign(manager);

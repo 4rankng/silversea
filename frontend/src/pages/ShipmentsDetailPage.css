@@ -20,7 +20,7 @@
 
 .shipments-detail-workspace__header {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--line);
   background: var(--surface-3);

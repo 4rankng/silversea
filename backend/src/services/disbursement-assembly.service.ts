@@ -13,7 +13,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 export interface DisbursementAssemblyResult {
   /** Expenses APPROVED and ready for inclusion in the debit note. */

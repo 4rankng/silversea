@@ -6,7 +6,6 @@ import {
   FuelMode,
   tripReopenRequestSchema,
   Role,
-  TripStatus,
 } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';

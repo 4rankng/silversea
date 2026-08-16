@@ -29,7 +29,6 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdLedgerIds: number[] = [];
-const createdPaymentReceiptIds: number[] = [];
 const createdGovernanceActionIds: number[] = [];
 const createdNotificationIds: number[] = [];
 const createdAuditLogIds: number[] = [];

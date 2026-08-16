@@ -95,6 +95,22 @@ const DRIVER_ITEMS: SearchItem[] = [
   { id: 'my-penalties', type: 'page', label: 'Kỷ luật',     path: '/my-penalties', iconName: 'alert' },
 ];
 
+// Mirrors the DISPATCHER nav (Layout.tsx dispatch-planning + resources sections):
+// both dispatch plans plus the read-only resource catalogs.
+const DISPATCHER_ITEMS: SearchItem[] = [
+  { id: 'dispatch-master-plan',  type: 'page', label: 'Kế hoạch tổng quát',  path: '/dispatch',        iconName: 'dispatch' },
+  { id: 'dispatch-detail-plan',  type: 'page', label: 'Kế hoạch chi tiết',   path: '/dispatch-detail', iconName: 'route' },
+  { id: 'fleet-vehicles',        type: 'page', label: 'Danh mục Xe nội bộ',  path: '/fleet/vehicles',  iconName: 'tractor-head' },
+  { id: 'fleet-drivers',         type: 'page', label: 'Danh mục Tài xế',     path: '/fleet/drivers',   iconName: 'driver' },
+  { id: 'suppliers',             type: 'page', label: 'Nhà thầu phụ',        path: '/suppliers',       iconName: 'supplier' },
+];
+
+// Mirrors the CUS nav (Layout.tsx document-ops section).
+const CUS_ITEMS: SearchItem[] = [
+  { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',           iconName: 'cargo' },
+  { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments/containers', iconName: 'cargo' },
+];
+
 const FORWARDER_ITEMS: SearchItem[] = [
   { id: 'my-forwarder-trips', type: 'page', label: 'Chuyến đi',         path: '/my-forwarder-trips', iconName: 'cargo' },
   { id: 'my-advances',        type: 'page', label: 'Tạm ứng',           path: '/my-advances',        iconName: 'advances' },
