@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { homeForRole, titleForPath } from './routes';
+import { homeForRole, routes, titleForPath } from './routes';
 import { PAGE_CATALOG, AGENT_ROUTE_KEYS } from '@tingting/shared';
 
 /**
@@ -93,6 +93,26 @@ describe('homeForRole', () => {
   it('routes OPS and legacy FORWARDER users to the order-exchange workspace', () => {
     expect(homeForRole('OPS')).toBe('/my-orders');
     expect(homeForRole('FORWARDER')).toBe('/my-orders');
+  });
+});
+
+/**
+ * Live tracking was removed from the product. Keep the dead route constant
+ * from coming back: no ROUTES value may reference /dispatch/live-tracking.
+ */
+describe('removed live-tracking route stays removed', () => {
+  const flatten = (value: unknown, prefix = ''): string[] => {
+    if (typeof value === 'string') return [prefix ? `${prefix}.${value}` : value];
+    if (typeof value === 'function') return [];
+    if (value && typeof value === 'object') {
+      return Object.entries(value).flatMap(([k, v]) => flatten(v, prefix ? `${prefix}.${k}` : k));
+    }
+    return [];
+  };
+
+  it('no route value references /dispatch/live-tracking', () => {
+    const offenders = flatten(routes).filter((v) => v.endsWith('/dispatch/live-tracking'));
+    expect(offenders, `stale live-tracking route constants: ${offenders.join(', ')}`).toEqual([]);
   });
 });
 

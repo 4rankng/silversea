@@ -115,7 +115,6 @@ export const routes = {
   dispatchMasterPlan: PAGE_CATALOG.dispatch.path,
   dispatchDetailedPlan: PAGE_CATALOG.dispatchDetailPlan.path,
   dispatchDetailPlan: PAGE_CATALOG.dispatchDetailPlan.path,
-  dispatchLiveTracking: '/dispatch/live-tracking',
 
   /* ── Customer portal (Wave 2) ─────────────────────────────────────── */
 
