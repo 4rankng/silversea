@@ -208,6 +208,15 @@ describe('DetailedPlanGrid', () => {
     expect(hourControl).toContain('flex: 1 1 0');
   });
 
+  it('keeps dropdown trigger typography aligned with neighboring filter values', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const selectValue = css.match(/\.detailed-plan-filters__select button p \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(selectValue).toContain('font-size: 14px');
+    expect(selectValue).toContain('font-weight: 400');
+    expect(selectValue).toContain('line-height: 21px');
+  });
+
   it('presents filter reset as a quiet full-width toolbar action instead of another field card', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const actions = css.match(/\.detailed-plan-filters__actions \{([\s\S]*?)\n\}/)?.[1] ?? '';
