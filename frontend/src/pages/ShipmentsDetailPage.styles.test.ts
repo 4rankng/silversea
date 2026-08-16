@@ -19,10 +19,15 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select,\s*\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
     expect(css).toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size:\s*inherit;/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    expect(css).toMatch(/\.shipments-detail-filters__meta\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/);
+    expect(source).toMatch(/<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?shipments-detail-filters__meta/);
+    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/);
+    expect(css).toMatch(/\.shipments-detail-filters__date-actions button,[\s\S]*?\.shipments-detail-filters__reset\s*\{[^}]*height:\s*28px;[^}]*min-height:\s*28px;[^}]*padding:\s*3px 8px;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*6px;[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipments-detail-filters__date-actions button \[data-icon\],[\s\S]*?\.shipments-detail-filters__reset \[data-icon\]\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/);
+    expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.shipments-detail-filters__meta\s*\{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*justify-content:\s*space-between;/);
     expect(css).toMatch(/\.shipments-detail-filters__meta p\s*\{[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.shipments-detail-filters__reset\s*\{[^}]*min-height:\s*32px;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters__reset\s*\{[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*flex-direction:\s*column;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters__date-actions button,[\s\S]*?\.shipments-detail-filters__reset\s*\{[^}]*height:\s*44px;[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);

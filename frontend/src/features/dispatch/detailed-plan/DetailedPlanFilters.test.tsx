@@ -167,7 +167,7 @@ describe('DetailedPlanFilters', () => {
   it('keeps advanced filters compact but discoverable on a phone viewport', () => {
     render(
       <DetailedPlanFilters
-        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() }}
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
         onChange={vi.fn()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
@@ -221,21 +221,18 @@ describe('DetailedPlanFilters', () => {
 
     expect(screen.getByText('Đang áp dụng 9 điều kiện lọc')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
-    expect(onChange).toHaveBeenCalledWith({
-      ...EMPTY_DETAILED_PLAN_FILTERS,
-      date: businessDateISO(),
-    });
+    expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
 
     rerender(
       <DetailedPlanFilters
-        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() }}
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
         onChange={onChange}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
       />,
     );
-    expect(screen.getByText('Mặc định: ngày vận chuyển hôm nay')).toBeTruthy();
+    expect(screen.getByText('Mặc định: mọi ngày vận chuyển')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeDisabled();
   });
 });

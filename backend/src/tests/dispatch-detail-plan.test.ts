@@ -251,7 +251,7 @@ type PlateResponse = {
 };
 
 async function fetchRows(token: string, query = '') {
-  const response = await apiFetch<{ items: DetailPlanRow[]; nextCursor: string | null }>(
+  const response = await apiFetch<{ items: DetailPlanRow[]; total: number; page: number; pageSize: number }>(
     `/dispatch-detail-plan-rows${query}`,
     { token },
   );

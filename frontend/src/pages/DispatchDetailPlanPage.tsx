@@ -39,12 +39,12 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAssignPlate={detailPlan.assignPlate}
         />
-        {detailPlan.totalPages > 1 && (
+        {detailPlan.total > detailPlan.pageSize && (
           <Pagination
             page={detailPlan.page}
             totalPages={detailPlan.totalPages}
+            totalItems={detailPlan.total}
             pageSize={detailPlan.pageSize}
-            summary={<span className="ds-pagination__summary">Trang <b>{detailPlan.page}</b> · <b>{detailPlan.items.length.toLocaleString('vi-VN')}</b> dòng kế hoạch</span>}
             onChange={detailPlan.setPage}
           />
         )}

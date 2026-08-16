@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import type { CursorPaginatedResponse } from '@tingting/shared';
+import type { CursorPaginatedResponse, PaginatedResponse } from '@tingting/shared';
 
 export interface DispatchTruck {
   id: number;
@@ -216,8 +216,8 @@ export interface DispatchDetailPlanFilters {
   hourTo?: string;
 }
 
-export function listDispatchDetailPlanRows(filters: { cursor?: string | null; limit?: number } & DispatchDetailPlanFilters = {}) {
-  return api.get<CursorPaginatedResponse<DispatchDetailPlanRow>>(
+export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {
+  return api.get<PaginatedResponse<DispatchDetailPlanRow>>(
     `/shipments/dispatch-detail-plan-rows?${queryString(filters as Record<string, string | number | Array<string> | null | undefined>)}`,
   );
 }

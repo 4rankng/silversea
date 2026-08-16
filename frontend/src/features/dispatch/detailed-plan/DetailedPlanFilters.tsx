@@ -201,7 +201,7 @@ export function DetailedPlanFilters({
   const advancedFiltersId = useId();
   const today = businessDateISO();
   const activeAdvancedFilterCount = [
-    filters.date !== today,
+    filters.date !== '',
     filters.direction,
     filters.assignmentStatus,
     filters.pickupIds.length > 0,
@@ -223,7 +223,7 @@ export function DetailedPlanFilters({
         <span className="detailed-plan-filters__status" aria-live="polite">
           {activeFilterCount > 0
             ? `Đang áp dụng ${activeFilterCount} điều kiện lọc`
-            : 'Mặc định: ngày vận chuyển hôm nay'}
+            : 'Mặc định: mọi ngày vận chuyển'}
         </span>
         <UUIButton
           className="detailed-plan-filters__clear"

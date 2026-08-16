@@ -48,7 +48,7 @@ export interface ListDispatchFleetInput {
 
 export interface ListDispatchDetailPlanRowsInput {
   actor: AuthUser;
-  cursor?: string | null;
+  page?: number;
   limit?: number;
   q?: string;
   date?: string;
@@ -1825,8 +1825,8 @@ function dispatchDetailDisplayHour(closingAt: Date | null, plannedReturnAt: Date
 export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
-  const cursor = parseCursor(input.cursor, 'dispatch-detail-plan');
   const limit = normalizeLimit(input.limit, 50);
+  const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page as number)) : 1;
   const qPattern = buildPattern(input.q);
   const date = normalizeDate(input.date);
   const pickupIds = normalizeIdList(input.pickupIds, 'pickupIds');
@@ -1836,7 +1836,38 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   const hourTo = normalizeTimeMinutes(input.hourTo, 'hourTo');
 
   return db.transaction(async (tx) => {
-    const rows = await tx.select({
+    // Shared filter so the rows page and the total count stay consistent
+    // within one transaction.
+    const filters = and(
+      isNull(s.shipmentFulfillments.canceledAt),
+      isNull(s.shipments.deletedAt),
+      eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+      inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
+      accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
+      input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
+      date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
+      pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
+      dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
+      deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
+      hourFrom != null ? sql`${dispatchDetailRunMinutesSql()} >= ${hourFrom}` : undefined,
+      hourTo != null ? sql`${dispatchDetailRunMinutesSql()} <= ${hourTo}` : undefined,
+      input.assignmentStatus === 'UNASSIGNED'
+        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
+        : undefined,
+      input.assignmentStatus === 'ASSIGNED'
+        ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
+        : undefined,
+      qPattern ? or(
+        ilike(s.customers.name, qPattern),
+        ilike(s.shipments.shipmentCode, qPattern),
+        ilike(s.shipments.bookingRef, qPattern),
+        ilike(s.shipments.blNumber, qPattern),
+        ilike(s.shipmentContainers.containerNumber, qPattern),
+      ) : undefined,
+    );
+
+    const [rows, totals] = await Promise.all([
+      tx.select({
       fulfillmentId: s.shipmentFulfillments.id,
       fulfillmentVersion: s.shipmentFulfillments.version,
       fulfillmentType: s.shipmentFulfillments.fulfillmentType,
@@ -1884,38 +1915,19 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         ne(s.trips.status, TripStatus.CANCELED),
         isNull(s.trips.deletedAt),
       ))
-      .where(and(
-        isNull(s.shipmentFulfillments.canceledAt),
-        isNull(s.shipments.deletedAt),
-        eq(s.shipments.status, 'READY_FOR_DISPATCH'),
-        inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
-        accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
-        cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
-        input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
-        date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
-        pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
-        dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
-        deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
-        hourFrom != null ? sql`${dispatchDetailRunMinutesSql()} >= ${hourFrom}` : undefined,
-        hourTo != null ? sql`${dispatchDetailRunMinutesSql()} <= ${hourTo}` : undefined,
-        input.assignmentStatus === 'UNASSIGNED'
-          ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
-          : undefined,
-        input.assignmentStatus === 'ASSIGNED'
-          ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
-          : undefined,
-        qPattern ? or(
-          ilike(s.customers.name, qPattern),
-          ilike(s.shipments.shipmentCode, qPattern),
-          ilike(s.shipments.bookingRef, qPattern),
-          ilike(s.shipments.blNumber, qPattern),
-          ilike(s.shipmentContainers.containerNumber, qPattern),
-        ) : undefined,
-      ))
+      .where(filters)
       .orderBy(desc(s.shipmentFulfillments.id))
-      .limit(limit + 1);
+      .limit(limit)
+      .offset((page - 1) * limit),
+      tx.select({ total: sql<number>`count(*)` })
+        .from(s.shipmentFulfillments)
+        .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
+        .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+        .where(filters),
+    ]);
 
-    const pageRows = rows.slice(0, limit);
+    const pageRows = rows;
     const shipmentIds = pageRows.map((row) => row.shipmentId);
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
@@ -1998,7 +2010,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         };
       }),
       limit,
-      nextCursor: rows.length > limit ? encodeDescendingIdCursor('dispatch-detail-plan', pageRows.at(-1)!.fulfillmentId) : null,
+      total: Number(totals[0]?.total ?? 0),
+      page,
+      pageSize: limit,
     };
   });
 }

@@ -826,7 +826,9 @@ router.get(
     };
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
-      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+      page: typeof req.query.page === 'string' && Number.isInteger(Number(req.query.page)) && Number(req.query.page) > 0
+        ? Number(req.query.page)
+        : undefined,
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
       date: typeof req.query.date === 'string' ? req.query.date : undefined,

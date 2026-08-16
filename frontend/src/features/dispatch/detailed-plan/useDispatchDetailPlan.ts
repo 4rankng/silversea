@@ -8,7 +8,6 @@ import {
   type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
-import { businessDateISO } from '../../../lib/format';
 
 const PAGE_SIZE = 50;
 
@@ -37,7 +36,9 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
 };
 
 export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
-  return { ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() };
+  // No default transport date — /dispatch parity: the grid lists all allocated
+  // fulfillments until the dispatcher filters by an explicit day.
+  return { ...EMPTY_DETAILED_PLAN_FILTERS };
 }
 
 export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
@@ -65,9 +66,9 @@ function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
  */
 export function useDispatchDetailPlan() {
   const [filters, setFilters] = useState<DetailedPlanFilterState>(createDefaultDetailedPlanFilters);
+  const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [pageCursors, setPageCursors] = useState<Array<string | null>>([null]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
@@ -87,14 +88,14 @@ export function useDispatchDetailPlan() {
     setLoading(true);
     setError(null);
     listDispatchDetailPlanRows({
-      cursor: pageCursors.at(-1) ?? null,
+      page,
       limit: PAGE_SIZE,
       ...detailPlanQuery(filters, debouncedQ),
     })
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
-        setNextCursor(response.nextCursor);
+        setTotal(response.total);
         setLoading(false);
       })
       .catch(() => {
@@ -102,27 +103,14 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [pageCursors, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, refreshKey]);
+  }, [page, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
-    setPageCursors([null]);
+    setPage(1);
   }, []);
 
-  const page = pageCursors.length;
-  const totalPages = page + (!loading && nextCursor ? 1 : 0);
-
-  const setPage = useCallback((nextPage: number) => {
-    if (nextPage === page + 1 && nextCursor) {
-      setLoading(true);
-      setPageCursors((current) => [...current, nextCursor]);
-      return;
-    }
-    if (nextPage >= 1 && nextPage < page) {
-      setLoading(true);
-      setPageCursors((current) => current.slice(0, nextPage));
-    }
-  }, [nextCursor, page]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
     setSortKey((current) => (current === key ? null : key));
@@ -217,6 +205,7 @@ export function useDispatchDetailPlan() {
     error,
     page,
     totalPages,
+    total,
     pageSize: PAGE_SIZE,
     setPage,
     sortKey,

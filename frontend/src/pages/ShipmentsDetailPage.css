@@ -43,10 +43,20 @@
 .shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter input::placeholder { font-size: inherit; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__meta { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
+.shipments-detail-filters__footer { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.shipments-detail-filters__date-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.shipments-detail-filters__date-actions button,
+.shipments-detail-filters__reset { height: 28px; min-height: 28px; padding: 3px 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.25; }
+.shipments-detail-filters__date-actions button [data-icon],
+.shipments-detail-filters__reset [data-icon] { width: 14px; height: 14px; }
+.shipments-detail-filters__date-actions button:hover,
+.shipments-detail-filters__date-actions button[data-hovered],
+.shipments-detail-filters__reset:hover,
+.shipments-detail-filters__reset[data-hovered] { border-color: var(--ink-4); background: var(--surface-2); color: var(--ink); }
+.shipments-detail-filters__meta { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
 .shipments-detail-filters__meta p { min-width: 0; margin: 0; color: var(--ink-2); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .shipments-detail-filters__meta p span { margin-right: 6px; color: var(--ink-3); font-size: 10px; font-weight: var(--fw-bold); letter-spacing: .04em; text-transform: uppercase; }
-.shipments-detail-filters__reset { flex: 0 0 auto; min-height: 32px; }
+.shipments-detail-filters__reset { flex: 0 0 auto; }
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
@@ -292,8 +302,12 @@
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
   .shipments-detail-filter--search,
   .shipments-detail-filter:nth-child(4) { grid-column: 1 / -1; }
-  .shipments-detail-filters__meta { align-items: flex-start; }
-  .shipments-detail-filters__reset { min-height: 44px; }
+  .shipments-detail-filters__footer { align-items: flex-start; flex-direction: column; }
+  .shipments-detail-filters__meta { width: 100%; align-items: flex-start; }
+  .shipments-detail-filters__date-actions button,
+  .shipments-detail-filters__reset { height: 44px; min-height: 44px; padding: 8px 12px; font-size: var(--fs-xs); }
+  .shipments-detail-filters__date-actions button [data-icon],
+  .shipments-detail-filters__reset [data-icon] { width: 16px; height: 16px; }
   .shipment-container-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-summary > div:nth-child(2) { border-right: 0; }
   .shipment-container-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }

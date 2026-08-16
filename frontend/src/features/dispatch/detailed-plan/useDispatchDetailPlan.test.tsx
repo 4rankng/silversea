@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import type { CursorPaginatedResponse } from '@tingting/shared';
+import type { PaginatedResponse } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDispatchDetailPlan } from './useDispatchDetailPlan';
 
@@ -20,13 +20,12 @@ import {
   assignDispatchDetailPlate,
   listDispatchDetailPlanRows,
 } from '../../../api/dispatchPlanningClient';
-import { businessDateISO } from '../../../lib/format';
 
-const page = (items: DispatchDetailPlanRow[]): CursorPaginatedResponse<DispatchDetailPlanRow> => ({
+const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedResponse<DispatchDetailPlanRow> => ({
   items,
-  total: items.length,
-  limit: 50,
-  nextCursor: null,
+  total,
+  page: 1,
+  pageSize: 50,
 });
 
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
@@ -69,15 +68,17 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row(), row({ fulfillmentId: 102 })]));
   });
 
-  it('loads the current Vietnam business date by default', async () => {
+  it('loads unfiltered by date by default (/dispatch parity)', async () => {
     renderHook(() => useDispatchDetailPlan());
 
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     expect(listDispatchDetailPlanRowsMock).toHaveBeenCalledWith(expect.objectContaining({
-      cursor: null,
+      page: 1,
       limit: 50,
-      date: businessDateISO(),
     }));
+    // No transport-date filter is sent until the dispatcher picks a day.
+    const call = listDispatchDetailPlanRowsMock.mock.calls[0][0];
+    expect(call).not.toHaveProperty('date');
   });
 
   it('forwards the selected run-time range as HH:MM query values', async () => {
@@ -148,43 +149,32 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([102]);
   });
 
-  it('replaces rows when moving between cursor-backed pages', async () => {
+  it('replaces rows when moving between offset pages', async () => {
     listDispatchDetailPlanRowsMock
-      .mockResolvedValueOnce({
-        ...page([row({ fulfillmentId: 101 })]),
-        total: 51,
-        nextCursor: 'cursor-page-2',
-      })
-      .mockResolvedValueOnce({
-        ...page([row({ fulfillmentId: 51 })]),
-        total: 51,
-        nextCursor: null,
-      })
-      .mockResolvedValueOnce({
-        ...page([row({ fulfillmentId: 101 })]),
-        total: 51,
-        nextCursor: 'cursor-page-2',
-      });
+      .mockResolvedValueOnce(page([row({ fulfillmentId: 101 })], 51))
+      .mockResolvedValueOnce(page([row({ fulfillmentId: 51 })], 51))
+      .mockResolvedValueOnce(page([row({ fulfillmentId: 101 })], 51));
 
     const { result } = renderHook(() => useDispatchDetailPlan());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.page).toBe(1);
     expect(result.current.totalPages).toBe(2);
+    expect(result.current.total).toBe(51);
 
     act(() => result.current.setPage(2));
     await waitFor(() => expect(result.current.page).toBe(2));
     expect(result.current.totalPages).toBe(2);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'cursor-page-2', limit: 50 }));
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, limit: 50 }));
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([51]);
 
     act(() => result.current.setPage(1));
     await waitFor(() => expect(result.current.page).toBe(1));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: null, limit: 50 }));
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, limit: 50 }));
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([101]);
   });
 });
