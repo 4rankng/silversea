@@ -39,6 +39,7 @@ def assert_control_box(
     results: TestResults,
     tc_id: str,
     context: str,
+    min_size: int = CONTROL_MIN_SIZE,
 ):
     try:
         locator.wait_for(state="visible", timeout=5000)
@@ -49,7 +50,7 @@ def assert_control_box(
         box = locator.bounding_box()
         if not box:
             raise AssertionError("control has no bounding box")
-        if box["width"] < CONTROL_MIN_SIZE or box["height"] < CONTROL_MIN_SIZE:
+        if box["width"] < min_size or box["height"] < min_size:
             raise AssertionError(f"control too small: {box['width']:.0f}x{box['height']:.0f}")
         results.pass_(tc_id, label, f"{context} visible at {box['width']:.0f}x{box['height']:.0f}")
         return True
@@ -244,14 +245,21 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         f"{label}: dispatch handoff action",
                     )
                 else:
-                    fallback = page.get_by_role("button", name="Tải lại")
+                    # The dispatch workspace is filter-led; it deliberately has
+                    # no permanent reload action. The search field remains the
+                    # manager's usable control when there is no task to issue
+                    # and no handoff to accept.
+                    fallback = page.get_by_role("searchbox", name="Tìm kiếm lô hàng")
                     control_ok = assert_control_box(
                         page,
                         fallback,
                         f"{role} control",
                         results,
                         f"TC-1604-{role.upper()}-{label}-control",
-                        f"{label}: dispatch refresh action",
+                        f"{label}: dispatch search control",
+                        # Desktop/laptop keep dense 36px data-entry controls;
+                        # compact touch layouts promote them to 44px.
+                        min_size=36 if width >= 768 else CONTROL_MIN_SIZE,
                     )
 
             if not control_ok:

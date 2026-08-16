@@ -320,7 +320,10 @@ def main() -> bool:
                     dialog.wait_for(timeout=10_000)
                     dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
-                    dialog.get_by_role("button", name="Đóng").click()
+                    # The drawer is still completing its entrance transform at
+                    # this point. Escape is the tested keyboard dismissal path
+                    # and avoids racing Playwright's element-stability guard.
+                    page.keyboard.press("Escape")
                     page.wait_for_function("document.querySelectorAll('[role=\"dialog\"]').length === 0", timeout=2_500)
                     focus_restored = page.evaluate("document.activeElement?.classList.contains('cus-dashboard-detail') === true")
                     check(
