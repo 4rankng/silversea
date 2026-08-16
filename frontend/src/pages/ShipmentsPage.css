@@ -1580,7 +1580,7 @@
   .cus-shipment-drawer .drawer__head {
     gap: 10px;
     overflow: clip;
-    padding: 16px 18px 12px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;
   }
 
   .cus-shipment-drawer .drawer__title {

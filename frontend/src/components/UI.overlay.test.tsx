@@ -9,6 +9,9 @@ const animatedOverlaySource = readFileSync(
   resolve(process.cwd(), 'src/hooks/useAnimatedOverlay.ts'),
   'utf8',
 );
+const responsiveStyles = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
+const shipmentStyles = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+const userStyles = readFileSync(resolve(process.cwd(), 'src/features/users/users.css'), 'utf8');
 
 function DrawerHarness() {
   const [open, setOpen] = useState(false);
@@ -43,6 +46,13 @@ describe('Drawer keyboard focus', () => {
     expect(animatedOverlaySource).toMatch(
       /useLayoutEffect\(\(\) => \{\s*if \(!visible \|\| !wasOpen\) return;[\s\S]*?entranceRef\.current\(overlay, content, prefersReduced\);/,
     );
+  });
+
+  it('preserves safe-area clearance when compact drawer styles override shared padding', () => {
+    expect(responsiveStyles).toContain('padding-top: calc(24px + env(safe-area-inset-top, 0px));');
+    expect(shipmentStyles).toContain('padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;');
+    expect(userStyles).toContain('padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;');
+    expect(userStyles).toContain('padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 0px));');
   });
 
   it('moves focus into the drawer, traps it, and restores the opener after Escape', async () => {

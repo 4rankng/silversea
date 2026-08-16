@@ -575,7 +575,7 @@
   }
 
   .drawer:has(.users-form-cards) .drawer__head {
-    padding: 16px 18px 12px;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;
   }
 
   .drawer:has(.users-form-cards) .drawer__body {
@@ -583,7 +583,7 @@
   }
 
   .drawer:has(.users-form-cards) .drawer__foot {
-    padding: 10px 18px;
+    padding: 10px 18px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 
   .drawer:has(.users-form-cards) .drawer__title {
