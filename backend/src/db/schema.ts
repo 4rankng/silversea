@@ -1,7 +1,7 @@
 import {
   pgTable, serial, varchar, text, integer, boolean, timestamp,
   jsonb, numeric, date, uniqueIndex, index, doublePrecision, smallint,
-  customType,
+  customType, check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -2477,6 +2477,11 @@ export const shipments = pgTable('shipments', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
+  check('shipments_document_reference_direction_check', sql`
+    not (${table.blNumber} is not null and ${table.bookingRef} is not null)
+    and (${table.tradeDirection} is distinct from 'IMPORT' or ${table.bookingRef} is null)
+    and (${table.tradeDirection} is distinct from 'EXPORT' or ${table.blNumber} is null)
+  `),
   uniqueIndex('shipments_id_cargo_mode_uniq_idx').on(table.id, table.cargoMode),
   index('shipments_customer_status_idx').on(table.customerId, table.status),
   index('shipments_route_idx').on(table.routeId),

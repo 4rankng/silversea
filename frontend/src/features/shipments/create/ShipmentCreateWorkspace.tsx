@@ -121,7 +121,13 @@ export function ShipmentCreateWorkspace() {
   });
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current) => key === 'tradeDirection'
+      ? {
+        ...current,
+        tradeDirection: value as FormState['tradeDirection'],
+        ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
+      }
+      : { ...current, [key]: value });
     clearFeedback();
   }
 
@@ -286,8 +292,7 @@ export function ShipmentCreateWorkspace() {
               />
             </div>
 
-            {/* BILL LÔ HÀNG */}
-            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label="Số Bill/Booking" required value={form.bookingRef || form.blNumber || ''} onChange={(event) => update('bookingRef', event.target.value)} maxLength={100} placeholder="Nhập số Bill hoặc Booking" disabled={Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
+            <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref"><TextField id="shipment-booking-ref" label={form.tradeDirection === 'IMPORT' ? 'Số Bill' : form.tradeDirection === 'EXPORT' ? 'Số Booking' : 'Số Bill / Booking'} required value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.tradeDirection === 'EXPORT' ? form.bookingRef : ''} onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)} maxLength={100} placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking' : 'Chọn hình thức nhập/xuất khẩu trước'} disabled={!form.tradeDirection || Boolean(saving)} error={issueByField.get('shipment-booking-ref')} /></div>
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
 

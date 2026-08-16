@@ -140,11 +140,12 @@ export function getShipmentCreateReadiness(
   if (!form.customerId) {
     issues.push(issue('shipment-customer', 'Chọn khách hàng.', 'identity'));
   }
-  if (!form.bookingRef && !form.blNumber) {
-    issues.push(issue('shipment-booking-ref', 'Nhập số Bill hoặc số Booking.', 'identity'));
-  }
   if (!form.tradeDirection) {
     issues.push(issue('shipment-trade-direction', 'Chọn hình thức nhập khẩu hoặc xuất khẩu.', 'identity'));
+  } else if (form.tradeDirection === 'IMPORT' && !form.blNumber) {
+    issues.push(issue('shipment-booking-ref', 'Hàng Nhập cần Số Bill.', 'identity'));
+  } else if (form.tradeDirection === 'EXPORT' && !form.bookingRef) {
+    issues.push(issue('shipment-booking-ref', 'Hàng Xuất cần Số Booking.', 'identity'));
   }
   if (!form.routeId) {
     issues.push(issue('shipment-route', 'Chọn tuyến đường.', 'route'));
@@ -224,8 +225,8 @@ export function buildShipmentRootPayload(
     customerId: Number(form.customerId),
     routeId: form.routeId ? Number(form.routeId) : null,
     cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
-    bookingRef: form.bookingRef || null,
-    blNumber: form.blNumber || null,
+    bookingRef: form.tradeDirection === 'EXPORT' ? form.bookingRef || null : null,
+    blNumber: form.tradeDirection === 'IMPORT' ? form.blNumber || null : null,
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
     operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,

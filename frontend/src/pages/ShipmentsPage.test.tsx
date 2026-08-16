@@ -559,7 +559,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
-  it('edits bill, booking, and declaration from the Chứng từ cell in one save', async () => {
+  it('edits the import Bill and declaration from the Chứng từ cell in one save', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(detail)
@@ -571,7 +571,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
     expect(within(dialog).getByLabelText('Số Bill')).toBeTruthy();
-    expect(within(dialog).getByLabelText('Số Booking')).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Số Booking')).toBeNull();
     expect((within(dialog).getByLabelText('Số tờ khai') as HTMLInputElement).value).toBe('TK-54321');
 
     fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-99999' } });

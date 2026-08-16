@@ -321,6 +321,24 @@ function normalizeShipmentStatusHistoryRow<
   };
 }
 
+function assertShipmentDocumentReferences(input: {
+  blNumber?: string | null;
+  bookingRef?: string | null;
+  tradeDirection?: 'IMPORT' | 'EXPORT' | null;
+}) {
+  const hasBill = Boolean(input.blNumber?.trim());
+  const hasBooking = Boolean(input.bookingRef?.trim());
+  if (hasBill && hasBooking) {
+    throw new ApiError(400, 'Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc Số Booking (hàng Xuất).');
+  }
+  if (input.tradeDirection === 'IMPORT' && hasBooking) {
+    throw new ApiError(400, 'Hàng Nhập dùng Số Bill, không dùng Số Booking.');
+  }
+  if (input.tradeDirection === 'EXPORT' && hasBill) {
+    throw new ApiError(400, 'Hàng Xuất dùng Số Booking, không dùng Số Bill.');
+  }
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface CreateShipmentInput {
@@ -1187,6 +1205,7 @@ async function createShipmentStatusCustomerVisibleEvent(
 // ─── Create ─────────────────────────────────────────────────────────────────
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
+  assertShipmentDocumentReferences(input);
   let responsibleUnitId = input.responsibleUnitId ?? null;
   if (actor && isClerkScopedUser(actor)) {
     const scope = await loadClerkShipmentScope(actor.userId, tx);
@@ -1510,6 +1529,12 @@ export async function updateShipment(
         'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.',
       );
     }
+
+    assertShipmentDocumentReferences({
+      blNumber: input.blNumber !== undefined ? input.blNumber : existing.blNumber,
+      bookingRef: input.bookingRef !== undefined ? input.bookingRef : existing.bookingRef,
+      tradeDirection: input.tradeDirection !== undefined ? input.tradeDirection : existing.tradeDirection,
+    });
 
     if (existing.cargoMode === 'FCL' && input.cargoMode === 'LCL') {
       const fulfillmentRows = await tx.select({

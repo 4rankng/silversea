@@ -364,8 +364,8 @@ export default function ClerkShipmentDocsPage() {
       routeId: loadedDetail.shipment.routeId != null ? String(loadedDetail.shipment.routeId) : '',
       operationalSiteId: loadedDetail.shipment.operationalSiteId != null ? String(loadedDetail.shipment.operationalSiteId) : '',
       pickupWarehouseSiteId: loadedDetail.shipment.pickupWarehouseSiteId != null ? String(loadedDetail.shipment.pickupWarehouseSiteId) : '',
-      bookingRef: loadedDetail.shipment.bookingRef ?? '',
-      blNumber: loadedDetail.shipment.blNumber ?? '',
+      bookingRef: loadedDetail.shipment.tradeDirection === 'IMPORT' ? '' : loadedDetail.shipment.bookingRef ?? '',
+      blNumber: loadedDetail.shipment.tradeDirection === 'EXPORT' ? '' : loadedDetail.shipment.blNumber ?? '',
       contactName: loadedDetail.shipment.contactName ?? '',
       contactPhone: loadedDetail.shipment.contactPhone ?? '',
       expectedDeliveryDate: loadedDetail.shipment.expectedDeliveryDate ?? '',
@@ -416,7 +416,9 @@ export default function ClerkShipmentDocsPage() {
 
   const readiness = useMemo(() => {
     const missing: string[] = [];
-    if (!shipmentForm.blNumber.trim() && !shipmentForm.bookingRef.trim()) missing.push('Số vận đơn hoặc booking');
+    if (!shipmentForm.tradeDirection) missing.push('Chiều hàng');
+    else if (shipmentForm.tradeDirection === 'IMPORT' && !shipmentForm.blNumber.trim()) missing.push('Số Bill');
+    else if (shipmentForm.tradeDirection === 'EXPORT' && !shipmentForm.bookingRef.trim()) missing.push('Số Booking');
     if (!shipmentForm.routeId) missing.push('Tuyến đường');
     if (!shipmentForm.operationalSiteId) missing.push('Nhà máy');
     if (!shipmentForm.cargoMode) missing.push('Loại lô hàng');
@@ -485,8 +487,8 @@ export default function ClerkShipmentDocsPage() {
       const cargoMode = shipmentForm.cargoMode || null;
       const updated = await updateShipment(shipmentId, {
         expectedVersion: version,
-        bookingRef: shipmentForm.bookingRef.trim() || null,
-        blNumber: shipmentForm.blNumber.trim() || null,
+        bookingRef: shipmentForm.tradeDirection === 'EXPORT' ? shipmentForm.bookingRef.trim() || null : null,
+        blNumber: shipmentForm.tradeDirection === 'IMPORT' ? shipmentForm.blNumber.trim() || null : null,
         contactName: shipmentForm.contactName.trim() || null,
         contactPhone: shipmentForm.contactPhone.trim() || null,
         expectedDeliveryDate: shipmentForm.expectedDeliveryDate || null,
@@ -859,36 +861,16 @@ export default function ClerkShipmentDocsPage() {
             </option>
           ))}
         </SelectField>
-        <TextField
-          label="Số booking"
-          value={shipmentForm.bookingRef}
-          onChange={(event) => {
-            setShipmentForm((current) => ({ ...current, bookingRef: event.target.value }));
-            setShipmentMsg(null);
-          }}
-          placeholder="Ví dụ: BK-001"
-          disabled={savingShipment}
-          maxLength={100}
-        />
-        <TextField
-          label="Số vận đơn (B/L)"
-          value={shipmentForm.blNumber}
-          onChange={(event) => {
-            setShipmentForm((current) => ({ ...current, blNumber: event.target.value }));
-            setShipmentMsg(null);
-          }}
-          placeholder="Ví dụ: MAEU1234567890"
-          disabled={savingShipment}
-          maxLength={100}
-        />
         <div style={twoColumnFieldStyle}>
           <SelectField
             label="Chiều hàng"
             value={shipmentForm.tradeDirection}
             onChange={(event) => {
+              const tradeDirection = event.target.value as ShipmentFormState['tradeDirection'];
               setShipmentForm((current) => ({
                 ...current,
-                tradeDirection: event.target.value as ShipmentFormState['tradeDirection'],
+                tradeDirection,
+                ...(tradeDirection === 'IMPORT' ? { bookingRef: '' } : tradeDirection === 'EXPORT' ? { blNumber: '' } : {}),
               }));
               setShipmentMsg(null);
             }}
@@ -898,6 +880,28 @@ export default function ClerkShipmentDocsPage() {
             <option value="IMPORT">Nhập khẩu</option>
             <option value="EXPORT">Xuất khẩu</option>
           </SelectField>
+          {shipmentForm.tradeDirection === 'IMPORT' && <TextField
+            label="Số Bill"
+            value={shipmentForm.blNumber}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, blNumber: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            placeholder="Ví dụ: MAEU1234567890"
+            disabled={savingShipment}
+            maxLength={100}
+          />}
+          {shipmentForm.tradeDirection === 'EXPORT' && <TextField
+            label="Số Booking"
+            value={shipmentForm.bookingRef}
+            onChange={(event) => {
+              setShipmentForm((current) => ({ ...current, bookingRef: event.target.value }));
+              setShipmentMsg(null);
+            }}
+            placeholder="Ví dụ: BK-001"
+            disabled={savingShipment}
+            maxLength={100}
+          />}
           <SelectField
             label="Loại lô hàng"
             value={shipmentForm.cargoMode}

@@ -20,6 +20,18 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Dispatcher catalog creates: DISPATCHER may POST exactly the three
+  // resource-catalog rows it staffs dispatch plans from (trucks, drivers,
+  // suppliers). Every other config write stays Casbin-denied, and
+  // PUT/DELETE on these three are not matched here.
+  if (
+    resource === 'config'
+    && req.user.role === Role.DISPATCHER
+    && req.method === 'POST'
+    && /^\/(trucks|drivers|suppliers)\/?$/.test(req.path)
+  ) {
+    return true;
+  }
   return false;
 }
 

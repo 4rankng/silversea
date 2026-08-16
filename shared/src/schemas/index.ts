@@ -1291,9 +1291,26 @@ export const upsertTripInstructionsSchema = z.object({
 // + forwarding layer. Shared here so the Wave 2 frontend can reuse the exact
 // same schemas for client-side validation.
 
+function validateShipmentDocumentReferences(
+  data: { blNumber?: string | null; bookingRef?: string | null; tradeDirection?: 'IMPORT' | 'EXPORT' | null },
+  ctx: z.RefinementCtx,
+) {
+  const hasBill = Boolean(data.blNumber?.trim());
+  const hasBooking = Boolean(data.bookingRef?.trim());
+  const message = 'Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc Số Booking (hàng Xuất).';
+  if (hasBill && hasBooking) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ['blNumber'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message, path: ['bookingRef'] });
+  } else if (data.tradeDirection === 'IMPORT' && hasBooking) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Hàng Nhập dùng Số Bill, không dùng Số Booking.', path: ['bookingRef'] });
+  } else if (data.tradeDirection === 'EXPORT' && hasBill) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Hàng Xuất dùng Số Booking, không dùng Số Bill.', path: ['blNumber'] });
+  }
+}
+
 // Create draft shipment. Only `customerId` is required — everything else is
 // optional booking metadata that may be filled in before dispatch.
-export const createShipmentSchema = z.object({
+const createShipmentBaseSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
   routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
   cargoTypeId: z.coerce.number().int().positive('Loại hàng không hợp lệ').optional().nullable(),
@@ -1322,6 +1339,8 @@ export const createShipmentSchema = z.object({
   contactPhone: z.string().max(20).optional().nullable(),
 });
 
+export const createShipmentSchema = createShipmentBaseSchema.superRefine(validateShipmentDocumentReferences);
+
 // Quick create — M10.1 clerk mobile entry point. Minimum data set is just
 // `customerId` (the only NOT NULL column); every other field is optional
 // and typically filled later from the M10.2 doc-entry page. Optional
@@ -1329,9 +1348,9 @@ export const createShipmentSchema = z.object({
 // by the offline-queue client lib can carry its dedupe token in the body
 // when headers are not convenient (e.g. multipart). The header wins when
 // both are present; see `routes/shipments.ts` POST /quick.
-export const quickCreateShipmentSchema = createShipmentSchema.extend({
+export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
   _requestId: z.string().min(1).max(100).optional(),
-});
+}).superRefine(validateShipmentDocumentReferences);
 
 // Update shipment. `expectedVersion` is the canonical optimistic-lock field;
 // legacy callers may still send `version` and are normalized onto
@@ -1374,6 +1393,7 @@ export const updateShipmentSchema = z.object({
       path: ['expectedVersion'],
     });
   }
+  validateShipmentDocumentReferences(data, ctx);
 }).transform(({ expectedVersion, version, ...rest }) => ({
   ...rest,
   expectedVersion: expectedVersion ?? version ?? 0,

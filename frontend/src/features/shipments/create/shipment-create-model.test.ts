@@ -31,7 +31,6 @@ describe('shipment create model', () => {
     expect(readiness.draftReady).toBe(true);
     expect(readiness.dispatchReady).toBe(false);
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
-      'shipment-booking-ref',
       'shipment-trade-direction',
       'shipment-route',
       'container-expected-delivery',
@@ -45,7 +44,7 @@ describe('shipment create model', () => {
       customerId: '7',
       routeId: '11',
       cargoTypeId: '31',
-      bookingRef: 'BK-FCL',
+      blNumber: 'BL-FCL',
       shippingLineName: 'MSC',
       declarationNumber: 'TK-01',
       tradeDirection: 'IMPORT' as const,
@@ -55,7 +54,7 @@ describe('shipment create model', () => {
     expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
       customerId: 7,
       routeId: 11,
-      bookingRef: 'BK-FCL',
+      blNumber: 'BL-FCL',
       cargoMode: 'FCL',
       operationalSiteId: 41,
       factoryName: 'Nhà máy Long Minh',
@@ -118,7 +117,7 @@ describe('shipment create model', () => {
       customerId: '7',
       routeId: '11',
       cargoMode: 'LCL' as const,
-      bookingRef: 'BK-LCL',
+      blNumber: 'BL-LCL',
       tradeDirection: 'IMPORT' as const,
       cargoTypeId: '32',
       pickupWarehouseSiteId: '42',
@@ -140,7 +139,7 @@ describe('shipment create model', () => {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
-      bookingRef: 'BK-FCL',
+      blNumber: 'BL-FCL',
       tradeDirection: 'IMPORT' as const,
     };
     const readiness = getShipmentCreateReadiness(form, [{ ...container, expectedDeliveryDate: '2026-08-14' }]);
@@ -153,7 +152,7 @@ describe('shipment create model', () => {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
-      bookingRef: 'BK-FCL-SCHEDULE',
+      blNumber: 'BL-FCL-SCHEDULE',
       tradeDirection: 'IMPORT' as const,
       shippingLineName: 'MSC',
       operationalSiteId: '41',
@@ -173,7 +172,7 @@ describe('shipment create model', () => {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
-      bookingRef: 'BK-LCL-ZERO',
+      blNumber: 'BL-LCL-ZERO',
       tradeDirection: 'IMPORT' as const,
       cargoMode: 'LCL' as const,
       cargoTypeId: '32',
@@ -214,7 +213,7 @@ describe('shipment create model', () => {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
-      bookingRef: 'BK-FCL-DATE',
+      blNumber: 'BL-FCL-DATE',
       tradeDirection: 'IMPORT' as const,
     };
     const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '', expectedDeliveryDate: '2026-08-20' }]);

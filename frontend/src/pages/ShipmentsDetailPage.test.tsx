@@ -342,15 +342,15 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));
-    const documentEditor = (await screen.findByLabelText('Số Bill')).closest<HTMLElement>('.shipment-container-ledger__inline-editor')!;
-    fireEvent.change(within(documentEditor).getByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
+    const documentEditor = (await screen.findByLabelText('Số Booking')).closest<HTMLElement>('.shipment-container-ledger__inline-editor')!;
     fireEvent.change(within(documentEditor).getByLabelText('Nhập / Xuất'), { target: { value: 'IMPORT' } });
+    fireEvent.change(within(documentEditor).getByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
     fireEvent.change(within(documentEditor).getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chứng từ và hãng tàu CONT-002' }));
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/2', {
       expectedVersion: 7,
       blNumber: 'BILL-NEW',
-      bookingRef: 'BOOK-67890',
+      bookingRef: null,
       tradeDirection: 'IMPORT',
       shippingLineName: 'ONE',
     }));

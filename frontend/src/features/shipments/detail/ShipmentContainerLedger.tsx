@@ -264,8 +264,8 @@ function InlineEditor({
         });
       } else if (mode === 'documents') {
         await onSaveDocuments(row, {
-          blNumber: blNumber.trim() || null,
-          bookingRef: bookingRef.trim() || null,
+          blNumber: tradeDirection === 'EXPORT' ? null : blNumber.trim() || null,
+          bookingRef: tradeDirection === 'IMPORT' ? null : bookingRef.trim() || null,
           tradeDirection: tradeDirection === 'IMPORT' || tradeDirection === 'EXPORT' ? tradeDirection : null,
           shippingLineName: shippingLineName.trim() || null,
         });
@@ -360,9 +360,10 @@ function InlineEditor({
       )}
       {mode === 'documents' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Số Bill</span><input autoFocus value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>
-          <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>
-          <label><span>Nhập / Xuất</span><select value={tradeDirection} onChange={(event) => setTradeDirection(event.target.value)} disabled={saving || detail.summary.fieldAccess.tradeDirection.mode === 'READ_ONLY'}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+          <label><span>Nhập / Xuất</span><select value={tradeDirection} onChange={(event) => { const direction = event.target.value; setTradeDirection(direction); if (direction === 'IMPORT') setBookingRef(''); if (direction === 'EXPORT') setBlNumber(''); }} disabled={saving || detail.summary.fieldAccess.tradeDirection.mode === 'READ_ONLY'}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+          {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
+          {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
+          {!tradeDirection && <small>Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ.</small>}
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
           <small>Tờ khai dùng luồng chứng từ có kiểm soát riêng: {detail.summary.fieldAccess.declarationNumber.reason}</small>
         </div>
