@@ -166,10 +166,22 @@ describe('DetailedPlanGrid', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     expect(page).toContain('dispatch-plan-page--wide');
-    expect(css).toContain('grid-template-columns: minmax(280px, 1.6fr) repeat(3, minmax(132px, 0.7fr)) repeat(3, minmax(180px, 1fr)) minmax(170px, 0.9fr)');
-    expect(css).toContain('@container (max-width: 1599px)');
+    expect(css).toContain('display: flex');
+    expect(css).toContain('flex-wrap: wrap');
+    expect(css).toContain('flex-basis: 360px');
+    expect(css).toContain('flex: 0 1 220px');
     expect(css).toContain('@container (max-width: 1000px)');
+    expect(css).toContain('.detailed-plan-filters__field--search {\n    grid-column: auto;');
     expect(css).toContain('.detailed-plan-grid__cell::before');
     expect(css).toContain('content: attr(data-label)');
+  });
+
+  it('keeps the detailed filters flat instead of nesting another card surface', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const toolbar = css.match(/\.detailed-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(toolbar).not.toMatch(/\bpadding\s*:/);
+    expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
+    expect(toolbar).not.toMatch(/\bbackground\s*:/);
   });
 });

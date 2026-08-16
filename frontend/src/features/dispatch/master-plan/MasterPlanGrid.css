@@ -4,8 +4,9 @@
 
 .master-plan-filters {
   display: grid;
-  grid-template-columns: minmax(320px, 1.3fr) minmax(140px, 0.5fr) minmax(208px, 0.72fr) minmax(420px, 1.18fr);
+  grid-template-columns: minmax(300px, 380px) 144px 220px minmax(390px, 440px);
   align-items: center;
+  justify-content: start;
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -50,7 +51,18 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@container (max-width: 1180px) {
+@container (max-width: 1240px) {
+  .master-plan-filters {
+    grid-template-columns: minmax(280px, 360px) 144px 220px;
+  }
+
+  .master-plan-filters__date-range {
+    grid-column: 1 / -1;
+    width: min(100%, 440px);
+  }
+}
+
+@container (max-width: 820px) {
   .master-plan-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -58,6 +70,10 @@
   .master-plan-filters__search,
   .master-plan-filters__date-range {
     grid-column: 1 / -1;
+  }
+
+  .master-plan-filters__date-range {
+    width: min(100%, 440px);
   }
 }
 
@@ -68,6 +84,7 @@
 
   .master-plan-filters__date-range {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    width: 100%;
   }
 
   .master-plan-filters__date-label {
@@ -78,7 +95,9 @@
 .master-plan-grid__wrapper {
   width: 100%;
   container-type: inline-size;
-  overflow: hidden;
+  /* No card chrome to clip: keep the wrapper transparent to overflow so the
+     grid's sticky thead can pin against the app-body scrollport. */
+  overflow: visible;
   border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
 }
 
@@ -99,6 +118,12 @@
 .master-plan-grid__col--allocation { width: 16%; }
 
 .master-plan-grid thead th {
+  position: sticky;
+  /* Negating the scrollport's top padding (see --sticky-thead-top in
+     tokens.css) pins the header flush under the topbar while .app-body
+     scrolls, matching the shipments worksheet behavior. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   text-align: left;
   padding: 10px 12px;
   font-size: var(--ops-table-header-size);

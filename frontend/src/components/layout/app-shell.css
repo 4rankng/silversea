@@ -154,7 +154,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px 24px 32px;
+  padding: var(--app-body-pad-t, 24px) 24px 32px;
   scrollbar-gutter: stable both-edges;
   scroll-behavior: smooth;
 }
@@ -167,6 +167,6 @@
 @media (min-width: 1024px) and (max-width: 1280px) {
   .app-body,
   .content {
-    padding: 24px 20px 32px;
+    padding: var(--app-body-pad-t, 24px) 20px 32px;
   }
 }

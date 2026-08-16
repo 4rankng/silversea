@@ -138,8 +138,11 @@ describe('MasterPlanFilters', () => {
     expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('grid-template-columns: minmax(320px, 1.3fr) minmax(140px, 0.5fr) minmax(208px, 0.72fr) minmax(420px, 1.18fr)');
-    expect(css).toContain('@container (max-width: 1180px)');
+    expect(css).toContain('grid-template-columns: minmax(300px, 380px) 144px 220px minmax(390px, 440px)');
+    expect(css).toContain('@container (max-width: 1240px)');
+    expect(css).toContain('grid-template-columns: minmax(280px, 360px) 144px 220px');
+    expect(css).toContain('width: min(100%, 440px)');
+    expect(css).toContain('@container (max-width: 820px)');
     expect(css).toContain('grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
     expect(css).toContain('.master-plan-filters__date-label {\n    grid-column: 1 / -1;');

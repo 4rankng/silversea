@@ -201,6 +201,12 @@
   --control-h: 44px;
   --content-max-w: 1440px;
 
+  /* App-body scrollport top padding. Sticky table headers pin flush under
+     the topbar by negating this value via --sticky-thead-top; the breakpoint
+     overrides live beside the .app-body padding rules in responsive.css. */
+  --app-body-pad-t: 24px;
+  --sticky-thead-top: calc(-1 * var(--app-body-pad-t));
+
   /* --- Canonical status strip (Vantai invariant) ---
    * Per docs/design-guidelines.md: every status marker is a centered 3x20px
    * strip, NEVER a full-height colored left border or a legacy 4x32 rail.
