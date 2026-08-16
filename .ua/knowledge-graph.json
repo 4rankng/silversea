@@ -77324,6 +77324,96 @@
         "accessibility"
       ],
       "complexity": "complex"
+    },
+    {
+      "id": "file::frontend/cus-qa-overflow.mjs",
+      "type": "file",
+      "filePath": "frontend/cus-qa-overflow.mjs",
+      "name": "cus-qa-overflow.mjs",
+      "label": "cus-qa-overflow.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 105,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
+    },
+    {
+      "id": "file::frontend/cus-qa-sweep.mjs",
+      "type": "file",
+      "filePath": "frontend/cus-qa-sweep.mjs",
+      "name": "cus-qa-sweep.mjs",
+      "label": "cus-qa-sweep.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 125,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
+    },
+    {
+      "id": "file::frontend/cus-qa-sweep2.mjs",
+      "type": "file",
+      "filePath": "frontend/cus-qa-sweep2.mjs",
+      "name": "cus-qa-sweep2.mjs",
+      "label": "cus-qa-sweep2.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 107,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
+    },
+    {
+      "id": "file::frontend/cus-qa-verify.mjs",
+      "type": "file",
+      "filePath": "frontend/cus-qa-verify.mjs",
+      "name": "cus-qa-verify.mjs",
+      "label": "cus-qa-verify.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 89,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
+    },
+    {
+      "id": "file::frontend/probe-cells.mjs",
+      "type": "file",
+      "filePath": "frontend/probe-cells.mjs",
+      "name": "probe-cells.mjs",
+      "label": "probe-cells.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 53,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
+    },
+    {
+      "id": "file::frontend/probe-chung-tu.mjs",
+      "type": "file",
+      "filePath": "frontend/probe-chung-tu.mjs",
+      "name": "probe-chung-tu.mjs",
+      "label": "probe-chung-tu.mjs",
+      "summary": "Playwright QA probe script (env-driven, no credentials) for CUS-page sweep/overflow audits",
+      "sizeLines": 83,
+      "languages": [
+        "JavaScript"
+      ],
+      "frameworks": [
+        "Playwright"
+      ]
     }
   ],
   "edges": [

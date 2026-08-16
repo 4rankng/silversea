@@ -110792,5 +110792,75 @@
       "totalLines": 38,
       "hasStructuralAnalysis": true
     }
+  },
+  "frontend/cus-qa-overflow.mjs": {
+    "contentHash": "b4c4d33a1deb7d8e228c23c9c626b59bfb2b5592530ce04d0545ff474ab04acb",
+    "functions": [],
+    "classes": [],
+    "imports": [
+      "@playwright/test",
+      "node:fs",
+      "node:path"
+    ],
+    "exportsCount": 0
+  },
+  "frontend/cus-qa-sweep.mjs": {
+    "contentHash": "7cfadcffa4709f39916cd71c48421cb04dc9a0fb84c507d7fb640aa4b395c125",
+    "functions": [
+      "log",
+      "record",
+      "clickableTargets",
+      "slugify"
+    ],
+    "classes": [],
+    "imports": [
+      "@playwright/test",
+      "node:fs",
+      "node:path"
+    ],
+    "exportsCount": 0
+  },
+  "frontend/cus-qa-sweep2.mjs": {
+    "contentHash": "ca5ee526d86adec36f1f71ce375aeed703e047d5699f4acdb54b3c27525c6f92",
+    "functions": [
+      "log",
+      "record"
+    ],
+    "classes": [],
+    "imports": [
+      "@playwright/test",
+      "node:fs",
+      "node:path"
+    ],
+    "exportsCount": 0
+  },
+  "frontend/cus-qa-verify.mjs": {
+    "contentHash": "dd1c79a66998602983c4ff976f6d3e706498d92593d304a5e28afadb939506b7",
+    "functions": [],
+    "classes": [],
+    "imports": [
+      "@playwright/test"
+    ],
+    "exportsCount": 0
+  },
+  "frontend/probe-cells.mjs": {
+    "contentHash": "2ce4b57fdd1ba36d41c2a1fab177af4abe7487fdf617466e1d544e377f3509cd",
+    "functions": [],
+    "classes": [],
+    "imports": [
+      "@playwright/test"
+    ],
+    "exportsCount": 0
+  },
+  "frontend/probe-chung-tu.mjs": {
+    "contentHash": "779f98e0e31b0a0b4080e6f2aff7afc65e61d1d36ef554f89cf44c69737c1f45",
+    "functions": [
+      "text"
+    ],
+    "classes": [],
+    "imports": [
+      "@playwright/test"
+    ],
+    "exportsCount": 0
   }
 }
