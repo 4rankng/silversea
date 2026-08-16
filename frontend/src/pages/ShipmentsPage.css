@@ -633,6 +633,12 @@
 
 .cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
 .cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
+.cus-multiline-cell .cus-customer-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .cus-multiline-cell--mono { font-family: var(--font-data); }
 .cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { }

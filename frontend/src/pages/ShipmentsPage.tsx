@@ -1597,7 +1597,7 @@ export default function ShipmentsPage() {
                         <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
                           <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
-                            <strong>{item.customerName || '—'}</strong>
+                            <strong className="cus-customer-name">{item.customerName || '—'}</strong>
                             <span>{item.factoryName || 'Chưa có nhà máy'}</span>
                             <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
                           </span></button>
