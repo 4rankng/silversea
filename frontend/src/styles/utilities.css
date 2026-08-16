@@ -56,7 +56,7 @@
   /* Page title slightly smaller on phones */
   .page-title { font-size: 22px; }
   .page-subtitle { font-size: var(--fs-xs); }
-  .app-body, .content { padding: 16px 12px 32px; }
+  .app-body, .content { padding: var(--app-body-pad-t, 16px) 12px 32px; }
 
   /* ── Page header: stack title above actions on mobile ── */
   .page-header { flex-direction: column; gap: 10px; }

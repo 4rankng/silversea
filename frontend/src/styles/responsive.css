@@ -20,6 +20,10 @@
   /* ── App shell ── */
   .app { grid-template-columns: 1fr; }
 
+  /* Scrollport top padding narrows with the shell; keep the sticky
+     thead offset token in sync so headers still pin flush. */
+  :root { --app-body-pad-t: 20px; }
+
   .app::before {
     content: "";
     position: fixed;
@@ -53,7 +57,7 @@
   }
 
   /* ── Content ── */
-  .app-body, .content { padding: 20px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .app-body, .content { padding: var(--app-body-pad-t, 24px) 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
 
   /* ── Topbar ── */
   .topbar__context {
@@ -198,7 +202,8 @@
   }
 
   /* ── App shell ── */
-  .app-body, .content { padding: 14px 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
+  :root { --app-body-pad-t: 14px; }
+  .app-body, .content { padding: var(--app-body-pad-t, 14px) 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
 
   /* ── Topbar ── */
   .topbar {

@@ -564,9 +564,10 @@
 
 .cus-dashboard-table thead th {
   position: sticky;
-  /* -24px keeps the header flush with the app-body scrollport edge so scrolled
-     rows never peek through the gap between the topbar and this pinned header. */
-  top: -24px;
+  /* Negating the scrollport's top padding keeps the header flush with the
+     app-body edge so scrolled rows never peek through the gap between the
+     topbar and this pinned header. */
+  top: var(--sticky-thead-top, -24px);
   z-index: 3;
   padding: 10px 12px;
   border-right: 1px solid var(--line);
