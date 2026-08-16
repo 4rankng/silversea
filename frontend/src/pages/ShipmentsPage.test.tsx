@@ -1176,8 +1176,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     randomUUID.mockRestore();
   });
 
-  it('uses a bounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
-    expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[\s\S]*?max-height:[\s\S]*?overflow-y:\s*auto;[\s\S]*?overflow-x:\s*clip;[\s\S]*?scrollbar-gutter:\s*stable;/);
+  it('uses an unbounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
+    expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);
+    expect(css).not.toMatch(/\.cus-dashboard-viewport\s*\{[^}]*max-height/);
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
     expect(css).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{\s*grid-template-columns:\s*1fr;/);

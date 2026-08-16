@@ -1282,11 +1282,6 @@ export default function ShipmentsPage() {
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
 
-  const resultLabel = useMemo(() => {
-    if (loading) return 'Đang cập nhật danh sách…';
-    if (error && !data) return 'Không thể tải dữ liệu';
-    return `${total.toLocaleString('vi-VN')} lô hàng`;
-  }, [data, error, loading, total]);
   const filterChips = useMemo(() => [
     suffixParam ? { key: 'searchSuffix', label: `Mã: ${suffixParam}` } : null,
     dateFrom ? { key: 'transportDateFrom', label: `Từ ${formatDate(dateFrom)}` } : null,

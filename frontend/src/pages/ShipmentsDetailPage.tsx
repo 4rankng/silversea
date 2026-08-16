@@ -34,7 +34,7 @@ import {
   type ShipmentScheduleDraft,
   type ShipmentVehicleDraft,
 } from '../features/shipments/detail/ShipmentContainerLedger';
-import { formatVietnamDateInput, formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
+import { formatVietnamDateInput, localDateTimeToIso } from '../lib/shipment-operations';
 import './ShipmentsDetailPage.css';
 
 const PAGE_SIZE = 20;

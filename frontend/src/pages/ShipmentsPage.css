@@ -519,12 +519,9 @@
 }
 
 /* Approved CUS dashboard: seven grouped columns with a mobile stacked row.
-   The bounded viewport may scroll vertically but never owns a horizontal rail. */
+   The table grows with its rows and never owns a horizontal rail. */
 .cus-dashboard-viewport {
-  max-height: min(68vh, 760px);
-  overflow-y: auto;
   overflow-x: clip;
-  scrollbar-gutter: stable;
   border-top: 0;
   border-bottom: 0;
   outline: none;
@@ -845,7 +842,6 @@
 .cus-create-shipment { white-space: nowrap; }
 
 @container (max-width: 1000px) {
-  .cus-dashboard-viewport { max-height: none; overflow: visible; border-bottom: 0; }
   .cus-dashboard-table,
   .cus-dashboard-table tbody { display: block; width: 100%; }
   .cus-dashboard-table colgroup,

@@ -59,7 +59,7 @@
 .shipment-container-summary__attention { background: var(--warning-soft); }
 .shipment-container-summary__attention dd { color: var(--warning-text); }
 
-.shipment-container-ledger { position: relative; max-height: min(64vh, 760px); min-width: 0; overflow-x: hidden; overflow-y: auto; background: var(--surface); scrollbar-gutter: stable; }
+.shipment-container-ledger { position: relative; min-width: 0; background: var(--surface); }
 .shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .shipment-container-ledger > .ds-pagination { position: sticky; bottom: 0; z-index: 3; margin: 0; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
@@ -213,7 +213,6 @@
 @container shipments-detail (max-width: 900px) {
   .shipments-detail-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shipments-detail-filter--search { grid-column: span 2; }
-  .shipment-container-ledger { max-height: none; overflow: visible; }
   .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
