@@ -96,17 +96,19 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.deliveryLocation ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">
-                    {item.blNumber || item.bookingRef || '—'}
+                  <div className="master-plan-grid__documents">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__documents-bill">
+                      {item.blNumber || item.bookingRef || '—'}
+                    </div>
+                    <div className="master-plan-grid__line master-plan-grid__documents-direction">
+                      {item.tradeDirection === 'IMPORT' ? (
+                        <Badge type="pill-color" size="sm" color="blue">Nhập</Badge>
+                      ) : item.tradeDirection === 'EXPORT' ? (
+                        <Badge type="pill-color" size="sm" color="orange">Xuất</Badge>
+                      ) : '—'}
+                    </div>
+                    <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
                   </div>
-                  <div className="master-plan-grid__line">
-                    {item.tradeDirection === 'IMPORT' ? (
-                      <Badge type="pill-color" size="sm" color="blue">Nhập</Badge>
-                    ) : item.tradeDirection === 'EXPORT' ? (
-                      <Badge type="pill-color" size="sm" color="orange">Xuất</Badge>
-                    ) : '—'}
-                  </div>
-                  <div className="master-plan-grid__line master-plan-grid__line--muted">{item.shippingLineName ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
                   <div className="master-plan-grid__line">Nâng: {item.pickupLocation ?? '—'}</div>

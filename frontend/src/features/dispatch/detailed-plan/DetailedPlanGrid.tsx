@@ -161,13 +161,15 @@ export function DetailedPlanGrid({
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Chứng từ">
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      Bill: {row.docs.billNumber ?? '—'}
-                    </div>
-                    <div className="detailed-plan-grid__line">
-                      <span className={`detailed-plan-grid__badge${row.docs.tradeDirection === 'EXPORT' ? ' detailed-plan-grid__badge--export' : ' detailed-plan-grid__badge--import'}`}>
-                        {row.docs.tradeDirection === 'EXPORT' ? 'XUẤT' : row.docs.tradeDirection === 'IMPORT' ? 'NHẬP' : '—'}
-                      </span>
+                    <div className="detailed-plan-grid__documents">
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__documents-bill">
+                        Bill: {row.docs.billNumber ?? '—'}
+                      </div>
+                      <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                        <span className={`detailed-plan-grid__badge${row.docs.tradeDirection === 'EXPORT' ? ' detailed-plan-grid__badge--export' : ' detailed-plan-grid__badge--import'}`}>
+                          {row.docs.tradeDirection === 'EXPORT' ? 'XUẤT' : row.docs.tradeDirection === 'IMPORT' ? 'NHẬP' : '—'}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Container">

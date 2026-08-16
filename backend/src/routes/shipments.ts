@@ -815,14 +815,14 @@ router.get(
       }
       return parsed;
     };
-    const hour = (key: string) => {
+    const time = (key: string) => {
       const raw = req.query[key];
       if (raw == null || raw === '') return undefined;
-      const parsed = Number(raw);
-      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 23) {
+      const value = String(raw).trim();
+      if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)) {
         throw new ApiError(400, `Giờ lọc không hợp lệ (${key})`);
       }
-      return parsed;
+      return value;
     };
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
@@ -835,8 +835,8 @@ router.get(
       pickupIds: idList('pickupIds'),
       dropoffIds: idList('dropoffIds'),
       deliveryPointIds: idList('deliveryPointIds'),
-      hourFrom: hour('hourFrom'),
-      hourTo: hour('hourTo'),
+      hourFrom: time('hourFrom'),
+      hourTo: time('hourTo'),
     }));
   }),
 );

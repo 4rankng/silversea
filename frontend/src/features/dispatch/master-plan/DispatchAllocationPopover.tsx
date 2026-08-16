@@ -285,43 +285,56 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         onClick={(event) => event.stopPropagation()}
       >
         <div className="dispatch-allocation-popover__header">
-          <div>
+          <div className="dispatch-allocation-popover__heading">
             <p className="dispatch-allocation-popover__eyebrow">Kế hoạch tổng quát</p>
             <h3 id="dispatch-allocation-title">Phân bổ nhà xe</h3>
+            <div className="dispatch-allocation-popover__shipment">
+              <strong>{shipment.blNumber || shipment.bookingRef || shipment.shipmentCode}</strong>
+              <span>{shipment.customerName ?? 'Chưa có tên khách hàng'}</span>
+            </div>
           </div>
           <CloseButton size="xs" label="Đóng" slot={null} onPress={onClose} />
         </div>
-        <div className="dispatch-allocation-popover__shipment">
-          <strong>{shipment.blNumber || shipment.bookingRef || shipment.shipmentCode}</strong>
-          <span>{shipment.customerName ?? 'Chưa có tên khách hàng'}</span>
-        </div>
         <p id="dispatch-allocation-description" className="dispatch-allocation-popover__description">
-          Chọn nhà xe và nhập số container giao cho từng đơn vị. Có thể lưu khi chưa phân đủ, nhưng không được vượt nhu cầu của lô hàng.
+          Chọn nhà xe và số container giao cho từng đơn vị. Có thể lưu khi chưa phân đủ và bổ sung sau.
         </p>
 
-        <div className={`dispatch-allocation-popover__summary is-${allocationState}`} aria-live="polite">
-          <div>
-            <span>Nhu cầu</span>
-            <strong>20': {demand.count20} <i aria-hidden="true">·</i> 40': {demand.count40}</strong>
+        <section className={`dispatch-allocation-popover__summary is-${allocationState}`} aria-labelledby="dispatch-allocation-summary-title">
+          <div className="dispatch-allocation-popover__summary-heading">
+            <div>
+              <h4 id="dispatch-allocation-summary-title">Tổng phân bổ</h4>
+              <p>Không được phân vượt nhu cầu của lô hàng.</p>
+            </div>
+            <span className="dispatch-allocation-popover__state" aria-live="polite">
+              {allocationState === 'error' ? 'Cần điều chỉnh' : allocationState === 'complete' ? 'Đã phân đủ' : 'Chưa phân đủ'}
+            </span>
           </div>
-          <div>
-            <span>Đã gán</span>
-            <strong>20': {validation.assigned20} <i aria-hidden="true">·</i> 40': {validation.assigned40}</strong>
+          <div className="dispatch-allocation-popover__balance" role="table" aria-label="Tổng số container đã phân bổ">
+            <div className="dispatch-allocation-popover__balance-header" role="row">
+              <span role="columnheader">Loại</span>
+              <span role="columnheader">Nhu cầu</span>
+              <span role="columnheader">Đã phân</span>
+              <span role="columnheader">Còn lại</span>
+            </div>
+            <div className="dispatch-allocation-popover__balance-row" role="row">
+              <strong role="rowheader">20'</strong>
+              <span role="cell">{demand.count20}</span>
+              <span role="cell">{validation.assigned20}</span>
+              <strong role="cell">{allocationState === 'error' ? remaining.count20 : Math.max(0, remaining.count20)}</strong>
+            </div>
+            <div className="dispatch-allocation-popover__balance-row" role="row">
+              <strong role="rowheader">40'</strong>
+              <span role="cell">{demand.count40}</span>
+              <span role="cell">{validation.assigned40}</span>
+              <strong role="cell">{allocationState === 'error' ? remaining.count40 : Math.max(0, remaining.count40)}</strong>
+            </div>
           </div>
-          <div>
-            <span>{allocationState === 'error' ? 'Chênh lệch' : 'Còn lại'}</span>
-            <strong>
-              20': {allocationState === 'error' ? remaining.count20 : Math.max(0, remaining.count20)}{' '}
-              <i aria-hidden="true">·</i>{' '}
-              40': {allocationState === 'error' ? remaining.count40 : Math.max(0, remaining.count40)}
-            </strong>
-          </div>
-        </div>
+        </section>
 
         <div className="dispatch-allocation-popover__section-head">
           <div>
-            <h4>Nhà xe nhận hàng</h4>
-            <p>Mỗi nhà xe chỉ nhập một dòng.</p>
+            <h4>Phân bổ theo nhà xe</h4>
+            <p>Mỗi nhà xe chỉ xuất hiện một lần.</p>
           </div>
         </div>
 
@@ -329,7 +342,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           {rows.map((row, index) => (
             <div key={row.key} className="dispatch-allocation-popover__row" role="listitem" data-allocation-row={index}>
               <div className="dispatch-allocation-popover__row-head">
-                <strong>Nhà xe {index + 1}</strong>
+                <strong>Phân bổ {index + 1}</strong>
                 {rows.length > 1 && (
                   <button
                     type="button"
@@ -342,51 +355,51 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
                 )}
               </div>
               <div className="dispatch-allocation-popover__fields">
-              <UUINativeSelect
-                className="dispatch-allocation-popover__carrier"
-                selectClassName="dispatch-allocation-popover__control"
-                size="sm"
-                label="Nhà xe"
-                hint={rowIssues[index]?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
-                value={row.carrierKey}
-                onChange={(event) => updateRow(index, { carrierKey: event.target.value })}
-                aria-label={`Nhà xe dòng ${index + 1}`}
-                aria-invalid={Boolean(rowIssues[index]?.carrier)}
-                disabled={optionsLoading}
-                options={options.map((option) => ({
-                  label: option.label,
-                  value: option.key,
-                  disabled: option.isActive === false,
-                }))}
-              />
-              <UUIInput
-                className="dispatch-allocation-popover__count"
-                inputClassName="dispatch-allocation-popover__control"
-                type="number"
-                size="sm"
-                label="Số container 20'"
-                placeholder="0"
-                hint={rowIssues[index]?.count20}
-                isInvalid={Boolean(rowIssues[index]?.count20)}
-                value={row.count20}
-                onChange={(value) => updateRow(index, { count20: value })}
-                aria-label={`Số container 20' dòng ${index + 1}`}
-                inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
-              />
-              <UUIInput
-                className="dispatch-allocation-popover__count"
-                inputClassName="dispatch-allocation-popover__control"
-                type="number"
-                size="sm"
-                label="Số container 40'"
-                placeholder="0"
-                hint={rowIssues[index]?.count40}
-                isInvalid={Boolean(rowIssues[index]?.count40)}
-                value={row.count40}
-                onChange={(value) => updateRow(index, { count40: value })}
-                aria-label={`Số container 40' dòng ${index + 1}`}
-                inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
-              />
+                <UUINativeSelect
+                  className="dispatch-allocation-popover__carrier"
+                  selectClassName="dispatch-allocation-popover__control"
+                  size="sm"
+                  label="Nhà xe"
+                  hint={rowIssues[index]?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
+                  value={row.carrierKey}
+                  onChange={(event) => updateRow(index, { carrierKey: event.target.value })}
+                  aria-label={`Nhà xe dòng ${index + 1}`}
+                  aria-invalid={Boolean(rowIssues[index]?.carrier)}
+                  disabled={optionsLoading}
+                  options={options.map((option) => ({
+                    label: option.label,
+                    value: option.key,
+                    disabled: option.isActive === false,
+                  }))}
+                />
+                <UUIInput
+                  className="dispatch-allocation-popover__count"
+                  inputClassName="dispatch-allocation-popover__control"
+                  type="number"
+                  size="sm"
+                  label="Container 20'"
+                  placeholder="0"
+                  hint={rowIssues[index]?.count20}
+                  isInvalid={Boolean(rowIssues[index]?.count20)}
+                  value={row.count20}
+                  onChange={(value) => updateRow(index, { count20: value })}
+                  aria-label={`Số container 20' dòng ${index + 1}`}
+                  inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
+                />
+                <UUIInput
+                  className="dispatch-allocation-popover__count"
+                  inputClassName="dispatch-allocation-popover__control"
+                  type="number"
+                  size="sm"
+                  label="Container 40'"
+                  placeholder="0"
+                  hint={rowIssues[index]?.count40}
+                  isInvalid={Boolean(rowIssues[index]?.count40)}
+                  value={row.count40}
+                  onChange={(value) => updateRow(index, { count40: value })}
+                  aria-label={`Số container 40' dòng ${index + 1}`}
+                  inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
+                />
               </div>
             </div>
           ))}
@@ -410,7 +423,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
             <UUIButton size="sm" color="secondary" onPress={() => setOptionsReloadKey((key) => key + 1)}>Tải lại</UUIButton>
           </div>
         )}
-        <div className={`dispatch-allocation-popover__notice is-${allocationState}`} role={allocationState === 'error' ? 'alert' : 'status'}>
+        <div className={`dispatch-allocation-popover__notice dispatch-allocation-popover__allocation-note is-${allocationState}`} role={allocationState === 'error' ? 'alert' : 'status'}>
           {allocationState === 'error' ? (
             <ul>
               {[...new Set(validation.errors)].map((validationError) => <li key={validationError}>{validationError}</li>)}

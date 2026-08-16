@@ -13,10 +13,10 @@
 }
 
 .dispatch-allocation-popover {
-  width: min(640px, calc(100vw - 32px));
+  width: min(760px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
-  padding: 22px 24px 20px;
+  padding: 24px 28px 22px;
   border: 1px solid var(--border-1);
   border-radius: 16px;
   background: var(--bg-2);
@@ -30,6 +30,10 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+}
+
+.dispatch-allocation-popover__heading {
+  min-width: 0;
 }
 
 .dispatch-allocation-popover__eyebrow {
@@ -53,7 +57,7 @@
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  margin-top: 10px;
+  margin-top: 7px;
   line-height: 1.45;
 }
 
@@ -76,31 +80,83 @@
 }
 
 .dispatch-allocation-popover__description {
-  margin: 8px 0 16px;
+  max-width: 640px;
+  margin: 8px 0 18px;
   color: var(--fg-2);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .dispatch-allocation-popover__summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-block: 1px solid var(--border-1);
+  overflow: hidden;
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
   background: var(--bg-1);
 }
 
-.dispatch-allocation-popover__summary > div {
+.dispatch-allocation-popover__summary-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-1);
+}
+
+.dispatch-allocation-popover__summary-heading h4 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.dispatch-allocation-popover__summary-heading p {
+  margin: 2px 0 0;
+  color: var(--fg-3);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dispatch-allocation-popover__state {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dispatch-allocation-popover__summary.is-complete .dispatch-allocation-popover__state {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.dispatch-allocation-popover__summary.is-error .dispatch-allocation-popover__state {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.dispatch-allocation-popover__balance {
   display: grid;
-  gap: 3px;
+}
+
+.dispatch-allocation-popover__balance-header,
+.dispatch-allocation-popover__balance-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1.4fr) repeat(3, minmax(72px, 1fr));
+  align-items: center;
+  column-gap: 12px;
   min-width: 0;
-  padding: 11px 14px;
+  padding: 8px 14px;
 }
 
-.dispatch-allocation-popover__summary > div + div {
-  border-left: 1px solid var(--border-1);
+.dispatch-allocation-popover__balance-header {
+  padding-block: 7px;
+  border-bottom: 1px solid var(--border-1);
 }
 
-.dispatch-allocation-popover__summary span {
+.dispatch-allocation-popover__balance-header span {
   color: var(--fg-3);
   font-size: 11px;
   font-weight: 700;
@@ -108,27 +164,34 @@
   text-transform: uppercase;
 }
 
-.dispatch-allocation-popover__summary strong {
-  font-family: var(--font-data, inherit);
+.dispatch-allocation-popover__balance-header span:not(:first-child),
+.dispatch-allocation-popover__balance-row span,
+.dispatch-allocation-popover__balance-row strong:not(:first-child) {
+  text-align: right;
+}
+
+.dispatch-allocation-popover__balance-row {
   font-size: 14px;
   line-height: 1.4;
-  white-space: nowrap;
 }
 
-.dispatch-allocation-popover__summary i {
-  color: var(--border-2);
-  font-style: normal;
+.dispatch-allocation-popover__balance-row + .dispatch-allocation-popover__balance-row {
+  border-top: 1px solid var(--border-1);
 }
 
-.dispatch-allocation-popover__summary.is-complete > div:last-child strong {
+.dispatch-allocation-popover__balance-row > * {
+  font-family: var(--font-data, inherit);
+}
+
+.dispatch-allocation-popover__summary.is-complete .dispatch-allocation-popover__balance-row strong:last-child {
   color: var(--success-text);
 }
 
-.dispatch-allocation-popover__summary.is-partial > div:last-child strong {
+.dispatch-allocation-popover__summary.is-partial .dispatch-allocation-popover__balance-row strong:last-child {
   color: var(--warning-text);
 }
 
-.dispatch-allocation-popover__summary.is-error > div:last-child strong {
+.dispatch-allocation-popover__summary.is-error .dispatch-allocation-popover__balance-row strong:last-child {
   color: var(--danger-text);
 }
 
@@ -136,7 +199,7 @@
   display: flex;
   align-items: end;
   justify-content: space-between;
-  margin-top: 18px;
+  margin-top: 20px;
 }
 
 .dispatch-allocation-popover__section-head h4 {
@@ -153,25 +216,26 @@
 
 .dispatch-allocation-popover__rows {
   display: grid;
-  margin-top: 8px;
-  border-bottom: 1px solid var(--border-1);
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .dispatch-allocation-popover__row {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border-1);
+  overflow: hidden;
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  background: var(--bg-2);
 }
 
 .dispatch-allocation-popover__row-head {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding-top: 2px;
+  gap: 12px;
+  min-height: 38px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid var(--border-1);
+  background: var(--bg-1);
 }
 
 .dispatch-allocation-popover__row-head strong {
@@ -183,9 +247,10 @@
 .dispatch-allocation-popover__fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(2, minmax(116px, 0.42fr));
-  gap: 10px;
+  gap: 12px;
   align-items: start;
   min-width: 0;
+  padding: 12px 14px 14px;
 }
 
 .dispatch-allocation-popover__carrier,
@@ -215,9 +280,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
   padding: 4px;
   border: 0;
   border-radius: 8px;
@@ -242,7 +307,7 @@
 }
 
 .dispatch-allocation-popover__add {
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .dispatch-allocation-popover__notice {
@@ -253,6 +318,16 @@
   color: var(--fg-2);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.dispatch-allocation-popover__allocation-note {
+  border-left-width: 0;
+  border-radius: 8px;
+}
+
+.dispatch-allocation-popover__allocation-note.is-complete {
+  padding: 4px 0;
+  background: transparent;
 }
 
 .dispatch-allocation-popover__notice.is-partial,
@@ -306,7 +381,7 @@
   .dispatch-allocation-popover {
     width: 100%;
     max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
-    padding: 20px 16px max(16px, env(safe-area-inset-bottom));
+    padding: 18px 16px max(16px, env(safe-area-inset-bottom));
     border-bottom: 0;
     border-radius: 16px 16px 0 0;
   }
@@ -318,16 +393,6 @@
 
   .dispatch-allocation-popover__shipment span::before {
     content: none;
-  }
-
-  .dispatch-allocation-popover__row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .dispatch-allocation-popover__row-head {
-    flex-direction: row;
-    align-items: center;
   }
 
   .dispatch-allocation-popover__fields {
@@ -364,23 +429,22 @@
 }
 
 @media (max-width: 480px) {
-  .dispatch-allocation-popover__summary {
-    grid-template-columns: minmax(0, 1fr);
+  .dispatch-allocation-popover__summary-heading {
+    align-items: flex-start;
   }
 
-  .dispatch-allocation-popover__summary > div {
-    grid-template-columns: 76px minmax(0, 1fr);
-    align-items: baseline;
-    gap: 8px;
-    padding: 8px 10px;
+  .dispatch-allocation-popover__summary-heading p {
+    max-width: 220px;
   }
 
-  .dispatch-allocation-popover__summary > div + div {
-    border-top: 1px solid var(--border-1);
-    border-left: 0;
+  .dispatch-allocation-popover__balance-header,
+  .dispatch-allocation-popover__balance-row {
+    grid-template-columns: minmax(54px, 0.8fr) repeat(3, minmax(52px, 1fr));
+    column-gap: 8px;
+    padding-inline: 10px;
   }
 
-  .dispatch-allocation-popover__summary strong {
-    text-align: right;
+  .dispatch-allocation-popover__balance-header span {
+    font-size: 10px;
   }
 }

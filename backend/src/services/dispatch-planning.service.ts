@@ -57,8 +57,8 @@ export interface ListDispatchDetailPlanRowsInput {
   pickupIds?: number[];
   dropoffIds?: number[];
   deliveryPointIds?: number[];
-  hourFrom?: number;
-  hourTo?: number;
+  hourFrom?: string;
+  hourTo?: string;
 }
 
 export interface AssignFulfillmentPlateInput {
@@ -1785,22 +1785,26 @@ function normalizeIdList(raw: readonly (number | string)[] | null | undefined, l
   return result.length > 0 ? result : null;
 }
 
-function normalizeHour(raw: number | undefined, label: string): number | null {
+function normalizeTimeMinutes(raw: string | undefined, label: string): number | null {
   if (raw == null) return null;
-  if (!Number.isInteger(raw) || raw < 0 || raw > 23) {
-    throw new ApiError(400, `${label} phải trong khoảng 0-23.`);
+  const match = /^(?:([01]\d|2[0-3])):([0-5]\d)$/.exec(raw);
+  if (!match) {
+    throw new ApiError(400, `${label} phải có định dạng HH:MM.`);
   }
-  return raw;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
-// Hour granularity of the run window — coalesce closingAt then plannedReturnAt,
+// Minute granularity of the run window — coalesce closingAt then plannedReturnAt,
 // same precedence the dispatch-queue date filter uses. Pinned to the business
 // timezone so the JS-side display hour and the SQL filters agree regardless of
 // the Postgres session timezone.
 const DISPATCH_BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 
-function dispatchDetailRunHourSql() {
-  return sql<number>`extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})`;
+function dispatchDetailRunMinutesSql() {
+  return sql<number>`(
+    extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)}) * 60
+    + extract(minute from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})
+  )`;
 }
 
 function dispatchDetailTransportDateSql() {
@@ -1828,8 +1832,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   const pickupIds = normalizeIdList(input.pickupIds, 'pickupIds');
   const dropoffIds = normalizeIdList(input.dropoffIds, 'dropoffIds');
   const deliveryPointIds = normalizeIdList(input.deliveryPointIds, 'deliveryPointIds');
-  const hourFrom = normalizeHour(input.hourFrom, 'hourFrom');
-  const hourTo = normalizeHour(input.hourTo, 'hourTo');
+  const hourFrom = normalizeTimeMinutes(input.hourFrom, 'hourFrom');
+  const hourTo = normalizeTimeMinutes(input.hourTo, 'hourTo');
 
   return db.transaction(async (tx) => {
     const rows = await tx.select({
@@ -1892,8 +1896,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
         dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
         deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
-        hourFrom != null ? sql`${dispatchDetailRunHourSql()} >= ${hourFrom}` : undefined,
-        hourTo != null ? sql`${dispatchDetailRunHourSql()} <= ${hourTo}` : undefined,
+        hourFrom != null ? sql`${dispatchDetailRunMinutesSql()} >= ${hourFrom}` : undefined,
+        hourTo != null ? sql`${dispatchDetailRunMinutesSql()} <= ${hourTo}` : undefined,
         input.assignmentStatus === 'UNASSIGNED'
           ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
           : undefined,

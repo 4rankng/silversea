@@ -212,8 +212,8 @@ export interface DispatchDetailPlanFilters {
   pickupIds?: number[];
   dropoffIds?: number[];
   deliveryPointIds?: number[];
-  hourFrom?: number | '';
-  hourTo?: number | '';
+  hourFrom?: string;
+  hourTo?: string;
 }
 
 export function listDispatchDetailPlanRows(filters: { cursor?: string | null; limit?: number } & DispatchDetailPlanFilters = {}) {

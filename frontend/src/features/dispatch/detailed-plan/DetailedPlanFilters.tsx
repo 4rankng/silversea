@@ -299,25 +299,23 @@ export function DetailedPlanFilters({
         <span className="detailed-plan-filters__label">Giờ chạy</span>
         <div className="detailed-plan-filters__hour-inputs">
           <UUIInput
-            type="number"
+            type="time"
             className="detailed-plan-filters__hour-control"
-            placeholder="Từ"
-            value={String(filters.hourFrom)}
-            onChange={(value) => onChange({ hourFrom: value === '' ? '' : Number(value) })}
+            value={filters.hourFrom}
+            onChange={(value) => onChange({ hourFrom: value })}
             size="sm"
             aria-label="Giờ từ"
-            inputProps={{ min: 0, max: 23 }}
+            inputProps={{ step: 60 }}
           />
           <span aria-hidden="true">→</span>
           <UUIInput
-            type="number"
+            type="time"
             className="detailed-plan-filters__hour-control"
-            placeholder="Đến"
-            value={String(filters.hourTo)}
-            onChange={(value) => onChange({ hourTo: value === '' ? '' : Number(value) })}
+            value={filters.hourTo}
+            onChange={(value) => onChange({ hourTo: value })}
             size="sm"
             aria-label="Giờ đến"
-            inputProps={{ min: 0, max: 23 }}
+            inputProps={{ step: 60 }}
           />
         </div>
       </div>

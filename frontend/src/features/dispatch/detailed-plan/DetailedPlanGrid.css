@@ -3,22 +3,20 @@
    dispatch-plan-page__* BEM conventions. */
 
 .detailed-plan-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(280px, 2fr) minmax(270px, 1.2fr) minmax(150px, 0.8fr) minmax(280px, 1.4fr);
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 12px;
 }
 
 .detailed-plan-filters__field {
   display: grid;
-  flex: 0 1 180px;
   gap: 5px;
   min-width: 150px;
 }
 
 .detailed-plan-filters__field--search {
-  flex-basis: 360px;
   min-width: 280px;
 }
 
@@ -48,7 +46,6 @@
 
 .detailed-plan-filters__date-group {
   display: flex;
-  flex: 0 1 300px;
   align-items: end;
   gap: 8px;
   min-width: 270px;
@@ -65,8 +62,8 @@
 }
 
 .detailed-plan-filters__points {
+  position: relative;
   display: grid;
-  flex: 0 1 220px;
   gap: 6px;
   min-width: 200px;
 }
@@ -96,30 +93,45 @@
 }
 
 .detailed-plan-filters__point-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-height: 96px;
+  display: grid;
+  gap: 2px;
+  max-height: 240px;
   overflow-y: auto;
 }
 
 .detailed-plan-filters__point-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
   display: grid;
   gap: 4px;
+  width: max(100%, 280px);
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-radius: var(--radius-lg, 10px);
+  background: var(--background-color-primary, var(--bg-card, #fff));
+  box-shadow: var(--shadow-lg, 0 12px 16px -4px rgb(0 0 0 / 8%));
 }
 
 .detailed-plan-filters__point-feedback {
+  padding: 6px 8px;
   color: var(--color-fg-secondary, var(--text-secondary, #64748b));
   font-size: 12px;
   line-height: 1.4;
 }
 
 .detailed-plan-filters__point-option {
-  border: 1px solid var(--border-color, #e2e8f0);
-  background: var(--bg-card, #fff);
+  width: 100%;
+  border: 0;
+  background: transparent;
   border-radius: 6px;
-  padding: 2px 8px;
-  font-size: 12px;
+  padding: 8px 10px;
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -130,13 +142,12 @@
 }
 
 .detailed-plan-filters__point-option.is-active {
-  border-color: var(--border-color-brand, #10b956);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-color-brand, #10b956) 22%, transparent);
+  background: var(--background-color-secondary, #f8fafc);
+  box-shadow: inset 0 0 0 1px var(--border-color-brand, #10b956);
 }
 
 .detailed-plan-filters__hour {
-  flex-basis: 220px;
-  min-width: 220px;
+  min-width: 280px;
 }
 
 .detailed-plan-filters__hour-inputs {
@@ -148,6 +159,7 @@
 }
 
 .detailed-plan-filters__hour-control {
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -270,6 +282,20 @@
 .detailed-plan-grid__line--italic {
   font-style: italic;
 }
+
+.detailed-plan-grid__documents {
+  display: grid;
+  grid-template-areas:
+    "bill bill"
+    ". direction";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 48px;
+  gap: 3px 8px;
+}
+
+.detailed-plan-grid__documents-bill { grid-area: bill; }
+.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
 
 .detailed-plan-grid__line--notes {
   color: var(--text-secondary, #64748b);

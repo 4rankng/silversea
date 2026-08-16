@@ -20,8 +20,8 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   pickupIds: number[];
   dropoffIds: number[];
   deliveryPointIds: number[];
-  hourFrom: number | '';
-  hourTo: number | '';
+  hourFrom: string;
+  hourTo: string;
 }
 
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
@@ -52,8 +52,8 @@ function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
     ...(filters.pickupIds.length > 0 ? { pickupIds: filters.pickupIds } : {}),
     ...(filters.dropoffIds.length > 0 ? { dropoffIds: filters.dropoffIds } : {}),
     ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
-    ...(filters.hourFrom !== '' ? { hourFrom: filters.hourFrom } : {}),
-    ...(filters.hourTo !== '' ? { hourTo: filters.hourTo } : {}),
+    ...(filters.hourFrom ? { hourFrom: filters.hourFrom } : {}),
+    ...(filters.hourTo ? { hourTo: filters.hourTo } : {}),
   };
 }
 

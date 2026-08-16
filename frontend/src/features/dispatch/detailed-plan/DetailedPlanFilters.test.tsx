@@ -27,6 +27,15 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByText('Điểm trả')).toBeTruthy();
     expect(screen.getByText('Giờ chạy')).toBeTruthy();
 
+    const hourFrom = screen.getByLabelText('Giờ từ');
+    const hourTo = screen.getByLabelText('Giờ đến');
+    expect(hourFrom.getAttribute('type')).toBe('time');
+    expect(hourTo.getAttribute('type')).toBe('time');
+    fireEvent.change(hourFrom, { target: { value: '07:30' } });
+    fireEvent.change(hourTo, { target: { value: '09:45' } });
+    expect(onChange).toHaveBeenCalledWith({ hourFrom: '07:30' });
+    expect(onChange).toHaveBeenCalledWith({ hourTo: '09:45' });
+
     fireEvent.change(screen.getByLabelText('Tìm nhanh'), { target: { value: 'BILL-001' } });
     fireEvent.change(screen.getByLabelText('Phân xe'), { target: { value: 'UNASSIGNED' } });
 

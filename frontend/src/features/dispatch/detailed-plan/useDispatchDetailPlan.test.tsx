@@ -80,6 +80,18 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     }));
   });
 
+  it('forwards the selected run-time range as HH:MM query values', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.updateFilters({ hourFrom: '07:30', hourTo: '09:45' }));
+
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      hourFrom: '07:30',
+      hourTo: '09:45',
+    })));
+  });
+
   it('drops a row from the UNASSIGNED view once a plate is assigned to it', async () => {
     const { result } = renderHook(() => useDispatchDetailPlan());
 

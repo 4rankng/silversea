@@ -155,9 +155,12 @@
 
 .master-plan-grid__line {
   line-height: var(--ops-table-supporting-line-height);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Schedule, customer, factory, bill, and carrier names are operational
+     information. Keep the compact table scale, but let the complete value
+     wrap instead of silently turning it into an ellipsis. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
   max-width: none;
 }
 
@@ -177,6 +180,22 @@
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
 }
+
+.master-plan-grid__documents {
+  display: grid;
+  grid-template-areas:
+    "bill bill"
+    "carrier carrier"
+    ". direction";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 48px;
+  gap: 3px 8px;
+}
+
+.master-plan-grid__documents-bill { grid-area: bill; }
+.master-plan-grid__documents-carrier { grid-area: carrier; align-self: start; }
+.master-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
 
 .master-plan-grid__line--soon {
   color: #d97706;
@@ -270,6 +289,10 @@
   .master-plan-grid__line {
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .master-plan-grid__documents {
+    min-height: 52px;
   }
 
   .master-plan-grid__cell--action {

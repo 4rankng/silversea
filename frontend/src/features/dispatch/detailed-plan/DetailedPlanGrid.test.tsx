@@ -91,6 +91,12 @@ describe('DetailedPlanGrid', () => {
     ]);
   });
 
+  it('anchors the direction pill at the lower-right of the document cell', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
+    expect(css).toContain('". direction"');
+  });
+
   it('renders container-less LCL rows with package/weight instead', () => {
     renderGrid([row({
       cargoMode: 'LCL',
@@ -168,10 +174,10 @@ describe('DetailedPlanGrid', () => {
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    expect(css).toContain('display: flex');
-    expect(css).toContain('flex-wrap: wrap');
-    expect(css).toContain('flex-basis: 360px');
-    expect(css).toContain('flex: 0 1 220px');
+    expect(css).toContain('display: grid');
+    expect(css).toContain('grid-template-columns: minmax(280px, 2fr) minmax(270px, 1.2fr) minmax(150px, 0.8fr) minmax(280px, 1.4fr)');
+    expect(css).toContain('.detailed-plan-filters__field--search {\n  min-width: 280px;');
+    expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;');
     expect(css).toContain('@container (max-width: 1000px)');
     expect(css).toContain('.detailed-plan-filters__field--search {\n    grid-column: auto;');
     expect(css).toContain('.detailed-plan-grid__cell::before');
@@ -185,5 +191,19 @@ describe('DetailedPlanGrid', () => {
     expect(toolbar).not.toMatch(/\bpadding\s*:/);
     expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
     expect(toolbar).not.toMatch(/\bbackground\s*:/);
+  });
+
+  it('keeps point suggestions out of the filter-row layout and gives time inputs equal width', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const toolbar = css.match(/\.detailed-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const points = css.match(/\.detailed-plan-filters__points \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const picker = css.match(/\.detailed-plan-filters__point-picker \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const hourControl = css.match(/\.detailed-plan-filters__hour-control \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(toolbar).toContain('align-items: flex-start');
+    expect(points).toContain('position: relative');
+    expect(picker).toContain('position: absolute');
+    expect(picker).toContain('z-index: 20');
+    expect(hourControl).toContain('flex: 1 1 0');
   });
 });

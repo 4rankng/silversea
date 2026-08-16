@@ -161,11 +161,12 @@ describe('DispatchAllocationPopover', () => {
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
 
     expect(screen.getByText('Nhu cầu')).toBeTruthy();
-    expect(screen.getByText('Đã gán')).toBeTruthy();
-    expect(screen.getByText('Nhà xe nhận hàng')).toBeTruthy();
-    expect(screen.getByText("Số container 20'")).toBeTruthy();
-    expect(screen.getByText("Số container 40'")).toBeTruthy();
+    expect(screen.getByText('Đã phân')).toBeTruthy();
+    expect(screen.getByText('Phân bổ theo nhà xe')).toBeTruthy();
+    expect(screen.getByText("Container 20'")).toBeTruthy();
+    expect(screen.getByText("Container 40'")).toBeTruthy();
     expect(screen.getByText(/Có thể lưu khi chưa phân đủ/)).toBeTruthy();
+    expect(screen.getByRole('table', { name: 'Tổng số container đã phân bổ' })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
 

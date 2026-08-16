@@ -59,6 +59,23 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByRole('button', { name: 'Phân bổ' })).toBeTruthy();
   });
 
+  it('anchors the direction pill at the lower-right of the document cell', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).toContain('.master-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
+    expect(css).toContain('"carrier carrier"');
+    expect(css).toContain('". direction"');
+  });
+
+  it('wraps operational values instead of truncating them in compact table columns', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const lineRule = css.match(/\.master-plan-grid__line \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(lineRule).toContain('white-space: normal');
+    expect(lineRule).toContain('overflow-wrap: anywhere');
+    expect(lineRule).not.toContain('text-overflow: ellipsis');
+    expect(lineRule).not.toContain('overflow: hidden');
+  });
+
   it('renders allocation chips and edit label when fully allocated', () => {
     render(
       <MasterPlanGrid

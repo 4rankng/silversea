@@ -379,11 +379,11 @@ describe('dispatch detail plan rows', () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN' });
     // Fixture closes at 08:00Z = 15:00 Asia/Ho_Chi_Minh — filters and display
     // both operate in the business timezone.
-    const inRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=14&hourTo=16&direction=EXPORT`);
+    const inRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=14:30&hourTo=15:30&direction=EXPORT`);
     assert.equal(inRange.status, 200, JSON.stringify(inRange.data));
     assert.equal(inRange.data.items.length, 1);
     assert.equal(inRange.data.items[0]!.time.runHour, 15);
-    const outOfRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=16`);
+    const outOfRange = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&hourFrom=15:01`);
     assert.equal(outOfRange.data.items.length, 0);
     const wrongDirection = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&direction=IMPORT`);
     assert.equal(wrongDirection.data.items.length, 0);
@@ -416,7 +416,7 @@ describe('dispatch detail plan rows', () => {
   });
 
   test('invalid hour filter is rejected with 400', async () => {
-    const response = await fetchRows(dispatcherToken, '?hourFrom=24');
+    const response = await fetchRows(dispatcherToken, '?hourFrom=24:00');
     assert.equal(response.status, 400);
   });
 
