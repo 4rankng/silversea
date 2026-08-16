@@ -27,7 +27,7 @@
  */
 
 /** Coarse grouping for future sidebar/search derivation (informational only). */
-export type PageSection = 'operations' | 'hr' | 'financials' | 'master-data' | 'system' | 'config';
+export type PageSection = 'operations' | 'hr' | 'financials' | 'master-data' | 'resources' | 'system' | 'config';
 
 /** Search data for pages the AI assistant may navigate to / search for. */
 export interface PageAgentMeta {
@@ -84,6 +84,19 @@ export const PAGE_CATALOG = {
     title: 'Đội xe',
     path: '/fleet',
     agent: { description: 'Đội xe — danh sách xe đầu kéo, rơ-moóc, lốp.' },
+  },
+  // Dispatcher resource-catalog views: read-only lookups of internal tractors
+  // and drivers for staffing dispatch plans (separate from the admin /fleet
+  // CRUD workspace).
+  fleetVehicles: {
+    title: 'Danh mục Xe nội bộ',
+    path: '/fleet/vehicles',
+    section: 'resources',
+  },
+  fleetDrivers: {
+    title: 'Danh mục Tài xế',
+    path: '/fleet/drivers',
+    section: 'resources',
   },
   fleetTires: {
     title: 'Lốp xe đầu kéo',

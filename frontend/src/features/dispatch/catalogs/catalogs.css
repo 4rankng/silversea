@@ -1,0 +1,102 @@
+/* Dispatcher resource-catalog views (Danh mục Xe nội bộ / Tài xế / Nhà thầu phụ).
+   Read-only lookup tables — reuse global tokens + existing surface styles. */
+
+.dispatch-catalogs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 0 32px;
+}
+
+.dispatch-catalogs__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dispatch-catalogs__search {
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius, 10px);
+  background: var(--surface-1, var(--bg-1, #fff));
+}
+
+.dispatch-catalogs__search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.dispatch-catalogs__count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--fg-3);
+}
+
+.dispatch-catalogs__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dispatch-catalogs__table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+  border-bottom: 1px solid var(--border-2);
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-1);
+  vertical-align: middle;
+}
+
+.dispatch-catalogs__table tbody tr:hover {
+  background: var(--hover-bg, rgba(0, 0, 0, 0.02));
+}
+
+.dispatch-catalogs__plate {
+  font-family: var(--font-data);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dispatch-catalogs__empty {
+  text-align: center;
+  padding: 12px;
+  color: var(--fg-3);
+}
+
+.dispatch-catalogs__error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--danger-bg, rgba(220, 38, 38, 0.08));
+  color: var(--danger, #dc2626);
+  font-size: 13px;
+}
+
+.dispatch-catalogs__pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg-3);
+}

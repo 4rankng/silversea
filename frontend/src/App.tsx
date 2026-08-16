@@ -70,6 +70,11 @@ const AdvanceWorkspacePage = lazy(() => import('./pages/AdvanceWorkspacePage'));
 
 const MasterPlanPage = lazy(() => import('./pages/MasterPlanPage'));
 const DispatchDetailPlanPage = lazy(() => import('./pages/DispatchDetailPlanPage'));
+// Dispatcher resource-catalog lookups (read-only views over /api/trucks,
+// /api/drivers, /api/suppliers).
+const FleetVehiclesPage = lazy(() => import('./pages/FleetVehiclesPage'));
+const FleetDriversPage = lazy(() => import('./pages/FleetDriversPage'));
+const DispatchSuppliersPage = lazy(() => import('./pages/DispatchSuppliersPage'));
 const ProfitPage = lazy(() => import('./pages/ProfitPage'));
 const UsersPage = lazy(() => import('./pages/UsersPage'));
 const FleetPage = lazy(() => import('./pages/FleetPage'));
@@ -223,6 +228,10 @@ export function AppRoutes() {
               (auto-split container grid with plate assignment). */}
           <Route path="/dispatch" element={dispatchOnly(page(<MasterPlanPage />))} />
           <Route path="/dispatch-detail" element={dispatchOnly(page(<DispatchDetailPlanPage />))} />
+          {/* Dispatcher resource catalogs — read-only lookups for staffing
+              dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
+          <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />
+          <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
           <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
@@ -293,7 +302,17 @@ export function AppRoutes() {
           <Route path="/config/debit-note-templates" element={officeStaffOnly(page(<DebitNoteTemplatesConfigPage />))} />
           <Route path="/config/debit-note-templates/new" element={officeStaffOnly(page(<DebitNoteTemplateEditorPage />))} />
           <Route path="/config/debit-note-templates/:id" element={officeStaffOnly(page(<DebitNoteTemplateEditorPage />))} />
-          <Route path="/suppliers" element={adminOnly(page(<SupplierListPage />))} />
+          {/* Suppliers: ADMIN/MANAGER get the full payable-aware workspace;
+              DISPATCHER gets the read-only subcontractor lookup (no payables —
+              financial is Casbin-denied for dispatchers). */}
+          <Route
+            path="/suppliers"
+            element={
+              isDispatcher
+                ? dispatchOnly(page(<DispatchSuppliersPage />))
+                : adminOnly(page(<SupplierListPage />))
+            }
+          />
           <Route path="/suppliers/:id" element={adminOnly(page(<PayableDetailPage />))} />
           <Route path="/expenses" element={adminOnly(page(<ExpenseListPage />))} />
           <Route path="/expenses/new" element={adminOnly(page(<ExpenseEntryPage />))} />

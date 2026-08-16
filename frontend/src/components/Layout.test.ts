@@ -106,7 +106,6 @@ describe('getNavItems', () => {
     [Role.DISPATCHER, [
       ['Kế hoạch tổng quát', '/dispatch'],
       ['Kế hoạch chi tiết', '/dispatch-detail'],
-      ['Theo dõi Lộ trình', '/dispatch/live-tracking'],
       ['Danh mục Xe nội bộ', '/fleet/vehicles'],
       ['Danh mục Tài xế', '/fleet/drivers'],
       ['Nhà thầu phụ', '/suppliers'],
@@ -120,6 +119,11 @@ describe('getNavItems', () => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
       .map(({ label, path }) => [label, path]);
     expect(actual).toEqual(expected);
+  });
+
+  it('omits live-route tracking from the dispatcher sidebar without changing its route', () => {
+    const items = getNavItems(Role.DISPATCHER);
+    expect(items.some((item) => item.path === '/dispatch/live-tracking')).toBe(false);
   });
 
   it('keeps the Ops navigation usable for legacy FORWARDER sessions', () => {

@@ -28,6 +28,8 @@ export const routes = {
   dashboard: PAGE_CATALOG.dashboard.path,
   dispatch: PAGE_CATALOG.dispatch.path,
   fleet: PAGE_CATALOG.fleet.path,
+  fleetVehicles: PAGE_CATALOG.fleetVehicles.path,
+  fleetDrivers: PAGE_CATALOG.fleetDrivers.path,
   fleetTires: (truckId: number | string) => PAGE_CATALOG.fleetTires.path({ truckId }),
   fleetTrailerTires: (trailerId: number | string) => PAGE_CATALOG.fleetTrailerTires.path({ trailerId }),
   trips: PAGE_CATALOG.trips.path,
@@ -187,6 +189,10 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.dashboard, title: PAGE_CATALOG.dashboard.title },
   { test: p => p === routes.dispatchDetailPlan, title: PAGE_CATALOG.dispatchDetailPlan.title },
   { test: p => p.startsWith(routes.dispatch), title: PAGE_CATALOG.dispatch.title },
+  // Exact matches before the /fleet startsWith catch-all so the dispatcher
+  // catalog pages don't inherit the admin "Đội xe" title.
+  { test: p => p === routes.fleetVehicles, title: PAGE_CATALOG.fleetVehicles.title },
+  { test: p => p === routes.fleetDrivers, title: PAGE_CATALOG.fleetDrivers.title },
   { test: p => p.startsWith(routes.fleet), title: PAGE_CATALOG.fleet.title },
   { test: p => /^\/trips\/(\d+)(?:\/edit)?$/.test(p), title: p => p.endsWith('/edit') ? PAGE_CATALOG.tripEdit.title : PAGE_CATALOG.tripDetail.title },
   { test: p => p === routes.tripNew, title: PAGE_CATALOG.tripNew.title },

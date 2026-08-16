@@ -245,11 +245,10 @@ export function getNavItems(
         // Điều độ Phương tiện (Dispatch Planning) - PRIMARY SECTION per spec
         { key: 'dispatch-master-plan', label: 'Kế hoạch tổng quát', path: routes.dispatchMasterPlan, icon: Compass, section: 'dispatch-planning' as SectionName },
         { key: 'dispatch-detailed-plan', label: 'Kế hoạch chi tiết', path: routes.dispatchDetailedPlan, icon: Route, section: 'dispatch-planning' as SectionName },
-        { key: 'dispatch-live-tracking', label: 'Theo dõi Lộ trình', path: routes.dispatchLiveTracking, icon: Package, section: 'dispatch-planning' as SectionName },
 
         // Quản lý Tài nguyên (Resources) per spec
-        { key: 'fleet-vehicles', label: 'Danh mục Xe nội bộ', path: '/fleet/vehicles', icon: Truck, section: 'resources' as SectionName },
-        { key: 'fleet-drivers', label: 'Danh mục Tài xế', path: '/fleet/drivers', icon: Users, section: 'resources' as SectionName },
+        { key: 'fleet-vehicles', label: 'Danh mục Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
+        { key: 'fleet-drivers', label: 'Danh mục Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
         { key: 'suppliers', label: 'Nhà thầu phụ', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
       ];
     }

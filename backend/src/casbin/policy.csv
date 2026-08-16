@@ -5,6 +5,9 @@ p, MANAGER, trips, write
 p, MANAGER, trips, delete
 p, DISPATCHER, trips, read
 p, DISPATCHER, trips, write
+// Dispatchers read resource catalogs (trucks/drivers/suppliers) to staff
+// dispatch plans; mutations stay closed to MANAGER/ACCOUNTANT/ADMIN.
+p, DISPATCHER, config, read
 p, MANAGER, config, read
 p, MANAGER, config, write
 p, MANAGER, config, delete
