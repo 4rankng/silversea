@@ -123,4 +123,43 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
 
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([102]);
   });
+
+  it('replaces rows when moving between cursor-backed pages', async () => {
+    listDispatchDetailPlanRowsMock
+      .mockResolvedValueOnce({
+        ...page([row({ fulfillmentId: 101 })]),
+        total: 51,
+        nextCursor: 'cursor-page-2',
+      })
+      .mockResolvedValueOnce({
+        ...page([row({ fulfillmentId: 51 })]),
+        total: 51,
+        nextCursor: null,
+      })
+      .mockResolvedValueOnce({
+        ...page([row({ fulfillmentId: 101 })]),
+        total: 51,
+        nextCursor: 'cursor-page-2',
+      });
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.page).toBe(1);
+    expect(result.current.totalPages).toBe(2);
+
+    act(() => result.current.setPage(2));
+    await waitFor(() => expect(result.current.page).toBe(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'cursor-page-2', limit: 50 }));
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([51]);
+
+    act(() => result.current.setPage(1));
+    await waitFor(() => expect(result.current.page).toBe(1));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: null, limit: 50 }));
+    expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([101]);
+  });
 });

@@ -166,6 +166,8 @@ describe('DetailedPlanGrid', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     expect(page).toContain('dispatch-plan-page--wide');
+    expect(page).toContain('<Pagination');
+    expect(page).not.toContain('Tải thêm');
     expect(css).toContain('display: flex');
     expect(css).toContain('flex-wrap: wrap');
     expect(css).toContain('flex-basis: 360px');

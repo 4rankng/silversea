@@ -1,4 +1,5 @@
 import { PageHeader } from '../components/UI';
+import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import './DispatchPlanPage.css';
@@ -38,17 +39,14 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAssignPlate={detailPlan.assignPlate}
         />
-        {detailPlan.nextCursor && (
-          <div className="dispatch-plan-page__load-more">
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={detailPlan.loadMore}
-              disabled={detailPlan.loadingMore}
-            >
-              {detailPlan.loadingMore ? 'Đang tải…' : 'Tải thêm'}
-            </button>
-          </div>
+        {detailPlan.totalPages > 1 && (
+          <Pagination
+            page={detailPlan.page}
+            totalPages={detailPlan.totalPages}
+            pageSize={detailPlan.pageSize}
+            summary={<span className="ds-pagination__summary">Trang <b>{detailPlan.page}</b> · <b>{detailPlan.items.length.toLocaleString('vi-VN')}</b> dòng kế hoạch</span>}
+            onChange={detailPlan.setPage}
+          />
         )}
       </section>
     </div>

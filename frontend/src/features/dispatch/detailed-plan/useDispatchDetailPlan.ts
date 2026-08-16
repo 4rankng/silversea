@@ -62,13 +62,13 @@ export function useDispatchDetailPlan() {
   const [filters, setFilters] = useState<DetailedPlanFilterState>(EMPTY_DETAILED_PLAN_FILTERS);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [pageCursors, setPageCursors] = useState<Array<string | null>>([null]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
   const [lotBanner, setLotBanner] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const requestIdRef = useRef(0);
 
   const [debouncedQ, setDebouncedQ] = useState(filters.q);
@@ -82,7 +82,7 @@ export function useDispatchDetailPlan() {
     setLoading(true);
     setError(null);
     listDispatchDetailPlanRows({
-      cursor: null,
+      cursor: pageCursors.at(-1) ?? null,
       limit: PAGE_SIZE,
       ...detailPlanQuery(filters, debouncedQ),
     })
@@ -90,7 +90,6 @@ export function useDispatchDetailPlan() {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setNextCursor(response.nextCursor);
-        setCursor(response.nextCursor);
         setLoading(false);
       })
       .catch(() => {
@@ -98,36 +97,28 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
-
-  const loadMore = useCallback(() => {
-    if (!cursor || loadingMore) return;
-    // Snapshot the request id so an in-flight load-more is dropped when the
-    // filter effect has since reset the list (it bumps the ref).
-    const requestId = requestIdRef.current;
-    setLoadingMore(true);
-    listDispatchDetailPlanRows({
-      cursor,
-      limit: PAGE_SIZE,
-      ...detailPlanQuery(filters, debouncedQ),
-    })
-      .then((response) => {
-        if (requestIdRef.current !== requestId) return;
-        setItems((prev) => [...prev, ...response.items]);
-        setNextCursor(response.nextCursor);
-        setCursor(response.nextCursor);
-        setLoadingMore(false);
-      })
-      .catch(() => {
-        if (requestIdRef.current !== requestId) return;
-        setError('Không thể tải thêm dòng. Vui lòng thử lại.');
-        setLoadingMore(false);
-      });
-  }, [cursor, loadingMore, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
+  }, [pageCursors, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
+    setPageCursors([null]);
   }, []);
+
+  const page = pageCursors.length;
+  const totalPages = page + (nextCursor ? 1 : 0);
+
+  const setPage = useCallback((nextPage: number) => {
+    setPageCursors((current) => {
+      const currentPage = current.length;
+      if (nextPage === currentPage + 1 && nextCursor) {
+        return [...current, nextCursor];
+      }
+      if (nextPage >= 1 && nextPage < currentPage) {
+        return current.slice(0, nextPage);
+      }
+      return current;
+    });
+  }, [nextCursor]);
 
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
     setSortKey((current) => (current === key ? null : key));
@@ -196,25 +187,8 @@ export function useDispatchDetailPlan() {
   }, [filters.assignmentStatus]);
 
   const refresh = useCallback(() => {
-    setFilters((prev) => ({ ...prev }));
-    requestIdRef.current += 1;
-    setLoading(true);
-    listDispatchDetailPlanRows({
-      cursor: null,
-      limit: PAGE_SIZE,
-      ...detailPlanQuery(filters, debouncedQ),
-    })
-      .then((response) => {
-        setItems(response.items);
-        setNextCursor(response.nextCursor);
-        setCursor(response.nextCursor);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
-        setLoading(false);
-      });
-  }, [debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo]);
+    setRefreshKey((value) => value + 1);
+  }, []);
 
   const loadDeliveryPointFacets = useCallback(async (q?: string) => {
     const response = await listDispatchDeliveryPointFacets(q ? { q } : {});
@@ -236,10 +210,11 @@ export function useDispatchDetailPlan() {
     updateFilters,
     items: sortedItems,
     loading,
-    loadingMore,
     error,
-    nextCursor,
-    loadMore,
+    page,
+    totalPages,
+    pageSize: PAGE_SIZE,
+    setPage,
     sortKey,
     toggleSort,
     assignPlate,
