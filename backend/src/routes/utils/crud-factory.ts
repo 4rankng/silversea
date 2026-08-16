@@ -11,8 +11,10 @@ import { asc, eq, getTableName, isNull, sql, and } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
+import { Role } from '@tingting/shared';
 import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
+import { requireRoles } from '../../middleware/casbin';
 import { parsePagination } from './pagination';
 import { ApiError } from '../../errors';
 import { getUser } from '../../middleware/auth';
@@ -49,6 +51,10 @@ export interface CrudRouterOptions<
   searchableField?: string;
   disableDelete?: boolean;
   deleteMode?: 'soft' | 'hard';
+  /** Extra roles allowed to CREATE only (not update/delete). Use when a role
+   * needs to add catalog rows (e.g. DISPATCHER creating fleet resources) but
+   * Casbin still denies it broad config write. */
+  createRoles?: Role[];
   /** Override the default list-page maxLimit (100) for catalogs that may exceed
    *  it (e.g. tires), so list endpoints don't silently truncate. */
   maxLimit?: number;
@@ -102,6 +108,7 @@ export function createCrudRouter<
     searchableField,
     disableDelete = false,
     deleteMode = 'soft',
+    createRoles,
     maxLimit,
     orderByField,
     updateSchema,
@@ -225,6 +232,9 @@ export function createCrudRouter<
     res.json({ items, total: Number(countRow?.count ?? 0), page, pageSize: limit });
   }));
 
+  if (createRoles?.length) {
+    sub.post('/', requireRoles(...createRoles));
+  }
   sub.post('/', asyncHandler(async (req: Request, res: Response) => {
     const idempotencyKey = requireIdempotencyKey(req);
     const actor = getUser(req);
