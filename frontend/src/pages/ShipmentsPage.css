@@ -564,7 +564,9 @@
 
 .cus-dashboard-table thead th {
   position: sticky;
-  top: 0;
+  /* -24px keeps the header flush with the app-body scrollport edge so scrolled
+     rows never peek through the gap between the topbar and this pinned header. */
+  top: -24px;
   z-index: 3;
   padding: 10px 12px;
   border-right: 1px solid var(--line);
@@ -956,6 +958,9 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  /* No card chrome to clip: undo the base overflow so the table's sticky
+     thead can pin against the app-body scrollport. */
+  overflow: visible;
 }
 
 .cus-search-field,
