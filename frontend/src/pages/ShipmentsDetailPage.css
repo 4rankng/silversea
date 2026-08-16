@@ -151,7 +151,6 @@
 .shipment-container-ledger__edit-purpose { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .shipment-container-ledger__classification { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--ink-2); }
 .shipment-container-ledger__classification > span { min-width: 0; overflow-wrap: anywhere; }
-.shipment-container-ledger__appointment { display: block; color: var(--ink-2); font-family: var(--font-data); overflow-wrap: anywhere; }
 .shipment-container-ledger__editing-cell { position: relative; z-index: 3; overflow: visible !important; background: var(--surface-2) !important; }
 .shipment-container-ledger__cell-editor { position: relative; min-width: 0; }
 .shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor {
@@ -173,8 +172,7 @@
 }
 .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
 .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
-.shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor,
-.shipment-container-ledger__cell-editor[data-mode="appointment"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
+.shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
 .shipment-container-ledger__editor-heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .shipment-container-ledger__editor-heading strong { color: var(--ink); font-size: 13px; }
 .shipment-container-ledger__editor-heading span { color: var(--ink-3); font-family: var(--font-data); font-size: 11px; }
@@ -265,8 +263,7 @@
   .shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor { position: static; width: 100%; max-width: none; margin-top: 6px; }
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
-  .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor,
-  .shipment-container-ledger__cell-editor[data-mode="appointment"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
+  .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
   .shipment-container-ledger__editor-grid input,
   .shipment-container-ledger__editor-grid select,
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
