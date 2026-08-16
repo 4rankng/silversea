@@ -9,10 +9,6 @@ const fieldAccessSchema = z.object({
   mode: z.enum(['DIRECT', 'REQUEST', 'READ_ONLY']),
   reason: z.string().min(1),
 }).strict();
-const proposalVndAmountSchema = z.string().regex(
-  /^(0|[1-9]\d{0,14})$/,
-  'Số tiền đề xuất phải là số nguyên VND không âm và không vượt quá 15 chữ số.',
-);
 const suffixSchema = z.string()
   .trim()
   .regex(/^[A-Za-z0-9]{4,5}$/, 'Chỉ được tìm theo đúng 4-5 ký tự chữ hoặc số cuối của Bill/Book hoặc tờ khai.');
@@ -205,32 +201,6 @@ export const shipmentCusWorkspaceRecoveryFactSchema = z.object({
   sourceExpenseId: z.number().int().positive().nullable(),
   sourceVersion: z.string().nullable(),
   waiverReason: z.string().nullable(),
-}).strict();
-
-const shipmentCusWorkspaceChargeComponentSchema = z.object({
-  amount: moneyStringSchema.nullable(),
-  invoiceNumber: z.string().nullable(),
-  repairRecoveryPending: z.boolean().default(false),
-  available: z.boolean(),
-}).strict();
-
-const shipmentCusWorkspaceChargeGroupSchema = z.object({
-  transport: shipmentCusWorkspaceChargeComponentSchema,
-  handling: shipmentCusWorkspaceChargeComponentSchema,
-  incidental: shipmentCusWorkspaceChargeComponentSchema,
-  total: moneyStringSchema.nullable(),
-  available: z.boolean(),
-  authority: z.literal('MANUAL_PROPOSAL').optional(),
-}).strict();
-
-const shipmentCusWorkspacePassThroughGroupSchema = z.object({
-  csht: shipmentCusWorkspaceChargeComponentSchema,
-  lift: shipmentCusWorkspaceChargeComponentSchema,
-  dropoff: shipmentCusWorkspaceChargeComponentSchema,
-  other: shipmentCusWorkspaceChargeComponentSchema,
-  total: moneyStringSchema.nullable(),
-  available: z.boolean(),
-  authority: z.literal('APPROVED_EXPENSE_SOURCE').optional(),
 }).strict();
 
 const shipmentCusWorkspaceFieldPermissionsSchema = z.object({

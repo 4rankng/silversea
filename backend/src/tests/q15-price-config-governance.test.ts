@@ -330,8 +330,9 @@ after(async () => {
 describe('Q15 governed material config resources', { concurrency: false }, () => {
   // Each case in the table has its own row shape; the loop only relies on the
   // shared lifecycle (create / mutate / fetch / expect*) so we widen the row
-  // type to `unknown` rather than `any`.
-  const materialCases: Array<ResourceCase<RowWithUpdatedAt>> = [
+  // type to a structural intersection of the base row + an open record. The
+  // expectation callbacks still get a fully-typed row per-case.
+  const materialCases: Array<ResourceCase<RowWithUpdatedAt & Record<string, unknown>>> = [
     {
       name: 'pricing tables',
       endpoint: '/api/pricing-tables',

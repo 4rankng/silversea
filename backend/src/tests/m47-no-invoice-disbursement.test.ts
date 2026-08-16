@@ -32,6 +32,7 @@ const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdFetIds: number[] = [];
 const createdExpenseIds: number[] = [];
+const createdPhotoIds: number[] = [];
 const createdAuditIds: number[] = [];
 const createdUserIds: number[] = [];
 let makerId: number;
@@ -157,6 +158,12 @@ after(async () => {
   const namePattern = `M47 %${suffix}%`;
   try {
     if (createdAuditIds.length > 0) await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, createdAuditIds));
+    if (createdPhotoIds.length > 0) {
+      await db.delete(s.photoGeotags).where(and(
+        eq(s.photoGeotags.entityType, 'trip_expense_photo'),
+        inArray(s.photoGeotags.entityId, createdPhotoIds),
+      ));
+    }
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpensePhotos).where(inArray(s.tripExpensePhotos.tripExpenseId, createdExpenseIds));
     if (createdExpenseIds.length > 0) await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, createdExpenseIds));
     if (createdTripIds.length > 0) await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
