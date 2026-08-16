@@ -25,7 +25,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-2, var(--line));
 }
 
@@ -70,7 +70,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   border-top: 1px solid var(--border-2, var(--line));
   background: var(--surface-2, var(--bg-2));
 }
@@ -91,7 +91,7 @@
   }
 
   .ds-crud-modal__head {
-    padding: 16px 18px 12px;
+    padding: 12px 16px 8px;
   }
 
   .ds-crud-modal__title {
@@ -108,7 +108,7 @@
   .ds-crud-modal__foot {
     flex-wrap: wrap;
     gap: 10px;
-    padding: 12px 18px max(12px, env(safe-area-inset-bottom));
+    padding: 8px 16px max(8px, env(safe-area-inset-bottom));
   }
 
   .ds-crud-modal__foot .btn {
