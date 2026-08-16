@@ -23,7 +23,10 @@ describe('PeriodFilter', () => {
 
     const root = screen.getByRole('group', { name: 'Bộ lọc thời gian' });
     expect(root.className).toContain('period-filter');
-    expect(root.className).toContain('rounded-box');
+    expect(root.className).toContain('border-y');
+    expect(root.className).not.toContain('rounded-box');
+    expect(root.className).not.toContain('bg-base-100');
+    expect(root.className).not.toContain('shadow-sm');
 
     const modeToggle = screen.getByRole('tablist', { name: 'Chế độ lọc' });
     expect(modeToggle.className).toContain('d-join-vertical');

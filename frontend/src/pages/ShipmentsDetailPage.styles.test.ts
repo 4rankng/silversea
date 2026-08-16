@@ -21,9 +21,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
   });
 
-  it('keeps filter controls visibly bounded and usable as a responsive grid', () => {
+  it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
-    expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*border:\s*1px solid var\(--line-2\);[^}]*background:\s*var\(--surface\);/);
+    const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
     expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*box-shadow:\s*none;/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);

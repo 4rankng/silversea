@@ -31,10 +31,6 @@
   gap: 10px;
   align-items: start;
   min-width: 0;
-  padding: 12px;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
 }
 .shipments-detail-filter { width: 100%; min-width: 0; }
 .shipments-detail-filter > *,

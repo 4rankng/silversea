@@ -75,7 +75,7 @@ export function PeriodFilter(props: PeriodFilterProps) {
 
   return (
     <div
-      className="period-filter rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
+      className="period-filter border-y border-base-300 py-4"
       role="group"
       aria-label="Bộ lọc thời gian"
     >

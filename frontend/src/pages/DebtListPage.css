@@ -268,15 +268,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   flex-wrap: wrap;
-  padding: 10px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(245, 248, 246, 0.92)),
-    rgba(255, 255, 255, 0.82);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .debt-filter-pills {
@@ -287,24 +282,21 @@
 
 .debt-filter-bar .filter-pill {
   padding: 8px 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 246, 244, 0.96));
+  background: var(--surface);
   border-color: rgba(15, 23, 42, 0.08);
   color: var(--ink-2);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
 }
 
 .debt-filter-bar .filter-pill:hover {
-  background: linear-gradient(180deg, #ffffff, #f6faf7);
+  background: var(--surface-2);
   border-color: rgba(0, 177, 79, 0.18);
   color: var(--ink);
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
 }
 
 .debt-filter-bar .filter-pill.is-active {
-  background: linear-gradient(180deg, #18211d, #0f1613);
+  background: var(--ink);
   border-color: #101814;
   color: #f7fbf8;
-  box-shadow: 0 10px 24px rgba(16, 24, 20, 0.18);
 }
 
 .debt-filter-bar .filter-pill__count {
@@ -328,11 +320,10 @@
   align-items: center;
   min-height: 44px;
   flex: 1 1 320px;
-  background: linear-gradient(180deg, #ffffff, #f4f7f5);
+  background: var(--surface);
   border: 1px solid rgba(15, 23, 42, 0.10);
   border-radius: 12px;
   min-width: 180px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 4px 14px rgba(15, 23, 42, 0.04);
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
