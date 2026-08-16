@@ -11,6 +11,7 @@ const ROUTES = [
 
 describe('SearchableSelect', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -103,6 +104,72 @@ describe('SearchableSelect', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Đóng danh sách lựa chọn' }).at(-1)!);
 
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('keeps the desktop popover inside the viewport when the trigger is near the bottom edge', () => {
+    vi.stubGlobal('innerWidth', 1000);
+    vi.stubGlobal('innerHeight', 700);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this.classList.contains('searchable-select__trigger')) {
+        return DOMRect.fromRect({ x: 767, y: 579, width: 160, height: 44 });
+      }
+      if (this.classList.contains('searchable-select__popover')) {
+        return DOMRect.fromRect({ x: 767, y: 629, width: 320, height: 356 });
+      }
+      return DOMRect.fromRect();
+    });
+
+    render(
+      <SearchableSelect
+        id="truckId"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        placeholder="Chọn biển số xe"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn biển số xe/ }));
+
+    const popover = screen.getByRole('dialog');
+    expect(popover.parentElement).toBe(document.body);
+    expect(popover.dataset.placement).toBe('top');
+    expect(popover.style.getPropertyValue('--searchable-select-popover-max-height')).toBe('557px');
+    expect(popover.style.getPropertyValue('--searchable-select-popover-top')).toBe('217px');
+    expect(popover.style.getPropertyValue('--searchable-select-popover-left')).toBe('664px');
+  });
+
+  it('dismisses a desktop popover when scrolling moves its trigger out of view', () => {
+    vi.stubGlobal('innerWidth', 1000);
+    vi.stubGlobal('innerHeight', 700);
+    let triggerTop = 300;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function getRect(this: HTMLElement) {
+      if (this.classList.contains('searchable-select__trigger')) {
+        return DOMRect.fromRect({ x: 400, y: triggerTop, width: 160, height: 44 });
+      }
+      if (this.classList.contains('searchable-select__popover')) {
+        return DOMRect.fromRect({ x: 400, y: 350, width: 320, height: 356 });
+      }
+      return DOMRect.fromRect();
+    });
+
+    render(
+      <SearchableSelect
+        id="truckId"
+        value=""
+        onChange={() => {}}
+        options={ROUTES}
+        placeholder="Chọn biển số xe"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn biển số xe/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    triggerTop = -100;
+    fireEvent.scroll(window);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('owns Escape while open instead of dismissing a parent editor', async () => {

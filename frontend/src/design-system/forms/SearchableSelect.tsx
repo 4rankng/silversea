@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -59,6 +60,36 @@ function normalizeSearchText(value: string): string {
     .trim();
 }
 
+function isTriggerVisibleWithinScrollContainers(
+  trigger: HTMLElement,
+  triggerRect: DOMRect,
+): boolean {
+  // JSDOM and prerendering environments do not provide layout geometry.
+  // Treat an unmeasured trigger as visible; real rendered controls have size.
+  if (triggerRect.width === 0 && triggerRect.height === 0) return true;
+  const outsideViewport = triggerRect.bottom <= 0
+    || triggerRect.top >= window.innerHeight
+    || triggerRect.right <= 0
+    || triggerRect.left >= window.innerWidth;
+  if (outsideViewport) return false;
+
+  let ancestor = trigger.parentElement;
+  while (ancestor) {
+    const style = window.getComputedStyle(ancestor);
+    const ancestorRect = ancestor.getBoundingClientRect();
+    const clipsHorizontally = /(auto|scroll|hidden|clip)/.test(style.overflowX);
+    const clipsVertically = /(auto|scroll|hidden|clip)/.test(style.overflowY);
+    if (clipsHorizontally && (triggerRect.right <= ancestorRect.left || triggerRect.left >= ancestorRect.right)) {
+      return false;
+    }
+    if (clipsVertically && (triggerRect.bottom <= ancestorRect.top || triggerRect.top >= ancestorRect.bottom)) {
+      return false;
+    }
+    ancestor = ancestor.parentElement;
+  }
+  return true;
+}
+
 export function SearchableSelect({
   id,
   name,
@@ -84,6 +115,7 @@ export function SearchableSelect({
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -102,6 +134,8 @@ export function SearchableSelect({
       return queryTerms.every((term) => searchableText.includes(term));
     });
   }, [normalizedQuery, options]);
+  const showClear = clearable && value !== '';
+  const portaledOverlayRefs = useMemo(() => [popoverRef], []);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -126,9 +160,87 @@ export function SearchableSelect({
     return () => media.removeEventListener('change', sync);
   }, []);
 
+  const positionDesktopPopover = useCallback(() => {
+    const trigger = triggerRef.current;
+    const popover = popoverRef.current;
+    if (!trigger || !popover || isMobile) return;
+
+    const viewportPadding = 16;
+    const popoverGap = 6;
+    const triggerRect = trigger.getBoundingClientRect();
+    if (!isTriggerVisibleWithinScrollContainers(trigger, triggerRect)) {
+      close();
+      return;
+    }
+
+    // Reset the previous measurement before reading the popover's natural
+    // size. The body portal removes table/overflow clipping; fixed viewport
+    // coordinates keep the overlay attached to its trigger while scrolling.
+    popover.dataset.placement = 'bottom';
+    popover.style.removeProperty('--searchable-select-popover-max-height');
+    popover.style.setProperty('--searchable-select-popover-top', '0px');
+    popover.style.setProperty('--searchable-select-popover-left', '0px');
+    popover.style.setProperty('--searchable-select-popover-width', `${triggerRect.width}px`);
+    const popoverRect = popover.getBoundingClientRect();
+
+    const spaceBelow = Math.max(
+      0,
+      window.innerHeight - triggerRect.bottom - viewportPadding - popoverGap,
+    );
+    const spaceAbove = Math.max(
+      0,
+      triggerRect.top - viewportPadding - popoverGap,
+    );
+    const placement = popoverRect.height > spaceBelow && spaceAbove > spaceBelow
+      ? 'top'
+      : 'bottom';
+    const availableHeight = placement === 'top' ? spaceAbove : spaceBelow;
+
+    popover.dataset.placement = placement;
+    popover.style.setProperty(
+      '--searchable-select-popover-max-height',
+      `${Math.floor(availableHeight)}px`,
+    );
+    const renderedHeight = popover.getBoundingClientRect().height;
+
+    const maximumLeft = Math.max(
+      viewportPadding,
+      window.innerWidth - viewportPadding - popoverRect.width,
+    );
+    const clampedLeft = Math.min(
+      Math.max(triggerRect.left, viewportPadding),
+      maximumLeft,
+    );
+    const requestedTop = placement === 'top'
+      ? triggerRect.top - popoverGap - renderedHeight
+      : triggerRect.bottom + popoverGap;
+    const maximumTop = Math.max(
+      viewportPadding,
+      window.innerHeight - viewportPadding - renderedHeight,
+    );
+    const popoverTop = Math.min(
+      Math.max(requestedTop, viewportPadding),
+      maximumTop,
+    );
+    popover.style.setProperty('--searchable-select-popover-top', `${Math.round(popoverTop)}px`);
+    popover.style.setProperty('--searchable-select-popover-left', `${Math.round(clampedLeft)}px`);
+  }, [close, isMobile]);
+
+  useLayoutEffect(() => {
+    if (!isOpen || isMobile) return;
+    positionDesktopPopover();
+    window.addEventListener('resize', positionDesktopPopover);
+    window.addEventListener('scroll', positionDesktopPopover, true);
+    return () => {
+      window.removeEventListener('resize', positionDesktopPopover);
+      window.removeEventListener('scroll', positionDesktopPopover, true);
+    };
+  }, [filteredOptions.length, isMobile, isOpen, positionDesktopPopover, showClear]);
+
   useClickOutside(containerRef, close, {
     escapeKey: true,
     enabled: isOpen && !isMobile,
+    additionalRefs: portaledOverlayRefs,
   });
 
   useEffect(() => {
@@ -165,8 +277,6 @@ export function SearchableSelect({
     onChange('');
     close();
   };
-
-  const showClear = clearable && value !== '';
 
   const trapDialogFocus = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
@@ -228,7 +338,7 @@ export function SearchableSelect({
         }}
         onClick={close}
       />
-      <div className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
+      <div ref={popoverRef} className="searchable-select__popover" role="dialog" aria-modal="true" aria-label={`Chọn ${placeholder}`} onKeyDown={trapDialogFocus}>
         <div className="searchable-select__search">
           <Search size={16} aria-hidden="true" />
           <input
@@ -345,7 +455,7 @@ export function SearchableSelect({
 
       {name ? <input type="hidden" name={name} value={value} /> : null}
 
-      {isMobile && typeof document !== 'undefined'
+      {typeof document !== 'undefined'
         ? createPortal(selectorOverlay, document.body)
         : selectorOverlay}
     </div>

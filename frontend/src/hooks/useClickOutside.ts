@@ -8,9 +8,14 @@ import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
 export function useClickOutside(
   ref: RefObject<HTMLElement | null>,
   onDismiss: () => void,
-  options?: { escapeKey?: boolean; enabled?: boolean },
+  options?: {
+    escapeKey?: boolean;
+    enabled?: boolean;
+    additionalRefs?: RefObject<HTMLElement | null>[];
+  },
 ) {
   const { escapeKey = false, enabled = true } = options ?? {};
+  const additionalRefs = options?.additionalRefs;
 
   useEffect(() => {
     if (!enabled) return;
@@ -22,7 +27,9 @@ export function useClickOutside(
         if (escapeKey && e.key === 'Escape') onDismiss();
         return;
       }
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const isInside = [ref, ...(additionalRefs ?? [])].some((candidate) => candidate.current?.contains(target));
+      if (!isInside) {
         onDismiss();
       }
     };
@@ -33,5 +40,5 @@ export function useClickOutside(
       if (escapeKey) document.removeEventListener('keydown', handler);
       if (escapeKey) unregisterOverlay();
     };
-  }, [ref, onDismiss, enabled, escapeKey]);
+  }, [additionalRefs, ref, onDismiss, enabled, escapeKey]);
 }

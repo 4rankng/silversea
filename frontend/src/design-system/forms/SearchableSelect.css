@@ -43,12 +43,15 @@
 }
 
 .searchable-select__popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;
+  top: var(--searchable-select-popover-top, 0);
+  left: var(--searchable-select-popover-left, 0);
   z-index: var(--z-popover, 400);
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  width: var(--searchable-select-popover-width, auto);
   min-width: min(320px, calc(100vw - 32px));
+  max-height: var(--searchable-select-popover-max-height, calc(100dvh - 32px));
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line-2);
@@ -87,6 +90,8 @@
 }
 
 .searchable-select__list {
+  flex: 0 1 auto;
+  min-height: 0;
   max-height: min(320px, 45vh);
   margin: 0;
   padding: 6px;
@@ -214,6 +219,7 @@
     border-radius: 16px;
     box-shadow: 0 20px 48px rgba(10, 31, 19, 0.22);
     animation: searchableSelectSheetIn 180ms ease-out both;
+    transform: none;
   }
 
   .searchable-select__search {
