@@ -1803,8 +1803,11 @@ function dispatchDetailRunHourSql() {
   return sql<number>`extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})`;
 }
 
-function dispatchDetailRunDateSql() {
-  return sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})`;
+function dispatchDetailTransportDateSql() {
+  return sql<string>`coalesce(
+    (${s.shipmentContainers.customerAppointmentAt} at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})::date,
+    ${s.shipments.expectedDeliveryDate}
+  )`;
 }
 
 // Display-side hour in the same business timezone (matches the SQL filter).
@@ -1848,7 +1851,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       tradeDirection: s.shipments.tradeDirection,
       closingAt: s.shipments.closingAt,
       plannedReturnAt: s.shipments.plannedReturnAt,
-      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+      transportDate: dispatchDetailTransportDateSql(),
       operationalNotes: s.shipments.operationalNotes,
       customerNotes: s.shipments.customerNotes,
       packageType: s.shipments.packageType,
@@ -1885,7 +1888,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
         input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,
-        date ? eq(dispatchDetailRunDateSql(), date) : undefined,
+        date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
         pickupIds ? inArray(s.shipmentContainers.pickupPortId, pickupIds) : undefined,
         dropoffIds ? inArray(s.shipmentContainers.dropoffPortId, dropoffIds) : undefined,
         deliveryPointIds ? inArray(s.shipments.operationalSiteId, deliveryPointIds) : undefined,
@@ -1948,7 +1951,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           cargoMode: row.cargoMode,
           taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
           time: {
-            deliveryDate: row.expectedDeliveryDate,
+            deliveryDate: row.transportDate,
             runHour: dispatchDetailDisplayHour(row.closingAt, row.plannedReturnAt),
           },
           customerRoute: {

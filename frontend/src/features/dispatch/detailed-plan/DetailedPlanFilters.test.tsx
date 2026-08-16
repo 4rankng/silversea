@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
+import { businessDateISO } from '../../../lib/format';
 
 describe('DetailedPlanFilters', () => {
   it('provides visible labels and forwards dispatch-specific filter changes', async () => {
@@ -164,5 +165,21 @@ describe('DetailedPlanFilters', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(toggle);
     expect(screen.getByRole('button', { name: 'Ẩn bộ lọc' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('returns a changed transport date to today', () => {
+    const onChange = vi.fn();
+    render(
+      <DetailedPlanFilters
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2099-01-01' }}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Về hôm nay' }));
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
   });
 });

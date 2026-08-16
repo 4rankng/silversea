@@ -1321,9 +1321,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('keeps classification tags compact and wraps the shipping-line label', () => {
+    expect(source).toContain('className="cus-multiline-cell cus-classification"');
     expect(source).toContain('className="cus-classification__shipping-line"');
     expect(css).toMatch(/\.cus-multiline-cell \.cus-classification__shipping-line\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-self:\s*start;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
+    expect(css).toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*grid-template-areas:[\s\S]*?"shipping-line shipping-line"[\s\S]*?"combined direction";[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.cus-classification \.cus-direction-badge\s*\{[^}]*grid-area:\s*direction;[^}]*align-self:\s*end;[^}]*justify-self:\s*end;/);
+    expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
   });
 
   it('shows the full customer company name with compact wrapping instead of an ellipsis', async () => {

@@ -100,7 +100,7 @@ export function SuppliersView() {
               </tbody>
             </table>
             {totalPages > 1 && (
-              <div className="dispatch-catalogs__pager" style={{ padding: '10px 14px' }}>
+              <div className="dispatch-catalogs__pager">
                 <span>
                   Trang {page}/{totalPages}
                 </span>

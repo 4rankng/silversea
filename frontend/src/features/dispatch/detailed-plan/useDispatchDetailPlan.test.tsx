@@ -20,6 +20,7 @@ import {
   assignDispatchDetailPlate,
   listDispatchDetailPlanRows,
 } from '../../../api/dispatchPlanningClient';
+import { businessDateISO } from '../../../lib/format';
 
 const page = (items: DispatchDetailPlanRow[]): CursorPaginatedResponse<DispatchDetailPlanRow> => ({
   items,
@@ -66,6 +67,17 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   beforeEach(() => {
     vi.clearAllMocks();
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row(), row({ fulfillmentId: 102 })]));
+  });
+
+  it('loads the current Vietnam business date by default', async () => {
+    renderHook(() => useDispatchDetailPlan());
+
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    expect(listDispatchDetailPlanRowsMock).toHaveBeenCalledWith(expect.objectContaining({
+      cursor: null,
+      limit: 50,
+      date: businessDateISO(),
+    }));
   });
 
   it('drops a row from the UNASSIGNED view once a plate is assigned to it', async () => {
@@ -150,6 +162,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
 
     act(() => result.current.setPage(2));
     await waitFor(() => expect(result.current.page).toBe(2));
+    expect(result.current.totalPages).toBe(2);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'cursor-page-2', limit: 50 }));

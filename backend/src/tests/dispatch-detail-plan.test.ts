@@ -389,6 +389,32 @@ describe('dispatch detail plan rows', () => {
     assert.equal(wrongDirection.data.items.length, 0);
   });
 
+  test('date filter uses each container transport date with shipment fallback', async () => {
+    const { shipment } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    await db.update(s.shipments)
+      .set({ expectedDeliveryDate: '2026-08-20' })
+      .where(eq(s.shipments.id, shipment.id));
+    const containers = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipment.id))
+      .orderBy(s.shipmentContainers.id);
+    await db.update(s.shipmentContainers)
+      // 20/08 UTC has already rolled into 21/08 in Vietnam. This boundary
+      // locks the business-timezone conversion instead of only the fallback.
+      .set({ customerAppointmentAt: new Date('2026-08-20T18:00:00.000Z') })
+      .where(eq(s.shipmentContainers.id, containers[0]!.id));
+
+    const appointmentDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-21`);
+    assert.equal(appointmentDate.status, 200, JSON.stringify(appointmentDate.data));
+    assert.equal(appointmentDate.data.items.length, 1);
+    assert.equal(appointmentDate.data.items[0]!.time.deliveryDate, '2026-08-21');
+
+    const shipmentFallbackDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-20`);
+    assert.equal(shipmentFallbackDate.status, 200, JSON.stringify(shipmentFallbackDate.data));
+    assert.equal(shipmentFallbackDate.data.items.length, 1);
+    assert.equal(shipmentFallbackDate.data.items[0]!.time.deliveryDate, '2026-08-20');
+  });
+
   test('invalid hour filter is rejected with 400', async () => {
     const response = await fetchRows(dispatcherToken, '?hourFrom=24');
     assert.equal(response.status, 400);

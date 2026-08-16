@@ -46,6 +46,24 @@
   min-width: 0;
 }
 
+.detailed-plan-filters__date-group {
+  display: flex;
+  flex: 0 1 300px;
+  align-items: end;
+  gap: 8px;
+  min-width: 270px;
+}
+
+.detailed-plan-filters__date-group > .detailed-plan-filters__field {
+  flex: 1 1 160px;
+  min-width: 150px;
+}
+
+.detailed-plan-filters__today {
+  flex: 0 0 auto;
+  min-height: 36px;
+}
+
 .detailed-plan-filters__points {
   display: grid;
   flex: 0 1 220px;
@@ -319,6 +337,7 @@
   }
 
   .detailed-plan-filters__field,
+  .detailed-plan-filters__date-group,
   .detailed-plan-filters__points {
     min-width: 0;
   }
@@ -335,9 +354,18 @@
 
   .detailed-plan-filters__field,
   .detailed-plan-filters__field--search,
+  .detailed-plan-filters__date-group,
   .detailed-plan-filters__points {
     grid-column: 1 / -1;
     min-width: 0;
+  }
+
+  .detailed-plan-filters__date-group {
+    align-items: end;
+  }
+
+  .detailed-plan-filters__today {
+    min-height: 44px;
   }
 
   .detailed-plan-filters__advanced-toggle {

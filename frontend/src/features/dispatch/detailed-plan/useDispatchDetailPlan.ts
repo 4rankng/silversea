@@ -8,6 +8,7 @@ import {
   type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
+import { businessDateISO } from '../../../lib/format';
 
 const PAGE_SIZE = 50;
 
@@ -35,6 +36,10 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   hourTo: '',
 };
 
+function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
+  return { ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() };
+}
+
 export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;
 
 /** Query params shared by the list, load-more, and refresh requests. */
@@ -59,7 +64,7 @@ function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
  * failure). Same request-id race guard pattern as useDispatchMasterPlan.
  */
 export function useDispatchDetailPlan() {
-  const [filters, setFilters] = useState<DetailedPlanFilterState>(EMPTY_DETAILED_PLAN_FILTERS);
+  const [filters, setFilters] = useState<DetailedPlanFilterState>(createDefaultDetailedPlanFilters);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [pageCursors, setPageCursors] = useState<Array<string | null>>([null]);
@@ -105,20 +110,19 @@ export function useDispatchDetailPlan() {
   }, []);
 
   const page = pageCursors.length;
-  const totalPages = page + (nextCursor ? 1 : 0);
+  const totalPages = page + (!loading && nextCursor ? 1 : 0);
 
   const setPage = useCallback((nextPage: number) => {
-    setPageCursors((current) => {
-      const currentPage = current.length;
-      if (nextPage === currentPage + 1 && nextCursor) {
-        return [...current, nextCursor];
-      }
-      if (nextPage >= 1 && nextPage < currentPage) {
-        return current.slice(0, nextPage);
-      }
-      return current;
-    });
-  }, [nextCursor]);
+    if (nextPage === page + 1 && nextCursor) {
+      setLoading(true);
+      setPageCursors((current) => [...current, nextCursor]);
+      return;
+    }
+    if (nextPage >= 1 && nextPage < page) {
+      setLoading(true);
+      setPageCursors((current) => current.slice(0, nextPage));
+    }
+  }, [nextCursor, page]);
 
   const toggleSort = useCallback((key: Exclude<DetailPlanSortKey, null>) => {
     setSortKey((current) => (current === key ? null : key));

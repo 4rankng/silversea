@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
+import { businessDateISO } from '../../../lib/format';
 import type { DetailedPlanFilterState } from './useDispatchDetailPlan';
 
 export interface FacetItem {
@@ -190,6 +192,7 @@ export function DetailedPlanFilters({
 }: DetailedPlanFiltersProps) {
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
   const advancedFiltersId = useId();
+  const today = businessDateISO();
   const activeAdvancedFilterCount = [
     filters.date,
     filters.direction,
@@ -225,17 +228,29 @@ export function DetailedPlanFilters({
         {isAdvancedFiltersOpen ? 'Ẩn bộ lọc' : activeAdvancedFilterCount > 0 ? `Bộ lọc (${activeAdvancedFilterCount})` : 'Thêm bộ lọc'}
       </button>
       <div id={advancedFiltersId} className={`detailed-plan-filters__advanced${isAdvancedFiltersOpen ? ' is-open' : ''}`}>
-        <label className="detailed-plan-filters__field">
-          <span className="detailed-plan-filters__label">Ngày chạy</span>
-          <UUIInput
-            type="date"
-            className="detailed-plan-filters__date"
-            value={filters.date}
-            onChange={(value) => onChange({ date: value })}
-            size="sm"
-            aria-label="Ngày chạy"
-          />
-        </label>
+        <div className="detailed-plan-filters__date-group">
+          <label className="detailed-plan-filters__field">
+            <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
+            <UUIInput
+              type="date"
+              className="detailed-plan-filters__date"
+              value={filters.date}
+              onChange={(value) => onChange({ date: value })}
+              size="sm"
+              aria-label="Ngày vận chuyển"
+            />
+          </label>
+          {filters.date !== today && (
+            <UUIButton
+              className="detailed-plan-filters__today"
+              size="xs"
+              color="secondary"
+              onPress={() => onChange({ date: today })}
+            >
+              Về hôm nay
+            </UUIButton>
+          )}
+        </div>
       <label className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Chiều hàng</span>
         <UUINativeSelect

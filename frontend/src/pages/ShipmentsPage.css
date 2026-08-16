@@ -669,10 +669,31 @@
 }
 
 .cus-multiline-cell .cus-classification__shipping-line {
+  grid-area: shipping-line;
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.cus-multiline-cell.cus-classification {
+  grid-template-areas:
+    "shipping-line shipping-line"
+    "combined direction";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 44px;
+}
+
+.cus-classification .cus-direction-badge {
+  grid-area: direction;
+  align-self: end;
+  justify-self: end;
+}
+
+.cus-classification .cus-combined-tag {
+  grid-area: combined;
+  align-self: end;
 }
 
 .cus-direction-badge,
