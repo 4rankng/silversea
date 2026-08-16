@@ -202,6 +202,7 @@ describe('DetailedPlanGrid', () => {
 
     expect(toolbar).toContain('align-items: flex-start');
     expect(points).toContain('position: relative');
+    expect(points).toContain('min-width: 0');
     expect(picker).toContain('position: absolute');
     expect(picker).toContain('z-index: 20');
     expect(hourControl).toContain('flex: 1 1 0');

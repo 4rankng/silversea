@@ -87,7 +87,7 @@
   position: relative;
   display: grid;
   gap: 6px;
-  min-width: 200px;
+  min-width: 0;
 }
 
 .detailed-plan-filters__points > .detailed-plan-filters__field {

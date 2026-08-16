@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.css'), 'utf8');
+const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/ShipmentContainerLedger.tsx'), 'utf8');
 
@@ -63,6 +64,13 @@ describe('shipment detail workboard styling', () => {
   it('places pagination in the container ledger scroll region', () => {
     expect(source).toMatch(/<ShipmentContainerLedger[\s\S]*?footer=\{<Pagination page=\{page\}/);
     expect(ledgerSource).toMatch(/<div className="shipment-container-ledger"[\s\S]*?\{footer\}[\s\S]*?<\/div>/);
+  });
+
+  it('keeps an opened cell editor above the sticky pagination layer', () => {
+    expect(tokens).toMatch(/--z-sticky:\s*100;/);
+    expect(tokens).toMatch(/--z-overlay:\s*200;/);
+    expect(css).toMatch(/\.shipment-container-ledger > \.ds-pagination\s*\{[^}]*z-index:\s*var\(--z-sticky, 100\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*z-index:\s*var\(--z-overlay, 200\);/);
   });
 
   it('uses a dense intermediate ledger grid without empty half-width bands', () => {
