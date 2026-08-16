@@ -82,6 +82,10 @@ homepage/
 **/pnpm-lock.yaml
 **/package-lock.json
 **/drizzle/meta/
+# tool self-bundles — would duplicate every node in the graph
+repomix-output.xml
+# the plugin's own output artifacts — must never feed back into analysis
+.ua/
 
 # --- Test file patterns (uncomment to exclude) ---
 
