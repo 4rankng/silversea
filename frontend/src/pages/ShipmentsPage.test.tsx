@@ -1143,6 +1143,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[\s\S]*?minmax\(260px, 1\.6fr\) repeat\(4, minmax\(148px, 1fr\)\);/);
     expect(css).toMatch(/@container \(max-width: 980px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/\.cus-worksheet-toolbar__action-group > :only-child\s*\{\s*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(source).toContain('cus-cargo-summary__containers');
     expect(source).toContain('kg ·');

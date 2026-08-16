@@ -394,6 +394,10 @@
     width: 100%;
   }
 
+  .cus-worksheet-toolbar__action-group > :only-child {
+    grid-column: 1 / -1;
+  }
+
   .cus-worksheet-toolbar__actions .shipment-uui-button {
     min-height: 44px;
     padding: 9px 12px;
