@@ -191,6 +191,7 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
 describe('CUS shipment workspace projection — OQ2 aggregated cargo', () => {
   test('sums per-container weight and volume across containers', async () => {
     const shipment = await seedShipment({
+      cargoMode: 'FCL',
       // Shipment-level figures present but must be OVERRIDDEN by the container sum.
       cargoWeightKg: '9999.99',
       cargoVolumeCbm: '8888.888',
@@ -204,6 +205,8 @@ describe('CUS shipment workspace projection — OQ2 aggregated cargo', () => {
     assert.equal(item!.weightKg, '3000.75');
     // 33.333 + 16.667 = 50.000 (scale 3)
     assert.equal(item!.volumeCbm, '50.000');
+    assert.equal(item!.status, 'PENDING_DATE');
+    assert.equal(item!.cargoMode, 'FCL');
   });
 
   test('falls back to shipment-level cargo when there are no containers', async () => {
@@ -293,7 +296,7 @@ test('workspace detail returns safe route selectors for the route authority', as
 describe('CUS container-flat projection', () => {
   test('flattens every container of every shipment with shipment context and operational fields', async () => {
     const appointmentA = new Date('2026-08-20T08:00:00Z');
-    const shipmentA = await seedShipment({ blNumber: `FLATA${suffix}` });
+    const shipmentA = await seedShipment({ blNumber: `FLATA${suffix}`, expectedDeliveryDate: '2026-08-21' });
     const shipmentB = await seedShipment({ bookingRef: `FLATB${suffix}` });
     await seedContainer(shipmentA.id, {
       containerNumber: `FLA${suffix}1`,
@@ -324,6 +327,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.customerAppointmentEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
     assert.equal(rowA1.customerAppointmentAt, appointmentA.toISOString());
+    assert.equal(rowA1.transportDate, '2026-08-20');
     // Unassigned containers carry no carrier/plate yet.
     assert.equal(rowA1.carrierName, null);
     assert.equal(rowA1.plateNumber, null);
@@ -343,6 +347,17 @@ describe('CUS container-flat projection', () => {
     assert.ok(response.totalPages >= 1);
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
     assert.deepEqual(response.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
+
+    const appointmentDateOnly = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      transportDateFrom: '2026-08-20',
+      transportDateTo: '2026-08-20',
+    }, cusActor);
+    assert.deepEqual(
+      appointmentDateOnly.items.filter((row) => row.shipmentId === shipmentA.id).map((row) => row.id),
+      [rowA1.id],
+    );
   });
 
   test('searches a container suffix and returns only the matching container row', async () => {
