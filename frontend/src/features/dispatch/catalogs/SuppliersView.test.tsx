@@ -1,7 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { SupplierType } from '@tingting/shared';
 import type { Supplier } from '@tingting/shared';
+
+const { apiPost, invalidateAllCatalogs } = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+  invalidateAllCatalogs: vi.fn(async () => []),
+}));
 
 const suppliersState = {
   data: undefined as { items: Supplier[]; total: number } | undefined,
@@ -11,10 +17,20 @@ const suppliersState = {
 
 vi.mock('../../../hooks/useCatalogQueries', () => ({
   useSuppliers: () => suppliersState,
+  useAllCustomers: () => ({ data: [] }),
 }));
 
 vi.mock('../../../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
+}));
+
+vi.mock('../../../lib/api', () => ({
+  api: { post: apiPost },
+}));
+
+vi.mock('../../../api/keys', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/keys')>()),
+  invalidateAllCatalogs,
 }));
 
 import { SuppliersView } from './SuppliersView';
@@ -55,7 +71,11 @@ describe('SuppliersView (dispatcher read-only)', () => {
       ],
       total: 2,
     };
-    render(<SuppliersView />);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
 
     expect(screen.getByText('Công ty Vận tải Biển Đông')).toBeTruthy();
     expect(screen.getByText('Lê Văn Tài')).toBeTruthy();
@@ -67,19 +87,52 @@ describe('SuppliersView (dispatcher read-only)', () => {
 
   it('shows loading then empty states', () => {
     suppliersState.isLoading = true;
-    const { rerender } = render(<SuppliersView />);
+    const { rerender } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
     expect(screen.getByText('Đang tải…')).toBeTruthy();
 
     suppliersState.isLoading = false;
     suppliersState.data = { items: [], total: 0 };
-    rerender(<SuppliersView />);
+    rerender(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
     expect(screen.getByText('Chưa có nhà thầu phụ nào')).toBeTruthy();
   });
 
-  it('renders no mutation affordances and no payable links (read-only)', () => {
+  it('renders no edit/delete affordances and no payable links — create only', () => {
     suppliersState.data = { items: [supplier()], total: 1 };
-    render(<SuppliersView />);
-    expect(screen.queryByRole('button', { name: /thêm|sửa|xóa/i })).toBeNull();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole('button', { name: /sửa|xóa/i })).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.getByRole('button', { name: /thêm nhà thầu phụ/i })).toBeTruthy();
+  });
+
+  it('creates a subcontractor through the form modal and refreshes catalogs', async () => {
+    apiPost.mockReset();
+    apiPost.mockResolvedValueOnce({});
+    suppliersState.data = { items: [], total: 0 };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà thầu phụ' }));
+    fireEvent.change(screen.getByLabelText(/tên nhà cung cấp/i), { target: { value: 'Nhà xe Mới' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà cung cấp' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/suppliers', expect.objectContaining({
+      name: 'Nhà xe Mới',
+    })));
+    await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });
 });

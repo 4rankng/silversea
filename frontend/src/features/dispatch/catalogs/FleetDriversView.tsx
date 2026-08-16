@@ -1,15 +1,20 @@
 /**
- * Danh mục Tài xế — dispatcher read-only lookup of internal drivers.
- * Same data source as FleetPage; only assignment + contact + status surface.
+ * Danh mục Tài xế — dispatcher lookup of internal drivers. Dispatchers may
+ * add drivers (createRoles allowance), but salary/social-insurance fields
+ * are material config for every role: the dispatcher save strips them so
+ * the create stays direct instead of routing into a governance action the
+ * DISPATCHER role cannot make.
  */
 import { useMemo, useState } from 'react';
-import { Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
+import { Plus, Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
 import { KPI, StatusPill } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { DRIVER_STATUS } from '../../fleet';
+import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
 
 
@@ -18,6 +23,12 @@ export function FleetDriversView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [search, setSearch] = useState('');
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
+  const create = useCatalogCreate('/drivers');
+  const saveDriver = (body: Record<string, unknown>) => {
+    const driverFields = { ...body };
+    delete driverFields.baseSalary;
+    return create.create(driverFields);
+  };
 
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
@@ -50,7 +61,11 @@ export function FleetDriversView() {
             Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
           </p>
         </div>
+        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
+          <Plus size={14} /> Thêm tài xế
+        </button>
       </div>
+      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng tài xế" value={drivers.length} unit="người" icon={Users} />
         <KPI label="Đang hoạt động" value={activeCount} unit="người" icon={UserCheck} variant="success" />
@@ -98,6 +113,13 @@ export function FleetDriversView() {
           </table>
         )}
       </CatalogTableShell>
+      <DriverFormModal
+        isOpen={create.open}
+        saving={create.saving}
+        trucks={trucks}
+        onsave={saveDriver}
+        oncancel={create.closeForm}
+      />
     </div>
   );
 }

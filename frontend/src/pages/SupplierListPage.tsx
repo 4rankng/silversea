@@ -31,7 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
   INACTIVE: 'Ngừng hoạt động',
 };
 
-function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }: {
+export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, customers }: {
   item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean; customers: Customer[];
 }) {
   const [name, setName] = useState(item?.name || '');

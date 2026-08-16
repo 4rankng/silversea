@@ -125,6 +125,7 @@ function baseDetail(): ShipmentDetail {
       deliveryLocation: null,
       contactName: null,
       contactPhone: null,
+      tradeDirection: 'IMPORT',
       cargoMode: 'FCL',
       createdBy: null,
       updatedBy: null,
@@ -198,9 +199,9 @@ describe('ClerkShipmentDocsPage', () => {
     });
   });
 
-  it('shows the readiness warning when BL and containers are missing', async () => {
+  it('shows the readiness warning when the import Bill and containers are missing', async () => {
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Còn thiếu: Số vận đơn hoặc booking/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Còn thiếu: Số Bill/)).toBeTruthy());
     expect(screen.getByText(/Thông tin công-te-nơ đầy đủ/)).toBeTruthy();
   });
 
@@ -234,7 +235,7 @@ describe('ClerkShipmentDocsPage', () => {
   });
 
   it('preserves a legacy unknown cargo mode when saving another field', async () => {
-    getDetailMock.mockResolvedValue(makeDetail({ shipment: { cargoMode: null } }));
+    getDetailMock.mockResolvedValue(makeDetail({ shipment: { cargoMode: null, tradeDirection: 'EXPORT' } }));
     updateShipmentMock.mockResolvedValue({
       ...makeDetail().shipment,
       cargoMode: null,
@@ -245,8 +246,8 @@ describe('ClerkShipmentDocsPage', () => {
       changeRequestId: null,
     });
     renderAt();
-    await waitFor(() => expect(screen.getByLabelText('Số booking')).toBeTruthy());
-    fireEvent.change(screen.getByLabelText('Số booking'), { target: { value: 'BK-LEGACY' } });
+    await waitFor(() => expect(screen.getByLabelText('Số Booking')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Số Booking'), { target: { value: 'BK-LEGACY' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
 
     await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
@@ -288,7 +289,7 @@ describe('ClerkShipmentDocsPage', () => {
     });
 
     renderAt();
-    await waitFor(() => expect(screen.getByLabelText('Số booking')).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText('Số Bill')).toBeTruthy());
     const cargoModeField = screen.getByText('Loại lô hàng').closest('.ds-field');
     expect(cargoModeField).toBeTruthy();
     fireEvent.click(cargoModeField!.querySelector('button.ds-select-trigger') as HTMLButtonElement);
@@ -544,7 +545,7 @@ describe('ClerkShipmentDocsPage', () => {
       containers: [expect.objectContaining({ containerTypeId: 1, containerNumber: 'MSKU1234565' })],
     })));
 
-    fireEvent.change(screen.getByLabelText('Số vận đơn (B/L)'), { target: { value: 'BL-UPDATED' } });
+    fireEvent.change(screen.getByLabelText('Số Bill'), { target: { value: 'BL-UPDATED' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
 
     await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledWith(42, expect.objectContaining({

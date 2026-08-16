@@ -1,7 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TruckStatus, DriverStatus } from '@tingting/shared';
 import type { Truck, Driver } from '@tingting/shared';
+
+const { apiPost, invalidateAllCatalogs } = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+  invalidateAllCatalogs: vi.fn(async () => []),
+}));
 
 const fleetState = {
   data: undefined as { trucks: Truck[]; drivers: Driver[] } | undefined,
@@ -15,6 +21,15 @@ vi.mock('../../../hooks/useCatalogQueries', () => ({
 
 vi.mock('../../../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
+}));
+
+vi.mock('../../../lib/api', () => ({
+  api: { post: apiPost },
+}));
+
+vi.mock('../../../api/keys', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/keys')>()),
+  invalidateAllCatalogs,
 }));
 
 import { FleetDriversView } from './FleetDriversView';
@@ -62,7 +77,11 @@ describe('FleetDriversView (dispatcher read-only)', () => {
       trucks: [truck()],
       drivers: [driver(), driver({ id: 11, name: 'Trần Thị C', phone: null, assignedTruckId: null, status: DriverStatus.INACTIVE })],
     };
-    render(<FleetDriversView />);
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
 
     expect(screen.getByText('Nguyễn Văn B')).toBeTruthy();
     expect(screen.getByText('0901234567')).toBeTruthy();
@@ -73,18 +92,55 @@ describe('FleetDriversView (dispatcher read-only)', () => {
 
   it('shows loading then empty states', () => {
     fleetState.isLoading = true;
-    const { rerender } = render(<FleetDriversView />);
+    const { rerender } = render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
     expect(screen.getByText('Đang tải…')).toBeTruthy();
 
     fleetState.isLoading = false;
     fleetState.data = { trucks: [], drivers: [] };
-    rerender(<FleetDriversView />);
+    rerender(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
     expect(screen.getByText('Chưa có tài xế nào')).toBeTruthy();
   });
 
-  it('renders no mutation affordances (read-only)', () => {
+  it('renders no edit/delete affordances — create only', () => {
     fleetState.data = { trucks: [truck()], drivers: [driver()] };
-    render(<FleetDriversView />);
-    expect(screen.queryByRole('button', { name: /thêm|sửa|xóa/i })).toBeNull();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole('button', { name: /sửa|xóa/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /thêm tài xế/i })).toBeTruthy();
+  });
+
+  it('creates a driver without salary fields and refreshes catalogs', async () => {
+    apiPost.mockReset();
+    apiPost.mockResolvedValueOnce({});
+    fleetState.data = { trucks: [truck()], drivers: [] };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <FleetDriversView />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tài xế' }));
+    fireEvent.change(screen.getByLabelText(/họ và tên/i), { target: { value: 'Trần Văn Mới' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm lái xe' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/drivers', expect.objectContaining({
+      name: 'Trần Văn Mới',
+      // baseSalary must be stripped: DISPATCHER cannot make the governance
+      // action a salaried driver create would route into.
+      status: 'ACTIVE',
+    })));
+    expect(apiPost.mock.calls[0]?.[1]).not.toHaveProperty('baseSalary');
+    await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });
 });

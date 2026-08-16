@@ -1,8 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TruckStatus, DriverStatus } from '@tingting/shared';
 import type { Truck, Driver, Trailer } from '@tingting/shared';
+
+const { apiPost, invalidateAllCatalogs } = vi.hoisted(() => ({
+  apiPost: vi.fn(),
+  invalidateAllCatalogs: vi.fn(async () => []),
+}));
 
 const fleetState = {
   data: { trucks: [] as Truck[], drivers: [] as Driver[] } as
@@ -23,6 +28,15 @@ vi.mock('../../../hooks/animations', () => ({
 
 vi.mock('../../../api/configClient', () => ({
   configClient: { getTrailers: vi.fn(async () => [] as Trailer[]) },
+}));
+
+vi.mock('../../../lib/api', () => ({
+  api: { post: apiPost },
+}));
+
+vi.mock('../../../api/keys', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/keys')>()),
+  invalidateAllCatalogs,
 }));
 
 import { FleetVehiclesView } from './FleetVehiclesView';
@@ -107,9 +121,28 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
     expect(screen.getByText('Chưa có xe đầu kéo nào')).toBeTruthy();
   });
 
-  it('renders no mutation affordances (read-only)', () => {
+  it('renders no edit/delete affordances — create only', () => {
     fleetState.data = { trucks: [truck()], drivers: [driver()] };
     renderView();
-    expect(screen.queryByRole('button', { name: /thêm|sửa|xóa/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /sửa|xóa/i })).toBeNull();
+    // The one mutation affordance is the header create button.
+    expect(screen.getByRole('button', { name: /thêm xe đầu kéo/i })).toBeTruthy();
+  });
+
+  it('creates a tractor through the form modal and refreshes catalogs', async () => {
+    apiPost.mockReset();
+    apiPost.mockResolvedValueOnce({});
+    fleetState.data = { trucks: [], drivers: [] };
+    renderView();
+
+    // Header opens the modal; the modal's own submit button is exactly "Thêm xe".
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm xe đầu kéo' }));
+    fireEvent.change(screen.getByLabelText(/biển số xe đầu kéo/i), { target: { value: '51H-777.77' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm xe' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/trucks', expect.objectContaining({
+      licensePlate: '51H-777.77',
+    })));
+    await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });
 });

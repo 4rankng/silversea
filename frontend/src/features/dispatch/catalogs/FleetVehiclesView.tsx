@@ -1,16 +1,18 @@
 /**
- * Danh mục Xe nội bộ — dispatcher read-only lookup of internal tractors.
- * Mirrors FleetPage's status vocabulary but drops every mutation surface;
- * dispatchers consult the catalog to staff dispatch plans.
+ * Danh mục Xe nội bộ — dispatcher lookup of internal tractors. Dispatchers
+ * may add new tractors (createRoles allowance) but not edit or retire
+ * existing ones; those stay in the admin /fleet workspace.
  */
 import { useMemo, useState } from 'react';
-import { Truck } from 'lucide-react';
+import { Plus, Truck } from 'lucide-react';
 import { KPI, StatusPill } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
 import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { TRUCK_STATUS } from '../../fleet';
+import { TruckFormModal } from '../../fleet/TruckFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
+import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
 
 import type { Truck as TruckType } from '@tingting/shared';
@@ -21,6 +23,7 @@ export function FleetVehiclesView() {
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   // Trailer plate/type shown alongside each tractor (same source as FleetPage).
   const { data: trailers = [] } = useTrailers();
+  const create = useCatalogCreate('/trucks');
 
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
@@ -59,7 +62,11 @@ export function FleetVehiclesView() {
             Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
           </p>
         </div>
+        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
+          <Plus size={14} /> Thêm xe đầu kéo
+        </button>
       </div>
+      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng xe đầu kéo" value={trucks.length} unit="xe" icon={Truck} />
         <KPI label="Hoạt động" value={active} unit="xe" icon={Truck} variant="success" />
@@ -111,6 +118,13 @@ export function FleetVehiclesView() {
           </table>
         )}
       </CatalogTableShell>
+      <TruckFormModal
+        isOpen={create.open}
+        saving={create.saving}
+        trailers={trailers}
+        onsave={create.create}
+        oncancel={create.closeForm}
+      />
     </div>
   );
 }

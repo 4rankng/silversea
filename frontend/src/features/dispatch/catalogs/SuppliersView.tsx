@@ -1,19 +1,20 @@
 /**
- * Nhà thầu phụ — dispatcher read-only lookup of subcontractors.
- * Deliberately leaner than admin SupplierListPage: no payables KPIs
- * (financial is Casbin-denied for DISPATCHER), no payable-detail links,
- * no create/edit/delete — dispatchers only need contact + type + status
- * to allocate external capacity.
+ * Nhà thầu phụ — dispatcher lookup of subcontractors. Deliberately leaner
+ * than admin SupplierListPage: no payables KPIs (financial is Casbin-denied
+ * for DISPATCHER), no payable-detail links. Dispatchers may add new
+ * subcontractors (createRoles allowance); edit/delete stay with admin.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Store } from 'lucide-react';
+import { Plus, Store } from 'lucide-react';
 import { KPI, StatusPill } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
-import { useSuppliers } from '../../../hooks/useCatalogQueries';
+import { useSuppliers, useAllCustomers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
+import { SupplierFormModal } from '../../../pages/SupplierListPage';
 import { CatalogTableShell } from './CatalogTableShell';
 import { Pagination } from '../../../design-system';
+import { useCatalogCreate } from './useCatalogCreate';
 import './catalogs.css';
 
 const PAGE_SIZE = 10;
@@ -22,6 +23,8 @@ export function SuppliersView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const create = useCatalogCreate('/suppliers');
+  const { data: customers = [] } = useAllCustomers();
 
   // Server-side pagination + search (same contract as the admin page);
   // typing resets to page 1 after a short debounce.
@@ -50,7 +53,11 @@ export function SuppliersView() {
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài
           </p>
         </div>
+        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
+          <Plus size={14} /> Thêm nhà thầu phụ
+        </button>
       </div>
+      {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
         <KPI label="Tổng (toàn bộ trang)" value={total} unit="NCC" icon={Store} />
         <KPI label="Đang hoạt động (trang này)" value={activeCount} unit="NCC" icon={Store} variant="success" />
@@ -104,6 +111,13 @@ export function SuppliersView() {
           </>
         )}
       </CatalogTableShell>
+      <SupplierFormModal
+        isOpen={create.open}
+        saving={create.saving}
+        customers={customers}
+        onsave={create.create}
+        oncancel={create.closeForm}
+      />
     </div>
   );
 }

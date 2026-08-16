@@ -155,7 +155,7 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Khách hàng', '7');
     await choose('Hình thức xuất nhập khẩu', 'IMPORT');
     await choose('Tuyến đường', '11');
-    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BK-FCL' } });
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-FCL' } });
     await choose('Loại container', '31');
     await choose('Cảng nâng', '21');
     await choose('Cảng hạ', '22');
@@ -175,7 +175,8 @@ describe('ClerkShipmentCreatePage', () => {
   it('opens a confirmation before discarding entered data and creates nothing', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BK-DIRTY' } });
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-DIRTY' } });
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(await screen.findByRole('dialog', { name: 'Bỏ tạo lô hàng?' })).toBeTruthy();
     expect(mocks.quickCreate).not.toHaveBeenCalled();
