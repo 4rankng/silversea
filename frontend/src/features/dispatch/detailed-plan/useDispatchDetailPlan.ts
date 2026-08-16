@@ -158,9 +158,20 @@ export function useDispatchDetailPlan() {
         expectedVersion: row.version,
         ...body,
       });
-      setItems((prev) => prev.map((item) => item.fulfillmentId === row.fulfillmentId
-        ? { ...item, version: result.version, dispatch: { ...item.dispatch, assignedPlate: result.assignedPlate, externalCarrierVehicleId: body.externalCarrierVehicleId ?? (body.clear ? null : item.dispatch.externalCarrierVehicleId) } }
-        : item));
+      // When an assignment-status filter is active, an assignment flip can
+      // invalidate the filtered view (e.g. a row just plated still listed under
+      // "Chưa gán Biển số"). Drop the row from the current list so the filter
+      // stays truthful; a refetch happens whenever filters change.
+      const nowAssigned = body.clear ? false : !!result.assignedPlate;
+      const invalidatedByFilter = filters.assignmentStatus === 'UNASSIGNED' && nowAssigned
+        || filters.assignmentStatus === 'ASSIGNED' && !nowAssigned;
+      if (invalidatedByFilter) {
+        setItems((prev) => prev.filter((item) => item.fulfillmentId !== row.fulfillmentId));
+      } else {
+        setItems((prev) => prev.map((item) => item.fulfillmentId === row.fulfillmentId
+          ? { ...item, version: result.version, dispatch: { ...item.dispatch, assignedPlate: result.assignedPlate, externalCarrierVehicleId: body.externalCarrierVehicleId ?? (body.clear ? null : item.dispatch.externalCarrierVehicleId) } }
+          : item));
+      }
       // A lot flip surfaces for every row of that shipment.
       if (result.lotFullyPlated) {
         setItems((prev) => prev.map((item) => item.shipmentId === row.shipmentId
@@ -182,7 +193,7 @@ export function useDispatchDetailPlan() {
       }
       throw mutationError;
     }
-  }, []);
+  }, [filters.assignmentStatus]);
 
   const refresh = useCallback(() => {
     setFilters((prev) => ({ ...prev }));

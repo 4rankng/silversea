@@ -18,7 +18,7 @@ export interface SearchItem {
 function normalise(str: string): string {
   return str
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
@@ -107,8 +107,8 @@ const DISPATCHER_ITEMS: SearchItem[] = [
 
 // Mirrors the CUS nav (Layout.tsx document-ops section).
 const CUS_ITEMS: SearchItem[] = [
-  { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',           iconName: 'cargo' },
-  { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments/containers', iconName: 'cargo' },
+  { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',        iconName: 'cargo' },
+  { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments-detail', iconName: 'cargo' },
 ];
 
 const FORWARDER_ITEMS: SearchItem[] = [
@@ -154,6 +154,10 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
       ];
     case 'DRIVER':
       return DRIVER_ITEMS;
+    case 'DISPATCHER':
+      return DISPATCHER_ITEMS;
+    case 'CUS':
+      return CUS_ITEMS;
     case 'FORWARDER':
       return FORWARDER_ITEMS;
     default:

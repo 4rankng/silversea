@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
-import { CONFIG_ITEMS, getSearchItems } from './searchRegistry';
+import { CONFIG_ITEMS, filterItems, getSearchItems } from './searchRegistry';
 
 const DISTINCT_CONFIG_ICONS = {
   'company-info': 'company-profile',
@@ -73,5 +73,32 @@ describe('role-aware search destinations', () => {
     const items = getSearchItems('ACCOUNTANT', ['executive_dashboard.read']);
     expect(items.some(item => item.id === 'dashboard')).toBe(false);
     expect(items.filter(item => item.id === 'accounting')).toHaveLength(1);
+  });
+
+  it('gives dispatchers their five nav destinations instead of an empty palette', () => {
+    const items = getSearchItems('DISPATCHER');
+    expect(items.map(item => item.path)).toEqual([
+      '/dispatch',
+      '/dispatch-detail',
+      '/fleet/vehicles',
+      '/fleet/drivers',
+      '/suppliers',
+    ]);
+    // The dispatcher palette must not leak admin-only surfaces.
+    expect(items.some(item => item.path.startsWith('/config') || item.path === '/users')).toBe(false);
+  });
+
+  it('matches dispatcher pages from plain ASCII queries (diacritics folding)', () => {
+    const items = getSearchItems('DISPATCHER');
+    expect(filterItems(items, 'ke hoach').map(item => item.id)).toEqual([
+      'dispatch-master-plan',
+      'dispatch-detail-plan',
+    ]);
+    expect(filterItems(items, 'tai xe').map(item => item.id)).toEqual(['fleet-drivers']);
+  });
+
+  it('gives CUS clerks the shipment workspaces', () => {
+    const items = getSearchItems('CUS');
+    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail']);
   });
 });
