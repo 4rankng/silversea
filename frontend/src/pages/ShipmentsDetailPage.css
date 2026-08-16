@@ -7,23 +7,22 @@
   container-type: inline-size;
 }
 
-.app-main:not(.driver-mode) .app-body > .shipments-detail-page { width: 100%; max-width: none; margin-inline: 0; }
+/* Match the overview's broad-but-bounded operational measure. This protects
+   scanability on ultrawide screens without introducing a card shell. */
+.app-main:not(.driver-mode) .app-body > .shipments-detail-page { width: min(100%, 1800px); max-width: 1800px; margin-inline: auto; }
 
 .shipments-detail-workspace {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-top: 3px solid var(--brand);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  background: transparent;
 }
 
 .shipments-detail-workspace__header {
   display: grid;
   gap: 10px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-3);
+  border-block: 1px solid var(--line);
+  background: transparent;
 }
 .shipments-detail-filters {
   display: grid;
@@ -289,7 +288,7 @@
 
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
-  .shipments-detail-workspace { border-inline: 0; border-radius: 0; }
+  .shipments-detail-workspace { border: 0; border-radius: 0; }
   .shipments-detail-workspace__header { padding: 14px 12px; }
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
   .shipments-detail-filter--search,

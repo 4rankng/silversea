@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.css'), 'utf8');
 
 describe('shipment detail workboard styling', () => {
+  it('keeps an ultrawide operational canvas bounded without a card shell', () => {
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
+  });
+
   it('uses a compact filter-only header and explicitly downsizes the controls', () => {
     expect(css).not.toContain('.shipments-detail-workspace__intro');
     expect(css).not.toContain('.shipments-detail-eyebrow');
@@ -33,9 +37,13 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr;/);
   });
 
-  it('separates the workspace from the page canvas without decorative shadows', () => {
-    expect(css).toMatch(/\.shipments-detail-workspace\s*\{[^}]*border:\s*1px solid var\(--line-strong\);[^}]*border-top:\s*3px solid var\(--brand\);[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/\.shipments-detail-workspace__header\s*\{[^}]*background:\s*var\(--surface-3\);/);
+  it('uses a divider-led workband rather than an outer card around the filters and ledger', () => {
+    const workspace = css.match(/\.shipments-detail-workspace\s*\{([^}]*)\}/)?.[1] ?? '';
+    const header = css.match(/\.shipments-detail-workspace__header\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(workspace).toMatch(/background:\s*transparent;/);
+    expect(workspace).not.toMatch(/(?:border|border-radius|box-shadow)\s*:/);
+    expect(header).toMatch(/border-block:\s*1px solid var\(--line\);/);
+    expect(header).toMatch(/background:\s*transparent;/);
     expect(css).not.toMatch(/\.shipments-detail-workspace\s*\{[^}]*box-shadow:/);
   });
 

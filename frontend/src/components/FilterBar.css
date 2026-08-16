@@ -3,10 +3,9 @@
  * Extracted from UI.css during architecture refactoring (Phase 4)
  * ========================================================================== */
 .filter-bar {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: transparent;
+  border-block: 1px solid var(--line);
+  padding: 12px 0;
   margin-bottom: 20px;
   display: flex;
   align-items: center;
@@ -147,9 +146,8 @@
 /* Responsive: tighten on mobile */
 @media (max-width: 640px) {
   .filter-bar {
-    padding: 10px;
+    padding: 10px 0;
     gap: 6px;
-    border-radius: 12px;
     margin-bottom: 14px;
   }
   .filter-tab,

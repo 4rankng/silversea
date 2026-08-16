@@ -1150,6 +1150,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
+    expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
     expect(source).toContain('cus-worksheet-toolbar__action-group');

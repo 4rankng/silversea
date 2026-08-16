@@ -9,15 +9,6 @@
   min-width: 0;
 }
 
-.cus-workspace--worksheet {
-  min-width: 0;
-  container-type: inline-size;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
 .cus-worksheet-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -811,13 +802,13 @@
   padding-bottom: 0;
 }
 
-/* Operational ledgers need the complete app canvas. This page intentionally
-   opts out of the shell's 1440px reading-width cap while retaining its outer
-   padding and responsive sidebar behavior. */
+/* Operational ledgers need a broad canvas, but an unlimited canvas makes the
+   columns feel detached on ultrawide displays. Keep one shared measure with
+   the detail workboard while retaining the complete available width below it. */
 .app-main:not(.driver-mode) .app-body > .shipments-page {
-  width: 100%;
-  max-width: none;
-  margin-inline: 0;
+  width: min(100%, 1800px);
+  max-width: 1800px;
+  margin-inline: auto;
 }
 
 .cus-workspace {
@@ -826,6 +817,18 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
+}
+
+/* This worksheet owns a data grid, not a card. Keep the modifier adjacent to
+   the base rule and more specific so later base declarations cannot recreate
+   the rounded container around filters, actions, and the table. */
+.cus-workspace.cus-workspace--worksheet {
+  min-width: 0;
+  container-type: inline-size;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .cus-search-field,
