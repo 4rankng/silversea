@@ -1,5 +1,6 @@
-/* "Kế hoạch Chi tiết" container-level grid — 6 multi-line columns per spec,
-   mobile horizontal scroll confined to the grid area only. Follows the
+/* "Kế hoạch Chi tiết" container-level grid — 6 multi-line columns per spec.
+   Unbounded worksheet like /shipments: sticky thead pins against the app-body
+   scrollport and cells wrap instead of owning a horizontal rail. Follows the
    dispatch-plan-page__* BEM conventions. */
 
 .detailed-plan-filters {
