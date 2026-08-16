@@ -1498,6 +1498,29 @@ export default function ShipmentsPage() {
           </div>
         </form>
 
+        {data && (
+          <section className="cus-workspace-summary" aria-label="Tóm tắt ưu tiên xử lý">
+            <dl>
+              <div className="cus-workspace-summary__item">
+                <dt>Lô phù hợp</dt>
+                <dd>{total.toLocaleString('vi-VN')}</dd>
+              </div>
+              <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
+                <dt>Chưa chốt lịch</dt>
+                <dd>{data.pageSummary.needsSchedule.toLocaleString('vi-VN')}</dd>
+              </div>
+              <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
+                <dt>Chờ điều xe</dt>
+                <dd>{data.pageSummary.needsVehicle.toLocaleString('vi-VN')}</dd>
+              </div>
+              <div className="cus-workspace-summary__item cus-workspace-summary__item--info">
+                <dt>Chờ Kế toán</dt>
+                <dd>{data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
+              </div>
+            </dl>
+          </section>
+        )}
+
         {filterChips.length > 0 && (
           <div className="cus-active-filters" aria-label="Bộ lọc đang áp dụng">
             <span className="cus-active-filters__label">Đang lọc</span>
@@ -1625,16 +1648,14 @@ export default function ShipmentsPage() {
                             type="button"
                             className="cus-inline-trigger cus-note-preview"
                             data-cell-label="Ghi chú"
-                            title={item.customerNotes || item.operationalNotes || undefined}
+                            title={[item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined}
                             disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
                             aria-haspopup="dialog"
                             aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
                             onClick={() => startQuickEdit(item, 'notes')}
                           >
-                            <span className={`cus-note-preview__customer${customerNoteLines[0] ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines[0] || 'Chưa có ghi chú khách'}</span>
-                            {customerNoteLines[1] && <span>{customerNoteLines[1]}</span>}
-                            {operationalNoteLines[0] && <span className="cus-note-internal">{operationalNoteLines[0]}</span>}
-                            {operationalNoteLines[1] && <span className="cus-note-internal">{operationalNoteLines[1]}</span>}
+                            <span className={`cus-note-preview__customer${customerNoteLines.length ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines.join(' ') || 'Chưa có ghi chú khách'}</span>
+                            {operationalNoteLines.length > 0 && <span className="cus-note-internal">{operationalNoteLines.join(' ')}</span>}
                           </button>
                         </td>
                         <td data-label="Trạng thái">

@@ -247,6 +247,25 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText('Bill/Book hoặc tờ khai').getAttribute('inputmode')).toBe('text');
   });
 
+  it('surfaces API-backed operational priorities before the detailed shipment table', async () => {
+    const priorityRow = {
+      ...row,
+      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const, vehicleReadiness: 'WAITING_PLATE' as const },
+      accountingConfirmation: { ...row.accountingConfirmation, status: 'PENDING' as const },
+    };
+    apiGet.mockResolvedValue(listResponse([priorityRow]));
+
+    renderPage();
+
+    const summary = await screen.findByRole('region', { name: 'Tóm tắt ưu tiên xử lý' });
+    expect(within(summary).getByText('Lô phù hợp')).toBeTruthy();
+    expect(within(summary).getByText('Chưa chốt lịch')).toBeTruthy();
+    expect(within(summary).getByText('Chờ điều xe')).toBeTruthy();
+    expect(within(summary).getByText('Chờ Kế toán')).toBeTruthy();
+    expect(within(summary).getAllByText('1')).toHaveLength(4);
+    expect(summary.compareDocumentPosition(screen.getByRole('table')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('rejects invalid suffixes locally and sends the exact mixed-case alphanumeric suffix', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
@@ -346,6 +365,25 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(customerNote.className).toContain('cus-note-preview__customer');
     expect(css).toMatch(/\.cus-note-preview > \.cus-note-preview__customer\s*\{[^}]*font-size:\s*var\(--ops-table-note-size\);[^}]*font-weight:\s*var\(--ops-table-note-weight\);/);
     expect(source).not.toContain('<strong>{customerNoteLines[0]');
+  });
+
+  it('gives customer and operational notes fixed visual priority instead of letting both consume the cell', async () => {
+    const longNotes = {
+      ...row,
+      customerNotes: 'Lô hàng WHLU12258972 đã sẵn sàng, đề nghị điều xe đến nhà máy trước 16h. Vui lòng liên hệ điều phối trước khi nhận hàng.',
+      operationalNotes: 'Hãng tàu Wan Hai Lines đã xác nhận lịch tàu cập cảng Hải Phòng. Liên hệ đại lý nếu cần điều chỉnh lịch giao nhận.',
+    };
+    apiGet.mockResolvedValue(listResponse([longNotes]));
+
+    renderPage();
+
+    const notes = await screen.findByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
+    expect(notes.querySelectorAll(':scope > span')).toHaveLength(2);
+    expect(notes.textContent).toContain('đề nghị điều xe đến nhà máy trước 16h');
+    expect(notes.textContent).toContain('Hãng tàu Wan Hai Lines đã xác nhận');
+    expect(css).toMatch(/\.cus-note-preview\s*\{[^}]*grid-template-rows:\s*minmax\(0, 1fr\) auto;/);
+    expect(css).toMatch(/\.cus-note-preview__customer\s*\{[^}]*-webkit-line-clamp:\s*2;/);
+    expect(css).toMatch(/\.cus-note-internal\s*\{[^}]*-webkit-line-clamp:\s*1;/);
   });
 
   it('counts only plate-complete containers as assigned in the dispatch-readiness label', async () => {
