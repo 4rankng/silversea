@@ -111,7 +111,6 @@ import {
 } from '../services/application-owned-uniqueness.service';
 
 type SupplierPayload = output<typeof supplierSchema>;
-type RoutePayload = Partial<output<typeof routeSchema>>;
 type DriverPayload = Partial<output<typeof driverSchema>>;
 type PenaltyReasonPayload = Partial<output<typeof penaltyReasonSchema>>;
 type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
@@ -281,19 +280,6 @@ function hasMaterialCustomerConfigChange(data: CustomerMutationPayload): boolean
   return Object.keys(data).some((key) => MATERIAL_CUSTOMER_CONFIG_FIELDS.has(key as keyof CustomerMutationPayload));
 }
 
-const MATERIAL_ROUTE_FIELDS = new Set<keyof RoutePayload>([
-  'distanceKm',
-  'isMountain',
-  'fixedFuelAllowance',
-  'tollsStations',
-  'driverSalary',
-  'defaultLegs',
-]);
-
-function hasMaterialRouteConfigChange(data: RoutePayload): boolean {
-  return Object.keys(data).some((key) => MATERIAL_ROUTE_FIELDS.has(key as keyof RoutePayload));
-}
-
 const MATERIAL_DRIVER_FIELDS = new Set<keyof DriverPayload>([
   'baseSalary',
   'socialInsurance',
@@ -309,24 +295,6 @@ const MATERIAL_PENALTY_REASON_FIELDS = new Set<keyof PenaltyReasonPayload>([
 
 function hasMaterialPenaltyReasonChange(data: PenaltyReasonPayload): boolean {
   return Object.keys(data).some((key) => MATERIAL_PENALTY_REASON_FIELDS.has(key as keyof PenaltyReasonPayload));
-}
-
-function hasMaterialSupplierRelationChange(data: Partial<SupplierPayload>): boolean {
-  return [
-    'name',
-    'contactPerson',
-    'phone',
-    'taxCode',
-    'note',
-    'linkedCustomerId',
-    'types',
-    'primaryType',
-    'isFuelSupplier',
-    // O2C rev1 §B0: dual payment terms directly set supplier AP due dates —
-    // money-relevant, must go through governance approval.
-    'chiHoDueDays',
-    'cuocDueDays',
-  ].some((field) => field in data);
 }
 
 async function markCompletedFuelSurchargeTripsDirty(
@@ -1221,11 +1189,13 @@ router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, {
 }));
 router.use('/routes', createCrudRouter(s.routes, routeSchema, {
   searchableField: 'name',
+  // Keep the definition registered so legacy pending actions remain
+  // reviewable/applicable, while all new route changes take effect directly.
   governance: {
     reasonLabel: 'tham số tuyến ảnh hưởng chi phí và định mức',
-    shouldGovernCreate: (data) => hasMaterialRouteConfigChange(data as RoutePayload),
-    shouldGovernUpdate: (_id, data) => hasMaterialRouteConfigChange(data as RoutePayload),
-    shouldGovernDelete: () => true,
+    shouldGovernCreate: () => false,
+    shouldGovernUpdate: () => false,
+    shouldGovernDelete: () => false,
   },
   beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'route', id),
 }));
@@ -1490,11 +1460,13 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
 }));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableField: 'name',
+  // Keep the definition registered so legacy pending actions remain
+  // reviewable/applicable, while all new supplier changes take effect directly.
   governance: {
     reasonLabel: 'cấu hình nhà cung cấp',
-    shouldGovernCreate: (data) => hasMaterialSupplierRelationChange(data),
-    shouldGovernUpdate: (_id, data) => hasMaterialSupplierRelationChange(data),
-    shouldGovernDelete: () => true,
+    shouldGovernCreate: () => false,
+    shouldGovernUpdate: () => false,
+    shouldGovernDelete: () => false,
   },
   beforeCreate: (data) => normalizeSupplierPayload(data),
   beforeUpdate: async (id, data) => normalizeSupplierPayload(data, id),

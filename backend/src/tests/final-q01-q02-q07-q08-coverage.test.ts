@@ -461,7 +461,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
   test('Q07 supplier primary type edits do not reclassify existing trip expenses', async () => {
     const supplierName = `Final Q07 supplier ${suffix}`;
-    const createdSupplierAction = await request<PendingGovernanceAction>('/api/suppliers', {
+    const createdSupplier = await request('/api/suppliers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q07-supplier-${suffix}`),
@@ -472,26 +472,25 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         isFuelSupplier: true,
       },
     });
-    assert.equal(createdSupplierAction.status, 201, JSON.stringify(createdSupplierAction.body));
-    await approvePendingAction(createdSupplierAction.body);
-    const [createdSupplier] = await db.select().from(s.suppliers)
+    assert.equal(createdSupplier.status, 201, JSON.stringify(createdSupplier.body));
+    const [storedCreatedSupplier] = await db.select().from(s.suppliers)
       .where(eq(s.suppliers.name, supplierName))
       .limit(1);
-    assert.ok(createdSupplier);
-    supplierIds.push(createdSupplier.id);
-    assert.equal(createdSupplier.primaryType, 'FUEL');
-    assert.equal(createdSupplier.isFuelSupplier, true);
+    assert.ok(storedCreatedSupplier);
+    supplierIds.push(storedCreatedSupplier.id);
+    assert.equal(storedCreatedSupplier.primaryType, 'FUEL');
+    assert.equal(storedCreatedSupplier.isFuelSupplier, true);
 
     const tripCustomer = await mkCustomerRow({
       name: `Final Q07 trip customer ${suffix}`,
     });
-    const trip = await mkTripRow(tripCustomer.id, createdSupplier.id);
+    const trip = await mkTripRow(tripCustomer.id, storedCreatedSupplier.id);
     const [expense] = await db.insert(s.tripExpenses).values({
       tripId: trip.id,
       expenseType: 'FUEL_DIESEL',
       buyAmount: '250000',
       sellAmount: '0',
-      supplierId: createdSupplier.id,
+      supplierId: storedCreatedSupplier.id,
       expenseDate: '2026-07-25',
       invoiceNumber: `Q07-${suffix}`.slice(0, 50),
       invoiceDate: '2026-07-25',
@@ -499,24 +498,23 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     }).returning();
     expenseIds.push(expense.id);
 
-    const updatedSupplierAction = await request<PendingGovernanceAction>('/api/suppliers/' + createdSupplier.id, {
+    const updatedSupplier = await request('/api/suppliers/' + storedCreatedSupplier.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q07-supplier-update-${suffix}`),
-      expectedUpdatedAt: createdSupplier.updatedAt.toISOString(),
+      expectedUpdatedAt: storedCreatedSupplier.updatedAt.toISOString(),
       body: {
         types: ['SERVICE'],
         primaryType: 'SERVICE',
       },
     });
-    assert.equal(updatedSupplierAction.status, 201, JSON.stringify(updatedSupplierAction.body));
-    await approvePendingAction(updatedSupplierAction.body);
-    const [updatedSupplier] = await db.select().from(s.suppliers)
-      .where(eq(s.suppliers.id, createdSupplier.id))
+    assert.equal(updatedSupplier.status, 200, JSON.stringify(updatedSupplier.body));
+    const [storedUpdatedSupplier] = await db.select().from(s.suppliers)
+      .where(eq(s.suppliers.id, storedCreatedSupplier.id))
       .limit(1);
-    assert.ok(updatedSupplier);
-    assert.equal(updatedSupplier.primaryType, 'SERVICE');
-    assert.equal(updatedSupplier.isFuelSupplier, false);
+    assert.ok(storedUpdatedSupplier);
+    assert.equal(storedUpdatedSupplier.primaryType, 'SERVICE');
+    assert.equal(storedUpdatedSupplier.isFuelSupplier, false);
 
     const [storedExpense] = await db.select({
       expenseType: s.tripExpenses.expenseType,
@@ -525,7 +523,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.tripExpenses.id, expense.id))
       .limit(1);
     assert.equal(storedExpense?.expenseType, 'FUEL_DIESEL');
-    assert.equal(storedExpense?.supplierId, createdSupplier.id);
+    assert.equal(storedExpense?.supplierId, storedCreatedSupplier.id);
   });
 
   test('Q07 supplier API rejects unknown categories and a primary outside selected types', async () => {
@@ -574,7 +572,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     customerIds.push(createdCustomer.id);
 
     const q08SupplierName = `Final Q08 supplier ${suffix}`;
-    const createdSupplierAction = await request<PendingGovernanceAction>('/api/suppliers', {
+    const createdSupplier = await request('/api/suppliers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-supplier-${suffix}`),
@@ -585,13 +583,12 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         primaryType: 'SERVICE',
       },
     });
-    assert.equal(createdSupplierAction.status, 201, JSON.stringify(createdSupplierAction.body));
-    await approvePendingAction(createdSupplierAction.body);
-    const [createdSupplier] = await db.select().from(s.suppliers)
+    assert.equal(createdSupplier.status, 201, JSON.stringify(createdSupplier.body));
+    const [storedCreatedSupplier] = await db.select().from(s.suppliers)
       .where(eq(s.suppliers.name, q08SupplierName))
       .limit(1);
-    assert.ok(createdSupplier);
-    supplierIds.push(createdSupplier.id);
+    assert.ok(storedCreatedSupplier);
+    supplierIds.push(storedCreatedSupplier.id);
 
     const [storedCustomer] = await db.select({
       partnerId: s.customers.partnerId,
@@ -601,7 +598,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     const [storedSupplier] = await db.select({
       partnerId: s.suppliers.partnerId,
     }).from(s.suppliers)
-      .where(eq(s.suppliers.id, createdSupplier.id))
+      .where(eq(s.suppliers.id, storedCreatedSupplier.id))
       .limit(1);
     assert.ok(storedCustomer?.partnerId != null);
     assert.equal(storedSupplier?.partnerId, storedCustomer?.partnerId);

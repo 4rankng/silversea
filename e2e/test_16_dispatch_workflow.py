@@ -167,11 +167,11 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
             elif role == "clerk":
                 control_ok = assert_control_box(
                     page,
-                    page.get_by_role("button", name="Gửi sang điều phối", exact=True),
+                    page.get_by_role("button", name="Tạo lô hàng", exact=True),
                     f"{role} control",
                     results,
                     f"TC-1604-{role.upper()}-{label}-control",
-                    f"{label}: clerk create-trip action",
+                    f"{label}: clerk create-shipment action",
                 )
             elif role == "driver":
                 trip_cards = page.locator(".driver-trip-card")

@@ -37,6 +37,7 @@ export function useDispatchMasterPlan() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const requestIdRef = useRef(0);
 
   // Debounce the free-text search so typing doesn't fire a request per keystroke.
@@ -71,7 +72,7 @@ export function useDispatchMasterPlan() {
         setError('Không thể tải danh sách lô hàng. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo]);
+  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<MasterPlanFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -81,6 +82,10 @@ export function useDispatchMasterPlan() {
   /** Replace one row in-place after a save (allocation popover) — no refetch. */
   const replaceItem = useCallback((updated: ShipmentListItem) => {
     setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+  }, []);
+
+  const refetch = useCallback(() => {
+    setRefreshKey((value) => value + 1);
   }, []);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -95,6 +100,7 @@ export function useDispatchMasterPlan() {
     totalPages,
     loading,
     error,
+    refetch,
     replaceItem,
     pageSize: PAGE_SIZE,
   };

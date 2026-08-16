@@ -12,10 +12,6 @@ import configRoutes from '../routes/config';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
-import {
-  DURABLE_EFFECT_KIND,
-  DURABLE_EFFECT_STATUS,
-} from '../services/durable-effect.service';
 
 type RowWithUpdatedAt = { id: number; updatedAt: Date; deletedAt?: Date | null };
 
@@ -55,7 +51,6 @@ const capTableIds: number[] = [];
 const truckCapIds: number[] = [];
 let actors: Array<{ id: number; role: string }> = [];
 let customerId = 0;
-let secondaryCustomerId = 0;
 let routeId = 0;
 let cargoTypeId = 0;
 let portId = 0;
@@ -179,7 +174,6 @@ before(async () => {
     contactPerson: 'Secondary Contact',
   }).returning();
   customerIds.push(secondaryCustomer.id);
-  secondaryCustomerId = secondaryCustomer.id;
 
   const [route] = await db.insert(s.routes).values({
     name: `Q15 Pricing Route ${suffix}`,
@@ -602,62 +596,6 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       },
     },
     {
-      name: 'governed routes',
-      endpoint: '/api/routes',
-      createPayload: () => ({
-        name: `Q15 Governed Route ${suffix}`,
-        distanceKm: 125,
-        isMountain: true,
-        fixedFuelAllowance: 120000,
-        tollsStations: 3,
-        driverSalary: 450000,
-        defaultLegs: [
-          {
-            origin: 'A',
-            destination: 'B',
-            km: 125,
-            loadingType: 'HANG',
-          },
-        ],
-      }),
-      mutatePayload: () => ({
-        distanceKm: 130,
-        defaultLegs: [
-          {
-            origin: 'A',
-            destination: 'B',
-            km: 130,
-            loadingType: 'VO',
-          },
-        ],
-      }),
-      fetchById: async (id) => {
-        const [row] = await db.select().from(s.routes).where(eq(s.routes.id, id)).limit(1);
-        return row;
-      },
-      expectCreated: (row) => {
-        routeIds.push(row.id);
-        assert.equal(Number(row.distanceKm), 125);
-        assert.equal(row.isMountain, true);
-        assert.equal(Number(row.driverSalary), 450000);
-      },
-      expectUpdated: (row) => {
-        assert.equal(Number(row.distanceKm), 130);
-        assert.deepEqual(row.defaultLegs, [
-          {
-            origin: 'A',
-            destination: 'B',
-            km: 130,
-            loadingType: 'VO',
-          },
-        ]);
-      },
-      expectDeleted: async (id) => {
-        const [row] = await db.select().from(s.routes).where(eq(s.routes.id, id)).limit(1);
-        assert.ok(row?.deletedAt instanceof Date);
-      },
-    },
-    {
       name: 'penalty reasons',
       endpoint: '/api/penalty-reasons',
       createPayload: () => ({
@@ -710,44 +648,6 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       expectDeleted: async (id) => {
         const [row] = await db.select().from(s.expenseCategories).where(eq(s.expenseCategories.id, id)).limit(1);
         assert.ok(row?.deletedAt instanceof Date);
-      },
-    },
-    {
-      name: 'suppliers',
-      endpoint: '/api/suppliers',
-      createPayload: () => ({
-        name: `Q15 Supplier ${suffix}`,
-        linkedCustomerId: customerId,
-      }),
-      mutatePayload: () => ({
-        types: ['service', 'fuel'],
-        primaryType: 'fuel',
-      }),
-      fetchById: async (id) => {
-        const [row] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, id)).limit(1);
-        return row;
-      },
-      expectCreated: async (row) => {
-        if (!supplierIds.includes(row.id)) supplierIds.push(row.id);
-        assert.equal(row.linkedCustomerId, customerId);
-        const [linkedCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
-        assert.equal(linkedCustomer?.linkedSupplierId, row.id);
-      },
-      expectUpdated: async (row) => {
-        assert.equal(row.linkedCustomerId, customerId);
-        assert.deepEqual(row.types, ['SERVICE', 'FUEL']);
-        assert.equal(row.primaryType, 'FUEL');
-        assert.equal(row.isFuelSupplier, true);
-        const [firstCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
-        assert.equal(firstCustomer?.linkedSupplierId, row.id);
-      },
-      expectDeleted: async (id) => {
-        const [row] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, id)).limit(1);
-        assert.ok(row?.deletedAt instanceof Date);
-        const [firstCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
-        const [secondCustomer] = await db.select().from(s.customers).where(eq(s.customers.id, secondaryCustomerId)).limit(1);
-        assert.equal(firstCustomer?.linkedSupplierId, null);
-        assert.equal(secondCustomer?.linkedSupplierId, null);
       },
     },
     {
@@ -1030,32 +930,82 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     assert.equal(afterApproval?.contactPerson, 'Direct Customer Edit');
   });
 
-  it('enqueues durable cache invalidation when a governed route approval applies', async () => {
-    const governedCreate = await api('POST', '/api/routes', {
+  it('applies route and supplier catalog changes immediately without a governance action', async () => {
+    const createdRoute = await api('POST', '/api/routes', {
       body: {
-        name: `Q15 Durable Route ${suffix}`,
-        distanceKm: 88,
+        name: `Q15 Direct Route ${suffix}`,
+        distanceKm: 92,
         isMountain: false,
-        fixedFuelAllowance: 45000,
-        tollsStations: 1,
-        driverSalary: 320000,
+        fixedFuelAllowance: 65000,
+        tollsStations: 2,
+        driverSalary: 310000,
       },
     });
-    expectPendingAction(governedCreate, 'route durable effect');
+    assert.equal(createdRoute.status, 201, `direct route create body ${JSON.stringify(createdRoute.body)}`);
+    assert.equal(createdRoute.body.status, undefined, `direct route must not create governance action ${JSON.stringify(createdRoute.body)}`);
+    const directRouteId = Number(createdRoute.body.id);
+    routeIds.push(directRouteId);
 
-    const actionId = Number(governedCreate.body.id);
-    const approved = await approvePendingAction(governedCreate);
-    assert.equal(approved.status, 200);
+    const [routeAfterCreate] = await db.select().from(s.routes).where(eq(s.routes.id, directRouteId)).limit(1);
+    assert.equal(Number(routeAfterCreate?.distanceKm), 92);
 
-    const [job] = await db.select().from(s.durableEffectJobs)
-      .where(eq(
-        s.durableEffectJobs.dedupeKey,
-        `cache-invalidate:catalogs:bootstrap:governance-action:${actionId}`,
-      ))
-      .limit(1);
-    assert.ok(job);
-    assert.equal(job.kind, DURABLE_EFFECT_KIND.CACHE_INVALIDATE);
-    assert.equal(job.status, DURABLE_EFFECT_STATUS.PENDING);
-    assert.deepEqual(job.payload, { key: 'catalogs:bootstrap' });
+    const updatedRoute = await api('PUT', `/api/routes/${directRouteId}`, {
+      body: { distanceKm: 97 },
+      expectedUpdatedAt: routeAfterCreate!.updatedAt,
+    });
+    assert.equal(updatedRoute.status, 200, `direct route update body ${JSON.stringify(updatedRoute.body)}`);
+    assert.equal(updatedRoute.body.status, undefined, `direct route update must not create governance action ${JSON.stringify(updatedRoute.body)}`);
+
+    const [routeAfterUpdate] = await db.select().from(s.routes).where(eq(s.routes.id, directRouteId)).limit(1);
+    assert.equal(Number(routeAfterUpdate?.distanceKm), 97);
+
+    const deletedRoute = await api('DELETE', `/api/routes/${directRouteId}`, {
+      body: {},
+      expectedUpdatedAt: routeAfterUpdate!.updatedAt,
+    });
+    assert.equal(deletedRoute.status, 200, `direct route delete body ${JSON.stringify(deletedRoute.body)}`);
+    assert.equal(deletedRoute.body.ok, true);
+    const [routeAfterDelete] = await db.select().from(s.routes).where(eq(s.routes.id, directRouteId)).limit(1);
+    assert.ok(routeAfterDelete?.deletedAt instanceof Date);
+
+    const createdSupplier = await api('POST', '/api/suppliers', {
+      body: {
+        name: `Q15 Direct Supplier ${suffix}`,
+        linkedCustomerId: customerId,
+        types: ['service'],
+        primaryType: 'service',
+      },
+    });
+    assert.equal(createdSupplier.status, 201, `direct supplier create body ${JSON.stringify(createdSupplier.body)}`);
+    assert.notEqual(createdSupplier.body.status, 'PENDING_CHECK', `direct supplier must not create governance action ${JSON.stringify(createdSupplier.body)}`);
+    const directSupplierId = Number(createdSupplier.body.id);
+    supplierIds.push(directSupplierId);
+
+    const [supplierAfterCreate] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, directSupplierId)).limit(1);
+    assert.deepEqual(supplierAfterCreate?.types, ['SERVICE']);
+    const [customerAfterCreate] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.equal(customerAfterCreate?.linkedSupplierId, directSupplierId);
+
+    const updatedSupplier = await api('PUT', `/api/suppliers/${directSupplierId}`, {
+      body: { types: ['service', 'fuel'], primaryType: 'fuel' },
+      expectedUpdatedAt: supplierAfterCreate!.updatedAt,
+    });
+    assert.equal(updatedSupplier.status, 200, `direct supplier update body ${JSON.stringify(updatedSupplier.body)}`);
+    assert.notEqual(updatedSupplier.body.status, 'PENDING_CHECK', `direct supplier update must not create governance action ${JSON.stringify(updatedSupplier.body)}`);
+
+    const [supplierAfterUpdate] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, directSupplierId)).limit(1);
+    assert.deepEqual(supplierAfterUpdate?.types, ['SERVICE', 'FUEL']);
+    assert.equal(supplierAfterUpdate?.primaryType, 'FUEL');
+
+    const deletedSupplier = await api('DELETE', `/api/suppliers/${directSupplierId}`, {
+      body: {},
+      expectedUpdatedAt: supplierAfterUpdate!.updatedAt,
+    });
+    assert.equal(deletedSupplier.status, 200, `direct supplier delete body ${JSON.stringify(deletedSupplier.body)}`);
+    assert.equal(deletedSupplier.body.ok, true);
+    const [supplierAfterDelete] = await db.select().from(s.suppliers).where(eq(s.suppliers.id, directSupplierId)).limit(1);
+    assert.ok(supplierAfterDelete?.deletedAt instanceof Date);
+    const [customerAfterDelete] = await db.select().from(s.customers).where(eq(s.customers.id, customerId)).limit(1);
+    assert.equal(customerAfterDelete?.linkedSupplierId, null);
   });
 });

@@ -34,6 +34,17 @@ export default function MasterPlanPage() {
       />
 
       <section className="dispatch-plan-page__workspace">
+        <div className="dispatch-plan-page__toolbar">
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={masterPlan.refetch}
+            disabled={masterPlan.loading}
+          >
+            {masterPlan.loading ? 'Đang tải…' : 'Tải lại'}
+          </button>
+        </div>
+
         {masterPlan.error && (
           <div className="dispatch-plan-page__error" role="alert">
             {masterPlan.error}
