@@ -419,6 +419,7 @@ interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
   totalContainers: number;
   today: string;
+  footer?: ReactNode;
   activeEdit: ActiveShipmentDetailEdit | null;
   editLoadingRowId: number | null;
   editError: { rowId: number; message: string } | null;
@@ -437,6 +438,7 @@ export function ShipmentContainerLedger({
   rows,
   totalContainers,
   today,
+  footer,
   activeEdit,
   editLoadingRowId,
   editError,
@@ -592,6 +594,7 @@ export function ShipmentContainerLedger({
             })}
           </tbody>
         </table>
+        {footer}
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 import {
   AlertCircle,
@@ -22,6 +22,7 @@ import {
   type RecoverableEligibilityState,
 } from '../../api/customerServiceFinanceClient';
 import './RecoverableCostsWorkspace.css';
+import './RecoverableCostsPagination.css';
 
 const PAGE_SIZE = 25;
 
@@ -100,7 +101,7 @@ function ReviewAction({ item, onReview }: ReviewActionProps) {
   return <Btn variant="primary" size="sm" onClick={() => onReview(item)}>Kiểm tra</Btn>;
 }
 
-function DesktopLedger({ items, onReview }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview'] }) {
+function DesktopLedger({ items, onReview, footer }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview']; footer?: ReactNode }) {
   return (
     <div className="recoverable-costs__ledger" data-testid="recoverable-cost-ledger">
       <table>
@@ -153,11 +154,12 @@ function DesktopLedger({ items, onReview }: { items: RecoverableCost[]; onReview
           })}
         </tbody>
       </table>
+      {footer}
     </div>
   );
 }
 
-function MobileRecords({ items, onReview }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview'] }) {
+function MobileRecords({ items, onReview, footer }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview']; footer?: ReactNode }) {
   return (
     <div className="recoverable-costs__records" data-testid="recoverable-cost-records">
       {items.map((item) => {
@@ -188,6 +190,7 @@ function MobileRecords({ items, onReview }: { items: RecoverableCost[]; onReview
           </article>
         );
       })}
+      {footer}
     </div>
   );
 }
@@ -227,6 +230,16 @@ export function RecoverableCostsWorkspace() {
     sell: totals.sell + item.sellAmount,
     variance: totals.variance + variance(item),
   }), { buy: 0, sell: 0, variance: 0 }), [data?.items]);
+
+  const pagination = data && data.total > PAGE_SIZE ? (
+    <Pagination
+      page={page}
+      totalPages={Math.ceil(data.total / PAGE_SIZE)}
+      totalItems={data.total}
+      pageSize={PAGE_SIZE}
+      onChange={setPage}
+    />
+  ) : null;
 
   const openReview = (item: RecoverableCost) => {
     setSelected(item);
@@ -331,17 +344,8 @@ export function RecoverableCostsWorkspace() {
         />
       ) : data && data.items.length > 0 ? (
         <section className="recoverable-costs__workspace" aria-busy={loading}>
-          <DesktopLedger items={data.items} onReview={openReview} />
-          <MobileRecords items={data.items} onReview={openReview} />
-          {data.total > PAGE_SIZE && (
-            <Pagination
-              page={page}
-              totalPages={Math.ceil(data.total / PAGE_SIZE)}
-              totalItems={data.total}
-              pageSize={PAGE_SIZE}
-              onChange={setPage}
-            />
-          )}
+          <MobileRecords items={data.items} onReview={openReview} footer={pagination} />
+          <DesktopLedger items={data.items} onReview={openReview} footer={pagination} />
         </section>
       ) : null}
 

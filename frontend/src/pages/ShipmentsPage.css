@@ -534,6 +534,19 @@
   box-shadow: inset 0 0 0 3px var(--brand-subtle);
 }
 
+/* A bounded workboard owns both its records and its navigation. Keeping this
+   footer in the same scroll region prevents the app shell from hiding it below
+   the fold after an operator reaches the final row. */
+.cus-dashboard-viewport > .ds-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
 .cus-dashboard-table {
   width: 100%;
   min-width: 0;

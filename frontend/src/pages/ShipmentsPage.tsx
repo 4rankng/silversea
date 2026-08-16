@@ -1685,10 +1685,10 @@ export default function ShipmentsPage() {
                   })}
                 </tbody>
               </table>
+              {totalPages > 1 && (
+                <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={PAGE_SIZE} onChange={(nextPage) => updateParam('page', String(nextPage))} />
+              )}
             </div>
-            {totalPages > 1 && (
-              <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={PAGE_SIZE} onChange={(nextPage) => updateParam('page', String(nextPage))} />
-            )}
           </>
         )}
       </section>

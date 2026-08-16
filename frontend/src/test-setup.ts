@@ -9,6 +9,10 @@
  */
 
 import { beforeEach } from 'vitest';
+// Register @testing-library/jest-dom matchers (toBeInTheDocument,
+// toContainElement, toHaveAccessibleName, …) so component tests can use the
+// recommended DOM-aware assertions instead of writing manual DOM plumbing.
+import '@testing-library/jest-dom/vitest';
 
 type Store = Map<string, string>;
 

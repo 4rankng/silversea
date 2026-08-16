@@ -1188,6 +1188,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).not.toContain('MASTER_COLUMN_PREFERENCES_KEY');
   });
 
+  it('keeps pagination in the table scroll region so it is reachable without separately scrolling the page', () => {
+    expect(source).toMatch(/<div className="cus-dashboard-viewport"[\s\S]*?<Pagination page=\{page\}/);
+  });
+
   it('keeps worksheet controls and primary row values on one compact typography rhythm', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);

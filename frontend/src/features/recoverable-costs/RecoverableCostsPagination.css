@@ -1,0 +1,11 @@
+/* Keep table navigation attached to the bounded ledger instead of below the
+   app-body fold. The mobile record list stays in normal flow. */
+.recoverable-costs__ledger > .ds-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid var(--line, var(--border));
+  background: var(--surface, var(--bg-1));
+}
