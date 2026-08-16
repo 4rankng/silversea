@@ -234,7 +234,7 @@ before(async () => {
   multiShipmentId = (await createShipment({ customerId: multiCustomer.id, cargoMode: 'LCL' })).id;
   shipmentIds.push(multiShipmentId);
   await db.update(s.shipments)
-    .set({ blNumber: `BL-PORTAL-${suffix}`.slice(0, 100), bookingRef: `BOOK-PORTAL-${suffix}`.slice(0, 100) })
+    .set({ tradeDirection: 'IMPORT', blNumber: `BL-PORTAL-${suffix}`.slice(0, 100), bookingRef: null })
     .where(eq(s.shipments.id, multiShipmentId));
 
   const [route] = await db.insert(s.routes).values({

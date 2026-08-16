@@ -327,20 +327,31 @@ describe('getShipment / listShipments', () => {
   test('listShipments supports server-side search across code, customer, booking, BL, factory, and shipping line', async () => {
     const targetCustomer = await mkCustomer();
     const otherCustomer = await mkCustomer();
+    // Import shipment carries the Bill; export shipment carries the Booking —
+    // the document-reference invariant forbids both on one row.
     const target = await createShipment({
       customerId: targetCustomer.id,
-      bookingRef: `BOOK-${suffix}`,
+      tradeDirection: 'IMPORT',
+      bookingRef: null,
       blNumber: `BL-${suffix}`,
+      factoryName: `Factory ${suffix}`,
+      shippingLineName: `Shipping ${suffix}`,
+    });
+    const exportTarget = await createShipment({
+      customerId: targetCustomer.id,
+      tradeDirection: 'EXPORT',
+      bookingRef: `BOOK-${suffix}`,
+      blNumber: null,
       factoryName: `Factory ${suffix}`,
       shippingLineName: `Shipping ${suffix}`,
     });
     const other = await createShipment({
       customerId: otherCustomer.id,
       bookingRef: `OTHER-${suffix}`,
-      blNumber: `OTHER-BL-${suffix}`,
       factoryName: `Other Factory ${suffix}`,
       shippingLineName: `Other Shipping ${suffix}`,
     });
+    createdShipmentIds.push(exportTarget.id);
     createdShipmentIds.push(target.id, other.id);
 
     const byCode = await listShipments({ q: target.shipmentCode! });
@@ -351,7 +362,7 @@ describe('getShipment / listShipments', () => {
     const byLine = await listShipments({ q: `Shipping ${suffix}` });
 
     for (const result of [byCode, byCustomer, byBooking, byBl, byFactory, byLine]) {
-      assert.ok(result.some((row) => row.id === target.id), 'target shipment is searchable');
+      assert.ok(result.some((row) => row.id === target.id || row.id === exportTarget.id), 'target shipment is searchable');
       assert.ok(!result.every((row) => row.id === other.id), 'search is not pinned to the distractor');
     }
   });

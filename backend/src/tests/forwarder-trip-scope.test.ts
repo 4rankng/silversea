@@ -68,7 +68,6 @@ before(async () => {
       shipmentCode: `FS-A-${suffix}`,
       customerId: customer.id,
       cargoTypeId: cargoType.id,
-      blNumber: `BL-A-${suffix}`,
       bookingRef: `BOOK-A-${suffix}`,
       factoryName: `Nhà máy A ${suffix}`,
       tradeDirection: 'EXPORT',
@@ -263,7 +262,9 @@ describe('forwarder shipment scope', () => {
     await db.update(s.shipments).set({ status: 'IN_TRANSIT' }).where(eq(s.shipments.id, shipmentA));
     const [row] = (await getForwarderTrips(forwarderA)).filter((trip) => trip.id === tripA);
     assert.ok(row);
-    assert.equal(row.billNumber, `BL-A-${suffix}`);
+    // EXPORT shipments carry a booking only — the bill stays null under the
+    // document-reference invariant.
+    assert.equal(row.billNumber, null);
     assert.equal(row.bookingNumber, `BOOK-A-${suffix}`);
     assert.equal(row.factoryName, `Nhà máy A ${suffix}`);
     assert.equal(row.tradeDirection, 'EXPORT');
@@ -275,10 +276,10 @@ describe('forwarder shipment scope', () => {
     assert.match(row.containerTypeSummary ?? '', /^2×40HC-/);
     assert.match(row.containerNumbers ?? '', new RegExp(`MSBU-${suffix}-1`));
 
-    const byBill = await getForwarderTrips(forwarderA, undefined, { search: `BL-A-${suffix}` });
+    const byBooking = await getForwarderTrips(forwarderA, undefined, { search: `BOOK-A-${suffix}` });
     const byDeclaration = await getForwarderTrips(forwarderA, undefined, { search: `TK-A-${suffix}` });
-    const outOfScope = await getForwarderTrips(forwarderB, undefined, { search: `BL-A-${suffix}` });
-    assert.ok(byBill.some((trip) => trip.id === tripA));
+    const outOfScope = await getForwarderTrips(forwarderB, undefined, { search: `BOOK-A-${suffix}` });
+    assert.ok(byBooking.some((trip) => trip.id === tripA));
     assert.ok(byDeclaration.some((trip) => trip.id === tripA));
     assert.ok(!outOfScope.some((trip) => trip.id === tripA));
 

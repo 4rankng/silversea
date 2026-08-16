@@ -189,21 +189,20 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
 });
 
 describe('CUS shipment workspace projection — Chứng từ direction display', () => {
-  test('EXPORT prefers the booking number; IMPORT prefers the bill number', async () => {
+  test('EXPORT shows the booking number; IMPORT shows the bill number', async () => {
+    // The document-reference invariant (one reference per shipment) means the
+    // cell just mirrors the stored reference for each direction.
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      blNumber: 'BILL-EXP-1',
       bookingRef: 'BOOK-EXP-1',
     });
     const importShipment = await seedShipment({
       tradeDirection: 'IMPORT',
       blNumber: 'BILL-IMP-1',
-      bookingRef: 'BOOK-IMP-1',
     });
-    // Direction unknown — falls back to the bill like the historical behavior.
+    // Direction unknown — a lone bill still renders.
     const undirectedShipment = await seedShipment({
       blNumber: 'BILL-NA-1',
-      bookingRef: 'BOOK-NA-1',
     });
     // Only the secondary number present — the cell still shows what exists.
     const bookingOnly = await seedShipment({
@@ -225,7 +224,6 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
   test('flat container rows mirror the same direction-aware number', async () => {
     const exportShipment = await seedShipment({
       tradeDirection: 'EXPORT',
-      blNumber: 'BILL-FLAT-1',
       bookingRef: 'BOOK-FLAT-1',
     });
     await seedContainer(exportShipment.id, { containerNumber: 'FLAT-EXP-1' });
