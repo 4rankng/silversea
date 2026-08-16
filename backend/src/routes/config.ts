@@ -1147,9 +1147,8 @@ router.use(
 );
 router.use('/trucks', createCrudRouter(s.trucks, truckSchema, {
   searchableField: 'licensePlate',
-  // Dispatchers staff dispatch plans from this catalog; they may add new
-  // tractors but not edit or retire existing ones.
-  createRoles: [Role.DISPATCHER],
+  // Dispatchers may add new tractors (casbin route-scoped POST allowance) but
+  // not edit or retire existing ones.
   beforeCreate: async (data, _req, tx) => {
     await assertUniqueCatalogString({ tx, scope: 'truck.license-plate', value: data.licensePlate, table: s.trucks, column: s.trucks.licensePlate, message: 'Biển số xe đầu kéo đã tồn tại' });
     await requireActiveCatalogRow(tx, 'trailer', s.trailers, data.currentTrailerId, 'Rơ-moóc liên kết không tồn tại hoặc đã ngưng dùng');
@@ -1455,8 +1454,8 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableField: 'name',
   // Dispatchers allocate external capacity from this catalog; they may add
-  // subcontractors but updates/deletes stay with MANAGER/ACCOUNTANT/ADMIN.
-  createRoles: [Role.DISPATCHER],
+  // subcontractors (casbin route-scoped POST allowance) while updates/deletes
+  // stay with MANAGER/ACCOUNTANT/ADMIN.
   // Keep the definition registered so legacy pending actions remain
   // reviewable/applicable, while all new supplier changes take effect directly.
   governance: {
@@ -1513,9 +1512,9 @@ router.use('/tire-positions', createCrudRouter(s.tirePositions, tirePositionSche
 router.use('/drivers', createCrudRouter(s.drivers, driverSchema, {
   searchableField: 'name',
   disableDelete: true,
-  // Dispatchers may add drivers to staff dispatch plans; salary/insurance
-  // fields remain governed for every role (governance hooks below).
-  createRoles: [Role.DISPATCHER],
+  // Dispatchers may add drivers to staff dispatch plans (casbin route-scoped
+  // POST allowance); salary/insurance fields remain governed for every role
+  // (governance hooks below).
   governance: {
     reasonLabel: 'mức lương và bảo hiểm tài xế',
     shouldGovernCreate: (data) => hasMaterialDriverConfigChange(data as DriverPayload),

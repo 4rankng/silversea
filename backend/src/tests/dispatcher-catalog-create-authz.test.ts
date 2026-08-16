@@ -4,7 +4,6 @@ import type { NextFunction, Request, Response } from 'express';
 import { Role } from '@tingting/shared';
 import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
-import { requireRoles } from '../middleware/casbin';
 
 function request(role: Role, method: string, path: string): Request {
   return {
@@ -34,26 +33,6 @@ async function authorize(role: Role, method: string, path: string, resource = 'c
   } as unknown as Response;
   await casbinAuthz(resource)(
     request(role, method, path),
-    response,
-    (() => { nextCalled = true; }) as NextFunction,
-  );
-  return { nextCalled, statusCode };
-}
-
-function checkCreateRoles(role: Role) {
-  let nextCalled = false;
-  let statusCode = 200;
-  const response = {
-    status(code: number) {
-      statusCode = code;
-      return this;
-    },
-    json() {
-      return this;
-    },
-  } as unknown as Response;
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER)(
-    request(role, 'POST', '/trucks'),
     response,
     (() => { nextCalled = true; }) as NextFunction,
   );
@@ -132,16 +111,21 @@ describe('Dispatcher resource-catalog create authorization', () => {
     });
   });
 
-  describe('crud-factory createRoles gate', () => {
-    it('admits DISPATCHER alongside the config write roles', () => {
-      assert.deepEqual(checkCreateRoles(Role.DISPATCHER), { nextCalled: true, statusCode: 200 });
-      assert.deepEqual(checkCreateRoles(Role.MANAGER), { nextCalled: true, statusCode: 200 });
-      assert.deepEqual(checkCreateRoles(Role.ADMIN), { nextCalled: true, statusCode: 200 });
+  describe('catalog create gate stays open for base config write roles', () => {
+    it('admits the casbin config write roles on catalog POSTs', async () => {
+      for (const role of [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]) {
+        assert.deepEqual(await authorize(role, 'POST', '/trucks'), {
+          nextCalled: true,
+          statusCode: 200,
+        }, role);
+      }
     });
 
-    it('rejects roles outside createRoles', () => {
-      assert.deepEqual(checkCreateRoles(Role.DRIVER), { nextCalled: false, statusCode: 403 });
-      assert.deepEqual(checkCreateRoles(Role.CUS), { nextCalled: false, statusCode: 403 });
+    it('keeps the create allowance restricted to the three catalogs', async () => {
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/customers'), {
+        nextCalled: false,
+        statusCode: 403,
+      });
     });
   });
 });
