@@ -75827,23 +75827,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "type": "file",
-      "name": "ShipmentsDetailPage.styles.test.ts",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "lineRange": [
-        1,
-        25
-      ],
-      "summary": "Guards critical shipment-detail style and responsive contracts.",
-      "tags": [
-        "test",
-        "shipment",
-        "regression"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
       "type": "file",
       "name": "ClerkShipmentCreatePage.styles.test.ts",
@@ -77277,56 +77260,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "type": "file",
-      "name": "DetailedPlanGrid.test.tsx",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "lineRange": [
-        1,
-        189
-      ],
-      "summary": "Tests detailed dispatch-plan grid rendering, row fields, assignment states, and responsive behavior.",
-      "tags": [
-        "test",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:row",
-      "type": "function",
-      "name": "row",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "lineRange": [
-        10,
-        28
-      ],
-      "summary": "Implements row behavior within DetailedPlanGrid.test.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "test"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:renderGrid",
-      "type": "function",
-      "name": "renderGrid",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "lineRange": [
-        30,
-        51
-      ],
-      "summary": "Implements renderGrid behavior within DetailedPlanGrid.test.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "test"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
       "type": "file",
       "name": "useDispatchDetailPlan.test.tsx",
@@ -77392,73 +77325,6 @@
         "test"
       ],
       "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "file",
-      "name": "useDispatchDetailPlan.ts",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        1,
-        234
-      ],
-      "summary": "Provides query and mutation state for detailed dispatch planning, including filters, pagination, vehicle assignment, and cache invalidation.",
-      "tags": [
-        "dispatch",
-        "planning",
-        "hook",
-        "data-fetching",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
-      "type": "function",
-      "name": "createDefaultDetailedPlanFilters",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        39,
-        41
-      ],
-      "summary": "Implements createDefaultDetailedPlanFilters behavior within useDispatchDetailPlan.ts.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
-      "type": "function",
-      "name": "detailPlanQuery",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        46,
-        58
-      ],
-      "summary": "Implements detailPlanQuery behavior within useDispatchDetailPlan.ts.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "type": "function",
-      "name": "useDispatchDetailPlan",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        66,
-        234
-      ],
-      "summary": "Implements useDispatchDetailPlan behavior within useDispatchDetailPlan.ts.",
-      "tags": [
-        "function",
-        "typescript"
-      ],
-      "complexity": "complex"
     },
     {
       "id": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
@@ -78004,6 +77870,210 @@
         "tested"
       ],
       "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "type": "file",
+      "name": "DetailedPlanFilters.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "summary": "Filter bar for the dispatch detail-plan grid, combining quick search, collapsible advanced filters (transport date, direction, assignment status, point facets, run-hour window) and an aria-live toolbar that counts active filters and offers a one-click 'Xóa bộ lọc' reset back to today's defaults.",
+      "tags": [
+        "component",
+        "filters",
+        "accessibility",
+        "dispatch",
+        "untitled-ui"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Direction and assignment-status filters use the Untitled UI Select (React Aria selectedKey/onSelectionChange); today's date no longer counts as an active advanced filter, so the default state shows 'Mặc định: ngày vận chuyển hôm nay'."
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "type": "function",
+      "name": "FacetMultiSelect",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "lineRange": [
+        37,
+        186
+      ],
+      "summary": "Internal searchable multi-select combobox for pickup, dropoff, and delivery-point facets, with async facet loading, keyboard navigation (ArrowUp/Down/Enter/Escape), full ARIA combobox wiring, cancellation-safe effects, and removable selection chips.",
+      "tags": [
+        "combobox",
+        "multi-select",
+        "accessibility",
+        "async-facets",
+        "keyboard-navigation"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "type": "function",
+      "name": "DetailedPlanFilters",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "lineRange": [
+        193,
+        359
+      ],
+      "summary": "Exported filter component rendering the aria-live active-filter count toolbar, the disabled-when-clean 'Xóa bộ lọc' reset button (which collapses advanced filters and applies createDefaultDetailedPlanFilters), quick search, and the collapsible advanced panel using Untitled UI Select for direction and assignment status.",
+      "tags": [
+        "filter-bar",
+        "reset-toolbar",
+        "select",
+        "aria-live",
+        "dispatch"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "file",
+      "name": "useDispatchDetailPlan.ts",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "summary": "Data-hook module for the dispatch detail-plan grid: defines the DetailedPlanFilterState shape, the today-defaulted filter factory (newly exported), and the hook providing server-side filtered cursor pagination, client-side sorting, facet loaders, and the optimistic plate-assignment mutation with race guards and rollback.",
+      "tags": [
+        "hook",
+        "data-fetching",
+        "pagination",
+        "dispatch",
+        "state-management"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "function",
+      "name": "createDefaultDetailedPlanFilters",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        39,
+        41
+      ],
+      "summary": "Factory returning the empty filter state with the transport date defaulted to today's business date; recently promoted from module-private to exported so the filters toolbar can power its one-click reset.",
+      "tags": [
+        "factory",
+        "default-state",
+        "filters",
+        "exported"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
+      "type": "function",
+      "name": "detailPlanQuery",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        46,
+        58
+      ],
+      "summary": "Builds the API query object from the filter state, spreading only non-empty filter fields so the list, load-more, and refresh requests share identical param semantics.",
+      "tags": [
+        "query-builder",
+        "serialization",
+        "filters",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "type": "function",
+      "name": "useDispatchDetailPlan",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        66,
+        234
+      ],
+      "summary": "Main hook wiring server-side filters with a 300ms-debounced search, request-id race-guarded fetching, cursor-based pagination, client-side run-hour/delivery-point sorting, facet loaders, and the optimistic assignPlate mutation that drops or patches rows invalidated by the active assignment-status filter.",
+      "tags": [
+        "custom-hook",
+        "server-pagination",
+        "optimistic-update",
+        "race-guard",
+        "debounce"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "type": "file",
+      "name": "DetailedPlanFilters.test.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "summary": "RTL test suite for the detailed-plan filter bar covering labeled filter forwarding, direction/assignment Select interactions, combobox keyboard navigation with Escape/blur closing and search-result reset, empty-results feedback, the mobile collapsible toggle, and the toolbar's one-click reset of all nine filter conditions back to today's defaults.",
+      "tags": [
+        "test",
+        "rtl",
+        "accessibility",
+        "filters",
+        "reset-behavior"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "type": "file",
+      "name": "DetailedPlanGrid.test.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "summary": "Component and structural test suite for the detailed-plan grid: renders the six spec columns with LCL, import-badge, lot-plated, and vendor-placeholder variants plus empty/error states, and asserts read-from-disk CSS for grid layout, the flat filter toolbar, point-picker z-index layering, and the quiet full-width reset action.",
+      "tags": [
+        "test",
+        "rtl",
+        "css-assertions",
+        "grid",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:row",
+      "type": "function",
+      "name": "row",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "lineRange": [
+        10,
+        28
+      ],
+      "summary": "Test fixture factory building a fully populated DispatchDetailPlanRow with Vietnamese sample data (shipment, container, notes, dispatch), overridable per test case.",
+      "tags": [
+        "test-fixture",
+        "factory",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:renderGrid",
+      "type": "function",
+      "name": "renderGrid",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "lineRange": [
+        30,
+        51
+      ],
+      "summary": "Render harness mounting DetailedPlanGrid with stubbed default props (facet loaders, callbacks, EMPTY filters), allowing per-test overrides via extraProps.",
+      "tags": [
+        "test-harness",
+        "render-helper",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "type": "file",
+      "name": "ShipmentsDetailPage.styles.test.ts",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "summary": "Disk-based styling regression suite for the shipment detail workboard: asserts the bounded ultrawide canvas, compact flat filter toolbar, responsive container-ledger grids, trigger-based inline cell editors, pagination layering against --z-sticky/--z-overlay tokens, and the non-destructive vehicle-pending state.",
+      "tags": [
+        "test",
+        "css",
+        "z-index",
+        "responsive",
+        "regression-guard"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Reads ShipmentsDetailPage.css, tokens.css, ShipmentsDetailPage.tsx, and ShipmentContainerLedger.tsx from disk with readFileSync, guarding style invariants via regex rather than rendering components."
     }
   ],
   "edges": [
@@ -145626,27 +145696,6 @@
       "direction": "forward"
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "kind": "imports",
-      "label": "useDispatchDetailPlan",
-      "direction": "forward"
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "kind": "imports",
-      "label": "useDispatchDetailPlan",
-      "direction": "forward"
-    },
-    {
-      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
-      "kind": "calls",
-      "label": "calls",
-      "direction": "forward"
-    },
-    {
       "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
       "target": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
       "kind": "imports",
@@ -145913,13 +145962,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "file:frontend/src/api/shipmentClient.ts",
       "type": "imports",
@@ -146151,14 +146193,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
       "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
       "target": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
       "type": "tested_by",
@@ -146244,20 +146278,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
       "target": "file:frontend/src/api/dispatchPlanningClient.ts",
       "type": "imports",
@@ -146266,27 +146286,6 @@
     },
     {
       "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
       "target": "file:frontend/src/lib/format.ts",
       "type": "imports",
       "direction": "forward",
@@ -146354,6 +146353,195 @@
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:row",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:renderGrid",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
+      "target": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "target": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "target": "file:frontend/src/styles/tokens.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "type": "renders",
+      "direction": "forward",
+      "weight": 1
     }
   ],
   "layers": [

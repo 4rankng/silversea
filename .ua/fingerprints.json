@@ -112425,5 +112425,92 @@
       "@playwright/test"
     ],
     "exportsCount": 0
+  },
+  "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx": {
+    "contentHash": "8184ff94916b5356f20e49131ba1b22ca7fc52d0e454753bdf76bd0279e06fe7",
+    "functions": [],
+    "classes": [],
+    "imports": [
+      "import { fireEvent, render, screen, waitFor } from '@testing-library/react'",
+      "import { describe, expect, it, vi } from 'vitest'",
+      "import { DetailedPlanFilters } from './DetailedPlanFilters'",
+      "import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan'",
+      "import { businessDateISO } from '../../../lib/format'"
+    ],
+    "exports": []
+  },
+  "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx": {
+    "contentHash": "1e0e2bb6072bfe847b484b79ee4887bc8645483178117573bc86169fb9a84f97",
+    "functions": [
+      "FacetMultiSelect",
+      "closePicker",
+      "selectFacet",
+      "toggleId",
+      "DetailedPlanFilters",
+      "clearFilters"
+    ],
+    "classes": [],
+    "imports": [
+      "import { useEffect, useId, useState } from 'react'",
+      "import { XClose } from '@untitledui/icons'",
+      "import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button'",
+      "import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input'",
+      "import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select'",
+      "import { businessDateISO } from '../../../lib/format'",
+      "import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan'"
+    ],
+    "exports": [
+      "export interface FacetItem {",
+      "export function DetailedPlanFilters({"
+    ]
+  },
+  "frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx": {
+    "contentHash": "b5984a4cc14e14fabb8c2175ef7b6005880afa5be69b3055524e970385a3a171",
+    "functions": [
+      "renderGrid"
+    ],
+    "classes": [],
+    "imports": [
+      "import { readFileSync } from 'node:fs'",
+      "import { resolve } from 'node:path'",
+      "import { fireEvent, render, screen } from '@testing-library/react'",
+      "import { describe, expect, it, vi } from 'vitest'",
+      "import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient'",
+      "import { DetailedPlanGrid } from './DetailedPlanGrid'",
+      "import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan'"
+    ],
+    "exports": []
+  },
+  "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts": {
+    "contentHash": "7178d0c7e69cecd69819f963beb2acc898bce3fd353c1bc66521224b2f30d92e",
+    "functions": [
+      "createDefaultDetailedPlanFilters",
+      "detailPlanQuery",
+      "useDispatchDetailPlan"
+    ],
+    "classes": [],
+    "imports": [
+      "import { useCallback, useEffect, useRef, useState } from 'react'",
+      "import {\n  assignDispatchDetailPlate,\n  listDispatchDeliveryPointFacets,\n  listDispatchDetailPlanRows,\n  listDispatchDropoffPortFacets,\n  listDispatchPickupPortFacets,\n  type DispatchDetailPlanFilters,\n  type DispatchDetailPlanRow,\n} from '../../../api/dispatchPlanningClient'",
+      "import { businessDateISO } from '../../../lib/format'"
+    ],
+    "exports": [
+      "export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {",
+      "export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {",
+      "export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {",
+      "export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;",
+      "export function useDispatchDetailPlan() {"
+    ]
+  },
+  "frontend/src/pages/ShipmentsDetailPage.styles.test.ts": {
+    "contentHash": "6d4713799fcd368d98394ada32482f1746192344ce2152ff0bb1baf10b67b9d6",
+    "functions": [],
+    "classes": [],
+    "imports": [
+      "import { readFileSync } from 'node:fs'",
+      "import { resolve } from 'node:path'",
+      "import { describe, expect, it } from 'vitest'"
+    ],
+    "exports": []
   }
 }
