@@ -288,6 +288,7 @@
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
   .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "CHỨNG TỪ"; }
 }
 
 @media (max-width: 760px) {
