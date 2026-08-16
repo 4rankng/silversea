@@ -290,6 +290,9 @@
   border-top: 1px solid var(--sb-line);
   flex-shrink: 0;
   position: relative;
+  /* The profile menu opens upward from this footer. Its stacking context must
+   * outrank sticky workspace controls (such as table pagination). */
+  z-index: var(--z-overlay);
 }
 .sidebar-user {
   display: flex;
