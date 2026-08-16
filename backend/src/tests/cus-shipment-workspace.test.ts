@@ -28,9 +28,12 @@ const createdContainerIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
 const createdRouteIds: number[] = [];
+const createdUserIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
+let responsibleUnitId: number;
 let adminActor: AuthUser;
 let cusActor: AuthUser;
 
@@ -62,6 +65,7 @@ async function seedRoute() {
 async function seedShipment(overrides: Partial<typeof s.shipments.$inferInsert> = {}) {
   const [row] = await db.insert(s.shipments).values({
     customerId,
+    responsibleUnitId,
     version: 1,
     status: 'PENDING_DATE',
     ...overrides,
@@ -86,6 +90,24 @@ async function seedContainer(
 before(async () => {
   customerId = (await seedCustomer()).id;
   containerTypeId = (await seedContainerType()).id;
+  // Provision the CUS actor like production: a real user row with unit +
+  // customer links, and shipments seeded under that unit, so list scope
+  // (unit + customer) matches the write scope the service enforces.
+  const [unit] = await db.insert(s.businessUnits).values({
+    name: `CusWs unit ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  createdBusinessUnitIds.push(unit.id);
+  responsibleUnitId = unit.id;
+  const [cusUser] = await db.insert(s.users).values({
+    username: `cus-ws-${suffix}`,
+    passwordHash: 'test-only',
+    role: 'CUS',
+    status: 'ACTIVE',
+  }).returning();
+  createdUserIds.push(cusUser.id);
+  await db.insert(s.userBusinessUnitLinks).values({ userId: cusUser.id, businessUnitId: unit.id });
+  await db.insert(s.userCustomerLinks).values({ userId: cusUser.id, customerId });
   adminActor = {
     userId: 0,
     username: 'cus-ws-test-admin',
@@ -94,7 +116,7 @@ before(async () => {
     role: Role.ADMIN,
   };
   cusActor = {
-    userId: 0,
+    userId: cusUser.id,
     username: 'cus-ws-test-cus',
     email: null,
     fullName: null,
@@ -122,6 +144,15 @@ after(async () => {
   }
   if (createdCustomerIds.length) {
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+  }
+  // User links → user → unit (links first: both FK-reference the user/unit).
+  if (createdUserIds.length) {
+    await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+    await db.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
+    await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+  }
+  if (createdBusinessUnitIds.length) {
+    await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
   }
   await client.end();
 });
@@ -357,6 +388,21 @@ describe('CUS container-flat projection', () => {
     assert.equal(scoped.items.some((row) => row.customerId === outsideCustomer.id), false);
     assert.equal(outsideFilter.total, 0);
     assert.equal(outsideFilter.items.length, 0);
+  });
+
+  test('hides shipments outside the clerk unit scope even when the customer matches', async () => {
+    // Regression: a shipment whose customer is linked to the CUS user but has
+    // no responsible unit (legacy rows) used to appear in the workspace lists
+    // while every write/detail on it 404'd (`assertClerkCanAccessShipment`
+    // requires the unit match). List scope must equal write scope.
+    const ghost = await seedShipment({ responsibleUnitId: null, blNumber: `GHOST${suffix}` });
+    await seedContainer(ghost.id, { containerNumber: `GHOST${suffix}` });
+
+    const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: `GHOST${suffix}` }, cusActor);
+    const list = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+
+    assert.equal(flat.total, 0);
+    assert.equal(list.items.some((item) => item.id === ghost.id), false);
   });
 
   test('does not advertise schedule editing to a read-only role', async () => {

@@ -19,7 +19,7 @@ import {
   normalizeContainerNumber,
   validateContainerNumber,
 } from '@tingting/shared';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
@@ -29,6 +29,7 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import {
   assertShipmentAccountingUnlocked,
   getShipmentFinanceConfirmationSummaries,
@@ -362,7 +363,16 @@ function normalizePlate(value: string): string {
   return formatPlate(value).replace(/[^A-Z0-9]/g, '');
 }
 
-function buildScopeConditions(actor: AuthUser) {
+/**
+ * Row-visibility conditions for the CUS workspace lists.
+ *
+ * CUS uses the full clerk scope (unit + customer/shipment assignment) — the
+ * same rule `assertClerkCanAccessShipment` enforces on detail/update — so a
+ * row listed here is always actionable. Customer-link-only filtering would
+ * surface shipments whose writes 404 (e.g. responsible_unit_id IS NULL).
+ * Async because the clerk scope is loaded from the link tables.
+ */
+async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
   if (
     actor.role === Role.ADMIN
     || actor.role === Role.MANAGER
@@ -371,9 +381,13 @@ function buildScopeConditions(actor: AuthUser) {
   ) {
     return [];
   }
+  if (actor.role === Role.CUS) {
+    const scope = await loadClerkShipmentScope(actor.userId);
+    return [buildShipmentScopeWhere(scope)];
+  }
   if (actor.customerIds?.length) return [inArray(s.shipments.customerId, actor.customerIds)];
   if (actor.customerId != null) return [eq(s.shipments.customerId, actor.customerId)];
-  return actor.role === Role.CUS ? [sql`1 = 0`] : [];
+  return [];
 }
 
 function assertCusShipmentScope(actor: AuthUser, shipmentCustomerId: number | null) {
@@ -1082,7 +1096,7 @@ async function loadShipmentRow(
       eq(s.shipments.id, shipmentId),
       isNull(s.shipments.deletedAt),
       ne(s.shipments.status, ShipmentStatus.CANCELED),
-      ...buildScopeConditions(actor),
+      ...(await buildScopeConditions(actor)),
     ))
     .limit(1);
   if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng CUS.');
@@ -1110,7 +1124,7 @@ async function buildWorkspaceDetail(
   };
 }
 
-function buildShipmentPageConditions(
+async function buildShipmentPageConditions(
   query: ShipmentCusWorkspaceQuery,
   actor: AuthUser,
   searchMode: 'shipment' | 'container',
@@ -1124,7 +1138,7 @@ function buildShipmentPageConditions(
   const conditions = [
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, ShipmentStatus.CANCELED),
-    ...buildScopeConditions(actor),
+    ...(await buildScopeConditions(actor)),
   ];
   if (query.transportDateFrom) {
     conditions.push(sql`${s.shipments.expectedDeliveryDate} >= ${query.transportDateFrom}`);
@@ -1182,7 +1196,7 @@ function buildShipmentPageConditions(
 }
 
 async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUser) {
-  const conditions = buildShipmentPageConditions(query, actor, 'shipment');
+  const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
 
   const offset = (query.page - 1) * query.limit;
   const [items, totalRows] = await Promise.all([
@@ -1212,7 +1226,7 @@ async function loadActorScopedCustomerOptions(actor: AuthUser) {
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, ShipmentStatus.CANCELED),
     isNull(s.customers.deletedAt),
-    ...buildScopeConditions(actor),
+    ...(await buildScopeConditions(actor)),
   ];
   return db.selectDistinct({
     id: s.customers.id,
@@ -1289,7 +1303,7 @@ export async function listCusShipmentContainers(
   query: ShipmentCusWorkspaceQuery,
   actor: AuthUser,
 ): Promise<ShipmentCusContainerFlatResponse> {
-  const conditions = buildShipmentPageConditions(query, actor, 'container');
+  const conditions = await buildShipmentPageConditions(query, actor, 'container');
   const offset = (query.page - 1) * query.limit;
   const [selectedContainers, totalRows, customerOptions] = await Promise.all([
     db.select({
