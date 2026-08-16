@@ -35,7 +35,7 @@ import { seedShipments } from '../seed';
 const PASSWORD_HASH = bcrypt.hashSync('admin123', 10);
 
 // Stable identifiers from seed.ts — used for both assertions and cleanup.
-const SENTINEL_BOOKING_REFS = ['SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3'];
+const SENTINEL_BL_NUMBERS = ['SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3'];
 const SAMPLE_TAX_CODES = ['0101234567', '0107654321'];
 const CUSTOMER_USERNAME = 'customer';
 
@@ -48,10 +48,10 @@ const preExistingCustomerUser: {
   value: Pick<typeof s.users.$inferSelect, 'id' | 'email' | 'customerId'> | null;
 } = { value: null };
 
-async function findSeedShipments(): Promise<{ id: number; bookingRef: string | null }[]> {
-  return await db.select({ id: s.shipments.id, bookingRef: s.shipments.bookingRef })
+async function findSeedShipments(): Promise<{ id: number; blNumber: string | null }[]> {
+  return await db.select({ id: s.shipments.id, blNumber: s.shipments.blNumber })
     .from(s.shipments)
-    .where(inArray(s.shipments.bookingRef, SENTINEL_BOOKING_REFS));
+    .where(inArray(s.shipments.blNumber, SENTINEL_BL_NUMBERS));
 }
 
 async function findSampleCustomers(): Promise<{ id: number; taxCode: string | null }[]> {
@@ -150,17 +150,19 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     const shipments = await findSeedShipments();
     assert.equal(shipments.length, 3, 'exactly 3 SEED-SHIP-* shipments');
 
-    const byRef = new Map(shipments.map((sh) => [sh.bookingRef, sh.id]));
-    for (const ref of SENTINEL_BOOKING_REFS) {
-      assert.ok(byRef.has(ref), `shipment with bookingRef=${ref} exists`);
+    const byRef = new Map(shipments.map((sh) => [sh.blNumber, sh.id]));
+    for (const ref of SENTINEL_BL_NUMBERS) {
+      assert.ok(byRef.has(ref), `shipment with blNumber=${ref} exists`);
     }
 
     // Verify the expected status for each.
-    const rows = await db.select({ bookingRef: s.shipments.bookingRef, status: s.shipments.status })
+    const rows = await db.select({ blNumber: s.shipments.blNumber, status: s.shipments.status })
       .from(s.shipments)
-      .where(inArray(s.shipments.bookingRef, SENTINEL_BOOKING_REFS));
-    const statusByRef = new Map(rows.map((r) => [r.bookingRef, r.status]));
-    assert.equal(statusByRef.get('SEED-SHIP-1'), 'PENDING_DATE');
+      .where(inArray(s.shipments.blNumber, SENTINEL_BL_NUMBERS));
+    const statusByRef = new Map(rows.map((r) => [r.blNumber, r.status]));
+    // SEED-SHIP-1 carries an expectedDeliveryDate, so createShipment's
+    // date-derived readiness lands it directly on READY_FOR_DISPATCH.
+    assert.equal(statusByRef.get('SEED-SHIP-1'), 'READY_FOR_DISPATCH');
     assert.equal(statusByRef.get('SEED-SHIP-2'), 'DISPATCHED');
     assert.equal(statusByRef.get('SEED-SHIP-3'), 'PENDING_EXPENSE_APPROVAL');
   });
@@ -168,7 +170,7 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
   test('attaches expected children to seeded shipments', async () => {
     const shipments = await findSeedShipments();
     const ids = shipments.map((sh) => sh.id);
-    const idByRef = new Map(shipments.map((sh) => [sh.bookingRef, sh.id]));
+    const idByRef = new Map(shipments.map((sh) => [sh.blNumber, sh.id]));
 
     // SEED-SHIP-2 has 2 containers; SEED-SHIP-3 has 1 container.
     const containers = await db.select()

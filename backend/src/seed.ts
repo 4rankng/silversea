@@ -698,7 +698,7 @@ export async function seedClerkScope(): Promise<void> {
 // Idempotency contract:
 //   - CUSTOMER user:               onConflictDoNothing on unique username.
 //   - Sample customers:            existence check by stable taxCode.
-//   - Sample shipments:            existence check by stable bookingRef
+//   - Sample shipments:            existence check by stable blNumber
 //                                  sentinel (SEED-SHIP-1/2/3) BEFORE calling
 //                                  createShipment (which would otherwise
 //                                  generate a new shipmentCode + row each
@@ -766,9 +766,8 @@ export async function seedShipments(passwordHash: string) {
   // 3. Sample shipments — three across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
   //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.
   type ShipmentSeed = {
-    sentinel: string; // bookingRef sentinel — must be unique + stable
+    sentinel: string; // blNumber sentinel — must be unique + stable
     customerId: number;
-    blNumber: string;
     expectedDeliveryDate: string;
     pickupLocation: string;
     deliveryLocation: string;
@@ -786,7 +785,6 @@ export async function seedShipments(passwordHash: string) {
     {
       sentinel: 'SEED-SHIP-1',
       customerId: bienBac.id,
-      blNumber: 'BL-SEED-001',
       expectedDeliveryDate: '2026-08-15',
       pickupLocation: 'Cảng Hải Phòng',
       deliveryLocation: 'Kho Biển Bạc',
@@ -797,7 +795,6 @@ export async function seedShipments(passwordHash: string) {
     {
       sentinel: 'SEED-SHIP-2',
       customerId: haNoi.id,
-      blNumber: 'BL-SEED-002',
       expectedDeliveryDate: '2026-08-10',
       pickupLocation: 'Cảng Hải Phòng',
       deliveryLocation: 'ICD Hà Nội',
@@ -813,7 +810,6 @@ export async function seedShipments(passwordHash: string) {
     {
       sentinel: 'SEED-SHIP-3',
       customerId: bienBac.id,
-      blNumber: 'BL-SEED-003',
       expectedDeliveryDate: '2026-07-30',
       pickupLocation: 'Cảng Đà Nẵng',
       deliveryLocation: 'Kho Biển Bạc',
@@ -831,22 +827,23 @@ export async function seedShipments(passwordHash: string) {
 
   let createdCount = 0;
   for (const s of shipmentSeeds) {
-    // Idempotency: skip if a shipment with this sentinel bookingRef already
+    // Idempotency: skip if a shipment with this sentinel blNumber already
     // exists. createShipment would otherwise mint a new shipmentCode each call.
     const [existing] = await db.select({ id: schema.shipments.id })
       .from(schema.shipments)
-      .where(eq(schema.shipments.bookingRef, s.sentinel))
+      .where(eq(schema.shipments.blNumber, s.sentinel))
       .limit(1);
     if (existing) {
       continue; // Already seeded — leave its status + children alone.
     }
 
     // Use createShipment so the row gets the canonical shipmentCode + an
-    // initial NEW history row, matching the production path.
+    // initial NEW history row, matching the production path. These are import
+    // shipments: the sentinel lives in blNumber and no bookingRef is stored.
     const shipment = await createShipment({
       customerId: s.customerId,
-      bookingRef: s.sentinel,
-      blNumber: s.blNumber,
+      tradeDirection: 'IMPORT',
+      blNumber: s.sentinel,
       expectedDeliveryDate: s.expectedDeliveryDate,
       pickupLocation: s.pickupLocation,
       deliveryLocation: s.deliveryLocation,
