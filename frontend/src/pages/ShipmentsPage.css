@@ -675,6 +675,23 @@
 .cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: 11px; line-height: 1.35; }
 .cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: 12px; font-weight: var(--fw-semibold); }
+.cus-quick-edit-modal__field--full { grid-column: 1 / -1; }
+.cus-quick-edit-modal__readonly {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2, #f7f9f8);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .cus-quick-edit-modal__fields input,
 .cus-quick-edit-modal__fields select,
 .cus-quick-edit-modal__fields textarea {

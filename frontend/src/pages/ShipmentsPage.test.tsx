@@ -510,6 +510,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByLabelText('Nhà máy')).toBeTruthy();
     expect(screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' })).toBeTruthy();
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    // Customer name is rendered as a full-width read-only block so long
+    // Vietnamese company names never get clipped by the column layout.
+    const dialog = screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' });
+    const customerBlock = dialog.querySelector('.cus-quick-edit-modal__readonly');
+    expect(customerBlock).toBeTruthy();
+    expect(customerBlock?.textContent).toBe('Công ty Silver Sea');
     fireEvent.keyDown(document, { key: 'Escape' });
 
     fireEvent.click(masterRowDetailButton());

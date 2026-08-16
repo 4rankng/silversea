@@ -179,8 +179,8 @@ function ShipmentQuickEditFields({
   return (
     <div className="cus-quick-edit-modal__fields">
       {draft.field === 'identity' && <>
-        <label><span>Khách hàng</span><input value={item.customerName ?? ''} disabled title={item.fieldAccess.customerId.reason} /></label>
-        <label><span>Nhà máy</span><input autoFocus value={draft.factoryName} onChange={(event) => update({ factoryName: event.target.value })} maxLength={255} disabled={saving} /></label>
+        <label className="cus-quick-edit-modal__field--full"><span>Khách hàng</span><div className="cus-quick-edit-modal__readonly" title={item.customerName ?? item.fieldAccess.customerId.reason}>{item.customerName ?? '—'}</div></label>
+        <label className="cus-quick-edit-modal__field--full"><span>Nhà máy</span><input autoFocus value={draft.factoryName} onChange={(event) => update({ factoryName: event.target.value })} maxLength={255} disabled={saving} /></label>
       </>}
       {draft.field === 'documents' && <>
         <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving} /></label>
