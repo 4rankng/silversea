@@ -5,7 +5,7 @@ import { RouteChips } from './RouteChips';
 import type { SelectOption, RouteOption, TrailerTypeOption } from '../../hooks/useTripOptions';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 import { formatCurrency } from '../../lib/format';
-import { SearchableSelect } from '../../design-system';
+import { SearchableSelect, DateInput } from '../../design-system';
 import { selectStyle } from '../../utils/formStyles';
 import './TripInfoCard.css';
 
@@ -236,7 +236,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
           )}
 
           <Field label="Ngày khởi hành" required controlId="departureDate">
-            <input id="departureDate" name="departureDate" className="input mono" type="date" value={form.departureDate} onChange={(e) => form.setDepartureDate(e.target.value)} required />
+            <DateInput id="departureDate" name="departureDate" className="input mono" value={form.departureDate} onChange={form.setDepartureDate} required />
           </Field>
         </div>
 

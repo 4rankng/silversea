@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Save, Send, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
-import { SearchableSelect, TextField, SelectField } from '../../design-system';
+import { SearchableSelect, TextField, SelectField, DateField } from '../../design-system';
 import { useConfirm } from '../../components/UI';
 import { OperationalSiteDetailsDialog } from '../../components/shipment/OperationalSiteDetailsDialog';
 import { useAuth } from '../../hooks/useAuth';
@@ -1047,12 +1047,11 @@ export default function ClerkShipmentDocsPage() {
           }}
           disabled={savingShipment}
         />
-        <TextField
+        <DateField
           label="Ngày giao dự kiến"
-          type="date"
           value={shipmentForm.expectedDeliveryDate}
-          onChange={(event) => {
-            setShipmentForm((current) => ({ ...current, expectedDeliveryDate: event.target.value }));
+          onChange={(value) => {
+            setShipmentForm((current) => ({ ...current, expectedDeliveryDate: value }));
             setShipmentMsg(null);
           }}
           disabled={savingShipment}
@@ -1343,11 +1342,10 @@ export default function ClerkShipmentDocsPage() {
           onChange={(event) => setDocumentForm((current) => ({ ...current, storageKey: event.target.value }))}
           disabled={savingDocument || Boolean(accountingLock)}
         />
-        <TextField
+        <DateField
           label="Ngày hết hạn (nếu có)"
-          type="date"
           value={documentForm.expiresAt}
-          onChange={(event) => setDocumentForm((current) => ({ ...current, expiresAt: event.target.value }))}
+          onChange={(value) => setDocumentForm((current) => ({ ...current, expiresAt: value }))}
           disabled={savingDocument || Boolean(accountingLock)}
         />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

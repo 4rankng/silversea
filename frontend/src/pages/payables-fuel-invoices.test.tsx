@@ -90,6 +90,15 @@ vi.mock('../design-system', () => ({
       ))}
     </select>
   ),
+  DateInput: ({ id, value, onChange, ...rest }: { id?: string; value: string; onChange: (value: string) => void; [k: string]: unknown }) => (
+    <input
+      id={id}
+      type="date"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      {...rest}
+    />
+  ),
 }));
 
 import { FuelInvoicesPanel } from './payables-fuel-invoices';

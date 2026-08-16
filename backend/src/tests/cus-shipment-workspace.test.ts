@@ -188,6 +188,55 @@ describe('CUS shipment workspace projection — OQ1 split notes', () => {
   });
 });
 
+describe('CUS shipment workspace projection — Chứng từ direction display', () => {
+  test('EXPORT prefers the booking number; IMPORT prefers the bill number', async () => {
+    const exportShipment = await seedShipment({
+      tradeDirection: 'EXPORT',
+      blNumber: 'BILL-EXP-1',
+      bookingRef: 'BOOK-EXP-1',
+    });
+    const importShipment = await seedShipment({
+      tradeDirection: 'IMPORT',
+      blNumber: 'BILL-IMP-1',
+      bookingRef: 'BOOK-IMP-1',
+    });
+    // Direction unknown — falls back to the bill like the historical behavior.
+    const undirectedShipment = await seedShipment({
+      blNumber: 'BILL-NA-1',
+      bookingRef: 'BOOK-NA-1',
+    });
+    // Only the secondary number present — the cell still shows what exists.
+    const bookingOnly = await seedShipment({
+      tradeDirection: 'EXPORT',
+      bookingRef: 'BOOK-ONLY-1',
+    });
+
+    const exportItem = await findItem(exportShipment.id);
+    const importItem = await findItem(importShipment.id);
+    const undirectedItem = await findItem(undirectedShipment.id);
+    const bookingOnlyItem = await findItem(bookingOnly.id);
+
+    assert.equal(exportItem!.billOrBookNumber, 'BOOK-EXP-1');
+    assert.equal(importItem!.billOrBookNumber, 'BILL-IMP-1');
+    assert.equal(undirectedItem!.billOrBookNumber, 'BILL-NA-1');
+    assert.equal(bookingOnlyItem!.billOrBookNumber, 'BOOK-ONLY-1');
+  });
+
+  test('flat container rows mirror the same direction-aware number', async () => {
+    const exportShipment = await seedShipment({
+      tradeDirection: 'EXPORT',
+      blNumber: 'BILL-FLAT-1',
+      bookingRef: 'BOOK-FLAT-1',
+    });
+    await seedContainer(exportShipment.id, { containerNumber: 'FLAT-EXP-1' });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100 }, adminActor);
+    const row = response.items.find((item) => item.shipmentId === exportShipment.id);
+    assert.ok(row);
+    assert.equal(row.billOrBookNumber, 'BOOK-FLAT-1');
+  });
+});
+
 describe('CUS shipment workspace projection — OQ2 aggregated cargo', () => {
   test('sums per-container weight and volume across containers', async () => {
     const shipment = await seedShipment({

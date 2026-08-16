@@ -5,6 +5,7 @@ import { Field } from '../../components/config/Field';
 import { FormActions } from '../../components/config/FormActions';
 import { InlineForm } from '../../components/config/InlineForm';
 import { usePageAnimations } from '../../hooks/animations';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 interface BusinessCalendarDay {
   id: number;
@@ -32,11 +33,10 @@ function BusinessCalendarForm({
     <InlineForm colSpan={4}>
       <div style={{ minWidth: 170 }}>
         <Field label="Ngày">
-          <input
+          <DateInput
             className="input"
-            type="date"
             value={calendarDate}
-            onChange={(event) => setCalendarDate(event.target.value)}
+            onChange={setCalendarDate}
           />
         </Field>
       </div>

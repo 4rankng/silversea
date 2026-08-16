@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../../../api/tripClient';
 import { qk } from '../../../api/keys';
 import { SearchableSelect } from '../../../design-system/forms/SearchableSelect';
+import { DateInput } from '../../../design-system/forms/DateInput';
 
 interface PenaltyFormDrawerProps {
   isOpen: boolean;
@@ -181,7 +182,7 @@ export function PenaltyFormDrawer({
           <input className="input" type="number" placeholder="0" value={formAmount} onChange={e => setFormAmount(e.target.value)} />
         </FormGroup>
         <FormGroup label="Ngày vi phạm *">
-          <input className="input" type="date" value={formDate} onChange={e => setFormDate(e.target.value)} />
+          <DateInput className="input" value={formDate} onChange={setFormDate} />
         </FormGroup>
       </div>
     </Drawer>

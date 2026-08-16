@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { DateInput } from '../design-system/forms/DateInput';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { TxnType, FINANCIAL } from '@tingting/shared';
 import type { SupplierStatement as SupplierStatementType, LedgerEntry, AgingBucket, VendorPaymentRequest } from '@tingting/shared';
@@ -543,12 +544,11 @@ export default function PayableDetailPage() {
         </div>
         <div className="field">
           <label htmlFor="payment-date">Ngày *</label>
-          <input
+          <DateInput
             id="payment-date"
-            type="date"
             className="input"
             value={paymentDate}
-            onChange={e => setPaymentDate(e.target.value)}
+            onChange={setPaymentDate}
           />
         </div>
         <div className="field">

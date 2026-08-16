@@ -262,6 +262,21 @@ function effectiveBillingLineAmount(line: BillingLineRow): number {
   return toNumber(line.amountOverride ?? line.baseAmount);
 }
 
+/**
+ * Display number for the Chứng từ cell: IMPORT shows the Bill, EXPORT shows
+ * the Booking. Falls back to the other when the primary is missing so the
+ * cell never hides data that exists.
+ */
+function billOrBookNumberFor(
+  tradeDirection: 'IMPORT' | 'EXPORT' | null,
+  blNumber: string | null,
+  bookingRef: string | null,
+): string | null {
+  const bill = trimOrNull(blNumber);
+  const booking = trimOrNull(bookingRef);
+  return tradeDirection === 'EXPORT' ? (booking ?? bill) : (bill ?? booking);
+}
+
 function trimOrNull(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
@@ -921,7 +936,7 @@ function buildListItem(
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
     customerName: row.customerName,
     factoryName: trimOrNull(row.shipment.factoryName),
-    billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
+    billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
     declarationNumber: declaration?.declarationNumber ?? null,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     routeName: row.routeName,
@@ -1372,7 +1387,7 @@ export async function listCusShipmentContainers(
       customerName: row.customerName,
       factoryName: trimOrNull(row.shipment.factoryName),
       routeName: row.routeName,
-      billOrBookNumber: trimOrNull(row.shipment.blNumber) ?? trimOrNull(row.shipment.bookingRef),
+      billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
       shippingLineName: trimOrNull(row.shipment.shippingLineName),
       isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),

@@ -10,6 +10,7 @@ import { financialClient } from '../../api/financialClient';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContainer, lineTotal, normalizeLine, selectedTripIdsFromSearch, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
+import { DateInput } from '../../design-system/forms/DateInput';
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
@@ -374,21 +375,19 @@ export default function BillingDocumentBuilder({
         <section className="billing-builder__controls" aria-label="Khoảng thời gian và thao tác">
           <label>
             <span>Từ ngày</span>
-            <input
-              type="date"
+            <DateInput
               className="input billing-builder__date-input"
               value={rangeFrom}
-              onChange={(e) => setRangeFrom(e.target.value)}
+              onChange={setRangeFrom}
               disabled={busy}
             />
           </label>
           <label>
             <span>Đến ngày</span>
-            <input
-              type="date"
+            <DateInput
               className="input billing-builder__date-input"
               value={rangeTo}
-              onChange={(e) => setRangeTo(e.target.value)}
+              onChange={setRangeTo}
               disabled={busy}
             />
           </label>

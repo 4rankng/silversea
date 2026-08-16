@@ -2,6 +2,7 @@ import { Search } from 'lucide-react';
 import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
+import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
 
@@ -64,24 +65,22 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
       </UUISelect>
       <div className="master-plan-filters__date-range" role="group" aria-label="Khoảng ngày giao">
         <span className="master-plan-filters__date-label">Ngày giao</span>
-        <UUIInput
+        <BufferedUuiDateInput
           className="master-plan-filters__date-input"
           inputClassName="master-plan-filters__control"
-          type="date"
           size="sm"
           value={filters.deliveryDateFrom}
           onChange={(value) => onChange({ deliveryDateFrom: value })}
-          aria-label="Ngày giao từ"
+          label="Ngày giao từ"
         />
         <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-        <UUIInput
+        <BufferedUuiDateInput
           className="master-plan-filters__date-input"
           inputClassName="master-plan-filters__control"
-          type="date"
           size="sm"
           value={filters.deliveryDateTo}
           onChange={(value) => onChange({ deliveryDateTo: value })}
-          aria-label="Ngày giao đến"
+          label="Ngày giao đến"
         />
       </div>
     </div>

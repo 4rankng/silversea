@@ -6,6 +6,7 @@ import type { Supplier } from "@tingting/shared";
 import { ConfirmDialog } from "../../components/UI";
 import { useToast } from "../../components/shared/Toast";
 import { formatErrorMessage } from "../../lib/api";
+import { DateInput } from "../../design-system/forms/DateInput";
 import { cleanText, normalizedCatalogLabel, positionPayloadFromLabel, supplierIdFromText, textMatches } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -80,7 +81,7 @@ export function AddTireForm({
       </div>
       <div className="ttp-field">
         <label htmlFor="tire-purchased-at">Ngày mua</label>
-        <input id="tire-purchased-at" name="purchasedAt" className="input" type="date" value={purchasedAt} onChange={(e) => setPurchasedAt(e.target.value)} />
+        <DateInput id="tire-purchased-at" name="purchasedAt" className="input" value={purchasedAt} onChange={setPurchasedAt} />
       </div>
       <button className="btn btn--primary ttp-add-submit" disabled={saving || !serial.trim()} onClick={submit}>
         {saving ? "Đang lưu…" : "Thêm lốp"}

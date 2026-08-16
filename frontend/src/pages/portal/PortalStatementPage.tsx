@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Download, Landmark, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
-import { EmptyState } from '../../design-system';
+import { EmptyState, DateInput } from '../../design-system';
 import { useCustomerPortalScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
@@ -115,8 +115,8 @@ export default function PortalStatementPage() {
             setAppliedRange({ dateFrom, dateTo });
           }}
         >
-          <label>Từ ngày<input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} /></label>
-          <label>Đến ngày<input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} /></label>
+          <label>Từ ngày<DateInput value={dateFrom} max={dateTo || undefined} onChange={setDateFrom} /></label>
+          <label>Đến ngày<DateInput value={dateTo} min={dateFrom || undefined} onChange={setDateTo} /></label>
           <div className="portal-actions">
             <button type="submit" className="portal-button portal-button--primary" disabled={loading}>Áp dụng kỳ</button>
             <button type="button" className="portal-button" disabled={exporting || !data} onClick={() => void exportStatement('xlsx')}><Download size={16} /> XLSX</button>

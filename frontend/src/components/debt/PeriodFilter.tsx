@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 /**
  * Period filter for the AR/AP detail ledger tab. Two modes:
@@ -131,22 +132,20 @@ export function PeriodFilter(props: PeriodFilterProps) {
             <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
               <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
                 <span className="text-base-content">Từ ngày</span>
-                <input
-                  type="date"
+                <DateInput
                   className="d-input d-input-sm w-full"
                   value={dateFrom}
                   max={dateTo || undefined}
-                  onChange={e => onRangeChange({ dateFrom: e.target.value })}
+                  onChange={(value) => onRangeChange({ dateFrom: value })}
                 />
               </label>
               <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
                 <span className="text-base-content">Đến ngày</span>
-                <input
-                  type="date"
+                <DateInput
                   className="d-input d-input-sm w-full"
                   value={dateTo}
                   min={dateFrom || undefined}
-                  onChange={e => onRangeChange({ dateTo: e.target.value })}
+                  onChange={(value) => onRangeChange({ dateTo: value })}
                 />
               </label>
             </div>

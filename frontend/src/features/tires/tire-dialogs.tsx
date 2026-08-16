@@ -4,6 +4,7 @@ import { TIRE_DISPOSAL_REASONS } from "@tingting/shared";
 import type { Tire } from "@tingting/shared";
 import type { Supplier } from "@tingting/shared";
 import { formatErrorMessage } from "../../lib/api";
+import { DateInput } from "../../design-system/forms/DateInput";
 import { draftFromTire, patchFromDraft, positionPayloadFromLabel, type TireEditDraft, type TirePatch } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -80,7 +81,7 @@ export function TireEditDialog({
           </div>
           <div className="ttp-field">
             <label>Ngày lắp</label>
-            <input className="input" type="date" value={draft.installedAt} onChange={(e) => updateDraft("installedAt", e.target.value)} />
+            <DateInput className="input" value={draft.installedAt} onChange={(value) => updateDraft("installedAt", value)} />
           </div>
           <div className="ttp-field">
             <label>Nhà cung cấp</label>
@@ -88,7 +89,7 @@ export function TireEditDialog({
           </div>
           <div className="ttp-field">
             <label>Ngày mua</label>
-            <input className="input" type="date" value={draft.purchasedAt} onChange={(e) => updateDraft("purchasedAt", e.target.value)} />
+            <DateInput className="input" value={draft.purchasedAt} onChange={(value) => updateDraft("purchasedAt", value)} />
           </div>
         </div>
 

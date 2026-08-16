@@ -7,6 +7,7 @@ import {
   USelectField as SelectField,
   UTextAreaField as TextAreaField,
   UTextField as TextField,
+  UDateField as DateField,
 } from './uui-fields';
 import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
@@ -381,7 +382,7 @@ export function ShipmentCreateWorkspace() {
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
-                    <TextField label="Ngày giao dự kiến" type="date" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
+                    <DateField label="Ngày giao dự kiến" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
               ))}</>}
@@ -443,13 +444,13 @@ export function ShipmentCreateWorkspace() {
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
-            {form.cargoMode === 'LCL' && <div data-field-id="shipment-expected-delivery"><TextField id="shipment-expected-delivery" label="Ngày giao dự kiến" type="date" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>}
+            {form.cargoMode === 'LCL' && <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>}
           </div>
           {form.cargoMode === 'LCL' && (
             <div className="csc-extra-dates">
               {form.extraDeliveryDates.map((date, index) => (
                 <div key={index} className="csc-extra-dates__row">
-                  <TextField label={index === 0 ? 'Ngày giao bổ sung' : ''} type="date" value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
+                  <DateField label={index === 0 ? 'Ngày giao bổ sung' : ''} value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
                   <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
                 </div>
               ))}

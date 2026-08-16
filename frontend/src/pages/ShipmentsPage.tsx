@@ -35,7 +35,7 @@ import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
-import { EmptyState, Pagination, SearchableSelect } from '../design-system';
+import { EmptyState, Pagination, SearchableSelect, BufferedUuiDateInput, DateInput } from '../design-system';
 import {
   getCusShipmentWorkspaceDetail,
   confirmCusShipmentFinance,
@@ -200,7 +200,7 @@ function ShipmentQuickEditFields({
         <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={draft.cargoVolumeCbm} onChange={(event) => update({ cargoVolumeCbm: event.target.value })} disabled={saving || item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
       </>}
       {draft.field === 'schedule' && <>
-        <label><span>Ngày đóng/trả</span><input autoFocus disabled={saving} type="date" value={draft.date} onChange={(event) => update({ date: event.target.value })} /></label>
+        <label><span>Ngày đóng/trả</span><DateInput autoFocus disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} /></label>
         <label><span>Giờ</span><input disabled={saving} type="time" value={draft.time} onChange={(event) => update({ time: event.target.value })} /></label>
         <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
       </>}
@@ -1410,20 +1410,18 @@ export default function ShipmentsPage() {
               className="shipment-uui-field"
               selectClassName="shipment-uui-select"
             />
-            <UUIInput
+            <BufferedUuiDateInput
               label="Từ ngày giao"
               size="sm"
-              type="date"
               value={dateFrom}
               onChange={(value) => updateParam('transportDateFrom', value || null)}
               className="shipment-uui-field"
               wrapperClassName="shipment-uui-control"
               inputClassName="shipment-uui-control__input"
             />
-            <UUIInput
+            <BufferedUuiDateInput
               label="Đến ngày giao"
               size="sm"
-              type="date"
               value={dateTo}
               onChange={(value) => updateParam('transportDateTo', value || null)}
               className="shipment-uui-field"
@@ -1764,10 +1762,9 @@ export default function ShipmentsPage() {
                   <div className="cus-drawer-decision cus-drawer-decision--schedule">
                     <span className="cus-drawer-field-label">Ngày giao hàng</span>
                     <div className="cus-drawer-inline-control">
-                      <UUIInput
-                        aria-label="Ngày giao hàng"
+                      <BufferedUuiDateInput
+                        label="Ngày giao hàng"
                         size="sm"
-                        type="date"
                         value={transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? ''}
                         isDisabled={!drawerItem.operational.transportDateEditable || savingTransportDateIds.has(drawerItem.id)}
                         onChange={(value) => setTransportDateDrafts((current) => ({ ...current, [drawerItem.id]: value }))}

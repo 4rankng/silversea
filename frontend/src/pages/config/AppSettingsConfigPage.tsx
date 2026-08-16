@@ -41,6 +41,7 @@ import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
 import { qk } from '../../api/keys';
 import { isGovernancePendingResponse } from '../../lib/governance';
+import { DateInput } from '../../design-system/forms/DateInput';
 import './config-page.css';
 
 type FeatureSwitchProps = {
@@ -765,12 +766,11 @@ export default function AppSettingsConfigPage() {
                   </div>
                   <div className="field">
                     <label htmlFor="financial-policy-effective-from">Tháng hiệu lực</label>
-                    <input
+                    <DateInput
                       id="financial-policy-effective-from"
                       className="input"
-                      type="date"
                       value={policyEffectiveFrom}
-                      onChange={(event) => setPolicyEffectiveFrom(event.target.value)}
+                      onChange={setPolicyEffectiveFrom}
                       min={financialPolicy.data?.currentVietnamMonthStart}
                       disabled={requestFinancialPolicy.isPending}
                     />
@@ -922,24 +922,22 @@ export default function AppSettingsConfigPage() {
                 <div className="cfg-finance-form__grid">
                   <div className="field">
                     <label htmlFor="truck-effective-from">Tháng hiệu lực</label>
-                    <input
+                    <DateInput
                       id="truck-effective-from"
                       className="input"
-                      type="date"
                       value={truckEffectiveFrom}
                       min={truckProfiles.data?.currentVietnamMonthStart}
-                      onChange={(event) => setTruckEffectiveFrom(event.target.value)}
+                      onChange={setTruckEffectiveFrom}
                       disabled={requestTruckProfile.isPending}
                     />
                   </div>
                   <div className="field">
                     <label htmlFor="truck-in-service-date">Ngày đưa vào sử dụng</label>
-                    <input
+                    <DateInput
                       id="truck-in-service-date"
                       className="input"
-                      type="date"
                       value={truckInServiceDate}
-                      onChange={(event) => setTruckInServiceDate(event.target.value)}
+                      onChange={setTruckInServiceDate}
                       disabled={requestTruckProfile.isPending}
                     />
                   </div>

@@ -25,7 +25,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
-import { SearchableSelect } from '../design-system';
+import { SearchableSelect, DateInput } from '../design-system';
 import './TripForm.css';
 import './TripEditPage.css';
 
@@ -224,12 +224,11 @@ export default function TripEditPage() {
                   </div>
                   <div className="tc-field">
                     <label className="tc-field-label">Ngày khởi hành <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                    <input
+                    <DateInput
                       id="departureDate"
                       className="input"
-                      type="date"
                       value={departureDate}
-                      onChange={(e) => setDepartureDate(e.target.value)}
+                      onChange={setDepartureDate}
                       required
                     />
                   </div>
@@ -250,12 +249,11 @@ export default function TripEditPage() {
                   {(trip.status === TripStatus.IN_TRANSIT || trip.status === TripStatus.COMPLETED) && (
                     <div className="tc-field">
                       <label className="tc-field-label">Ngày hoàn thành</label>
-                      <input
+                      <DateInput
                         id="completedAt"
                         className="input"
-                        type="date"
                         value={completedAt}
-                        onChange={(e) => setCompletedAt(e.target.value)}
+                        onChange={setCompletedAt}
                         max={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
                       />
                       <div className="tc-field-hint">Để trống nếu chưa hoàn thành</div>

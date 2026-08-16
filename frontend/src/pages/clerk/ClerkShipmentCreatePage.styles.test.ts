@@ -81,7 +81,10 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses compact desktop density while retaining mobile touch targets', () => {
-    expect(fieldAdapters.match(/size="md"/g)).toHaveLength(4);
+    // Counts: USearchableField, USelectField, UTextField, UTextAreaField,
+    // UDateField — all `size="md"` so the workspace rows stay at the same
+    // compact desktop height regardless of which primitive is used.
+    expect(fieldAdapters.match(/size="md"/g)).toHaveLength(5);
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
     expect(css).toMatch(/\.csc-page\s*\{[^}]*padding:\s*12px 20px 28px;/);

@@ -6,6 +6,7 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { formatCurrency } from '../../lib/format';
 import type { CapTableHistory } from '@tingting/shared';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 function CapTableForm({ saving, item, onsave, oncancel }: {
   saving: boolean; item?: CapTableHistory; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
@@ -22,7 +23,7 @@ function CapTableForm({ saving, item, onsave, oncancel }: {
         <Field label="Số vốn góp (₫)"><input className="input" type="number" step="1000000" value={contributionAmount} onChange={e => setContributionAmount(e.target.value)} placeholder="0" /></Field>
       </div>
       <div style={{ flex: 1.5, minWidth: 150 }}>
-        <Field label="Ngày hiệu lực"><input className="input" type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} /></Field>
+        <Field label="Ngày hiệu lực"><DateInput className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {
         if (!partnerName.trim() || !contributionAmount || !effectiveDate) return;

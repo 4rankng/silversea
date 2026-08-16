@@ -13,6 +13,7 @@ import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill, FormGroup, useConfirm } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { qk } from '../api/keys';
+import { DateInput } from '../design-system/forms/DateInput';
 import { useForwarderTripDetail, useCreateForwarderContainer, useCreateForwarderExpense, useDeleteForwarderExpense } from '../hooks/useQueries';
 import { useUpdateForwarderExpense, useSetForwarderExpenseCompletion } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -843,11 +844,10 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                     />
                   </FormGroup>
                   <FormGroup label="Ngày hóa đơn">
-                    <input
+                    <DateInput
                       className="input"
-                      type="date"
                       value={expenseForm.invoiceDate}
-                      onChange={e => setExpenseForm(f => ({ ...f, invoiceDate: e.target.value }))}
+                      onChange={(value) => setExpenseForm(f => ({ ...f, invoiceDate: value }))}
                     />
                   </FormGroup>
                 </>
@@ -890,12 +890,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             {!expenseForm.invoiceNumber.trim() && (
               <div className="fwd-expense-grid fwd-expense-grid--invoice" style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
                 <FormGroup label="Ngày chi *">
-                  <input
+                  <DateInput
                     className={`input${expenseErrors.expenseDate ? ' input--error' : ''}`}
-                    type="date"
                     value={expenseForm.expenseDate}
-                    onChange={e => {
-                      setExpenseForm(f => ({ ...f, expenseDate: e.target.value }));
+                    onChange={(value) => {
+                      setExpenseForm(f => ({ ...f, expenseDate: value }));
                       if (expenseErrors.expenseDate) setExpenseErrors(current => ({ ...current, expenseDate: undefined }));
                     }}
                   />

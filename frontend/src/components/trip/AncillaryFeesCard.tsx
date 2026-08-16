@@ -12,6 +12,7 @@ import { StatusPill, useConfirm, Modal } from '../UI';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { qk } from '../../api/keys';
 import { AncillaryEmptyState, AncillaryMobileTotals, AncillaryTableTotals, EMPTY_FORM, feeTypeLabel, resolveMarkupConfig, suggestedSellFor, type AncillaryFeesCardProps } from './ancillary-fees-card-utils';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = false }: AncillaryFeesCardProps) {
   const queryClient = useQueryClient();
@@ -557,11 +558,10 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
 
                   <div className="field">
                     <label style={{ fontSize: 12 }}>Ngày hóa đơn</label>
-                    <input
+                    <DateInput
                       className="input mono"
-                      type="date"
                       value={form.invoiceDate}
-                      onChange={(e) => setForm(f => ({ ...f, invoiceDate: e.target.value }))}
+                      onChange={(value) => setForm(f => ({ ...f, invoiceDate: value }))}
                     />
                   </div>
 

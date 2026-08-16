@@ -9,7 +9,7 @@ import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { AssetIcon } from '../components/AssetIcon';
-import { EmptyState, Pagination } from '../design-system';
+import { EmptyState, Pagination, DateInput } from '../design-system';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -260,22 +260,20 @@ export default function ExpenseListPage() {
 
         <div className="expense-filter-bar__divider" />
 
-        <input
-          type="date"
+        <DateInput
           name="expenseDateFrom"
           aria-label="Từ ngày"
           className="expense-filter-bar__date"
           value={dateFrom}
-          onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+          onChange={(value) => { setDateFrom(value); setPage(1); }}
           placeholder="Từ ngày"
         />
-        <input
-          type="date"
+        <DateInput
           name="expenseDateTo"
           aria-label="Đến ngày"
           className="expense-filter-bar__date"
           value={dateTo}
-          onChange={e => { setDateTo(e.target.value); setPage(1); }}
+          onChange={(value) => { setDateTo(value); setPage(1); }}
           placeholder="Đến ngày"
         />
 

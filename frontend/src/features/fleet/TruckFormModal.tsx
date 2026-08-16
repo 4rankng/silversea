@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { TrailerType, TRAILER_TYPE_LABELS, computeVehicleAlerts } from '@tingting/shared';
 import type { Truck as TruckType, VehicleAlert } from '@tingting/shared';
 import { TRUCK_STATUS } from './constants';
@@ -178,14 +179,12 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                 Tính từ lần thay dầu gần nhất
               </label>
               <div className="fleet-form__inline">
-                <input
+                <DateInput
                   id="truck-oil-last"
-                  type="date"
                   className="input"
                   aria-label="Lần thay dầu gần nhất"
                   value={lastOilChangeDate}
-                  onChange={e => {
-                    const v = e.target.value;
+                  onChange={(v) => {
                     setLastOilChangeDate(v);
                     if (v && oilIntervalMonths) {
                       const next = addMonthsIso(v, oilIntervalMonths);
@@ -265,12 +264,11 @@ function TruckDateField({ id, label, value, onChange, alert }: {
           </span>
         )}
       </label>
-      <input
+      <DateInput
         id={id}
-        type="date"
         className="input"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={onChange}
       />
     </div>
   );

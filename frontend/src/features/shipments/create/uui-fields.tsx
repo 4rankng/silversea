@@ -4,6 +4,7 @@ import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
 import { NativeSelect } from '../../../components/untitled-ui/base/select/select-native';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
+import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
 
 /**
  * Feature-local Untitled UI field adapters for the shipment-create workspace.
@@ -34,6 +35,50 @@ interface UTextFieldProps {
   maxLength?: number;
   min?: string | number;
   step?: string | number;
+}
+
+interface UDateFieldProps {
+  id?: string;
+  label: string;
+  value: string;
+  onChange: (event: HtmlInputEvent) => void;
+  disabled?: boolean;
+  required?: boolean;
+  error?: string;
+  min?: string | number;
+}
+
+/**
+ * Untitled UI styled date input that buffers partial day/month/year typing
+ * so digits never flash and disappear (see design-system/DateField for the
+ * full rationale). Event-shaped onChange mirrors UTextField so workspace
+ * state handlers do not need to change.
+ */
+export function UDateField({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
+  required,
+  error,
+  min,
+}: UDateFieldProps) {
+  return (
+    <BufferedUuiDateInput
+      id={id}
+      label={label}
+      size="md"
+      value={value}
+      onChange={(next) => onChange(asEvent(next))}
+      isDisabled={disabled}
+      isRequired={required}
+      isInvalid={Boolean(error)}
+      hint={error}
+      inputProps={{ min }}
+      className="csc-uui-field csc-control-boundary"
+    />
+  );
 }
 
 export function UTextField({

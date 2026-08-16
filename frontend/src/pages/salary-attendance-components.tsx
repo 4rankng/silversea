@@ -13,6 +13,7 @@ import type {
 } from '../api/salaryClient';
 import { useToast } from '../components/shared/Toast';
 import { ROLE_LABELS, Role } from '@tingting/shared';
+import { DateInput } from '../design-system/forms/DateInput';
 import './SalaryAttendancePage.css';
 
 export const DOW_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -743,12 +744,11 @@ export function DriverPayoutModal({
         </div>
         <div className="field">
           <label htmlFor="payout-date">Ngày thanh toán <span className="req" aria-hidden="true">*</span></label>
-          <input
+          <DateInput
             id="payout-date"
             className="input"
-            type="date"
             value={form.payoutDate}
-            onChange={e => setForm(f => ({ ...f, payoutDate: e.target.value }))}
+            onChange={(value) => setForm(f => ({ ...f, payoutDate: value }))}
           />
         </div>
         <div className="field">

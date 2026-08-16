@@ -10,7 +10,7 @@ import type {
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
-import { SearchableSelect } from '../../../design-system';
+import { SearchableSelect, DateInput } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
@@ -392,7 +392,7 @@ function InlineEditor({
       )}
       {mode === 'schedule' && (
         <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-          <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
+          <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><DateInput value={transportDate} onChange={setTransportDate} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
           <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
         </div>
       )}

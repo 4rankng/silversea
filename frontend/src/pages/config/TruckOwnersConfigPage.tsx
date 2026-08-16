@@ -21,6 +21,7 @@ import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { useToast } from '../../components/shared/Toast';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import type { TruckCapEntry, PaginatedResponse, Truck } from '@tingting/shared';
@@ -59,7 +60,7 @@ function TruckOwnerForm({ saving, item, onsave, oncancel }: {
       </div>
       <div style={{ flex: 1.4, minWidth: 150 }}>
         <Field label="Ngày hiệu lực">
-          <input className="input" type="date" value={effectiveDate} onChange={e => setEffectiveDate(e.target.value)} />
+          <DateInput className="input" value={effectiveDate} onChange={setEffectiveDate} />
         </Field>
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => {

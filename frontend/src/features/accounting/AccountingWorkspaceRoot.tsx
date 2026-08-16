@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
+import { DateInput } from '../../design-system/forms/DateInput';
 import { AccountingOverview } from './AccountingOverview';
 import { AccountingTransportRegister } from './AccountingTransportRegister';
 import { buildTransportSelectionScopeKey, displayBusinessDate } from './accountingWorkspaceUtils';
@@ -39,22 +40,11 @@ export function AccountingWorkspaceRoot() {
         <div className="accounting-period__fields">
           <label>
             <span>Từ ngày</span>
-            <input
-              type="date"
-              value={state.from}
-              max={state.to}
-              onChange={(event) => setFrom(event.target.value)}
-            />
+            <DateInput value={state.from} max={state.to || undefined} onChange={setFrom} />
           </label>
           <label>
             <span>Đến ngày</span>
-            <input
-              type="date"
-              value={state.to}
-              min={state.from}
-              max={state.today}
-              onChange={(event) => setTo(event.target.value)}
-            />
+            <DateInput value={state.to} min={state.from || undefined} max={state.today} onChange={setTo} />
           </label>
         </div>
       </section>

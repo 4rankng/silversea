@@ -6,6 +6,7 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { useRoutesDropdown } from '../../hooks/useCatalogQueries';
 import type { Route as RouteType } from '@tingting/shared';
+import { DateInput } from '../../design-system/forms/DateInput';
 
 interface FuelNorm {
   id: number;
@@ -147,11 +148,10 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
       </div>
       <div style={{ flex: 1, minWidth: 150 }}>
         <Field label="Ngày hiệu lực">
-          <input
+          <DateInput
             className="input"
-            type="date"
             value={effectiveDate}
-            onChange={e => setEffectiveDate(e.target.value)}
+            onChange={setEffectiveDate}
           />
         </Field>
         {fieldError('effectiveDate') && (

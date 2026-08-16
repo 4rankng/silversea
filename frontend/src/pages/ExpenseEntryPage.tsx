@@ -24,6 +24,7 @@ import {
   type FormState,
 } from './expense-entry-utils';
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
+import { DateInput } from '../design-system/forms/DateInput';
 import './ExpenseEntryPage.css';
 
 export default function ExpenseEntryPage() {
@@ -614,25 +615,23 @@ export default function ExpenseEntryPage() {
                 <>
                   <div className="expense-group">
                     <label htmlFor="validFrom" className="expense-label">Hiệu lực từ <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <input
-                      type="date"
+                    <DateInput
                       name="validFrom"
                       id="validFrom"
                       className="expense-input"
                       value={form.validFrom}
-                      onChange={e => set('validFrom', e.target.value)}
+                      onChange={(value) => set('validFrom', value)}
                     />
                     {errors.validFrom && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.validFrom}</p>}
                   </div>
                   <div className="expense-group">
                     <label htmlFor="validTo" className="expense-label">Hiệu lực đến <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <input
-                      type="date"
+                    <DateInput
                       name="validTo"
                       id="validTo"
                       className="expense-input"
                       value={form.validTo}
-                      onChange={e => set('validTo', e.target.value)}
+                      onChange={(value) => set('validTo', value)}
                     />
                     {errors.validTo && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.validTo}</p>}
                   </div>

@@ -2,19 +2,19 @@ import { Check, Loader2, Plus, Upload, X } from 'lucide-react';
 import { formatDate } from '../lib/format';
 import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
+import { DateInput } from '../design-system/forms/DateInput';
 
 interface BasicFieldsProps { form: FormState; errors: Record<string, string>; isEdit: boolean; existingExpense?: ExpenseWithRefs; set: <K extends keyof FormState>(key: K, value: FormState[K]) => void }
 export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set }: BasicFieldsProps) {
   return <>
                   <div className="expense-group">
                     <label htmlFor="expenseDate" className="expense-label">Ngày phát sinh chi phí <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <input
-                      type="date"
+                    <DateInput
                       name="expenseDate"
                       id="expenseDate"
                       className="expense-input"
                       value={form.expenseDate}
-                      onChange={e => set('expenseDate', e.target.value)}
+                      onChange={(value) => set('expenseDate', value)}
                     />
                     {errors.expenseDate && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.expenseDate}</p>}
                   </div>

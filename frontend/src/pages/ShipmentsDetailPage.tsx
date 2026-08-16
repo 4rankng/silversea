@@ -20,7 +20,7 @@ import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
-import { EmptyState, Pagination } from '../design-system';
+import { EmptyState, Pagination, BufferedUuiDateInput } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   ShipmentContainerLedger,
@@ -470,8 +470,8 @@ export default function ShipmentsDetailPage() {
         <div className="shipments-detail-workspace__header">
           <div className="shipments-detail-filters">
             <UUIInput label="Container, Bill/Booking hoặc tờ khai" size="sm" icon={Search} value={searchInput} onChange={updateSearch} placeholder="Nhập 4–5 ký tự cuối" hint={searchError ?? undefined} isInvalid={Boolean(searchError)} inputProps={{ maxLength: 5, autoCapitalize: 'characters', autoCorrect: 'off', spellCheck: false }} className="shipments-detail-filter shipments-detail-filter--search" />
-            <UUIInput label="Từ ngày vận chuyển" size="sm" type="date" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
-            <UUIInput label="Đến ngày vận chuyển" size="sm" type="date" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
+            <BufferedUuiDateInput label="Từ ngày vận chuyển" size="sm" value={dateFrom} onChange={(value) => updateParam('transportDateFrom', value || null)} inputProps={{ max: dateTo || undefined }} className="shipments-detail-filter" />
+            <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
             <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
           </div>

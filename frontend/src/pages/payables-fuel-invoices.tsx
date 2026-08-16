@@ -8,7 +8,7 @@ import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { round2dp } from '../lib/round';
 import { Panel, Modal } from '../components/UI';
-import { SearchableSelect } from '../design-system';
+import { SearchableSelect, DateInput } from '../design-system';
 import { useAuth } from '../hooks/useAuth';
 import { useAllSuppliers } from '../hooks/useCatalogQueries';
 import {
@@ -418,15 +418,14 @@ function FuelInvoiceEditor({
         </div>
         <div className="field">
           <label htmlFor="fuel-invoice-date">Ngày hóa đơn <span className="req" aria-hidden="true">*</span></label>
-          <input
+          <DateInput
             id="fuel-invoice-date"
             className="input"
-            type="date"
             value={form.invoiceDate}
-            onChange={(event) => setForm((current) => ({
+            onChange={(value) => setForm((current) => ({
               ...current,
-              invoiceDate: event.target.value,
-              allocations: current.allocations.map((row) => row.voucherDate ? row : { ...row, voucherDate: event.target.value }),
+              invoiceDate: value,
+              allocations: current.allocations.map((row) => row.voucherDate ? row : { ...row, voucherDate: value }),
             }))}
           />
         </div>
@@ -560,14 +559,13 @@ function FuelInvoiceEditor({
                 </div>
                 <div className="field">
                   <label htmlFor={`fuel-voucher-date-${row.localId}`}>Ngày đổ dầu</label>
-                  <input
+                  <DateInput
                     id={`fuel-voucher-date-${row.localId}`}
                     className="input"
-                    type="date"
                     value={row.voucherDate}
-                    onChange={(event) => updateRow(row.localId, (current) => ({
+                    onChange={(value) => updateRow(row.localId, (current) => ({
                       ...current,
-                      voucherDate: event.target.value,
+                      voucherDate: value,
                     }))}
                   />
                 </div>
