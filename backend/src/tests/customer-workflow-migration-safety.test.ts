@@ -153,6 +153,8 @@ describe('customer workflow migration safety', () => {
       { idx: 7, tag: '0007_backfill_shipment_shipping_line' },
       { idx: 8, tag: '0008_fair_stephen_strange' },
       { idx: 9, tag: '0009_neat_doctor_octopus' },
+      { idx: 10, tag: '0010_backfill-shipment-document-reference-invariant' },
+      { idx: 11, tag: '0011_mean_vulture' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);

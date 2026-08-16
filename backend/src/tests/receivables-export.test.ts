@@ -6,7 +6,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
@@ -41,31 +41,36 @@ before(async () => {
     });
   });
 
-  // Fetch admin and driver users (create mock ones if needed, or query existing ones)
-  let [adm] = await db.select().from(s.users).where(eq(s.users.role, Role.ADMIN)).limit(1);
+  // Fetch admin and driver users (create mock ones if needed, or query existing ones).
+  // Filter to ACTIVE rows: leftover INACTIVE users from other suites would
+  // fail authMiddleware's status re-check with a 401.
+  let [adm] = await db.select().from(s.users).where(and(eq(s.users.role, Role.ADMIN), eq(s.users.status, 'ACTIVE'))).limit(1);
   if (!adm) {
     [adm] = await db.insert(s.users).values({
       username: 'test_admin_export',
       passwordHash: 'dummy',
       role: Role.ADMIN,
+      status: 'ACTIVE',
     }).returning();
   }
 
-  let [acc] = await db.select().from(s.users).where(eq(s.users.role, Role.ACCOUNTANT)).limit(1);
+  let [acc] = await db.select().from(s.users).where(and(eq(s.users.role, Role.ACCOUNTANT), eq(s.users.status, 'ACTIVE'))).limit(1);
   if (!acc) {
     [acc] = await db.insert(s.users).values({
       username: 'test_acc_export',
       passwordHash: 'dummy',
       role: Role.ACCOUNTANT,
+      status: 'ACTIVE',
     }).returning();
   }
 
-  let [drv] = await db.select().from(s.users).where(eq(s.users.role, Role.DRIVER)).limit(1);
+  let [drv] = await db.select().from(s.users).where(and(eq(s.users.role, Role.DRIVER), eq(s.users.status, 'ACTIVE'))).limit(1);
   if (!drv) {
     [drv] = await db.insert(s.users).values({
       username: 'test_drv_export',
       passwordHash: 'dummy',
       role: Role.DRIVER,
+      status: 'ACTIVE',
     }).returning();
   }
 

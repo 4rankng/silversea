@@ -140,6 +140,13 @@ async function createScopedCusSession(scopedCustomerId?: number) {
       userId: user.id,
       customerId: scopedCustomerId,
     });
+    // CUS scope needs BOTH a business-unit link and a customer/shipment link
+    // (hasAnyClerkShipmentAssignment); the bulk fixtures assign
+    // responsibleUnitId = clerkBusinessUnitId.
+    await db.insert(s.userBusinessUnitLinks).values({
+      userId: user.id,
+      businessUnitId: clerkBusinessUnitId,
+    });
   }
   return {
     user,
@@ -486,7 +493,10 @@ after(async () => {
 // downstream tests (transition / dispatch / etc.). Records the id for cleanup.
 async function mkShipmentViaService(overrides: Record<string, unknown> = {}) {
   const { createShipment } = await import('../services/shipment.service');
-  const shipment = await createShipment({ customerId, ...overrides });
+  // Default responsibleUnitId to the clerk's business unit so the shipment is
+  // inside the clerk scope (buildShipmentScopeWhere requires unit + customer
+  // assignment); tests may still override it explicitly.
+  const shipment = await createShipment({ customerId, responsibleUnitId: clerkBusinessUnitId, ...overrides });
   createdShipmentIds.push(shipment.id);
   return shipment;
 }
@@ -1008,16 +1018,27 @@ describe('GET /', () => {
 
   test('supports server-side q search across code, BL, booking, customer, factory, and shipping line', async () => {
     const searchCustomer = await mkCustomer();
+    // Import shipments carry a Bill; export shipments carry a Booking — the
+    // document-reference invariant forbids both on one row, so split the
+    // searchable references across two shipments of the same customer.
     const target = await mkShipmentViaService({
       customerId: searchCustomer.id,
-      bookingRef: `BOOK-${suffix}`,
+      tradeDirection: 'IMPORT',
+      bookingRef: null,
       blNumber: `BL-${suffix}`,
+      factoryName: `Factory ${suffix}`,
+      shippingLineName: `Line ${suffix}`,
+    });
+    const exportTarget = await mkShipmentViaService({
+      customerId: searchCustomer.id,
+      tradeDirection: 'EXPORT',
+      bookingRef: `BOOK-${suffix}`,
+      blNumber: null,
       factoryName: `Factory ${suffix}`,
       shippingLineName: `Line ${suffix}`,
     });
     const distractor = await mkShipmentViaService({
       bookingRef: `OTHER-${suffix}`,
-      blNumber: `OTHER-BL-${suffix}`,
       factoryName: `Other Factory ${suffix}`,
       shippingLineName: `Other Line ${suffix}`,
     });
@@ -1032,7 +1053,7 @@ describe('GET /', () => {
     ]) {
       const r = await testFetch(`/?q=${encodeURIComponent(String(query))}&page=1&limit=20`, { token: adminToken });
       assert.equal(r.status, 200);
-      assert.ok(r.data.items.some((row: { id: number }) => row.id === target.id), `search matches ${query}`);
+      assert.ok(r.data.items.some((row: { id: number }) => row.id === target.id || row.id === exportTarget.id), `search matches ${query}`);
       assert.ok(!r.data.items.every((row: { id: number }) => row.id === distractor.id), 'search is not only the distractor');
     }
   });
