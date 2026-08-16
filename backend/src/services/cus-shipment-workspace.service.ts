@@ -267,6 +267,21 @@ function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+function vietnamDate(value: Date | null): string | null {
+  if (!value) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+function containerTransportDateSql() {
+  return sql<string>`coalesce((${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')::date, ${s.shipments.expectedDeliveryDate})`;
+}
+
 const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
   'bookingRef', 'blNumber', 'closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes',
 ]);
@@ -900,6 +915,8 @@ function buildListItem(
   return {
     id: row.shipment.id,
     version: row.shipment.version,
+    status: canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE,
+    cargoMode: row.shipment.cargoMode,
     bucket,
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
     customerName: row.customerName,
@@ -1140,11 +1157,14 @@ async function buildShipmentPageConditions(
     ne(s.shipments.status, ShipmentStatus.CANCELED),
     ...(await buildScopeConditions(actor)),
   ];
+  const transportDate = searchMode === 'container'
+    ? containerTransportDateSql()
+    : s.shipments.expectedDeliveryDate;
   if (query.transportDateFrom) {
-    conditions.push(sql`${s.shipments.expectedDeliveryDate} >= ${query.transportDateFrom}`);
+    conditions.push(sql`${transportDate} >= ${query.transportDateFrom}`);
   }
   if (query.transportDateTo) {
-    conditions.push(sql`${s.shipments.expectedDeliveryDate} <= ${query.transportDateTo}`);
+    conditions.push(sql`${transportDate} <= ${query.transportDateTo}`);
   }
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));
@@ -1317,8 +1337,8 @@ export async function listCusShipmentContainers(
       .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
       .where(and(...conditions))
       .orderBy(
-        asc(sql`case when ${s.shipments.expectedDeliveryDate} is null then 0 else 1 end`),
-        asc(s.shipments.expectedDeliveryDate),
+        asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
+        asc(containerTransportDateSql()),
         desc(s.shipments.createdAt),
         asc(s.shipmentContainers.id),
       )
@@ -1364,7 +1384,7 @@ export async function listCusShipmentContainers(
       plateNumber: line.plateNumber,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,
-      transportDate: row.shipment.expectedDeliveryDate,
+      transportDate: vietnamDate(container.customerAppointmentAt) ?? row.shipment.expectedDeliveryDate,
       closingAt: row.shipment.closingAt?.toISOString() ?? null,
       plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
       customerAppointmentAt: line.customerAppointmentAt,

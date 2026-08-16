@@ -19,6 +19,7 @@ import {
 import {
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
+  SHIPMENT_STATUS_LABELS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   Role,
@@ -258,9 +259,10 @@ const BUCKET_ICONS = {
 
 function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const Icon = BUCKET_ICONS[item.bucket];
+  const label = item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel;
   return (
     <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>
-      <Icon size={14} aria-hidden="true" /> {item.bucketLabel}
+      <Icon size={14} aria-hidden="true" /> {label}
     </span>
   );
 }
@@ -1322,7 +1324,7 @@ export default function ShipmentsPage() {
           [item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
           [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
           [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
-          [item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
+          [item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
         ]),
         {
           title: 'Tổng quan lô hàng',
@@ -1618,7 +1620,11 @@ export default function ShipmentsPage() {
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
                             <strong className="cus-cargo-summary__containers">{item.containerSummary || worksheetQuantity(item)}</strong>
-                            <span className="cus-cargo-summary__metrics">{formatQuantity(item.weightKg)} kg · {item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : 'Chưa có CBM'}</span>
+                            <span className="cus-cargo-summary__metrics">
+                              {item.cargoMode === 'LCL'
+                                ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
+                                : `${formatQuantity(item.weightKg)} kg`}
+                            </span>
                           </span></button>
                         </td>
                         <td data-label="Lịch trình & điều xe" className="cus-dashboard-cell--editable">
@@ -1634,6 +1640,9 @@ export default function ShipmentsPage() {
                           >
                             <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                             <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
+                            {item.customerAppointmentAts.map((appointment) => (
+                              <span key={appointment}>{item.direction === 'IMPORT' ? 'Trả' : 'Đóng'}: {formatDateTime(appointment)}</span>
+                            ))}
                             <span>{vehicleReadinessLabel(item)}</span>
                           </button>
                         </td>
@@ -1666,7 +1675,7 @@ export default function ShipmentsPage() {
                               className="cus-dashboard-detail"
                               aria-haspopup="dialog"
                               aria-controls={'cus-detail-drawer-' + item.id}
-                              aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel}
+                              aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
                               onPress={() => openShipmentDetail(item.id)}
                               isDisabled={editing}
                               iconTrailing={ChevronRight}

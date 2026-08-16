@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  ShipmentStatus,
 } from '../constants';
 
 const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
@@ -118,6 +119,8 @@ const shipmentCusWorkspaceShipmentFieldAccessSchema = z.object({
 export const shipmentCusWorkspaceListItemSchema = z.object({
   id: z.number().int().positive(),
   version: z.number().int().positive(),
+  status: z.nativeEnum(ShipmentStatus),
+  cargoMode: z.enum(['FCL', 'LCL']).nullable(),
   bucket: z.nativeEnum(ShipmentCusBucket),
   bucketLabel: z.string(),
   customerName: z.string().nullable(),

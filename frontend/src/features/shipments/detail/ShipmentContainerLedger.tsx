@@ -57,8 +57,7 @@ export interface ShipmentVehicleDraft {
 }
 
 export interface ShipmentScheduleDraft {
-  transportDate: string | null;
-  scheduleAt: string | null;
+  customerAppointmentAt: string | null;
 }
 
 export interface ShipmentNotesDraft {
@@ -98,7 +97,7 @@ function formatDate(value: string | null): string {
 }
 
 function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
-  const value = row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt;
+  const value = row.customerAppointmentAt;
   const input = formatVietnamDateTimeInput(value);
   return input ? input.slice(11, 16) : null;
 }
@@ -179,7 +178,8 @@ function InlineEditor({
   const [carrierId, setCarrierId] = useState(initialCarrier);
   const [newCarrierName, setNewCarrierName] = useState('');
   const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
-  const [transportDate, setTransportDate] = useState(row.transportDate ?? '');
+  const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
+  const [transportDate, setTransportDate] = useState(appointmentInput?.slice(0, 10) ?? row.transportDate ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
@@ -235,7 +235,7 @@ function InlineEditor({
     : mode === 'vehicle'
       ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
       : mode === 'schedule'
-        ? transportDate !== (row.transportDate ?? '')
+        ? transportDate !== (appointmentInput?.slice(0, 10) ?? row.transportDate ?? '')
           || scheduleTime !== (formatScheduleTime(row) ?? '')
         : customerNotes.trim() !== (row.customerNotes ?? '').trim()
           || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
@@ -308,8 +308,7 @@ function InlineEditor({
       } else if (mode === 'schedule') {
         if (scheduleTime && !transportDate) throw new Error('Chọn ngày vận chuyển trước khi nhập giờ.');
         await onSaveSchedule(line, row, {
-          transportDate: transportDate || null,
-          scheduleAt: transportDate && scheduleTime ? `${transportDate}T${scheduleTime}` : null,
+          customerAppointmentAt: transportDate ? `${transportDate}T${scheduleTime || '12:00'}` : null,
         });
       } else {
         await onSaveNotes(row, {
@@ -393,9 +392,8 @@ function InlineEditor({
       )}
       {mode === 'schedule' && (
         <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-          <label><span>Ngày vận chuyển</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
-          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !row.shipmentScheduleEditable} /></label>
-          <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
+          <label><span>{row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'}</span><input type="date" value={transportDate} onChange={(event) => setTransportDate(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
+          <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><input type="time" value={scheduleTime} onChange={(event) => setScheduleTime(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
         </div>
       )}
       {mode === 'notes' && (
@@ -536,6 +534,7 @@ export function ShipmentContainerLedger({
               const edit = activeEdit?.row.id === row.id ? activeEdit : null;
               const missingDate = row.transportDate == null;
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
+              const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
               const scheduleTime = formatScheduleTime(row);
               const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
@@ -570,11 +569,11 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
+                    {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    {editableCell(row, 'schedule', row.shipmentScheduleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
+                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(appointmentInput?.slice(0, 10) ?? row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">

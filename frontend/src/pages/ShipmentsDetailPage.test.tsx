@@ -92,7 +92,7 @@ beforeEach(() => {
 });
 
 describe('ShipmentsDetailPage — DOCX container workboard', () => {
-  it('loads all dates by default and renders the seven multi-line groups with warning semantics', async () => {
+  it('loads today by default and renders the seven multi-line groups with warning semantics', async () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
@@ -126,9 +126,19 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sổ điều hành container')).toBeNull();
     expect(screen.queryByText('Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tất cả ngày' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tất cả ngày' })).toBeTruthy();
+    expect(document.querySelector('.shipment-container-ledger__route i')).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
-    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
+    expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
+  });
+
+  it('can show all dates and return to today', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tất cả ngày' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    fireEvent.click(screen.getByRole('button', { name: 'Về hôm nay' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
   it('keeps a fully read-only document group as a labelled value, not an editable cell', async () => {
@@ -240,7 +250,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter initialEntries={['/?page=-2&transportDateFrom=2026-08-31&transportDateTo=2026-08-01&customerId=7.5&direction=SIDEWAYS&searchSuffix=ABC!']}><ShipmentsDetailPage /></MemoryRouter>);
 
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
     expect(await screen.findByRole('region', { name: 'Danh sách container' })).toBeTruthy();
   });
 
@@ -273,8 +283,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.getByText(/Chiều hàng: Nhập/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
-    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(screen.queryByText('Đang lọc')).toBeNull();
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
+    expect(screen.getByText('Đang lọc')).toBeTruthy();
   });
 
   it('rejects an invalid suffix without issuing a filtered request', async () => {
@@ -389,22 +399,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ })));
   });
 
-  it('saves shipment-scoped schedule through the existing versioned shipment update', async () => {
+  it('saves the selected container schedule without changing the whole shipment', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
-    apiPut.mockResolvedValueOnce({ version: 8 });
+    apiPost.mockResolvedValueOnce({ line: detail.containers[0] });
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Ngày vận chuyển'), { target: { value: '2026-08-22' } });
+    fireEvent.change(await screen.findByLabelText('Ngày đóng hàng'), { target: { value: '2026-08-22' } });
     fireEvent.change(screen.getByLabelText('Giờ đóng hàng'), { target: { value: '09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
 
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({
-      expectedVersion: 7,
-      expectedDeliveryDate: '2026-08-22',
-      closingAt: '2026-08-22T09:30:00+07:00',
-    })));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
+      expectedShipmentVersion: 7,
+      customerAppointmentAt: '2026-08-22T09:30:00+07:00',
+    }, { headers: { 'Idempotency-Key': expect.any(String) } }));
   });
 
   it('does not render a redundant customer-appointment row in the detail ledger', async () => {
@@ -451,7 +460,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
 
-    expect((await screen.findByRole('status')).textContent).toContain('Đã tải bản mới nhất');
+    await waitFor(() => expect(screen.getAllByRole('status').some((element) => element.textContent?.includes('Đã tải bản mới nhất'))).toBe(true));
     expect(screen.getByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeTruthy();
     expect(screen.getByLabelText('Điểm hạ').textContent).toContain('DV · Cảng Đình Vũ');
     fireEvent.click(screen.getByLabelText('Điểm nâng'));

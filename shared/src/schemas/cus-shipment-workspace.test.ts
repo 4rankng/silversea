@@ -9,6 +9,7 @@ import {
 import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  ShipmentStatus,
 } from '../constants';
 
 const directField = { mode: 'DIRECT' as const, reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
@@ -52,6 +53,8 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
   assert.equal(shipmentCusWorkspaceListItemSchema.safeParse({
     id: 1,
     version: 2,
+    status: ShipmentStatus.READY_FOR_DISPATCH,
+    cargoMode: 'FCL',
     bucket: ShipmentCusBucket.PENDING_LOCK,
     bucketLabel: 'Chờ khóa',
     customerName: 'Công ty A',
@@ -137,6 +140,8 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
   const parsed = shipmentCusWorkspaceListItemSchema.safeParse({
     id: 1,
     version: 1,
+    status: ShipmentStatus.PENDING_DATE,
+    cargoMode: null,
     bucket: ShipmentCusBucket.PENDING_LOCK,
     bucketLabel: 'Chờ khóa',
     customerName: null,

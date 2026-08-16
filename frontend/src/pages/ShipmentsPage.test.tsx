@@ -7,6 +7,7 @@ import {
   Role,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  ShipmentStatus,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 
@@ -36,6 +37,8 @@ const directAccess = { mode: 'DIRECT' as const, reason: 'Có thể sửa.' };
 const row: ShipmentCusWorkspaceListItem = {
   id: 1,
   version: 3,
+  status: ShipmentStatus.READY_FOR_DISPATCH,
+  cargoMode: 'FCL',
   bucket: ShipmentCusBucket.PENDING_LOCK,
   bucketLabel: 'Chờ khóa',
   customerName: 'Công ty Silver Sea',
@@ -299,6 +302,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByText('Công ty Silver Sea')).toBeTruthy();
     expect(surface.getByText('Hải Phòng → Hà Nội')).toBeTruthy();
     expect(surface.getByText('TK-54321')).toBeTruthy();
+    expect(surface.queryByText(/CBM/)).toBeNull();
+    expect(surface.getByText(/12\/8\/2026/)).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Xem chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
@@ -308,6 +313,25 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
     expect(within(dialog).getByRole('article', { name: 'MSKU1234567' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+  });
+
+  it('shows the actual ready-for-dispatch status instead of the generic new bucket label', async () => {
+    apiGet.mockResolvedValue(listResponse([{
+      ...row,
+      bucket: ShipmentCusBucket.NEW,
+      bucketLabel: 'Mới tạo',
+      status: ShipmentStatus.READY_FOR_DISPATCH,
+    }]));
+    renderPage();
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('Sẵn sàng điều xe')).toBeTruthy();
+    expect(within(table).queryByText('Mới tạo')).toBeNull();
+  });
+
+  it('shows CBM only for LCL cargo', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
+    renderPage();
+    expect(await screen.findByText(/52,5 CBM/)).toBeTruthy();
   });
 
   it('keeps the detail action visually attached to its shipment status evidence', async () => {
@@ -350,7 +374,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('shows every container type in a compact cargo summary without an ellipsis', async () => {
-    apiGet.mockResolvedValue(listResponse([{ ...row, containerSummary: '1x40HC + 1x20DC' }]));
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL', containerSummary: '1x40HC + 1x20DC' }]));
 
     renderPage();
     const containerSummary = await screen.findByText('1x40HC + 1x20DC');

@@ -67,7 +67,7 @@ function canEditMode(
   if (mode === 'container') return ['containerNumber', 'containerTypeId', 'cargoWeightKg', 'cargoVolumeCbm'].some((field) => line.fieldAccess[field as 'containerNumber'].mode !== 'READ_ONLY');
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
-  if (mode === 'schedule') return detail.summary.operational.transportDateEditable;
+  if (mode === 'schedule') return line.permissions.customerAppointmentEditable;
   return ['customerNotes', 'operationalNotes'].some((field) => detail.summary.fieldAccess[field as 'customerNotes'].mode !== 'READ_ONLY');
 }
 
@@ -92,9 +92,10 @@ export default function ShipmentsDetailPage() {
   const suffixParam = SEARCH_PATTERN.test(rawSuffix) ? rawSuffix.toUpperCase() : '';
   const parsedDateFrom = readIsoDate(searchParams.get('transportDateFrom'));
   const parsedDateTo = readIsoDate(searchParams.get('transportDateTo'));
+  const allDates = searchParams.get('dateScope') === 'all';
   const datesAreOrdered = !parsedDateFrom || !parsedDateTo || parsedDateFrom <= parsedDateTo;
-  const dateFrom = datesAreOrdered ? parsedDateFrom : '';
-  const dateTo = datesAreOrdered ? parsedDateTo : '';
+  const dateFrom = datesAreOrdered ? (parsedDateFrom || (!allDates && !parsedDateTo ? today : '')) : today;
+  const dateTo = datesAreOrdered ? (parsedDateTo || (!allDates && !parsedDateFrom ? today : '')) : today;
   const customerId = readPositiveInteger(searchParams.get('customerId'));
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
@@ -210,8 +211,26 @@ export default function ShipmentsDetailPage() {
     appliedSearchRef.current = '';
     setSearchInput('');
     setSearchError(null);
-    setSearchParams({}, { replace: true });
+    setSearchParams({ transportDateFrom: today, transportDateTo: today }, { replace: true });
   };
+
+  const showAllDates = () => setSearchParams((current) => {
+    const next = new URLSearchParams(current);
+    next.delete('transportDateFrom');
+    next.delete('transportDateTo');
+    next.set('dateScope', 'all');
+    next.delete('page');
+    return next;
+  }, { replace: true });
+
+  const showToday = () => setSearchParams((current) => {
+    const next = new URLSearchParams(current);
+    next.delete('dateScope');
+    next.set('transportDateFrom', today);
+    next.set('transportDateTo', today);
+    next.delete('page');
+    return next;
+  }, { replace: true });
 
   const cancelEdit = useCallback(() => {
     editRequestSequence.current += 1;
@@ -395,21 +414,26 @@ export default function ShipmentsDetailPage() {
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
-  const saveSchedule = useCallback(async (_line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
-    const scheduleAt = draft.scheduleAt ? localDateTimeToIso(draft.scheduleAt) : null;
+  const saveSchedule = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
+    if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
+    const appointmentAt = draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null;
+    const signature = JSON.stringify(['schedule', activeEdit.detail.summary.id, line.id, line.shipmentVersion, appointmentAt]);
+    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
+    editIdempotencyKeys.current[signature] = key;
     try {
-      await updateShipment(row.shipmentId, {
-        expectedVersion: row.shipmentVersion,
-        expectedDeliveryDate: draft.transportDate,
-        ...(row.direction === 'IMPORT' ? { plannedReturnAt: scheduleAt } : { closingAt: scheduleAt }),
-      });
+      await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+        customerAppointmentAt: appointmentAt,
+      }, key);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      delete editIdempotencyKeys.current[signature];
       await recoverConflict(row, 'schedule');
       return;
     }
+    delete editIdempotencyKeys.current[signature];
     await finishSave();
-  }, [finishSave, recoverConflict]);
+  }, [activeEdit, finishSave, recoverConflict]);
 
   const saveNotes = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => {
     try {
@@ -440,6 +464,10 @@ export default function ShipmentsDetailPage() {
             <UUIInput label="Đến ngày vận chuyển" size="sm" type="date" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
             <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
+          </div>
+          <div className="shipments-detail-filters__date-actions">
+            {(dateFrom !== today || dateTo !== today) && <UUIButton size="xs" color="secondary" onPress={showToday}>Về hôm nay</UUIButton>}
+            {!allDates && <UUIButton size="xs" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
           </div>
           {hasFilters && (
             <div className="shipments-detail-filters__meta">
