@@ -11,12 +11,12 @@
  * Run with:  cd frontend && PLAYWRIGHT_BROWSERS_PATH=... node ../qa/2026-08-16_cus-qa/cus-qa.mjs
  */
 import { chromium } from '@playwright/test';
-import { mkdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const BASE = process.env.BASE_URL || 'http://localhost:7174';
 const USERNAME = process.env.CUS_USER || 'cus';
-const PASSWORD = process.env.CUS_PASS || 'Abc123';
+const PASSWORD = process.env.CUS_PASS;
 const OUT = 'qa/2026-08-16_cus-qa';
 const SCREENS = `${OUT}/screens`;
 
@@ -79,6 +79,7 @@ async function shot(page, name) {
 async function clickableInventory(page) {
   return await page.evaluate(() => {
     const out = [];
+    // eslint-disable-next-line no-undef -- runs in browser context
     const els = document.querySelectorAll('button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], select, input[type="checkbox"], input[type="radio"], [contenteditable]');
     els.forEach((el) => {
       const r = el.getBoundingClientRect();
@@ -98,7 +99,7 @@ async function clickableInventory(page) {
   });
 }
 
-async function visit(page, label, url, errors) {
+async function visit(page, label, url) {
   log(`-- [${now()}] visit ${label} -> ${url}`);
   await page.goto(`${BASE}${url}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
@@ -133,7 +134,7 @@ async function main() {
   for (const v of VIEWPORTS) {
     await page.setViewportSize({ width: v.width, height: v.height });
     for (const p of cusPages) {
-      const r = await visit(page, `${p.label}_${v.name}`, p.path, errors);
+      const r = await visit(page, `${p.label}_${v.name}`, p.path);
       inventory.push({ viewport: v.name, page: p.label, url: r.url, clickables: r.inv });
     }
   }
@@ -153,7 +154,7 @@ async function main() {
     log(`>>> using shipmentId=${shipmentId}`);
     for (const v of VIEWPORTS) {
       await page.setViewportSize({ width: v.width, height: v.height });
-      const r = await visit(page, `shipment-detail_${v.name}`, `/shipments/${shipmentId}`, errors);
+      const r = await visit(page, `shipment-detail_${v.name}`, `/shipments/${shipmentId}`);
       inventory.push({ viewport: v.name, page: 'shipment-detail', url: r.url, clickables: r.inv });
     }
   } else {
