@@ -61,6 +61,10 @@ __pycache__/
 frontend/qa-*.js
 qa/scripts/*
 
+# AI workflow artifacts (local only)
+plans/
+prompts/
+
 # Session state (never commit)
 HANDOFF.md
 qa/
