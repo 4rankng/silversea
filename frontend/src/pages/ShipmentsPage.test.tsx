@@ -559,6 +559,98 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
+  it('edits bill, booking, and declaration from the Chứng từ cell in one save', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    expect(within(dialog).getByLabelText('Số Bill')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Số Booking')).toBeTruthy();
+    expect((within(dialog).getByLabelText('Số tờ khai') as HTMLInputElement).value).toBe('TK-54321');
+
+    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-99999' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3,
+      blNumber: 'BILL-12345',
+      bookingRef: null,
+    })));
+    // Existing declaration (fixture declarationId 9) is updated in place with
+    // its scope resent verbatim so the whole-row PUT keeps the metadata.
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', {
+      declarationNumber: 'TK-99999',
+      issuedAt: null,
+      scope: 'SINGLE',
+      note: null,
+    }));
+    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+  });
+
+  it('creates a declaration when the shipment has none yet', async () => {
+    const noDeclaration: ShipmentCusWorkspaceListItem = {
+      ...row,
+      declarationNumber: null,
+      raw: { ...row.raw, declarationNumber: null, declarationId: null, declarationScope: null },
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([noDeclaration]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-NEW-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/1/declarations', {
+      declarationNumber: 'TK-NEW-1',
+      issuedAt: null,
+      note: null,
+    }));
+    expect(apiPut).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'));
+    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+  });
+
+  it('saves only the declaration when bill and booking are read-only', async () => {
+    const declarationOnlyRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      fieldAccess: {
+        ...row.fieldAccess,
+        blNumber: { mode: 'READ_ONLY', reason: 'Chỉ CUS được sửa bill.' },
+        bookingRef: { mode: 'READ_ONLY', reason: 'Chỉ CUS được sửa booking.' },
+      },
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([declarationOnlyRow]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    expect((within(dialog).getByLabelText('Số Bill') as HTMLInputElement).disabled).toBe(true);
+    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-ONLY-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', expect.objectContaining({
+      declarationNumber: 'TK-ONLY-1',
+    })));
+    expect(apiPut).not.toHaveBeenCalledWith('/shipments/1', expect.anything());
+    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+  });
+
   it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', async () => {
     renderPage();
     const table = await screen.findByRole('table');

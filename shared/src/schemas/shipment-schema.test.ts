@@ -31,3 +31,18 @@ test('shipment schemas preserve nullable delivery-date compatibility', () => {
   assert.equal(createShipmentSchema.safeParse({ customerId: 1, expectedDeliveryDate: null }).success, true);
   assert.equal(updateShipmentSchema.safeParse({ expectedVersion: 1, expectedDeliveryDate: null }).success, true);
 });
+
+test('shipment schemas reject a Bill and Booking on the same shipment', () => {
+  assert.equal(createShipmentSchema.safeParse({
+    customerId: 1,
+    tradeDirection: 'IMPORT',
+    blNumber: 'BL-IMPORT-01',
+    bookingRef: 'BOOK-EXPORT-01',
+  }).success, false);
+  assert.equal(updateShipmentSchema.safeParse({
+    expectedVersion: 1,
+    tradeDirection: 'EXPORT',
+    blNumber: 'BL-IMPORT-01',
+    bookingRef: 'BOOK-EXPORT-01',
+  }).success, false);
+});

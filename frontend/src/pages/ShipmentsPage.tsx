@@ -37,6 +37,7 @@ import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
 import { EmptyState, Pagination, SearchableSelect, BufferedUuiDateInput, DateInput } from '../design-system';
 import {
+  createShipmentDeclaration,
   getCusShipmentWorkspaceDetail,
   confirmCusShipmentFinance,
   listCusShipmentWorkspace,
@@ -45,6 +46,7 @@ import {
   updateCusShipmentContainerLine,
   updateCusShipmentDocumentCustody,
   updateShipment,
+  updateShipmentDeclaration,
 } from '../api/shipmentClient';
 import { downloadCSV } from '../lib/csv';
 import { routes } from '../lib/routes';
@@ -143,6 +145,13 @@ interface ShipmentQuickEditDraft {
   factoryName: string;
   blNumber: string;
   bookingRef: string;
+  declarationNumber: string;
+  // Existing declaration identity — needed because the PUT endpoint replaces
+  // the whole row, so the modal must resend issuedAt/scope/note verbatim.
+  declarationId: number | null;
+  declarationIssuedAt: string | null;
+  declarationScope: 'SINGLE' | 'SHARED' | null;
+  declarationNote: string | null;
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   shippingLineName: string;
   packageCount: string;
@@ -177,6 +186,7 @@ function ShipmentQuickEditFields({
   onChange: (draft: ShipmentQuickEditDraft) => void;
 }) {
   const update = (patch: Partial<ShipmentQuickEditDraft>) => onChange({ ...draft, ...patch });
+  const documentDirection = draft.tradeDirection || item.direction || '';
 
   return (
     <div className="cus-quick-edit-modal__fields">
@@ -185,12 +195,14 @@ function ShipmentQuickEditFields({
         <label className="cus-quick-edit-modal__field--full"><span>Nhà máy</span><input autoFocus value={draft.factoryName} onChange={(event) => update({ factoryName: event.target.value })} maxLength={255} disabled={saving} /></label>
       </>}
       {draft.field === 'documents' && <>
-        <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving} /></label>
-        <label><span>Số Booking</span><input value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving} /></label>
-        <p className="cus-quick-edit-modal__help">Tờ khai được quản lý trong hồ sơ chứng từ.</p>
+        {documentDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.blNumber.mode === 'READ_ONLY'} title={item.fieldAccess.blNumber.reason} /></label>}
+        {documentDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.bookingRef.mode === 'READ_ONLY'} title={item.fieldAccess.bookingRef.reason} /></label>}
+        {!documentDirection && <p className="cus-quick-edit-modal__help">Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking.</p>}
+        <label><span>Số tờ khai</span><input value={draft.declarationNumber} onChange={(event) => update({ declarationNumber: event.target.value })} maxLength={50} disabled={saving || item.fieldAccess.declarationNumber.mode === 'READ_ONLY'} title={item.fieldAccess.declarationNumber.reason} /></label>
+        <p className="cus-quick-edit-modal__help">{documentDirection === 'IMPORT' ? 'Hàng Nhập chỉ dùng Số Bill.' : documentDirection === 'EXPORT' ? 'Hàng Xuất chỉ dùng Số Booking.' : 'Số Bill và Số Booking không thể cùng thuộc một lô hàng.'} Tờ khai đã có sẽ được cập nhật số mới.</p>
       </>}
       {draft.field === 'classification' && <>
-        <label><span>Xuất / Nhập</span><select autoFocus value={draft.tradeDirection} onChange={(event) => update({ tradeDirection: event.target.value as ShipmentQuickEditDraft['tradeDirection'] })} disabled={saving}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+        <label><span>Xuất / Nhập</span><select autoFocus value={draft.tradeDirection} onChange={(event) => { const tradeDirection = event.target.value as ShipmentQuickEditDraft['tradeDirection']; update({ tradeDirection, ...(tradeDirection === 'IMPORT' ? { bookingRef: '' } : tradeDirection === 'EXPORT' ? { blNumber: '' } : {}) }); }} disabled={saving}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
         <label><span>Hãng tàu</span><input value={draft.shippingLineName} onChange={(event) => update({ shippingLineName: event.target.value })} maxLength={255} disabled={saving} /></label>
       </>}
       {draft.field === 'cargo' && <>
@@ -1026,7 +1038,7 @@ export default function ShipmentsPage() {
   const startQuickEdit = (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => {
     if (quickEditSaveRef.current || quickEditDraft) return;
     const accessKeys = field === 'identity' ? ['factoryName'] as const
-      : field === 'documents' ? ['blNumber', 'bookingRef'] as const
+      : field === 'documents' ? ['blNumber', 'bookingRef', 'declarationNumber'] as const
         : field === 'classification' ? ['tradeDirection', 'shippingLineName'] as const
           : field === 'cargo' ? ['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'] as const
             : field === 'schedule' ? ['closingAt', 'plannedReturnAt'] as const
@@ -1047,6 +1059,11 @@ export default function ShipmentsPage() {
       factoryName: item.raw.factoryName ?? '',
       blNumber: item.raw.blNumber ?? '',
       bookingRef: item.raw.bookingRef ?? '',
+      declarationNumber: item.raw.declarationNumber ?? '',
+      declarationId: item.raw.declarationId,
+      declarationIssuedAt: item.raw.declarationIssuedAt,
+      declarationScope: item.raw.declarationScope,
+      declarationNote: item.raw.declarationNote,
       tradeDirection: item.raw.tradeDirection ?? '',
       shippingLineName: item.raw.shippingLineName ?? '',
       packageCount: item.raw.packageCount == null ? '' : String(item.raw.packageCount),
@@ -1077,6 +1094,8 @@ export default function ShipmentsPage() {
       ? draft.factoryName.trim() === (item.raw.factoryName ?? '')
       : draft.field === 'documents'
         ? draft.blNumber.trim() === (item.raw.blNumber ?? '') && draft.bookingRef.trim() === (item.raw.bookingRef ?? '')
+          && (item.fieldAccess.declarationNumber.mode === 'READ_ONLY'
+            || draft.declarationNumber.trim() === (item.raw.declarationNumber ?? ''))
         : draft.field === 'classification'
           ? draft.tradeDirection === (item.raw.tradeDirection ?? '') && draft.shippingLineName.trim() === (item.raw.shippingLineName ?? '')
           : draft.field === 'cargo'
@@ -1110,8 +1129,13 @@ export default function ShipmentsPage() {
         factoryName: draft.factoryName.trim() || null,
       } : draft.field === 'documents' ? {
         expectedVersion: item.version,
-        blNumber: draft.blNumber.trim() || null,
-        bookingRef: draft.bookingRef.trim() || null,
+        ...(draft.tradeDirection === 'IMPORT' && item.fieldAccess.blNumber.mode !== 'READ_ONLY' ? {
+          blNumber: draft.blNumber.trim() || null,
+          bookingRef: null,
+        } : draft.tradeDirection === 'EXPORT' && item.fieldAccess.bookingRef.mode !== 'READ_ONLY' ? {
+          bookingRef: draft.bookingRef.trim() || null,
+          blNumber: null,
+        } : {}),
       } : draft.field === 'classification' ? {
         expectedVersion: item.version,
         tradeDirection: draft.tradeDirection || null,
@@ -1133,7 +1157,33 @@ export default function ShipmentsPage() {
             operationalNotes: draft.operationalNote.trim() || null,
             customerNotes: draft.customerNote.trim() || null,
           };
-      const response = await updateShipment(item.id, payload);
+      // Declaration lives in its own table behind its own endpoints; when the
+      // number changed and the actor may write it, upsert alongside the
+      // shipment save. PUT replaces the whole row, so resend issuedAt/scope/
+      // note verbatim to keep the existing metadata.
+      const declarationChanged = draft.field === 'documents'
+        && item.fieldAccess.declarationNumber.mode !== 'READ_ONLY'
+        && draft.declarationNumber.trim() !== (item.raw.declarationNumber ?? '');
+      // When only the declaration changed (bill/booking read-only), skip the
+      // shipment PATCH entirely — an empty body would still bump the version
+      // and fire change-request bookkeeping for nothing.
+      const shipmentKeys = Object.keys(payload).filter((key) => key !== 'expectedVersion');
+      const response = shipmentKeys.length > 0
+        ? await updateShipment(item.id, payload)
+        : { changeMode: 'DIRECT', message: null };
+      if (declarationChanged) {
+        const declarationBody = {
+          declarationNumber: draft.declarationNumber.trim() || null,
+          issuedAt: draft.declarationIssuedAt,
+          scope: draft.declarationScope ?? undefined,
+          note: draft.declarationNote,
+        };
+        if (draft.declarationId != null) {
+          await updateShipmentDeclaration(item.id, draft.declarationId, declarationBody);
+        } else {
+          await createShipmentDeclaration(item.id, declarationBody);
+        }
+      }
       if (restoreFocus) {
         quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
       }
@@ -1142,7 +1192,8 @@ export default function ShipmentsPage() {
         ? response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.'
         : draft.field === 'schedule' ? 'Đã cập nhật lịch đóng/trả.'
           : draft.field === 'notes' ? 'Đã cập nhật ghi chú lô hàng.'
-            : 'Đã lưu ô dữ liệu lô hàng.');
+            : draft.field === 'documents' && declarationChanged ? 'Đã cập nhật chứng từ lô hàng.'
+              : 'Đã lưu ô dữ liệu lô hàng.');
       setDetails((current) => {
         const next = { ...current };
         delete next[item.id];
@@ -1603,7 +1654,7 @@ export default function ShipmentsPage() {
                           </span></button>
                         </th>
                         <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
-                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
+                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
                             <strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
                             <span>{item.declarationNumber || 'Chưa có tờ khai'}</span>
                           </span></button>
