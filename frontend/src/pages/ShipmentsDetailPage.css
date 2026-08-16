@@ -88,14 +88,14 @@
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
-.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state),
+.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state):not(.shipment-container-ledger__row-warning),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: inherit; }
 .shipment-container-ledger__multiline > span { color: var(--ink-2); }
 .shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; }
-.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; align-items: center; gap: 4px; margin-top: 3px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); }
-.shipment-container-ledger__row-warning svg { width: 13px; height: 13px; }
+.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; align-items: center; gap: 4px; margin-top: 3px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); white-space: nowrap; }
+.shipment-container-ledger__row-warning svg { width: 13px; height: 13px; flex: 0 0 13px; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 .shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 1px 5px; border-radius: 999px; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .shipment-container-ledger__direction--import { background: var(--info-soft); color: var(--info-text); }
@@ -204,6 +204,7 @@
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
 .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
 .shipment-container-ledger__edit-action { display: inline-flex; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 13px; }
+.shipment-container-ledger__edit-action [data-text] { display: none; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: 11px; line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; }
 .shipment-container-ledger__recovery { display: block; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; }
@@ -235,7 +236,7 @@
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
-  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell::before { display: none; }
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell::before { display: none; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor {
     position: static;
     inset: auto;
@@ -279,6 +280,16 @@
   .shipment-container-ledger__edit-action { width: 40px; min-width: 40px; height: 40px; }
 }
 
+/* The page chrome is comfortable at tablet width, but a three-column ledger
+   is not: document identifiers and route values need a two-column reading
+   measure before the viewport reaches phone size. */
+@container shipments-detail (max-width: 780px) {
+  .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: 1 / -1; border-right: 0; }
+}
+
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
   .shipments-detail-workspace { border-inline: 0; border-radius: 0; }
@@ -305,6 +316,10 @@
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
   .shipment-container-ledger__edit-action { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .shipment-container-ledger__keyboard-hint { display: none; }
+  .shipment-container-ledger__editor-footer { justify-content: flex-end; }
+  .shipment-container-ledger__edit-action { width: auto; min-width: 44px; padding-inline: 12px; }
+  .shipment-container-ledger__edit-action [data-text] { display: inline; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
 }
@@ -319,6 +334,14 @@
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td,
   .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: auto !important; border-right: 0; }
+  /* An active editor owns its complete record on a phone. Its trigger already
+     supplies the internal spacing, so parent-cell padding must not truncate
+     the normal-flow editor below it. */
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { display: block; padding: 0 0 32px; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell.shipment-container-ledger__editable-cell { padding: 0 0 32px !important; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell::before { display: none; }
+  .shipment-container-ledger__editing-cell > .shipment-container-ledger__cell-editor { display: flex; flex-direction: column; }
+  .shipment-container-ledger__editing-cell .shipment-container-ledger__cell-trigger { margin: 0; }
   .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-trigger,
   .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-trigger,
   .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor,

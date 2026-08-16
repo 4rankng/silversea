@@ -29,6 +29,7 @@ interface DetailedPlanGridProps {
   items: DispatchDetailPlanRow[];
   loading: boolean;
   error: string | null;
+  onRetry: () => void;
   assignmentError: string | null;
   lotBanner: string | null;
   onClearLotBanner: () => void;
@@ -54,6 +55,7 @@ export function DetailedPlanGrid({
   items,
   loading,
   error,
+  onRetry,
   assignmentError,
   lotBanner,
   onClearLotBanner,
@@ -65,7 +67,10 @@ export function DetailedPlanGrid({
     return (
       <>
         <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} />
-        <div className="dispatch-plan-page__error" role="alert">{error}</div>
+        <div className="dispatch-plan-page__error" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
+        </div>
       </>
     );
   }
@@ -136,7 +141,7 @@ export function DetailedPlanGrid({
             <tbody>
               {items.map((row) => (
                 <tr key={row.fulfillmentId} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatDate(row.time.deliveryDate)}
                     </div>
@@ -144,7 +149,7 @@ export function DetailedPlanGrid({
                       Giờ: {row.time.runHour != null ? `${row.time.runHour}H` : '—'}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Khách hàng & lộ trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       KH: {row.customerRoute.customerName}
                     </div>
@@ -155,7 +160,7 @@ export function DetailedPlanGrid({
                       Điểm trả: {row.customerRoute.deliveryPoint ?? '—'}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Chứng từ">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       Bill: {row.docs.billNumber ?? '—'}
                     </div>
@@ -165,7 +170,7 @@ export function DetailedPlanGrid({
                       </span>
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Container">
                     {row.cargoMode === 'FCL' ? (
                       <>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
@@ -185,7 +190,7 @@ export function DetailedPlanGrid({
                       </>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Ghi chú">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
                       Xe: {row.notes.vehicleNote ?? '—'}
                     </div>
@@ -193,7 +198,7 @@ export function DetailedPlanGrid({
                       Khách: {row.notes.customerNote ?? '—'}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell">
+                  <td className="detailed-plan-grid__cell" data-label="Điều phối">
                     <PlateAssignmentCell row={row} onAssign={onAssignPlate} />
                     {row.lotFullyPlated && !row.dispatch.assignedPlate && (
                       <div className="detailed-plan-grid__lot-flag">Đã phân xe</div>

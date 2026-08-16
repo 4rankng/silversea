@@ -138,10 +138,32 @@ describe('MasterPlanFilters', () => {
     expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('grid-template-columns: minmax(280px, 1fr) 132px 204px minmax(396px, 1.12fr)');
+    expect(css).toContain('grid-template-columns: minmax(320px, 1.3fr) minmax(140px, 0.5fr) minmax(208px, 0.72fr) minmax(420px, 1.18fr)');
+    expect(css).toContain('@container (max-width: 1180px)');
     expect(css).toContain('grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
     expect(css).toContain('.master-plan-filters__date-label {\n    grid-column: 1 / -1;');
     expect(css).toContain('.master-plan-filters__date-range');
+  });
+
+  it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const toolbar = css.match(/\.master-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(toolbar).not.toMatch(/\bpadding\s*:/);
+    expect(toolbar).not.toMatch(/\bborder(?:-radius)?\s*:/);
+    expect(toolbar).not.toMatch(/\bbackground\s*:/);
+  });
+
+  it('keeps the master plan edge-to-edge on wide application screens without a manual reload control', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/pages/MasterPlanPage.tsx'), 'utf8');
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
+
+    expect(page).not.toContain('Tải lại');
+    expect(page).not.toContain('dispatch-plan-page__toolbar');
+    expect(page).toContain('dispatch-plan-page--wide');
+    expect(css).toContain('max-width: 1400px');
+    expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');
+    expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
 });

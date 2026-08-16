@@ -52,14 +52,22 @@ describe('shipment detail workboard styling', () => {
   it('uses a dense intermediate ledger grid without empty half-width bands', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > td\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*8px 10px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > :nth-child\(7\)\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('tbody > tr > :nth-child(4),');
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?tbody > tr > :nth-child\(even\)\s*\{[^}]*border-right:\s*0;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*1fr;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?tbody > tr > td\s*\{[^}]*grid-template-columns:\s*88px minmax\(0, 1fr\);/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-column:\s*2;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__cell-editor--expanded\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1 !important;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block;[^}]*padding:\s*0 0 32px;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell\.shipment-container-ledger__editable-cell\s*\{[^}]*padding:\s*0 0 32px !important;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell::before\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell > \.shipment-container-ledger__cell-editor\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__editing-cell \.shipment-container-ledger__cell-trigger\s*\{[^}]*margin:\s*0;/);
   });
 
   it('makes editable values the cell trigger without pencil controls and keeps bounded stacked editor trays', () => {
@@ -86,6 +94,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*36px;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding:\s*0;/);
     expect(css).toMatch(/\.shipment-container-ledger__keyboard-hint\s*\{[^}]*font-size:\s*11px;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*44px;[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__edit-action \[data-text\]\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__keyboard-hint\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*44px;[^}]*padding-inline:\s*12px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__edit-action \[data-text\]\s*\{[^}]*display:\s*inline;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
   });
 
@@ -95,6 +107,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/shipment-container-ledger__vehicle-state/);
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-guidance/);
+    expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
+    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 13px;/);
     expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
     expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);

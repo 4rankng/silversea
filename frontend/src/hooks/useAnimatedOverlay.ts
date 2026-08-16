@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createScope } from 'animejs';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
@@ -158,8 +158,10 @@ export function useAnimatedOverlay({
     };
   }, [visible]);
 
-  // Entrance animation when DOM is mounted (visible && wasOpen)
-  useEffect(() => {
+  // Apply the hidden entrance state before the overlay's first visible paint.
+  // The entrance callbacks begin by resetting opacity/transform, so a passive
+  // effect would briefly paint the CSS default (fully visible) before fading in.
+  useLayoutEffect(() => {
     if (!visible || !wasOpen) return;
     const overlay = overlayRef.current;
     const content = contentRef.current;

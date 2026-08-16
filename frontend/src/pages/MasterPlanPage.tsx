@@ -26,7 +26,7 @@ export default function MasterPlanPage() {
   };
 
   return (
-    <div className="dispatch-plan-page page-anim">
+    <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <PageHeader
         title="Kế hoạch Tổng quát"
         iconName="truck"
@@ -34,20 +34,17 @@ export default function MasterPlanPage() {
       />
 
       <section className="dispatch-plan-page__workspace">
-        <div className="dispatch-plan-page__toolbar">
-          <button
-            type="button"
-            className="btn btn--secondary"
-            onClick={masterPlan.refetch}
-            disabled={masterPlan.loading}
-          >
-            {masterPlan.loading ? 'Đang tải…' : 'Tải lại'}
-          </button>
-        </div>
-
         {masterPlan.error && (
           <div className="dispatch-plan-page__error" role="alert">
-            {masterPlan.error}
+            <span>{masterPlan.error}</span>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={masterPlan.refetch}
+              disabled={masterPlan.loading}
+            >
+              Thử lại
+            </button>
           </div>
         )}
 

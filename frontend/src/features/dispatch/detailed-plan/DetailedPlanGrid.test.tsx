@@ -1,4 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
@@ -36,6 +38,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       items={items}
       loading={false}
       error={null}
+      onRetry={vi.fn()}
       assignmentError={null}
       lotBanner={null}
       onClearLotBanner={vi.fn()}
@@ -49,7 +52,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
 
 describe('DetailedPlanGrid', () => {
   it('renders the 6 spec columns with multi-line typography', () => {
-    renderGrid([row()]);
+    const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
@@ -78,6 +81,14 @@ describe('DetailedPlanGrid', () => {
     // Column 5: notes
     expect(screen.getByText('Xe: Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Khách: Gặp anh Hùng')).toBeTruthy();
+    expect(Array.from(container.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
+      'Thời gian & lịch trình',
+      'Khách hàng & lộ trình',
+      'Chứng từ',
+      'Container',
+      'Ghi chú',
+      'Điều phối',
+    ]);
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {
@@ -142,8 +153,23 @@ describe('DetailedPlanGrid', () => {
   });
 
   it('renders an error state without the table', () => {
-    renderGrid([row()], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.' });
+    const onRetry = vi.fn();
+    renderGrid([row()], { error: 'Không thể tải kế hoạch chi tiết. Vui lòng thử lại.', onRetry });
     expect(screen.getByRole('alert').textContent).toContain('Không thể tải');
     expect(screen.queryByRole('table')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it('uses the available dispatch canvas before collapsing its filter rail', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchDetailPlanPage.tsx'), 'utf8');
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+
+    expect(page).toContain('dispatch-plan-page--wide');
+    expect(css).toContain('grid-template-columns: minmax(280px, 1.6fr) repeat(3, minmax(132px, 0.7fr)) repeat(3, minmax(180px, 1fr)) minmax(170px, 0.9fr)');
+    expect(css).toContain('@container (max-width: 1599px)');
+    expect(css).toContain('@container (max-width: 1000px)');
+    expect(css).toContain('.detailed-plan-grid__cell::before');
+    expect(css).toContain('content: attr(data-label)');
   });
 });

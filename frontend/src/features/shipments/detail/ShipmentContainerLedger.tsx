@@ -144,7 +144,7 @@ function EditActions({
         isLoading={saving}
         iconLeading={!saving ? Save01 : undefined}
         aria-label={`Lưu ${label}`}
-      />
+      >Lưu</UUIButton>
       <UUIButton
         size="xs"
         color="secondary"
@@ -153,7 +153,7 @@ function EditActions({
         isDisabled={saving}
         iconLeading={XClose}
         aria-label={`Hủy ${label}`}
-      />
+      >Hủy</UUIButton>
     </div>
   );
 }

@@ -41,7 +41,7 @@ export const configClient = {
 
   getSuppliers: async (page?: number, search?: string) =>
     api.get<PaginatedResponse<Supplier>>(
-      `${CONFIG.SUPPLIERS}${toQuery({ page, search })}`,
+      `${CONFIG.SUPPLIERS}${toQuery({ page, limit: '10', search })}`,
     ),
 
   getExpenseCategories: async (page?: number, search?: string) =>

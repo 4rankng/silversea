@@ -1034,8 +1034,6 @@ export default function ShipmentsPage() {
     }
     setError(null);
     setQuickEditError(null);
-    const trigger = document.getElementById(`cus-inline-${field}-${item.id}`);
-    if (trigger instanceof HTMLButtonElement && !trigger.disabled) trigger.focus();
     setQuickEditDraft({
       shipmentId: item.id,
       field,

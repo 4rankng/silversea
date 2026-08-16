@@ -536,8 +536,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       const cell = trigger.closest<HTMLElement>('th, td');
       expect(cell).toBeTruthy();
       expect(within(cell!).getAllByRole('button')).toEqual([trigger]);
+      // fireEvent.click does not apply the browser's native pointer-focus step.
+      // Model it so this verifies that opening never refocuses the clicked cell.
+      trigger.focus();
+      const focus = vi.spyOn(trigger, 'focus');
       fireEvent.click(trigger);
       expect(await screen.findByRole('dialog', { name: dialog })).toBeTruthy();
+      expect(screen.getAllByRole('dialog', { name: dialog })).toHaveLength(1);
+      expect(focus).not.toHaveBeenCalled();
+      focus.mockRestore();
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('dialog', { name: dialog })).toBeNull());
       await waitFor(() => expect(document.activeElement).toBe(trigger));

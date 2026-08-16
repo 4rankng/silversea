@@ -13,7 +13,7 @@ export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
 
   return (
-    <div className="dispatch-plan-page page-anim">
+    <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <PageHeader
         title="Kế hoạch Chi tiết Xe"
         iconName="truck"
@@ -30,6 +30,7 @@ export default function DispatchDetailPlanPage() {
           items={detailPlan.items}
           loading={detailPlan.loading}
           error={detailPlan.error}
+          onRetry={detailPlan.refresh}
           assignmentError={detailPlan.assignmentError}
           lotBanner={detailPlan.lotBanner}
           onClearLotBanner={detailPlan.clearLotBanner}

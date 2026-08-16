@@ -205,7 +205,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(await screen.findByLabelText('Số container')).toBeTruthy();
   });
 
-  it('uses icon-only Untitled UI actions and keeps the keyboard hint in their footer row', async () => {
+  it('uses labeled touch actions while retaining accessible save and cancel controls', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
@@ -218,8 +218,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(cancel.className).toContain('shipment-container-ledger__edit-action');
     expect(save.querySelector('[data-icon="leading"]')).toBeTruthy();
     expect(cancel.querySelector('[data-icon="leading"]')).toBeTruthy();
-    expect(save.textContent).toBe('');
-    expect(cancel.textContent).toBe('');
+    expect(save.textContent).toContain('Lưu');
+    expect(cancel.textContent).toContain('Hủy');
     const editor = save.closest('.shipment-container-ledger__inline-editor');
     expect(editor?.id).toBe('shipment-detail-edit-route-12-editor');
     expect(editor?.closest('.shipment-container-ledger__editor-row')).toBeNull();

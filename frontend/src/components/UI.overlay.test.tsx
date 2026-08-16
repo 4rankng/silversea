@@ -1,7 +1,14 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { Drawer, Modal } from './UI';
+
+const animatedOverlaySource = readFileSync(
+  resolve(process.cwd(), 'src/hooks/useAnimatedOverlay.ts'),
+  'utf8',
+);
 
 function DrawerHarness() {
   const [open, setOpen] = useState(false);
@@ -32,6 +39,12 @@ function StackedOverlayHarness() {
 }
 
 describe('Drawer keyboard focus', () => {
+  it('initializes shared overlay entrance state in the layout phase', () => {
+    expect(animatedOverlaySource).toMatch(
+      /useLayoutEffect\(\(\) => \{\s*if \(!visible \|\| !wasOpen\) return;[\s\S]*?entranceRef\.current\(overlay, content, prefersReduced\);/,
+    );
+  });
+
   it('moves focus into the drawer, traps it, and restores the opener after Escape', async () => {
     render(<DrawerHarness />);
     const opener = screen.getByRole('button', { name: 'Mở chi tiết' });

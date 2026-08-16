@@ -4,10 +4,10 @@
 
 .master-plan-filters {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) 132px 204px minmax(396px, 1.12fr);
+  grid-template-columns: minmax(320px, 1.3fr) minmax(140px, 0.5fr) minmax(208px, 0.72fr) minmax(420px, 1.18fr);
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 /* UUI inputs/selects carry their own borders, focus rings, and sizing;
@@ -50,7 +50,7 @@
   color: var(--text-secondary, #94a3b8);
 }
 
-@media (max-width: 1180px) {
+@container (max-width: 1180px) {
   .master-plan-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -61,7 +61,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container (max-width: 640px) {
   .master-plan-filters {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -79,6 +79,7 @@
   width: 100%;
   container-type: inline-size;
   overflow: hidden;
+  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
 }
 
 .master-plan-grid {
@@ -89,13 +90,13 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-.master-plan-grid__col--schedule { width: 14%; }
+.master-plan-grid__col--schedule { width: 13%; }
 .master-plan-grid__col--customer { width: 16%; }
 .master-plan-grid__col--documents { width: 14%; }
-.master-plan-grid__col--locations { width: 14%; }
-.master-plan-grid__col--cargo { width: 12%; }
-.master-plan-grid__col--notes { width: 12%; }
-.master-plan-grid__col--allocation { width: 18%; }
+.master-plan-grid__col--locations { width: 15%; }
+.master-plan-grid__col--cargo { width: 11%; }
+.master-plan-grid__col--notes { width: 15%; }
+.master-plan-grid__col--allocation { width: 16%; }
 
 .master-plan-grid thead th {
   text-align: left;
@@ -105,6 +106,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-secondary, #64748b);
+  background: var(--background-color-secondary, var(--surface, #fff));
   border-bottom: 2px solid var(--border-color, #e2e8f0);
   line-height: var(--ops-table-header-line-height);
   white-space: normal;
@@ -116,7 +118,7 @@
 }
 
 .master-plan-grid__cell {
-  padding: 10px 12px;
+  padding: 12px;
   vertical-align: top;
   border-bottom: 1px solid var(--border-color, #eef2f7);
   min-width: 0;
