@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   CalendarClock,
+  ChevronRight,
   CircleCheck,
   CircleDollarSign,
   Download,
@@ -1638,9 +1639,24 @@ export default function ShipmentsPage() {
                         </td>
                         <td data-label="Trạng thái">
                           <div className="cus-row-actions">
-                            <WorkflowBadge item={item} />
-                            {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
-                            <button id={'cus-dashboard-detail-' + item.id} type="button" className="btn btn--secondary btn--sm cus-dashboard-detail" aria-haspopup="dialog" aria-controls={'cus-detail-drawer-' + item.id} aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel} onClick={() => openShipmentDetail(item.id)} disabled={editing}>Chi tiết</button>
+                            <div className="cus-row-actions__summary">
+                              <WorkflowBadge item={item} />
+                              {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
+                            </div>
+                            <UUIButton
+                              id={'cus-dashboard-detail-' + item.id}
+                              size="sm"
+                              color="tertiary"
+                              className="cus-dashboard-detail"
+                              aria-haspopup="dialog"
+                              aria-controls={'cus-detail-drawer-' + item.id}
+                              aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + item.bucketLabel}
+                              onPress={() => openShipmentDetail(item.id)}
+                              isDisabled={editing}
+                              iconTrailing={ChevronRight}
+                            >
+                              Xem chi tiết
+                            </UUIButton>
                           </div>
                         </td>
                       </tr>

@@ -280,7 +280,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByText('Công ty Silver Sea')).toBeTruthy();
     expect(surface.getByText('Hải Phòng → Hà Nội')).toBeTruthy();
     expect(surface.getByText('TK-54321')).toBeTruthy();
-    expect(masterRowDetailButton().textContent).toContain('Chi tiết');
+    expect(masterRowDetailButton().textContent).toContain('Xem chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
 
@@ -289,6 +289,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
     expect(within(dialog).getByRole('article', { name: 'MSKU1234567' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+  });
+
+  it('keeps the detail action visually attached to its shipment status evidence', async () => {
+    renderPage();
+    await screen.findByRole('table');
+
+    const statusCell = within(masterRow()).getByText('Chờ khóa').closest('td');
+    expect(statusCell).toBeTruthy();
+    expect(statusCell?.querySelector('.cus-row-actions__summary')).toBeTruthy();
+    expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Xem chi tiết');
+    expect(css).toContain('.cus-dashboard-detail {');
+    expect(css).toContain('border-top: 1px solid var(--line) !important;');
+    expect(css).toContain('justify-content: space-between !important;');
   });
 
   it('uses the package authority instead of claiming zero containers and exports that same value', async () => {

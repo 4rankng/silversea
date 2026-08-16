@@ -23,7 +23,23 @@ import {
 
 const page = (items: DispatchDetailPlanRow[]): CursorPaginatedResponse<DispatchDetailPlanRow> => ({
   items,
+  total: items.length,
+  limit: 50,
   nextCursor: null,
+});
+
+const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
+const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
+
+const assignmentResult = (assignedPlate: string | null) => ({
+  fulfillmentId: 101,
+  version: 4,
+  lotFullyPlated: false,
+  driverNotified: false,
+  assignedPlate,
+  assignedDriverId: null,
+  assignedDriverName: null,
+  driverHint: null,
 });
 
 const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => ({
@@ -49,7 +65,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
 describe('useDispatchDetailPlan plate assignment vs assignment-status filter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listDispatchDetailPlanRows.mockResolvedValue(page([row(), row({ fulfillmentId: 102 })]));
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row(), row({ fulfillmentId: 102 })]));
   });
 
   it('drops a row from the UNASSIGNED view once a plate is assigned to it', async () => {
@@ -64,7 +80,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    assignDispatchDetailPlate.mockResolvedValue({ version: 4, assignedPlate: '15C-167.31', lotFullyPlated: false });
+    assignDispatchDetailPlateMock.mockResolvedValue(assignmentResult('15C-167.31'));
 
     await act(async () => {
       await result.current.assignPlate(result.current.items[0], { truckId: 7 });
@@ -79,7 +95,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    assignDispatchDetailPlate.mockResolvedValue({ version: 4, assignedPlate: '15C-184.62', lotFullyPlated: false });
+    assignDispatchDetailPlateMock.mockResolvedValue(assignmentResult('15C-184.62'));
 
     await act(async () => {
       await result.current.assignPlate(result.current.items[0], { truckId: 8 });
@@ -99,7 +115,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    assignDispatchDetailPlate.mockResolvedValue({ version: 4, assignedPlate: null, lotFullyPlated: false });
+    assignDispatchDetailPlateMock.mockResolvedValue(assignmentResult(null));
 
     await act(async () => {
       await result.current.assignPlate(result.current.items[0], { clear: true });
