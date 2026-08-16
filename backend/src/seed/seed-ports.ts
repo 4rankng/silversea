@@ -7,7 +7,6 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { ports as portsFromExcel } from './data/ports-from-excel.js';
 import { normalizedTextEquals } from './seed-identity.js';
-import { sql } from 'drizzle-orm';
 
 /**
  * Seed ports/terminals for shipment operations

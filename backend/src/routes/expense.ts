@@ -471,7 +471,7 @@ router.delete('/:id/photos/:photoId', asyncHandler(async (req: Request, res: Res
   if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(photoId) || photoId <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
   const idempotencyKey = requireIdempotencyKey(req);
   const actorId = getUser(req).userId;
-  const { result } = await runIdempotent({
+  await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_DELETE,
     idempotencyKey,
     payload: { expenseId: id, photoId },

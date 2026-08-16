@@ -1,0 +1,15 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const page = await ctx.newPage();
+await page.goto('http://localhost:7174/login', { waitUntil: 'networkidle' });
+await page.waitForTimeout(800);
+await page.fill('input[name="username"]', 'admin');
+await page.fill('input[name="password"]', 'Abc123');
+await page.locator('button[type="submit"]').first().click();
+await page.waitForURL((u) => !u.pathname.includes('login'), { timeout: 10000 }).catch(() => {});
+await page.goto('http://localhost:7174/shipments', { waitUntil: 'networkidle' });
+await page.waitForTimeout(2500);
+await page.screenshot({ path: '/tmp/shipments_before.png', fullPage: false });
+console.log('saved /tmp/shipments_before.png');
+await browser.close();

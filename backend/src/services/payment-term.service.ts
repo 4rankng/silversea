@@ -111,7 +111,6 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
     // Paid portions: compute days-to-pay per allocation.
     let totalDaysToPay = 0;
     let paidPortionCount = 0;
-    let totalAllocated = 0;
     for (const doc of custDocs) {
       const docAllocs = allocsByDoc.get(doc.id) ?? [];
       const docRangeToMs = new Date(doc.rangeTo).getTime();
@@ -122,7 +121,6 @@ export async function getPaymentTermEvalReport(): Promise<PaymentTermEvalRow[]> 
         const daysToPay = Math.max(0, Math.floor((allocMs - docRangeToMs) / (1000 * 60 * 60 * 24)));
         totalDaysToPay += daysToPay;
         paidPortionCount++;
-        totalAllocated += Number(a.amount);
       }
     }
 

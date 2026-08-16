@@ -34,7 +34,6 @@ import {
   getPricing,
   getFuelConfig,
   getFuelConfigUpdatedAt,
-  upsertFuelConfig,
   upsertFuelConfigInTx,
   getFuelPriceHistory,
   getEffectiveFuelPrice,
@@ -59,14 +58,10 @@ import {
 import {
   getSalaryPeriodDefault,
   getSalaryPeriodDefaultFrom,
-  updateSalaryPeriodDefault,
   updateSalaryPeriodDefaultInTx,
   getSalaryPeriodOverrides,
-  upsertSalaryPeriodOverride,
   upsertSalaryPeriodOverrideInTx,
-  updateSalaryPeriodOverrideById,
   updateSalaryPeriodOverrideByIdInTx,
-  deleteSalaryPeriodOverride,
   deleteSalaryPeriodOverrideInTx,
   resolveSalaryPeriodDateRange,
 } from '../services/salary-period.service';
@@ -405,7 +400,7 @@ async function getCompanyInfoGovernedState(
   const rows = await q.select().from(s.appSettings).where(like(s.appSettings.key, 'company.%'));
   const updatedAt = await getCompanyInfoUpdatedAt(q);
   if (rows.length === 0 && !updatedAt) return null;
-  const { updatedAt: _currentUpdatedAt, ...current } = companyInfoFromSettings(rows);
+  const { ...current } = companyInfoFromSettings(rows);
   return {
     ...current,
     updatedAt: updatedAt ? new Date(updatedAt) : null,

@@ -1356,101 +1356,95 @@ export default function ShipmentsPage() {
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
         <form className="cus-worksheet-toolbar" onSubmit={submitSearch} noValidate>
-          <div className="cus-search-field">
-            <UUIInput
-              label="Bill/Book hoặc tờ khai"
-              size="sm"
-              icon={Search}
-              value={searchInput}
-              onChange={(value) => {
-                setSearchInput(value);
-                setSearchError(null);
-              }}
-              placeholder="Nhập 4–5 ký tự cuối"
-              inputProps={{
-                inputMode: 'text',
-                pattern: '[A-Za-z0-9]{4,5}',
-                autoCapitalize: 'characters',
-                autoCorrect: 'off',
-                spellCheck: false,
-              }}
-              isInvalid={Boolean(searchError)}
-              aria-describedby={searchError ? 'cus-search-error' : undefined}
-              className="shipment-uui-field"
-              wrapperClassName="shipment-uui-control"
-              inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
-              iconClassName="shipment-uui-control__icon"
-            />
-            {searchInput && (
-              <UUIButton
-                size="xs"
-                color="tertiary"
-                className="shipment-uui-clear"
-                onPress={() => {
-                  setSearchInput('');
+          <div className="cus-worksheet-toolbar__filters" aria-label={'Bộ lọc' + (activeFilterCount ? ' đang áp dụng ' + activeFilterCount : '')}>
+            <div className="cus-search-field">
+              <UUIInput
+                label="Bill/Book hoặc tờ khai"
+                size="sm"
+                icon={Search}
+                value={searchInput}
+                onChange={(value) => {
+                  setSearchInput(value);
                   setSearchError(null);
-                  updateParam('searchSuffix', null);
                 }}
-                aria-label="Xóa tìm kiếm"
-                iconLeading={<X size={16} aria-hidden="true" />}
-              />
-            )}
-            {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
-          </div>
-
-          <details className="cus-worksheet-filter-disclosure" open>
-            <summary>
-              Bộ lọc{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-              <span aria-hidden="true">▾</span>
-            </summary>
-            <div className="cus-worksheet-toolbar__filters" aria-label={'Bộ lọc' + (activeFilterCount ? ' đang áp dụng ' + activeFilterCount : '')}>
-              <UUINativeSelect
-                label="Xuất / Nhập"
-                size="sm"
-                value={direction}
-                onChange={(event) => updateParam('direction', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả' },
-                  { value: 'EXPORT', label: 'Xuất' },
-                  { value: 'IMPORT', label: 'Nhập' },
-                ]}
-                className="cus-filter-field shipment-uui-field"
-                selectClassName="shipment-uui-select"
-              />
-              <UUIInput
-                label="Từ ngày giao"
-                size="sm"
-                type="date"
-                value={dateFrom}
-                onChange={(value) => updateParam('transportDateFrom', value || null)}
-                className="cus-filter-field shipment-uui-field"
+                placeholder="Nhập 4–5 ký tự cuối"
+                inputProps={{
+                  inputMode: 'text',
+                  pattern: '[A-Za-z0-9]{4,5}',
+                  autoCapitalize: 'characters',
+                  autoCorrect: 'off',
+                  spellCheck: false,
+                }}
+                isInvalid={Boolean(searchError)}
+                aria-describedby={searchError ? 'cus-search-error' : undefined}
+                className="shipment-uui-field"
                 wrapperClassName="shipment-uui-control"
-                inputClassName="shipment-uui-control__input"
+                inputClassName="shipment-uui-control__input shipment-uui-control__input--search"
+                iconClassName="shipment-uui-control__icon"
               />
-              <UUIInput
-                label="Đến ngày giao"
-                size="sm"
-                type="date"
-                value={dateTo}
-                onChange={(value) => updateParam('transportDateTo', value || null)}
-                className="cus-filter-field shipment-uui-field"
-                wrapperClassName="shipment-uui-control"
-                inputClassName="shipment-uui-control__input"
-              />
-              <UUINativeSelect
-                label="Kế hoạch"
-                size="sm"
-                value={bucket}
-                onChange={(event) => updateParam('bucket', event.target.value || null)}
-                options={[
-                  { value: '', label: 'Tất cả trạng thái' },
-                  ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
-                ]}
-                className="cus-filter-field shipment-uui-field"
-                selectClassName="shipment-uui-select"
-              />
+              {searchInput && (
+                <UUIButton
+                  size="xs"
+                  color="tertiary"
+                  className="shipment-uui-clear"
+                  onPress={() => {
+                    setSearchInput('');
+                    setSearchError(null);
+                    updateParam('searchSuffix', null);
+                  }}
+                  aria-label="Xóa tìm kiếm"
+                  iconLeading={<X size={16} aria-hidden="true" />}
+                />
+              )}
+              {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
-          </details>
+
+            <UUINativeSelect
+              label="Xuất / Nhập"
+              size="sm"
+              value={direction}
+              onChange={(event) => updateParam('direction', event.target.value || null)}
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'EXPORT', label: 'Xuất' },
+                { value: 'IMPORT', label: 'Nhập' },
+              ]}
+              className="cus-filter-field shipment-uui-field"
+              selectClassName="shipment-uui-select"
+            />
+            <UUIInput
+              label="Từ ngày giao"
+              size="sm"
+              type="date"
+              value={dateFrom}
+              onChange={(value) => updateParam('transportDateFrom', value || null)}
+              className="cus-filter-field shipment-uui-field"
+              wrapperClassName="shipment-uui-control"
+              inputClassName="shipment-uui-control__input"
+            />
+            <UUIInput
+              label="Đến ngày giao"
+              size="sm"
+              type="date"
+              value={dateTo}
+              onChange={(value) => updateParam('transportDateTo', value || null)}
+              className="cus-filter-field shipment-uui-field"
+              wrapperClassName="shipment-uui-control"
+              inputClassName="shipment-uui-control__input"
+            />
+            <UUINativeSelect
+              label="Kế hoạch"
+              size="sm"
+              value={bucket}
+              onChange={(event) => updateParam('bucket', event.target.value || null)}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
+              ]}
+              className="cus-filter-field shipment-uui-field"
+              selectClassName="shipment-uui-select"
+            />
+          </div>
 
           <div className="cus-worksheet-toolbar__actions">
             {canCreateShipment && (

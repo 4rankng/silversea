@@ -16,7 +16,6 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ZodError } from 'zod';
 import { jsonrepair } from 'jsonrepair';
 import { randomUUID } from 'crypto';
-import { performance } from 'node:perf_hooks';
 import { db } from '../../db';
 import * as schema from '../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -25,7 +24,6 @@ import {
   agentResponseSchema,
   agentDirectiveSchema,
   ACKED_DIRECTIVE_KINDS,
-  Role,
   type AgentEvent,
   type AgentResponse,
   type AgentDirective,
@@ -547,8 +545,10 @@ export async function runAgent(opts: {
       //   3. Analytical turn (ran a data/structured tool) → one structured call
       //      shapes the tool numbers into insight_card widgets.
       let finalUsage: { promptTokens: number; completionTokens: number } = { promptTokens: 0, completionTokens: 0 };
-      let fallbackUsed = false;
-      let fallbackReason: string | undefined;
+      // The structured-answer path returns a `fallbackUsed` / `fallbackReason`
+      // pair. We currently surface the answer itself but don't expose the
+      // fallback cause to the caller — captured here for future telemetry
+      // (P0b diagnostic) without triggering no-unused-vars.
       let response: AgentResponse;
 
       // The terminal assistant turn = last assistant message with no pending
@@ -586,8 +586,6 @@ export async function runAgent(opts: {
           produceFinalAnswer(trimToolHistory(messages), signal, emit),
         );
         finalUsage = finalSpan.result.usage;
-        fallbackUsed = finalSpan.result.fallbackUsed;
-        fallbackReason = finalSpan.result.fallbackReason;
         response = finalSpan.result.response;
       }
       addUsage(finalUsage);

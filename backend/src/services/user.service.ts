@@ -885,8 +885,8 @@ export async function updateUserWithTx(id: number, data: {
     excludeUserId: id,
   });
 
-  const [updated] = await tx.update(users).set(updates)
-    .where(eq(users.id, id)).returning(USER_FIELDS);
+  await tx.update(users).set(updates)
+    .where(eq(users.id, id));
   await syncCustomerLinks(tx, id, nextCustomerIds);
   await syncBusinessUnitLinks(tx, id, driverBusinessUnitIds(effectiveRole, nextBusinessUnitIds));
   await syncShipmentLinks(

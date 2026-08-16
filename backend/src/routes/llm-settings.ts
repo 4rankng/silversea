@@ -110,17 +110,6 @@ router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   res.json(toResponseBody(settings, await getLlmSettingsUpdatedAt()));
 }));
 
-/** Upsert one llm.* setting row atomically. */
-function upsertRow(key: string, value: string) {
-  return db
-    .insert(s.appSettings)
-    .values({ key, value })
-    .onConflictDoUpdate({
-      target: s.appSettings.key,
-      set: { value: sql`excluded.setting_value`, updatedAt: new Date() },
-    });
-}
-
 /** PUT /api/admin/llm-settings
  *  - provider: always required.
  *  - minimaxApiKey / openrouterApiKey: optional. An empty/whitespace string OR

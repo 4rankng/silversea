@@ -1,6 +1,6 @@
 .shipments-page {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
   padding-bottom: 40px;
 }
@@ -12,46 +12,32 @@
 .cus-workspace--worksheet {
   min-width: 0;
   container-type: inline-size;
-  border: 1px solid var(--line-strong, #aeb8b2);
+  border: 0;
   border-radius: 0;
-  background: var(--surface, #fff);
+  background: transparent;
   box-shadow: none;
 }
 
 .cus-worksheet-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 8px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: end;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line-strong, #aeb8b2);
-  background: var(--surface-2, #f7f9f8);
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
 }
 
 .cus-worksheet-toolbar__filters {
   display: grid;
-  grid-template-columns: minmax(108px, .7fr) repeat(2, minmax(132px, 1fr)) minmax(140px, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
   min-width: 0;
-}
-
-.cus-worksheet-filter-disclosure > summary {
-  display: none;
-}
-
-/* The disclosure is rendered with the `open` attribute so its children stay
-   in the normal flow. Treat the shell as a grid container so it sizes to
-   the filters inside the toolbar's outer grid. */
-.cus-worksheet-filter-disclosure {
-  display: grid;
   align-items: end;
-  min-width: 0;
 }
-.cus-worksheet-filter-disclosure > .cus-worksheet-toolbar__filters { display: grid; }
 
 .cus-worksheet-toolbar__actions {
   display: flex;
-  grid-column: 1 / -1;
   gap: 6px;
   align-items: center;
   justify-content: flex-end;
@@ -200,43 +186,39 @@
   outline-offset: 2px;
 }
 
-/* Keep the action group beside the filters only when the workspace itself,
-   excluding the application sidebar, has enough room for every control. */
+/* Flat toolbar: keep filters and actions on the same row when there is room,
+   wrap to a second row at narrow widths. */
 @container (min-width: 1420px) {
   .cus-worksheet-toolbar {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) auto;
-  }
-
-  .cus-worksheet-toolbar__actions {
-    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 }
 
-@container (max-width: 900px) {
+@container (max-width: 1100px) {
   .cus-worksheet-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .cus-worksheet-toolbar > .cus-search-field {
-    width: min(100%, 320px);
-  }
-
   .cus-worksheet-toolbar__actions {
-    grid-column: auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
-@media (min-width: 701px) and (max-width: 900px) {
+@container (max-width: 720px) {
+  .cus-worksheet-toolbar__filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
   .cus-worksheet-toolbar {
     grid-template-columns: 1fr;
   }
 
-  .cus-worksheet-toolbar > .cus-search-field {
-    width: min(100%, 320px);
-  }
-
   .cus-worksheet-toolbar__actions {
-    grid-column: auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
@@ -244,8 +226,8 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--line, #d8dedb);
+  padding: 4px 0 0;
+  border-bottom: 0;
   color: var(--ink-2, #53615a);
   font-size: 12px;
 }
@@ -393,44 +375,13 @@
 
 @media (max-width: 700px) {
   .cus-workspace--worksheet {
-    border-inline: 0;
+    border: 0;
   }
 
   .cus-worksheet-toolbar {
     grid-template-columns: 1fr;
-    padding: 10px;
+    padding: 0;
   }
-
-  /* On mobile the disclosure is a real <details> toggle, so restore its box. */
-  .cus-worksheet-filter-disclosure { display: block; }
-
-  .cus-worksheet-filter-disclosure > summary {
-    display: flex;
-    min-height: 44px;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 12px;
-    border: 1px solid var(--line-strong, #aeb8b2);
-    border-radius: 4px;
-    background: var(--surface, #fff);
-    color: var(--ink, #142019);
-    font-weight: 700;
-    cursor: pointer;
-    list-style: none;
-  }
-
-  .cus-worksheet-filter-disclosure > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .cus-worksheet-filter-disclosure[open] > summary {
-    margin-bottom: 8px;
-    border-color: var(--accent, #008f4c);
-  }
-
-  /* The disclosure is always `open` so the filters remain visible on mobile
-     too. Users can still tap the summary as a visual affordance. */
-  .cus-worksheet-filter-disclosure > .cus-worksheet-toolbar__filters { display: grid; }
 
   .cus-worksheet-toolbar__filters {
     grid-template-columns: 1fr 1fr;
@@ -491,8 +442,8 @@
   overflow-y: auto;
   overflow-x: clip;
   scrollbar-gutter: stable;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-top: 0;
+  border-bottom: 0;
   outline: none;
 }
 
@@ -956,9 +907,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 20px;
-  border-top: 1px solid var(--line);
-  background: var(--surface);
+  padding: 4px 0 0;
+  border-top: 0;
+  background: transparent;
 }
 
 .cus-active-filters__label {
@@ -972,14 +923,15 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 30px;
-  padding: 4px 9px;
+  min-height: 28px;
+  padding: 3px 9px;
   border: 1px solid var(--line-2);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: transparent;
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
+  cursor: pointer;
 }
 
 .cus-filter-chip:hover {
@@ -992,22 +944,24 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 14px 20px 0;
-  padding: 11px 13px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 0;
+  border-left: 3px solid var(--line);
+  background: transparent;
   font-size: var(--fs-sm);
 }
 
 .cus-notice--success {
-  border-color: color-mix(in srgb, var(--success) 28%, var(--line));
-  background: var(--success-soft);
+  border-left-color: var(--success);
+  background: transparent;
   color: var(--success-text);
 }
 
 .cus-notice--error {
-  border-color: color-mix(in srgb, var(--danger) 28%, var(--line));
-  background: var(--danger-soft);
+  border-left-color: var(--danger);
+  background: transparent;
   color: var(--danger-text);
 }
 
@@ -1583,19 +1537,18 @@
   }
 
   .cus-workspace {
-    margin-inline: -12px;
-    border-right: 0;
-    border-left: 0;
+    margin-inline: 0;
+    border: 0;
     border-radius: 0;
   }
 
   .cus-active-filters {
-    padding-inline: 12px;
+    padding-inline: 0;
   }
 
   .cus-notice {
     align-items: flex-start;
-    margin-inline: 12px;
+    margin-inline: 0;
   }
 
   .shipments-page .ds-pagination__controls {

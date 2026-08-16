@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';

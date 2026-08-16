@@ -8,7 +8,6 @@ import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { SnapshotServices } from './snapshot-services';
-import type { Tx } from './trip-shared';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 /** Fields a FORWARDER is allowed to see on a field-cost response. */

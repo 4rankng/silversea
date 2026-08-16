@@ -38,7 +38,6 @@ import {
   acknowledgeCustomerVisibleEvent,
   listCustomerVisibleEvents,
 } from '../../services/shipment-coordination.service';
-import { z } from 'zod';
 import { throwValidation } from '../../lib/validation';
 
 const router = Router();

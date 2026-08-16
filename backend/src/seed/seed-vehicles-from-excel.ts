@@ -2,7 +2,7 @@
  * Seed trucks/trailers from customer Excel data
  * Extracted from "29.7 - DATA PM.xlsx" - LOẠI HÌNH XE sheet
  */
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { vehicles } from './data/index.js';

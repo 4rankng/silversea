@@ -15,7 +15,6 @@ import {
 } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
-import { db } from '../db';
 import {
   applySavedAppSettings,
   getAppSettingsFrom,

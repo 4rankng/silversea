@@ -11,8 +11,8 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, eq, sql, isNull, gte, lte, desc, count, ne } from 'drizzle-orm';
-import { TripStatus, computeVehicleAlerts, type DashboardWidgets } from '@tingting/shared';
+import { and, sql, isNull, gte } from 'drizzle-orm';
+import { computeVehicleAlerts, type DashboardWidgets } from '@tingting/shared';
 import { getPnlReport } from './pnl.service';
 import { cacheGet } from '../lib/redis';
 import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
@@ -44,8 +44,6 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
     // ─── Fleet attention list ─────────────────────────────────────────────
     // 1. Trucks in MAINTENANCE or INACTIVE status.
     // 2. ACTIVE trucks with no completed trip in the last 7 days.
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      .toISOString().slice(0, 10);
 
     const allTrucks = await db.select({
       id: s.trucks.id,

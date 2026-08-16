@@ -1043,7 +1043,7 @@ router.delete('/expense-photos/:id', asyncHandler(async (req: Request, res: Resp
     req,
     'Cần tải lại phiên bản ảnh mới nhất trước khi xóa.',
   );
-  const outcome = await runIdempotent({
+  await runIdempotent({
     endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_PHOTO_DELETE,
     idempotencyKey,
     payload: {
