@@ -104,7 +104,10 @@
 .master-plan-grid {
   width: 100%;
   min-width: 0;
-  border-collapse: collapse;
+  /* separate (not collapse) keeps the sticky thead's border-bottom rendering
+     with the pinned cells instead of scrolling away beneath them. */
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
 }

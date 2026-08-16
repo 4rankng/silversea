@@ -1,56 +1,193 @@
-/* "Phân bổ phương tiện" popover for the dispatch master-plan grid. */
+/* Decision-first carrier allocation dialog for the dispatch master plan. */
 
 .dispatch-allocation-popover__overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  z-index: var(--z-modal, 300);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(2px);
 }
 
 .dispatch-allocation-popover {
-  width: min(520px, calc(100vw - 32px));
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
-  padding: 18px 20px;
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px 20px;
+  border: 1px solid var(--border-1);
+  border-radius: 16px;
+  background: var(--bg-2);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
+  color: var(--fg-1);
+  overscroll-behavior: contain;
 }
 
 .dispatch-allocation-popover__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 2px;
+  gap: 20px;
+}
+
+.dispatch-allocation-popover__eyebrow {
+  margin: 0 0 3px;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .dispatch-allocation-popover__header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 21px;
+  line-height: 1.3;
 }
 
-.dispatch-allocation-popover__meta {
-  margin: 0 0 12px;
+.dispatch-allocation-popover__shipment {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 10px;
+  line-height: 1.45;
+}
+
+.dispatch-allocation-popover__shipment strong {
+  flex: 0 0 auto;
+  font-size: 14px;
+}
+
+.dispatch-allocation-popover__shipment span {
+  min-width: 0;
+  color: var(--fg-2);
   font-size: 13px;
-  color: var(--text-secondary, #64748b);
+  overflow-wrap: anywhere;
+}
+
+.dispatch-allocation-popover__shipment span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--border-2);
+}
+
+.dispatch-allocation-popover__description {
+  margin: 8px 0 16px;
+  color: var(--fg-2);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.dispatch-allocation-popover__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--border-1);
+  background: var(--bg-1);
+}
+
+.dispatch-allocation-popover__summary > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 11px 14px;
+}
+
+.dispatch-allocation-popover__summary > div + div {
+  border-left: 1px solid var(--border-1);
+}
+
+.dispatch-allocation-popover__summary span {
+  color: var(--fg-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dispatch-allocation-popover__summary strong {
+  font-family: var(--font-data, inherit);
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.dispatch-allocation-popover__summary i {
+  color: var(--border-2);
+  font-style: normal;
+}
+
+.dispatch-allocation-popover__summary.is-complete > div:last-child strong {
+  color: var(--success-text);
+}
+
+.dispatch-allocation-popover__summary.is-partial > div:last-child strong {
+  color: var(--warning-text);
+}
+
+.dispatch-allocation-popover__summary.is-error > div:last-child strong {
+  color: var(--danger-text);
+}
+
+.dispatch-allocation-popover__section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.dispatch-allocation-popover__section-head h4 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.dispatch-allocation-popover__section-head p {
+  margin: 2px 0 0;
+  color: var(--fg-3);
+  font-size: 12px;
 }
 
 .dispatch-allocation-popover__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  margin-top: 8px;
+  border-bottom: 1px solid var(--border-1);
 }
 
 .dispatch-allocation-popover__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px 32px;
-  gap: 8px;
-  align-items: center;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-1);
 }
 
-/* UUI sm inputs/selects are w-full inside their wrappers — let the grid
-   columns size them. */
+.dispatch-allocation-popover__row-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.dispatch-allocation-popover__row-head strong {
+  color: var(--fg-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dispatch-allocation-popover__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(116px, 0.42fr));
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
 .dispatch-allocation-popover__carrier,
 .dispatch-allocation-popover__count {
   width: 100%;
@@ -58,30 +195,49 @@
 }
 
 .dispatch-allocation-popover__control {
-  text-align: center;
+  text-align: left;
+}
+
+.dispatch-allocation-popover__count .dispatch-allocation-popover__control {
+  text-align: right;
+}
+
+.dispatch-allocation-popover__carrier select[aria-invalid='true'] {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}
+
+.dispatch-allocation-popover__carrier:has(select[aria-invalid='true']) [slot='description'] {
+  color: var(--danger-text);
 }
 
 .dispatch-allocation-popover__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  min-width: 32px;
-  border: none;
-  background: none;
-  color: var(--text-secondary, #94a3b8);
-  cursor: pointer;
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
   padding: 4px;
-  border-radius: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
 }
 
 .dispatch-allocation-popover__remove:hover:not(:disabled) {
-  background: var(--bg-hover, #f1f5f9);
-  color: var(--text-primary, #0f172a);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.dispatch-allocation-popover__remove:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .dispatch-allocation-popover__remove:disabled {
-  opacity: 0.35;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -89,38 +245,93 @@
   margin-top: 10px;
 }
 
-.dispatch-allocation-popover__progress {
-  margin: 12px 0 0;
+.dispatch-allocation-popover__notice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--border-2);
+  background: var(--bg-1);
+  color: var(--fg-2);
   font-size: 13px;
-  color: var(--text-secondary, #64748b);
+  line-height: 1.5;
 }
 
-.dispatch-allocation-popover__progress.is-error {
-  color: #dc2626;
+.dispatch-allocation-popover__notice.is-partial,
+.dispatch-allocation-popover__notice.is-warning {
+  border-left-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
-.dispatch-allocation-popover__error {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: #dc2626;
+.dispatch-allocation-popover__notice.is-complete {
+  border-left-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.dispatch-allocation-popover__notice.is-error {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.dispatch-allocation-popover__notice.is-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dispatch-allocation-popover__notice ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .dispatch-allocation-popover__actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-1);
 }
 
-@media (max-width: 520px) {
+@media (max-width: 680px) {
+  .dispatch-allocation-popover__overlay {
+    align-items: flex-end;
+    padding: max(8px, env(safe-area-inset-top)) 8px 0;
+  }
+
   .dispatch-allocation-popover {
-    max-height: calc(100dvh - 24px);
-    overflow-y: auto;
-    padding: 16px;
+    width: 100%;
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)));
+    padding: 20px 16px max(16px, env(safe-area-inset-bottom));
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .dispatch-allocation-popover__shipment {
+    display: grid;
+    gap: 2px;
+  }
+
+  .dispatch-allocation-popover__shipment span::before {
+    content: none;
   }
 
   .dispatch-allocation-popover__row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .dispatch-allocation-popover__row-head {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .dispatch-allocation-popover__fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dispatch-allocation-popover__carrier {
@@ -128,7 +339,48 @@
   }
 
   .dispatch-allocation-popover__remove {
+    width: 44px;
+    min-width: 44px;
     min-height: 44px;
-    min-width: 40px;
+  }
+
+  .dispatch-allocation-popover__add {
+    min-height: 44px;
+  }
+
+  .dispatch-allocation-popover__notice.is-warning {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dispatch-allocation-popover__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dispatch-allocation-popover__actions > * {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dispatch-allocation-popover__summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dispatch-allocation-popover__summary > div {
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .dispatch-allocation-popover__summary > div + div {
+    border-top: 1px solid var(--border-1);
+    border-left: 0;
+  }
+
+  .dispatch-allocation-popover__summary strong {
+    text-align: right;
   }
 }

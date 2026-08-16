@@ -20,7 +20,7 @@ test.describe('Dispatch master plan', () => {
     await page.fill('input[name="username"]', DISPATCHER_USERNAME);
     await page.fill('input[name="password"]', DISPATCHER_PASSWORD);
     await page.click('button[type="submit"]');
-    await page.waitForURL('/shipments');
+    await page.waitForURL(/\/(dispatch|dashboard)$/);
   });
 
   test('renders READY_FOR_DISPATCH grid with the 7 docx columns', async ({ page }) => {
@@ -44,42 +44,63 @@ test.describe('Dispatch master plan', () => {
     const requestPromise = page.waitForRequest(
       (request) => request.url().includes('tradeDirection=IMPORT') && request.method() === 'GET',
     );
-    await page.getByLabel('Chiều hàng').selectOption('IMPORT');
+    await page.locator('.master-plan-filters__select').nth(0).locator('button').click();
+    await page.getByRole('option', { name: 'Nhập', exact: true }).click();
     await expect(requestPromise).resolves.toBeTruthy();
 
     const statusRequestPromise = page.waitForRequest(
       (request) => request.url().includes('allocationStatus=NOT_ALLOCATED') && request.method() === 'GET',
     );
-    await page.getByLabel('Trạng thái phân bổ').selectOption('NOT_ALLOCATED');
+    await page.locator('.master-plan-filters__select').nth(1).locator('button').click();
+    await page.getByRole('option', { name: 'Chưa phân xe', exact: true }).click();
     await expect(statusRequestPromise).resolves.toBeTruthy();
   });
 
   test('allocation popover blocks over-allocation and saves partial', async ({ page }) => {
     await page.goto('/dispatch');
-    const firstRow = page.locator('.master-plan-grid tbody tr').first();
-    await expect(firstRow).toBeVisible();
-    const demandText = firstRow.locator('td').nth(4).textContent() ?? '';
-
-    await firstRow.getByRole('button', { name: /Phân bổ|Sửa phân bổ/ }).click();
-    const dialog = page.getByRole('dialog', { name: 'Phân bổ phương tiện' });
-    await expect(dialog).toBeVisible();
+    const candidateRows = page.locator('.master-plan-grid tbody tr');
+    const dialog = page.getByRole('dialog', { name: 'Phân bổ nhà xe' });
+    let selectedRowIndex = -1;
+    let demand20 = 0;
+    let demand40 = 0;
+    for (let index = 0; index < await candidateRows.count(); index += 1) {
+      await candidateRows.nth(index).locator('.master-plan-grid__allocate-btn').click();
+      await expect(dialog).toBeVisible();
+      const demandSummary = await dialog.locator('.dispatch-allocation-popover__summary > div').first().innerText();
+      const demandMatch = demandSummary.match(/20':\s*(\d+).*40':\s*(\d+)/s);
+      demand20 = Number(demandMatch?.[1] ?? 0);
+      demand40 = Number(demandMatch?.[2] ?? 0);
+      if (demand20 + demand40 > 0) {
+        selectedRowIndex = index;
+        break;
+      }
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    }
+    expect(selectedRowIndex).toBeGreaterThanOrEqual(0);
+    const firstRow = candidateRows.nth(selectedRowIndex);
+    const demandText = await firstRow.locator('td').nth(4).textContent() ?? '';
 
     // Over-allocate → error shown, Lưu disabled.
     const count20 = dialog.locator('input[aria-label^="Số container 20"]');
     const count40 = dialog.locator('input[aria-label^="Số container 40"]');
-    await count20.first().fill('99');
+    const originalCounts20 = await count20.allInputValues();
+    const originalCounts40 = await count40.allInputValues();
+    const targetInput = demand20 > 0 ? count20.first() : count40.first();
+    const targetDemand = demand20 > 0 ? demand20 : demand40;
+    await targetInput.fill(String(targetDemand + 1));
     await expect(dialog.getByText(/vượt số lượng/)).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Lưu' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Lưu phân bổ' })).toBeDisabled();
 
-    // Fix to a valid partial (1x20') → partial-mode save → chips render.
-    await count20.first().fill('1');
-    if (await count40.first().isVisible()) {
-      await count40.first().fill('0');
+    // Restore the valid allocation → partial-mode API save → chips render.
+    for (let index = 0; index < originalCounts20.length; index += 1) {
+      await count20.nth(index).fill(originalCounts20[index]);
+      await count40.nth(index).fill(originalCounts40[index]);
     }
     const saveRequest = page.waitForRequest(
       (request) => request.url().includes('/carrier-allocations?mode=partial') && request.method() === 'POST',
     );
-    await dialog.getByRole('button', { name: 'Lưu' }).click();
+    await dialog.getByRole('button', { name: 'Lưu phân bổ' }).click();
     await expect(saveRequest).resolves.toBeTruthy();
     await expect(dialog).toBeHidden({ timeout: 10000 });
     await expect(firstRow.locator('.master-plan-grid__chip').first()).toBeVisible({ timeout: 10000 });
@@ -95,12 +116,14 @@ test.describe('Dispatch master plan', () => {
     await expect(rowsRequest).resolves.toBeTruthy();
 
     const detailRows = page.locator('.detailed-plan-grid tbody tr');
+    const emptyState = page.getByText('Không có dòng kế hoạch nào');
+    await expect(detailRows.first().or(emptyState)).toBeVisible();
     const count = await detailRows.count();
     if (count > 0) {
       // Carrier renders via the plate-assignment cell.
       await expect(detailRows.first().locator('.plate-assignment__carrier').first()).toBeVisible();
     } else {
-      await expect(page.getByText('Không có dòng kế hoạch nào')).toBeVisible();
+      await expect(emptyState).toBeVisible();
     }
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { tripClient } from '../../../api/tripClient';
 import {
@@ -25,18 +25,20 @@ const OWN_CARRIER_OPTION: CarrierAllocationOption = {
 };
 
 interface AllocationRow {
+  key: string;
   carrierKey: string;
   count20: string;
   count40: string;
 }
 
 function toRow(option: CarrierAllocationOption): AllocationRow {
-  return { carrierKey: option.key, count20: '', count40: '' };
+  return { key: crypto.randomUUID(), carrierKey: option.key, count20: '', count40: '' };
 }
 
 function prefillRows(shipment: ShipmentListItem): AllocationRow[] {
   if (shipment.carrierAllocationSummary.length === 0) return [toRow(OWN_CARRIER_OPTION)];
   return shipment.carrierAllocationSummary.map((entry) => ({
+    key: crypto.randomUUID(),
     carrierKey: carrierOptionKey(entry.carrierType, entry.externalCarrierId),
     count20: entry.count20 > 0 ? String(entry.count20) : '',
     count40: entry.count40 > 0 ? String(entry.count40) : '',
@@ -62,10 +64,15 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
   const [rows, setRows] = useState<AllocationRow[]>(() => prefillRows(shipment));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [optionsError, setOptionsError] = useState(false);
+  const [optionsReloadKey, setOptionsReloadKey] = useState(0);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setOptionsLoading(true);
+    setOptionsError(false);
     tripClient.getBootstrap().then((bootstrap) => {
       if (cancelled) return;
       const external = (bootstrap.externalCarriers ?? []).map((carrier) => ({
@@ -76,11 +83,14 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         isActive: carrier.isActive,
       }));
       setOptions([OWN_CARRIER_OPTION, ...external]);
+      setOptionsLoading(false);
     }).catch(() => {
-      // Options stay at OWN-only on bootstrap failure — the grid still works.
+      if (cancelled) return;
+      setOptionsError(true);
+      setOptionsLoading(false);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [optionsReloadKey]);
 
   useEffect(() => {
     // Focus the dialog's close control so keyboard users land somewhere
@@ -88,12 +98,10 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     const closeControl = dialogRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Đóng"]');
     (closeControl ?? dialogRef.current)?.focus();
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
       returnFocusTarget?.focus();
     };
   }, [onClose, returnFocusTarget]);
@@ -108,6 +116,50 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     [rows, demand, options],
   );
 
+  const remaining = useMemo(() => ({
+    count20: demand.count20 - validation.assigned20,
+    count40: demand.count40 - validation.assigned40,
+  }), [demand, validation.assigned20, validation.assigned40]);
+
+  const allocationState = validation.errors.length > 0
+    ? 'error'
+    : remaining.count20 === 0 && remaining.count40 === 0
+      ? 'complete'
+      : 'partial';
+
+  const rowIssues = useMemo(() => {
+    const optionByKey = new Map(options.map((option) => [option.key, option]));
+    const carrierCounts = new Map<string, number>();
+    rows.forEach((row) => carrierCounts.set(row.carrierKey, (carrierCounts.get(row.carrierKey) ?? 0) + 1));
+    const validCount = (value: string) => value.trim() === '' || /^\d+$/.test(value.trim());
+    const numericCount = (value: string) => (value.trim() === '' ? 0 : Number(value));
+
+    return rows.map((row) => {
+      const option = optionByKey.get(row.carrierKey);
+      let carrier: string | null = null;
+      let count20: string | null = null;
+      let count40: string | null = null;
+
+      if (!option) carrier = 'Chọn một nhà xe hợp lệ.';
+      else if (option.isActive === false) carrier = 'Nhà xe này đang ngưng hoạt động.';
+      else if ((carrierCounts.get(row.carrierKey) ?? 0) > 1) carrier = 'Nhà xe này đã có ở một dòng khác.';
+
+      if (!validCount(row.count20)) count20 = 'Nhập số nguyên từ 0 trở lên.';
+      if (!validCount(row.count40)) count40 = 'Nhập số nguyên từ 0 trở lên.';
+      if (!count20 && !count40 && numericCount(row.count20) === 0 && numericCount(row.count40) === 0) {
+        count20 = 'Nhập số lượng cho ít nhất một loại container.';
+        count40 = 'Nhập số lượng cho ít nhất một loại container.';
+      }
+      if (!count20 && validation.assigned20 > demand.count20 && numericCount(row.count20) > 0) {
+        count20 = `Tổng đang vượt ${validation.assigned20 - demand.count20} container 20'.`;
+      }
+      if (!count40 && validation.assigned40 > demand.count40 && numericCount(row.count40) > 0) {
+        count40 = `Tổng đang vượt ${validation.assigned40 - demand.count40} container 40'.`;
+      }
+      return { carrier, count20, count40 };
+    });
+  }, [demand, options, rows, validation.assigned20, validation.assigned40]);
+
   const updateRow = (index: number, patch: Partial<AllocationRow>) => {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
@@ -117,10 +169,45 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     const next = options.find((option) => !usedKeys.has(option.key) && option.isActive !== false);
     if (!next) return;
     setRows((prev) => [...prev, toRow(next)]);
+    const nextIndex = rows.length;
+    window.requestAnimationFrame(() => {
+      dialogRef.current
+        ?.querySelector<HTMLSelectElement>(`[data-allocation-row="${nextIndex}"] select`)
+        ?.focus();
+    });
   };
 
   const removeRow = (index: number) => {
-    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
+    if (rows.length <= 1) return;
+    setRows((prev) => prev.filter((_, i) => i !== index));
+    const nextIndex = Math.max(0, Math.min(index, rows.length - 2));
+    window.requestAnimationFrame(() => {
+      dialogRef.current
+        ?.querySelector<HTMLSelectElement>(`[data-allocation-row="${nextIndex}"] select`)
+        ?.focus();
+    });
+  };
+
+  const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), select:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusable || focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   };
 
   const handleSave = async () => {
@@ -191,28 +278,81 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
         className="dispatch-allocation-popover"
         role="dialog"
         aria-modal="true"
-        aria-label="Phân bổ phương tiện"
+        aria-labelledby="dispatch-allocation-title"
+        aria-describedby="dispatch-allocation-description"
         tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="dispatch-allocation-popover__header">
-          <h3>Phân bổ phương tiện</h3>
+          <div>
+            <p className="dispatch-allocation-popover__eyebrow">Kế hoạch tổng quát</p>
+            <h3 id="dispatch-allocation-title">Phân bổ nhà xe</h3>
+          </div>
           <CloseButton size="xs" label="Đóng" slot={null} onPress={onClose} />
         </div>
-        <p className="dispatch-allocation-popover__meta">
-          {shipment.blNumber || shipment.bookingRef || shipment.shipmentCode} · {shipment.customerName ?? '—'}
+        <div className="dispatch-allocation-popover__shipment">
+          <strong>{shipment.blNumber || shipment.bookingRef || shipment.shipmentCode}</strong>
+          <span>{shipment.customerName ?? 'Chưa có tên khách hàng'}</span>
+        </div>
+        <p id="dispatch-allocation-description" className="dispatch-allocation-popover__description">
+          Chọn nhà xe và nhập số container giao cho từng đơn vị. Có thể lưu khi chưa phân đủ, nhưng không được vượt nhu cầu của lô hàng.
         </p>
 
-        <div className="dispatch-allocation-popover__rows">
+        <div className={`dispatch-allocation-popover__summary is-${allocationState}`} aria-live="polite">
+          <div>
+            <span>Nhu cầu</span>
+            <strong>20': {demand.count20} <i aria-hidden="true">·</i> 40': {demand.count40}</strong>
+          </div>
+          <div>
+            <span>Đã gán</span>
+            <strong>20': {validation.assigned20} <i aria-hidden="true">·</i> 40': {validation.assigned40}</strong>
+          </div>
+          <div>
+            <span>{allocationState === 'error' ? 'Chênh lệch' : 'Còn lại'}</span>
+            <strong>
+              20': {allocationState === 'error' ? remaining.count20 : Math.max(0, remaining.count20)}{' '}
+              <i aria-hidden="true">·</i>{' '}
+              40': {allocationState === 'error' ? remaining.count40 : Math.max(0, remaining.count40)}
+            </strong>
+          </div>
+        </div>
+
+        <div className="dispatch-allocation-popover__section-head">
+          <div>
+            <h4>Nhà xe nhận hàng</h4>
+            <p>Mỗi nhà xe chỉ nhập một dòng.</p>
+          </div>
+        </div>
+
+        <div className="dispatch-allocation-popover__rows" role="list" aria-label="Các dòng phân bổ nhà xe">
           {rows.map((row, index) => (
-            <div key={index} className="dispatch-allocation-popover__row">
+            <div key={row.key} className="dispatch-allocation-popover__row" role="listitem" data-allocation-row={index}>
+              <div className="dispatch-allocation-popover__row-head">
+                <strong>Nhà xe {index + 1}</strong>
+                {rows.length > 1 && (
+                  <button
+                    type="button"
+                    className="dispatch-allocation-popover__remove"
+                    onClick={() => removeRow(index)}
+                    aria-label={`Xóa dòng ${index + 1}`}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <div className="dispatch-allocation-popover__fields">
               <UUINativeSelect
                 className="dispatch-allocation-popover__carrier"
                 selectClassName="dispatch-allocation-popover__control"
                 size="sm"
+                label="Nhà xe"
+                hint={rowIssues[index]?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
                 value={row.carrierKey}
                 onChange={(event) => updateRow(index, { carrierKey: event.target.value })}
                 aria-label={`Nhà xe dòng ${index + 1}`}
+                aria-invalid={Boolean(rowIssues[index]?.carrier)}
+                disabled={optionsLoading}
                 options={options.map((option) => ({
                   label: option.label,
                   value: option.key,
@@ -224,30 +364,30 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
                 inputClassName="dispatch-allocation-popover__control"
                 type="number"
                 size="sm"
-                placeholder="20'"
+                label="Số container 20'"
+                placeholder="0"
+                hint={rowIssues[index]?.count20}
+                isInvalid={Boolean(rowIssues[index]?.count20)}
                 value={row.count20}
                 onChange={(value) => updateRow(index, { count20: value })}
                 aria-label={`Số container 20' dòng ${index + 1}`}
+                inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
               />
               <UUIInput
                 className="dispatch-allocation-popover__count"
                 inputClassName="dispatch-allocation-popover__control"
                 type="number"
                 size="sm"
-                placeholder="40'"
+                label="Số container 40'"
+                placeholder="0"
+                hint={rowIssues[index]?.count40}
+                isInvalid={Boolean(rowIssues[index]?.count40)}
                 value={row.count40}
                 onChange={(value) => updateRow(index, { count40: value })}
                 aria-label={`Số container 40' dòng ${index + 1}`}
+                inputProps={{ min: 0, step: 1, inputMode: 'numeric' }}
               />
-              <button
-                type="button"
-                className="dispatch-allocation-popover__remove"
-                onClick={() => removeRow(index)}
-                aria-label={`Xóa dòng ${index + 1}`}
-                disabled={rows.length <= 1}
-              >
-                <Trash2 size={14} />
-              </button>
+              </div>
             </div>
           ))}
         </div>
@@ -259,18 +399,32 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
           className="dispatch-allocation-popover__add"
           iconLeading={<Plus size={16} aria-hidden="true" />}
           onPress={addRow}
+          isDisabled={optionsLoading || !options.some((option) => option.isActive !== false && !rows.some((row) => row.carrierKey === option.key))}
         >
           Thêm nhà xe
         </UUIButton>
 
-        <p className={`dispatch-allocation-popover__progress${validation.isExact ? '' : ' is-error'}`}>
-          20': {validation.assigned20}/{demand.count20} · 40': {validation.assigned40}/{demand.count40}
-        </p>
-        {validation.errors.length > 0 && (
-          <p className="dispatch-allocation-popover__error" role="alert">{validation.errors[0]}</p>
+        {optionsError && (
+          <div className="dispatch-allocation-popover__notice is-warning" role="alert">
+            <span>Không tải được danh sách nhà xe ngoài. Bạn vẫn có thể dùng đội xe nội bộ hoặc thử tải lại.</span>
+            <UUIButton size="sm" color="secondary" onPress={() => setOptionsReloadKey((key) => key + 1)}>Tải lại</UUIButton>
+          </div>
         )}
+        <div className={`dispatch-allocation-popover__notice is-${allocationState}`} role={allocationState === 'error' ? 'alert' : 'status'}>
+          {allocationState === 'error' ? (
+            <ul>
+              {[...new Set(validation.errors)].map((validationError) => <li key={validationError}>{validationError}</li>)}
+            </ul>
+          ) : allocationState === 'complete' ? (
+            <span>Đã phân bổ đủ số container của lô hàng.</span>
+          ) : (
+            <span>
+              Có thể lưu phân bổ hiện tại và bổ sung sau. Còn {Math.max(0, remaining.count20)} container 20' và {Math.max(0, remaining.count40)} container 40'.
+            </span>
+          )}
+        </div>
         {error && (
-          <p className="dispatch-allocation-popover__error" role="alert">{error}</p>
+          <div className="dispatch-allocation-popover__notice is-error" role="alert">{error}</div>
         )}
 
         <div className="dispatch-allocation-popover__actions">
@@ -283,7 +437,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
             isDisabled={!validation.isExact || saving}
             isLoading={saving}
           >
-            {saving ? 'Đang lưu…' : 'Lưu'}
+            {saving ? 'Đang lưu…' : 'Lưu phân bổ'}
           </UUIButton>
         </div>
       </div>

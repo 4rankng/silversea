@@ -71,10 +71,30 @@
   color: var(--fg-3);
 }
 
+/* Load-more pins to the bottom of the visible table region so operators
+   can page through container rows without chasing the button below the fold. */
 .dispatch-plan-page__load-more {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
   display: flex;
   justify-content: center;
-  padding-top: 16px;
+  padding: 12px;
+  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  background: var(--surface, #fff);
+}
+
+/* Same pinned-footer contract as the shipments worksheets: the bounded grid
+   owns its navigation, so the pager stays visible at the table's bottom edge
+   instead of scrolling below the app-body fold. */
+.dispatch-plan-page__workspace > .ds-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  background: var(--surface, #fff);
 }
 
 @media (max-width: 820px) {

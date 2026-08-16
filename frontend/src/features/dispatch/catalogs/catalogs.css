@@ -8,6 +8,17 @@
   padding: 0 0 32px;
 }
 
+/* The card chrome would trap the table's sticky thead (overflow: hidden
+   creates a clipping context). Catalogs are unbounded worksheets like the
+   shipments pair: strip the clip and keep the sheet edge-to-edge. */
+.dispatch-catalogs .panel {
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--border-1);
+  border-radius: 0;
+  background: transparent;
+}
+
 .dispatch-catalogs__toolbar {
   display: flex;
   align-items: center;
@@ -45,11 +56,24 @@
 
 .dispatch-catalogs__table {
   width: 100%;
-  border-collapse: collapse;
+  /* The global table rail (min-width: 900px) exists for wide legacy ledgers;
+     these lookup tables are narrow enough to fit the viewport, so keep them
+     unbounded like the other worksheet pages. */
+  min-width: 0;
+  /* separate (not collapse) bounded worksheets keep the sticky thead's
+     border-bottom rendering with the pinned cells. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 14px;
 }
 
 .dispatch-catalogs__table th {
+  position: sticky;
+  /* Negating the scrollport's top padding (see --sticky-thead-top in
+     tokens.css) pins the header flush under the topbar while .app-body
+     scrolls, matching the shipments worksheet behavior. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   text-align: left;
   padding: 10px 14px;
   font-size: 12px;
@@ -58,6 +82,7 @@
   letter-spacing: 0.04em;
   color: var(--fg-3);
   border-bottom: 1px solid var(--border-2);
+  background: var(--surface-1, var(--bg-1, #fff));
   white-space: nowrap;
 }
 
@@ -93,10 +118,16 @@
 }
 
 .dispatch-catalogs__pager {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border-1);
+  background: var(--surface-1, var(--bg-1, #fff));
   font-size: 13px;
   color: var(--fg-3);
 }

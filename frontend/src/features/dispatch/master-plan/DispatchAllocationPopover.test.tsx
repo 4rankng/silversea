@@ -20,6 +20,14 @@ vi.mock('../../../api/shipmentClient', () => ({
 }));
 
 import { saveShipmentCarrierAllocations } from '../../../api/shipmentClient';
+import { tripClient } from '../../../api/tripClient';
+
+const bootstrap = {
+  externalCarriers: [
+    { id: 77, name: 'HÀ AN', isActive: true },
+    { id: 88, name: 'Nam Phong', isActive: true },
+  ],
+};
 
 const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   id: 1,
@@ -39,6 +47,8 @@ const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem =
 
 beforeEach(() => {
   vi.mocked(saveShipmentCarrierAllocations).mockReset();
+  vi.mocked(tripClient.getBootstrap).mockReset();
+  vi.mocked(tripClient.getBootstrap).mockResolvedValue(bootstrap as never);
 });
 
 describe('DispatchAllocationPopover', () => {
@@ -51,7 +61,7 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '3' } });
 
     expect(await screen.findByText(/Container 20' vượt số lượng/)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
     expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
   });
 
@@ -66,7 +76,7 @@ describe('DispatchAllocationPopover', () => {
     await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
 
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(saveShipmentCarrierAllocations).toHaveBeenCalledWith(1, expect.objectContaining({
@@ -86,7 +96,7 @@ describe('DispatchAllocationPopover', () => {
 
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
 
     expect(await screen.findByText(/Vui lòng đóng và mở lại/i)).toBeTruthy();
   });
@@ -140,6 +150,48 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '1' } });
 
     expect(await screen.findByText(/bị lặp/i)).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('labels every decision field and distinguishes a valid partial allocation from an error', async () => {
+    const { container } = render(
+      <DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+
+    expect(screen.getByText('Nhu cầu')).toBeTruthy();
+    expect(screen.getByText('Đã gán')).toBeTruthy();
+    expect(screen.getByText('Nhà xe nhận hàng')).toBeTruthy();
+    expect(screen.getByText("Số container 20'")).toBeTruthy();
+    expect(screen.getByText("Số container 40'")).toBeTruthy();
+    expect(screen.getByText(/Có thể lưu khi chưa phân đủ/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
+
+    expect(await screen.findByText(/Có thể lưu phân bổ hiện tại và bổ sung sau/)).toBeTruthy();
+    expect(container.querySelector('.dispatch-allocation-popover__summary.is-partial')).toBeTruthy();
+    expect(container.querySelector('.dispatch-allocation-popover__summary.is-error')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('moves focus into a newly added carrier row', async () => {
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText(/Nhà xe dòng 2/)));
+  });
+
+  it('makes carrier-loading failure explicit and allows retry', async () => {
+    vi.mocked(tripClient.getBootstrap).mockRejectedValueOnce(new Error('bootstrap unavailable'));
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    expect(await screen.findByText(/Không tải được danh sách nhà xe ngoài/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+
+    await waitFor(() => expect(screen.queryByText(/Không tải được danh sách nhà xe ngoài/)).toBeNull());
+    expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
   });
 });

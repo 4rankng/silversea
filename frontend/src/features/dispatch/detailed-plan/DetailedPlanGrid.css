@@ -155,14 +155,17 @@
 
 .detailed-plan-grid__wrapper {
   width: 100%;
-  overflow-x: auto;
+  /* No card chrome to clip: keep the wrapper transparent to overflow so the
+     grid's sticky thead can pin against the app-body scrollport. */
+  overflow: visible;
   border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
 }
 
 .detailed-plan-grid {
   width: 100%;
-  min-width: 1020px;
-  border-collapse: collapse;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
 }
@@ -175,6 +178,12 @@
 .detailed-plan-grid__col--assignment { width: 18%; }
 
 .detailed-plan-grid thead th {
+  position: sticky;
+  /* Negating the scrollport's top padding (see --sticky-thead-top in
+     tokens.css) pins the header flush under the topbar while .app-body
+     scrolls, matching the shipments worksheet behavior. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   text-align: left;
   padding: 10px 12px;
   font-size: var(--ops-table-header-size);
