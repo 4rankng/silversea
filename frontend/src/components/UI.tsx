@@ -193,42 +193,31 @@ export function KPI({ label, value, unit, icon: Icon, assetIconName, meta, varia
 
 interface PageHeaderProps {
   title: React.ReactNode;
+  /** Retained for call-site compatibility; route descriptions are no longer page chrome. */
   description?: React.ReactNode;
   action?: React.ReactNode;
   onBack?: () => void;
-  /**
-   * Branded icon key (rendered via <AssetIcon> against /assets/icons/<slug>.png).
-   * The icon appears in a 44×44 tinted chip next to the title. The branded
-   * PNGs have a white background, so the chip gives them a clean container
-   * on any page surface. Only use on light-background pages.
-   */
+  /** Retained for call-site compatibility; page icons are no longer page chrome. */
   iconName?: AssetIconName;
 }
 
-export function PageHeader({ title, description, action, onBack, iconName }: PageHeaderProps) {
+export function PageHeader({ title, action, onBack }: PageHeaderProps) {
+  if (!onBack && !action) {
+    return <h1 className="sr-only">{title}</h1>;
+  }
+
   return (
-    <div className="page-header">
-      <div className="page-header-main" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        {onBack && (
-          <button
-            className="btn btn--ghost btn--icon btn--sm"
-            onClick={onBack}
-            aria-label="Quay lại"
-            style={{ marginTop: 4 }}
-          >
-            <ArrowLeft size={16} />
-          </button>
-        )}
-        {iconName && (
-          <div className="page-header-icon" aria-hidden="true">
-            <AssetIcon name={iconName} size={28} />
-          </div>
-        )}
-        <div style={{ minWidth: 0 }}>
-          <h1 className="page-title">{title}</h1>
-          {description && <p className="page-subtitle">{description}</p>}
-        </div>
-      </div>
+    <div className={`page-header page-header--actions-only${action ? ' page-header--has-action' : ''}`}>
+      <h1 className="sr-only">{title}</h1>
+      {onBack && (
+        <button
+          className="btn btn--ghost btn--icon btn--sm"
+          onClick={onBack}
+          aria-label="Quay lại"
+        >
+          <ArrowLeft size={16} />
+        </button>
+      )}
       {action && <div className="page-actions">{action}</div>}
     </div>
   );

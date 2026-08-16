@@ -662,7 +662,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     isDriver,
     sidebarOpen,
     menuButtonRef,
-    pageTitle,
     onToggleSidebar: () => setSidebarOpen(v => !v),
   };
 

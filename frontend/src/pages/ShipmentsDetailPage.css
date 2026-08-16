@@ -8,10 +8,6 @@
 }
 
 .app-main:not(.driver-mode) .app-body > .shipments-detail-page { width: 100%; max-width: none; margin-inline: 0; }
-.shipments-detail-page > .d-breadcrumbs { margin-bottom: 0; font-size: var(--fs-xs); }
-.shipments-detail-page > .page-header { margin-bottom: 2px; padding-bottom: 0; }
-.shipments-detail-page .page-title { font-size: var(--fs-2xl); }
-.shipments-detail-page .page-subtitle { font-size: var(--fs-xs); }
 
 .shipments-detail-workspace {
   min-width: 0;
@@ -292,7 +288,6 @@
 
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
-  .shipments-detail-page .page-title { font-size: var(--fs-xl); }
   .shipments-detail-workspace { border-inline: 0; border-radius: 0; }
   .shipments-detail-workspace__header { padding: 14px 12px; }
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }

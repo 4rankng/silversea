@@ -259,7 +259,7 @@
   .header-actions { flex-wrap: wrap; width: 100%; gap: 8px; }
   .page-actions .btn,
   .header-actions .btn,
-  .page-header .btn,
+  .page-header .btn:not(.btn--icon),
   .page-header .btn-primary { flex: 1 1 180px; min-width: 0; justify-content: center; min-height: 44px; }
   .trip-detail-title { font-size: var(--fs-xl); gap: 8px; line-height: 1.2; }
   .trip-detail-title > span { flex: 1 1 auto; min-width: 0; }

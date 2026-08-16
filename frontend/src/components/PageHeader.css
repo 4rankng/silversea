@@ -49,6 +49,17 @@
   min-height: 44px;
 }
 
+/* Route identity lives in the sidebar and browser title. Keep only controls
+ * that users need at the top of a workspace; headings remain available to AT. */
+.page-header--actions-only {
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 0;
+}
+.page-header--has-action .page-actions {
+  margin-left: auto;
+}
+
 /* detail-grid — 2-col responsive grid for the basic info panel */
 .detail-grid {
   display: grid;

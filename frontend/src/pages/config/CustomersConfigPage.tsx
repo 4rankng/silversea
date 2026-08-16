@@ -3,9 +3,8 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Users, Plus, Loader2 } from 'lucide-react';
-import { useConfirm, Modal } from '../../components/UI';
-import { AssetIcon } from '../../components/AssetIcon';
+import { Users, Plus, Loader2 } from 'lucide-react';
+import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
@@ -251,29 +250,18 @@ export default function CustomersConfigPage() {
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--customers">
-      <div className="page-header">
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label="Quay lại danh sách cấu hình"
-          className="page-header__back-btn"
-          style={{ marginRight: 4 }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="page-header-main" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div className="page-header-icon" aria-hidden="true">
-            <AssetIcon name="customer" size={28} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h1 className="page-title">Khách hàng & Đối tác</h1>
-            <p className="page-subtitle">
-              <strong>{totalCount}</strong> khách hàng đang quản lý
-              {top4Pct > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{top4Pct}%</strong> doanh thu tập trung ở 4 KH lớn nhất</>}
-            </p>
-          </div>
-        </div>
-        <div className="page-actions">
+      <PageHeader
+        title="Khách hàng & Đối tác"
+        description={
+          <>
+            <strong>{totalCount}</strong> khách hàng đang quản lý
+            {top4Pct > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{top4Pct}%</strong> doanh thu tập trung ở 4 KH lớn nhất</>}
+          </>
+        }
+        onBack={handleBack}
+        iconName="customer"
+        action={
+          <div className="page-actions">
           <button className="btn btn--secondary" onClick={async () => {
             const headers = ['Khách hàng', 'MST', 'Liên hệ', 'Chuyến ' + monthLabel, 'Doanh thu ' + monthLabel, 'Hạn mức TD', 'Trạng thái'];
             const rows = filtered.map(c => {
@@ -303,8 +291,9 @@ export default function CustomersConfigPage() {
           <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}>
             <Plus size={14} /> Thêm khách hàng
           </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="kpi">

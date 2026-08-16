@@ -6,9 +6,6 @@ const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.c
 
 describe('shipment detail workboard styling', () => {
   it('uses a compact hierarchy and explicitly downsizes the filter controls', () => {
-    expect(css).toMatch(/\.shipments-detail-page > \.d-breadcrumbs\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
-    expect(css).toMatch(/\.shipments-detail-page \.page-title\s*\{[^}]*font-size:\s*var\(--fs-2xl\);/);
-    expect(css).toMatch(/\.shipments-detail-page \.page-subtitle\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
     expect(css).toMatch(/\.shipments-detail-workspace__intro h2\s*\{[^}]*font-size:\s*var\(--fs-md\);/);
     expect(css).toMatch(/\.shipments-detail-workspace__intro p\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
     expect(css).toMatch(/\.shipments-detail-filter \[data-label\],[\s\S]*?\.shipments-detail-filter > label\s*\{[^}]*font-size:\s*11px;/);
@@ -22,7 +19,6 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-page \.page-title\s*\{[^}]*font-size:\s*var\(--fs-xl\);/);
   });
 
   it('keeps filter controls visibly bounded and usable as a responsive grid', () => {

@@ -3,12 +3,11 @@ import { usePageAnimations } from '../../hooks/animations';
 import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MapPin, Route, Plus, Pencil, Trash2, Loader2, X, Mountain, ArrowLeft } from 'lucide-react';
+import { MapPin, Route, Plus, Pencil, Trash2, Loader2, X, Mountain } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
-import { useConfirm } from '../../components/UI';
-import { AssetIcon } from '../../components/AssetIcon';
+import { PageHeader, useConfirm } from '../../components/UI';
 import { calculateRoute } from '../../lib/maps';
 import { LeafletMap } from '../../components/shared/LeafletMap';
 import { useCRUD } from '../../hooks/useCRUD';
@@ -126,29 +125,15 @@ export default function RoutesConfigPage() {
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
-      <div className="page-header">
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label="Quay lại danh sách cấu hình"
-          className="page-header__back-btn"
-          style={{ marginRight: 4 }}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="page-header-main" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div className="page-header-icon" aria-hidden="true">
-            <AssetIcon name="route-distance" size={28} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <h1 className="page-title">Tuyến đường & Cự ly</h1>
-            <p className="page-subtitle"><strong>{totalCount}</strong> tuyến đang quản lý · {mountainCount} tuyến núi · {usedThisMonth} tuyến chạy trong {monthLabel}</p>
-          </div>
-        </div>
-        <div className="page-actions">
+      <PageHeader
+        title="Tuyến đường & Cự ly"
+        description={<><strong>{totalCount}</strong> tuyến đang quản lý · {mountainCount} tuyến núi · {usedThisMonth} tuyến chạy trong {monthLabel}</>}
+        onBack={handleBack}
+        iconName="route-distance"
+        action={
           <button className="btn btn--primary" onClick={() => crud.setShowAddForm(true)}><Plus size={14} /> Thêm tuyến</button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="kpi">

@@ -1,5 +1,4 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import type { ReactNode } from 'react';
 
 /* ─── Breadcrumbs ──────────────────────────────────────────────────────────
  * Hierarchical "you are here" trail for detail pages. Wraps daisyUI's
@@ -12,46 +11,21 @@ import { Link } from 'react-router-dom';
  * -------------------------------------------------------------------------- */
 
 export interface Crumb {
-  label: React.ReactNode;
+  label: ReactNode;
   /** Router path or href. Absent → treated as the current (last) crumb. */
   to?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }
 
 interface BreadcrumbsProps {
   items: Crumb[];
   /** Override the default <Link> renderer (e.g. for non-router contexts). */
-  renderLink?: (to: string, children: React.ReactNode) => React.ReactNode;
+  renderLink?: (to: string, children: ReactNode) => ReactNode;
   className?: string;
 }
 
-export function Breadcrumbs({ items, renderLink, className = '' }: BreadcrumbsProps) {
-  if (!items.length) return null;
-  return (
-    <nav aria-label="Breadcrumb" className={`d-breadcrumbs text-sm ${className}`.trim()}>
-      <ul>
-        {items.map((item, idx) => {
-          const isLast = idx === items.length - 1;
-          const inner = (
-            <>
-              {item.icon && <span aria-hidden="true" style={{ display: 'inline-flex', verticalAlign: 'middle' }}>{item.icon}</span>}
-              {item.label}
-            </>
-          );
-          return (
-            <li key={idx} className={isLast ? 'text-[var(--ink)] font-semibold' : undefined}>
-              {isLast || !item.to ? (
-                // Current page: not a link, marked aria-current for AT users.
-                <span aria-current="page">{inner}</span>
-              ) : renderLink ? (
-                renderLink(item.to, inner)
-              ) : (
-                <Link to={item.to}>{inner}</Link>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
+export function Breadcrumbs(_props: BreadcrumbsProps) {
+  // The sidebar and browser title provide route context without consuming
+  // workspace space on every page.
+  return null;
 }

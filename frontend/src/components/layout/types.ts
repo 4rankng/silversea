@@ -66,7 +66,6 @@ export interface TopbarProps {
   isDriver: boolean;
   sidebarOpen: boolean;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
-  pageTitle: string;
   onToggleSidebar: () => void;
 }
 

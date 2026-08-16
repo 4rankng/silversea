@@ -374,35 +374,6 @@
 }
 .topbar__toggle:hover { background: var(--surface-2); color: var(--ink); }
 
-.topbar__context {
-  min-width: 168px;
-  max-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-right: 8px;
-  flex: 0 1 auto;
-}
-.topbar__context-kicker {
-  color: var(--ink-3);
-  font-family: var(--font-body);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1.35;
-  text-transform: none;
-}
-.topbar__context strong {
-  min-width: 0;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .topbar__breadcrumb {
   display: flex;
   align-items: center;
