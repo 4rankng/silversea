@@ -1,9 +1,10 @@
 import { useEffect, useId, useState } from 'react';
+import { XClose } from '@untitledui/icons';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
-import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
+import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { businessDateISO } from '../../../lib/format';
-import type { DetailedPlanFilterState } from './useDispatchDetailPlan';
+import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
 
 export interface FacetItem {
   id: number;
@@ -20,10 +21,16 @@ interface DetailedPlanFiltersProps {
   loadDropoffPortFacets: FacetLoader;
 }
 
-const ASSIGNMENT_OPTIONS: { value: DetailedPlanFilterState['assignmentStatus']; label: string }[] = [
-  { value: '', label: 'Tất cả' },
-  { value: 'UNASSIGNED', label: 'Chưa gán Biển số' },
-  { value: 'ASSIGNED', label: 'Đã gán Biển số' },
+const DIRECTION_OPTIONS = [
+  { id: 'ALL_DIRECTIONS', label: 'Nhập/Xuất' },
+  { id: 'IMPORT', label: 'Nhập' },
+  { id: 'EXPORT', label: 'Xuất' },
+];
+
+const ASSIGNMENT_OPTIONS = [
+  { id: 'ALL_ASSIGNMENTS', label: 'Tất cả' },
+  { id: 'UNASSIGNED', label: 'Chưa gán Biển số' },
+  { id: 'ASSIGNED', label: 'Đã gán Biển số' },
 ];
 
 /** Searchable multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả). */
@@ -194,7 +201,7 @@ export function DetailedPlanFilters({
   const advancedFiltersId = useId();
   const today = businessDateISO();
   const activeAdvancedFilterCount = [
-    filters.date,
+    filters.date !== today,
     filters.direction,
     filters.assignmentStatus,
     filters.pickupIds.length > 0,
@@ -203,9 +210,32 @@ export function DetailedPlanFilters({
     filters.hourFrom !== '',
     filters.hourTo !== '',
   ].filter(Boolean).length;
+  const activeFilterCount = activeAdvancedFilterCount + (filters.q.trim() !== '' ? 1 : 0);
+
+  const clearFilters = () => {
+    setIsAdvancedFiltersOpen(false);
+    onChange(createDefaultDetailedPlanFilters());
+  };
 
   return (
     <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
+      <div className="detailed-plan-filters__actions">
+        <span className="detailed-plan-filters__status" aria-live="polite">
+          {activeFilterCount > 0
+            ? `Đang áp dụng ${activeFilterCount} điều kiện lọc`
+            : 'Mặc định: ngày vận chuyển hôm nay'}
+        </span>
+        <UUIButton
+          className="detailed-plan-filters__clear"
+          size="xs"
+          color="tertiary"
+          iconLeading={XClose}
+          isDisabled={activeFilterCount === 0}
+          onPress={clearFilters}
+        >
+          Xóa bộ lọc
+        </UUIButton>
+      </div>
       <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
         <span className="detailed-plan-filters__label">Tìm nhanh</span>
         <UUIInput
@@ -251,32 +281,36 @@ export function DetailedPlanFilters({
             </UUIButton>
           )}
         </div>
-      <label className="detailed-plan-filters__field">
+      <div className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Chiều hàng</span>
-        <UUINativeSelect
+        <UUISelect
           className="detailed-plan-filters__select"
-          value={filters.direction}
-          onChange={(event) => onChange({ direction: event.target.value as DetailedPlanFilterState['direction'] })}
           size="sm"
           aria-label="Chiều hàng"
-          options={[
-            { value: '', label: 'Nhập/Xuất' },
-            { value: 'IMPORT', label: 'Nhập' },
-            { value: 'EXPORT', label: 'Xuất' },
-          ]}
-        />
-      </label>
-      <label className="detailed-plan-filters__field">
+          selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+          onSelectionChange={(key) => onChange({
+            direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'],
+          })}
+          items={DIRECTION_OPTIONS}
+        >
+          {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+        </UUISelect>
+      </div>
+      <div className="detailed-plan-filters__field">
         <span className="detailed-plan-filters__label">Phân xe</span>
-        <UUINativeSelect
+        <UUISelect
           className="detailed-plan-filters__select"
-          value={filters.assignmentStatus}
-          onChange={(event) => onChange({ assignmentStatus: event.target.value as DetailedPlanFilterState['assignmentStatus'] })}
           size="sm"
           aria-label="Phân xe"
-          options={ASSIGNMENT_OPTIONS.map((option) => ({ label: option.label, value: option.value }))}
-        />
-      </label>
+          selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
+          onSelectionChange={(key) => onChange({
+            assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'],
+          })}
+          items={ASSIGNMENT_OPTIONS}
+        >
+          {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+        </UUISelect>
+      </div>
       <FacetMultiSelect
         label="Điểm nâng"
         selected={filters.pickupIds}

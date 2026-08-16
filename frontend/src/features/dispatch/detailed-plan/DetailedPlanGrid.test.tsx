@@ -206,4 +206,16 @@ describe('DetailedPlanGrid', () => {
     expect(picker).toContain('z-index: 20');
     expect(hourControl).toContain('flex: 1 1 0');
   });
+
+  it('presents filter reset as a quiet full-width toolbar action instead of another field card', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const actions = css.match(/\.detailed-plan-filters__actions \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const clear = css.match(/\.detailed-plan-filters__clear \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(actions).toContain('grid-column: 1 / -1');
+    expect(actions).toContain('justify-content: space-between');
+    expect(actions).toContain('border-bottom: 1px solid');
+    expect(actions).not.toMatch(/\bbackground\s*:/);
+    expect(clear).toContain('flex: 0 0 auto');
+  });
 });

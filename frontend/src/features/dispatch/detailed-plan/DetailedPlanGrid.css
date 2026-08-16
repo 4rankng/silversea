@@ -11,6 +11,27 @@
   margin-bottom: 12px;
 }
 
+.detailed-plan-filters__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+}
+
+.detailed-plan-filters__status {
+  color: var(--color-fg-tertiary, var(--text-secondary, #667085));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.detailed-plan-filters__clear {
+  flex: 0 0 auto;
+}
+
 .detailed-plan-filters__field {
   display: grid;
   gap: 5px;

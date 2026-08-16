@@ -36,7 +36,7 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   hourTo: '',
 };
 
-function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
+export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
   return { ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() };
 }
 

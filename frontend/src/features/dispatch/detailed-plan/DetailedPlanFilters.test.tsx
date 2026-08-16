@@ -26,6 +26,13 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByText('Điểm hạ')).toBeTruthy();
     expect(screen.getByText('Điểm trả')).toBeTruthy();
     expect(screen.getByText('Giờ chạy')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Nhập/Xuất Chiều hàng' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
+    expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả Phân xe' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa gán Biển số' }));
+    expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
 
     const hourFrom = screen.getByLabelText('Giờ từ');
     const hourTo = screen.getByLabelText('Giờ đến');
@@ -37,10 +44,8 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ hourTo: '09:45' });
 
     fireEvent.change(screen.getByLabelText('Tìm nhanh'), { target: { value: 'BILL-001' } });
-    fireEvent.change(screen.getByLabelText('Phân xe'), { target: { value: 'UNASSIGNED' } });
 
     expect(onChange).toHaveBeenCalledWith({ q: 'BILL-001' });
-    expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
 
     fireEvent.focus(screen.getByLabelText('Tìm điểm trả'));
     await waitFor(() => expect(screen.getByRole('option', { name: 'KCN Vân Trung' })).toBeTruthy());
@@ -162,7 +167,7 @@ describe('DetailedPlanFilters', () => {
   it('keeps advanced filters compact but discoverable on a phone viewport', () => {
     render(
       <DetailedPlanFilters
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() }}
         onChange={vi.fn()}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
@@ -190,5 +195,47 @@ describe('DetailedPlanFilters', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Về hôm nay' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
+  });
+
+  it('clears every filter back to the today-based default from one coherent toolbar action', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <DetailedPlanFilters
+        filters={{
+          q: 'BILL-001',
+          date: '2099-01-01',
+          direction: 'IMPORT',
+          assignmentStatus: 'UNASSIGNED',
+          pickupIds: [1],
+          dropoffIds: [2],
+          deliveryPointIds: [3],
+          hourFrom: '07:30',
+          hourTo: '09:45',
+        }}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+
+    expect(screen.getByText('Đang áp dụng 9 điều kiện lọc')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    expect(onChange).toHaveBeenCalledWith({
+      ...EMPTY_DETAILED_PLAN_FILTERS,
+      date: businessDateISO(),
+    });
+
+    rerender(
+      <DetailedPlanFilters
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: businessDateISO() }}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      />,
+    );
+    expect(screen.getByText('Mặc định: ngày vận chuyển hôm nay')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeDisabled();
   });
 });
