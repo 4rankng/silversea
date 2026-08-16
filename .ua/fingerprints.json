@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "b41719141038149a3eef5e59c851089e31ba6a2e",
-  "generatedAt": "2026-08-16T09:12:54.835Z",
+  "gitCommitHash": "bd6e5cfc6ad9c79aaf4afca52a79eb7e3bf5c033",
+  "generatedAt": "2026-08-16T11:15:18.754Z",
   "files": {
     ".codex/context-manifest.json": {
       "filePath": ".codex/context-manifest.json",
@@ -8051,291 +8051,48 @@
       "hasStructuralAnalysis": true
     },
     "backend/src/routes/shipments.ts": {
-      "filePath": "backend/src/routes/shipments.ts",
-      "contentHash": "1e308add5cba3618fa7b406ae54a389f672400ca9828bc39e8e122b324233a36",
+      "contentHash": "0f663dd2ab751859fd0b493e9b6b1a09a3c0ebcab967bee941644c3e3d193d62",
       "functions": [
-        {
-          "name": "runShipmentWrite",
-          "params": [
-            "req",
-            "endpoint",
-            "payload",
-            "create"
-          ],
-          "exported": false,
-          "lineCount": 18
-        },
-        {
-          "name": "sendShipmentWrite",
-          "params": [
-            "res",
-            "envelope"
-          ],
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "toShipmentRecoveryFactPayload",
-          "params": [
-            "fact"
-          ],
-          "exported": false,
-          "lineCount": 27
-        },
-        {
-          "name": "parseId",
-          "params": [
-            "req",
-            "res"
-          ],
-          "returnType": "number | null",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "requireShipmentIdempotencyKey",
-          "params": [
-            "req",
-            "message"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        }
+        "runShipmentWrite",
+        "sendShipmentWrite",
+        "toShipmentRecoveryFactPayload",
+        "parseId",
+        "requireShipmentIdempotencyKey",
+        "idList",
+        "time"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "express",
-          "specifiers": [
-            "Router"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "Role"
-          ]
-        },
-        {
-          "source": "zod",
-          "specifiers": [
-            "z"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "cancelShipmentFulfillmentSchema",
-            "createShipmentSchema",
-            "shipmentChargeProposalReviewSchema",
-            "updateShipmentSchema",
-            "transitionShipmentStatusSchema",
-            "attachShipmentDocumentSchema",
-            "shipmentContainerBatchSchema",
-            "quickCreateShipmentSchema",
-            "submitShipmentForDispatchSchema",
-            "carrierFleetVehicleSchema",
-            "assignShipmentCarriersSchema",
-            "operationalSiteSchema",
-            "shipmentCusWorkspaceQuerySchema",
-            "shipmentCusContainerLineUpdateSchema",
-            "shipmentCusFinanceConfirmationCreateSchema",
-            "shipmentCusDocumentCustodyUpdateSchema",
-            "shipmentCusLockSchema",
-            "shipmentCusReopenRequestSchema",
-            "shipmentCusReopenDecisionSchema",
-            "shipmentRecoveryRecordSchema"
-          ]
-        },
-        {
-          "source": "../services/shipment.service",
-          "specifiers": [
-            "createShipment",
-            "cancelShipmentFulfillment",
-            "completeShipmentDirect",
-            "createShipmentIdempotent",
-            "downloadShipmentPodFile",
-            "getShipment",
-            "getShipmentDetail",
-            "listShipmentsPaginated",
-            "reviewTripPodSubmission",
-            "updateShipment",
-            "transitionShipmentStatus",
-            "softDeleteShipment",
-            "batchUpsertShipmentContainers",
-            "attachShipmentDocument",
-            "upsertShipmentDeclaration",
-            "replaceShipmentDocument",
-            "reviewShipmentChangeRequest"
-          ]
-        },
-        {
-          "source": "../services/cus-shipment-workspace.service",
-          "specifiers": [
-            "getCusShipmentWorkspaceDetail",
-            "listCusShipmentContainers",
-            "listCusShipmentWorkspace",
-            "updateCusShipmentContainerLine"
-          ]
-        },
-        {
-          "source": "../middleware/casbin",
-          "specifiers": [
-            "requireRoles"
-          ]
-        },
-        {
-          "source": "../middleware/auth",
-          "specifiers": [
-            "getUser"
-          ]
-        },
-        {
-          "source": "../services/audit-registry",
-          "specifiers": [
-            "registerAuditEvent"
-          ]
-        },
-        {
-          "source": "../services/audit-types",
-          "specifiers": [
-            "AuditEvent"
-          ]
-        },
-        {
-          "source": "express",
-          "specifiers": [
-            "Request",
-            "Response"
-          ]
-        },
-        {
-          "source": "../middleware/asyncHandler",
-          "specifiers": [
-            "asyncHandler"
-          ]
-        },
-        {
-          "source": "./utils/pagination",
-          "specifiers": [
-            "parsePagination"
-          ]
-        },
-        {
-          "source": "../lib/validation",
-          "specifiers": [
-            "throwValidation"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentStatus"
-          ]
-        },
-        {
-          "source": "../services/idempotency.service",
-          "specifiers": [
-            "IDEMPOTENCY_ENDPOINTS",
-            "runIdempotent"
-          ]
-        },
-        {
-          "source": "./utils/idempotency",
-          "specifiers": [
-            "getRequestIdempotencyKey"
-          ]
-        },
-        {
-          "source": "../services/trip-shared",
-          "specifiers": [
-            "Tx"
-          ]
-        },
-        {
-          "source": "../services/shipment-coordination.service",
-          "specifiers": [
-            "CUSTOMER_EVENT_TYPES",
-            "createCustomerVisibleEvent",
-            "listCustomerVisibleEvents"
-          ]
-        },
-        {
-          "source": "../services/dispatch-handoff.service",
-          "specifiers": [
-            "createHandoff",
-            "getLatestHandoffForShipment",
-            "markSeen",
-            "resolveHandoff"
-          ]
-        },
-        {
-          "source": "../services/shipment-intake.service",
-          "specifiers": [
-            "assignShipmentCarriers",
-            "createOperationalSiteForIntake",
-            "listOperationalSitesForIntake",
-            "submitShipmentForDispatch"
-          ]
-        },
-        {
-          "source": "../services/dispatch-planning.service",
-          "specifiers": [
-            "acceptDispatchHandoff",
-            "issueFulfillmentDispatchOrder",
-            "listDispatchFleet",
-            "listDispatchHandoffs",
-            "listDispatchQueue"
-          ]
-        },
-        {
-          "source": "../services/pricing.service",
-          "specifiers": [
-            "resolveShipmentPricingProjection"
-          ]
-        },
-        {
-          "source": "../services/statement.service",
-          "specifiers": [
-            "attachmentDisposition"
-          ]
-        },
-        {
-          "source": "../services/shipment-accounting-lock.service",
-          "specifiers": [
-            "activateShipmentAccountingLock",
-            "confirmShipmentFinance",
-            "decideShipmentReopen",
-            "reviewShipmentChargeProposal",
-            "requestShipmentReopen",
-            "updateShipmentDocumentCustody"
-          ]
-        },
-        {
-          "source": "../services/carrier-fleet-vehicle.service",
-          "specifiers": [
-            "createCarrierFleetVehicle",
-            "listCarrierFleetVehicles",
-            "updateCarrierFleetVehicle"
-          ]
-        },
-        {
-          "source": "../services/shipment-recovery.service",
-          "specifiers": [
-            "recordShipmentRecovery"
-          ]
-        }
+        "import { Router } from 'express'",
+        "import { Role } from '@tingting/shared'",
+        "import { z } from 'zod'",
+        "import {\n  cancelShipmentFulfillmentSchema,\n  createShipmentSchema,\n  shipmentChargeProposalReviewSchema,\n  updateShipmentSchema,\n  transitionShipmentStatusSchema,\n  attachShipmentDocumentSchema,\n  shipmentContainerBatchSchema,\n  quickCreateShipmentSchema,\n  submitShipmentForDispatchSchema,\n  carrierFleetVehicleSchema,\n  assignShipmentCarriersSchema,\n  operationalSiteSchema,\n  shipmentCusWorkspaceQuerySchema,\n  shipmentCusContainerLineUpdateSchema,\n  shipmentCusFinanceConfirmationCreateSchema,\n  shipmentCusDocumentCustodyUpdateSchema,\n  shipmentCusLockSchema,\n  shipmentCusReopenRequestSchema,\n  shipmentCusReopenDecisionSchema,\n  shipmentRecoveryRecordSchema,\n} from '@tingting/shared'",
+        "import {\n  createShipment,\n  cancelShipmentFulfillment,\n  completeShipmentDirect,\n  createShipmentIdempotent,\n  downloadShipmentPodFile,\n  getShipment,\n  getShipmentDetail,\n  listShipmentsPaginated,\n  ALLOCATION_STATUSES,\n  type AllocationStatus,\n  reviewTripPodSubmission,\n  updateShipment,\n  transitionShipmentStatus,\n  softDeleteShipment,\n  batchUpsertShipmentContainers,\n  attachShipmentDocument,\n  upsertShipmentDeclaration,\n  replaceShipmentDocument,\n  reviewShipmentChangeRequest,\n} from '../services/shipment.service'",
+        "import {\n  getCusShipmentWorkspaceDetail,\n  listCusShipmentContainers,\n  listCusShipmentWorkspace,\n  updateCusShipmentContainerLine,\n} from '../services/cus-shipment-workspace.service'",
+        "import { requireRoles } from '../middleware/casbin'",
+        "import { getUser } from '../middleware/auth'",
+        "import { registerAuditEvent } from '../services/audit-registry'",
+        "import { AuditEvent } from '../services/audit-types'",
+        "import type { Request, Response } from 'express'",
+        "import { asyncHandler } from '../middleware/asyncHandler'",
+        "import { parsePagination } from './utils/pagination'",
+        "import { throwValidation } from '../lib/validation'",
+        "import { ApiError } from '../errors'",
+        "import { ShipmentStatus } from '@tingting/shared'",
+        "import {\n  IDEMPOTENCY_ENDPOINTS,\n  runIdempotent,\n} from '../services/idempotency.service'",
+        "import { getRequestIdempotencyKey } from './utils/idempotency'",
+        "import type { Tx } from '../services/trip-shared'",
+        "import {\n  CUSTOMER_EVENT_TYPES,\n  createCustomerVisibleEvent,\n  listCustomerVisibleEvents,\n} from '../services/shipment-coordination.service'",
+        "import {\n  createHandoff,\n  getLatestHandoffForShipment,\n  markSeen,\n  resolveHandoff,\n} from '../services/dispatch-handoff.service'",
+        "import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service'",
+        "import {\n  acceptDispatchHandoff,\n  assignFulfillmentPlate,\n  issueFulfillmentDispatchOrder,\n  listDispatchDeliveryPointFacets,\n  listDispatchPortFacets,\n  listDispatchDetailPlanRows,\n  listDispatchFleet,\n  listDispatchHandoffs,\n  listDispatchQueue,\n} from '../services/dispatch-planning.service'",
+        "import { resolveShipmentPricingProjection } from '../services/pricing.service'",
+        "import { attachmentDisposition } from '../services/statement.service'",
+        "import {\n  activateShipmentAccountingLock,\n  confirmShipmentFinance,\n  decideShipmentReopen,\n  reviewShipmentChargeProposal,\n  requestShipmentReopen,\n  updateShipmentDocumentCustody,\n} from '../services/shipment-accounting-lock.service'",
+        "import {\n  createCarrierFleetVehicle,\n  listCarrierFleetVehicles,\n  updateCarrierFleetVehicle,\n} from '../services/carrier-fleet-vehicle.service'",
+        "import { recordShipmentRecovery } from '../services/shipment-recovery.service'"
       ],
-      "exports": [],
-      "totalLines": 1643,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "backend/src/routes/trips.ts": {
       "filePath": "backend/src/routes/trips.ts",
@@ -21187,495 +20944,89 @@
       "hasStructuralAnalysis": true
     },
     "backend/src/services/dispatch-planning.service.ts": {
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "contentHash": "a0fcd8e78fbccf97a46b26f0ab2d85f6c1b914e536b034bdd24f85a1e870f81a",
+      "contentHash": "6201be07f0d199b8da8a1dbdc697558dd2aa957eebf74cc24060794514898817",
       "functions": [
-        {
-          "name": "normalizeDispatchHandoffStatuses",
-          "params": [
-            "input"
-          ],
-          "returnType": "DispatchHandoffStatus[]",
-          "exported": false,
-          "lineCount": 27
-        },
-        {
-          "name": "assertDispatchReadActor",
-          "params": [
-            "actor"
-          ],
-          "returnType": "void",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "assertDispatchActor",
-          "params": [
-            "actor"
-          ],
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "accountantCustomerScopeIds",
-          "params": [
-            "actor"
-          ],
-          "returnType": "number[]",
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "requireAccountantDispatchScope",
-          "params": [
-            "actor"
-          ],
-          "returnType": "number[] | null",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "decodeCursorPayload",
-          "params": [
-            "raw"
-          ],
-          "returnType": "unknown",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "encodeCursorPayload",
-          "params": [
-            "payload"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "parseCursor",
-          "params": [
-            "raw",
-            "scope"
-          ],
-          "returnType": "number | null",
-          "exported": false,
-          "lineCount": 27
-        },
-        {
-          "name": "encodeDescendingIdCursor",
-          "params": [
-            "scope",
-            "id"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "parseFleetCursor",
-          "params": [
-            "raw",
-            "resource"
-          ],
-          "returnType": "{ sortKey: string; id: number } | null",
-          "exported": false,
-          "lineCount": 29
-        },
-        {
-          "name": "encodeFleetCursor",
-          "params": [
-            "resource",
-            "sortKey",
-            "id"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "normalizeLimit",
-          "params": [
-            "raw",
-            "max"
-          ],
-          "returnType": "number",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "normalizeDate",
-          "params": [
-            "raw"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 7
-        },
-        {
-          "name": "escapeLikeTerm",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "buildPattern",
-          "params": [
-            "raw"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 8
-        },
-        {
-          "name": "unaccentedIlike",
-          "params": [
-            "column",
-            "pattern"
-          ],
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "sumSelectedStatusCounts",
-          "params": [
-            "selected",
-            "counts"
-          ],
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "parseIsoWithZone",
-          "params": [
-            "value",
-            "label"
-          ],
-          "returnType": "Date",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "trimBounded",
-          "params": [
-            "value",
-            "label",
-            "maxLength"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 9
-        },
-        {
-          "name": "inferTrailerTypeFromContainerCode",
-          "params": [
-            "code"
-          ],
-          "returnType": "'20FT' | '40FT'",
-          "exported": false,
-          "lineCount": 4
-        },
-        {
-          "name": "routeServiceDurationMinutes",
-          "params": [
-            "distanceKm"
-          ],
-          "returnType": "number | null",
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "redactDispatchSiteForAccountant",
-          "params": [
-            "actor",
-            "site"
-          ],
-          "returnType": "T",
-          "exported": false,
-          "lineCount": 15
-        },
-        {
-          "name": "inferredVehicleCapacityKg",
-          "params": [
-            "trailerType"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "authoritativeCargoWeightKg",
-          "params": [
-            "args"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "dispatchAssignmentChanged",
-          "params": [
-            "trip",
-            "next"
-          ],
-          "returnType": "boolean",
-          "exported": false,
-          "lineCount": 26
-        },
-        {
-          "name": "buildNotificationPayload",
-          "params": [
-            "trip"
-          ],
-          "returnType": "NotificationPayload",
-          "exported": false,
-          "lineCount": 15
-        },
-        {
-          "name": "hasExplicitNotificationTarget",
-          "params": [
-            "payload"
-          ],
-          "returnType": "boolean",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "toIsoOrNull",
-          "params": [
-            "value"
-          ],
-          "returnType": "string | null",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "loadPickupSites",
-          "params": [
-            "tx",
-            "siteIds"
-          ],
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "loadDeclarationNumbers",
-          "params": [
-            "tx",
-            "shipmentIds"
-          ],
-          "exported": false,
-          "lineCount": 17
-        },
-        {
-          "name": "toFrozenSiteSummary",
-          "params": [
-            "source"
-          ],
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "listDispatchHandoffs",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 168
-        },
-        {
-          "name": "listDispatchQueue",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 244
-        },
-        {
-          "name": "listDispatchFleet",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 226
-        },
-        {
-          "name": "acceptDispatchHandoff",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 26
-        },
-        {
-          "name": "loadLiveTripForFulfillment",
-          "params": [
-            "tx",
-            "fulfillmentId"
-          ],
-          "returnType": "Promise<LiveTripRow | null>",
-          "exported": false,
-          "lineCount": 32
-        },
-        {
-          "name": "replaceTripContainersForFulfillment",
-          "params": [
-            "tx",
-            "tripId",
-            "shipment",
-            "fulfillment",
-            "actorId"
-          ],
-          "exported": false,
-          "lineCount": 55
-        },
-        {
-          "name": "assertResourceAvailability",
-          "params": [
-            "tx",
-            "args"
-          ],
-          "exported": false,
-          "lineCount": 44
-        },
-        {
-          "name": "issueOrderCreateOrUpdate",
-          "params": [
-            "tx",
-            "input"
-          ],
-          "returnType": "Promise<IssueOrderMutationResult>",
-          "exported": false,
-          "lineCount": 393
-        },
-        {
-          "name": "issueFulfillmentDispatchOrder",
-          "params": [
-            "input"
-          ],
-          "exported": true,
-          "lineCount": 67
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "drizzle-orm",
-          "specifiers": [
-            "and",
-            "asc",
-            "count",
-            "desc",
-            "eq",
-            "gt",
-            "ilike",
-            "inArray",
-            "isNotNull",
-            "isNull",
-            "lt",
-            "ne",
-            "or",
-            "sql"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "canonicalShipmentStatus",
-            "NotificationType",
-            "Role",
-            "TripStatus",
-            "FuelMode"
-          ]
-        },
-        {
-          "source": "../db",
-          "specifiers": [
-            "db"
-          ]
-        },
-        {
-          "source": "../db/schema",
-          "specifiers": [
-            "* as s"
-          ]
-        },
-        {
-          "source": "../errors",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../middleware/auth",
-          "specifiers": [
-            "AuthUser"
-          ]
-        },
-        {
-          "source": "./dispatch-handoff.service",
-          "specifiers": [
-            "resolveHandoff"
-          ]
-        },
-        {
-          "source": "./idempotency.service",
-          "specifiers": [
-            "runIdempotent",
-            "IDEMPOTENCY_ENDPOINTS"
-          ]
-        },
-        {
-          "source": "./notification.service",
-          "specifiers": [
-            "persistNotificationInTx",
-            "sendNotificationPush",
-            "NotificationPayload"
-          ]
-        },
-        {
-          "source": "./shipment-coordination.service",
-          "specifiers": [
-            "assertActorCanAccessShipment"
-          ]
-        },
-        {
-          "source": "./shipment-fulfillment.service",
-          "specifiers": [
-            "ensureShipmentFulfillmentsInTx"
-          ]
-        },
-        {
-          "source": "./shipment.service",
-          "specifiers": [
-            "transitionShipmentStatus"
-          ]
-        },
-        {
-          "source": "./trip-mutations.service",
-          "specifiers": [
-            "createTrip"
-          ]
-        },
-        {
-          "source": "./shipment-accounting-lock.service",
-          "specifiers": [
-            "assertShipmentAccountingUnlocked"
-          ]
-        }
-      ],
-      "exports": [
+        "normalizeDispatchHandoffStatuses",
+        "value",
+        "assertDispatchReadActor",
+        "assertDispatchActor",
+        "accountantCustomerScopeIds",
+        "requireAccountantDispatchScope",
+        "decodeCursorPayload",
+        "encodeCursorPayload",
+        "parseCursor",
+        "encodeDescendingIdCursor",
+        "parseFleetCursor",
+        "encodeFleetCursor",
+        "normalizeLimit",
+        "normalizeDate",
+        "escapeLikeTerm",
+        "buildPattern",
+        "unaccentedIlike",
+        "sumSelectedStatusCounts",
+        "parseIsoWithZone",
+        "trimBounded",
+        "inferTrailerTypeFromContainerCode",
+        "routeServiceDurationMinutes",
+        "redactDispatchSiteForAccountant",
+        "inferredVehicleCapacityKg",
+        "authoritativeCargoWeightKg",
+        "dispatchAssignmentChanged",
+        "buildNotificationPayload",
+        "hasExplicitNotificationTarget",
+        "toIsoOrNull",
+        "loadPickupSites",
+        "loadDeclarationNumbers",
+        "toFrozenSiteSummary",
         "listDispatchHandoffs",
         "listDispatchQueue",
         "listDispatchFleet",
         "acceptDispatchHandoff",
-        "issueFulfillmentDispatchOrder"
+        "loadLiveTripForFulfillment",
+        "replaceTripContainersForFulfillment",
+        "assertResourceAvailability",
+        "issueOrderCreateOrUpdate",
+        "issueFulfillmentDispatchOrder",
+        "normalizeIdList",
+        "normalizeTimeMinutes",
+        "dispatchDetailRunMinutesSql",
+        "dispatchDetailTransportDateSql",
+        "dispatchDetailDisplayHour",
+        "listDispatchDetailPlanRows",
+        "listDispatchDeliveryPointFacets",
+        "listDispatchPortFacets",
+        "normalizeFreeTextPlate",
+        "assignFulfillmentPlate",
+        "buildPlateAssignmentNotificationPayload",
+        "assignFulfillmentPlateInTx",
+        "recomputeLotFullyPlated"
       ],
-      "totalLines": 1731,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm'",
+        "import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared'",
+        "import { db } from '../db'",
+        "import * as s from '../db/schema'",
+        "import { ApiError } from '../errors'",
+        "import type { AuthUser } from '../middleware/auth'",
+        "import { resolveHandoff } from './dispatch-handoff.service'",
+        "import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service'",
+        "import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service'",
+        "import { assertActorCanAccessShipment } from './shipment-coordination.service'",
+        "import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service'",
+        "import { transitionShipmentStatus } from './shipment.service'",
+        "import { createTrip } from './trip-mutations.service'",
+        "import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service'"
+      ],
+      "exports": [
+        "export interface ListDispatchHandoffsInput {",
+        "export interface ListDispatchQueueInput {",
+        "export interface ListDispatchFleetInput {",
+        "export interface ListDispatchDetailPlanRowsInput {",
+        "export interface AssignFulfillmentPlateInput {",
+        "export interface AcceptDispatchHandoffInput {",
+        "export interface IssueFulfillmentDispatchOrderInput {"
+      ]
     },
     "backend/src/services/driver-user-binding.service.ts": {
       "filePath": "backend/src/services/driver-user-binding.service.ts",
@@ -67041,111 +66392,9 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/api/dispatchPlanningClient.ts": {
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "contentHash": "be9efc2351a1771b7222405e00540bb26efd7347c371efe0e3b0f855a04fd898",
+      "contentHash": "b502a6593e13265342f737b85025fd67173d89ea4ef14d25b607a4b5cec425c2",
       "functions": [
-        {
-          "name": "queryString",
-          "params": [
-            "values"
-          ],
-          "exported": false,
-          "lineCount": 11
-        },
-        {
-          "name": "listDispatchQueue",
-          "params": [
-            "filters"
-          ],
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "listDispatchFleetResources",
-          "params": [
-            "resource",
-            "filters"
-          ],
-          "exported": true,
-          "lineCount": 6
-        },
-        {
-          "name": "getDispatchFleet",
-          "params": [
-            "filters"
-          ],
-          "returnType": "Promise<DispatchFleet>",
-          "exported": true,
-          "lineCount": 9
-        },
-        {
-          "name": "listDispatchHandoffs",
-          "params": [
-            "filters"
-          ],
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "listCarrierFleetVehicles",
-          "params": [
-            "carrierId"
-          ],
-          "exported": true,
-          "lineCount": 3
-        },
-        {
-          "name": "createCarrierFleetVehicle",
-          "params": [
-            "body"
-          ],
-          "exported": true,
-          "lineCount": 5
-        },
-        {
-          "name": "updateCarrierFleetVehicle",
-          "params": [
-            "vehicleId",
-            "body"
-          ],
-          "exported": true,
-          "lineCount": 5
-        },
-        {
-          "name": "resolveDispatchHandoff",
-          "params": [
-            "item",
-            "resolution"
-          ],
-          "exported": true,
-          "lineCount": 7
-        },
-        {
-          "name": "issueDispatchOrder",
-          "params": [
-            "item",
-            "body"
-          ],
-          "exported": true,
-          "lineCount": 12
-        }
-      ],
-      "classes": [],
-      "imports": [
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "api"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "CursorPaginatedResponse"
-          ]
-        }
-      ],
-      "exports": [
+        "queryString",
         "listDispatchQueue",
         "listDispatchFleetResources",
         "getDispatchFleet",
@@ -67154,10 +66403,45 @@
         "createCarrierFleetVehicle",
         "updateCarrierFleetVehicle",
         "resolveDispatchHandoff",
-        "issueDispatchOrder"
+        "issueDispatchOrder",
+        "listDispatchDetailPlanRows",
+        "listDispatchDeliveryPointFacets",
+        "listDispatchPickupPortFacets",
+        "listDispatchDropoffPortFacets",
+        "assignDispatchDetailPlate"
       ],
-      "totalLines": 179,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import { api } from '../lib/api'",
+        "import type { CursorPaginatedResponse, PaginatedResponse } from '@tingting/shared'"
+      ],
+      "exports": [
+        "export interface DispatchTruck {",
+        "export interface DispatchDriver {",
+        "export interface DispatchExternalCarrier {",
+        "export interface DispatchCarrierVehicle {",
+        "export interface DispatchAccountingLock {",
+        "export interface DispatchPlannedCarrier {",
+        "export interface DispatchQueueItem {",
+        "export interface DispatchFleet {",
+        "export interface DispatchHandoffItem {",
+        "export function listDispatchQueue(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT'; status?: Array<'READY' | 'DISPATCHED'>; date?: string }) {",
+        "export type DispatchFleetResource = DispatchResource | 'EXTERNAL_VEHICLE';",
+        "export function listDispatchFleetResources<R extends DispatchFleetResource>(",
+        "export function listDispatchHandoffs(filters: { cursor?: string | null; limit?: number; q?: string; urgency?: '' | 'NORMAL' | 'URGENT' }) {",
+        "export function listCarrierFleetVehicles(carrierId: number) {",
+        "export function createCarrierFleetVehicle(body: { carrierId: number; licensePlate: string }) {",
+        "export function updateCarrierFleetVehicle(vehicleId: number, body: { isActive: boolean }) {",
+        "export function resolveDispatchHandoff(item: DispatchHandoffItem, resolution: 'SEEN' | 'ACCEPTED' | 'REJECTED') {",
+        "export function issueDispatchOrder(item: DispatchQueueItem, body: {",
+        "export interface DispatchDetailPlanRow {",
+        "export interface DispatchDetailPlanFilters {",
+        "export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {",
+        "export function listDispatchDeliveryPointFacets(filters: { q?: string } = {}) {",
+        "export function listDispatchPickupPortFacets(filters: { q?: string } = {}) {",
+        "export function listDispatchDropoffPortFacets(filters: { q?: string } = {}) {",
+        "export function assignDispatchDetailPlate(fulfillmentId: number, body: {"
+      ]
     },
     "frontend/src/api/driverClient.test.ts": {
       "filePath": "frontend/src/api/driverClient.test.ts",
@@ -75578,69 +74862,24 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/components/untitled-ui/base/buttons/button.tsx": {
-      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "contentHash": "9a907c62064046c06f31f203b90ad38fd941f15da8821513c0fcc95893eb1113",
-      "functions": [
-        {
-          "name": "Button",
-          "params": [
-            "{\n    size = \"sm\",\n    color = \"primary\",\n    children,\n    className,\n    noTextPadding,\n    iconLeading: IconLeading,\n    iconTrailing: IconTrailing,\n    isDisabled: disabled,\n    isLoading: loading,\n    showTextWhileLoading,\n    ...props\n}"
-          ],
-          "exported": true,
-          "lineCount": 88
-        }
-      ],
+      "contentHash": "2e2576664a1932d6556930a75db0f39a33941f410e6088f56dd40bb3c0170d54",
+      "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "FC",
-            "ReactElement",
-            "ReactNode"
-          ]
-        },
-        {
-          "source": "react",
-          "specifiers": [
-            "React",
-            "isValidElement"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaButtonProps",
-            "AriaLinkProps"
-          ]
-        },
-        {
-          "source": "react-aria-components",
-          "specifiers": [
-            "AriaButton",
-            "AriaLink"
-          ]
-        },
-        {
-          "source": "@/utils/cx",
-          "specifiers": [
-            "cx",
-            "sortCx"
-          ]
-        },
-        {
-          "source": "@/utils/is-react-component",
-          "specifiers": [
-            "isReactComponent"
-          ]
-        }
+        "import type { FC, ReactElement, ReactNode } from \"react\"",
+        "import React, { cloneElement, isValidElement } from \"react\"",
+        "import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from \"react-aria-components\"",
+        "import { Button as AriaButton, Link as AriaLink } from \"react-aria-components\"",
+        "import { cx, sortCx } from \"@/utils/cx\"",
+        "import { isReactComponent } from \"@/utils/is-react-component\""
       ],
       "exports": [
-        "styles",
-        "Button"
-      ],
-      "totalLines": 258,
-      "hasStructuralAnalysis": true
+        "export const styles = sortCx({",
+        "export interface CommonProps {",
+        "export interface ButtonProps extends CommonProps, Omit<AriaButtonProps, \"children\" | \"className\"> {}",
+        "export type Props = ButtonProps | LinkProps;",
+        "export const Button: {"
+      ]
     },
     "frontend/src/components/untitled-ui/base/input/hint-text.tsx": {
       "filePath": "frontend/src/components/untitled-ui/base/input/hint-text.tsx",
@@ -98004,8 +97243,7 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsPage.test.tsx": {
-      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "contentHash": "aded000004227443740cea1fdd205d7c5b6df8fe0bc84e15aa9614bedefb3c90",
+      "contentHash": "1790d05808cf9d0432051ecf06a8191c953c8d062e7c995d4f8f5ff4b0edb85d",
       "functions": [
         "listResponse",
         "renderPage",
@@ -98014,20 +97252,19 @@
       ],
       "classes": [
         "ApiError",
+        "CardLayoutObserver",
         "CardLayoutObserver"
       ],
       "imports": [
-        "node:fs",
-        "node:path",
-        "@testing-library/react",
-        "react-router-dom",
-        "vitest",
-        "@tingting/shared",
-        "./ShipmentsPage"
+        "import { readFileSync } from 'node:fs'",
+        "import { resolve } from 'node:path'",
+        "import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'",
+        "import { MemoryRouter, Route, Routes } from 'react-router-dom'",
+        "import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'",
+        "import {\n  Role,\n  ShipmentCusBucket,\n  ShipmentDocumentCustody,\n  ShipmentStatus,\n  type ShipmentCusWorkspaceListItem,\n} from '@tingting/shared'",
+        "import ShipmentsPage from './ShipmentsPage'"
       ],
-      "exports": [],
-      "totalLines": 1163,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "frontend/src/pages/ShipmentsPage.tsx": {
       "filePath": "frontend/src/pages/ShipmentsPage.tsx",
@@ -111249,193 +110486,41 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.tsx": {
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "contentHash": "15357197e946ab0a1cd133cb73d853a212b7b4dc1034564228d64fc7ba51a28d",
+      "contentHash": "edd39e647147cfc91b9bc3556e098212055fccbced7e2d621603a35484d81424",
       "functions": [
-        {
-          "name": "readIsoDate",
-          "params": [
-            "value"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "readPositiveInteger",
-          "params": [
-            "value",
-            "fallback"
-          ],
-          "returnType": "number",
-          "exported": false,
-          "lineCount": 5
-        },
-        {
-          "name": "safeError",
-          "params": [
-            "error",
-            "fallback"
-          ],
-          "returnType": "string",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "canEditMode",
-          "params": [
-            "detail",
-            "line",
-            "mode"
-          ],
-          "returnType": "boolean",
-          "exported": false,
-          "lineCount": 13
-        },
-        {
-          "name": "ShipmentContainerLedgerSkeleton",
-          "params": [],
-          "exported": false,
-          "lineCount": 12
-        },
-        {
-          "name": "ShipmentsDetailPage",
-          "params": [],
-          "exported": true,
-          "lineCount": 404
-        }
+        "readIsoDate",
+        "readPositiveInteger",
+        "safeError",
+        "canEditMode",
+        "ShipmentContainerLedgerSkeleton",
+        "ShipmentsDetailPage",
+        "resetFilters",
+        "showAllDates",
+        "showToday"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useMemo",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "lucide-react",
-          "specifiers": [
-            "AlertCircle",
-            "RotateCcw",
-            "Search"
-          ]
-        },
-        {
-          "source": "react-router-dom",
-          "specifiers": [
-            "useSearchParams"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "ShipmentCusContainerFlatResponse",
-            "ShipmentCusContainerFlatRow",
-            "ShipmentCusWorkspaceContainerLine",
-            "ShipmentCusWorkspaceDetail"
-          ]
-        },
-        {
-          "source": "../lib/api",
-          "specifiers": [
-            "ApiError"
-          ]
-        },
-        {
-          "source": "../api/shipmentClient",
-          "specifiers": [
-            "getCusShipmentWorkspaceDetail",
-            "listCusShipmentContainers",
-            "updateCusShipmentContainerLine",
-            "updateShipment"
-          ]
-        },
-        {
-          "source": "../components/shared/Breadcrumbs",
-          "specifiers": [
-            "Breadcrumbs"
-          ]
-        },
-        {
-          "source": "../components/shared/Alert",
-          "specifiers": [
-            "Alert"
-          ]
-        },
-        {
-          "source": "../components/shared/Skeleton",
-          "specifiers": [
-            "Skeleton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/buttons/button",
-          "specifiers": [
-            "UUIButton"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/input/input",
-          "specifiers": [
-            "UUIInput"
-          ]
-        },
-        {
-          "source": "../components/untitled-ui/base/select/select-native",
-          "specifiers": [
-            "UUINativeSelect"
-          ]
-        },
-        {
-          "source": "../design-system",
-          "specifiers": [
-            "EmptyState",
-            "Pagination"
-          ]
-        },
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "PageHeader"
-          ]
-        },
-        {
-          "source": "../features/shipments/detail/ShipmentContainerLedger",
-          "specifiers": [
-            "ShipmentContainerLedger",
-            "ActiveShipmentDetailEdit",
-            "ShipmentDetailEditMode",
-            "ShipmentNotesDraft",
-            "ShipmentIdentityDraft",
-            "ShipmentDocumentsDraft",
-            "ShipmentContainerDraft",
-            "ShipmentRouteDraft",
-            "ShipmentScheduleDraft",
-            "ShipmentVehicleDraft"
-          ]
-        },
-        {
-          "source": "../lib/shipment-operations",
-          "specifiers": [
-            "formatVietnamDateInput",
-            "localDateTimeToIso"
-          ]
-        },
-        {
-          "source": "./ShipmentsDetailPage.css",
-          "specifiers": []
-        }
+        "import { useCallback, useEffect, useMemo, useRef, useState } from 'react'",
+        "import { AlertCircle, RotateCcw, Search } from 'lucide-react'",
+        "import { useSearchParams } from 'react-router-dom'",
+        "import type {\n  ShipmentCusContainerFlatResponse,\n  ShipmentCusContainerFlatRow,\n  ShipmentCusWorkspaceContainerLine,\n  ShipmentCusWorkspaceDetail,\n} from '@tingting/shared'",
+        "import { ApiError } from '../lib/api'",
+        "import {\n  getCusShipmentWorkspaceDetail,\n  listCusShipmentContainers,\n  updateCusShipmentContainerLine,\n  updateShipment,\n} from '../api/shipmentClient'",
+        "import { Breadcrumbs } from '../components/shared/Breadcrumbs'",
+        "import { Alert } from '../components/shared/Alert'",
+        "import { Skeleton } from '../components/shared/Skeleton'",
+        "import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button'",
+        "import { Input as UUIInput } from '../components/untitled-ui/base/input/input'",
+        "import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native'",
+        "import { EmptyState, Pagination } from '../design-system'",
+        "import { PageHeader } from '../components/UI'",
+        "import {\n  ShipmentContainerLedger,\n  type ActiveShipmentDetailEdit,\n  type ShipmentDetailEditMode,\n  type ShipmentNotesDraft,\n  type ShipmentIdentityDraft,\n  type ShipmentDocumentsDraft,\n  type ShipmentContainerDraft,\n  type ShipmentRouteDraft,\n  type ShipmentScheduleDraft,\n  type ShipmentVehicleDraft,\n} from '../features/shipments/detail/ShipmentContainerLedger'",
+        "import { formatVietnamDateInput, localDateTimeToIso } from '../lib/shipment-operations'",
+        "import './ShipmentsDetailPage.css'"
       ],
       "exports": [
-        "ShipmentsDetailPage"
-      ],
-      "totalLines": 491,
-      "hasStructuralAnalysis": true
+        "export default function ShipmentsDetailPage() {"
+      ]
     },
     "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx": {
       "filePath": "frontend/src/features/recoverable-costs/RecoverableCostsWorkspace.tsx",
@@ -111780,35 +110865,15 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/ShipmentsDetailPage.styles.test.ts": {
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "contentHash": "d28c79d158a9bd190b34a1369e5e5a667fb22cca713e21ac350c38b3ae9c81b0",
+      "contentHash": "09bf263c94a79148af698a4c64132c30a080352070d945a43ed58a78208c245b",
       "functions": [],
       "classes": [],
       "imports": [
-        {
-          "source": "node:fs",
-          "specifiers": [
-            "readFileSync"
-          ]
-        },
-        {
-          "source": "node:path",
-          "specifiers": [
-            "resolve"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "describe",
-            "expect",
-            "it"
-          ]
-        }
+        "import { readFileSync } from 'node:fs'",
+        "import { resolve } from 'node:path'",
+        "import { describe, expect, it } from 'vitest'"
       ],
-      "exports": [],
-      "totalLines": 57,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts": {
       "filePath": "frontend/src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts",
@@ -111919,155 +110984,40 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx": {
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "contentHash": "efbb80c754c9342151dbeb1d00d2475c0fb94297a84270d246003e65c2735c10",
+      "contentHash": "500358e6b0ef0fff8cb00d3211b586d8ff645b0fb602b269dbd8e9ce8de7fa0b",
       "functions": [
-        {
-          "name": "page",
-          "params": [
-            "items"
-          ],
-          "returnType": "CursorPaginatedResponse<DispatchDetailPlanRow>",
-          "exported": false,
-          "lineCount": 6
-        },
-        {
-          "name": "assignmentResult",
-          "params": [
-            "assignedPlate"
-          ],
-          "exported": false,
-          "lineCount": 10
-        },
-        {
-          "name": "row",
-          "params": [
-            "overrides"
-          ],
-          "returnType": "DispatchDetailPlanRow",
-          "exported": false,
-          "lineCount": 19
-        }
+        "assignmentResult"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "@testing-library/react",
-          "specifiers": [
-            "act",
-            "renderHook",
-            "waitFor"
-          ]
-        },
-        {
-          "source": "vitest",
-          "specifiers": [
-            "describe",
-            "expect",
-            "it",
-            "vi",
-            "beforeEach"
-          ]
-        },
-        {
-          "source": "@tingting/shared",
-          "specifiers": [
-            "CursorPaginatedResponse"
-          ]
-        },
-        {
-          "source": "../../../api/dispatchPlanningClient",
-          "specifiers": [
-            "DispatchDetailPlanRow"
-          ]
-        },
-        {
-          "source": "./useDispatchDetailPlan",
-          "specifiers": [
-            "useDispatchDetailPlan"
-          ]
-        },
-        {
-          "source": "../../../api/dispatchPlanningClient",
-          "specifiers": [
-            "assignDispatchDetailPlate",
-            "listDispatchDetailPlanRows"
-          ]
-        },
-        {
-          "source": "../../../lib/format",
-          "specifiers": [
-            "businessDateISO"
-          ]
-        }
+        "import { act, renderHook, waitFor } from '@testing-library/react'",
+        "import { describe, expect, it, vi, beforeEach } from 'vitest'",
+        "import type { PaginatedResponse } from '@tingting/shared'",
+        "import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient'",
+        "import { useDispatchDetailPlan } from './useDispatchDetailPlan'",
+        "import {\n  assignDispatchDetailPlate,\n  listDispatchDetailPlanRows,\n} from '../../../api/dispatchPlanningClient'"
       ],
-      "exports": [],
-      "totalLines": 179,
-      "hasStructuralAnalysis": true
+      "exports": []
     },
     "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts": {
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "contentHash": "b5ceacf4b2e7031aeba694c0112a31c53ec4c44fa632b2ba23d27a13a93316bc",
+      "contentHash": "60cc9a32c4360834ec9eba1ec6450bcce667487a90216ea4309cda06322109f2",
       "functions": [
-        {
-          "name": "createDefaultDetailedPlanFilters",
-          "params": [],
-          "returnType": "DetailedPlanFilterState",
-          "exported": false,
-          "lineCount": 3
-        },
-        {
-          "name": "detailPlanQuery",
-          "params": [
-            "filters",
-            "q"
-          ],
-          "exported": false,
-          "lineCount": 13
-        },
-        {
-          "name": "useDispatchDetailPlan",
-          "params": [],
-          "exported": true,
-          "lineCount": 169
-        }
+        "createDefaultDetailedPlanFilters",
+        "detailPlanQuery",
+        "useDispatchDetailPlan"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "react",
-          "specifiers": [
-            "useCallback",
-            "useEffect",
-            "useRef",
-            "useState"
-          ]
-        },
-        {
-          "source": "../../../api/dispatchPlanningClient",
-          "specifiers": [
-            "assignDispatchDetailPlate",
-            "listDispatchDeliveryPointFacets",
-            "listDispatchDetailPlanRows",
-            "listDispatchDropoffPortFacets",
-            "listDispatchPickupPortFacets",
-            "DispatchDetailPlanFilters",
-            "DispatchDetailPlanRow"
-          ]
-        },
-        {
-          "source": "../../../lib/format",
-          "specifiers": [
-            "businessDateISO"
-          ]
-        }
+        "import { useCallback, useEffect, useRef, useState } from 'react'",
+        "import {\n  assignDispatchDetailPlate,\n  listDispatchDeliveryPointFacets,\n  listDispatchDetailPlanRows,\n  listDispatchDropoffPortFacets,\n  listDispatchPickupPortFacets,\n  type DispatchDetailPlanFilters,\n  type DispatchDetailPlanRow,\n} from '../../../api/dispatchPlanningClient'"
       ],
       "exports": [
-        "EMPTY_DETAILED_PLAN_FILTERS",
-        "useDispatchDetailPlan"
-      ],
-      "totalLines": 235,
-      "hasStructuralAnalysis": true
+        "export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {",
+        "export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {",
+        "export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {",
+        "export type DetailPlanSortKey = 'runHour' | 'deliveryPoint' | null;",
+        "export function useDispatchDetailPlan() {"
+      ]
     },
     "frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx": {
       "filePath": "frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
@@ -112308,52 +111258,109 @@
       "hasStructuralAnalysis": true
     },
     "frontend/src/pages/DispatchDetailPlanPage.tsx": {
-      "filePath": "frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "contentHash": "389c6965d5546281a6e164385bab1669cbe2df6c4a541e3cad1e6a1d3a49e84a",
+      "contentHash": "9848f7e1b65db4b9bbe7806ddce89a9d73bbce822d289f8c92f42a2ca1177bb2",
       "functions": [
-        {
-          "name": "DispatchDetailPlanPage",
-          "params": [],
-          "exported": true,
-          "lineCount": 42
-        }
+        "DispatchDetailPlanPage"
       ],
       "classes": [],
       "imports": [
-        {
-          "source": "../components/UI",
-          "specifiers": [
-            "PageHeader"
-          ]
-        },
-        {
-          "source": "../design-system",
-          "specifiers": [
-            "Pagination"
-          ]
-        },
-        {
-          "source": "../features/dispatch/detailed-plan/DetailedPlanGrid",
-          "specifiers": [
-            "DetailedPlanGrid"
-          ]
-        },
-        {
-          "source": "../features/dispatch/detailed-plan/useDispatchDetailPlan",
-          "specifiers": [
-            "useDispatchDetailPlan"
-          ]
-        },
-        {
-          "source": "./DispatchPlanPage.css",
-          "specifiers": []
-        }
+        "import { PageHeader } from '../components/UI'",
+        "import { Pagination } from '../design-system'",
+        "import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid'",
+        "import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan'",
+        "import './DispatchPlanPage.css'"
       ],
       "exports": [
-        "DispatchDetailPlanPage"
+        "export default function DispatchDetailPlanPage() {"
+      ]
+    },
+    "backend/src/tests/dispatch-detail-plan.test.ts": {
+      "contentHash": "6f8ae0591c27ae4ce98a7a53819598f48842ab7431150fe468ab72202a02a958",
+      "functions": [
+        "mkUser",
+        "signToken",
+        "apiFetch",
+        "createCustomer",
+        "createRoute",
+        "createContainerType",
+        "createOperationalSite",
+        "createAllocatedLot",
+        "createOwnedTruckWithDriver",
+        "fetchRows"
       ],
-      "totalLines": 55,
-      "hasStructuralAnalysis": true
+      "classes": [],
+      "imports": [
+        "import { after, before, describe, test } from 'node:test'",
+        "import assert from 'node:assert/strict'",
+        "import http from 'node:http'",
+        "import type { AddressInfo } from 'node:net'",
+        "import express from 'express'",
+        "import jwt from 'jsonwebtoken'",
+        "import bcrypt from 'bcryptjs'",
+        "import { and, eq, inArray } from 'drizzle-orm'",
+        "import { db, client } from '../db'",
+        "import * as s from '../db/schema'",
+        "import { Role } from '@tingting/shared'",
+        "import { config } from '../config'",
+        "import { initEnforcer } from '../casbin/enforcer'",
+        "import { initAuditService } from '../services/audit.service'",
+        "import shipmentRoutes from '../routes/shipments'",
+        "import { authMiddleware } from '../middleware/auth'",
+        "import { casbinAuthz } from '../middleware/casbin'",
+        "import { auditLogMiddleware } from '../middleware/audit'",
+        "import { globalErrorHandler } from '../middleware/errorHandler'"
+      ],
+      "exports": []
+    },
+    "frontend/src/components/untitled-ui/base/buttons/button.test.tsx": {
+      "contentHash": "a1d8a2dc80ae43ebc23efc4780ffc9ff9e0497e03bfdc7fce3cb672f4d0a656d",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "import { render, screen } from '@testing-library/react'",
+        "import { RotateCcw } from 'lucide-react'",
+        "import { describe, expect, it } from 'vitest'",
+        "import { Button } from './button'"
+      ],
+      "exports": []
+    },
+    "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx": {
+      "contentHash": "e2a2b3ded0ed5f09284aaea6f0b7bb7e81d4e1584e7e6c881df821a4a3311e0f",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "import { fireEvent, render, screen, waitFor } from '@testing-library/react'",
+        "import { describe, expect, it, vi } from 'vitest'",
+        "import { DetailedPlanFilters } from './DetailedPlanFilters'",
+        "import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan'",
+        "import { businessDateISO } from '../../../lib/format'"
+      ],
+      "exports": []
+    },
+    "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx": {
+      "contentHash": "651b15e8c0f7149969ac68ff363850f0290093a20b86854c6460772f5ecd3291",
+      "functions": [
+        "FacetMultiSelect",
+        "closePicker",
+        "selectFacet",
+        "toggleId",
+        "DetailedPlanFilters",
+        "clearFilters"
+      ],
+      "classes": [],
+      "imports": [
+        "import { useEffect, useId, useState } from 'react'",
+        "import { XClose } from '@untitledui/icons'",
+        "import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button'",
+        "import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input'",
+        "import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select'",
+        "import { businessDateISO } from '../../../lib/format'",
+        "import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan'"
+      ],
+      "exports": [
+        "export interface FacetItem {",
+        "export function DetailedPlanFilters({"
+      ]
     }
   },
   "frontend/cus-qa-overflow.mjs": {

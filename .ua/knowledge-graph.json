@@ -5730,343 +5730,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:backend/src/services/dispatch-planning.service.ts",
-      "type": "file",
-      "name": "dispatch-planning.service.ts",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "summary": "Implements dispatch planning service domain behavior for the backend service layer.",
-      "tags": [
-        "service",
-        "backend",
-        "domain-logic",
-        "typescript"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:normalizeDispatchHandoffStatuses",
-      "type": "function",
-      "name": "normalizeDispatchHandoffStatuses",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        125,
-        151
-      ],
-      "summary": "Implements normalizeDispatchHandoffStatuses behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:parseCursor",
-      "type": "function",
-      "name": "parseCursor",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        206,
-        232
-      ],
-      "summary": "Implements parseCursor behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:parseFleetCursor",
-      "type": "function",
-      "name": "parseFleetCursor",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        238,
-        266
-      ],
-      "summary": "Implements parseFleetCursor behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:parseIsoWithZone",
-      "type": "function",
-      "name": "parseIsoWithZone",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        309,
-        318
-      ],
-      "summary": "Implements parseIsoWithZone behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:redactDispatchSiteForAccountant",
-      "type": "function",
-      "name": "redactDispatchSiteForAccountant",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        342,
-        356
-      ],
-      "summary": "Implements redactDispatchSiteForAccountant behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:authoritativeCargoWeightKg",
-      "type": "function",
-      "name": "authoritativeCargoWeightKg",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        364,
-        373
-      ],
-      "summary": "Implements authoritativeCargoWeightKg behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:dispatchAssignmentChanged",
-      "type": "function",
-      "name": "dispatchAssignmentChanged",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        375,
-        400
-      ],
-      "summary": "Implements dispatchAssignmentChanged behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:buildNotificationPayload",
-      "type": "function",
-      "name": "buildNotificationPayload",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        402,
-        416
-      ],
-      "summary": "Implements buildNotificationPayload behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:loadDeclarationNumbers",
-      "type": "function",
-      "name": "loadDeclarationNumbers",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        437,
-        453
-      ],
-      "summary": "Implements loadDeclarationNumbers behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:toFrozenSiteSummary",
-      "type": "function",
-      "name": "toFrozenSiteSummary",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        455,
-        466
-      ],
-      "summary": "Implements toFrozenSiteSummary behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchHandoffs",
-      "type": "function",
-      "name": "listDispatchHandoffs",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        468,
-        635
-      ],
-      "summary": "Implements listDispatchHandoffs behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchQueue",
-      "type": "function",
-      "name": "listDispatchQueue",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        637,
-        880
-      ],
-      "summary": "Implements listDispatchQueue behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchFleet",
-      "type": "function",
-      "name": "listDispatchFleet",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        882,
-        1107
-      ],
-      "summary": "Implements listDispatchFleet behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:acceptDispatchHandoff",
-      "type": "function",
-      "name": "acceptDispatchHandoff",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1109,
-        1134
-      ],
-      "summary": "Implements acceptDispatchHandoff behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:loadLiveTripForFulfillment",
-      "type": "function",
-      "name": "loadLiveTripForFulfillment",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1136,
-        1167
-      ],
-      "summary": "Implements loadLiveTripForFulfillment behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:replaceTripContainersForFulfillment",
-      "type": "function",
-      "name": "replaceTripContainersForFulfillment",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1169,
-        1223
-      ],
-      "summary": "Implements replaceTripContainersForFulfillment behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:assertResourceAvailability",
-      "type": "function",
-      "name": "assertResourceAvailability",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1225,
-        1268
-      ],
-      "summary": "Implements assertResourceAvailability behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:issueOrderCreateOrUpdate",
-      "type": "function",
-      "name": "issueOrderCreateOrUpdate",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1270,
-        1662
-      ],
-      "summary": "Implements issueOrderCreateOrUpdate behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/services/dispatch-planning.service.ts:issueFulfillmentDispatchOrder",
-      "type": "function",
-      "name": "issueFulfillmentDispatchOrder",
-      "filePath": "backend/src/services/dispatch-planning.service.ts",
-      "lineRange": [
-        1664,
-        1730
-      ],
-      "summary": "Implements issueFulfillmentDispatchOrder behavior within dispatch-planning.service.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:backend/src/services/driver.service.ts",
       "type": "file",
       "name": "driver.service.ts",
@@ -26128,191 +25791,6 @@
         "typescript"
       ],
       "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "file",
-      "name": "dispatchPlanningClient.ts",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "summary": "Provides the dispatch Planning Client frontend API client integration.",
-      "tags": [
-        "api-client",
-        "frontend",
-        "http",
-        "typescript",
-        "tested"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:queryString",
-      "type": "function",
-      "name": "queryString",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        95,
-        105
-      ],
-      "summary": "Implements queryString behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchQueue",
-      "type": "function",
-      "name": "listDispatchQueue",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        107,
-        109
-      ],
-      "summary": "Implements listDispatchQueue behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchFleetResources",
-      "type": "function",
-      "name": "listDispatchFleetResources",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        122,
-        127
-      ],
-      "summary": "Implements listDispatchFleetResources behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:getDispatchFleet",
-      "type": "function",
-      "name": "getDispatchFleet",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        129,
-        137
-      ],
-      "summary": "Implements getDispatchFleet behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchHandoffs",
-      "type": "function",
-      "name": "listDispatchHandoffs",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        139,
-        141
-      ],
-      "summary": "Implements listDispatchHandoffs behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:listCarrierFleetVehicles",
-      "type": "function",
-      "name": "listCarrierFleetVehicles",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        143,
-        145
-      ],
-      "summary": "Implements listCarrierFleetVehicles behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:createCarrierFleetVehicle",
-      "type": "function",
-      "name": "createCarrierFleetVehicle",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        147,
-        151
-      ],
-      "summary": "Implements createCarrierFleetVehicle behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:updateCarrierFleetVehicle",
-      "type": "function",
-      "name": "updateCarrierFleetVehicle",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        153,
-        157
-      ],
-      "summary": "Implements updateCarrierFleetVehicle behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:resolveDispatchHandoff",
-      "type": "function",
-      "name": "resolveDispatchHandoff",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        159,
-        165
-      ],
-      "summary": "Implements resolveDispatchHandoff behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/api/dispatchPlanningClient.ts:issueDispatchOrder",
-      "type": "function",
-      "name": "issueDispatchOrder",
-      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
-      "lineRange": [
-        167,
-        178
-      ],
-      "summary": "Implements issueDispatchOrder behavior within dispatchPlanningClient.ts.",
-      "tags": [
-        "function",
-        "typescript",
-        "application"
-      ],
-      "complexity": "simple"
     },
     {
       "id": "file:frontend/src/api/driverClient.test.ts",
@@ -72784,38 +72262,6 @@
       "complexity": "simple"
     },
     {
-      "id": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "file",
-      "name": "button.tsx",
-      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "summary": "Provides a configurable React Aria button and link control with the Untitled UI sizing, color, loading, icon, and accessibility states.",
-      "tags": [
-        "component",
-        "button",
-        "react-aria",
-        "design-system"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
-      "type": "function",
-      "name": "Button",
-      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "lineRange": [
-        170,
-        257
-      ],
-      "summary": "Renders a styled React Aria button or link, handling icons, loading feedback, disabled state, and text padding.",
-      "tags": [
-        "component",
-        "button",
-        "loading-state",
-        "accessibility"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
       "type": "file",
       "name": "hint-text.tsx",
@@ -74558,56 +74004,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:backend/src/routes/shipments.ts",
-      "type": "file",
-      "name": "shipments.ts",
-      "filePath": "backend/src/routes/shipments.ts",
-      "summary": "Defines the Express REST surface for shipment lifecycle, dispatch, accounting lock, recovery, and CUS workspace operations with validation, RBAC, idempotency, and audit integration.",
-      "tags": [
-        "api-handler",
-        "shipments",
-        "rbac",
-        "validation",
-        "idempotency",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:backend/src/routes/shipments.ts:runShipmentWrite",
-      "type": "function",
-      "name": "runShipmentWrite",
-      "filePath": "backend/src/routes/shipments.ts",
-      "lineRange": [
-        280,
-        297
-      ],
-      "summary": "Supports the shipment workflow by implementing run shipment write behavior.",
-      "tags": [
-        "service",
-        "shipments",
-        "workflow"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
-      "type": "function",
-      "name": "toShipmentRecoveryFactPayload",
-      "filePath": "backend/src/routes/shipments.ts",
-      "lineRange": [
-        308,
-        334
-      ],
-      "summary": "Supports the shipment workflow by implementing to shipment recovery fact payload behavior.",
-      "tags": [
-        "service",
-        "shipments",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/api/shipmentClient.ts",
       "type": "file",
       "name": "shipmentClient.ts",
@@ -76297,68 +75693,6 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "type": "file",
-      "name": "ShipmentsDetailPage.test.tsx",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "summary": "Exercises shipment container detail filtering, permission-aware editing, API error handling, and editable field persistence with mocked transport APIs.",
-      "tags": [
-        "test",
-        "react-testing-library",
-        "shipment-detail",
-        "vitest"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:frontend/src/pages/ShipmentsPage.test.tsx",
-      "type": "file",
-      "name": "ShipmentsPage.test.tsx",
-      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "summary": "Validates the CUS shipment manifest's filters, responsive interactions, workspace actions, inline editing, export, and visual contract assertions.",
-      "tags": [
-        "test",
-        "react-testing-library",
-        "shipment-workspace",
-        "vitest"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.test.tsx:listResponse",
-      "type": "function",
-      "name": "listResponse",
-      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "lineRange": [
-        181,
-        198
-      ],
-      "summary": "Builds paginated mock manifest responses with bucket counts for shipment list tests.",
-      "tags": [
-        "test-helper",
-        "mock-data",
-        "shipment-workspace"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsPage.test.tsx:renderPage",
-      "type": "function",
-      "name": "renderPage",
-      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
-      "lineRange": [
-        200,
-        209
-      ],
-      "summary": "Renders the shipment manifest under a memory router at a chosen URL for interaction tests.",
-      "tags": [
-        "test-helper",
-        "react-testing-library",
-        "routing"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:shared/src/index.ts",
       "type": "file",
       "name": "index.ts",
@@ -77260,73 +76594,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "type": "file",
-      "name": "useDispatchDetailPlan.test.tsx",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "lineRange": [
-        1,
-        178
-      ],
-      "summary": "Tests the detailed dispatch-plan query hook, filters, pagination, and assignment mutations.",
-      "tags": [
-        "test",
-        "typescript"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx:page",
-      "type": "function",
-      "name": "page",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "lineRange": [
-        25,
-        30
-      ],
-      "summary": "Implements page behavior within useDispatchDetailPlan.test.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "test"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx:assignmentResult",
-      "type": "function",
-      "name": "assignmentResult",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "lineRange": [
-        35,
-        44
-      ],
-      "summary": "Implements assignmentResult behavior within useDispatchDetailPlan.test.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "test"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx:row",
-      "type": "function",
-      "name": "row",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "lineRange": [
-        46,
-        64
-      ],
-      "summary": "Implements row behavior within useDispatchDetailPlan.test.tsx.",
-      "tags": [
-        "function",
-        "typescript",
-        "test"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
       "type": "file",
       "name": "DispatchAllocationPopover.test.tsx",
@@ -77547,101 +76814,6 @@
         "typescript"
       ],
       "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "type": "file",
-      "name": "DispatchDetailPlanPage.tsx",
-      "filePath": "frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "summary": "Dispatch detail-plan page composing the detailed plan grid with the page design system.",
-      "tags": [
-        "component",
-        "page",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
-      "type": "function",
-      "name": "DispatchDetailPlanPage",
-      "filePath": "frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "lineRange": [
-        13,
-        54
-      ],
-      "summary": "Implements DispatchDetailPlanPage behavior within DispatchDetailPlanPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "type": "file",
-      "name": "ShipmentsDetailPage.tsx",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "summary": "Shipment detail page that loads shipment data, gates edit modes, and renders the container ledger with operational actions.",
-      "tags": [
-        "component",
-        "page",
-        "workflow",
-        "tested"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
-      "type": "function",
-      "name": "canEditMode",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "lineRange": [
-        60,
-        72
-      ],
-      "summary": "Implements canEditMode behavior within ShipmentsDetailPage.tsx.",
-      "tags": [
-        "editing",
-        "workflow",
-        "component"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
-      "type": "function",
-      "name": "ShipmentContainerLedgerSkeleton",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "lineRange": [
-        74,
-        85
-      ],
-      "summary": "Implements ShipmentContainerLedgerSkeleton behavior within ShipmentsDetailPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "function",
-      "name": "ShipmentsDetailPage",
-      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
-      "lineRange": [
-        87,
-        490
-      ],
-      "summary": "Implements ShipmentsDetailPage behavior within ShipmentsDetailPage.tsx.",
-      "tags": [
-        "component",
-        "react",
-        "workflow"
-      ],
-      "complexity": "complex"
     },
     {
       "id": "file:frontend/src/pages/ShipmentsPage.tsx",
@@ -77872,145 +77044,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "type": "file",
-      "name": "DetailedPlanFilters.tsx",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "summary": "Filter bar for the dispatch detail-plan grid, combining quick search, collapsible advanced filters (transport date, direction, assignment status, point facets, run-hour window) and an aria-live toolbar that counts active filters and offers a one-click 'Xóa bộ lọc' reset back to today's defaults.",
-      "tags": [
-        "component",
-        "filters",
-        "accessibility",
-        "dispatch",
-        "untitled-ui"
-      ],
-      "complexity": "complex",
-      "languageNotes": "Direction and assignment-status filters use the Untitled UI Select (React Aria selectedKey/onSelectionChange); today's date no longer counts as an active advanced filter, so the default state shows 'Mặc định: ngày vận chuyển hôm nay'."
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
-      "type": "function",
-      "name": "FacetMultiSelect",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "lineRange": [
-        37,
-        186
-      ],
-      "summary": "Internal searchable multi-select combobox for pickup, dropoff, and delivery-point facets, with async facet loading, keyboard navigation (ArrowUp/Down/Enter/Escape), full ARIA combobox wiring, cancellation-safe effects, and removable selection chips.",
-      "tags": [
-        "combobox",
-        "multi-select",
-        "accessibility",
-        "async-facets",
-        "keyboard-navigation"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
-      "type": "function",
-      "name": "DetailedPlanFilters",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "lineRange": [
-        193,
-        359
-      ],
-      "summary": "Exported filter component rendering the aria-live active-filter count toolbar, the disabled-when-clean 'Xóa bộ lọc' reset button (which collapses advanced filters and applies createDefaultDetailedPlanFilters), quick search, and the collapsible advanced panel using Untitled UI Select for direction and assignment status.",
-      "tags": [
-        "filter-bar",
-        "reset-toolbar",
-        "select",
-        "aria-live",
-        "dispatch"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "file",
-      "name": "useDispatchDetailPlan.ts",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "summary": "Data-hook module for the dispatch detail-plan grid: defines the DetailedPlanFilterState shape, the today-defaulted filter factory (newly exported), and the hook providing server-side filtered cursor pagination, client-side sorting, facet loaders, and the optimistic plate-assignment mutation with race guards and rollback.",
-      "tags": [
-        "hook",
-        "data-fetching",
-        "pagination",
-        "dispatch",
-        "state-management"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
-      "type": "function",
-      "name": "createDefaultDetailedPlanFilters",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        39,
-        41
-      ],
-      "summary": "Factory returning the empty filter state with the transport date defaulted to today's business date; recently promoted from module-private to exported so the filters toolbar can power its one-click reset.",
-      "tags": [
-        "factory",
-        "default-state",
-        "filters",
-        "exported"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
-      "type": "function",
-      "name": "detailPlanQuery",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        46,
-        58
-      ],
-      "summary": "Builds the API query object from the filter state, spreading only non-empty filter fields so the list, load-more, and refresh requests share identical param semantics.",
-      "tags": [
-        "query-builder",
-        "serialization",
-        "filters",
-        "utility"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "type": "function",
-      "name": "useDispatchDetailPlan",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "lineRange": [
-        66,
-        234
-      ],
-      "summary": "Main hook wiring server-side filters with a 300ms-debounced search, request-id race-guarded fetching, cursor-based pagination, client-side run-hour/delivery-point sorting, facet loaders, and the optimistic assignPlate mutation that drops or patches rows invalidated by the active assignment-status filter.",
-      "tags": [
-        "custom-hook",
-        "server-pagination",
-        "optimistic-update",
-        "race-guard",
-        "debounce"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
-      "type": "file",
-      "name": "DetailedPlanFilters.test.tsx",
-      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
-      "summary": "RTL test suite for the detailed-plan filter bar covering labeled filter forwarding, direction/assignment Select interactions, combobox keyboard navigation with Escape/blur closing and search-result reset, empty-results feedback, the mobile collapsible toggle, and the toolbar's one-click reset of all nine filter conditions back to today's defaults.",
-      "tags": [
-        "test",
-        "rtl",
-        "accessibility",
-        "filters",
-        "reset-behavior"
-      ],
-      "complexity": "moderate"
-    },
-    {
       "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
       "type": "file",
       "name": "DetailedPlanGrid.test.tsx",
@@ -78074,6 +77107,837 @@
       ],
       "complexity": "moderate",
       "languageNotes": "Reads ShipmentsDetailPage.css, tokens.css, ShipmentsDetailPage.tsx, and ShipmentContainerLedger.tsx from disk with readFileSync, guarding style invariants via regex rather than rendering components."
+    },
+    {
+      "id": "file:backend/src/routes/shipments.ts",
+      "type": "file",
+      "name": "shipments.ts",
+      "filePath": "backend/src/routes/shipments.ts",
+      "lineRange": [
+        1,
+        1796
+      ],
+      "summary": "Express router for the shipment lifecycle and dispatch planning API; the /dispatch-detail-plan-rows route validates direction/assignmentStatus/id-list/HH:MM time filters and reads a positive-integer page query param before delegating to the dispatch-planning service.",
+      "tags": [
+        "api-handler",
+        "router",
+        "express",
+        "dispatch",
+        "validation"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Uses suffix-mode audit event registrations where the registry's longest-suffix-wins rule disambiguates sub-path writes."
+    },
+    {
+      "id": "function:backend/src/routes/shipments.ts:runShipmentWrite",
+      "type": "function",
+      "name": "runShipmentWrite",
+      "filePath": "backend/src/routes/shipments.ts",
+      "lineRange": [
+        286,
+        303
+      ],
+      "summary": "Wraps a shipment write operation with idempotency-key handling and audit-event registration.",
+      "tags": [
+        "utility",
+        "api-handler",
+        "middleware"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
+      "type": "function",
+      "name": "toShipmentRecoveryFactPayload",
+      "filePath": "backend/src/routes/shipments.ts",
+      "lineRange": [
+        314,
+        340
+      ],
+      "summary": "Shapes a shipment recovery record into the structured fact payload consumed by the recovery service.",
+      "tags": [
+        "serialization",
+        "utility",
+        "api-handler"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/src/services/dispatch-planning.service.ts",
+      "type": "file",
+      "name": "dispatch-planning.service.ts",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1,
+        2337
+      ],
+      "summary": "Dispatch planning service covering handoffs, queue, fleet, the detail-plan worksheet (now page/total offset pagination with a shared filters const reused by a parallel count(*) query in one transaction), port/delivery-point facets, and plate assignment with driver notifications.",
+      "tags": [
+        "service",
+        "dispatch",
+        "pagination",
+        "drizzle-orm",
+        "business-logic"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Run-hour filtering is computed in SQL pinned to Asia/Ho_Chi_Minh so JS display hours and Postgres filters agree regardless of session timezone."
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:redactDispatchSiteForAccountant",
+      "type": "function",
+      "name": "redactDispatchSiteForAccountant",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        370,
+        384
+      ],
+      "summary": "Strips delivery-site address details from site summaries when the requesting actor is an accountant.",
+      "tags": [
+        "security",
+        "rbac",
+        "utility",
+        "serialization"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchHandoffs",
+      "type": "function",
+      "name": "listDispatchHandoffs",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        496,
+        663
+      ],
+      "summary": "Lists dispatch handoffs for the manager/dispatcher inbox with cursor pagination and role-scoped visibility.",
+      "tags": [
+        "service",
+        "query",
+        "pagination",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchQueue",
+      "type": "function",
+      "name": "listDispatchQueue",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        665,
+        908
+      ],
+      "summary": "Builds the master dispatch queue view of READY_FOR_DISPATCH shipments with status counts, date filters, and cursor pagination.",
+      "tags": [
+        "service",
+        "query",
+        "pagination",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchFleet",
+      "type": "function",
+      "name": "listDispatchFleet",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        910,
+        1139
+      ],
+      "summary": "Lists the dispatchable fleet — own trucks with drivers plus external carriers — with fleet-cursor pagination.",
+      "tags": [
+        "service",
+        "query",
+        "pagination",
+        "fleet"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:acceptDispatchHandoff",
+      "type": "function",
+      "name": "acceptDispatchHandoff",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1141,
+        1166
+      ],
+      "summary": "Marks a dispatch handoff as seen/accepted on behalf of the current actor.",
+      "tags": [
+        "service",
+        "mutation",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:issueOrderCreateOrUpdate",
+      "type": "function",
+      "name": "issueOrderCreateOrUpdate",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1302,
+        1694
+      ],
+      "summary": "Core dispatch-order engine that creates or updates the trip for a fulfillment, replaces containers, checks resource availability, and emits status transitions and notifications inside one transaction.",
+      "tags": [
+        "service",
+        "mutation",
+        "transaction",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:issueFulfillmentDispatchOrder",
+      "type": "function",
+      "name": "issueFulfillmentDispatchOrder",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1696,
+        1762
+      ],
+      "summary": "Public entry point that validates the actor and runs the dispatch-order create-or-update flow idempotently.",
+      "tags": [
+        "service",
+        "mutation",
+        "idempotency",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:normalizeIdList",
+      "type": "function",
+      "name": "normalizeIdList",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1772,
+        1786
+      ],
+      "summary": "Validates and deduplicates a list of positive integer ids for detail-plan facet filters, throwing ApiError 400 on bad input.",
+      "tags": [
+        "validation",
+        "utility",
+        "filters"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchDetailPlanRows",
+      "type": "function",
+      "name": "listDispatchDetailPlanRows",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        1825,
+        2018
+      ],
+      "summary": "Returns one row per fulfillment for the detail-plan worksheet using page+limit+offset pagination — a shared filters const feeds both the rows query and a parallel count(*) query inside one transaction, producing { items, limit, total, page, pageSize } with accountant redaction and lot plating counts.",
+      "tags": [
+        "service",
+        "query",
+        "pagination",
+        "dispatch",
+        "filters"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Migrated from cursor-based (nextCursor) to page/total pagination; run-hour and transport-date filters are SQL expressions pinned to the business timezone."
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchDeliveryPointFacets",
+      "type": "function",
+      "name": "listDispatchDeliveryPointFacets",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        2022,
+        2042
+      ],
+      "summary": "Lists distinct operational sites for the delivery-point multi-select facet in the detail-plan filter bar.",
+      "tags": [
+        "service",
+        "query",
+        "facets",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:listDispatchPortFacets",
+      "type": "function",
+      "name": "listDispatchPortFacets",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        2047,
+        2075
+      ],
+      "summary": "Lists distinct pickup and dropoff ports for the port multi-select facets in the detail-plan filter bar.",
+      "tags": [
+        "service",
+        "query",
+        "facets",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlate",
+      "type": "function",
+      "name": "assignFulfillmentPlate",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        2095,
+        2124
+      ],
+      "summary": "Validates plate-assignment input (OWN trucks vs EXTERNAL catalog picks vs free text) and runs the assignment transactionally.",
+      "tags": [
+        "service",
+        "mutation",
+        "validation",
+        "dispatch"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlateInTx",
+      "type": "function",
+      "name": "assignFulfillmentPlateInTx",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        2139,
+        2323
+      ],
+      "summary": "Transaction body for plate assignment — optimistic version check, plate write, driver notification with re-notify suppression, and lot fully-plated recomputation.",
+      "tags": [
+        "service",
+        "mutation",
+        "transaction",
+        "concurrency",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/services/dispatch-planning.service.ts:recomputeLotFullyPlated",
+      "type": "function",
+      "name": "recomputeLotFullyPlated",
+      "filePath": "backend/src/services/dispatch-planning.service.ts",
+      "lineRange": [
+        2325,
+        2337
+      ],
+      "summary": "Recomputes whether every active fulfillment of a shipment has an assigned plate, driving the lot fully-plated flag.",
+      "tags": [
+        "service",
+        "query",
+        "dispatch",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "type": "file",
+      "name": "dispatch-detail-plan.test.ts",
+      "filePath": "backend/src/tests/dispatch-detail-plan.test.ts",
+      "lineRange": [
+        1,
+        782
+      ],
+      "summary": "node:test integration suite that boots an Express app over the real database — covers detail-plan row shape, server-side filters (assignmentStatus, hour range, date, port ids), RBAC (CLERK/DRIVER 403, accountant customer scoping and address redaction), facet endpoints, and plate-assignment flows including 409 version conflicts and lot-flag flips.",
+      "tags": [
+        "test",
+        "integration",
+        "dispatch",
+        "node-test",
+        "api"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:backend/src/tests/dispatch-detail-plan.test.ts:apiFetch",
+      "type": "function",
+      "name": "apiFetch",
+      "filePath": "backend/src/tests/dispatch-detail-plan.test.ts",
+      "lineRange": [
+        72,
+        92
+      ],
+      "summary": "Authenticated HTTP helper that signs a JWT and calls the booted test server, surfacing error bodies for assertions.",
+      "tags": [
+        "test",
+        "utility",
+        "http"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:backend/src/tests/dispatch-detail-plan.test.ts:createAllocatedLot",
+      "type": "function",
+      "name": "createAllocatedLot",
+      "filePath": "backend/src/tests/dispatch-detail-plan.test.ts",
+      "lineRange": [
+        135,
+        191
+      ],
+      "summary": "Seeds a full allocated shipment lot (customer, route, containers, fulfillments) ready to appear in the detail-plan worksheet.",
+      "tags": [
+        "test",
+        "factory",
+        "fixtures"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:backend/src/tests/dispatch-detail-plan.test.ts:createOwnedTruckWithDriver",
+      "type": "function",
+      "name": "createOwnedTruckWithDriver",
+      "filePath": "backend/src/tests/dispatch-detail-plan.test.ts",
+      "lineRange": [
+        193,
+        217
+      ],
+      "summary": "Seeds an own-fleet truck bound to a driver user for plate-assignment scenarios.",
+      "tags": [
+        "test",
+        "factory",
+        "fixtures"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "type": "file",
+      "name": "dispatchPlanningClient.ts",
+      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
+      "lineRange": [
+        1,
+        262
+      ],
+      "summary": "Typed frontend API client for dispatch planning endpoints (queue, fleet, handoffs, carrier vehicles, orders); listDispatchDetailPlanRows now sends page and returns PaginatedResponse { items, total, page, pageSize }.",
+      "tags": [
+        "api-client",
+        "dispatch",
+        "type-definition",
+        "serialization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:frontend/src/api/dispatchPlanningClient.ts:queryString",
+      "type": "function",
+      "name": "queryString",
+      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
+      "lineRange": [
+        95,
+        105
+      ],
+      "summary": "Serializes filter objects (including array ids) into a URL query string, dropping empty values.",
+      "tags": [
+        "utility",
+        "serialization",
+        "query-string"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/dispatchPlanningClient.ts:issueDispatchOrder",
+      "type": "function",
+      "name": "issueDispatchOrder",
+      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
+      "lineRange": [
+        167,
+        178
+      ],
+      "summary": "POSTs a dispatch order for a fulfillment with an idempotency key header.",
+      "tags": [
+        "api-client",
+        "mutation",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchDetailPlanRows",
+      "type": "function",
+      "name": "listDispatchDetailPlanRows",
+      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
+      "lineRange": [
+        219,
+        223
+      ],
+      "summary": "Fetches one page of detail-plan rows, sending page plus filter params and returning the paginated { items, total, page, pageSize } envelope.",
+      "tags": [
+        "api-client",
+        "pagination",
+        "dispatch",
+        "query"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/api/dispatchPlanningClient.ts:assignDispatchDetailPlate",
+      "type": "function",
+      "name": "assignDispatchDetailPlate",
+      "filePath": "frontend/src/api/dispatchPlanningClient.ts",
+      "lineRange": [
+        243,
+        262
+      ],
+      "summary": "PATCHes the plate assignment for a fulfillment with expectedVersion optimistic concurrency and a generated Idempotency-Key.",
+      "tags": [
+        "api-client",
+        "mutation",
+        "dispatch",
+        "idempotency"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+      "type": "file",
+      "name": "button.test.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+      "lineRange": [
+        1,
+        32
+      ],
+      "summary": "Vitest/RTL tests for the design-system Button: compact sm density with a touch-safe narrow-screen minimum, default md density, and the icon sizing contract where a rendered leading icon gains data-icon and the size class.",
+      "tags": [
+        "test",
+        "unit",
+        "component",
+        "design-system"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "file",
+      "name": "button.tsx",
+      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "lineRange": [
+        1,
+        264
+      ],
+      "summary": "Untitled UI Button over React Aria supporting button and link variants; iconLeading/iconTrailing JSX elements are now cloned with a data-icon attribute and the icon sizing class so icons honor the button's size contract instead of passing through untouched.",
+      "tags": [
+        "component",
+        "design-system",
+        "button",
+        "react-aria",
+        "accessibility"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Handles icons passed either as rendered elements (cloneElement path) or as component references, and hides non-loading children via data-icon selectors while loading."
+    },
+    {
+      "id": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
+      "type": "function",
+      "name": "Button",
+      "filePath": "frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "lineRange": [
+        171,
+        264
+      ],
+      "summary": "Renders the button/link with size and color style maps, icon cloning with data-icon attributes and the shared icon class, and an inline SVG spinner shown while loading.",
+      "tags": [
+        "component",
+        "react-aria",
+        "styling",
+        "icon-handling"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "type": "file",
+      "name": "DetailedPlanFilters.test.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "lineRange": [
+        1,
+        238
+      ],
+      "summary": "RTL tests asserting the filter bar exposes labeled fields, forwards direction/assignmentStatus patches via onChange, uses time inputs for the hour range, loads facet multi-selects, and keeps the active-count status and one-click reset behavior honest.",
+      "tags": [
+        "test",
+        "ui",
+        "accessibility",
+        "filters"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "type": "file",
+      "name": "DetailedPlanFilters.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "lineRange": [
+        1,
+        359
+      ],
+      "summary": "Filter bar for the dispatch detail-plan worksheet — quick search, collapsible advanced section with date/direction/assignment/hour-range and searchable facet multi-selects; now includes an aria-live active-count status line and a one-click 'Xóa bộ lọc' reset backed by createDefaultDetailedPlanFilters, with direction/assignment selects rendered via the UUI Select component.",
+      "tags": [
+        "component",
+        "filters",
+        "accessibility",
+        "dispatch",
+        "ui"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "type": "function",
+      "name": "FacetMultiSelect",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "lineRange": [
+        37,
+        186
+      ],
+      "summary": "Searchable multi-select facet block (Điểm Nâng/Hạ/Trả) with lazy facet loading, keyboard navigation, and a listbox picker capped at 20 visible options.",
+      "tags": [
+        "component",
+        "multi-select",
+        "combobox",
+        "accessibility"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "type": "function",
+      "name": "DetailedPlanFilters",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "lineRange": [
+        193,
+        359
+      ],
+      "summary": "Renders the full filter toolbar: aria-live active filter count, reset button that restores default filters, quick search input, advanced-filter toggle with badge, date group with 'Về hôm nay' shortcut, and UUI Select-based direction/assignment dropdowns.",
+      "tags": [
+        "component",
+        "filters",
+        "toolbar",
+        "accessibility",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
+      "type": "file",
+      "name": "useDispatchDetailPlan.test.tsx",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
+      "lineRange": [
+        1,
+        180
+      ],
+      "summary": "renderHook tests for the detail-plan data hook with a mocked dispatchPlanningClient — verifies page-based fetching, filter-driven resets to page 1, total-derived totalPages, and optimistic plate assignment with assignment-status filter invalidation.",
+      "tags": [
+        "test",
+        "hook",
+        "unit",
+        "dispatch",
+        "pagination"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "file",
+      "name": "useDispatchDetailPlan.ts",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        1,
+        223
+      ],
+      "summary": "Data hook for the dispatch detail-plan grid: server-side filters with page/total pagination (single page state replacing the former pageCursors stack, totalPages derived from total), request-id race guarding, client-side sort, facet loaders, and the optimistic in-row plate assignment with rollback and lot-banner updates.",
+      "tags": [
+        "hook",
+        "data-fetching",
+        "pagination",
+        "dispatch",
+        "state-management"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "function",
+      "name": "createDefaultDetailedPlanFilters",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        38,
+        42
+      ],
+      "summary": "Returns a fresh empty filter state (no default transport date, for /dispatch parity); consumed by the hook initializer and the filter bar's one-click reset.",
+      "tags": [
+        "factory",
+        "filters",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "type": "function",
+      "name": "useDispatchDetailPlan",
+      "filePath": "frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "lineRange": [
+        67,
+        223
+      ],
+      "summary": "Main hook managing filters, single page state with total-derived totalPages, debounced search, race-guarded page fetches, client-side sort, facet loaders, and optimistic plate assignment that drops rows invalidated by the active assignment-status filter.",
+      "tags": [
+        "hook",
+        "data-fetching",
+        "pagination",
+        "optimistic-update",
+        "dispatch"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "type": "file",
+      "name": "DispatchDetailPlanPage.tsx",
+      "filePath": "frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "lineRange": [
+        1,
+        54
+      ],
+      "summary": "Page shell for /dispatch-detail (step 2 of dispatch planning) — wires the detail-plan data hook into the DetailedPlanGrid and shows the design-system Pagination control when total exceeds the page size.",
+      "tags": [
+        "page",
+        "entry-point",
+        "dispatch",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
+      "type": "function",
+      "name": "DispatchDetailPlanPage",
+      "filePath": "frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "lineRange": [
+        13,
+        54
+      ],
+      "summary": "Renders the page header, the detailed-plan grid with all filter/facet/assignment callbacks from the hook, and the conditional pagination footer.",
+      "tags": [
+        "page",
+        "component",
+        "dispatch"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "type": "file",
+      "name": "ShipmentsDetailPage.tsx",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.test.tsx",
+      "lineRange": [
+        1,
+        492
+      ],
+      "summary": "Container-ledger detail page for CUS shipments — URL-driven filters (search suffix, transport date window, customer, direction) with page param, race-guarded loading, and an inline edit mode with idempotency keys, optimistic error handling, and focus restoration.",
+      "tags": [
+        "page",
+        "component",
+        "data-fetching",
+        "shipments",
+        "filters"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
+      "type": "function",
+      "name": "canEditMode",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        60,
+        72
+      ],
+      "summary": "Derives whether inline editing is allowed from row access mode and document custody state.",
+      "tags": [
+        "utility",
+        "authorization",
+        "ui-logic"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "function",
+      "name": "ShipmentContainerLedgerSkeleton",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        74,
+        85
+      ],
+      "summary": "Loading placeholder skeleton rows shown while the container ledger loads.",
+      "tags": [
+        "component",
+        "skeleton",
+        "loading-state"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "function",
+      "name": "ShipmentsDetailPage",
+      "filePath": "frontend/src/pages/ShipmentsDetailPage.tsx",
+      "lineRange": [
+        87,
+        492
+      ],
+      "summary": "Page component parsing URL search params into typed filters, loading paginated CUS container rows, and orchestrating the container ledger with edit dialogs, banners, and pagination.",
+      "tags": [
+        "page",
+        "component",
+        "data-fetching",
+        "url-state"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:frontend/src/pages/ShipmentsPage.test.tsx",
+      "type": "file",
+      "name": "ShipmentsPage.test.tsx",
+      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
+      "lineRange": [
+        1,
+        1343
+      ],
+      "summary": "Large RTL suite for the CUS shipments workspace page with hoisted api/csv/auth mocks; covers bucket filtering, workspace list rendering, edit flows, and reads the page's own CSS + source files to assert layout contracts.",
+      "tags": [
+        "test",
+        "ui",
+        "shipments",
+        "rtl",
+        "integration"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:frontend/src/pages/ShipmentsPage.test.tsx:renderPage",
+      "type": "function",
+      "name": "renderPage",
+      "filePath": "frontend/src/pages/ShipmentsPage.test.tsx",
+      "lineRange": [
+        203,
+        212
+      ],
+      "summary": "Renders the shipments page inside a MemoryRouter route stub for each test scenario.",
+      "tags": [
+        "test",
+        "utility",
+        "render-helper"
+      ],
+      "complexity": "simple"
     }
   ],
   "edges": [
@@ -83190,258 +83054,6 @@
     {
       "source": "file:backend/src/services/dispatch-handoff.service.ts",
       "target": "file:backend/src/services/trip-shared.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:normalizeDispatchHandoffStatuses",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:parseCursor",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:parseFleetCursor",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:parseIsoWithZone",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:redactDispatchSiteForAccountant",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:authoritativeCargoWeightKg",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:dispatchAssignmentChanged",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:buildNotificationPayload",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:loadDeclarationNumbers",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:toFrozenSiteSummary",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchHandoffs",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchHandoffs",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchQueue",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchQueue",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchFleet",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchFleet",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:acceptDispatchHandoff",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:acceptDispatchHandoff",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:loadLiveTripForFulfillment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:replaceTripContainersForFulfillment",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:assertResourceAvailability",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:issueOrderCreateOrUpdate",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:issueFulfillmentDispatchOrder",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "function:backend/src/services/dispatch-planning.service.ts:issueFulfillmentDispatchOrder",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/db/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/db/schema.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/errors.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/middleware/auth.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/dispatch-handoff.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/idempotency.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/notification.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/shipment-coordination.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/shipment-fulfillment.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/shipment.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/services/dispatch-planning.service.ts",
-      "target": "file:backend/src/services/trip-mutations.service.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -100800,153 +100412,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/api/dispatchPlanningClient.test.ts",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:queryString",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchQueue",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchQueue",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchFleetResources",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchFleetResources",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:getDispatchFleet",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:getDispatchFleet",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchHandoffs",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchHandoffs",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listCarrierFleetVehicles",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listCarrierFleetVehicles",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:createCarrierFleetVehicle",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:createCarrierFleetVehicle",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:updateCarrierFleetVehicle",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:updateCarrierFleetVehicle",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:resolveDispatchHandoff",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:resolveDispatchHandoff",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:issueDispatchOrder",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "function:frontend/src/api/dispatchPlanningClient.ts:issueDispatchOrder",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/api/driverClient.test.ts",
       "target": "file:frontend/src/api/driverClient.ts",
       "type": "imports",
@@ -112330,13 +111795,6 @@
     },
     {
       "source": "file:frontend/src/pages/DispatchPage.test.tsx",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchPage.test.tsx",
       "target": "file:frontend/src/pages/DispatchPage.tsx",
       "type": "imports",
       "direction": "forward",
@@ -112376,13 +111834,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchPage.tsx",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/pages/DispatchPage.tsx",
@@ -117980,13 +117431,6 @@
     {
       "source": "file:backend/src/index.ts",
       "target": "file:backend/src/routes/salary.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/index.ts",
-      "target": "file:backend/src/routes/shipments.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -126491,13 +125935,6 @@
     },
     {
       "source": "file:backend/src/tests/dispatch-fulfillment.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/dispatch-fulfillment.test.ts",
       "target": "file:backend/src/services/audit.service.ts",
       "type": "imports",
       "direction": "forward",
@@ -126506,13 +125943,6 @@
     {
       "source": "file:backend/src/tests/dispatch-fulfillment.test.ts",
       "target": "file:backend/src/services/dispatch-handoff.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/dispatch-fulfillment.test.ts",
-      "target": "file:backend/src/services/dispatch-planning.service.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -130809,13 +130239,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:backend/src/tests/q23-shipment-idempotency.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:backend/src/tests/q23-singleton-config-routes.test.ts",
       "target": "function:backend/src/tests/q23-singleton-config-routes.test.ts:requestJson",
       "type": "contains",
@@ -131103,13 +130526,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:backend/src/tests/shared-runtime-contract.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:backend/src/tests/shipment-audit.test.ts",
       "target": "function:backend/src/tests/shipment-audit.test.ts:mkCatalogs",
       "type": "contains",
@@ -131209,13 +130625,6 @@
     },
     {
       "source": "file:backend/src/tests/shipment-audit.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/shipment-audit.test.ts",
       "target": "file:backend/src/services/audit.service.ts",
       "type": "imports",
       "direction": "forward",
@@ -131301,13 +130710,6 @@
     {
       "source": "file:backend/src/tests/shipment-quick-create.test.ts",
       "target": "file:backend/src/middleware/errorHandler.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/shipment-quick-create.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -141590,14 +140992,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "target": "file:frontend/src/api/dispatchPlanningClient.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
       "source": "file:frontend/src/api/driverClient.ts",
       "target": "file:frontend/src/api/driverClient.test.ts",
       "type": "tested_by",
@@ -142454,20 +141848,6 @@
       "description": "Path-based pairing (deterministic)"
     },
     {
-      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "target": "file:frontend/src/utils/cx.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "target": "file:frontend/src/utils/is-react-component.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
       "target": "file:frontend/src/utils/cx.ts",
       "type": "imports",
@@ -142543,13 +141923,6 @@
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
     },
     {
       "source": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
@@ -142641,13 +142014,6 @@
       "type": "contains",
       "direction": "forward",
       "weight": 1
-    },
-    {
-      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
     },
     {
       "source": "file:frontend/src/components/untitled-ui/base/input/hint-text.tsx",
@@ -143551,167 +142917,6 @@
       "type": "exports",
       "direction": "forward",
       "weight": 0.8
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "function:backend/src/routes/shipments.ts:runShipmentWrite",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/errors.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/lib/validation.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/asyncHandler.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/auth.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/middleware/casbin.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/routes/utils/idempotency.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/routes/utils/pagination.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/audit-registry.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/audit-types.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/carrier-fleet-vehicle.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/dispatch-handoff.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/dispatch-planning.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/idempotency.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/pricing.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-coordination.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-intake.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment-recovery.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/shipment.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/statement.service.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/services/trip-shared.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
     },
     {
       "source": "file:frontend/src/api/shipmentClient.ts",
@@ -145150,24 +144355,10 @@
     },
     {
       "source": "file:backend/src/tests/shipment-routes.test.ts",
-      "target": "file:backend/src/routes/shipments.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/tests/shipment-routes.test.ts",
       "target": "file:backend/src/services/audit.service.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
-    },
-    {
-      "source": "file:backend/src/routes/shipments.ts",
-      "target": "file:backend/src/tests/shipment-routes.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5
     },
     {
       "source": "file:backend/src/tests/cus-shipment-workspace.test.ts",
@@ -145274,32 +144465,6 @@
     {
       "source": "file:backend/src/tests/shipment-routes.test.ts",
       "target": "function:backend/src/tests/shipment-routes.test.ts:createRecoverableExpenseFixture",
-      "type": "contains",
-      "direction": "forward"
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "target": "file:frontend/src/lib/shipment-operations.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.test.tsx:listResponse",
-      "type": "contains",
-      "direction": "forward"
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
-      "target": "function:frontend/src/pages/ShipmentsPage.test.tsx:renderPage",
       "type": "contains",
       "direction": "forward"
     },
@@ -145766,48 +144931,6 @@
       "weight": 0.8
     },
     {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
-      "type": "exports",
-      "direction": "forward",
-      "weight": 0.8
-    },
-    {
       "source": "file:frontend/src/pages/ShipmentsPage.tsx",
       "target": "function:frontend/src/pages/ShipmentsPage.tsx:quickEditTitle",
       "type": "contains",
@@ -145914,13 +145037,6 @@
     },
     {
       "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
       "target": "file:frontend/src/components/untitled-ui/base/textarea/textarea.tsx",
       "type": "imports",
       "direction": "forward",
@@ -145943,104 +145059,6 @@
     {
       "source": "file:frontend/src/hooks/useClickOutside.ts",
       "target": "file:frontend/src/lib/overlayState.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/api/shipmentClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/UI.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Alert.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/shared/Skeleton.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/design-system/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/lib/api/index.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/lib/shipment-operations.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -146069,13 +145087,6 @@
     {
       "source": "file:frontend/src/pages/ShipmentsPage.tsx",
       "target": "file:frontend/src/components/shared/StatusStrip.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 0.7
@@ -146155,22 +145166,6 @@
     {
       "source": "file:frontend/src/lib/routes.ts",
       "target": "file:frontend/src/lib/routes.test.ts",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "target": "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
-      "type": "tested_by",
-      "direction": "forward",
-      "weight": 0.5,
-      "description": "Path-based pairing (deterministic)"
-    },
-    {
-      "source": "file:frontend/src/pages/ShipmentsPage.tsx",
-      "target": "file:frontend/src/pages/ShipmentsPage.test.tsx",
       "type": "tested_by",
       "direction": "forward",
       "weight": 0.5,
@@ -146278,20 +145273,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
-      "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
       "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx",
       "target": "file:frontend/src/api/shipmentClient.ts",
       "type": "imports",
@@ -146335,13 +145316,6 @@
     },
     {
       "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
-      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 0.7
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/master-plan/DispatchAllocationPopover.tsx",
       "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
       "type": "imports",
       "direction": "forward",
@@ -146355,41 +145329,6 @@
       "weight": 0.7
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "type": "contains",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
       "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
       "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:row",
       "type": "contains",
@@ -146399,6 +145338,608 @@
     {
       "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
       "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:renderGrid",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "target": "file:frontend/src/styles/tokens.css",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "function:backend/src/routes/shipments.ts:runShipmentWrite",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "function:backend/src/routes/shipments.ts:toShipmentRecoveryFactPayload",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/cus-shipment-workspace.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/casbin.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/audit-registry.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/audit-types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/middleware/asyncHandler.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/routes/utils/pagination.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/lib/validation.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/idempotency.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/routes/utils/idempotency.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/trip-shared.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-coordination.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/dispatch-handoff.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-intake.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/dispatch-planning.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/pricing.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/statement.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/carrier-fleet-vehicle.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/routes/shipments.ts",
+      "target": "file:backend/src/services/shipment-recovery.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:redactDispatchSiteForAccountant",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchHandoffs",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchQueue",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchFleet",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:acceptDispatchHandoff",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:issueOrderCreateOrUpdate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:issueFulfillmentDispatchOrder",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:normalizeIdList",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchDetailPlanRows",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchDeliveryPointFacets",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:listDispatchPortFacets",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlateInTx",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:recomputeLotFullyPlated",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/errors.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/dispatch-handoff.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/idempotency.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/notification.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/shipment-coordination.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/shipment-fulfillment.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/shipment.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/trip-mutations.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/services/dispatch-planning.service.ts",
+      "target": "file:backend/src/services/shipment-accounting-lock.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlate",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlateInTx",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:backend/src/services/dispatch-planning.service.ts:assignFulfillmentPlateInTx",
+      "target": "function:backend/src/services/dispatch-planning.service.ts:recomputeLotFullyPlated",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "function:backend/src/tests/dispatch-detail-plan.test.ts:apiFetch",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "function:backend/src/tests/dispatch-detail-plan.test.ts:createAllocatedLot",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "function:backend/src/tests/dispatch-detail-plan.test.ts:createOwnedTruckWithDriver",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/db/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/db/schema.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/config/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/casbin/enforcer.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/services/audit.service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/routes/shipments.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/middleware/auth.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/middleware/casbin.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/middleware/audit.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/middleware/errorHandler.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/routes/shipments.ts",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:backend/src/tests/dispatch-detail-plan.test.ts",
+      "target": "file:backend/src/services/dispatch-planning.service.ts",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:queryString",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:issueDispatchOrder",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchDetailPlanRows",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:assignDispatchDetailPlate",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "target": "file:frontend/src/utils/cx.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "target": "file:frontend/src/utils/is-react-component.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "file:frontend/src/lib/format.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+      "target": "function:frontend/src/components/untitled-ui/base/buttons/button.tsx:Button",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
       "type": "contains",
       "direction": "forward",
       "weight": 1
@@ -146439,6 +145980,48 @@
       "weight": 1
     },
     {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
+      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.test.tsx",
+      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "uses",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
       "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
       "target": "file:frontend/src/api/dispatchPlanningClient.ts",
       "type": "imports",
@@ -146446,100 +146029,184 @@
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "target": "file:frontend/src/lib/format.ts",
+      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:listDispatchDetailPlanRows",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
+      "target": "function:frontend/src/api/dispatchPlanningClient.ts:assignDispatchDetailPlate",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "target": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
       "type": "imports",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/api/dispatchPlanningClient.ts",
+      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
       "type": "imports",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
-      "target": "file:frontend/src/lib/format.ts",
-      "type": "imports",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx",
-      "type": "uses",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+      "source": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
       "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "function:frontend/src/pages/DispatchDetailPlanPage.tsx:DispatchDetailPlanPage",
+      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
       "type": "uses",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts",
-      "type": "uses",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:canEditMode",
+      "type": "contains",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx",
-      "target": "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
-      "type": "uses",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentContainerLedgerSkeleton",
+      "type": "contains",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "target": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-      "type": "uses",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "type": "contains",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/lib/api/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/api/shipmentClient.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Breadcrumbs.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Alert.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/shared/Skeleton.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/buttons/button.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/input/input.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/untitled-ui/base/select/select-native.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/design-system/index.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/components/UI.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
       "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
-      "type": "uses",
+      "type": "imports",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "file:frontend/src/pages/ShipmentsDetailPage.styles.test.ts",
-      "target": "file:frontend/src/styles/tokens.css",
-      "type": "uses",
+      "source": "file:frontend/src/pages/ShipmentsDetailPage.tsx",
+      "target": "file:frontend/src/lib/shipment-operations.ts",
+      "type": "imports",
       "direction": "forward",
       "weight": 1
     },
     {
-      "source": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:createDefaultDetailedPlanFilters",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:useDispatchDetailPlan",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts:detailPlanQuery",
-      "type": "calls",
-      "direction": "forward",
-      "weight": 1
-    },
-    {
-      "source": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:DetailedPlanFilters",
-      "target": "function:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx:FacetMultiSelect",
+      "source": "function:frontend/src/pages/ShipmentsDetailPage.tsx:ShipmentsDetailPage",
+      "target": "file:frontend/src/features/shipments/detail/ShipmentContainerLedger.tsx",
       "type": "renders",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
+      "target": "function:frontend/src/pages/ShipmentsPage.test.tsx:renderPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
+      "target": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:frontend/src/pages/ShipmentsPage.test.tsx",
+      "target": "file:frontend/src/pages/ShipmentsPage.tsx",
+      "type": "uses",
       "direction": "forward",
       "weight": 1
     }
@@ -146950,7 +146617,6 @@
         "file:backend/src/tests/q23-upload-idempotency.test.ts",
         "file:backend/src/tests/cus-shipment-workspace.test.ts",
         "file:backend/src/tests/shipment-routes.test.ts",
-        "file:frontend/src/pages/ShipmentsDetailPage.test.tsx",
         "file:frontend/src/pages/ShipmentsPage.test.tsx",
         "file:shared/src/schemas/cus-shipment-workspace.test.ts",
         "file:frontend/src/design-system/forms/SearchableSelect.test.tsx",
@@ -147743,7 +147409,10 @@
         "file:frontend/src/hooks/useClickOutside.ts",
         "file:frontend/src/pages/DispatchDetailPlanPage.tsx",
         "file:frontend/src/pages/ShipmentsDetailPage.tsx",
-        "file:frontend/src/pages/ShipmentsPage.tsx"
+        "file:frontend/src/pages/ShipmentsPage.tsx",
+        "file:frontend/src/components/untitled-ui/base/buttons/button.test.tsx",
+        "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx",
+        "file:frontend/src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx"
       ]
     },
     {
@@ -148045,7 +147714,8 @@
         "file:backend/src/seed/data/samples.ts",
         "file:backend/src/seed/data/vehicles.ts",
         "file:backend/src/routes/shipments.ts",
-        "file:backend/src/services/cus-shipment-workspace.service.ts"
+        "file:backend/src/services/cus-shipment-workspace.service.ts",
+        "file:backend/src/tests/dispatch-detail-plan.test.ts"
       ]
     },
     {
