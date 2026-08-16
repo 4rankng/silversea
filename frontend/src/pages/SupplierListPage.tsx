@@ -10,7 +10,7 @@ import { labelStyle } from '../utils/formStyles';
 import { downloadCSV } from '../lib/csv';
 import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import type { Supplier, Customer } from '@tingting/shared';
 import { CONFIG, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { useSuppliers } from '../hooks/useQueries';
@@ -21,6 +21,7 @@ import { Money } from '../components/shared/Money';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
+import '../styles/operational-table-typography.css';
 import './SupplierListPage.css';
 
 type FilterKey = 'all' | 'active' | 'inactive';
@@ -470,9 +471,9 @@ export default function SupplierListPage() {
         </div>
       </div>
 
-      <div className="desktop-only table-wrap">
-        <div className="table-scroll">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 800, tableLayout: 'fixed' }}>
+      <div className="desktop-only table-wrap suppliers-page__workspace">
+        <div className="table-scroll suppliers-page__grid-wrapper">
+          <table className="suppliers-page__grid ops-table">
             <colgroup>
               <col style={{ width: '26%' }} />
               <col style={{ width: '15%' }} />
@@ -520,7 +521,7 @@ export default function SupplierListPage() {
                     onMouseLeave={e => (e.currentTarget.style.background = '')}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
                   >
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', position: 'relative', verticalAlign: 'middle', fontWeight: 600 }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--name" style={{ padding: 12, borderBottom: '1px solid var(--line)', position: 'relative', verticalAlign: 'middle', fontWeight: 600 }}>
                       <StatusStrip status={s.status} />
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
@@ -533,16 +534,16 @@ export default function SupplierListPage() {
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td className="suppliers-page__cell" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                       {s.contactPerson || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--linked" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {s.linkedCustomerId ? (
                         <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                           <span style={{ flexShrink: 0, color: '#16a34a', fontWeight: 700, background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', fontSize: 12 }}>2 chiều</span>
@@ -554,10 +555,10 @@ export default function SupplierListPage() {
                         <span style={{ color: 'var(--ink-3)' }}>—</span>
                       )}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', textAlign: 'right', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', textAlign: 'right', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <Money value={payableBySupplier.get(s.id) ?? 0} />
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', position: 'relative' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--actions" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', position: 'relative' }}>
                       <div className="row-actions">
                         <button className="row-action" onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />
@@ -590,17 +591,7 @@ export default function SupplierListPage() {
           </table>
         </div>
 
-        <div className="table-foot">
-          <span>Đang hiển thị <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)}</strong> trên <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{total}</strong> nhà cung cấp</span>
-          <div className="pagination">
-            <button className="page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹</button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              const p = i + 1;
-              return <button key={p} className={`page-btn${p === page ? ' is-active' : ''}`} onClick={() => setPage(p)}>{p}</button>;
-            })}
-            <button className="page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>›</button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onChange={setPage} />
       </div>
 
       <SupplierFormModal

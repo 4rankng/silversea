@@ -388,58 +388,6 @@
   border: 1px solid var(--line);
 }
 
-/* ── Table Footer / Pagination ──────────────────────────────────────────── */
-
-.expense-table-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--line);
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-}
-
-.expense-pagination {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.expense-page-btn {
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 8px;
-  border-radius: 8px;
-  color: var(--ink-2);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  font-family: var(--font-data);
-  background: transparent;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.expense-page-btn:hover:not(:disabled) {
-  background: var(--surface);
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-.expense-page-btn.is-active {
-  background: var(--ink);
-  color: var(--fg-on-brand);
-  border-color: var(--ink);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.expense-page-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
 /* Empty state uses the shared <EmptyState> (design-system); the page-scoped
    .expense-empty* rules were retired during CTA unification. */
 

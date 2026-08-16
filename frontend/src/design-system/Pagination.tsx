@@ -10,6 +10,7 @@ export interface PaginationProps {
   onChange: (page: number) => void;
   summary?: ReactNode;
   siblingCount?: number;
+  disabled?: boolean;
 }
 
 function buildPageWindow(current: number, total: number, sibling: number): (number | '…')[] {
@@ -25,7 +26,7 @@ function buildPageWindow(current: number, total: number, sibling: number): (numb
 }
 
 export function Pagination({
-  page, totalPages, totalItems, pageSize, onChange, summary, siblingCount = 1,
+  page, totalPages, totalItems, pageSize, onChange, summary, siblingCount = 1, disabled = false,
 }: PaginationProps) {
   const pages = useMemo(() => buildPageWindow(page, totalPages, siblingCount), [page, totalPages, siblingCount]);
   if (totalPages <= 1 && !summary) return null;
@@ -37,12 +38,12 @@ export function Pagination({
   ));
 
   return (
-    <div className="ds-pagination">
+    <nav className="ds-pagination" aria-label="Phân trang">
       <div className="ds-pagination__summary-slot">{summary ?? defaultSummary}</div>
       <div className="ds-pagination__controls">
         <button
           className="ds-pagination__btn"
-          disabled={page <= 1}
+          disabled={disabled || page <= 1}
           onClick={() => onChange(page - 1)}
           aria-label="Trang trước"
           type="button"
@@ -56,6 +57,7 @@ export function Pagination({
               <button
                 key={p}
                 className={`ds-pagination__btn${p === page ? ' ds-pagination__btn--active' : ''}`}
+                disabled={disabled}
                 onClick={() => onChange(p)}
                 type="button"
                 aria-current={p === page ? 'page' : undefined}
@@ -66,7 +68,7 @@ export function Pagination({
         )}
         <button
           className="ds-pagination__btn"
-          disabled={page >= totalPages}
+          disabled={disabled || page >= totalPages}
           onClick={() => onChange(page + 1)}
           aria-label="Trang sau"
           type="button"
@@ -74,6 +76,6 @@ export function Pagination({
           <ChevronRight size={14} />
         </button>
       </div>
-    </div>
+    </nav>
   );
 }

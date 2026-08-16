@@ -117,17 +117,14 @@
   font-size: 13px;
 }
 
-.dispatch-catalogs__pager {
+/* Suppliers catalog pages via the design-system Pagination component; pin
+   it to the table's bottom edge like the other worksheet footers. */
+.dispatch-catalogs .ds-pagination {
   position: sticky;
   bottom: 0;
   z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+  margin: 0;
   padding: 12px;
   border-top: 1px solid var(--border-1);
   background: var(--bg-1, #fff);
-  font-size: 13px;
-  color: var(--fg-3);
 }

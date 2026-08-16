@@ -26,4 +26,12 @@ describe('Pagination', () => {
     );
     expect(container.textContent).toContain('Hiển thị');
   });
+
+  it('labels the navigation and disables every control while loading', () => {
+    const { getByRole, getAllByRole } = render(
+      <Pagination page={2} totalPages={3} onChange={() => {}} disabled />,
+    );
+    expect(getByRole('navigation', { name: 'Phân trang' })).toBeTruthy();
+    expect(getAllByRole('button').every((button) => button.hasAttribute('disabled'))).toBe(true);
+  });
 });

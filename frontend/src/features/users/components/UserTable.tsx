@@ -11,6 +11,7 @@ import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStri
 import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
 import { AssetIcon } from '../../../components/AssetIcon';
+import { Pagination } from '../../../design-system';
 
 interface UserTableProps {
   users: UserRow[];
@@ -332,56 +333,7 @@ export function UserTable({
               <span className="users-table-foot__summary">
                 Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> tài khoản
               </span>
-              {totalPages > 1 && (
-                <div className="users-pagination" aria-label="Phân trang tài khoản">
-                  <button
-                    className="btn-page users-pagination__nav"
-                    disabled={currentPage === 1}
-                    onClick={() => onPageChange(currentPage - 1)}
-                    style={{
-                      minHeight: 44, padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 9,
-                      background: currentPage === 1 ? 'var(--surface-2)' : '#fff',
-                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontSize: 12,
-                      color: currentPage === 1 ? 'var(--ink-4)' : 'var(--ink-2)'
-                    }}
-                  >
-                    Trước
-                  </button>
-                  {Array.from({ length: totalPages }).map((_, idx) => {
-                    const page = idx + 1;
-                    return (
-                      <button
-                        key={page}
-                        className={`btn-page users-pagination__page${currentPage === page ? ' is-active' : ''}`}
-                        onClick={() => onPageChange(page)}
-                        style={{
-                          minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderRadius: 9, border: currentPage === page ? '1px solid var(--brand)' : '1px solid var(--line-2)',
-                          background: currentPage === page ? 'var(--brand)' : '#fff',
-                          color: currentPage === page ? '#fff' : 'var(--ink)',
-                          fontWeight: currentPage === page ? '600' : 'normal',
-                          cursor: 'pointer', fontSize: 12
-                        }}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                  <button
-                    className="btn-page users-pagination__nav"
-                    disabled={currentPage === totalPages}
-                    onClick={() => onPageChange(currentPage + 1)}
-                    style={{
-                      minHeight: 44, padding: '8px 12px', border: '1px solid var(--line-2)', borderRadius: 9,
-                      background: currentPage === totalPages ? 'var(--surface-2)' : '#fff',
-                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontSize: 12,
-                      color: currentPage === totalPages ? 'var(--ink-4)' : 'var(--ink-2)'
-                    }}
-                  >
-                    Sau
-                  </button>
-                </div>
-              )}
+              {totalPages > 1 && <Pagination page={currentPage} totalPages={totalPages} totalItems={filtered.length} pageSize={pageSize} onChange={onPageChange} />}
             </div>
           );
         })()}

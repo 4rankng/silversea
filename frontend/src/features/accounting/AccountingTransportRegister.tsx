@@ -9,6 +9,7 @@ import {
   transportReadinessLabel,
 } from './accountingWorkspaceUtils';
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
+import { Pagination } from '../../design-system';
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -270,26 +271,7 @@ export function AccountingTransportRegister({
             ? `Mã đối chiếu: ${fingerprint.slice(0, 12)}`
             : 'Mã đối chiếu sẽ xuất hiện khi tải xong'}
         </small>
-        <div>
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            Trang trước
-          </button>
-          <span>
-            Trang {page}
-            {totalPages > 0 ? ` / ${totalPages}` : ''}
-          </span>
-          <button
-            type="button"
-            disabled={totalPages === 0 || page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            Trang sau
-          </button>
-        </div>
+        <Pagination page={page} totalPages={Math.max(1, totalPages)} totalItems={total} pageSize={25} onChange={onPageChange} disabled={loading} />
       </footer>
     </section>
   );

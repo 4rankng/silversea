@@ -4,6 +4,106 @@
   gap: 12px;
 }
 
+/* Admin suppliers use the same flat, information-dense worksheet language as
+   dispatch. The route retains its own financial columns and actions, while
+   the shared table geometry keeps the list easy to scan at real volume. */
+.suppliers-page__workspace {
+  min-width: 0;
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
+  border-radius: 0;
+  background: transparent;
+}
+
+.suppliers-page__grid-wrapper {
+  overflow: visible;
+  min-height: 0;
+}
+
+.suppliers-page__grid {
+  width: 100%;
+  min-width: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: var(--ops-table-supporting-size);
+}
+
+.suppliers-page__grid th {
+  position: sticky;
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
+  padding: 10px 12px !important;
+  border-bottom: 2px solid var(--border-color, var(--line, #e2e8f0)) !important;
+  background: var(--background-color-secondary, var(--surface, #fff)) !important;
+  color: var(--text-secondary, var(--ink-3, #64748b)) !important;
+  font-size: var(--ops-table-header-size) !important;
+  font-weight: var(--ops-table-header-weight) !important;
+  letter-spacing: 0.04em !important;
+  line-height: var(--ops-table-header-line-height);
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.suppliers-page__grid tbody tr:hover {
+  background: var(--bg-hover, #f8fafc) !important;
+}
+
+.suppliers-page__grid .suppliers-page__cell {
+  min-width: 0;
+  padding: 12px !important;
+  border-bottom: 1px solid var(--border-color, var(--line, #eef2f7)) !important;
+  vertical-align: top !important;
+  color: var(--text-primary, var(--ink, #0f172a));
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.suppliers-page__grid .suppliers-page__cell--name {
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+}
+
+.suppliers-page__grid .suppliers-page__cell--data,
+.suppliers-page__grid .suppliers-page__cell--money {
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+.suppliers-page__grid .suppliers-page__cell--linked > span,
+.suppliers-page__grid .suppliers-page__cell--linked > span > span:last-child {
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+.suppliers-page__grid .suppliers-page__cell--actions {
+  text-align: right;
+}
+
+.suppliers-page__workspace > .ds-pagination {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 12px;
+  border-top: 1px solid var(--border-color-secondary, var(--line, #e2e8f0));
+  background: var(--surface, #fff);
+}
+
+@media (max-width: 767px) {
+  .suppliers-page__workspace {
+    border-top: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .supplier-form-grid {
     grid-template-columns: minmax(0, 1fr);

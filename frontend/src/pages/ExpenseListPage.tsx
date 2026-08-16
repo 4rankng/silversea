@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, ChevronLeft, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
@@ -9,7 +9,7 @@ import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { AssetIcon } from '../components/AssetIcon';
-import { EmptyState } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -424,32 +424,7 @@ export default function ExpenseListPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="expense-table-foot">
-          <span>
-            Đang hiển thị{' '}
-            <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>
-              {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)}
-            </strong>{' '}
-            trên <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{total}</strong> phiếu
-          </span>
-          <div className="expense-pagination">
-            <button className="expense-page-btn" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-              <ChevronLeft size={14} />
-            </button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              const p = i + 1;
-              return (
-                <button key={p} className={`expense-page-btn${p === page ? ' is-active' : ''}`} onClick={() => setPage(p)}>
-                  {p}
-                </button>
-              );
-            })}
-            <button className="expense-page-btn" aria-label="Trang sau" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={PAGE_SIZE} onChange={setPage} disabled={isLoading} />
       </div>
     </div>
   );

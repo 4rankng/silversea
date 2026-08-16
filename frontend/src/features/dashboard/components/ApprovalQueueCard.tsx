@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { NavigateFunction } from 'react-router-dom';
-import { Receipt, Wallet, CheckCircle2, FileCheck2, ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react';
+import { Receipt, Wallet, CheckCircle2, FileCheck2, ChevronRight, Check, Loader2 } from 'lucide-react';
 import type { ApprovalItemType, ApprovalQueueItem, ApprovalQueueResponse } from '../hooks/useApprovalQueue';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
+import { Pagination } from '../../../design-system';
 
 const TYPE_LABEL: Partial<Record<ApprovalItemType, string>> = {
   ancillaryFees: 'Phí phụ trợ',
@@ -77,9 +78,6 @@ export function ApprovalQueueCard({ data, loading, navigate }: Props) {
     return map;
   }, [visibleItems]);
 
-  const handlePrevPage = () => setPage(value => Math.max(0, value - 1));
-  const handleNextPage = () => setPage(value => Math.min(pageCount - 1, value + 1));
-
   return (
     <div className="d-card d-card-border bg-base-100 wf-card approval-queue">
       <div className="wf-card-h">
@@ -91,33 +89,7 @@ export function ApprovalQueueCard({ data, loading, navigate }: Props) {
         </div>
         {total > 0 && (
           <div className="approval-queue__head-actions">
-            {canPage && (
-              <div className="approval-queue__pager" aria-label="Phân trang cần duyệt">
-                <button
-                  type="button"
-                  className="d-btn d-btn-square d-btn-sm approval-queue__page-btn"
-                  onClick={handlePrevPage}
-                  disabled={currentPage === 0}
-                  aria-label="Trang trước"
-                  title="Trang trước"
-                >
-                  <ChevronLeft size={15} strokeWidth={2.3} />
-                </button>
-                <span className="approval-queue__page-label">
-                  {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, total)} / {total}
-                </span>
-                <button
-                  type="button"
-                  className="d-btn d-btn-square d-btn-sm approval-queue__page-btn"
-                  onClick={handleNextPage}
-                  disabled={currentPage >= pageCount - 1}
-                  aria-label="Trang sau"
-                  title="Trang sau"
-                >
-                  <ChevronRight size={15} strokeWidth={2.3} />
-                </button>
-              </div>
-            )}
+            {canPage && <Pagination page={currentPage + 1} totalPages={pageCount} totalItems={total} pageSize={PAGE_SIZE} onChange={(nextPage) => setPage(nextPage - 1)} disabled={loading} />}
             <span className="d-badge d-badge-success d-badge-soft approval-queue__count">{total}</span>
           </div>
         )}

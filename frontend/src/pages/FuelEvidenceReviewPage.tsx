@@ -7,6 +7,7 @@ import { qk } from '../api/keys';
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
 import { StatusPill } from '../components/UI';
 import { formatCurrency } from '../lib/format';
+import { Pagination } from '../design-system';
 
 const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'danger'> = {
   PENDING: 'warn',
@@ -215,21 +216,7 @@ export default function FuelEvidenceReviewPage() {
         ))}
       </div>
 
-      {!query.isLoading && totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginTop: 16 }}>
-          <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
-            Trang {page}/{totalPages} · {total} ảnh
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-              Trang trước
-            </button>
-            <button type="button" className="btn btn--ghost btn--sm" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>
-              Trang sau
-            </button>
-          </div>
-        </div>
-      )}
+      {!query.isLoading && totalPages > 1 && <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={20} onChange={setPage} disabled={query.isFetching} />}
     </main>
   );
 }

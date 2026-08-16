@@ -9,7 +9,7 @@ import { downloadCSV } from '../lib/csv';
 import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency, formatNumber } from '../lib/format';
 import {
@@ -719,18 +719,7 @@ export default function CustomersPage() {
           </table>
         </div>
 
-        {/* Table footer with pagination */}
-        <div className="table-foot">
-          <span>Đang hiển thị <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)}</strong> trên <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-data)' }}>{total}</strong> khách hàng</span>
-          <div className="pagination">
-            <button className="page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>‹</button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              const p = i + 1;
-              return <button key={p} className={`page-btn${p === page ? ' is-active' : ''}`} onClick={() => setPage(p)}>{p}</button>;
-            })}
-            <button className="page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>›</button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onChange={setPage} />
       </div>
 
       {/* Customer add/edit modal */}

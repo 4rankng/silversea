@@ -13,6 +13,7 @@ import { useSuppliers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { CatalogTableShell } from './CatalogTableShell';
+import { Pagination } from '../../../design-system';
 import './catalogs.css';
 
 const PAGE_SIZE = 10;
@@ -99,19 +100,7 @@ export function SuppliersView() {
                 ))}
               </tbody>
             </table>
-            {totalPages > 1 && (
-              <div className="dispatch-catalogs__pager">
-                <span>
-                  Trang {page}/{totalPages}
-                </span>
-                <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  ‹ Trước
-                </button>
-                <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-                  Sau ›
-                </button>
-              </div>
-            )}
+            {totalPages > 1 && <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={PAGE_SIZE} onChange={setPage} disabled={loading} />}
           </>
         )}
       </CatalogTableShell>
