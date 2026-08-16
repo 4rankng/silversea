@@ -283,8 +283,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.getByText(/Chiều hàng: Nhập/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
-    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
-    expect(screen.getByText('Đang lọc')).toBeTruthy();
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    expect(screen.queryByText('Đang lọc')).toBeNull();
   });
 
   it('rejects an invalid suffix without issuing a filtered request', async () => {

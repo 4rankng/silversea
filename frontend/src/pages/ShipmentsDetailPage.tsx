@@ -211,7 +211,17 @@ export default function ShipmentsDetailPage() {
     appliedSearchRef.current = '';
     setSearchInput('');
     setSearchError(null);
-    setSearchParams({ transportDateFrom: today, transportDateTo: today }, { replace: true });
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete('searchSuffix');
+      next.delete('customerId');
+      next.delete('direction');
+      next.delete('transportDateFrom');
+      next.delete('transportDateTo');
+      next.set('dateScope', 'all');
+      next.delete('page');
+      return next;
+    }, { replace: true });
   };
 
   const showAllDates = () => setSearchParams((current) => {
