@@ -47,32 +47,25 @@
   justify-content: flex-end;
 }
 
-/* Dense desktop controls keep this high-frequency worksheet scannable. The
-   mobile rule below restores full touch targets. */
+/* Page rules arrange the toolbar; shared UUI size variants own control density. */
 .cus-worksheet-toolbar .shipment-uui-field {
   gap: 4px;
   min-width: 0;
 }
 
 .cus-worksheet-toolbar .shipment-uui-field [data-label] {
-  margin-bottom: 0;
   color: var(--ink-2);
-  font-size: 12px;
   font-weight: var(--fw-semibold);
-  line-height: 1.25;
 }
 
 .cus-worksheet-toolbar .shipment-uui-control,
 .cus-worksheet-toolbar .shipment-uui-select {
   width: 100%;
-  min-height: 36px;
-  height: 36px;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: var(--surface);
   box-shadow: none;
   color: var(--ink);
-  font-size: 13px;
 }
 
 .cus-worksheet-toolbar .shipment-uui-control:focus-within,
@@ -85,14 +78,10 @@
 .cus-worksheet-toolbar .shipment-uui-control__input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 44px;
-  height: 34px;
   border: 0;
   border-radius: inherit;
   outline: 0;
-  padding: 0 9px;
   color: var(--ink);
-  font: inherit;
 }
 
 .cus-worksheet-toolbar .shipment-uui-control__input:focus-visible {
@@ -100,7 +89,7 @@
 }
 
 .cus-worksheet-toolbar .shipment-uui-control__input--search {
-  padding-left: 34px;
+  padding-left: 32px;
 }
 
 .cus-worksheet-toolbar .shipment-uui-control__input::placeholder {
@@ -111,10 +100,7 @@
   color: var(--ink-3);
 }
 
-.cus-worksheet-toolbar .shipment-uui-select {
-  padding: 0 30px 0 9px;
-  font-weight: var(--fw-medium);
-}
+.cus-worksheet-toolbar .shipment-uui-select { font-weight: var(--fw-medium); }
 
 .cus-search-field {
   position: relative;
@@ -146,14 +132,10 @@
 }
 
 .cus-worksheet-toolbar__actions .shipment-uui-button {
-  min-height: 36px;
-  padding: 7px 11px;
   border: 1px solid transparent;
   border-radius: 6px;
   box-shadow: none;
-  font-size: 13px;
   font-weight: var(--fw-semibold);
-  line-height: 1.25;
 }
 
 .cus-worksheet-toolbar__actions .shipment-uui-button--primary {
@@ -355,13 +337,11 @@
 
 .cus-drawer-uui-field [data-label] {
   color: var(--ink-2);
-  font-size: 12px;
   font-weight: var(--fw-semibold);
 }
 
 .cus-drawer-uui-control,
 .cus-drawer-uui-select {
-  min-height: 40px;
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: none;
@@ -370,12 +350,10 @@
 .cus-drawer-uui-input,
 .cus-drawer-uui-select {
   min-width: 0;
-  font-size: 13px;
 }
 
 .cus-drawer-save-date {
   width: auto;
-  min-height: 40px;
   border-radius: var(--radius-md);
   box-shadow: none;
 }
@@ -441,20 +419,8 @@
   }
 
   .cus-worksheet-toolbar__actions .shipment-uui-button {
-    min-height: 44px;
-    padding: 9px 12px;
-    min-width: 44px;
+    min-width: var(--control-touch-h);
     flex: 1;
-  }
-
-  .cus-worksheet-toolbar .shipment-uui-control,
-  .cus-worksheet-toolbar .shipment-uui-select {
-    min-height: 44px;
-    height: 44px;
-  }
-
-  .cus-worksheet-toolbar .shipment-uui-control__input {
-    height: 42px;
   }
 
   .cus-worksheet-toolbar .shipment-uui-clear {
@@ -988,7 +954,6 @@
 }
 
 .cus-search-field,
-.cus-filter-field,
 .cus-action-reason {
   display: grid;
   gap: 6px;
@@ -996,7 +961,6 @@
 }
 
 .cus-search-field > label,
-.cus-filter-field > span,
 .cus-action-reason > span {
   color: var(--ink-2);
   font-size: var(--fs-xs);
@@ -1032,8 +996,6 @@
   font: inherit;
 }
 
-.cus-filter-field input,
-.cus-filter-field select,
 .cus-action-reason textarea {
   width: 100%;
   min-height: 44px;
@@ -1045,8 +1007,6 @@
   font: inherit;
 }
 
-.cus-filter-field input:focus-visible,
-.cus-filter-field select:focus-visible,
 .cus-action-reason textarea:focus-visible {
   border-color: var(--accent);
   outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);

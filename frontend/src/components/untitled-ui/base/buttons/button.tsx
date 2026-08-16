@@ -21,7 +21,7 @@ export const styles = sortCx({
     sizes: {
         xs: {
             root: [
-                "gap-1 rounded-lg px-2.5 py-1.5 text-sm font-semibold before:rounded-[7px] data-icon-only:p-2",
+                "min-h-7 gap-1 rounded-lg px-2 py-1 text-xs font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5",
                 "in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5",
                 "*:data-icon:size-4 *:data-icon:stroke-[2.25px]",
             ].join(" "),
@@ -29,14 +29,15 @@ export const styles = sortCx({
         },
         sm: {
             root: [
-                "gap-1 rounded-lg px-3 py-2 text-sm font-semibold before:rounded-[7px] data-icon-only:p-2",
+                "min-h-[34px] gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold before:rounded-[7px] data-icon-only:p-2 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:text-sm max-md:data-icon-only:p-2.5",
                 "in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5",
+                "*:data-icon:size-4 *:data-icon:stroke-[2.25px]",
             ].join(" "),
             linkRoot: "gap-1 *:data-text:underline-offset-3",
         },
         md: {
             root: [
-                "gap-1 rounded-lg px-3.5 py-2.5 text-sm font-semibold before:rounded-[7px] data-icon-only:p-2.5",
+                "min-h-10 gap-1 rounded-lg px-3.5 py-2 text-sm font-semibold before:rounded-[7px] data-icon-only:p-2.5 max-md:min-h-11",
                 "in-data-input-wrapper:gap-1.5 in-data-input-wrapper:px-4 in-data-input-wrapper:text-md in-data-input-wrapper:data-icon-only:p-3",
             ].join(" "),
             linkRoot: "gap-1 *:data-text:underline-offset-4",

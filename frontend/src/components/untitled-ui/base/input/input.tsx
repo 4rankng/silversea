@@ -70,9 +70,9 @@ export const InputBase = ({
 
     const sizes = sortCx({
         sm: {
-            root: cx("px-3 py-2 text-sm", hasLeadingIcon && "pl-9", hasTrailingIcon && "!pr-9"),
-            iconLeading: "left-3 size-4 stroke-[2.25px]",
-            iconTrailing: "right-3",
+            root: cx("min-h-[32px] px-2.5 py-1 text-xs max-md:min-h-[42px] max-md:px-3 max-md:py-2 max-md:text-sm", hasLeadingIcon && "pl-8 max-md:pl-9", hasTrailingIcon && "!pr-8 max-md:!pr-9"),
+            iconLeading: "left-2.5 size-4 stroke-[2.25px] max-md:left-3",
+            iconTrailing: "right-2.5 max-md:right-3",
             shortcut: "pr-1.5",
         },
         md: {
@@ -96,6 +96,8 @@ export const InputBase = ({
             className={({ isFocusWithin, isDisabled, isInvalid }) =>
                 cx(
                     "group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
+                    inputSize === "sm" && "min-h-[34px] max-md:min-h-11",
+                    inputSize === "md" && "min-h-10 max-md:min-h-11",
 
                     isFocusWithin && !isDisabled && "border-brand outline-2 outline-offset-1",
 

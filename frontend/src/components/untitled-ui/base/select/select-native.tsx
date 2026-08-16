@@ -16,7 +16,7 @@ const styles = {
     sm: {
         // Always reserve the trailing icon lane. Without it, a long selected
         // label can paint underneath the chevron and hide the select affordance.
-        root: "py-2 pl-3 pr-10 text-sm",
+        root: "min-h-[34px] py-1 pl-2.5 pr-8 text-xs max-md:min-h-11 max-md:py-2 max-md:pl-3 max-md:pr-10 max-md:text-sm",
         icon: "size-4 right-2.5 stroke-[2.25px]",
     },
     md: {
@@ -36,9 +36,9 @@ export const NativeSelect = ({ label, hint, options, className, selectClassName,
     const hintId = `select-native-hint-${id}`;
 
     return (
-        <div className={cx("w-full in-data-input-wrapper:w-max", className)}>
+        <div data-input-size={size} className={cx("w-full in-data-input-wrapper:w-max", className)}>
             {label && (
-                <Label htmlFor={selectId} id={labelId} className="mb-1.5">
+                <Label htmlFor={selectId} id={labelId} className={size === "sm" ? "mb-1" : "mb-1.5"}>
                     {label}
                 </Label>
             )}

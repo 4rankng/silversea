@@ -1407,7 +1407,7 @@ export default function ShipmentsPage() {
                 { value: 'EXPORT', label: 'Xuất' },
                 { value: 'IMPORT', label: 'Nhập' },
               ]}
-              className="cus-filter-field shipment-uui-field"
+              className="shipment-uui-field"
               selectClassName="shipment-uui-select"
             />
             <UUIInput
@@ -1416,7 +1416,7 @@ export default function ShipmentsPage() {
               type="date"
               value={dateFrom}
               onChange={(value) => updateParam('transportDateFrom', value || null)}
-              className="cus-filter-field shipment-uui-field"
+              className="shipment-uui-field"
               wrapperClassName="shipment-uui-control"
               inputClassName="shipment-uui-control__input"
             />
@@ -1426,7 +1426,7 @@ export default function ShipmentsPage() {
               type="date"
               value={dateTo}
               onChange={(value) => updateParam('transportDateTo', value || null)}
-              className="cus-filter-field shipment-uui-field"
+              className="shipment-uui-field"
               wrapperClassName="shipment-uui-control"
               inputClassName="shipment-uui-control__input"
             />
@@ -1439,7 +1439,7 @@ export default function ShipmentsPage() {
                 { value: '', label: 'Tất cả trạng thái' },
                 ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
               ]}
-              className="cus-filter-field shipment-uui-field"
+              className="shipment-uui-field"
               selectClassName="shipment-uui-select"
             />
           </div>

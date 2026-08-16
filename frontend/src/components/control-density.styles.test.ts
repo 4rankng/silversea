@@ -1,0 +1,75 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const cssFilesUnder = (directory: string): string[] => readdirSync(resolve(process.cwd(), directory), { withFileTypes: true }).flatMap((entry) => {
+  const relativePath = join(directory, entry.name);
+  if (entry.isDirectory()) return cssFilesUnder(relativePath);
+  return entry.isFile() && entry.name.endsWith('.css') ? [relativePath] : [];
+});
+
+describe('shared control density', () => {
+  it('defines compact, default, and touch-safe control tokens', () => {
+    const tokens = read('src/styles/tokens.css');
+
+    expect(tokens).toMatch(/--control-compact-h:\s*34px;/);
+    expect(tokens).toMatch(/--control-default-h:\s*40px;/);
+    expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
+  });
+
+  it('keeps the global native-control font reset below component utilities', () => {
+    const base = read('src/styles/base.css');
+
+    expect(base).toMatch(/@layer base\s*\{[\s\S]*?button\s*\{\s*font:\s*inherit;[\s\S]*?input, select, textarea\s*\{\s*font:\s*inherit;/);
+  });
+
+  it('keeps legacy small buttons compact instead of promoting them to medium', () => {
+    const source = read('src/components/UI.tsx');
+    const css = read('src/components/Button.css');
+
+    expect(source).toContain("const BTN_SIZE_MAP = { sm: 'sm', md: 'md' } as const;");
+    expect(css).toMatch(/\.btn--sm\s*\{[^}]*min-height:\s*var\(--control-compact-h\);/);
+    expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.btn--sm\s*\{[^}]*min-height:\s*var\(--control-touch-h\);/);
+  });
+
+  it('leaves dimensions to shared primitives instead of shipment page overrides', () => {
+    const overview = read('src/pages/ShipmentsPage.css');
+    const detail = read('src/pages/ShipmentsDetailPage.css');
+    const detailControlBlocks = [...detail.matchAll(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{([^}]*)\}/g)]
+      .map((match) => match[1]);
+
+    expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
+    expect(overview).not.toMatch(/\.cus-worksheet-toolbar__actions \.shipment-uui-button\s*\{[^}]*(?:height|min-height|font-size|padding):/);
+    expect(detailControlBlocks).not.toHaveLength(0);
+    expect(detailControlBlocks.every((block) => !/(?:^|[;\s])(?:height|min-height|font(?:-size)?|line-height|padding(?:-\w+)?)\s*:/.test(block))).toBe(true);
+  });
+
+  it('keeps compact field typography in shared primitives instead of page workarounds', () => {
+    const input = read('src/components/untitled-ui/base/input/input.tsx');
+    const nativeSelect = read('src/components/untitled-ui/base/select/select-native.tsx');
+    const select = read('src/components/untitled-ui/base/select/select-shared.tsx');
+    const overview = read('src/pages/ShipmentsPage.css');
+    const detail = read('src/pages/ShipmentsDetailPage.css');
+
+    for (const source of [input, nativeSelect, select]) {
+      expect(source).toContain('max-md:text-sm');
+      expect(source).not.toContain('max-md:text-md');
+    }
+    expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*font\s*:/);
+    expect(detail).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
+  });
+
+  it('rejects UUI field dimensions from every page and feature stylesheet', () => {
+    const violations = cssFilesUnder('src/pages').concat(cssFilesUnder('src/features')).flatMap((path) => {
+      const blocks = [...read(path).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+      return blocks.flatMap(([, selector, declarations]) => {
+        const targetsUuiField = /uui-(?:field|control|input|select)|\[data-input-(?:wrapper|size)/.test(selector);
+        const ownsDimensions = /(?:^|;)\s*(?:height|min-height|font(?:-size)?|line-height)\s*:/.test(declarations);
+        return targetsUuiField && ownsDimensions ? [`${path}: ${selector.trim()}`] : [];
+      });
+    });
+
+    expect(violations).toEqual([]);
+  });
+});

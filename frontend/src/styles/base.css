@@ -28,8 +28,12 @@ body {
   /* Disable iOS Safari pull-to-refresh bounce inside the app shell. */
   overscroll-behavior-y: contain;
 }
-button { font: inherit; cursor: pointer; }
-input, select, textarea { font: inherit; }
+/* Keep native controls consistent without outranking Tailwind/UUI size
+   utilities. Unlayered resets override every named cascade layer. */
+@layer base {
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; }
+}
 img { display: block; }
 ::selection { background: var(--accent-soft); color: var(--accent-ink); }
 

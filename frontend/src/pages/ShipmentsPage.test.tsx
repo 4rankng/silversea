@@ -1221,7 +1221,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
-    expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*34px;/);
+    expect(source).not.toContain('className="cus-filter-field shipment-uui-field"');
+    for (const label of ['Bill/Book hoặc tờ khai', 'Xuất / Nhập', 'Từ ngày giao', 'Đến ngày giao', 'Kế hoạch']) {
+      expect(source).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+size="sm"`));
+    }
+    expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
+    expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*32px;/);
+    expect(css).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
     expect(source).toContain('cus-worksheet-toolbar__action-group');
     expect(css).toMatch(/\.cus-worksheet-toolbar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.cus-worksheet-toolbar__filters\s*\{[\s\S]*?minmax\(260px, 1\.6fr\) repeat\(4, minmax\(148px, 1fr\)\);/);

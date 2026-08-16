@@ -52,7 +52,7 @@ export function UTextField({
 }: UTextFieldProps) {
   return (
     <UUIInput
-      size="sm"
+      size="md"
       label={label}
       value={value}
       onChange={(next) => onChange(asEvent(next))}
@@ -108,7 +108,7 @@ export function USearchableField({
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
-        size="sm"
+        size="md"
         aria-label={label}
         label={label}
         menuTrigger="manual"
@@ -173,7 +173,7 @@ export function USelectField({
   return (
     <div className={`csc-select-field csc-control-boundary${error ? ' csc-select-field--error' : ''}`}>
       <NativeSelect
-        size="sm"
+        size="md"
         aria-label={label}
         label={required ? `${label} *` : label}
         value={value}
@@ -211,7 +211,7 @@ export function UTextAreaField({
 }: UTextAreaFieldProps) {
   return (
     <UUITextArea
-      size="sm"
+      size="md"
       label={label}
       value={value}
       onChange={(next) => onChange(asEvent(next))}

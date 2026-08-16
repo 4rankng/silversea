@@ -296,8 +296,8 @@ const BTN_VARIANT_MAP: Record<NonNullable<BtnProps['variant']>, 'primary' | 'sec
   danger: 'primary-destructive',
 };
 
-/** Legacy 44px touch targets map onto UUI md (40px) / lg (44px). */
-const BTN_SIZE_MAP = { sm: 'md', md: 'lg' } as const;
+/** Preserve the caller's density intent; shared primitives add touch sizing. */
+const BTN_SIZE_MAP = { sm: 'sm', md: 'md' } as const;
 
 export function Btn({
   variant = 'secondary',

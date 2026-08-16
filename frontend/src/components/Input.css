@@ -5,9 +5,9 @@
 .input {
   display: flex;
   width: 100%;
-  min-height: var(--control-h);
-  height: var(--control-h);
-  padding: 0 14px;
+  min-height: var(--control-default-h);
+  height: var(--control-default-h);
+  padding: 0 12px;
   font-family: var(--font-body);
   font-size: var(--fs-md);
   line-height: 1.35;
@@ -72,8 +72,8 @@ select.input {
 
 @media (max-width: 640px) {
   .input {
-    min-height: var(--control-h);
-    height: var(--control-h);
+    min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
     border-radius: 11px;
     font-size: 16px;
   }

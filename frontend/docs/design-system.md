@@ -74,3 +74,24 @@ retrieved with the pinned version-8 workflow in
 [`untitled-ui.md`](./untitled-ui.md). Use those accessible source primitives as
 the component layer, then compose them through the product-specific design
 system and feature modules above.
+
+## Control density contract
+
+Control size is owned by the shared primitive, never by page CSS:
+
+| Variant | Desktop use | Desktop height | Narrow-screen minimum |
+|---|---|---:|---:|
+| `sm` | Operational filters, table toolbars, compact utility actions | 34px | 44px |
+| `md` | Forms and ordinary page actions | 40px | 44px |
+| `xs` button | Low-emphasis inline utilities | 28px | 44px |
+
+The canonical CSS tokens are `--control-compact-h`, `--control-default-h`, and
+`--control-touch-h`. Pages may arrange controls and set widths, but must not
+override their height, internal padding, font size, or icon size. Choose the
+semantic `size` prop instead. This keeps legacy controls and Untitled UI inputs,
+selects, and buttons on the same rhythm across routes.
+
+Compact field typography is shared too: `sm` fields use 12px on desktop and
+14px at narrow widths, while retaining the 44px touch target. Page styles must
+not override that type scale with `font`, `font-size`, or `line-height`; correct
+the shared Untitled UI primitive when a compact field is inconsistent.

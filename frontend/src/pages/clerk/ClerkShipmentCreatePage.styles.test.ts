@@ -81,7 +81,7 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses compact desktop density while retaining mobile touch targets', () => {
-    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(4);
+    expect(fieldAdapters.match(/size="md"/g)).toHaveLength(4);
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
     expect(css).toMatch(/\.csc-page\s*\{[^}]*padding:\s*12px 20px 28px;/);
@@ -89,9 +89,9 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
     expect(css).toMatch(/\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);
     expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*padding:\s*10px 14px;/);
-    expect(css).toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:\s*12px;/);
-    expect(css).toMatch(/\.csc-control-boundary > \[role='presentation'\][\s\S]*?min-height:\s*38px;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-control-boundary > \[role='presentation'\][\s\S]*?min-height:\s*44px;/);
+    expect(css).not.toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:/);
+    const boundaryBlock = css.match(/\.csc-control-boundary textarea\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(boundaryBlock).not.toContain('min-height:');
   });
 
   it('renders the add-container action as a compact grouped button', () => {

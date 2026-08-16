@@ -34,25 +34,22 @@
 .shipments-detail-filter > *,
 .shipments-detail-filter input,
 .shipments-detail-filter select { width: 100%; min-width: 0; }
-.shipments-detail-filter [data-label],
-.shipments-detail-filter > label { margin-bottom: 4px; color: var(--ink-2); font-size: 11px; font-weight: var(--fw-semibold); }
-/* UUI Input keeps its label inside [data-input-wrapper], while NativeSelect
-   renders it as a direct child. Give both forms the same label-to-control
-   rhythm so the shared grid aligns their interactive rows. */
-.shipments-detail-filter [data-input-wrapper] { min-height: 0; gap: 4px; box-shadow: none; }
+.shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
+/* UUI Input establishes vertical rhythm through its flex gap; NativeSelect
+   instead relies on a label margin. Normalize the two mechanisms so every
+   control in the shared grid starts on the same baseline. */
+.shipments-detail-filter:not([data-input-wrapper]) > label[data-label] { margin-bottom: 5px; color: var(--ink-2); font-weight: var(--fw-semibold); }
+.shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input,
-.shipments-detail-filter select { height: 34px; min-height: 34px; padding-block: 4px; box-shadow: none; font-size: var(--fs-xs); line-height: 1.35; }
-.shipments-detail-filter input { padding-inline: 10px; background: transparent; }
+.shipments-detail-filter select { box-shadow: none; }
+.shipments-detail-filter input { background: transparent; }
 .shipments-detail-filter--search input { padding-left: 30px; }
-.shipments-detail-filter select { padding-inline: 10px 32px; background: var(--surface); }
-.shipments-detail-filter input::placeholder { font-size: inherit; }
+.shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter--search input { text-transform: uppercase; }
 .shipments-detail-filters__footer { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .shipments-detail-filters__date-actions { display: flex; flex: 0 0 auto; gap: 6px; }
 .shipments-detail-filters__date-actions button,
-.shipments-detail-filters__reset { height: 28px; min-height: 28px; padding: 3px 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.25; }
-.shipments-detail-filters__date-actions button [data-icon],
-.shipments-detail-filters__reset [data-icon] { width: 12px; height: 12px; }
+.shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
 .shipments-detail-filters__date-actions button:hover,
 .shipments-detail-filters__date-actions button[data-hovered],
 .shipments-detail-filters__reset:hover,
@@ -306,14 +303,8 @@
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
   .shipments-detail-filter--search,
   .shipments-detail-filter:nth-child(4) { grid-column: 1 / -1; }
-  .shipments-detail-filter input,
-  .shipments-detail-filter select { height: 44px; min-height: 44px; padding-block: 8px; font-size: var(--fs-sm); }
   .shipments-detail-filters__footer { align-items: flex-start; flex-direction: column; }
   .shipments-detail-filters__meta { width: 100%; align-items: flex-start; }
-  .shipments-detail-filters__date-actions button,
-  .shipments-detail-filters__reset { height: 44px; min-height: 44px; padding: 8px 12px; font-size: var(--fs-xs); }
-  .shipments-detail-filters__date-actions button [data-icon],
-  .shipments-detail-filters__reset [data-icon] { width: 14px; height: 14px; }
   .shipment-container-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-summary > div:nth-child(2) { border-right: 0; }
   .shipment-container-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }

@@ -7,8 +7,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 44px;
-  padding: 10px 15px;
+  min-height: var(--control-default-h);
+  padding: 8px 14px;
   border-radius: 10px;
   font-family: var(--font-body);
   font-size: var(--fs-sm);
@@ -66,10 +66,10 @@
   background: var(--danger-text);
   border-color: var(--danger-text);
 }
-.btn--sm { min-height: 44px; padding: 9px 12px; font-size: var(--fs-xs); line-height: 1.35; }
+.btn--sm { min-height: var(--control-compact-h); padding: 6px 10px; font-size: var(--fs-xs); line-height: 1.35; }
 .btn--lg { padding: 12px 18px; font-size: 15px; border-radius: 12px; min-height: 46px; }
-.btn--icon { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
-.btn--icon.btn--sm { width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; }
+.btn--icon { width: var(--control-default-h); min-width: var(--control-default-h); height: var(--control-default-h); min-height: var(--control-default-h); padding: 0; }
+.btn--icon.btn--sm { width: var(--control-compact-h); min-width: var(--control-compact-h); height: var(--control-compact-h); min-height: var(--control-compact-h); padding: 0; }
 
 /* Legacy single-dash variants (.btn-primary/.btn-secondary/.btn-ghost/.btn-sm/
    .btn-icon) were retired during CTA unification — all call sites now use the
@@ -78,28 +78,28 @@
 
 @media (max-width: 640px) {
   .btn {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
     padding: 11px 14px;
     font-size: var(--fs-sm);
     white-space: normal;
   }
 
   .btn--sm {
-    min-height: 44px;
+    min-height: var(--control-touch-h);
     padding: 9px 11px;
   }
 
   .btn--icon {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 
   .btn--icon.btn--sm {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
   }
 }

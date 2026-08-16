@@ -28,7 +28,8 @@ describe('Untitled UI flat-surface control boundaries', () => {
 
   it('reserves a trailing icon lane in every native-select size', () => {
     const select = read('src/components/untitled-ui/base/select/select-native.tsx');
-    expect(select).toContain('root: "py-2 pl-3 pr-10 text-sm"');
+    expect(select).toContain('root: "min-h-[34px] py-1 pl-2.5 pr-8 text-xs');
+    expect(select).toContain('max-md:pr-10');
     expect(select).toContain('root: "py-2 pl-3 pr-10 text-md"');
     expect(select).toContain('root: "py-2.5 pl-3.5 pr-11 text-md"');
   });

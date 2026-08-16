@@ -198,6 +198,11 @@
 
   --sidebar-w: 248px;
   --topbar-h: 56px;
+  /* Control density contract: compact operational tools, regular forms, and
+     a touch-safe minimum. Keep --control-h as the shell-compatible alias. */
+  --control-compact-h: 34px;
+  --control-default-h: 40px;
+  --control-touch-h: 44px;
   --control-h: 44px;
   --content-max-w: 1440px;
 
