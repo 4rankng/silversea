@@ -60,16 +60,16 @@ test.describe('Dispatch master plan', () => {
     await page.goto('/dispatch');
     const candidateRows = page.locator('.master-plan-grid tbody tr');
     const dialog = page.getByRole('dialog', { name: 'Phân bổ nhà xe' });
+    await expect(candidateRows.first()).toBeVisible({ timeout: 10000 });
     let selectedRowIndex = -1;
     let demand20 = 0;
     let demand40 = 0;
     for (let index = 0; index < await candidateRows.count(); index += 1) {
       await candidateRows.nth(index).locator('.master-plan-grid__allocate-btn').click();
       await expect(dialog).toBeVisible();
-      const demandSummary = await dialog.locator('.dispatch-allocation-popover__summary > div').first().innerText();
-      const demandMatch = demandSummary.match(/20':\s*(\d+).*40':\s*(\d+)/s);
-      demand20 = Number(demandMatch?.[1] ?? 0);
-      demand40 = Number(demandMatch?.[2] ?? 0);
+      const balanceRows = dialog.locator('.dispatch-allocation-popover__balance-row');
+      demand20 = Number(await balanceRows.nth(0).getByRole('cell').first().innerText());
+      demand40 = Number(await balanceRows.nth(1).getByRole('cell').first().innerText());
       if (demand20 + demand40 > 0) {
         selectedRowIndex = index;
         break;
@@ -84,8 +84,8 @@ test.describe('Dispatch master plan', () => {
     // Over-allocate → error shown, Lưu disabled.
     const count20 = dialog.locator('input[aria-label^="Số container 20"]');
     const count40 = dialog.locator('input[aria-label^="Số container 40"]');
-    const originalCounts20 = await count20.allInputValues();
-    const originalCounts40 = await count40.allInputValues();
+    const originalCounts20 = await count20.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value));
+    const originalCounts40 = await count40.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value));
     const targetInput = demand20 > 0 ? count20.first() : count40.first();
     const targetDemand = demand20 > 0 ? demand20 : demand40;
     await targetInput.fill(String(targetDemand + 1));
@@ -97,6 +97,10 @@ test.describe('Dispatch master plan', () => {
       await count20.nth(index).fill(originalCounts20[index]);
       await count40.nth(index).fill(originalCounts40[index]);
     }
+    // A never-allocated row starts with both quantities empty, which is not a
+    // valid allocation. Enter a positive in-range quantity before saving.
+    await targetInput.fill(String(Math.max(1, targetDemand - 1)));
+    await expect(dialog.getByRole('button', { name: 'Lưu phân bổ' })).toBeEnabled();
     const saveRequest = page.waitForRequest(
       (request) => request.url().includes('/carrier-allocations?mode=partial') && request.method() === 'POST',
     );
