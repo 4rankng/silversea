@@ -649,11 +649,23 @@
   overflow-wrap: anywhere;
 }
 
+.cus-multiline-cell .cus-classification__shipping-line {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .cus-direction-badge,
 .cus-combined-tag {
+  display: inline-flex;
+  align-self: start;
+  align-items: center;
   justify-self: start;
+  width: fit-content;
+  min-height: 22px;
   max-width: 100%;
-  padding: 3px 7px;
+  padding: 2px 7px;
   border-radius: 999px;
   font-size: 10px !important;
   font-weight: var(--fw-bold);

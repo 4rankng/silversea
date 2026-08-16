@@ -407,39 +407,17 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     })));
   });
 
-  it('keeps the container appointment visible and saves it through the container mutation', async () => {
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
-    apiPost.mockResolvedValueOnce({ line: { ...detail.containers[0], shipmentVersion: 8, customerAppointmentAt: '2026-08-22T03:15:00.000Z' } });
-    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
-
-    await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
-      expectedShipmentVersion: 7,
-      customerAppointmentAt: '2026-08-22T10:15:00+07:00',
-    }, { headers: { 'Idempotency-Key': expect.any(String) } }));
-    expect(apiPut).not.toHaveBeenCalled();
-  });
-
-  it('keeps shipment schedule read-only when only the container appointment is editable', async () => {
-    const appointmentOnlyResponse = {
+  it('does not render a redundant customer-appointment row in the detail ledger', async () => {
+    const appointmentResponse = {
       ...response,
-      items: response.items.map((row) => row.id === 12 ? { ...row, shipmentScheduleEditable: false } : row),
+      items: response.items.map((row) => row.id === 12 ? { ...row, customerAppointmentAt: '2026-08-22T03:15:00.000Z' } : row),
     };
-    const appointmentOnlyDetail = {
-      ...detail,
-      summary: { ...detail.summary, operational: { transportDateEditable: false } },
-    } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet.mockResolvedValueOnce(appointmentOnlyResponse).mockResolvedValueOnce(appointmentOnlyDetail);
+    apiGet.mockResolvedValueOnce(appointmentResponse).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
-    expect(screen.queryByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
-    expect((await screen.findByLabelText('Giờ hẹn khách')).hasAttribute('disabled')).toBe(false);
+    expect(screen.queryByText(/Hẹn khách/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /giờ hẹn khách/ })).toBeNull();
   });
 
   it('represents an internal-fleet assignment without forcing an external carrier', async () => {
@@ -510,29 +488,4 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeNull();
   });
 
-  it('drops a stale appointment draft when dispatch revokes only appointment permission', async () => {
-    const dispatchedDetail = {
-      ...detail,
-      summary: { ...detail.summary, version: 8 },
-      containers: [{
-        ...detail.containers[0],
-        shipmentVersion: 8,
-        customerAppointmentAt: '2026-08-23T02:00:00.000Z',
-        permissions: { ...detail.containers[0].permissions, customerAppointmentEditable: false },
-      }],
-    } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(dispatchedDetail).mockResolvedValueOnce(response);
-    apiPost.mockRejectedValueOnce(new ApiError(409, {}, 'Lô hàng vừa thay đổi.'));
-    apiPut.mockResolvedValueOnce({ version: 9 });
-    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
-
-    await screen.findByText('CONT-002');
-    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa giờ hẹn khách CONT-002/ }));
-    fireEvent.change(await screen.findByLabelText('Giờ hẹn khách'), { target: { value: '2026-08-22T10:15' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu giờ hẹn khách CONT-002' }));
-
-    expect((await screen.findByRole('alert')).textContent).toContain('chuyển sang chỉ đọc');
-    expect(screen.queryByLabelText('Giờ hẹn khách')).toBeNull();
-    expect(apiPost).toHaveBeenCalledTimes(1);
-  });
 });

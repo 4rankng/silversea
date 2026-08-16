@@ -32,7 +32,6 @@ import {
   type ShipmentContainerDraft,
   type ShipmentRouteDraft,
   type ShipmentScheduleDraft,
-  type ShipmentAppointmentDraft,
   type ShipmentVehicleDraft,
 } from '../features/shipments/detail/ShipmentContainerLedger';
 import { formatVietnamDateInput, formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
@@ -69,7 +68,6 @@ function canEditMode(
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
   if (mode === 'schedule') return detail.summary.operational.transportDateEditable;
-  if (mode === 'appointment') return line.permissions.customerAppointmentEditable;
   return ['customerNotes', 'operationalNotes'].some((field) => detail.summary.fieldAccess[field as 'customerNotes'].mode !== 'READ_ONLY');
 }
 
@@ -413,25 +411,6 @@ export default function ShipmentsDetailPage() {
     await finishSave();
   }, [finishSave, recoverConflict]);
 
-  const saveAppointment = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => {
-    const signature = JSON.stringify(['appointment', row.shipmentId, line.id, line.shipmentVersion, draft.customerAppointmentAt]);
-    const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
-    editIdempotencyKeys.current[signature] = key;
-    try {
-      await updateCusShipmentContainerLine(row.shipmentId, line.id, {
-        expectedShipmentVersion: line.shipmentVersion,
-        customerAppointmentAt: draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null,
-      }, key);
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
-      delete editIdempotencyKeys.current[signature];
-      await recoverConflict(row, 'appointment');
-      return;
-    }
-    delete editIdempotencyKeys.current[signature];
-    await finishSave();
-  }, [finishSave, recoverConflict]);
-
   const saveNotes = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => {
     try {
       await updateShipment(row.shipmentId, {
@@ -475,7 +454,7 @@ export default function ShipmentsDetailPage() {
         {loading ? <ShipmentContainerLedgerSkeleton /> : error ? null : items.length === 0 ? (
           <EmptyState icon={Search} title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveIdentity={saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={saveContainer} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveAppointment={saveAppointment} onSaveNotes={saveNotes} />
+          <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveIdentity={saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={saveContainer} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveNotes={saveNotes} />
           <Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />
         </>}
       </section>

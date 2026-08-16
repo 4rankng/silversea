@@ -58,14 +58,15 @@ describe('Drawer keyboard focus', () => {
   });
 
   it('keeps shared dialog chrome compact without sacrificing mobile touch targets', () => {
-    expect(modalStyles).toMatch(/\.modal__head\s*\{[^}]*padding:\s*12px 20px;/);
-    expect(modalStyles).toMatch(/\.modal__foot\s*\{[^}]*padding:\s*12px 20px;/);
+    expect(modalStyles).toMatch(/\.modal__head\s*\{[^}]*padding:\s*8px 16px;/);
+    expect(modalStyles).toMatch(/\.modal__foot\s*\{[^}]*padding:\s*8px 16px;/);
+    expect(modalStyles).toMatch(/\.modal__close\.btn\s*\{[^}]*height:\s*36px;/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__head\s*\{[^}]*padding:\s*12px 16px 8px;/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__foot\s*\{[^}]*padding:\s*8px 16px max\(8px, env\(safe-area-inset-bottom\)\);/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__close\.btn\s*\{[^}]*min-height:\s*44px;/);
     expect(responsiveStyles).not.toContain('.modal__head');
-    expect(crudModalStyles).toMatch(/\.ds-crud-modal__head\s*\{[^}]*padding:\s*12px 16px;/);
-    expect(crudModalStyles).toMatch(/\.ds-crud-modal__foot\s*\{[^}]*padding:\s*10px 16px;/);
+    expect(crudModalStyles).toMatch(/\.ds-crud-modal__head\s*\{[^}]*padding:\s*8px 16px;/);
+    expect(crudModalStyles).toMatch(/\.ds-crud-modal__foot\s*\{[^}]*padding:\s*8px 16px;/);
   });
 
   it('moves focus into the drawer, traps it, and restores the opener after Escape', async () => {

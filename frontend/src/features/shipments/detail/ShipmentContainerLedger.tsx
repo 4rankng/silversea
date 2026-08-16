@@ -13,7 +13,7 @@ import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/te
 import { SearchableSelect } from '../../../design-system';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 
-export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'appointment' | 'vehicle' | 'notes';
+export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
 
 export interface ActiveShipmentDetailEdit {
   row: ShipmentCusContainerFlatRow;
@@ -61,10 +61,6 @@ export interface ShipmentScheduleDraft {
   scheduleAt: string | null;
 }
 
-export interface ShipmentAppointmentDraft {
-  customerAppointmentAt: string | null;
-}
-
 export interface ShipmentNotesDraft {
   customerNotes: string | null;
   operationalNotes: string | null;
@@ -86,7 +82,6 @@ function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
   if (mode === 'route') return 'điểm nâng hạ';
   if (mode === 'vehicle') return 'phân xe';
   if (mode === 'schedule') return 'lịch trình';
-  if (mode === 'appointment') return 'giờ hẹn khách';
   return 'ghi chú';
 }
 
@@ -106,14 +101,6 @@ function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
   const value = row.direction === 'IMPORT' ? row.plannedReturnAt : row.closingAt;
   const input = formatVietnamDateTimeInput(value);
   return input ? input.slice(11, 16) : null;
-}
-
-function formatAppointment(value: string | null): string | null {
-  const input = formatVietnamDateTimeInput(value);
-  if (!input) return null;
-  const [date, time] = input.split('T');
-  const [year, month, day] = date?.split('-') ?? [];
-  return year && month && day && time ? `${day}/${month}/${year} ${time}` : input;
 }
 
 function fallback(value: string | null, label: string) {
@@ -165,7 +152,6 @@ function InlineEditor({
   onSaveRoute,
   onSaveVehicle,
   onSaveSchedule,
-  onSaveAppointment,
   onSaveNotes,
   onSaveIdentity,
   onSaveDocuments,
@@ -178,7 +164,6 @@ function InlineEditor({
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
-  onSaveAppointment: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
   onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
@@ -196,7 +181,6 @@ function InlineEditor({
   const [plateNumber, setPlateNumber] = useState(line.plateNumber ?? '');
   const [transportDate, setTransportDate] = useState(row.transportDate ?? '');
   const [scheduleTime, setScheduleTime] = useState(formatScheduleTime(row) ?? '');
-  const [customerAppointmentAt, setCustomerAppointmentAt] = useState(formatVietnamDateTimeInput(line.customerAppointmentAt));
   const [customerNotes, setCustomerNotes] = useState(row.customerNotes ?? '');
   const [operationalNotes, setOperationalNotes] = useState(row.operationalNotes ?? '');
   const [factoryName, setFactoryName] = useState(detail.summary.raw.factoryName ?? '');
@@ -253,8 +237,6 @@ function InlineEditor({
       : mode === 'schedule'
         ? transportDate !== (row.transportDate ?? '')
           || scheduleTime !== (formatScheduleTime(row) ?? '')
-        : mode === 'appointment'
-          ? customerAppointmentAt !== formatVietnamDateTimeInput(line.customerAppointmentAt)
         : customerNotes.trim() !== (row.customerNotes ?? '').trim()
           || operationalNotes.trim() !== (row.operationalNotes ?? '').trim();
   const modeLabel = mode === 'identity' ? 'khách hàng và lộ trình'
@@ -263,7 +245,7 @@ function InlineEditor({
         : mode === 'route' ? 'hành trình'
           : mode === 'vehicle' ? 'phân xe'
             : mode === 'schedule' ? 'lịch trình'
-              : mode === 'appointment' ? 'giờ hẹn khách' : 'ghi chú';
+              : 'ghi chú';
   const label = `${modeLabel} ${row.containerNumber || `container số ${row.ordinal}`}`;
 
   useEffect(() => {
@@ -329,8 +311,6 @@ function InlineEditor({
           transportDate: transportDate || null,
           scheduleAt: transportDate && scheduleTime ? `${transportDate}T${scheduleTime}` : null,
         });
-      } else if (mode === 'appointment') {
-        await onSaveAppointment(line, row, { customerAppointmentAt: customerAppointmentAt || null });
       } else {
         await onSaveNotes(row, {
           customerNotes: customerNotes.trim() || null,
@@ -418,11 +398,6 @@ function InlineEditor({
           <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
         </div>
       )}
-      {mode === 'appointment' && (
-        <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-          <label><span>Giờ hẹn khách</span><input autoFocus type="datetime-local" value={customerAppointmentAt} onChange={(event) => setCustomerAppointmentAt(event.target.value)} disabled={saving || !line.permissions.customerAppointmentEditable} /></label>
-        </div>
-      )}
       {mode === 'notes' && (
         <div className="shipment-container-ledger__editor-grid">
           <UUITextArea label="Ghi chú thu khách" size="sm" rows={2} maxLength={2000} value={customerNotes} onChange={setCustomerNotes} isDisabled={saving} />
@@ -452,7 +427,6 @@ interface ShipmentContainerLedgerProps {
   onSaveRoute: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentRouteDraft) => Promise<void>;
   onSaveVehicle: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => Promise<void>;
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
-  onSaveAppointment: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentAppointmentDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
   onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
@@ -471,7 +445,6 @@ export function ShipmentContainerLedger({
   onSaveRoute,
   onSaveVehicle,
   onSaveSchedule,
-  onSaveAppointment,
   onSaveNotes,
   onSaveIdentity,
   onSaveDocuments,
@@ -491,7 +464,6 @@ export function ShipmentContainerLedger({
       onSaveRoute={onSaveRoute}
       onSaveVehicle={onSaveVehicle}
       onSaveSchedule={onSaveSchedule}
-      onSaveAppointment={onSaveAppointment}
       onSaveNotes={onSaveNotes}
       routeOptions={edit.detail.selectors.routes.map((item) => ({ value: String(item.id), label: item.label, searchText: item.name }))}
     />
@@ -563,7 +535,6 @@ export function ShipmentContainerLedger({
               const missingDate = row.transportDate == null;
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const scheduleTime = formatScheduleTime(row);
-              const appointment = formatAppointment(row.customerAppointmentAt);
               const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
@@ -600,11 +571,8 @@ export function ShipmentContainerLedger({
                     {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><i aria-hidden="true">→</i><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
-                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' || edit?.mode === 'appointment' ? 'shipment-container-ledger__editing-cell' : undefined}>
-                    <div className="shipment-container-ledger__cell-stack">
-                      {editableCell(row, 'schedule', row.shipmentScheduleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
-                      {editableCell(row, 'appointment', row.customerAppointmentEditable, <span className="shipment-container-ledger__appointment">{appointment ? `Hẹn khách · ${appointment}` : 'Chưa có giờ hẹn khách'}</span>)}
-                    </div>
+                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                    {editableCell(row, 'schedule', row.shipmentScheduleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">

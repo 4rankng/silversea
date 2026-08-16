@@ -1616,7 +1616,7 @@ export default function ShipmentsPage() {
                         <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell">
                             <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
-                            <span>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
+                            <span className="cus-classification__shipping-line">{item.shippingLineName || 'Chưa có hãng tàu'}</span>
                             {item.isCombined && <span className="cus-combined-tag">Hàng kết hợp</span>}
                           </span></button>
                         </td>
@@ -1697,7 +1697,7 @@ export default function ShipmentsPage() {
         isOpen={quickEditDraft != null && quickEditItem != null}
         title={quickEditDraft ? quickEditTitle(quickEditDraft.field) : 'Chỉnh sửa lô hàng'}
         onClose={closeQuickEdit}
-        maxWidth={520}
+        maxWidth={480}
         footer={<>
           <UUIButton size="sm" color="secondary" className="cus-quick-edit-modal__action" onPress={closeQuickEdit} isDisabled={savingQuickEdit}>Hủy</UUIButton>
           <UUIButton

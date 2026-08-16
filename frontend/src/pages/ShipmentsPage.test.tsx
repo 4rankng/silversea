@@ -480,6 +480,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/@container \(max-width: 1000px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2,/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
   });
 
   it('highlights a shipment whose closing or return date is not yet confirmed', async () => {
@@ -1288,5 +1289,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     expect(within(masterRow()).getByText('Hàng kết hợp')).toBeTruthy();
+  });
+
+  it('keeps classification tags compact and wraps the shipping-line label', () => {
+    expect(source).toContain('className="cus-classification__shipping-line"');
+    expect(css).toMatch(/\.cus-multiline-cell \.cus-classification__shipping-line\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-self:\s*start;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
   });
 });

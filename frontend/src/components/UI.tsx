@@ -471,7 +471,7 @@ interface ModalProps {
   maxWidth?: number | string;
 }
 
-export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 540 }: ModalProps) {
+export function Modal({ isOpen, title, onClose, children, footer, onConfirm, maxWidth = 480 }: ModalProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
