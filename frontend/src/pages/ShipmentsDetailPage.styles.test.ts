@@ -15,14 +15,19 @@ describe('shipment detail workboard styling', () => {
   it('uses a compact filter-only header and explicitly downsizes the controls', () => {
     expect(css).not.toContain('.shipments-detail-workspace__intro');
     expect(css).not.toContain('.shipments-detail-eyebrow');
-    expect(css).toMatch(/\.shipments-detail-filter \[data-label\],[\s\S]*?\.shipments-detail-filter > label\s*\{[^}]*font-size:\s*11px;/);
-    expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select,\s*\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-filter \[data-label\],[\s\S]*?\.shipments-detail-filter > label\s*\{[^}]*margin-bottom:\s*4px;[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*4px;/);
+    expect(css).toMatch(/\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*min-height:\s*0;[^}]*gap:\s*4px;/);
+    expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*height:\s*34px;[^}]*min-height:\s*34px;[^}]*padding-block:\s*4px;[^}]*font-size:\s*var\(--fs-xs\);/);
+    expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
+    expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*padding-inline:\s*10px 32px;/);
     expect(css).toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size:\s*inherit;/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
     expect(source).toMatch(/<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?shipments-detail-filters__meta/);
     expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button,[\s\S]*?\.shipments-detail-filters__reset\s*\{[^}]*height:\s*28px;[^}]*min-height:\s*28px;[^}]*padding:\s*3px 8px;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*6px;[^}]*font-size:\s*11px;/);
-    expect(css).toMatch(/\.shipments-detail-filters__date-actions button \[data-icon\],[\s\S]*?\.shipments-detail-filters__reset \[data-icon\]\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/);
+    expect(css).toMatch(/\.shipments-detail-filters__date-actions button \[data-icon\],[\s\S]*?\.shipments-detail-filters__reset \[data-icon\]\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters__date-actions button \[data-icon\],[\s\S]*?\.shipments-detail-filters__reset \[data-icon\]\s*\{[^}]*width:\s*14px;[^}]*height:\s*14px;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).toMatch(/\.shipments-detail-filters__meta\s*\{[^}]*display:\s*flex;[^}]*flex:\s*1 1 auto;[^}]*justify-content:\s*space-between;/);
     expect(css).toMatch(/\.shipments-detail-filters__meta p\s*\{[^}]*overflow-wrap:\s*anywhere;/);
@@ -37,11 +42,12 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
-    expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*40px;[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipments-detail-filter input,[^{]+\{[^}]*min-height:\s*34px;[^}]*box-shadow:\s*none;/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filter input,[\s\S]*?\.shipments-detail-filter select\s*\{[^}]*height:\s*44px;[^}]*padding-block:\s*8px;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr;/);
   });
 

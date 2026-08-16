@@ -1,5 +1,5 @@
 import type { FC, ReactElement, ReactNode } from "react";
-import React, { isValidElement } from "react";
+import React, { cloneElement, isValidElement } from "react";
 import type { ButtonProps as AriaButtonProps, LinkProps as AriaLinkProps } from "react-aria-components";
 import { Button as AriaButton, Link as AriaLink } from "react-aria-components";
 import { cx, sortCx } from "@/utils/cx";
@@ -193,7 +193,10 @@ export const Button: {
     const commonChildren = (
         <>
             {/* Leading icon */}
-            {isValidElement(IconLeading) && IconLeading}
+            {isValidElement<{ className?: string; "data-icon"?: string }>(IconLeading) && cloneElement(IconLeading, {
+                "data-icon": "leading",
+                className: cx(styles.common.icon, IconLeading.props.className),
+            })}
             {isReactComponent(IconLeading) && <IconLeading data-icon="leading" className={styles.common.icon} />}
 
             {loading && (
@@ -226,7 +229,10 @@ export const Button: {
             )}
 
             {/* Trailing icon */}
-            {isValidElement(IconTrailing) && IconTrailing}
+            {isValidElement<{ className?: string; "data-icon"?: string }>(IconTrailing) && cloneElement(IconTrailing, {
+                "data-icon": "trailing",
+                className: cx(styles.common.icon, IconTrailing.props.className),
+            })}
             {isReactComponent(IconTrailing) && <IconTrailing data-icon="trailing" className={styles.common.icon} />}
         </>
     );

@@ -1337,7 +1337,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const companyName = await screen.findByText(longCompanyName);
 
     expect(companyName.className).toContain('cus-customer-name');
-    expect(css).toMatch(/\.cus-multiline-cell \.cus-customer-name\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.cus-multiline-cell \.cus-customer-name\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*line-height:\s*var\(--ops-table-supporting-line-height\);[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
   });
 });
