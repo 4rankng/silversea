@@ -178,19 +178,25 @@ describe('DetailedPlanGrid', () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it('uses the available dispatch canvas before collapsing its filter rail', () => {
+  it('uses deliberate quick and route-constraint bands instead of auto-wrapping filters', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchDetailPlanPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
     expect(page).toContain('dispatch-plan-page--wide');
     expect(page).toContain('<Pagination');
     expect(page).not.toContain('Tải thêm');
-    expect(css).toContain('display: grid');
-    expect(css).toContain('grid-template-columns: minmax(280px, 2fr) minmax(270px, 1.2fr) minmax(150px, 0.8fr) minmax(280px, 1.4fr)');
-    expect(css).toContain('.detailed-plan-filters__field--search {\n  min-width: 280px;');
+    expect(css).toContain('grid-template-columns: minmax(360px, 1fr) auto');
+    expect(css).toContain('.detailed-plan-filters__field--search {\n  grid-column: 1;\n  min-width: 280px;');
+    expect(css).toContain('.detailed-plan-filters__primary-row {\n  grid-column: 2;\n  display: flex;');
+    expect(css).toContain('.detailed-plan-filters__secondary-row {\n  grid-column: 1 / -1;\n  display: flex;\n  flex-wrap: wrap;');
+    expect(css).toContain('.detailed-plan-filters__field--direction {\n  flex: 0 0 184px;');
+    expect(css).toContain('.detailed-plan-filters__field--assignment {\n  flex: 0 0 240px;');
+    expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;\n  display: grid;\n  grid-template-columns: minmax(0, 1fr);\n  gap: 6px;\n  flex: 0 0 280px;');
+    expect(css).toContain('.detailed-plan-filters__hour {\n  min-width: 280px;\n  flex: 0 0 316px;');
     expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;');
     expect(css).toContain('@container (max-width: 1000px)');
-    expect(css).toContain('.detailed-plan-filters__field--search {\n    grid-column: auto;');
+    expect(css).toContain('.detailed-plan-filters__advanced {\n    display: grid;\n    grid-column: 1 / -1;');
+    expect(css).toContain('.detailed-plan-filters__primary-row,\n  .detailed-plan-filters__secondary-row {\n    grid-column: auto;\n    display: grid;\n    grid-template-columns: repeat(2, minmax(0, 1fr));');
     expect(css).toContain('.detailed-plan-grid__cell::before');
     expect(css).toContain('content: attr(data-label)');
   });

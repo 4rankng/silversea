@@ -173,20 +173,27 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
   });
 
-  it('keeps the complete delivery-date range in one responsive control group', () => {
-    const { container } = render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '' }} onChange={vi.fn()} />);
+  it('keeps the complete delivery-date range and create action in one responsive control group', () => {
+    const { container } = render(
+      <MasterPlanFilters
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '' }}
+        onChange={vi.fn()}
+        action={<button type="button">Tạo lô hàng</button>}
+      />,
+    );
     expect(container.querySelector('[role="group"][aria-label="Khoảng ngày giao"]')).toBeTruthy();
+    expect(container.querySelector('.master-plan-filters__actions')?.textContent).toBe('Tạo lô hàng');
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('grid-template-columns: minmax(300px, 380px) 144px 220px minmax(390px, 440px)');
-    expect(css).toContain('@container (max-width: 1240px)');
-    expect(css).toContain('grid-template-columns: minmax(280px, 360px) 144px 220px');
-    expect(css).toContain('width: min(100%, 440px)');
+    expect(css).toContain('grid-template-columns: minmax(248px, 1.25fr) minmax(124px, 0.6fr) minmax(184px, 0.9fr) minmax(320px, 1.3fr) auto');
+    expect(css).toContain('@container (max-width: 1020px)');
+    expect(css).toContain('grid-column: 1 / span 3');
     expect(css).toContain('@container (max-width: 820px)');
     expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
     expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
+    expect(css).toContain('.master-plan-filters__actions');
   });
 
   it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {
@@ -204,6 +211,8 @@ describe('MasterPlanFilters', () => {
 
     expect(page).not.toContain('Tải lại');
     expect(page).not.toContain('dispatch-plan-page__toolbar');
+    expect(page).not.toContain('<PageHeader');
+    expect(page).toContain('action={(');
     expect(page).toContain('dispatch-plan-page--wide');
     expect(css).toContain('max-width: 1400px');
     expect(css).toContain('.dispatch-plan-page--wide {\n  gap: 12px;\n  max-width: none;');

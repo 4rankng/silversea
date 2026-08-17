@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Truck } from 'lucide-react';
 import { EmptyState, Pagination } from '../design-system';
-import { PageHeader } from '../components/UI';
 import type { ShipmentListItem } from '../api/shipmentClient';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
@@ -29,17 +28,7 @@ export default function MasterPlanPage() {
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
-      <PageHeader
-        title="Kế hoạch Tổng quát"
-        iconName="truck"
-        description="Kế hoạch phân bổ nhà xe cho các lô hàng"
-        action={(
-          <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
-            <Plus size={16} aria-hidden="true" />
-            Tạo lô hàng
-          </button>
-        )}
-      />
+      <h1 className="sr-only">Kế hoạch Tổng quát</h1>
 
       <section className="dispatch-plan-page__workspace">
         {masterPlan.error && (
@@ -56,7 +45,16 @@ export default function MasterPlanPage() {
           </div>
         )}
 
-        <MasterPlanFilters filters={masterPlan.filters} onChange={masterPlan.updateFilters} />
+        <MasterPlanFilters
+          filters={masterPlan.filters}
+          onChange={masterPlan.updateFilters}
+          action={(
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
+              <Plus size={16} aria-hidden="true" />
+              Tạo lô hàng
+            </button>
+          )}
+        />
 
         {masterPlan.loading ? (
           <div className="dispatch-plan-page__loading">

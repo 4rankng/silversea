@@ -4,11 +4,10 @@
 
 .master-plan-filters {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) 144px 220px minmax(390px, 440px);
+  grid-template-columns: minmax(248px, 1.25fr) minmax(124px, 0.6fr) minmax(184px, 0.9fr) minmax(320px, 1.3fr) auto;
   align-items: end;
-  justify-content: start;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 /* UUI inputs/selects carry their own borders, focus rings, and sizing;
@@ -50,21 +49,32 @@
 
 .master-plan-filters__date-input input {
   min-width: 0;
-  padding-inline: 10px;
 }
 
 .master-plan-filters__date-sep {
   color: var(--text-secondary, #94a3b8);
 }
 
-@container (max-width: 1240px) {
+.master-plan-filters__actions {
+  align-self: end;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+/* Keep the common dispatcher canvas as one command bar. The old 1240px
+   breakpoint detached the date range into a second row even when the page
+   still had ample working width, leaving most of the toolbar empty. */
+@container (max-width: 1020px) {
   .master-plan-filters {
-    grid-template-columns: minmax(280px, 360px) 144px 220px;
+    grid-template-columns: minmax(260px, 1.3fr) minmax(124px, 0.65fr) minmax(184px, 0.9fr) auto;
   }
 
   .master-plan-filters__date-range {
-    grid-column: 1 / -1;
-    width: min(100%, 440px);
+    grid-column: 1 / span 3;
+  }
+
+  .master-plan-filters__actions {
+    grid-column: 4;
   }
 }
 
@@ -78,8 +88,9 @@
     grid-column: 1 / -1;
   }
 
-  .master-plan-filters__date-range {
-    width: min(100%, 440px);
+  .master-plan-filters__actions {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
 
@@ -89,6 +100,14 @@
   }
 
   .master-plan-filters__date-range {
+    width: 100%;
+  }
+
+  .master-plan-filters__actions {
+    justify-self: stretch;
+  }
+
+  .master-plan-filters__actions > .btn {
     width: 100%;
   }
 

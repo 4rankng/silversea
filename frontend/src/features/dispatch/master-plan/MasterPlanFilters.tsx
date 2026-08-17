@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
@@ -9,6 +10,8 @@ import './MasterPlanGrid.css';
 interface MasterPlanFiltersProps {
   filters: FilterState;
   onChange: (patch: Partial<FilterState>) => void;
+  /** Page-level action kept in the same operational toolbar as the filters. */
+  action?: ReactNode;
 }
 
 const TRADE_DIRECTION_OPTIONS = [
@@ -25,7 +28,7 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
 ];
 
 /** Filter bar for the dispatch master-plan grid (docx §2). */
-export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps) {
+export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
   return (
     <div className="master-plan-filters">
       <UUIInput
@@ -86,6 +89,7 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
           />
         </div>
       </div>
+      {action && <div className="master-plan-filters__actions">{action}</div>}
     </div>
   );
 }

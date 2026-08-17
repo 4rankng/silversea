@@ -301,97 +301,101 @@ export function DetailedPlanFilters({
         {isAdvancedFiltersOpen ? 'Ẩn bộ lọc' : activeAdvancedFilterCount > 0 ? `Bộ lọc (${activeAdvancedFilterCount})` : 'Thêm bộ lọc'}
       </button>
       <div id={advancedFiltersId} className={`detailed-plan-filters__advanced${isAdvancedFiltersOpen ? ' is-open' : ''}`}>
-        <div className="detailed-plan-filters__date-group">
-          <BufferedUuiDateInput
-            className="detailed-plan-filters__field detailed-plan-filters__date"
-            value={filters.date}
-            onChange={(value) => onChange({ date: value })}
-            size="sm"
-            label="Ngày vận chuyển"
-          />
-          {filters.date !== today && (
-            <UUIButton
-              className="detailed-plan-filters__today"
-              size="xs"
-              color="secondary"
-              onPress={() => onChange({ date: today })}
+        <div className="detailed-plan-filters__primary-row">
+          <div className="detailed-plan-filters__date-group">
+            <BufferedUuiDateInput
+              className="detailed-plan-filters__field detailed-plan-filters__date"
+              value={filters.date}
+              onChange={(value) => onChange({ date: value })}
+              size="sm"
+              label="Ngày vận chuyển"
+            />
+            {filters.date !== today && (
+              <UUIButton
+                className="detailed-plan-filters__today"
+                size="xs"
+                color="secondary"
+                onPress={() => onChange({ date: today })}
+              >
+                Về hôm nay
+              </UUIButton>
+            )}
+          </div>
+          <div className="detailed-plan-filters__field detailed-plan-filters__field--direction">
+            <span className="detailed-plan-filters__label">Chiều hàng</span>
+            <UUISelect
+              className="detailed-plan-filters__select"
+              size="sm"
+              aria-label="Chiều hàng"
+              selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+              onSelectionChange={(key) => onChange({
+                direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'],
+              })}
+              items={DIRECTION_OPTIONS}
             >
-              Về hôm nay
-            </UUIButton>
-          )}
+              {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+            </UUISelect>
+          </div>
+          <div className="detailed-plan-filters__field detailed-plan-filters__field--assignment">
+            <span className="detailed-plan-filters__label">Phân xe</span>
+            <UUISelect
+              className="detailed-plan-filters__select"
+              size="sm"
+              aria-label="Phân xe"
+              selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
+              onSelectionChange={(key) => onChange({
+                assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'],
+              })}
+              items={ASSIGNMENT_OPTIONS}
+            >
+              {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+            </UUISelect>
+          </div>
         </div>
-      <div className="detailed-plan-filters__field">
-        <span className="detailed-plan-filters__label">Chiều hàng</span>
-        <UUISelect
-          className="detailed-plan-filters__select"
-          size="sm"
-          aria-label="Chiều hàng"
-          selectedKey={filters.direction || 'ALL_DIRECTIONS'}
-          onSelectionChange={(key) => onChange({
-            direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'],
-          })}
-          items={DIRECTION_OPTIONS}
-        >
-          {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-        </UUISelect>
-      </div>
-      <div className="detailed-plan-filters__field">
-        <span className="detailed-plan-filters__label">Phân xe</span>
-        <UUISelect
-          className="detailed-plan-filters__select"
-          size="sm"
-          aria-label="Phân xe"
-          selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
-          onSelectionChange={(key) => onChange({
-            assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'],
-          })}
-          items={ASSIGNMENT_OPTIONS}
-        >
-          {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
-        </UUISelect>
-      </div>
-      <FacetMultiSelect
-        label="Điểm nâng"
-        selected={filters.pickupIds}
-        onToggle={(id) => onChange({ pickupIds: toggleId(filters.pickupIds, id) })}
-        loadFacets={loadPickupPortFacets}
-      />
-      <FacetMultiSelect
-        label="Điểm hạ"
-        selected={filters.dropoffIds}
-        onToggle={(id) => onChange({ dropoffIds: toggleId(filters.dropoffIds, id) })}
-        loadFacets={loadDropoffPortFacets}
-      />
-      <FacetMultiSelect
-        label="Điểm trả"
-        selected={filters.deliveryPointIds}
-        onToggle={(id) => onChange({ deliveryPointIds: toggleId(filters.deliveryPointIds, id) })}
-        loadFacets={loadDeliveryPointFacets}
-      />
-      <div className="detailed-plan-filters__field detailed-plan-filters__hour">
-        <span className="detailed-plan-filters__label">Giờ chạy</span>
-        <div className="detailed-plan-filters__hour-inputs">
-          <UUIInput
-            type="time"
-            className="detailed-plan-filters__hour-control"
-            value={filters.hourFrom}
-            onChange={(value) => onChange({ hourFrom: value })}
-            size="sm"
-            aria-label="Giờ từ"
-            inputProps={{ step: 60 }}
+        <div className="detailed-plan-filters__secondary-row">
+          <FacetMultiSelect
+            label="Điểm nâng"
+            selected={filters.pickupIds}
+            onToggle={(id) => onChange({ pickupIds: toggleId(filters.pickupIds, id) })}
+            loadFacets={loadPickupPortFacets}
           />
-          <span aria-hidden="true">→</span>
-          <UUIInput
-            type="time"
-            className="detailed-plan-filters__hour-control"
-            value={filters.hourTo}
-            onChange={(value) => onChange({ hourTo: value })}
-            size="sm"
-            aria-label="Giờ đến"
-            inputProps={{ step: 60 }}
+          <FacetMultiSelect
+            label="Điểm hạ"
+            selected={filters.dropoffIds}
+            onToggle={(id) => onChange({ dropoffIds: toggleId(filters.dropoffIds, id) })}
+            loadFacets={loadDropoffPortFacets}
           />
+          <FacetMultiSelect
+            label="Điểm trả"
+            selected={filters.deliveryPointIds}
+            onToggle={(id) => onChange({ deliveryPointIds: toggleId(filters.deliveryPointIds, id) })}
+            loadFacets={loadDeliveryPointFacets}
+          />
+          <div className="detailed-plan-filters__field detailed-plan-filters__hour">
+            <span className="detailed-plan-filters__label">Giờ chạy</span>
+            <div className="detailed-plan-filters__hour-inputs">
+              <UUIInput
+                type="time"
+                className="detailed-plan-filters__hour-control"
+                value={filters.hourFrom}
+                onChange={(value) => onChange({ hourFrom: value })}
+                size="sm"
+                aria-label="Giờ từ"
+                inputProps={{ step: 60 }}
+              />
+              <span aria-hidden="true">→</span>
+              <UUIInput
+                type="time"
+                className="detailed-plan-filters__hour-control"
+                value={filters.hourTo}
+                onChange={(value) => onChange({ hourTo: value })}
+                size="sm"
+                aria-label="Giờ đến"
+                inputProps={{ step: 60 }}
+              />
+            </div>
+          </div>
         </div>
-      </div>
       </div>
     </section>
   );

@@ -57,6 +57,15 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByText('Điểm hạ')).toBeTruthy();
     expect(screen.getByText('Điểm trả')).toBeTruthy();
     expect(screen.getByText('Giờ chạy')).toBeTruthy();
+    expect(container.querySelectorAll('.detailed-plan-filters__field--direction')).toHaveLength(1);
+    expect(container.querySelector('.detailed-plan-filters__field--direction')?.textContent).toContain('Chiều hàng');
+    expect(container.querySelectorAll('.detailed-plan-filters__field--assignment')).toHaveLength(1);
+    expect(container.querySelector('.detailed-plan-filters__field--assignment')?.textContent).toContain('Phân xe');
+    expect(container.querySelector('.detailed-plan-filters__primary-row')?.textContent).toContain('Ngày vận chuyển');
+    expect(container.querySelector('.detailed-plan-filters__primary-row')?.textContent).toContain('Chiều hàng');
+    expect(container.querySelector('.detailed-plan-filters__primary-row')?.textContent).toContain('Phân xe');
+    expect(container.querySelector('.detailed-plan-filters__secondary-row')?.textContent).toContain('Điểm nâng');
+    expect(container.querySelector('.detailed-plan-filters__secondary-row')?.textContent).toContain('Giờ chạy');
     fireEvent.click(screen.getByRole('button', { name: 'Nhập/Xuất Chiều hàng' }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenCalledWith({ direction: 'IMPORT' });
