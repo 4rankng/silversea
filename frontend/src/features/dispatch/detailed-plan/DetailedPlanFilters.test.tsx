@@ -51,6 +51,7 @@ describe('DetailedPlanFilters', () => {
     expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(4);
 
     expect(screen.getByText('Tìm nhanh')).toBeTruthy();
+    expect(screen.getAllByText('Ngày vận chuyển')).toHaveLength(1);
     expect(screen.getByText('Phân xe')).toBeTruthy();
     expect(screen.getByText('Điểm nâng')).toBeTruthy();
     expect(screen.getByText('Điểm hạ')).toBeTruthy();
@@ -236,7 +237,7 @@ describe('DetailedPlanFilters', () => {
       />,
     );
 
-    expect(screen.getByText('Đang áp dụng 9 điều kiện lọc')).toBeTruthy();
+    expect(screen.getByText('Đang lọc 9 điều kiện')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
 
@@ -249,8 +250,8 @@ describe('DetailedPlanFilters', () => {
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
       />,
     );
-    expect(screen.getByText('Mặc định: mọi ngày vận chuyển')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeDisabled();
+    expect(screen.queryByText('Mặc định: mọi ngày vận chuyển')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).toBeNull();
   });
 
   it('lets a user clear all selections from inside the popover footer', async () => {

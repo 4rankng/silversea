@@ -263,23 +263,22 @@ export function DetailedPlanFilters({
 
   return (
     <section className="detailed-plan-filters" aria-label="Bộ lọc kế hoạch chi tiết">
-      <div className="detailed-plan-filters__actions">
-        <span className="detailed-plan-filters__status" aria-live="polite">
-          {activeFilterCount > 0
-            ? `Đang áp dụng ${activeFilterCount} điều kiện lọc`
-            : 'Mặc định: mọi ngày vận chuyển'}
-        </span>
-        <UUIButton
-          className="detailed-plan-filters__clear"
-          size="xs"
-          color="tertiary"
-          iconLeading={XClose}
-          isDisabled={activeFilterCount === 0}
-          onPress={clearFilters}
-        >
-          Xóa bộ lọc
-        </UUIButton>
-      </div>
+      {activeFilterCount > 0 && (
+        <div className="detailed-plan-filters__actions">
+          <span className="detailed-plan-filters__status" aria-live="polite">
+            Đang lọc {activeFilterCount} điều kiện
+          </span>
+          <UUIButton
+            className="detailed-plan-filters__clear"
+            size="xs"
+            color="tertiary"
+            iconLeading={XClose}
+            onPress={clearFilters}
+          >
+            Xóa bộ lọc
+          </UUIButton>
+        </div>
+      )}
       <label className="detailed-plan-filters__field detailed-plan-filters__field--search">
         <span className="detailed-plan-filters__label">Tìm nhanh</span>
         <UUIInput
@@ -303,16 +302,13 @@ export function DetailedPlanFilters({
       </button>
       <div id={advancedFiltersId} className={`detailed-plan-filters__advanced${isAdvancedFiltersOpen ? ' is-open' : ''}`}>
         <div className="detailed-plan-filters__date-group">
-          <label className="detailed-plan-filters__field">
-            <span className="detailed-plan-filters__label">Ngày vận chuyển</span>
-            <BufferedUuiDateInput
-              className="detailed-plan-filters__date"
-              value={filters.date}
-              onChange={(value) => onChange({ date: value })}
-              size="sm"
-              label="Ngày vận chuyển"
-            />
-          </label>
+          <BufferedUuiDateInput
+            className="detailed-plan-filters__field detailed-plan-filters__date"
+            value={filters.date}
+            onChange={(value) => onChange({ date: value })}
+            size="sm"
+            label="Ngày vận chuyển"
+          />
           {filters.date !== today && (
             <UUIButton
               className="detailed-plan-filters__today"

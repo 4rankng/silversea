@@ -153,14 +153,14 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Trạng thái phân bổ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả trạng thái Phân xe' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chưa phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
-    fireEvent.change(screen.getByLabelText('Ngày giao từ'), { target: { value: '2026-08-01' } });
+    fireEvent.change(screen.getByLabelText('Từ ngày giao'), { target: { value: '2026-08-01' } });
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateFrom: '2026-08-01' });
 
-    fireEvent.change(screen.getByLabelText('Ngày giao đến'), { target: { value: '2026-08-31' } });
+    fireEvent.change(screen.getByLabelText('Đến ngày giao'), { target: { value: '2026-08-31' } });
     expect(onChange).toHaveBeenLastCalledWith({ deliveryDateTo: '2026-08-31' });
   });
 
@@ -174,9 +174,9 @@ describe('MasterPlanFilters', () => {
     expect(css).toContain('grid-template-columns: minmax(280px, 360px) 144px 220px');
     expect(css).toContain('width: min(100%, 440px)');
     expect(css).toContain('@container (max-width: 820px)');
-    expect(css).toContain('grid-template-columns: max-content minmax(132px, 1fr) auto minmax(132px, 1fr)');
+    expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
-    expect(css).toContain('.master-plan-filters__date-label {\n    grid-column: 1 / -1;');
+    expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
   });
 

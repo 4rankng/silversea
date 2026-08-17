@@ -29,20 +29,21 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
   return (
     <div className="master-plan-filters">
       <UUIInput
-        className="master-plan-filters__search"
+        className="master-plan-filters__field master-plan-filters__search"
         inputClassName="master-plan-filters__control"
         type="search"
         size="sm"
         icon={Search}
+        label="Tìm kiếm"
         placeholder="Tìm theo B/L, Booking, khách hàng…"
         value={filters.q}
         onChange={(value) => onChange({ q: value })}
         aria-label="Tìm kiếm lô hàng"
       />
       <UUISelect
-        className="master-plan-filters__select"
+        className="master-plan-filters__field master-plan-filters__select"
         size="sm"
-        aria-label="Chiều hàng"
+        label="Chiều hàng"
         selectedKey={filters.tradeDirection || 'ALL_DIRECTIONS'}
         onSelectionChange={(key) => onChange({
           tradeDirection: key === 'ALL_DIRECTIONS' ? '' : key as FilterState['tradeDirection'],
@@ -52,9 +53,9 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
         {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
       </UUISelect>
       <UUISelect
-        className="master-plan-filters__select"
+        className="master-plan-filters__field master-plan-filters__select"
         size="sm"
-        aria-label="Trạng thái phân bổ"
+        label="Phân xe"
         selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}
         onSelectionChange={(key) => onChange({
           allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
@@ -63,25 +64,27 @@ export function MasterPlanFilters({ filters, onChange }: MasterPlanFiltersProps)
       >
         {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
       </UUISelect>
-      <div className="master-plan-filters__date-range" role="group" aria-label="Khoảng ngày giao">
-        <span className="master-plan-filters__date-label">Ngày giao</span>
-        <BufferedUuiDateInput
-          className="master-plan-filters__date-input"
-          inputClassName="master-plan-filters__control"
-          size="sm"
-          value={filters.deliveryDateFrom}
-          onChange={(value) => onChange({ deliveryDateFrom: value })}
-          label="Ngày giao từ"
-        />
-        <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
-        <BufferedUuiDateInput
-          className="master-plan-filters__date-input"
-          inputClassName="master-plan-filters__control"
-          size="sm"
-          value={filters.deliveryDateTo}
-          onChange={(value) => onChange({ deliveryDateTo: value })}
-          label="Ngày giao đến"
-        />
+      <div className="master-plan-filters__date-range master-plan-filters__field" role="group" aria-label="Khoảng ngày giao">
+        <span className="master-plan-filters__label">Ngày giao</span>
+        <div className="master-plan-filters__date-inputs">
+          <BufferedUuiDateInput
+            className="master-plan-filters__date-input"
+            inputClassName="master-plan-filters__control"
+            size="sm"
+            value={filters.deliveryDateFrom}
+            onChange={(value) => onChange({ deliveryDateFrom: value })}
+            inputProps={{ 'aria-label': 'Từ ngày giao' }}
+          />
+          <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
+          <BufferedUuiDateInput
+            className="master-plan-filters__date-input"
+            inputClassName="master-plan-filters__control"
+            size="sm"
+            value={filters.deliveryDateTo}
+            onChange={(value) => onChange({ deliveryDateTo: value })}
+            inputProps={{ 'aria-label': 'Đến ngày giao' }}
+          />
+        </div>
       </div>
     </div>
   );
