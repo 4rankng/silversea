@@ -659,6 +659,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const topbarProps = {
     user,
     isDriver,
+    pageTitle,
     sidebarOpen,
     menuButtonRef,
     onToggleSidebar: () => setSidebarOpen(v => !v),

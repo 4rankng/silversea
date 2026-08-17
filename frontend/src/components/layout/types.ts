@@ -64,6 +64,7 @@ export interface TopbarProps {
     capabilities?: readonly string[];
   };
   isDriver: boolean;
+  pageTitle: string;
   sidebarOpen: boolean;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
   onToggleSidebar: () => void;

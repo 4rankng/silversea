@@ -61,8 +61,8 @@
 
   /* ── Topbar ── */
   .topbar__context {
-    min-width: 112px;
-    max-width: 136px;
+    min-width: 0;
+    max-width: 176px;
     padding-right: 0;
   }
   .topbar__search {
@@ -221,8 +221,15 @@
   }
   .topbar-search,
   .topbar__search,
-  .topbar__context,
   .topbar__breadcrumb { display: none; }
+  .topbar__context {
+    display: flex;
+    flex: 1 1 auto;
+    max-width: none;
+    padding-right: 0;
+  }
+  .topbar__context-kicker { display: none; }
+  .topbar--driver .topbar__welcome { display: none; }
   .topbar .icon-btn { display: none; }
   /* Bump hamburger to a 44px touch target (was 40px) */
   .topbar__toggle { width: 44px; height: 44px; }

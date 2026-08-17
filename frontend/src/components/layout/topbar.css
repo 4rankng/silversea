@@ -374,6 +374,29 @@
 }
 .topbar__toggle:hover { background: var(--surface-2); color: var(--ink); }
 
+.topbar__context {
+  display: flex;
+  flex: 0 1 240px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+  padding-right: 8px;
+  line-height: 1.2;
+}
+.topbar__context-kicker {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.topbar__context strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topbar__breadcrumb {
   display: flex;
   align-items: center;

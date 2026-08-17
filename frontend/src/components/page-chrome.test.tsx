@@ -26,10 +26,11 @@ describe('minimal page chrome', () => {
     expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
   });
 
-  it('does not duplicate the route title in the application top bar', () => {
+  it('shows the canonical route title in the application top bar', () => {
     const topbar = readFileSync(resolve(process.cwd(), 'src/components/layout/Topbar.tsx'), 'utf8');
-    expect(topbar).not.toContain('topbar__context');
-    expect(topbar).not.toContain('aria-label="Trang hiện tại"');
+    expect(topbar).toContain('topbar__context');
+    expect(topbar).toContain('aria-label="Trang hiện tại"');
+    expect(topbar).toContain('title={pageTitle}');
   });
 
   it('keeps mobile back controls at their button size', () => {
