@@ -308,6 +308,37 @@ describe('ClerkShipmentDocsPage', () => {
     confirmSpy.mockRestore();
   });
 
+  it('resends the stored bill when saving a direction-less shipment instead of wiping it', async () => {
+    // Legacy row: a bill exists but tradeDirection was never classified.
+    getDetailMock.mockResolvedValue(makeDetail({
+      shipment: {
+        tradeDirection: null,
+        blNumber: 'BILL-LEGACY-7',
+        bookingRef: null,
+      },
+    }));
+    updateShipmentMock.mockResolvedValue({
+      ...makeDetail().shipment,
+      tradeDirection: null,
+      blNumber: 'BILL-LEGACY-7',
+      bookingRef: null,
+      changeMode: 'DIRECT',
+      changeRequestId: null,
+    });
+
+    renderAt();
+    // Edit an unrelated field and save — the invisible legacy bill must survive.
+    await waitFor(() => expect(screen.getByLabelText('Người liên hệ')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Người liên hệ'), { target: { value: 'Anh Nam' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu hồ sơ lô hàng/ }));
+
+    await waitFor(() => expect(updateShipmentMock).toHaveBeenCalledTimes(1));
+    const [, payload] = updateShipmentMock.mock.calls[0];
+    expect(payload.blNumber).toBe('BILL-LEGACY-7');
+    expect(payload.bookingRef).toBeNull();
+    expect(payload.contactName).toBe('Anh Nam');
+  });
+
   it('round-trips stored operational instants without timezone drift', async () => {
     const storedInstant = '2026-07-29T03:00:00.000Z';
     getDetailMock.mockResolvedValue(makeDetail({

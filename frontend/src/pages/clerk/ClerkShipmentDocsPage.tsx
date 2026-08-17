@@ -364,6 +364,9 @@ export default function ClerkShipmentDocsPage() {
       routeId: loadedDetail.shipment.routeId != null ? String(loadedDetail.shipment.routeId) : '',
       operationalSiteId: loadedDetail.shipment.operationalSiteId != null ? String(loadedDetail.shipment.operationalSiteId) : '',
       pickupWarehouseSiteId: loadedDetail.shipment.pickupWarehouseSiteId != null ? String(loadedDetail.shipment.pickupWarehouseSiteId) : '',
+      // Same direction rule as the save payload: blank the off-direction ref
+      // for directed shipments, but keep whatever exists when the direction
+      // is unset so a save of unrelated fields preserves legacy data.
       bookingRef: loadedDetail.shipment.tradeDirection === 'IMPORT' ? '' : loadedDetail.shipment.bookingRef ?? '',
       blNumber: loadedDetail.shipment.tradeDirection === 'EXPORT' ? '' : loadedDetail.shipment.blNumber ?? '',
       contactName: loadedDetail.shipment.contactName ?? '',
@@ -487,8 +490,11 @@ export default function ClerkShipmentDocsPage() {
       const cargoMode = shipmentForm.cargoMode || null;
       const updated = await updateShipment(shipmentId, {
         expectedVersion: version,
-        bookingRef: shipmentForm.tradeDirection === 'EXPORT' ? shipmentForm.bookingRef.trim() || null : null,
-        blNumber: shipmentForm.tradeDirection === 'IMPORT' ? shipmentForm.blNumber.trim() || null : null,
+        // Direction set: only the matching reference survives (DB CHECK
+        // enforces one per shipment). Direction unset: resend what is loaded
+        // so saving unrelated fields never wipes a legacy reference.
+        bookingRef: shipmentForm.tradeDirection === 'IMPORT' ? null : shipmentForm.bookingRef.trim() || null,
+        blNumber: shipmentForm.tradeDirection === 'EXPORT' ? null : shipmentForm.blNumber.trim() || null,
         contactName: shipmentForm.contactName.trim() || null,
         contactPhone: shipmentForm.contactPhone.trim() || null,
         expectedDeliveryDate: shipmentForm.expectedDeliveryDate || null,

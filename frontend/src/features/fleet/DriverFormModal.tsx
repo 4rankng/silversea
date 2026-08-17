@@ -4,8 +4,12 @@ import { Modal } from '../../components/UI';
 import type { Truck as TruckType, Driver } from '@tingting/shared';
 import { DRIVER_STATUS } from './constants';
 
-export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen }: {
+export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen, showSalary = true }: {
   saving: boolean; item?: Driver; trucks: TruckType[]; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
+  /** Dispatcher creates omit salary entirely — the payload strips it because
+   * DISPATCHER cannot make the governance action a salaried create routes
+   * into, so rendering an editable field would silently discard input. */
+  showSalary?: boolean;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [phone, setPhone] = useState(item?.phone || '');
@@ -82,7 +86,7 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
                 placeholder="0912..."
               />
             </div>
-            <div className="field fleet-form__field">
+            {showSalary && <div className="field fleet-form__field">
               <label htmlFor="driver-salary">Lương cơ bản (đ)</label>
               <input
                 id="driver-salary"
@@ -92,7 +96,7 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
                 onChange={e => setBaseSalary(e.target.value)}
                 placeholder="0"
               />
-            </div>
+            </div>}
           </div>
         </section>
 

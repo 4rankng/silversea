@@ -20,6 +20,7 @@ import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
+import { createShipment, updateShipment } from '../services/shipment.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -232,6 +233,26 @@ describe('CUS shipment workspace projection — Chứng từ direction display',
     const row = response.items.find((item) => item.shipmentId === exportShipment.id);
     assert.ok(row);
     assert.equal(row.billOrBookNumber, 'BOOK-FLAT-1');
+  });
+});
+
+describe('Shipment document references — whitespace normalization', () => {
+  test('create collapses empty-string refs to null instead of hitting the direction CHECK', async () => {
+    // ''/'   ' pass the trim-aware assertions but would violate the
+    // NULL-aware DB CHECK with a 500 if written verbatim.
+    const shipment = await createShipment({ customerId, tradeDirection: 'EXPORT', bookingRef: '   ', blNumber: '' });
+    createdShipmentIds.push(shipment.id);
+    assert.equal(shipment.bookingRef, null);
+    assert.equal(shipment.blNumber, null);
+  });
+
+  test('update trims surrounding whitespace and stores the clean value', async () => {
+    const shipment = await seedShipment({ tradeDirection: 'IMPORT' });
+    const updated = await updateShipment(shipment.id, {
+      expectedVersion: shipment.version,
+      blNumber: '  BILL-PAD-1  ',
+    });
+    assert.equal(updated.blNumber, 'BILL-PAD-1');
   });
 });
 

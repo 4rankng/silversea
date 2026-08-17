@@ -131,6 +131,9 @@ describe('FleetDriversView (dispatcher read-only)', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm tài xế' }));
+    // Salary is hidden, not silently discarded — DISPATCHER creates are
+    // identity-only; salary belongs to the governed admin flow.
+    expect(screen.queryByLabelText(/lương cơ bản/i)).toBeNull();
     fireEvent.change(screen.getByLabelText(/họ và tên/i), { target: { value: 'Trần Văn Mới' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm lái xe' }));
 

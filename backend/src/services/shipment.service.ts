@@ -339,6 +339,17 @@ function assertShipmentDocumentReferences(input: {
   }
 }
 
+/**
+ * Blank strings pass the trim-aware assertions above but violate the
+ * direction CHECK on the shipments table (which is NULL-aware only), so an
+ * untrimmed client payload would surface as a Postgres 23514 → 500 instead
+ * of a clean store-as-null. Collapse whitespace-only refs to null at the
+ * write boundary.
+ */
+function normalizeDocumentReference(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface CreateShipmentInput {
@@ -1225,8 +1236,8 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     routeId: input.routeId ?? null,
     cargoTypeId: input.cargoTypeId ?? null,
     responsibleUnitId,
-    bookingRef: input.bookingRef ?? null,
-    blNumber: input.blNumber ?? null,
+    bookingRef: normalizeDocumentReference(input.bookingRef),
+    blNumber: normalizeDocumentReference(input.blNumber),
     tradeDirection: input.tradeDirection ?? null,
     cargoMode: input.cargoMode ?? null,
     operationalSiteId: input.operationalSiteId ?? null,
@@ -1665,8 +1676,8 @@ export async function updateShipment(
       ...(input.routeId !== undefined ? { routeId: input.routeId } : {}),
       ...(input.cargoTypeId !== undefined ? { cargoTypeId: input.cargoTypeId } : {}),
       ...(input.responsibleUnitId !== undefined ? { responsibleUnitId: input.responsibleUnitId } : {}),
-      ...(input.bookingRef !== undefined ? { bookingRef: input.bookingRef } : {}),
-      ...(input.blNumber !== undefined ? { blNumber: input.blNumber } : {}),
+      ...(input.bookingRef !== undefined ? { bookingRef: normalizeDocumentReference(input.bookingRef) } : {}),
+      ...(input.blNumber !== undefined ? { blNumber: normalizeDocumentReference(input.blNumber) } : {}),
       ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
       ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
       ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),
