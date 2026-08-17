@@ -23,6 +23,8 @@ describe('O2C clean-baseline safety', () => {
       { idx: 9, tag: '0009_neat_doctor_octopus' },
       { idx: 10, tag: '0010_backfill-shipment-document-reference-invariant' },
       { idx: 11, tag: '0011_mean_vulture' },
+      { idx: 12, tag: '0012_sharp_jack_power' },
+      { idx: 13, tag: '0013_backfill-shipment-combined-flag' },
     ]);
   });
 

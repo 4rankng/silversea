@@ -1371,7 +1371,7 @@ export default function ShipmentsPage() {
         exportItems.map((item) => [
           [item.customerName ?? '—', item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
           [item.billOrBookNumber ?? '', item.declarationNumber ?? ''].filter(Boolean).join('\n'),
-          [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Hàng kết hợp' : ''].filter(Boolean).join('\n'),
+          [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
           [item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
           [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
           [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
@@ -1662,7 +1662,7 @@ export default function ShipmentsPage() {
                         <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
                             <span className="cus-classification__shipping-line">{item.shippingLineName || 'Chưa có hãng tàu'}</span>
-                            {item.isCombined && <span className="cus-combined-tag">Hàng kết hợp</span>}
+                            {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
                             <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
                           </span></button>
                         </td>

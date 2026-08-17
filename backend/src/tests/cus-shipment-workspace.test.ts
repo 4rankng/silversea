@@ -395,7 +395,7 @@ describe('CUS container-flat projection', () => {
     assert.equal(rowA1.customerAppointmentEditable, true);
     // ISO datetime projected verbatim for the đóng/trả column.
     assert.equal(rowA1.customerAppointmentAt, appointmentA.toISOString());
-    assert.equal(rowA1.transportDate, '2026-08-20');
+    assert.equal(rowA1.transportDate, '2026-08-21');
     // Unassigned containers carry no carrier/plate yet.
     assert.equal(rowA1.carrierName, null);
     assert.equal(rowA1.plateNumber, null);
@@ -416,15 +416,15 @@ describe('CUS container-flat projection', () => {
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
     assert.deepEqual(response.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
 
-    const appointmentDateOnly = await listCusShipmentContainers({
+    const shipmentDispatchDate = await listCusShipmentContainers({
       page: 1,
       limit: 100,
-      transportDateFrom: '2026-08-20',
-      transportDateTo: '2026-08-20',
+      transportDateFrom: '2026-08-21',
+      transportDateTo: '2026-08-21',
     }, cusActor);
     assert.deepEqual(
-      appointmentDateOnly.items.filter((row) => row.shipmentId === shipmentA.id).map((row) => row.id),
-      [rowA1.id],
+      shipmentDispatchDate.items.filter((row) => row.shipmentId === shipmentA.id).map((row) => row.id),
+      [rowA1.id, rowA2.id],
     );
   });
 

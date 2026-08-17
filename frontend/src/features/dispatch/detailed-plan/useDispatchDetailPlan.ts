@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   assignDispatchDetailPlate,
+  updateDispatchDetailEstimates,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
@@ -178,6 +179,35 @@ export function useDispatchDetailPlan() {
     }
   }, [filters.assignmentStatus]);
 
+  const updateEstimates = useCallback(async (
+    row: DispatchDetailPlanRow,
+    body: { plannedRevenue: number | null; plannedCarrierCost: number | null },
+  ) => {
+    setAssignmentError(null);
+    try {
+      const result = await updateDispatchDetailEstimates(row.fulfillmentId, {
+        expectedVersion: row.version,
+        ...body,
+      });
+      setItems((previous) => previous.map((item) => item.fulfillmentId === row.fulfillmentId
+        ? {
+          ...item,
+          version: result.version,
+          estimates: {
+            plannedRevenue: result.plannedRevenue,
+            plannedCarrierCost: result.plannedCarrierCost,
+          },
+        }
+        : item));
+      return result;
+    } catch (mutationError) {
+      setAssignmentError((mutationError as { status?: number }).status === 409
+        ? 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'
+        : 'Không thể lưu cước dự kiến. Vui lòng thử lại.');
+      throw mutationError;
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
@@ -211,6 +241,7 @@ export function useDispatchDetailPlan() {
     sortKey,
     toggleSort,
     assignPlate,
+    updateEstimates,
     assignmentError,
     clearAssignmentError: () => setAssignmentError(null),
     lotBanner,

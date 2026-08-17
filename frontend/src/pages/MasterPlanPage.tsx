@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Truck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Truck } from 'lucide-react';
 import { EmptyState, Pagination } from '../design-system';
 import { PageHeader } from '../components/UI';
 import type { ShipmentListItem } from '../api/shipmentClient';
@@ -16,6 +17,7 @@ import './DispatchPlanPage.css';
  * /dispatch-detail (Kế hoạch Chi tiết).
  */
 export default function MasterPlanPage() {
+  const navigate = useNavigate();
   const masterPlan = useDispatchMasterPlan();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -31,6 +33,12 @@ export default function MasterPlanPage() {
         title="Kế hoạch Tổng quát"
         iconName="truck"
         description="Kế hoạch phân bổ nhà xe cho các lô hàng"
+        action={(
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => navigate('/shipments/new')}>
+            <Plus size={16} aria-hidden="true" />
+            Tạo lô hàng
+          </button>
+        )}
       />
 
       <section className="dispatch-plan-page__workspace">

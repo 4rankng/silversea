@@ -136,6 +136,7 @@ async function createAllocatedLot(args: {
   carrierType: 'OWN' | 'EXTERNAL';
   externalCarrierId?: number | null;
   containerCount?: number;
+  isCombined?: boolean;
 }) {
   const customer = await createCustomer(`Detail customer ${suffix}-${createdCustomerIds.length}`);
   const route = await createRoute();
@@ -145,6 +146,7 @@ async function createAllocatedLot(args: {
     customerId: customer.id,
     routeId: route.id,
     cargoMode: 'FCL',
+    isCombined: args.isCombined ?? false,
     shipmentCode: `DTL-${suffix}-${createdShipmentIds.length}`,
     bookingRef: `BOOK-${suffix}-${createdShipmentIds.length}`,
     status: 'READY_FOR_DISPATCH',
@@ -221,6 +223,7 @@ type DetailPlanRow = {
   version: number;
   shipmentId: number;
   shipmentCode: string | null;
+  isCombined: boolean;
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED';
   time: { deliveryDate: string | null; runHour: number | null };
@@ -235,6 +238,7 @@ type DetailPlanRow = {
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
   };
+  estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
 };
@@ -248,6 +252,13 @@ type PlateResponse = {
   assignedDriverId: number | null;
   assignedDriverName: string | null;
   driverHint: string | null;
+};
+
+type EstimateResponse = {
+  fulfillmentId: number;
+  version: number;
+  plannedRevenue: string | null;
+  plannedCarrierCost: string | null;
 };
 
 async function fetchRows(token: string, query = '') {
@@ -326,12 +337,13 @@ after(async () => {
 
 describe('dispatch detail plan rows', () => {
   test('returns one row per container with spec payload before any handoff', async () => {
-    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2, isCombined: true });
     const response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
     assert.equal(response.status, 200, JSON.stringify(response.data));
     assert.equal(response.data.items.length, 2);
     const row = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0])!;
     assert.equal(row.shipmentId, shipment.id);
+    assert.equal(row.isCombined, true);
     assert.equal(row.taskStatus, 'READY');
     assert.equal(row.time.runHour, 15);
     assert.equal(row.customerRoute.customerName, shipment.customerId != null ? row.customerRoute.customerName : null);
@@ -389,7 +401,7 @@ describe('dispatch detail plan rows', () => {
     assert.equal(wrongDirection.data.items.length, 0);
   });
 
-  test('date filter uses each container transport date with shipment fallback', async () => {
+  test('date filter uses the shipment dispatch date, not a container appointment', async () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
     await db.update(s.shipments)
       .set({ expectedDeliveryDate: '2026-08-20' })
@@ -404,14 +416,18 @@ describe('dispatch detail plan rows', () => {
       .set({ customerAppointmentAt: new Date('2026-08-20T18:00:00.000Z') })
       .where(eq(s.shipmentContainers.id, containers[0]!.id));
 
+    const shipmentDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-20`);
+    assert.equal(shipmentDate.status, 200, JSON.stringify(shipmentDate.data));
+    assert.equal(shipmentDate.data.items.length, 2);
+    assert.equal(shipmentDate.data.items[0]!.time.deliveryDate, '2026-08-20');
+
     const appointmentDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-21`);
     assert.equal(appointmentDate.status, 200, JSON.stringify(appointmentDate.data));
-    assert.equal(appointmentDate.data.items.length, 1);
-    assert.equal(appointmentDate.data.items[0]!.time.deliveryDate, '2026-08-21');
+    assert.equal(appointmentDate.data.items.length, 0);
 
     const shipmentFallbackDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-20`);
     assert.equal(shipmentFallbackDate.status, 200, JSON.stringify(shipmentFallbackDate.data));
-    assert.equal(shipmentFallbackDate.data.items.length, 1);
+    assert.equal(shipmentFallbackDate.data.items.length, 2);
     assert.equal(shipmentFallbackDate.data.items[0]!.time.deliveryDate, '2026-08-20');
   });
 
@@ -778,5 +794,30 @@ describe('dispatch detail plan plate assignment', () => {
       await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
       await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDoc.id));
     }
+  });
+
+  test('dispatcher saves versioned operational estimates without creating a financial record', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const response = await apiFetch<EstimateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/estimates`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedVersion: fulfillment.version,
+        plannedRevenue: 2_500_000,
+        plannedCarrierCost: 1_900_000,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.plannedRevenue, '2500000');
+    assert.equal(response.data.plannedCarrierCost, '1900000');
+
+    const rows = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(rows.status, 200, JSON.stringify(rows.data));
+    assert.deepEqual(rows.data.items[0]!.estimates, {
+      plannedRevenue: '2500000',
+      plannedCarrierCost: '1900000',
+    });
   });
 });

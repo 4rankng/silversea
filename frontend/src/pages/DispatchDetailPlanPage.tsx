@@ -38,6 +38,7 @@ export default function DispatchDetailPlanPage() {
           sortKey={detailPlan.sortKey}
           onToggleSort={detailPlan.toggleSort}
           onAssignPlate={detailPlan.assignPlate}
+          onSaveEstimates={detailPlan.updateEstimates}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination

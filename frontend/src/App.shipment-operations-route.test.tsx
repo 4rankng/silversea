@@ -134,7 +134,6 @@ describe('AppRoutes shipment operations reachability', () => {
     [Role.ACCOUNTANT, '/shipments/new'],
     [Role.DRIVER, '/shipments/new'],
     [Role.OPS, '/shipments/new'],
-    [Role.DISPATCHER, '/shipments/new'],
     [Role.CUSTOMER, '/shipments/new'],
   ])('redirects %s away from %s', async (role, path) => {
     authState.role = role;
@@ -142,5 +141,11 @@ describe('AppRoutes shipment operations reachability', () => {
     await screen.findByTestId('route-location');
     await vi.waitFor(() => expect(screen.getByTestId('route-location').textContent).not.toBe(path));
     expect(screen.queryByText('Shipment create test page')).toBeNull();
+  });
+
+  it('allows DISPATCHER to create a shipment', async () => {
+    authState.role = Role.DISPATCHER;
+    renderRoute('/shipments/new');
+    expect(await screen.findByText('Shipment create test page')).toBeTruthy();
   });
 });

@@ -2,6 +2,7 @@ import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { PlateAssignmentCell } from './PlateAssignmentCell';
+import { FulfillmentEstimateCell } from './FulfillmentEstimateCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import '../../../styles/operational-table-typography.css';
@@ -39,6 +40,10 @@ interface DetailedPlanGridProps {
     row: DispatchDetailPlanRow,
     body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean },
   ) => Promise<unknown>;
+  onSaveEstimates?: (
+    row: DispatchDetailPlanRow,
+    estimates: { plannedRevenue: number | null; plannedCarrierCost: number | null },
+  ) => Promise<unknown>;
 }
 
 /**
@@ -62,6 +67,7 @@ export function DetailedPlanGrid({
   sortKey,
   onToggleSort,
   onAssignPlate,
+  onSaveEstimates = async () => undefined,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -170,6 +176,7 @@ export function DetailedPlanGrid({
                           {row.docs.tradeDirection === 'EXPORT' ? 'XUẤT' : row.docs.tradeDirection === 'IMPORT' ? 'NHẬP' : '—'}
                         </span>
                       </div>
+                      {row.isCombined && <span className="detailed-plan-grid__badge detailed-plan-grid__badge--combined">ĐÓNG KẾT HỢP</span>}
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Container">
@@ -202,6 +209,7 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Điều phối">
                     <PlateAssignmentCell row={row} onAssign={onAssignPlate} />
+                    <FulfillmentEstimateCell row={row} onSave={onSaveEstimates} />
                     {row.lotFullyPlated && !row.dispatch.assignedPlate && (
                       <div className="detailed-plan-grid__lot-flag">Đã phân xe</div>
                     )}

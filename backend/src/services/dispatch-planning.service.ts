@@ -72,6 +72,16 @@ export interface AssignFulfillmentPlateInput {
   actor: DispatchActor;
 }
 
+/** Operational revenue/cost estimates; never a ledger or accounting entry. */
+export interface UpdateFulfillmentEstimatesInput {
+  fulfillmentId: number;
+  expectedVersion: number;
+  plannedRevenue: number | null;
+  plannedCarrierCost: number | null;
+  idempotencyKey: string;
+  actor: DispatchActor;
+}
+
 export interface AcceptDispatchHandoffInput {
   shipmentId: number;
   handoffId: number;
@@ -1808,10 +1818,10 @@ function dispatchDetailRunMinutesSql() {
 }
 
 function dispatchDetailTransportDateSql() {
-  return sql<string>`coalesce(
-    (${s.shipmentContainers.customerAppointmentAt} at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})::date,
-    ${s.shipments.expectedDeliveryDate}
-  )`;
+  // Điều vận plans a lô on its promised delivery date. A container appointment
+  // is a customer-facing detail within that plan; letting it replace the date
+  // here split the master and detailed dispatch queues into different days.
+  return sql<string>`${s.shipments.expectedDeliveryDate}`;
 }
 
 // Display-side hour in the same business timezone (matches the SQL filter).
@@ -1876,11 +1886,14 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      plannedRevenue: s.shipmentFulfillments.plannedRevenue,
+      plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
       shipmentId: s.shipments.id,
       shipmentVersion: s.shipments.version,
       shipmentCode: s.shipments.shipmentCode,
+      isCombined: s.shipments.isCombined,
       bookingRef: s.shipments.bookingRef,
       blNumber: s.shipments.blNumber,
       tradeDirection: s.shipments.tradeDirection,
@@ -1963,6 +1976,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           shipmentId: row.shipmentId,
           shipmentVersion: row.shipmentVersion,
           shipmentCode: row.shipmentCode,
+          isCombined: row.isCombined,
           fulfillmentType: row.fulfillmentType,
           cargoMode: row.cargoMode,
           taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
@@ -1999,6 +2013,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             externalCarrierId: row.plannedExternalCarrierId,
             externalCarrierVehicleId: row.plannedExternalCarrierVehicleId,
             assignedPlate: row.plannedVehiclePlateNumber,
+          },
+          estimates: {
+            plannedRevenue: row.plannedRevenue,
+            plannedCarrierCost: row.plannedCarrierCost,
           },
           ports: {
             pickupPortId: row.pickupPortId,
@@ -2320,6 +2338,68 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
     assignedDriverName,
     driverHint,
   };
+}
+
+interface FulfillmentEstimatesMutationResult {
+  fulfillmentId: number;
+  version: number;
+  plannedRevenue: string | null;
+  plannedCarrierCost: string | null;
+}
+
+/**
+ * Saves an operational estimate only.  Financial postings stay exclusively in
+ * the accounting workflow, and the accounting lock also protects this plan.
+ */
+export async function updateFulfillmentEstimates(
+  input: UpdateFulfillmentEstimatesInput,
+): Promise<FulfillmentEstimatesMutationResult & { replayed: boolean }> {
+  assertDispatchActor(input.actor);
+  const outcome = await runIdempotent<FulfillmentEstimatesMutationResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      fulfillmentId: input.fulfillmentId,
+      expectedVersion: input.expectedVersion,
+      plannedRevenue: input.plannedRevenue,
+      plannedCarrierCost: input.plannedCarrierCost,
+    },
+    createdBy: input.actor.userId,
+    entityType: 'shipment_fulfillments',
+    getEntityId: (result) => result.fulfillmentId,
+    create: async (tx) => {
+      const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+        .where(and(
+          eq(s.shipmentFulfillments.id, input.fulfillmentId),
+          isNull(s.shipmentFulfillments.canceledAt),
+        ))
+        .limit(1)
+        .for('update');
+      if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+      if (fulfillment.version !== input.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+      }
+
+      await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
+      const [updated] = await tx.update(s.shipmentFulfillments).set({
+        plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
+        plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
+        version: fulfillment.version + 1,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(s.shipmentFulfillments.id, fulfillment.id),
+        eq(s.shipmentFulfillments.version, fulfillment.version),
+      )).returning();
+      if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+      return {
+        fulfillmentId: updated.id,
+        version: updated.version,
+        plannedRevenue: updated.plannedRevenue,
+        plannedCarrierCost: updated.plannedCarrierCost,
+      };
+    },
+  });
+  return { ...outcome.result, replayed: outcome.replayed };
 }
 
 async function recomputeLotFullyPlated(tx: Tx, shipmentId: number): Promise<boolean> {

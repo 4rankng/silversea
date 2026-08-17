@@ -32,6 +32,13 @@ test('shipment schemas preserve nullable delivery-date compatibility', () => {
   assert.equal(updateShipmentSchema.safeParse({ expectedVersion: 1, expectedDeliveryDate: null }).success, true);
 });
 
+test('shipment schemas carry the explicit consolidation flag', () => {
+  const created = createShipmentSchema.parse({ customerId: 1, isCombined: true });
+  assert.equal(created.isCombined, true);
+  const updated = updateShipmentSchema.parse({ expectedVersion: 1, isCombined: false });
+  assert.equal(updated.isCombined, false);
+});
+
 test('shipment schemas reject a Bill and Booking on the same shipment', () => {
   assert.equal(createShipmentSchema.safeParse({
     customerId: 1,

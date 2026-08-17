@@ -199,6 +199,11 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
+  const shipmentCreatorOnly = (el: ReactElement) => (
+    isAdmin || isCus || isDispatcher || currentRole === Role.MANAGER
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
   // Strict ADMIN-only — chatbot monitoring exposes raw turns and must never
   // be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
@@ -262,7 +267,7 @@ export function AppRoutes() {
           {/* Shipment list/detail mirrors the backend read policy, including
               Dispatcher read access. Mutation routes remain separately gated. */}
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
-          <Route path="/shipments/new" element={shipmentOperatorOnly(page(<ClerkShipmentCreatePage />))} />
+          <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentsDetailPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />

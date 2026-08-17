@@ -137,6 +137,7 @@ describe('customer workflow migration safety', () => {
     const customerAppointmentSql = await readFile(new URL('../../drizzle/0005_cus_container_customer_appointment.sql', import.meta.url), 'utf8');
     const customerAppointmentBackfillSql = await readFile(new URL('../../drizzle/0006_backfill_cus_container_customer_appointment.sql', import.meta.url), 'utf8');
     const shippingLineBackfillSql = await readFile(new URL('../../drizzle/0007_backfill_shipment_shipping_line.sql', import.meta.url), 'utf8');
+    const combinedBackfillSql = await readFile(new URL('../../drizzle/0013_backfill-shipment-combined-flag.sql', import.meta.url), 'utf8');
     const prevSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0003_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const nextSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0004_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
@@ -155,6 +156,8 @@ describe('customer workflow migration safety', () => {
       { idx: 9, tag: '0009_neat_doctor_octopus' },
       { idx: 10, tag: '0010_backfill-shipment-document-reference-invariant' },
       { idx: 11, tag: '0011_mean_vulture' },
+      { idx: 12, tag: '0012_sharp_jack_power' },
+      { idx: 13, tag: '0013_backfill-shipment-combined-flag' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
@@ -175,6 +178,9 @@ describe('customer workflow migration safety', () => {
     assert.match(shippingLineBackfillSql, /HAVING count\(DISTINCT lower\(btrim\(shipping_line_name\)\)\) = 1/);
     assert.match(shippingLineBackfillSql, /nullif\(btrim\(shipment\.shipping_line_name\), ''\) IS NULL/);
     assert.doesNotMatch(shippingLineBackfillSql, /DROP|DELETE|ALTER[\s\S]*NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
+    assert.match(combinedBackfillSql, /UPDATE "shipments" AS shipment/);
+    assert.match(combinedBackfillSql, /COALESCE\(trip\."revenue_combine", 0\) > 0/);
+    assert.doesNotMatch(combinedBackfillSql, /DROP|DELETE|ALTER[\s\S]*NOT NULL|FOREIGN KEY|\bCHECK\s*\(/i);
 
     const prevLedgerIndex = ((prevSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;
     const nextLedgerIndex = ((nextSnapshot['tables'] as Record<string, unknown>)?.['public.ledger'] as Record<string, unknown>)?.['indexes'] as Record<string, Record<string, unknown>>;

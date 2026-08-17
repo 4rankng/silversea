@@ -489,6 +489,12 @@
   color: var(--ink-2);
   border: 1px solid var(--line-2);
 }
+.detailed-plan-grid__badge--combined { margin-top: 4px; border-color: color-mix(in srgb, var(--warning, #d97706) 38%, var(--line-2)); background: var(--warning-soft, #fffaeb); color: var(--warning-text, #92400e); }
+
+.fulfillment-estimate-cell { display: grid; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color, #eef2f7); }
+.fulfillment-estimate-cell label { display: grid; gap: 3px; color: var(--text-secondary, #64748b); font-size: 11px; font-weight: 600; }
+.fulfillment-estimate-cell input { width: 100%; min-height: 34px; border: 1px solid var(--border-color-secondary, #e2e8f0); border-radius: 6px; background: var(--surface, #fff); color: var(--text-primary, #101828); padding: 5px 8px; font: inherit; }
+.fulfillment-estimate-cell small { color: var(--text-tertiary, #98a2b3); font-size: 10px; line-height: 1.35; }
 
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;

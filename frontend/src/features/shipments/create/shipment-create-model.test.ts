@@ -33,7 +33,7 @@ describe('shipment create model', () => {
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-trade-direction',
       'shipment-route',
-      'container-expected-delivery',
+      'shipment-expected-delivery',
     ]);
     expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
   });
@@ -49,6 +49,8 @@ describe('shipment create model', () => {
       declarationNumber: 'TK-01',
       tradeDirection: 'IMPORT' as const,
       operationalSiteId: '41',
+      expectedDeliveryDate: '2026-08-14',
+      isCombined: true,
     };
 
     expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
@@ -59,6 +61,7 @@ describe('shipment create model', () => {
       operationalSiteId: 41,
       factoryName: 'Nhà máy Long Minh',
       shippingLineName: 'MSC',
+      isCombined: true,
       operationalNotes: 'Số tờ khai: TK-01',
     });
     expect(buildShipmentContainerPayload(form, [container])).toEqual([{
@@ -142,7 +145,7 @@ describe('shipment create model', () => {
       blNumber: 'BL-FCL',
       tradeDirection: 'IMPORT' as const,
     };
-    const readiness = getShipmentCreateReadiness(form, [{ ...container, expectedDeliveryDate: '2026-08-14' }]);
+    const readiness = getShipmentCreateReadiness({ ...form, expectedDeliveryDate: '2026-08-14' }, [container]);
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
   });
@@ -160,11 +163,11 @@ describe('shipment create model', () => {
 
     const missingSchedule = getShipmentCreateReadiness(form, [container]);
     expect(missingSchedule.issues).toContainEqual(expect.objectContaining({
-      fieldId: 'container-expected-delivery',
+      fieldId: 'shipment-expected-delivery',
       sectionId: 'schedule',
     }));
 
-    expect(getShipmentCreateReadiness(form, [{ ...container, expectedDeliveryDate: '2026-08-14' }]).dispatchReady).toBe(true);
+    expect(getShipmentCreateReadiness({ ...form, expectedDeliveryDate: '2026-08-14' }, [container]).dispatchReady).toBe(true);
   });
 
   it('rejects zero-valued LCL quantities and preserves the common factory detail', () => {
@@ -208,7 +211,7 @@ describe('shipment create model', () => {
     ]);
   });
 
-  it('uses a container delivery date for FCL readiness while keeping the root date empty', () => {
+  it('uses one shipment dispatch date for FCL readiness and preserves a separate container appointment', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -216,13 +219,12 @@ describe('shipment create model', () => {
       blNumber: 'BL-FCL-DATE',
       tradeDirection: 'IMPORT' as const,
     };
-    const readiness = getShipmentCreateReadiness(form, [{ ...container, containerNumber: '', expectedDeliveryDate: '2026-08-20' }]);
+    const scheduled = { ...form, expectedDeliveryDate: '2026-08-20' };
+    const readiness = getShipmentCreateReadiness(scheduled, [{ ...container, containerNumber: '', expectedDeliveryDate: '2026-08-21' }]);
 
     expect(readiness.initialStatus).toBe('READY_FOR_DISPATCH');
     expect(readiness.dispatchReady).toBe(true);
-    // FCL omits the shipment-level date entirely — the server derives it from
-    // per-container dates, so the field must not even be sent as null.
-    expect(buildShipmentRootPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }], []).expectedDeliveryDate).toBeUndefined();
+    expect(buildShipmentRootPayload(scheduled, [{ ...container, expectedDeliveryDate: '2026-08-21' }], []).expectedDeliveryDate).toBe('2026-08-20');
   });
 
   it('formats LCL extra delivery dates into operationalNotes and only for LCL', () => {

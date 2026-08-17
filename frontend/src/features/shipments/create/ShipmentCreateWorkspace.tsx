@@ -53,6 +53,7 @@ export function ShipmentCreateWorkspace() {
   // has not been widened yet, so this lives as its own state slice here.
   const [customerNotes, setCustomerNotes] = useState('');
   const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
+  const [containerQuantity, setContainerQuantity] = useState('1');
   const [loading, setLoading] = useState(true);
   const [sitesLoading, setSitesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -102,6 +103,7 @@ export function ShipmentCreateWorkspace() {
   const isDirty = useMemo(() => {
     const hasFormData = Object.entries(form).some(([key, value]) => (
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
+        : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
         : Array.isArray(value) ? value.length > 0
         : value !== ''
     ));
@@ -217,6 +219,7 @@ export function ShipmentCreateWorkspace() {
       extraDeliveryDates: [],
     }));
     setContainers([newContainer()]);
+    setContainerQuantity('1');
     setCustomerNotes('');
     clearFeedback();
   }
@@ -224,6 +227,24 @@ export function ShipmentCreateWorkspace() {
   function updateContainer(key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) {
     setContainers((current) => current.map((row) => row.key === key ? { ...row, [field]: value } : row));
     clearFeedback();
+  }
+
+  function updateContainerQuantity(value: string) {
+    setContainerQuantity(value);
+    const next = Number(value);
+    if (!Number.isInteger(next) || next < 1) return;
+    setContainers((current) => {
+      if (next >= current.length) {
+        return [...current, ...Array.from({ length: next - current.length }, () => createContainerFromPrevious(current[current.length - 1]))];
+      }
+      const removed = current.slice(next);
+      const hasEnteredData = removed.some((row) => Object.entries(row).some(([key, rowValue]) => key !== 'key' && rowValue !== ''));
+      if (hasEnteredData && !window.confirm('Giảm số lượng sẽ xóa các container đã nhập ở cuối danh sách. Tiếp tục?')) {
+        setContainerQuantity(String(current.length));
+        return current;
+      }
+      return current.slice(0, next);
+    });
   }
 
   function focusIssue(fieldId: string) {
@@ -371,23 +392,42 @@ export function ShipmentCreateWorkspace() {
           <fieldset className="csc-mode" aria-required="true"><legend>Loại hàng <span aria-hidden="true">*</span></legend><div>
             {(['FCL', 'LCL'] as CargoMode[]).map((mode) => <label key={mode}><input type="radio" name="cargo-mode" value={mode} checked={form.cargoMode === mode} onChange={() => changeMode(mode)} disabled={Boolean(saving)} /><span className="csc-mode__option">{mode === 'FCL' ? 'Hàng nguyên container (FCL)' : 'Hàng lẻ (LCL)'}</span></label>)}
           </div></fieldset>
+          <label className="csc-combined-toggle">
+            <input
+              type="checkbox"
+              checked={form.isCombined}
+              onChange={(event) => update('isCombined', event.target.checked)}
+              disabled={Boolean(saving)}
+            />
+            <span>
+              <strong>Đóng kết hợp</strong>
+              <small>Cho phép Điều vận nhận diện lô có thể ghép chuyến hoặc xe kẹp.</small>
+            </span>
+          </label>
           {form.cargoMode === 'FCL' ? (
             <ShipmentContainerEditor
               saving={Boolean(saving)}
-              onAdd={() => setContainers((current) => [
-                ...current,
-                createContainerFromPrevious(current[current.length - 1]),
-              ])}
+              quantity={containerQuantity}
+              onQuantityChange={updateContainerQuantity}
+              onAdd={() => setContainers((current) => {
+                const next = [...current, createContainerFromPrevious(current[current.length - 1])];
+                setContainerQuantity(String(next.length));
+                return next;
+              })}
               rows={<>{containers.map((row, index) => (
-                <div key={row.key} className="csc-container-record">
-                  <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => current.filter((item) => item.key !== row.key))}><Trash2 size={18} /></button>}</div>
+                  <div key={row.key} className="csc-container-record">
+                  <div className="csc-container-record__header"><strong>Container {index + 1}</strong>{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => setContainers((current) => {
+                    const next = current.filter((item) => item.key !== row.key);
+                    setContainerQuantity(String(next.length));
+                    return next;
+                  })}><Trash2 size={18} /></button>}</div>
                   <div className="csc-container-grid" style={gridStyle}>
                     <div data-field-id={`container-${row.key}-number`}><TextField id={`container-${row.key}-number`} label="Số container" value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-number`)} /></div>
                     <div data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} /></div>
                     <div data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></div>
                     <div data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></div>
                     <TextField label="Trọng lượng (kg)" type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
-                    <DateField label="Ngày giao dự kiến" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
+                    <DateField label="Lịch hẹn giao cont (nếu khác)" value={row.expectedDeliveryDate} onChange={(event) => updateContainer(row.key, 'expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} />
                   </div>
                 </div>
               ))}</>}
@@ -449,7 +489,7 @@ export function ShipmentCreateWorkspace() {
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
-            {form.cargoMode === 'LCL' && <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>}
+            <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày điều xe dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
           </div>
           {form.cargoMode === 'LCL' && (
             <div className="csc-extra-dates">

@@ -107,6 +107,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, listOperational
 import {
   acceptDispatchHandoff,
   assignFulfillmentPlate,
+  updateFulfillmentEstimates,
   issueFulfillmentDispatchOrder,
   listDispatchDeliveryPointFacets,
   listDispatchPortFacets,
@@ -162,6 +163,7 @@ registerAuditEvent('POST', '/api/shipments/', '/fulfillments/', AuditEvent.SHIPM
 registerAuditEvent('POST', '/api/shipments/', '/change-requests/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_CONTAINERS_UPDATED);
 registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('PATCH', '/api/shipments/', '/dispatch-detail-plan-rows/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
 // Master-data CRUD: creating a factory/warehouse from the intake form is an
 // entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
@@ -887,6 +889,12 @@ const assignFulfillmentPlateSchema = z.object({
   { message: 'Chỉ chọn một nguồn biển số.' },
 );
 
+const updateFulfillmentEstimatesSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  plannedRevenue: z.number().int().nonnegative().nullable(),
+  plannedCarrierCost: z.number().int().nonnegative().nullable(),
+}).strict();
+
 router.patch(
   '/dispatch-detail-plan-rows/:fulfillmentId/plate',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
@@ -905,6 +913,28 @@ router.patch(
       externalCarrierVehicleId: parsed.data.externalCarrierVehicleId ?? null,
       plateNumber: parsed.data.plateNumber ?? null,
       clear: parsed.data.clear === true,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
+    }));
+  }),
+);
+
+router.patch(
+  '/dispatch-detail-plan-rows/:fulfillmentId/estimates',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const fulfillmentId = Number(req.params.fulfillmentId);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      throw new ApiError(400, 'fulfillmentId không hợp lệ.');
+    }
+    const parsed = updateFulfillmentEstimatesSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    res.json(await updateFulfillmentEstimates({
+      fulfillmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      plannedRevenue: parsed.data.plannedRevenue,
+      plannedCarrierCost: parsed.data.plannedCarrierCost,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));
@@ -1172,7 +1202,7 @@ router.post(
 // ─── POST / — create draft shipment ────────────────────────────────────────
 router.post(
   '/',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -1215,7 +1245,7 @@ router.post(
 // CUSTOMER/DRIVER/FORWARDER remain denied at the mount.
 router.post(
   '/quick',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -1238,6 +1268,7 @@ router.post(
         operationalSiteId: parsed.data.operationalSiteId,
         pickupWarehouseSiteId: parsed.data.pickupWarehouseSiteId,
         factoryName: parsed.data.factoryName,
+        isCombined: parsed.data.isCombined,
         shippingLineName: parsed.data.shippingLineName,
         expectedDeliveryDate: parsed.data.expectedDeliveryDate,
         customsCutoffAt: parsed.data.customsCutoffAt,

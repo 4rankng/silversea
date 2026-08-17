@@ -48,6 +48,12 @@
 .csc-container-record > div:first-child { min-height: 32px; padding-bottom: 8px; border-bottom: 1px solid var(--border-1); }
 .csc-container-record__header { display: flex; align-items: center; justify-content: space-between; }
 .csc-container-editor { display: grid; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-editor__quantity { display: inline-grid; width: min(190px, 100%); gap: 5px; color: var(--fg-2); font-size: 12px; font-weight: 700; }
+.csc-container-editor__quantity input { min-height: 40px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface); color: var(--fg-1); padding: 0 10px; font: inherit; }
+.csc-combined-toggle { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.csc-combined-toggle input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent-2); }
+.csc-combined-toggle span { display: grid; gap: 2px; color: var(--fg-2); font-size: 12px; line-height: 1.4; }
+.csc-combined-toggle strong { color: var(--fg-1); font-size: 13px; }
 .csc-container-editor__allocation { display: flex; width: 100%; min-width: 0; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .csc-container-grid { min-width: 0; }
 .csc-container-grid > * { min-width: 0; }

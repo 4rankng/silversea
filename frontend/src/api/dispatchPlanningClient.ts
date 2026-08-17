@@ -185,6 +185,7 @@ export interface DispatchDetailPlanRow {
   shipmentId: number;
   shipmentVersion: number;
   shipmentCode: string | null;
+  isCombined: boolean;
   fulfillmentType: 'FCL_CONTAINER' | 'LCL_SHIPMENT';
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED';
@@ -199,6 +200,10 @@ export interface DispatchDetailPlanRow {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+  };
+  estimates: {
+    plannedRevenue: string | null;
+    plannedCarrierCost: string | null;
   };
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
@@ -257,6 +262,21 @@ export function assignDispatchDetailPlate(fulfillmentId: number, body: {
     assignedDriverName: string | null;
     driverHint: string | null;
   }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/plate`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
+  expectedVersion: number;
+  plannedRevenue: number | null;
+  plannedCarrierCost: number | null;
+}) {
+  return api.patch<{
+    fulfillmentId: number;
+    version: number;
+    plannedRevenue: string | null;
+    plannedCarrierCost: string | null;
+  }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/estimates`, body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }

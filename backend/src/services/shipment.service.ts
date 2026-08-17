@@ -364,6 +364,7 @@ export interface CreateShipmentInput {
   operationalSiteId?: number | null;
   pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
+  isCombined?: boolean;
   shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
   customsCutoffAt?: string | null;
@@ -396,6 +397,7 @@ export interface UpdateShipmentInput {
   operationalSiteId?: number | null;
   pickupWarehouseSiteId?: number | null;
   factoryName?: string | null;
+  isCombined?: boolean;
   shippingLineName?: string | null;
   expectedDeliveryDate?: string | null;
   customsCutoffAt?: string | null;
@@ -1243,6 +1245,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     operationalSiteId: input.operationalSiteId ?? null,
     pickupWarehouseSiteId: input.pickupWarehouseSiteId ?? null,
     factoryName: input.factoryName ?? null,
+    isCombined: input.isCombined ?? false,
     shippingLineName: input.shippingLineName ?? null,
     expectedDeliveryDate: input.expectedDeliveryDate ?? null,
     customsCutoffAt: toNullableTimestamp(input.customsCutoffAt, 'Hạn hải quan'),
@@ -1683,6 +1686,7 @@ export async function updateShipment(
       ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),
       ...(input.pickupWarehouseSiteId !== undefined ? { pickupWarehouseSiteId: input.pickupWarehouseSiteId } : {}),
       ...(input.factoryName !== undefined ? { factoryName: input.factoryName } : {}),
+      ...(input.isCombined !== undefined ? { isCombined: input.isCombined } : {}),
       ...(input.shippingLineName !== undefined ? { shippingLineName: input.shippingLineName } : {}),
       ...(input.expectedDeliveryDate !== undefined
         ? { expectedDeliveryDate: input.expectedDeliveryDate }

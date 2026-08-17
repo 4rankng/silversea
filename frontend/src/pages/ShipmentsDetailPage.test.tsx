@@ -109,7 +109,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(documentsTableCell).toBeTruthy();
     expect(documentsTableCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
     expect(within(documentsTableCell!).getAllByRole('button')).toEqual([documentsCell]);
-    expect(screen.getByText('Hàng kết hợp')).toBeTruthy();
+    expect(screen.getByText('Đóng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });

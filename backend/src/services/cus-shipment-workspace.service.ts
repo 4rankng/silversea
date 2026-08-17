@@ -282,19 +282,11 @@ function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function vietnamDate(value: Date | null): string | null {
-  if (!value) return null;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(value);
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-  return year && month && day ? `${year}-${month}-${day}` : null;
-}
-
 function containerTransportDateSql() {
-  return sql<string>`coalesce((${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')::date, ${s.shipments.expectedDeliveryDate})`;
+  // The flat container workspace is still planned by the shipment date. A
+  // per-container appointment remains visible as detail, but must not split
+  // one Bill/Booking across different dispatch days.
+  return sql<string>`${s.shipments.expectedDeliveryDate}`;
 }
 
 const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
@@ -940,7 +932,7 @@ function buildListItem(
     declarationNumber: declaration?.declarationNumber ?? null,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     routeName: row.routeName,
-    isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
+    isCombined: row.shipment.isCombined,
     direction: row.shipment.tradeDirection,
     containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
     packageCount: row.shipment.packageCount,
@@ -1375,7 +1367,6 @@ export async function listCusShipmentContainers(
     const container = containers[containerIndex];
     if (!container) continue;
     const line = buildContainerLine(row, actor, support, container, containerIndex + 1);
-    const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
     const shipmentEditable = actor.role === Role.CUS
       && support.locksByShipment.get(row.shipment.id) == null;
     flatRows.push({
@@ -1390,7 +1381,7 @@ export async function listCusShipmentContainers(
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
       shippingLineName: trimOrNull(row.shipment.shippingLineName),
-      isCombined: trips.some((trip) => toNumber(trip.revenueCombine) > 0),
+      isCombined: row.shipment.isCombined,
       direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,
       containerTypeLabel: line.containerTypeLabel,
@@ -1399,7 +1390,7 @@ export async function listCusShipmentContainers(
       plateNumber: line.plateNumber,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,
-      transportDate: vietnamDate(container.customerAppointmentAt) ?? row.shipment.expectedDeliveryDate,
+      transportDate: row.shipment.expectedDeliveryDate,
       closingAt: row.shipment.closingAt?.toISOString() ?? null,
       plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
       customerAppointmentAt: line.customerAppointmentAt,

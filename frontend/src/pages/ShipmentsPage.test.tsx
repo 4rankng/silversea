@@ -1417,7 +1417,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     await screen.findByRole('table');
-    expect(within(masterRow()).getByText('Hàng kết hợp')).toBeTruthy();
+    expect(within(masterRow()).getByText('Đóng kết hợp')).toBeTruthy();
   });
 
   it('keeps classification tags compact and wraps the shipping-line label', () => {

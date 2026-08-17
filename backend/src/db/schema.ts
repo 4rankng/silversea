@@ -2448,6 +2448,9 @@ export const shipments = pgTable('shipments', {
   operationalSiteId: integer('operational_site_id'),
   pickupWarehouseSiteId: integer('pickup_warehouse_site_id'),
   factoryName: varchar('factory_name', { length: 255 }),
+  // Operational classification only. It lets CUS/Điều vận mark a shipment as
+  // consolidated without reusing a posted trip-revenue field as a proxy.
+  isCombined: boolean('is_combined').notNull().default(false),
   shippingLineName: varchar('shipping_line_name', { length: 255 }),
   expectedDeliveryDate: date('expected_delivery_date'),
   customsCutoffAt: timestamp('customs_cutoff_at', { withTimezone: true }),
@@ -2600,6 +2603,11 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   plannedExternalCarrierId: integer('planned_external_carrier_id'),
   plannedExternalCarrierVehicleId: integer('planned_external_carrier_vehicle_id'),
   plannedVehiclePlateNumber: varchar('planned_vehicle_plate_number', { length: 20 }),
+  // Pre-dispatch operational estimates. These never feed AR/AP/P&L; the
+  // canonical financial values remain on the dispatched trip and Accounting
+  // closes them through the existing governed workflows.
+  plannedRevenue: numeric('planned_revenue', { precision: 15, scale: 0 }),
+  plannedCarrierCost: numeric('planned_carrier_cost', { precision: 15, scale: 0 }),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
   canceledBy: integer('canceled_by'),

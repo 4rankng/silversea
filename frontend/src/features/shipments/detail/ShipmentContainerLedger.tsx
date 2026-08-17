@@ -565,7 +565,7 @@ export function ShipmentContainerLedger({
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
-                      {row.isCombined && <span className="shipment-container-ledger__combined">Hàng kết hợp</span>}
+                      {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                       <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>)}
                   </td>

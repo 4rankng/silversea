@@ -14,6 +14,7 @@ export interface ShipmentCreateFormState {
   declarationNumber: string;
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   cargoMode: CargoMode;
+  isCombined: boolean;
   operationalSiteId: string;
   pickupWarehouseSiteId: string;
   customsCutoffAt: string;
@@ -80,6 +81,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   declarationNumber: '',
   tradeDirection: '',
   cargoMode: 'FCL',
+  isCombined: false,
   operationalSiteId: '',
   pickupWarehouseSiteId: '',
   customsCutoffAt: '',
@@ -159,10 +161,10 @@ export function getShipmentCreateReadiness(
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
     });
-    if (!containers.some((row) => row.expectedDeliveryDate) && !form.closingAt && !form.plannedReturnAt) {
+    if (!form.expectedDeliveryDate && !form.closingAt && !form.plannedReturnAt) {
       issues.push(issue(
-        'container-expected-delivery',
-        'Nhập ngày giao dự kiến cho ít nhất một container, hạn hạ container hoặc thời điểm trả container.',
+        'shipment-expected-delivery',
+        'Chọn ngày điều xe dự kiến, hạn hạ container hoặc thời điểm trả container.',
         'schedule',
       ));
     }
@@ -189,8 +191,7 @@ export function getShipmentCreateReadiness(
   return {
     draftReady: Boolean(form.customerId),
     dispatchReady: issues.length === 0,
-    initialStatus: (form.cargoMode === 'FCL' && containers.some((row) => row.expectedDeliveryDate))
-      || form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
+    initialStatus: form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
       ? ShipmentStatus.READY_FOR_DISPATCH
       : ShipmentStatus.PENDING_DATE,
     issues,
@@ -229,6 +230,7 @@ export function buildShipmentRootPayload(
     blNumber: form.tradeDirection === 'IMPORT' ? form.blNumber || null : null,
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
+    isCombined: form.isCombined,
     operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: sites.find((site) => String(site.id) === form.operationalSiteId)?.name ?? null,
@@ -236,12 +238,9 @@ export function buildShipmentRootPayload(
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),
     plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
-    // FCL: omit entirely — the server derives this from per-container dates,
-    // and sending null on a retry would wipe a date already derived from a
-    // partially-saved attempt. LCL keeps the shipment-level date.
-    ...(form.cargoMode === 'LCL'
-      ? { expectedDeliveryDate: form.expectedDeliveryDate || null }
-      : {}),
+    // One promised date drives both dispatch workspaces. Container appointment
+    // dates below remain detailed scheduling information only.
+    expectedDeliveryDate: form.expectedDeliveryDate || null,
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
