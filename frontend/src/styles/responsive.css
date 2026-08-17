@@ -22,7 +22,7 @@
 
   /* Scrollport top padding narrows with the shell; keep the sticky
      thead offset token in sync so headers still pin flush. */
-  :root { --app-body-pad-t: 20px; }
+  :root { --app-body-pad-t: 20px; --app-body-pad-x: 16px; }
 
   .app::before {
     content: "";
@@ -57,7 +57,7 @@
   }
 
   /* ── Content ── */
-  .app-body, .content { padding: var(--app-body-pad-t, 24px) 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+  .app-body, .content { padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) calc(32px + env(safe-area-inset-bottom, 0px)); padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px)); }
 
   /* ── Topbar ── */
   .topbar__context {
@@ -202,8 +202,8 @@
   }
 
   /* ── App shell ── */
-  :root { --app-body-pad-t: 14px; }
-  .app-body, .content { padding: var(--app-body-pad-t, 14px) 12px calc(28px + env(safe-area-inset-bottom, 0px)); }
+  :root { --app-body-pad-t: 14px; --app-body-pad-x: 12px; }
+  .app-body, .content { padding: var(--app-body-pad-t, 14px) var(--app-body-pad-x) calc(28px + env(safe-area-inset-bottom, 0px)); padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px)); }
 
   /* ── Topbar ── */
   .topbar {

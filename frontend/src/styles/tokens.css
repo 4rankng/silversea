@@ -206,10 +206,11 @@
   --control-h: 44px;
   --content-max-w: 1440px;
 
-  /* App-body scrollport top padding. Sticky table headers pin flush under
-     the topbar by negating this value via --sticky-thead-top; the breakpoint
-     overrides live beside the .app-body padding rules in responsive.css. */
+  /* The authenticated shell owns the outer canvas gutter. Full-width pages
+     inherit it instead of adding another horizontal frame; cards use their
+     own internal padding only. Sticky table headers negate the top value. */
   --app-body-pad-t: 24px;
+  --app-body-pad-x: 24px;
   --sticky-thead-top: calc(-1 * var(--app-body-pad-t));
 
   /* --- Canonical status strip (Vantai invariant) ---

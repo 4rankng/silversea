@@ -154,7 +154,8 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--app-body-pad-t, 24px) 24px 32px;
+  padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) 32px;
+  padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   scrollbar-gutter: stable both-edges;
   scroll-behavior: smooth;
 }
@@ -165,8 +166,11 @@
 }
 
 @media (min-width: 1024px) and (max-width: 1280px) {
+  :root { --app-body-pad-x: 20px; }
+
   .app-body,
   .content {
-    padding: var(--app-body-pad-t, 24px) 20px 32px;
+    padding: var(--app-body-pad-t, 24px) var(--app-body-pad-x) 32px;
+    padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)) max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
   }
 }
