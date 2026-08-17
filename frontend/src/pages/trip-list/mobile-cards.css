@@ -256,8 +256,8 @@
   margin-right: 4px;
   vertical-align: middle;
 }
-.trip-list-page .legend-dot--ok { background: #10B981; }
-.trip-list-page .legend-dot--warn { background: #F59E0B; }
+.trip-list-page .legend-dot--ok { background: var(--success); }
+.trip-list-page .legend-dot--warn { background: var(--warning); }
 /* Table row completeness uses edge strip now, removing old background tints */
 /* Hover overrides completeness tint with standard hover */
 @media (hover: hover) and (pointer: fine) {

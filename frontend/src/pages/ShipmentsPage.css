@@ -682,8 +682,8 @@
 
 /* Direction badge modifiers emitted dynamically:
    `cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}` */
-.cus-direction-badge--import { background: var(--info-bg, #eff6ff); color: var(--info, #2563eb) !important; }
-.cus-direction-badge--export { background: var(--success-bg, #ecfdf3); color: var(--success, #16803c) !important; }
+.cus-direction-badge--import,
+.cus-direction-badge--export { background: var(--surface-3); color: var(--ink-2) !important; }
 .cus-direction-badge--unknown { background: var(--surface-3); color: var(--ink-3) !important; }
 .cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
 

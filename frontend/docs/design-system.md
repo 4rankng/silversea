@@ -95,3 +95,13 @@ Compact field typography is shared too: `sm` fields use 12px on desktop and
 14px at narrow widths, while retaining the 44px touch target. Page styles must
 not override that type scale with `font`, `font-size`, or `line-height`; correct
 the shared Untitled UI primitive when a compact field is inconsistent.
+
+## Operational table color contract
+
+Tables are decision surfaces, so body text uses the neutral foreground scale
+(`--fg-1`, `--fg-2`, `--fg-3`) rather than decorative hues. Category labels
+such as import/export, carrier type, and allocation use the neutral badge
+treatment. Reserve semantic color for a real operational condition: forest for
+active/completed work, bronze for attention needed, and oxblood only for a
+cancelled record, validation error, or an overdue deadline. Never introduce a
+blue, indigo, or orange badge simply to distinguish categories.

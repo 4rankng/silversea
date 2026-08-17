@@ -102,9 +102,9 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__documents-direction">
                       {item.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="blue">Nhập</Badge>
+                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
                       ) : item.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="orange">Xuất</Badge>
+                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
                       ) : '—'}
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
@@ -140,7 +140,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                             key={`${entry.carrierType}-${entry.externalCarrierId}`}
                             type="pill-color"
                             size="sm"
-                            color="indigo"
+                            color="gray"
                             className="master-plan-grid__chip"
                           >
                             {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}

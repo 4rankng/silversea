@@ -370,11 +370,11 @@ interface StatusPillProps {
 }
 
 /** Wireframe pill variant → UUI badge color. */
-const PILL_COLOR_MAP: Record<PillVariant, 'success' | 'warning' | 'error' | 'blue' | 'gray'> = {
+const PILL_COLOR_MAP: Record<PillVariant, 'success' | 'warning' | 'error' | 'gray'> = {
   success: 'success',
   warn: 'warning',
   danger: 'error',
-  info: 'blue',
+  info: 'gray',
   neutral: 'gray',
 };
 
@@ -419,11 +419,11 @@ export function Badge({ variant = 'neutral', children, className = '' }: BadgePr
 }
 
 /** Legacy badge variant → UUI badge color ("outline" and "neutral" both read as gray). */
-const BADGE_COLOR_MAP: Record<NonNullable<BadgeProps['variant']>, 'success' | 'warning' | 'error' | 'blue' | 'gray'> = {
+const BADGE_COLOR_MAP: Record<NonNullable<BadgeProps['variant']>, 'success' | 'warning' | 'error' | 'gray'> = {
   success: 'success',
   warning: 'warning',
   danger: 'error',
-  info: 'blue',
+  info: 'gray',
   outline: 'gray',
   neutral: 'gray',
 };

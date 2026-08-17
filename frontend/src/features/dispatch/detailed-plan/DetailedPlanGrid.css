@@ -485,16 +485,9 @@
   border-radius: 999px;
   font-size: var(--ops-table-supporting-size);
   font-weight: 600;
-}
-
-.detailed-plan-grid__badge--export {
-  background: var(--color-utility-blue-50, #eff6ff);
-  color: var(--color-utility-blue-700, #1d4ed8);
-}
-
-.detailed-plan-grid__badge--import {
-  background: var(--background-color-warning-primary, #fef3c7);
-  color: var(--color-fg-warning-primary, #92400e);
+  background: var(--surface-3);
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
 }
 
 .detailed-plan-grid__lot-flag {
@@ -521,8 +514,8 @@
   padding: 2px 8px;
   border-radius: 999px;
   font-size: var(--ops-table-supporting-size);
-  background: var(--background-color-warning-primary, #fef3c7);
-  color: var(--color-fg-warning-primary, #92400e);
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .detailed-plan-grid__empty {

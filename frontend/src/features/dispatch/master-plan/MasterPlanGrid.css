@@ -217,8 +217,8 @@
 }
 
 .master-plan-grid__line--urgent {
-  color: var(--danger);
-  font-weight: 600;
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
 }
 
 .master-plan-grid__line--notes {

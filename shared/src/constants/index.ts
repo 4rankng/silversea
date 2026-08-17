@@ -352,16 +352,16 @@ export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
 
 /** Canonical status colors — single source of truth for all trip status rendering. */
 export const TRIP_STATUS_COLORS: Record<TripStatus, string> = {
-  [TripStatus.CREATED]: '#6B7280',     // slate gray — mới tạo
-  [TripStatus.IN_TRANSIT]: '#3B82F6',  // blue — đang chạy
-  [TripStatus.COMPLETED]: '#10B981',   // emerald green — hoàn thành
-  [TripStatus.CANCELED]: '#EF4444',    // red — đã hủy
+  [TripStatus.CREATED]: '#69736F',     // graphite — mới tạo
+  [TripStatus.IN_TRANSIT]: '#176E45',  // forest — đang chạy
+  [TripStatus.COMPLETED]: '#177448',   // emerald — hoàn thành
+  [TripStatus.CANCELED]: '#A0444E',    // oxblood — đã hủy
 };
 
 /** Data-completeness strip colors. */
 export const DATA_COMPLETENESS_COLORS = {
-  complete: '#10B981',   // emerald — đầy đủ số liệu
-  incomplete: '#F59E0B', // amber — thiếu số liệu
+  complete: '#177448',   // emerald — đầy đủ số liệu
+  incomplete: '#A45D1C', // bronze — thiếu số liệu
   na: 'transparent',     // CREATED / CANCELED — not applicable
 } as const;
 

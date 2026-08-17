@@ -621,36 +621,36 @@
 }
 
 .trip-list-page .pill-moi {
-  color: #4B5563;
+  color: var(--ink-2);
   border: 0;
 }
-.trip-list-page .pill-moi .sd { background: #6B7280; }
+.trip-list-page .pill-moi .sd { background: var(--line-3); }
 
 .trip-list-page .pill-dang {
-  color: #1E40AF;
+  color: var(--brand-hover);
   border: 0;
 }
 .trip-list-page .pill-dang .sd {
-  background: #3B82F6;
+  background: var(--brand);
 }
 
 .trip-list-page .pill-htth {
-  color: #047857;
+  color: var(--success-text);
   border: 0;
 }
-.trip-list-page .pill-htth .sd { background: #10B981; }
+.trip-list-page .pill-htth .sd { background: var(--success); }
 
 .trip-list-page .pill-chot {
-  color: #0F172A;
+  color: var(--ink);
   border: 0;
 }
-.trip-list-page .pill-chot .sd { background: #1E293B; }
+.trip-list-page .pill-chot .sd { background: var(--ink-2); }
 
 .trip-list-page .pill-huy {
-  color: #991B1B;
+  color: var(--danger-text);
   border: 0;
 }
-.trip-list-page .pill-huy .sd { background: #EF4444; }
+.trip-list-page .pill-huy .sd { background: var(--danger); }
 
 .trip-list-page .actions {
   display: inline-flex; gap: 4px;

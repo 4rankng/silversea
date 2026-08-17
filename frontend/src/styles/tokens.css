@@ -38,13 +38,13 @@
   --color-neutral: #101513;
   --color-neutral-content: #F8FAF9;
 
-  --color-info: #1E5BB8;
+  --color-info: #2E675E;
   --color-info-content: #FFFFFF;
-  --color-success: #00B14F;
+  --color-success: #177448;
   --color-success-content: #00381A;
-  --color-warning: #F5A623;
-  --color-warning-content: #2A1B04;
-  --color-error: #E32434;
+  --color-warning: #A45D1C;
+  --color-warning-content: #FFFFFF;
+  --color-error: #A0444E;
   --color-error-content: #FFFFFF;
 
   --radius-selector: 0.5rem;
@@ -114,19 +114,19 @@
   --border-glass: rgba(255, 255, 255, 0.4);
 
   /* --- Semantic status --- */
-  --success: #00B14F;
-  --success-soft: #E6F7EE;
-  --success-text: #004D22;
-  --warning: #F5A623;
-  --warning-soft: #FFF4E0;
-  --warning-text: #4B2800;
-  --warning-deep: #DD5A1F;
-  --danger: #E32434;
-  --danger-soft: #FFEAEC;
-  --danger-text: #B91C1C;
-  --info: #1E5BB8;
-  --info-soft: #DCE9FC;
-  --info-text: #1E40AF;
+  --success: #177448;
+  --success-soft: #EAF4EE;
+  --success-text: #155B39;
+  --warning: #A45D1C;
+  --warning-soft: #FFF3E8;
+  --warning-text: #6F3C10;
+  --warning-deep: #914A16;
+  --danger: #A0444E;
+  --danger-soft: #F9ECEE;
+  --danger-text: #7F2D37;
+  --info: #2E675E;
+  --info-soft: #E8F1EF;
+  --info-text: #25574F;
 
   /* --- Sidebar (forest green) --- */
   --sb-bg: #005A2D;

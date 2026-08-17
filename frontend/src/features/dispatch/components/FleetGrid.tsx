@@ -19,12 +19,12 @@ function getDefaultDriverForTruck(truckId: number, drivers: Driver[]) {
   return drivers.find((d) => d.assignedTruckId === truckId);
 }
 
-/** Strip color map — each status gets a distinct hue for instant scanning */
+/** Restrained operational strip map: color signals state, never decoration. */
 const STATUS_STRIP: Record<string, { color: string; label: string }> = {
-  running:  { color: '#22C55E', label: 'Đang chạy' },   /* green — active */
-  ready:    { color: '#3B82F6', label: 'Sẵn sàng' },    /* blue — available */
-  maint:    { color: '#F59E0B', label: 'Bảo dưỡng' },    /* amber — warning */
-  noassign: { color: '#94A3B8', label: 'Chưa giao' },    /* slate — neutral */
+  running:  { color: '#176E45', label: 'Đang chạy' },
+  ready:    { color: '#2E675E', label: 'Sẵn sàng' },
+  maint:    { color: '#A45D1C', label: 'Bảo dưỡng' },
+  noassign: { color: '#69736F', label: 'Chưa giao' },
 };
 
 function getStatusKey(isMaint: boolean, isRunning: boolean, defDriver: Driver | undefined) {

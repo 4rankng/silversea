@@ -3,12 +3,10 @@ import { Truck } from 'lucide-react';
 /**
  * "Xe ngoài" badge — marks a trip subcontracted to an external carrier
  * (carrierType === 'EXTERNAL'). Visually identical to the customer-page
- * "Xe ngoài" badge (CustomersPage.tsx, commit 5df8ec46): info-blue tone,
- * distinct from the green "2 chiều" badge.
+ * "Xe ngoài" badge uses the shared informational teal, distinct from the
+ * completed-work emerald badge.
  *
- * NOTE: the colour triplet is hard-coded here to match the established
- * customer-page badge. TODO: extract a shared <Badge> component across
- * "2 chiều" / "Xe ngoài" once a third consumer appears.
+ * This component is the source of truth for trip-list external-carrier labels.
  */
 export function XeNgoaiBadge() {
   return (
@@ -18,9 +16,9 @@ export function XeNgoaiBadge() {
         fontSize: 12,
         lineHeight: 1.35,
         fontWeight: 700,
-        color: '#1d4ed8',
-        background: '#dbeafe',
-        border: '1px solid #bfdbfe',
+        color: 'var(--info-text)',
+        background: 'var(--info-soft)',
+        border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)',
         borderRadius: 4,
         padding: '3px 7px',
         letterSpacing: '0.02em',

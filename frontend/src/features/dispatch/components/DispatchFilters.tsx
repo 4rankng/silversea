@@ -16,10 +16,10 @@ interface DispatchFiltersProps {
 
 /** Strip colors — shared with FleetGrid, keyed by filter */
 const FILTER_COLORS: Partial<Record<FleetFilter, string>> = {
-  running:  '#22C55E',
-  ready:    '#3B82F6',
-  maint:    '#F59E0B',
-  noassign: '#94A3B8',
+  running:  '#176E45',
+  ready:    '#2E675E',
+  maint:    '#A45D1C',
+  noassign: '#69736F',
 };
 
 const FILTER_TABS: { key: FleetFilter; label: string }[] = [

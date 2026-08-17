@@ -330,8 +330,8 @@
 }
 
 .shipment-pod-review__badge--submitted {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .shipment-pod-review__badge--accepted {
@@ -500,10 +500,10 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #f59e0b;
+  border: 1px solid var(--warning);
   border-radius: 8px;
   background: #fffbeb;
-  color: #92400e;
+  color: var(--warning-text);
   line-height: 1.45;
   cursor: pointer;
 }
@@ -601,11 +601,11 @@
   margin-top: 4px;
 }
 
-.shipment-detail__dot--draft   { background: #6B7280; }
-.shipment-detail__dot--info    { background: #3B82F6; }
-.shipment-detail__dot--success { background: #10B981; }
-.shipment-detail__dot--muted   { background: #1E293B; }
-.shipment-detail__dot--danger  { background: #EF4444; }
+.shipment-detail__dot--draft   { background: var(--line-3); }
+.shipment-detail__dot--info    { background: var(--info); }
+.shipment-detail__dot--success { background: var(--success); }
+.shipment-detail__dot--muted   { background: var(--ink-2); }
+.shipment-detail__dot--danger  { background: var(--danger); }
 
 @media (max-width: 640px) {
   .shipment-detail__operate {
