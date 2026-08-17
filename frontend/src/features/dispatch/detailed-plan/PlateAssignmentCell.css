@@ -24,17 +24,11 @@
   white-space: nowrap;
 }
 
-.plate-assignment__carrier {
-  /* line-height explicitly larger than the table's 1.4 (16.8px) so the
-     cap-tops of the "Be Vietnam Pro" font stay inside the line-box. Without
-     this, long carrier names that wrap to two lines clip the first line's
-     ascenders (e.g. the "C" in "Công"). */
+.plate-assignment__field-label {
   font-size: 12px;
-  line-height: 1.55;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--text-secondary, #64748b);
-  /* Use overflow-wrap so long names break instead of pushing the column
-     wider than its 18% allocation. */
-  overflow-wrap: anywhere;
 }
 
 .plate-assignment__hint {

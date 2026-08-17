@@ -478,7 +478,7 @@ function inferContainerBucket(label: string | null | undefined): 20 | 40 | null 
 interface ShipmentContainerAggregates {
   containerCount20: number;
   containerCount40: number;
-  /** e.g. "2 * 40HC + 1 * 20DC" — grouped by raw container type code. */
+  /** e.g. "2 x 40HC + 1 x 20DC" — grouped by raw container type code. */
   containerTypeSummary: string | null;
   totalCargoWeightKg: number | null;
   allocationStatus: AllocationStatus;
@@ -506,7 +506,7 @@ function computeContainerAggregates(
       hasWeight = true;
     }
   }
-  const typeParts = [...countByType.entries()].map(([code, count]) => `${count} * ${code}`);
+  const typeParts = [...countByType.entries()].map(([code, count]) => `${count} x ${code}`);
   const allocationStatus: AllocationStatus = containers.length === 0 || (containerCount20 + containerCount40) === 0
     ? 'NOT_ALLOCATED'
     : allocatedCount20 === 0 && allocatedCount40 === 0

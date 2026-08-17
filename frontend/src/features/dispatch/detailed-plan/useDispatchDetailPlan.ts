@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   assignDispatchDetailPlate,
-  updateDispatchDetailEstimates,
+  assignDispatchDetailCarrier,
   listDispatchDeliveryPointFacets,
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
@@ -179,34 +179,52 @@ export function useDispatchDetailPlan() {
     }
   }, [filters.assignmentStatus]);
 
-  const updateEstimates = useCallback(async (
+  const assignCarrier = useCallback(async (
     row: DispatchDetailPlanRow,
-    body: { plannedRevenue: number | null; plannedCarrierCost: number | null },
+    body: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null },
   ) => {
     setAssignmentError(null);
     try {
-      const result = await updateDispatchDetailEstimates(row.fulfillmentId, {
+      const result = await assignDispatchDetailCarrier(row.fulfillmentId, {
         expectedVersion: row.version,
         ...body,
       });
-      setItems((previous) => previous.map((item) => item.fulfillmentId === row.fulfillmentId
-        ? {
-          ...item,
-          version: result.version,
-          estimates: {
-            plannedRevenue: result.plannedRevenue,
-            plannedCarrierCost: result.plannedCarrierCost,
-          },
-        }
-        : item));
+      const invalidatedByFilter = filters.assignmentStatus === 'ASSIGNED';
+      if (invalidatedByFilter) {
+        setItems((previous) => previous
+          .filter((item) => item.fulfillmentId !== row.fulfillmentId)
+          .map((item) => item.shipmentId === row.shipmentId
+            ? { ...item, lotFullyPlated: result.lotFullyPlated }
+            : item));
+      } else {
+        setItems((previous) => previous.map((item) => {
+          if (item.fulfillmentId === row.fulfillmentId) {
+            return {
+              ...item,
+              version: result.version,
+              dispatch: {
+                ...item.dispatch,
+                carrierType: result.carrierType,
+                carrierName: result.carrierName,
+                externalCarrierId: result.externalCarrierId,
+                externalCarrierVehicleId: null,
+                assignedPlate: null,
+              },
+            };
+          }
+          return item.shipmentId === row.shipmentId
+            ? { ...item, lotFullyPlated: result.lotFullyPlated }
+            : item;
+        }));
+      }
       return result;
     } catch (mutationError) {
       setAssignmentError((mutationError as { status?: number }).status === 409
         ? 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'
-        : 'Không thể lưu cước dự kiến. Vui lòng thử lại.');
+        : 'Không thể đổi nhà xe. Vui lòng thử lại.');
       throw mutationError;
     }
-  }, []);
+  }, [filters.assignmentStatus]);
 
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);
@@ -241,7 +259,7 @@ export function useDispatchDetailPlan() {
     sortKey,
     toggleSort,
     assignPlate,
-    updateEstimates,
+    assignCarrier,
     assignmentError,
     clearAssignmentError: () => setAssignmentError(null),
     lotBanner,

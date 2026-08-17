@@ -254,6 +254,18 @@ type PlateResponse = {
   driverHint: string | null;
 };
 
+type CarrierResponse = {
+  fulfillmentId: number;
+  version: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierName: string;
+  externalCarrierVehicleId: null;
+  assignedPlate: null;
+  lotFullyPlated: boolean;
+  replayed: boolean;
+};
+
 type EstimateResponse = {
   fulfillmentId: number;
   version: number;
@@ -561,6 +573,57 @@ describe('dispatch detail plan rows', () => {
 });
 
 describe('dispatch detail plan plate assignment', () => {
+  test('dispatcher changes one ready fulfillment carrier, clearing its stale vehicle, with idempotent replay', async () => {
+    const carrier = await createCustomer(`Replacement carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+      method: 'PATCH', token: dispatcherToken, body: { expectedVersion: fulfillment.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+
+    const key = `carrier-reassign-${suffix}-${fulfillment.id}`;
+    const body = { expectedVersion: plated.data.version, carrierType: 'EXTERNAL', externalCarrierId: carrier.id };
+    const first = await apiFetch<CarrierResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH', token: dispatcherToken, body, idempotencyKey: key,
+    });
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.equal(first.data.replayed, false);
+    assert.equal(first.data.carrierType, 'EXTERNAL');
+    assert.equal(first.data.externalCarrierId, carrier.id);
+    assert.equal(first.data.carrierName, carrier.name);
+    assert.equal(first.data.assignedPlate, null);
+
+    const replay = await apiFetch<CarrierResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH', token: dispatcherToken, body, idempotencyKey: key,
+    });
+    assert.equal(replay.status, 200, JSON.stringify(replay.data));
+    assert.equal(replay.data.replayed, true);
+    assert.equal(replay.data.version, first.data.version);
+
+    const [stored] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(stored.plannedExternalCarrierId, carrier.id);
+    assert.equal(stored.plannedExternalCarrierVehicleId, null);
+    assert.equal(stored.plannedVehiclePlateNumber, null);
+  });
+
+  test('carrier change rejects a non-carrier and stale fulfillment version', async () => {
+    const invalidCarrier = await createCustomer(`Non-carrier ${suffix}-${createdCustomerIds.length}`);
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const nonCarrier = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH', token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, carrierType: 'EXTERNAL', externalCarrierId: invalidCarrier.id },
+    });
+    assert.equal(nonCarrier.status, 409);
+    const stale = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/carrier`, {
+      method: 'PATCH', token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version + 1, carrierType: 'OWN' },
+    });
+    assert.equal(stale.status, 409);
+  });
+
   test('OWN happy path assigns plate, notifies driver, flips lot flag on last container', async () => {
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 3 });
     const { truck, driver } = await createOwnedTruckWithDriver();

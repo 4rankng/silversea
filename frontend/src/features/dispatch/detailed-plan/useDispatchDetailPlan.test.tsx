@@ -13,10 +13,12 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     listDispatchPickupPortFacets: vi.fn(),
     listDispatchDropoffPortFacets: vi.fn(),
     assignDispatchDetailPlate: vi.fn(),
+    assignDispatchDetailCarrier: vi.fn(),
   };
 });
 
 import {
+  assignDispatchDetailCarrier,
   assignDispatchDetailPlate,
   listDispatchDetailPlanRows,
 } from '../../../api/dispatchPlanningClient';
@@ -30,6 +32,7 @@ const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedRe
 
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
 const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
+const assignDispatchDetailCarrierMock = vi.mocked(assignDispatchDetailCarrier);
 
 const assignmentResult = (assignedPlate: string | null) => ({
   fulfillmentId: 101,
@@ -147,6 +150,27 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     });
 
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([102]);
+  });
+
+  it('clears vehicle state when changing carrier and removes the row from the assigned view', async () => {
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-123.45' },
+    })]));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.updateFilters({ assignmentStatus: 'ASSIGNED' }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    assignDispatchDetailCarrierMock.mockResolvedValue({
+      fulfillmentId: 101, version: 4, carrierType: 'EXTERNAL', externalCarrierId: 77,
+      carrierName: 'Nhà xe Việt', externalCarrierVehicleId: null, assignedPlate: null, lotFullyPlated: false,
+    });
+
+    await act(async () => {
+      await result.current.assignCarrier(result.current.items[0], { carrierType: 'EXTERNAL', externalCarrierId: 77 });
+    });
+
+    expect(assignDispatchDetailCarrierMock).toHaveBeenCalledWith(101, { expectedVersion: 3, carrierType: 'EXTERNAL', externalCarrierId: 77 });
+    expect(result.current.items).toEqual([]);
   });
 
   it('replaces rows when moving between offset pages', async () => {

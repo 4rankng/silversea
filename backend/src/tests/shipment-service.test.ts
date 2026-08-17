@@ -723,7 +723,7 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     const row = result.items.find((item) => item.id === ready.id)!;
     assert.equal(row.containerCount20, 2);
     assert.equal(row.containerCount40, 1);
-    assert.equal(row.containerTypeSummary, `2 * 20DC${tag} + 1 * 40HC${tag}`);
+    assert.equal(row.containerTypeSummary, `2 x 20DC${tag} + 1 x 40HC${tag}`);
     assert.equal(row.totalCargoWeightKg, 41000.75);
     assert.equal(row.allocationStatus, 'NOT_ALLOCATED');
     assert.deepEqual(row.carrierAllocationSummary, []);

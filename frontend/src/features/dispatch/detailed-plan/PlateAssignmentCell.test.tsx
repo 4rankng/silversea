@@ -70,6 +70,26 @@ describe('PlateAssignmentCell', () => {
     expect(await screen.findByText('51C-123.45')).toBeTruthy();
   });
 
+  it('changes the carrier before loading its compatible vehicle catalog', async () => {
+    useDesktopViewport();
+    const fleetMock = listDispatchFleetResources as ReturnType<typeof vi.fn>;
+    fleetMock.mockImplementation(async (resource: string, filters: { carrierId?: number | null }) => {
+      if (resource === 'EXTERNAL_CARRIER') return { items: [{ id: 77, name: 'Nhà xe Việt', isActive: true }], nextCursor: null, total: 1 };
+      if (resource === 'EXTERNAL_VEHICLE' && filters.carrierId === 77) return { items: [{ id: 31, licensePlate: '51H-888.88' }], nextCursor: null, total: 1 };
+      return { items: [{ id: 9, licensePlate: '51C-123.45' }], nextCursor: null, total: 1 };
+    });
+    const onAssignCarrier = vi.fn().mockResolvedValue({});
+    const { rerender } = render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} onAssignCarrier={onAssignCarrier} />);
+
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_CARRIER', expect.anything()));
+    screen.getByRole('button', { name: /silversea/i }).click();
+    (await screen.findByText('Nhà xe Việt')).click();
+    await waitFor(() => expect(onAssignCarrier).toHaveBeenCalledWith(expect.objectContaining({ fulfillmentId: 101 }), { carrierType: 'EXTERNAL', externalCarrierId: 77 }));
+
+    rerender(<PlateAssignmentCell row={ownRow({ dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Việt', externalCarrierId: 77, externalCarrierVehicleId: null, assignedPlate: null } })} onAssign={vi.fn()} onAssignCarrier={onAssignCarrier} />);
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 })));
+  });
+
   it('keeps a persisted external plate visible after its locked carrier returns no live vehicles', async () => {
     useDesktopViewport();
     mockFleet([]);

@@ -72,6 +72,15 @@ export interface AssignFulfillmentPlateInput {
   actor: DispatchActor;
 }
 
+export interface AssignFulfillmentCarrierInput {
+  fulfillmentId: number;
+  expectedVersion: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  idempotencyKey: string;
+  actor: DispatchActor;
+}
+
 /** Operational revenue/cost estimates; never a ledger or accounting entry. */
 export interface UpdateFulfillmentEstimatesInput {
   fulfillmentId: number;
@@ -1113,6 +1122,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
 
     const externalCarrierWhere = and(
       eq(s.customers.isCarrier, true),
+      eq(s.customers.status, 'ACTIVE'),
       isNull(s.customers.deletedAt),
       qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
       cursor ? or(
@@ -1122,6 +1132,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
     );
     const externalCarrierCountWhere = and(
       eq(s.customers.isCarrier, true),
+      eq(s.customers.status, 'ACTIVE'),
       isNull(s.customers.deletedAt),
       qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
     );
@@ -1130,6 +1141,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       tx.select({
         id: s.customers.id,
         name: s.customers.name,
+        isActive: sql<boolean>`${s.customers.status} = 'ACTIVE'`,
       }).from(s.customers)
         .where(externalCarrierWhere)
         .orderBy(asc(s.customers.name), asc(s.customers.id))
@@ -2103,11 +2115,122 @@ interface PlateMutationResult {
   driverHint: string | null;
 }
 
+interface CarrierMutationResult {
+  fulfillmentId: number;
+  version: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId: number | null;
+  carrierName: string;
+  externalCarrierVehicleId: null;
+  assignedPlate: null;
+  lotFullyPlated: boolean;
+}
+
 // Same display normalization the carrier vehicle catalog uses
 // (carrier-fleet-vehicle.service.ts formatPlate): trim, uppercase, collapse
 // internal whitespace.
 function normalizeFreeTextPlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Reassign exactly one ready fulfillment from the detailed vehicle workspace.
+ * The master-plan allocation remains the aggregate planning surface; this
+ * command only changes the selected operational task and atomically removes
+ * its now-incompatible vehicle/plate assignment.
+ */
+export async function assignFulfillmentCarrierWriteCommand(input: AssignFulfillmentCarrierInput): Promise<CarrierMutationResult & { replayed: boolean }> {
+  assertDispatchActor(input.actor);
+  const outcome = await runIdempotent<CarrierMutationResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CARRIER_ASSIGN,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      fulfillmentId: input.fulfillmentId,
+      expectedVersion: input.expectedVersion,
+      carrierType: input.carrierType,
+      externalCarrierId: input.externalCarrierId,
+    },
+    createdBy: input.actor.userId,
+    entityType: 'shipment_fulfillments',
+    getEntityId: (result) => result.fulfillmentId,
+    create: (tx) => assignFulfillmentCarrierInTx(tx, input),
+  });
+  return { ...outcome.result, replayed: outcome.replayed };
+}
+
+async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillmentCarrierInput): Promise<CarrierMutationResult> {
+  // Read the parent id first, then use the same shipment → fulfillment lock
+  // order as dispatch issuance so this mutation cannot deadlock with it.
+  const [candidate] = await tx.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+    .from(s.shipmentFulfillments)
+    .where(and(eq(s.shipmentFulfillments.id, input.fulfillmentId), isNull(s.shipmentFulfillments.canceledAt)))
+    .limit(1);
+  if (!candidate) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(and(eq(s.shipments.id, candidate.shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+  await assertActorCanAccessShipment(tx, shipment.id, input.actor, { write: true });
+  await assertShipmentAccountingUnlocked(tx, shipment.id);
+  if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
+    throw new ApiError(409, 'Chỉ được đổi nhà xe khi lô đang sẵn sàng điều xe.');
+  }
+
+  const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+    .where(and(eq(s.shipmentFulfillments.id, input.fulfillmentId), isNull(s.shipmentFulfillments.canceledAt)))
+    .for('update')
+    .limit(1);
+  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+  if (fulfillment.version !== input.expectedVersion) {
+    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  if (await loadLiveTripForFulfillment(tx, fulfillment.id)) {
+    throw new ApiError(409, 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.');
+  }
+
+  let carrierName = INTERNAL_FLEET_CARRIER_NAME;
+  if (input.carrierType === 'OWN') {
+    if (input.externalCarrierId != null) throw new ApiError(400, 'Xe nội bộ không dùng mã nhà xe ngoài.');
+  } else {
+    if (input.externalCarrierId == null) throw new ApiError(400, 'Nhà xe ngoài là bắt buộc.');
+    const [carrier] = await tx.select({ id: s.customers.id, name: s.customers.name })
+      .from(s.customers)
+      .where(and(
+        eq(s.customers.id, input.externalCarrierId),
+        eq(s.customers.isCarrier, true),
+        eq(s.customers.status, 'ACTIVE'),
+        isNull(s.customers.deletedAt),
+      ))
+      .limit(1);
+    if (!carrier) throw new ApiError(409, 'Nhà xe không còn hiệu lực.');
+    carrierName = carrier.name;
+  }
+
+  const [updated] = await tx.update(s.shipmentFulfillments).set({
+    plannedCarrierType: input.carrierType,
+    plannedExternalCarrierId: input.carrierType === 'EXTERNAL' ? input.externalCarrierId : null,
+    plannedExternalCarrierVehicleId: null,
+    plannedVehiclePlateNumber: null,
+    version: fulfillment.version + 1,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.shipmentFulfillments.id, fulfillment.id),
+    eq(s.shipmentFulfillments.version, fulfillment.version),
+  )).returning();
+  if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+
+  return {
+    fulfillmentId: updated.id,
+    version: updated.version,
+    carrierType: input.carrierType,
+    externalCarrierId: input.carrierType === 'EXTERNAL' ? input.externalCarrierId : null,
+    carrierName,
+    externalCarrierVehicleId: null,
+    assignedPlate: null,
+    lotFullyPlated: await recomputeLotFullyPlated(tx, shipment.id),
+  };
 }
 
 export async function assignFulfillmentPlate(input: AssignFulfillmentPlateInput): Promise<PlateMutationResult & { replayed: boolean }> {

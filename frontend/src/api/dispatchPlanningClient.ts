@@ -266,6 +266,25 @@ export function assignDispatchDetailPlate(fulfillmentId: number, body: {
   });
 }
 
+export function assignDispatchDetailCarrier(fulfillmentId: number, body: {
+  expectedVersion: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId?: number | null;
+}) {
+  return api.patch<{
+    fulfillmentId: number;
+    version: number;
+    carrierType: 'OWN' | 'EXTERNAL';
+    externalCarrierId: number | null;
+    carrierName: string;
+    externalCarrierVehicleId: null;
+    assignedPlate: null;
+    lotFullyPlated: boolean;
+  }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/carrier`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
 export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
   expectedVersion: number;
   plannedRevenue: number | null;

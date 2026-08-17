@@ -106,6 +106,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_CREATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.CARRIER_FLEET_VEHICLE_UPDATE, pattern: /^\/api\/shipments\/carrier-fleet-vehicles\/[^/]+$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN, pattern: /^\/api\/shipments\/[^/]+\/carrier-allocations$/ },
+  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CARRIER_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/carrier$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/plate$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/estimates$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE, pattern: /^\/api\/shipments\/[^/]+\/accounting-lock$/ },

@@ -106,6 +106,7 @@ import {
 import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForIntake, submitShipmentForDispatch } from '../services/shipment-intake.service';
 import {
   acceptDispatchHandoff,
+  assignFulfillmentCarrierWriteCommand,
   assignFulfillmentPlate,
   updateFulfillmentEstimates,
   issueFulfillmentDispatchOrder,
@@ -889,11 +890,46 @@ const assignFulfillmentPlateSchema = z.object({
   { message: 'Chỉ chọn một nguồn biển số.' },
 );
 
+const assignFulfillmentCarrierSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  carrierType: z.enum(['OWN', 'EXTERNAL']),
+  externalCarrierId: z.number().int().positive().nullish(),
+}).strict().superRefine((value, ctx) => {
+  if (value.carrierType === 'OWN' && value.externalCarrierId != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Xe nội bộ không dùng mã nhà xe ngoài.' });
+  }
+  if (value.carrierType === 'EXTERNAL' && value.externalCarrierId == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Nhà xe ngoài là bắt buộc.' });
+  }
+});
+
 const updateFulfillmentEstimatesSchema = z.object({
   expectedVersion: z.number().int().positive(),
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
 }).strict();
+
+router.patch(
+  '/dispatch-detail-plan-rows/:fulfillmentId/carrier',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const fulfillmentId = Number(req.params.fulfillmentId);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      throw new ApiError(400, 'fulfillmentId không hợp lệ.');
+    }
+    const parsed = assignFulfillmentCarrierSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    res.json(await assignFulfillmentCarrierWriteCommand({
+      fulfillmentId,
+      expectedVersion: parsed.data.expectedVersion,
+      carrierType: parsed.data.carrierType,
+      externalCarrierId: parsed.data.externalCarrierId ?? null,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
+    }));
+  }),
+);
 
 router.patch(
   '/dispatch-detail-plan-rows/:fulfillmentId/plate',

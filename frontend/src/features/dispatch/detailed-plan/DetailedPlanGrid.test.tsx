@@ -45,6 +45,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       sortKey={null}
       onToggleSort={vi.fn()}
       onAssignPlate={vi.fn()}
+      onAssignCarrier={vi.fn()}
       {...extraProps}
     />,
   );
@@ -143,6 +144,16 @@ describe('DetailedPlanGrid', () => {
     })]);
     expect(screen.getByText('CUS sẽ bổ sung')).toBeTruthy();
     expect(screen.getByText('Nhà xe Việt')).toBeTruthy();
+  });
+
+  it('keeps only carrier and vehicle assignment editable in the dispatch cell', () => {
+    renderGrid([row()]);
+
+    expect(screen.getByText('Nhà xe')).toBeTruthy();
+    expect(screen.getByText('Xe / biển số')).toBeTruthy();
+    expect(screen.queryByLabelText('Cước thu dự kiến')).toBeNull();
+    expect(screen.queryByLabelText('Cước trả dự kiến')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu cước' })).toBeNull();
   });
 
   it('surfaces assignment errors and the lot banner', () => {

@@ -38,7 +38,7 @@ const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem =
   bookingRef: null,
   containerCount20: 2,
   containerCount40: 2,
-  containerTypeSummary: '2 * 40HC + 2 * 20DC',
+  containerTypeSummary: '2 x 40HC + 2 x 20DC',
   totalCargoWeightKg: null,
   allocationStatus: 'NOT_ALLOCATED',
   carrierAllocationSummary: [],

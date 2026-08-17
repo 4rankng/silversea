@@ -23,7 +23,7 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   operationalNotes: 'Giao giờ hành chính',
   containerCount20: 1,
   containerCount40: 2,
-  containerTypeSummary: '2 * 40HC + 1 * 20DC',
+  containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
   carrierAllocationSummary: [],
@@ -53,7 +53,9 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Nhập')).toBeTruthy();
     expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toBeTruthy();
     expect(screen.getByText(/Hạ: Kho Bình Dương/)).toBeTruthy();
-    expect(screen.getByText('2 * 40HC + 1 * 20DC')).toBeTruthy();
+    const cargoCell = screen.getByText('2 x 40HC').closest('td');
+    expect(cargoCell).toBeTruthy();
+    expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Phân bổ' })).toBeTruthy();
@@ -74,6 +76,13 @@ describe('MasterPlanGrid', () => {
     expect(lineRule).toContain('overflow-wrap: anywhere');
     expect(lineRule).not.toContain('text-overflow: ellipsis');
     expect(lineRule).not.toContain('overflow: hidden');
+  });
+
+  it('normalizes older container-summary separators while keeping each type on its own line', () => {
+    render(<MasterPlanGrid items={[item({ containerTypeSummary: '1 * 40HC + 1×20HC' })]} onAllocate={vi.fn()} />);
+
+    expect(screen.getByText('1 x 40HC')).toBeTruthy();
+    expect(screen.getByText('1 x 20HC')).toBeTruthy();
   });
 
   it('renders allocation chips and edit label when fully allocated', () => {

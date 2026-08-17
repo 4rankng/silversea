@@ -3,15 +3,21 @@ import type { CursorPaginatedResponse } from '@tingting/shared';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
-  type DispatchTruck,
   type DispatchDetailPlanRow,
+  type DispatchExternalCarrier,
+  type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
 import { SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import './PlateAssignmentCell.css';
 
 const PAGE_LOAD_SIZE = 50;
+const OWN_TRUCK_PREFIX = 'truck:';
+const EXTERNAL_VEHICLE_PREFIX = 'vehicle:';
+const EXTERNAL_CARRIER_PREFIX = 'carrier:';
+const OWN_CARRIER_VALUE = 'carrier:own';
+const FREE_TEXT_PREFIX = 'free:';
+const CURRENT_PLATE_PREFIX = 'current:';
 
-// Same display normalization the backend applies to free-text plates.
 function normalizePlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
 }
@@ -21,181 +27,150 @@ function mapFleetResponse(
   isOwn: boolean,
 ): SearchableSelectOption[] {
   return isOwn
-    ? (response.items as DispatchTruck[]).map<SearchableSelectOption>((truck) => ({
-      value: `${OWN_TRUCK_PREFIX}${truck.id}`,
-      label: truck.licensePlate,
-    }))
-    : (response.items as DispatchCarrierVehicle[]).map<SearchableSelectOption>((vehicle) => ({
-      value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`,
-      label: vehicle.licensePlate,
-    }));
+    ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
+    : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
 }
-
-const OWN_TRUCK_PREFIX = 'truck:';
-const EXTERNAL_VEHICLE_PREFIX = 'vehicle:';
-const FREE_TEXT_PREFIX = 'free:';
-const CURRENT_PLATE_PREFIX = 'current:';
 
 interface PlateAssignmentCellProps {
   row: DispatchDetailPlanRow;
-  onAssign: (
-    row: DispatchDetailPlanRow,
-    body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean },
-  ) => Promise<unknown>;
+  onAssign: (row: DispatchDetailPlanRow, body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean }) => Promise<unknown>;
+  onAssignCarrier?: (row: DispatchDetailPlanRow, body: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null }) => Promise<unknown>;
   disabled?: boolean;
 }
 
-/**
- * In-grid plate assignment control (docx §5 col 6): OWN rows pick from the
- * company truck fleet; EXTERNAL rows pick from the vendor's vehicle catalog
- * OR type a free-text plate OR leave empty ("CUS sẽ bổ sung").
- */
-export function PlateAssignmentCell({ row, onAssign, disabled = false }: PlateAssignmentCellProps) {
+/** The detailed dispatch cell is the grid's sole inline editor: carrier first, then compatible vehicle. */
+export function PlateAssignmentCell({ row, onAssign, onAssignCarrier = async () => undefined, disabled = false }: PlateAssignmentCellProps) {
   const isOwn = row.dispatch.carrierType === 'OWN';
-  const [options, setOptions] = useState<SearchableSelectOption[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [nextPageCursor, setNextPageCursor] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [vehicleOptions, setVehicleOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleCursor, setVehicleCursor] = useState<string | null>(null);
+  const [carrierOptions, setCarrierOptions] = useState<SearchableSelectOption[]>([]);
+  const [loadingCarriers, setLoadingCarriers] = useState(false);
+  const [carrierSearch, setCarrierSearch] = useState('');
+  const [carrierCursor, setCarrierCursor] = useState<string | null>(null);
+  const [savingVehicle, setSavingVehicle] = useState(false);
+  const [savingCarrier, setSavingCarrier] = useState(false);
+  const [awaitingCarrierVehicle, setAwaitingCarrierVehicle] = useState(false);
 
-  const currentValue = row.dispatch.assignedPlate ?? '';
-
-  // Preserve the persisted plate while the live fleet list is loading or when
-  // its carrier is no longer active. A current option is display-only: users
-  // may clear it or choose a live vehicle, but cannot accidentally reassign it.
-  const selectedValue = useMemo(() => {
-    if (!currentValue) return '';
-    return options.find((option) => option.label === currentValue)?.value
-      ?? `${CURRENT_PLATE_PREFIX}${currentValue}`;
-  }, [currentValue, options]);
-
-  const selectableOptions = useMemo(() => (
-    currentValue && !options.some((option) => option.label === currentValue)
-      ? [{ value: `${CURRENT_PLATE_PREFIX}${currentValue}`, label: currentValue }, ...options]
-      : options
-  ), [currentValue, options]);
+  const currentPlate = row.dispatch.assignedPlate ?? '';
+  const carrierValue = isOwn ? OWN_CARRIER_VALUE : `${EXTERNAL_CARRIER_PREFIX}${row.dispatch.externalCarrierId}`;
+  const selectedVehicleValue = useMemo(() => {
+    if (!currentPlate) return '';
+    return vehicleOptions.find((option) => option.label === currentPlate)?.value ?? `${CURRENT_PLATE_PREFIX}${currentPlate}`;
+  }, [currentPlate, vehicleOptions]);
+  const selectableVehicleOptions = useMemo(() => (
+    currentPlate && !vehicleOptions.some((option) => option.label === currentPlate)
+      ? [{ value: `${CURRENT_PLATE_PREFIX}${currentPlate}`, label: currentPlate }, ...vehicleOptions]
+      : vehicleOptions
+  ), [currentPlate, vehicleOptions]);
+  const selectableCarrierOptions = useMemo(() => {
+    const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
+    if (!isOwn && !options.some((option) => option.value === carrierValue)) {
+      options.splice(1, 0, { value: carrierValue, label: row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
+    }
+    return options;
+  }, [carrierOptions, carrierValue, isOwn, row.dispatch.carrierName]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingOptions(true);
-    const request = isOwn
-      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: searchQuery || undefined })
-      : listDispatchFleetResources('EXTERNAL_VEHICLE', {
-        limit: PAGE_LOAD_SIZE,
-        q: searchQuery || undefined,
-        carrierId: row.dispatch.externalCarrierId,
-      });
-    request
+    setLoadingCarriers(true);
+    listDispatchFleetResources('EXTERNAL_CARRIER', { limit: PAGE_LOAD_SIZE, q: carrierSearch || undefined })
       .then((response) => {
         if (cancelled) return;
-        const mapped = mapFleetResponse(response, isOwn);
-        // Free-text affordance for EXTERNAL rows: typing something not in the
-        // catalog offers to use it verbatim.
-        const freeTextOption = !isOwn && searchQuery.trim().length >= 4 && !mapped.some((option) => option.label === normalizePlate(searchQuery))
-          ? [{ value: `${FREE_TEXT_PREFIX}${normalizePlate(searchQuery)}`, label: `Dùng biển số: ${normalizePlate(searchQuery)}` }]
-          : [];
-        setOptions([...freeTextOption, ...mapped]);
-        setNextPageCursor(response.nextCursor);
-        setLoadingOptions(false);
+        setCarrierOptions((response.items as DispatchExternalCarrier[])
+          .filter((carrier) => carrier.isActive !== false)
+          .map((carrier) => ({ value: `${EXTERNAL_CARRIER_PREFIX}${carrier.id}`, label: carrier.name })));
+        setCarrierCursor(response.nextCursor);
       })
-      .catch(() => {
-        if (cancelled) return;
-        setOptions([]);
-        setNextPageCursor(null);
-        setLoadingOptions(false);
-      });
+      .catch(() => { if (!cancelled) { setCarrierOptions([]); setCarrierCursor(null); } })
+      .finally(() => { if (!cancelled) setLoadingCarriers(false); });
     return () => { cancelled = true; };
-  }, [isOwn, searchQuery, row.dispatch.externalCarrierId]);
+  }, [carrierSearch]);
 
-  const loadMoreOptions = () => {
-    if (nextPageCursor == null || loadingOptions) return;
-    setLoadingOptions(true);
+  useEffect(() => {
+    let cancelled = false;
+    setVehicleOptions([]);
+    setVehicleCursor(null);
+    setLoadingVehicles(true);
     const request = isOwn
-      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: searchQuery || undefined, cursor: nextPageCursor })
-      : listDispatchFleetResources('EXTERNAL_VEHICLE', {
-        limit: PAGE_LOAD_SIZE,
-        q: searchQuery || undefined,
-        carrierId: row.dispatch.externalCarrierId,
-        cursor: nextPageCursor,
-      });
-    request
-      .then((response) => {
-        const mapped = mapFleetResponse(response, isOwn);
-        // Keep any free-text option pinned at the top; append the new page.
-        // Re-check the pin: if the loaded page contains the exact plate, the
-        // free-text duplicate is dropped in favor of the catalog option.
-        setOptions((prev) => {
-          const withoutFreeText = prev.filter((option) => !option.value.startsWith(FREE_TEXT_PREFIX));
-          const existing = new Set(withoutFreeText.map((option) => option.value));
-          const fresh = mapped.filter((option) => !existing.has(option.value));
-          const combined = [...withoutFreeText, ...fresh];
-          const prevFreeText = prev.filter((option) => option.value.startsWith(FREE_TEXT_PREFIX))
-            .filter((option) => !combined.some((option2) => option2.label === option.label.replace('Dùng biển số: ', '')));
-          return [...prevFreeText, ...combined];
-        });
-        setNextPageCursor(response.nextCursor);
-        setLoadingOptions(false);
-      })
-      .catch(() => {
-        setNextPageCursor(null);
-        setLoadingOptions(false);
-      });
+      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined })
+      : listDispatchFleetResources('EXTERNAL_VEHICLE', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, carrierId: row.dispatch.externalCarrierId });
+    request.then((response) => {
+      if (cancelled) return;
+      const mapped = mapFleetResponse(response, isOwn);
+      const freeTextOption = !isOwn && vehicleSearch.trim().length >= 4 && !mapped.some((option) => option.label === normalizePlate(vehicleSearch))
+        ? [{ value: `${FREE_TEXT_PREFIX}${normalizePlate(vehicleSearch)}`, label: `Dùng biển số: ${normalizePlate(vehicleSearch)}` }]
+        : [];
+      setVehicleOptions([...freeTextOption, ...mapped]);
+      setVehicleCursor(response.nextCursor);
+    }).catch(() => { if (!cancelled) { setVehicleOptions([]); setVehicleCursor(null); } })
+      .finally(() => { if (!cancelled) { setLoadingVehicles(false); setAwaitingCarrierVehicle(false); } });
+    return () => { cancelled = true; };
+  }, [isOwn, vehicleSearch, row.dispatch.externalCarrierId]);
+
+  const handleCarrierChange = async (value: string) => {
+    if (savingCarrier || disabled || value === carrierValue) return;
+    setSavingCarrier(true);
+    setAwaitingCarrierVehicle(true);
+    setVehicleOptions([]);
+    setVehicleSearch('');
+    setVehicleCursor(null);
+    let changed = false;
+    try {
+      if (value === OWN_CARRIER_VALUE) { await onAssignCarrier(row, { carrierType: 'OWN' }); changed = true; }
+      else if (value.startsWith(EXTERNAL_CARRIER_PREFIX)) { await onAssignCarrier(row, { carrierType: 'EXTERNAL', externalCarrierId: Number(value.slice(EXTERNAL_CARRIER_PREFIX.length)) }); changed = true; }
+    } finally {
+      setSavingCarrier(false);
+      if (!changed) setAwaitingCarrierVehicle(false);
+    }
   };
 
-  const handleChange = async (value: string) => {
-    if (saving || disabled) return;
-    if (value === '') {
-      // Clear
-      setSaving(true);
-      try {
-        await onAssign(row, { clear: true });
-      } catch {
-        /* error surfaced by parent */
-      } finally {
-        setSaving(false);
-      }
-      return;
-    }
-    if (value.startsWith(CURRENT_PLATE_PREFIX)) return;
-    setSaving(true);
+  const loadMoreCarriers = () => {
+    if (carrierCursor == null || loadingCarriers) return;
+    setLoadingCarriers(true);
+    listDispatchFleetResources('EXTERNAL_CARRIER', { limit: PAGE_LOAD_SIZE, q: carrierSearch || undefined, cursor: carrierCursor })
+      .then((response) => {
+        const fresh = (response.items as DispatchExternalCarrier[]).filter((carrier) => carrier.isActive !== false)
+          .map((carrier) => ({ value: `${EXTERNAL_CARRIER_PREFIX}${carrier.id}`, label: carrier.name }));
+        setCarrierOptions((previous) => [...previous, ...fresh.filter((item) => !previous.some((option) => option.value === item.value))]);
+        setCarrierCursor(response.nextCursor);
+      }).finally(() => setLoadingCarriers(false));
+  };
+
+  const loadMoreVehicles = () => {
+    if (vehicleCursor == null || loadingVehicles || savingCarrier) return;
+    setLoadingVehicles(true);
+    const request = isOwn
+      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, cursor: vehicleCursor })
+      : listDispatchFleetResources('EXTERNAL_VEHICLE', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, carrierId: row.dispatch.externalCarrierId, cursor: vehicleCursor });
+    request.then((response) => {
+      const mapped = mapFleetResponse(response, isOwn);
+      setVehicleOptions((previous) => [...previous, ...mapped.filter((item) => !previous.some((option) => option.value === item.value))]);
+      setVehicleCursor(response.nextCursor);
+    }).catch(() => setVehicleCursor(null)).finally(() => setLoadingVehicles(false));
+  };
+
+  const handleVehicleChange = async (value: string) => {
+    if (savingVehicle || savingCarrier || disabled || loadingVehicles) return;
+    setSavingVehicle(true);
     try {
-      if (value.startsWith(OWN_TRUCK_PREFIX)) {
-        await onAssign(row, { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) });
-      } else if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) {
-        await onAssign(row, { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) });
-      } else if (value.startsWith(FREE_TEXT_PREFIX)) {
-        await onAssign(row, { plateNumber: value.slice(FREE_TEXT_PREFIX.length) });
-      }
-    } catch {
-      /* error surfaced by parent */
+      if (value === '') await onAssign(row, { clear: true });
+      else if (value.startsWith(OWN_TRUCK_PREFIX)) await onAssign(row, { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) });
+      else if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) await onAssign(row, { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) });
+      else if (value.startsWith(FREE_TEXT_PREFIX)) await onAssign(row, { plateNumber: value.slice(FREE_TEXT_PREFIX.length) });
     } finally {
-      setSaving(false);
+      setSavingVehicle(false);
     }
   };
 
   return (
     <div className="plate-assignment">
-      <div className="plate-assignment__carrier">{row.dispatch.carrierName ?? '—'}</div>
-      <SearchableSelect
-        className="plate-assignment__select"
-        id={`plate-${row.fulfillmentId}`}
-        value={selectedValue}
-        onChange={handleChange}
-        onSearchChange={setSearchQuery}
-        options={selectableOptions}
-        placeholder={isOwn ? 'Chọn biển số xe' : 'Chọn hoặc nhập biển số'}
-        searchPlaceholder="Tìm biển số xe…"
-        emptyMessage={loadingOptions ? 'Đang tải…' : 'Không tìm thấy xe phù hợp.'}
-        disabled={disabled || saving}
-        clearable
-        clearLabel="Bỏ gán biển số"
-        hasMore={nextPageCursor != null}
-        onLoadMore={loadMoreOptions}
-        loadingMore={loadingOptions && options.length > 0}
-      />
-      {!isOwn && !currentValue && (
-        <div className="plate-assignment__hint">CUS sẽ bổ sung</div>
-      )}
+      <div className="plate-assignment__field-label">Nhà xe</div>
+      <SearchableSelect className="plate-assignment__select" id={`carrier-${row.fulfillmentId}`} value={carrierValue} onChange={handleCarrierChange} onSearchChange={setCarrierSearch} options={selectableCarrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe…" emptyMessage={loadingCarriers ? 'Đang tải…' : 'Không tìm thấy nhà xe phù hợp.'} disabled={disabled || savingCarrier} hasMore={carrierCursor != null} onLoadMore={loadMoreCarriers} loadingMore={loadingCarriers && carrierOptions.length > 0} />
+      <div className="plate-assignment__field-label">Xe / biển số</div>
+      <SearchableSelect className="plate-assignment__select" id={`plate-${row.fulfillmentId}`} value={selectedVehicleValue} onChange={handleVehicleChange} onSearchChange={setVehicleSearch} options={selectableVehicleOptions} placeholder={isOwn ? 'Chọn biển số xe' : 'Chọn hoặc nhập biển số'} searchPlaceholder="Tìm biển số xe…" emptyMessage={loadingVehicles ? 'Đang tải…' : 'Không tìm thấy xe phù hợp.'} disabled={disabled || savingCarrier || savingVehicle || awaitingCarrierVehicle} clearable clearLabel="Bỏ gán biển số" hasMore={vehicleCursor != null} onLoadMore={loadMoreVehicles} loadingMore={loadingVehicles && vehicleOptions.length > 0} />
+      {!isOwn && !currentPlate && <div className="plate-assignment__hint">CUS sẽ bổ sung</div>}
     </div>
   );
 }

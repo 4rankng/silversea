@@ -47,6 +47,20 @@ function formatWeight(kg: number | null): string {
 }
 
 /**
+ * The API uses ` + ` to keep the grouped container demand machine-readable.
+ * Render each type as its own operational line, while accepting summaries from
+ * an older backend that still used `*` or `×` during a rolling deployment.
+ */
+function formatContainerSummaryLines(summary: string | null): string[] {
+  if (!summary) return ['—'];
+
+  return summary
+    .split(/\s*\+\s*/)
+    .map((part) => part.trim().replace(/^(\d+)\s*(?:\*|×|x)\s*/i, '$1 x '))
+    .filter(Boolean);
+}
+
+/**
  * Multi-line dispatch master-plan grid (docx §3): 7 grouped columns, ≤3 lines
  * per cell, no horizontal scroll. Col 7 hosts the allocation action (Phase 3).
  */
@@ -115,8 +129,12 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <div className="master-plan-grid__line">Hạ: {item.deliveryLocation ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">
-                    {item.containerTypeSummary ?? '—'}
+                  <div className="master-plan-grid__cargo-summary">
+                    {formatContainerSummaryLines(item.containerTypeSummary).map((summaryLine) => (
+                      <div key={summaryLine} className="master-plan-grid__line master-plan-grid__line--strong">
+                        {summaryLine}
+                      </div>
+                    ))}
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">
                     {formatWeight(item.totalCargoWeightKg)}

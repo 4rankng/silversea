@@ -512,7 +512,7 @@ export interface ShipmentListItem extends Shipment {
   customerName: string | null;
   containerCount20: number;
   containerCount40: number;
-  /** e.g. "2 * 40HC + 1 * 20DC" */
+  /** e.g. "2 x 40HC + 1 x 20DC" */
   containerTypeSummary: string | null;
   totalCargoWeightKg: number | null;
   allocationStatus: ShipmentAllocationStatus;
