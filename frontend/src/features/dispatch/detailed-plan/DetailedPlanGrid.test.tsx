@@ -161,6 +161,8 @@ describe('DetailedPlanGrid', () => {
 
     expect(screen.getByText('Nhà xe')).toBeTruthy();
     expect(screen.getByText('Xe / biển số')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /silversea/i })).toHaveClass('searchable-select__trigger--sm');
+    expect(screen.getByLabelText('Cước thu dự kiến')).toHaveClass('fulfillment-estimate-cell__input');
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
     fireEvent.change(screen.getByLabelText('Cước trả dự kiến'), { target: { value: '1900000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu cước' }));
@@ -169,6 +171,20 @@ describe('DetailedPlanGrid', () => {
       expect.objectContaining({ fulfillmentId: 101 }),
       { plannedRevenue: 2500000, plannedCarrierCost: 1900000 },
     ));
+  });
+
+  it('keeps the in-grid dispatcher editor physically dense without changing fee typography', () => {
+    const plateCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/PlateAssignmentCell.css'), 'utf8');
+    const gridCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+
+    expect(plateCss).toContain('min-height: 30px;');
+    expect(plateCss).toContain('height: 30px;');
+    expect(plateCss).toContain('font-size: var(--fs-xs);');
+    expect(plateCss).toContain('min-height: 34px;');
+    expect(plateCss).toContain('font-size: var(--fs-sm);');
+    expect(gridCss).toContain('.fulfillment-estimate-cell__input { width: 100%; min-height: 30px; height: 30px; padding: 2px 8px; font: inherit;');
+    expect(gridCss).toContain('.fulfillment-estimate-cell .btn--sm { min-height: 30px; padding: 3px 10px; }');
+    expect(gridCss).toContain('.fulfillment-estimate-cell__input { min-height: 34px; height: 34px; }');
   });
 
   it('surfaces assignment errors and the lot banner', () => {

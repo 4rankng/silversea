@@ -48,6 +48,8 @@ export interface SearchableSelectProps {
   /** Validation state and associated helper/error content owned by the caller. */
   ariaInvalid?: boolean;
   ariaDescribedBy?: string;
+  /** Semantic trigger density. Use `sm` for compact operational toolbars and grids. */
+  size?: 'sm' | 'md';
 }
 
 function normalizeSearchText(value: string): string {
@@ -111,6 +113,7 @@ export function SearchableSelect({
   clearLabel = 'Bỏ chọn',
   ariaInvalid,
   ariaDescribedBy,
+  size = 'md',
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -433,7 +436,7 @@ export function SearchableSelect({
         ref={triggerRef}
         id={id}
         type="button"
-        className={`input searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
+        className={`input searchable-select__trigger searchable-select__trigger--${size}${isOpen ? ' searchable-select__trigger--open' : ''}`}
         onClick={() => (isOpen ? close() : open())}
         disabled={disabled}
         aria-haspopup={isMobile ? 'dialog' : 'listbox'}

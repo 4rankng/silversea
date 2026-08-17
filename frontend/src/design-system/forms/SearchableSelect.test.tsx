@@ -10,6 +10,12 @@ const ROUTES = [
 ];
 
 describe('SearchableSelect', () => {
+  it('uses the compact shared field contract when requested', () => {
+    render(<SearchableSelect id="compact-select" value="" onChange={() => {}} options={ROUTES} size="sm" />);
+
+    expect(screen.getByRole('button', { name: /chọn một mục/i })).toHaveClass('searchable-select__trigger--sm');
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

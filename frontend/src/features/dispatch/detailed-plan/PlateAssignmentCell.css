@@ -3,18 +3,13 @@
 .plate-assignment {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .plate-assignment__select,
 .plate-assignment__select .searchable-select__trigger {
   min-width: 0;
-}
-
-.plate-assignment__select .searchable-select__trigger {
-  min-height: 36px;
-  padding: 0 10px;
 }
 
 .plate-assignment__select .searchable-select__value,
@@ -24,16 +19,33 @@
   white-space: nowrap;
 }
 
+.plate-assignment__select .searchable-select__trigger--sm {
+  min-height: 30px;
+  height: 30px;
+  padding-inline: 8px;
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 640px) {
+  /* This dense dispatch worksheet prioritizes scan speed over form-style space. */
+  .plate-assignment__select .searchable-select__trigger--sm {
+    min-height: 34px;
+    height: 34px;
+    padding-inline: 10px;
+    font-size: var(--fs-sm);
+  }
+}
+
 .plate-assignment__field-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.25;
   color: var(--text-secondary, #64748b);
 }
 
 .plate-assignment__hint {
-  font-size: 12px;
+  font-size: 11px;
   font-style: italic;
-  line-height: 1.4;
+  line-height: 1.25;
   color: var(--text-secondary, #94a3b8);
 }

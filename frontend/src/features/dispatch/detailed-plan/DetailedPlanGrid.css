@@ -541,10 +541,16 @@
 }
 .detailed-plan-grid__badge--combined { margin-top: 4px; border-color: color-mix(in srgb, var(--warning, #d97706) 38%, var(--line-2)); background: var(--warning-soft, #fffaeb); color: var(--warning-text, #92400e); }
 
-.fulfillment-estimate-cell { display: grid; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color, #eef2f7); }
-.fulfillment-estimate-cell label { display: grid; gap: 3px; color: var(--text-secondary, #64748b); font-size: 11px; font-weight: 600; }
-.fulfillment-estimate-cell input { width: 100%; min-height: 34px; border: 1px solid var(--border-color-secondary, #e2e8f0); border-radius: 6px; background: var(--surface, #fff); color: var(--text-primary, #101828); padding: 5px 8px; font: inherit; }
+.fulfillment-estimate-cell { display: grid; gap: 3px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border-color, #eef2f7); }
+.fulfillment-estimate-cell label { display: grid; gap: 2px; color: var(--text-secondary, #64748b); font-size: 11px; font-weight: 600; }
+.fulfillment-estimate-cell__input { width: 100%; min-height: 30px; height: 30px; padding: 2px 8px; font: inherit; color: var(--text-primary, #101828); background: var(--surface, #fff); border: 1px solid var(--border-color-secondary, #e2e8f0); border-radius: 6px; }
+.fulfillment-estimate-cell .btn--sm { min-height: 30px; padding: 3px 10px; }
 .fulfillment-estimate-cell small { color: var(--text-tertiary, #98a2b3); font-size: 10px; line-height: 1.35; }
+
+@media (max-width: 640px) {
+  .fulfillment-estimate-cell__input { min-height: 34px; height: 34px; }
+  .fulfillment-estimate-cell .btn--sm { min-height: 34px; padding-block: 3px; }
+}
 
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;

@@ -22,6 +22,14 @@
   cursor: not-allowed;
 }
 
+/* Compact operational fields retain the mobile touch target below 641px. */
+.searchable-select__trigger--sm {
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
+  padding: 0 10px;
+  font-size: var(--fs-xs);
+}
+
 .searchable-select__value,
 .searchable-select__placeholder {
   min-width: 0;
@@ -196,6 +204,13 @@
 }
 
 @media (max-width: 640px) {
+  .searchable-select__trigger--sm {
+    min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
+    padding: 0 12px;
+    font-size: 16px;
+  }
+
   .searchable-select__backdrop {
     position: fixed;
     z-index: calc(var(--z-popover, 400) - 1);

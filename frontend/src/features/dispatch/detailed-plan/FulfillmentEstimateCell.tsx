@@ -53,11 +53,11 @@ export function FulfillmentEstimateCell({ row, onSave }: FulfillmentEstimateCell
     <div className="fulfillment-estimate-cell">
       <label>
         <span>Cước thu dự kiến</span>
-        <input aria-label="Cước thu dự kiến" inputMode="numeric" type="number" min="0" step="1" value={revenue} onChange={(event) => setRevenue(event.target.value)} disabled={saving} />
+        <input className="fulfillment-estimate-cell__input" aria-label="Cước thu dự kiến" inputMode="numeric" type="number" min="0" step="1" value={revenue} onChange={(event) => setRevenue(event.target.value)} disabled={saving} />
       </label>
       <label>
         <span>Cước trả dự kiến</span>
-        <input aria-label="Cước trả dự kiến" inputMode="numeric" type="number" min="0" step="1" value={carrierCost} onChange={(event) => setCarrierCost(event.target.value)} disabled={saving} />
+        <input className="fulfillment-estimate-cell__input" aria-label="Cước trả dự kiến" inputMode="numeric" type="number" min="0" step="1" value={carrierCost} onChange={(event) => setCarrierCost(event.target.value)} disabled={saving} />
       </label>
       <button type="button" className="btn btn--secondary btn--sm" onClick={() => void save()} disabled={saving || invalid || unchanged}>
         {saving ? 'Đang lưu…' : 'Lưu cước'}
