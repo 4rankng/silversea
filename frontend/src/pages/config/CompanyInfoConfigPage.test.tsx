@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompanyInfo } from '@tingting/shared';
@@ -28,6 +28,7 @@ import CompanyInfoConfigPage from './CompanyInfoConfigPage';
 
 const validCompanyInfo: CompanyInfo = {
   name: 'Công ty TNHH TingTing Logistics',
+  shortName: 'TingTing Logistics',
   address: '1 Đường Vận Tải',
   taxCode: '0312345678',
   representative: 'Nguyễn Văn An',
@@ -71,5 +72,16 @@ describe('CompanyInfoConfigPage save readiness', () => {
 
     const saveButton = await screen.findByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' });
     expect(saveButton.disabled).toBe(true);
+  });
+
+  it('requires a short operational name separately from the full legal name', async () => {
+    renderPage();
+
+    expect(screen.getByLabelText('Tên đầy đủ')).toHaveValue('Công ty TNHH TingTing Logistics');
+    const shortName = screen.getByLabelText('Tên ngắn');
+    expect(shortName).toHaveValue('TingTing Logistics');
+
+    fireEvent.change(shortName, { target: { value: '   ' } });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Lưu thông tin' }).disabled).toBe(true);
   });
 });

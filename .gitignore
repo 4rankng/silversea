@@ -64,6 +64,7 @@ qa/scripts/*
 # Playwright artifacts
 playwright-report/
 test-results/
+playwright-results.json
 
 # AI workflow artifacts (local only)
 plans/

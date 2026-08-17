@@ -106,6 +106,7 @@ export async function seedCustomers(): Promise<CustomerSeedResult> {
     // active row explicitly, then update or insert deterministically.
     const customerValues = {
       name: c.name,
+      shortName: c.internalCode,
       taxCode: c.taxCode,
       partnerId,
       contactPerson: c.manager || null,

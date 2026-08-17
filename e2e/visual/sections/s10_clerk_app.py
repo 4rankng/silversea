@@ -1,8 +1,8 @@
 """Section 10 — M10 Ứng dụng nhân viên chứng từ (CUS App).
 
-3 groups: quick shipment create (10.1), document entry (10.2),
-dispatch handoff (10.3). Mobile viewport. Primary surface:
-/shipments/new, /clerk/shipments/:id/docs.
+Quick shipment create and shipment overview for CUS. Mobile viewport.
+Primary surfaces: /shipments/new and /shipments. The separate dossier route is
+intentionally absent until PM defines that workflow.
 
 The canonical CUS fixture is used by default. A legacy CLERK fixture may be
 configured explicitly only for a compatibility run.
@@ -40,16 +40,16 @@ def tc_m10_01_01(ctx: VisualTestContext):
         raise AssertionError("/shipments/new did not render create labels")
 
 
-# ─── 10.2 Document entry ─────────────────────────────────────────────────
+# ─── 10.2 Reserved until PM defines the workflow ─────────────────────────
 
 @tc("TC-M10-02-01", roles=["CUS"], url="/shipments/new",
-    viewport="mobile", title="M10-02-01 CUS doc-entry surface reachable")
+    viewport="mobile", title="M10-02-01 CUS create surface remains reachable")
 def tc_m10_02_01(ctx: VisualTestContext):
     ctx.login("CUS")
     ctx.goto("/shipments/new")
     body = ctx.page.inner_text("body")
     if len(body.strip()) < 50:
-        raise AssertionError("/shipments/new blank for doc-entry")
+        raise AssertionError("/shipments/new blank for CUS")
 
 
 # ─── 10.3 Dispatch handoff ───────────────────────────────────────────────

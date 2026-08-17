@@ -36,3 +36,23 @@ test('customerSchema rejects unknown debit-note modes', () => {
   });
   assert.equal(result.success, false);
 });
+
+test('customerSchema accepts distinct full and short names', () => {
+  const result = customerSchema.safeParse({
+    name: 'Công ty Cổ phần Sản xuất và Thương mại Biển Bạc Việt Nam',
+    shortName: 'Biển Bạc',
+  });
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.data.name, 'Công ty Cổ phần Sản xuất và Thương mại Biển Bạc Việt Nam');
+    assert.equal(result.data.shortName, 'Biển Bạc');
+  }
+});
+
+test('customerSchema rejects an explicitly blank short name', () => {
+  const result = customerSchema.safeParse({
+    name: 'Công ty Biển Bạc',
+    shortName: '   ',
+  });
+  assert.equal(result.success, false);
+});

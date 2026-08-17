@@ -268,6 +268,7 @@ export const tirePositions = pgTable('tire_positions', {
 export const customers = pgTable('customers', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   taxCode: varchar('tax_code', { length: 20 }),
   partnerId: integer('partner_id'),
   contactPerson: varchar('contact_person', { length: 255 }),
@@ -372,6 +373,7 @@ export const userBusinessUnitLinks = pgTable('user_business_unit_links', {
 export const routes = pgTable('routes', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   distanceKm: integer('distance_km'),
   isMountain: boolean('is_mountain').default(false),
   fixedFuelAllowance: numeric('fixed_fuel_allowance', { precision: 10, scale: 2 }),
@@ -2360,6 +2362,7 @@ export const operationalSites = pgTable('operational_sites', {
   customerId: integer('customer_id').notNull(),
   code: varchar('code', { length: 80 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
+  shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   siteType: operationalSiteTypeEnum('site_type').notNull(),
   address: text('address').notNull(),
   googleMapsUrl: text('google_maps_url'),

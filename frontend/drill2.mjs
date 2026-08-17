@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CUS role drill-down: explore ShipmentDetailPage edit form.
+ * CUS role drill-down: inspect shipment detail and container overview.
  */
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -42,22 +42,7 @@ async function main() {
   await page.goto(`${BASE}/shipments/196946`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
 
-  // Click "Cập nhật & điều xe"
-  const updateBtn = await page.$('button:has-text("Cập nhật")');
-  if (updateBtn) {
-    log('clicking Cập nhật & điều xe...');
-    await updateBtn.click();
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: `${SCREENS}/01_after_update_click.png`, fullPage: true });
-  }
-
-  // Look for any modal that opened
-  const dialogs = await page.$$('[role="dialog"]');
-  log('dialogs open:', dialogs.length);
-  for (const d of dialogs) {
-    const txt = await d.textContent();
-    log('  dialog text snippet:', txt?.slice(0, 200));
-  }
+  await page.screenshot({ path: `${SCREENS}/01_shipment_detail.png`, fullPage: true });
 
   // Now look at ShipmentsDetailPage
   await page.goto(`${BASE}/shipments-detail`, { waitUntil: 'networkidle' });

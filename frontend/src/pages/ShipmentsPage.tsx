@@ -217,8 +217,8 @@ function ShipmentQuickEditFields({
         <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
       </>}
       {draft.field === 'notes' && <>
-        <label><span>Ghi chú cho khách</span><textarea autoFocus disabled={saving} rows={3} maxLength={2000} value={draft.customerNote} onChange={(event) => update({ customerNote: event.target.value })} /></label>
-        <label><span>Ghi chú nội bộ</span><textarea disabled={saving} rows={3} maxLength={2000} value={draft.operationalNote} onChange={(event) => update({ operationalNote: event.target.value })} /></label>
+        <label><span>Ghi chú cho khách hàng</span><textarea autoFocus disabled={saving} rows={3} maxLength={2000} value={draft.customerNote} onChange={(event) => update({ customerNote: event.target.value })} /></label>
+        <label><span>Ghi chú cho lái xe</span><textarea disabled={saving} rows={3} maxLength={2000} value={draft.operationalNote} onChange={(event) => update({ operationalNote: event.target.value })} /></label>
         <p className="cus-quick-edit-modal__help">Shift+Enter để xuống dòng.</p>
       </>}
       {error && <p className="cus-inline-edit-error" role="alert">{error}</p>}
@@ -553,7 +553,7 @@ function ContainerLedger({
   onSavingChange?: (saving: boolean) => void;
 }) {
   const [dirtyLineIds, setDirtyLineIds] = useState<Set<number>>(() => new Set());
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(true);
   const [discardAction, setDiscardAction] = useState<'collapse' | 'finish-edit' | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [savingLineIds, setSavingLineIds] = useState<Set<number>>(() => new Set());
@@ -1154,7 +1154,7 @@ export default function ShipmentsPage() {
               : { closingAt: scheduleValue }),
           } : {
             expectedVersion: item.version,
-            operationalNotes: draft.operationalNote.trim() || null,
+            driverNotes: draft.operationalNote.trim() || null,
             customerNotes: draft.customerNote.trim() || null,
           };
       // Declaration lives in its own table behind its own endpoints; when the
@@ -1707,7 +1707,7 @@ export default function ShipmentsPage() {
                             aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
                             onClick={() => startQuickEdit(item, 'notes')}
                           >
-                            <span className={`cus-note-preview__customer${customerNoteLines.length ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines.join(' ') || 'Chưa có ghi chú khách'}</span>
+                            <span className={`cus-note-preview__customer${customerNoteLines.length ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines.join(' ') || 'Chưa có ghi chú cho khách hàng'}</span>
                             {operationalNoteLines.length > 0 && <span className="cus-note-internal">{operationalNoteLines.join(' ')}</span>}
                           </button>
                         </td>

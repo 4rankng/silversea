@@ -118,6 +118,27 @@ describe('shipment intake submission', () => {
     assert.equal(created.name, 'Bãi giao nhận Điều vận');
   });
 
+  test('preserves a curated operational-site short name when a legacy intake update omits it', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const curatedShortName = `NM ngắn ${suffix}`;
+    await db.update(s.operationalSites).set({ shortName: curatedShortName })
+      .where(eq(s.operationalSites.id, ref.site.id));
+
+    const updated = await createOperationalSiteForIntake({
+      customerId: ref.customer.id,
+      code: ref.site.code,
+      name: `Nhà máy tên pháp lý mới ${suffix}`,
+      siteType: ref.site.siteType as OperationalSiteType,
+      address: ref.site.address,
+    }, admin);
+
+    assert.equal(updated.shortName, curatedShortName);
+    const [persisted] = await db.select({ shortName: s.operationalSites.shortName })
+      .from(s.operationalSites).where(eq(s.operationalSites.id, ref.site.id));
+    assert.equal(persisted?.shortName, curatedShortName);
+  });
+
   test('reassigns exact per-container carriers while ready and before any order is issued', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();

@@ -19,6 +19,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
   isOpen: boolean; saving: boolean; item?: RouteType; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState('');
+  const [shortName, setShortName] = useState('');
   const [distance, setDistance] = useState('');
   const [isMountain, setIsMountain] = useState(false);
   const [fuelAllowance, setFuelAllowance] = useState('');
@@ -31,6 +32,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
   useEffect(() => {
     if (isOpen) {
       setName(item?.name || '');
+      setShortName(item?.shortName || item?.name || '');
       setDistance(item?.distanceKm?.toString() || '');
       setIsMountain(item?.isMountain || false);
       setFuelAllowance(item?.fixedFuelAllowance || '');
@@ -71,9 +73,10 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
   }, [isOpen, item?.id]);
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !shortName.trim()) return;
     onsave({
       name: name.trim(),
+      shortName: shortName.trim(),
       distanceKm: distance && Number(distance) > 0 ? Number(distance) : undefined,
       isMountain,
       fixedFuelAllowance: fuelAllowance || null,
@@ -132,7 +135,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa tuyến — ${item.name}` : 'Thêm tuyến đường mới'}
+      title={item ? `Sửa tuyến — ${item.shortName || item.name}` : 'Thêm tuyến đường mới'}
       maxWidth={1000}
       onClose={oncancel}
       onConfirm={handleSave}
@@ -141,7 +144,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
           <button className="btn btn--ghost btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
+          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim() || !shortName.trim()} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm tuyến'}
           </button>
@@ -155,18 +158,15 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
           {/* Basic Info */}
           <div>
             <div style={sectionLabelStyle}>Thông tin cơ bản</div>
-            <div className="field" style={{ marginBottom: 14 }}>
-              <label htmlFor="route-name" style={labelStyle}>
-                Tên tuyến <span style={{ color: 'var(--danger)' }}>*</span>
-              </label>
-              <input
-                id="route-name"
-                className="input"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="VD: Hà Nội - Hải Phòng"
-                autoFocus
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
+              <div className="field">
+                <label htmlFor="route-name" style={labelStyle}>Tên đầy đủ <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input id="route-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên dùng trên báo cáo" autoFocus />
+              </div>
+              <div className="field">
+                <label htmlFor="route-short-name" style={labelStyle}>Tên ngắn <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input id="route-short-name" className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên hiển thị trong vận hành" />
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="field">

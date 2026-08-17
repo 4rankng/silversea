@@ -167,7 +167,7 @@ export function useShipmentCreateWorkflow({
       }
       attemptRef.current = null;
       if (onSaved) onSaved(shipmentId, intent);
-      else navigate(`/clerk/shipments/${shipmentId}/docs`);
+      else navigate('/shipments');
       return { issues: [] as ShipmentCreateIssue[] };
     } catch (error) {
       setSubmitError(error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.');

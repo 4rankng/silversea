@@ -158,6 +158,10 @@ describe('customer workflow migration safety', () => {
       { idx: 11, tag: '0011_mean_vulture' },
       { idx: 12, tag: '0012_sharp_jack_power' },
       { idx: 13, tag: '0013_backfill-shipment-combined-flag' },
+      { idx: 14, tag: '0014_add-master-data-short-names' },
+      { idx: 15, tag: '0015_backfill-master-data-short-names' },
+      { idx: 16, tag: '0016_require-master-data-short-names' },
+      { idx: 17, tag: '0017_add-short-name-compat-defaults' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);

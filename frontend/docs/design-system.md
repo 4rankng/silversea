@@ -81,7 +81,7 @@ Control size is owned by the shared primitive, never by page CSS:
 
 | Variant | Desktop use | Desktop height | Narrow-screen minimum |
 |---|---|---:|---:|
-| `sm` | Operational filters, table toolbars, compact utility actions | 34px | 44px |
+| `sm` | Operational filters, data-entry workspaces, table toolbars, compact utility actions | 34px | 44px |
 | `md` | Forms and ordinary page actions | 40px | 44px |
 | `xs` button | Low-emphasis inline utilities | 28px | 44px |
 
@@ -94,7 +94,9 @@ selects, and buttons on the same rhythm across routes.
 Compact field typography is shared too: `sm` fields use 12px on desktop and
 14px at narrow widths, while retaining the 44px touch target. Page styles must
 not override that type scale with `font`, `font-size`, or `line-height`; correct
-the shared Untitled UI primitive when a compact field is inconsistent.
+the shared Untitled UI primitive when a compact field is inconsistent. Dense
+operational forms should choose `sm` as a complete semantic variant instead of
+recreating dispatch typography or geometry in page CSS.
 
 ## Operational table color contract
 

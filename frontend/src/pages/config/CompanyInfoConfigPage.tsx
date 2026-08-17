@@ -12,6 +12,7 @@ import './config-page.css';
 
 type CompanyInfoForm = {
   name: string;
+  shortName: string;
   address: string;
   taxCode: string;
   representative: string;
@@ -27,6 +28,7 @@ type TextCompanyInfoField = Exclude<keyof CompanyInfoForm, 'logoStorageKey'>;
 
 const EMPTY_FORM: CompanyInfoForm = {
   name: '',
+  shortName: '',
   address: '',
   taxCode: '',
   representative: '',
@@ -39,7 +41,8 @@ const EMPTY_FORM: CompanyInfoForm = {
 };
 
 const FIELD_LABELS: Array<{ key: TextCompanyInfoField; label: string }> = [
-  { key: 'name', label: 'Tên công ty' },
+  { key: 'name', label: 'Tên đầy đủ' },
+  { key: 'shortName', label: 'Tên ngắn' },
   { key: 'address', label: 'Địa chỉ' },
   { key: 'taxCode', label: 'Mã số thuế' },
   { key: 'representative', label: 'Đại diện bởi' },
@@ -67,6 +70,7 @@ export default function CompanyInfoConfigPage() {
       data
         ? {
             name: data.name ?? '',
+            shortName: data.shortName || data.name || '',
             address: data.address ?? '',
             taxCode: data.taxCode ?? '',
             representative: data.representative ?? '',
@@ -86,7 +90,7 @@ export default function CompanyInfoConfigPage() {
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const canSave = isCompanyInfoConfigured(form);
+  const canSave = isCompanyInfoConfigured(form) && Boolean(form.shortName.trim());
 
   const updateField = (key: keyof CompanyInfoForm, value: string) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -125,6 +129,7 @@ export default function CompanyInfoConfigPage() {
     try {
       const result = await saveCompanyInfo.mutateAsync({
         name: form.name.trim(),
+        shortName: form.shortName.trim(),
         address: form.address.trim(),
         taxCode: form.taxCode.trim(),
         representative: form.representative.trim(),
@@ -221,13 +226,26 @@ export default function CompanyInfoConfigPage() {
 
                 <div className="cfg-form-grid cfg-row">
                   <div className="field">
-                    <label>Tên công ty</label>
+                    <label htmlFor="company-full-name">Tên đầy đủ</label>
                     <input
+                      id="company-full-name"
                       className="input"
                       value={form.name}
                       onChange={e => updateField('name', e.target.value)}
                     />
                   </div>
+                  <div className="field">
+                    <label htmlFor="company-short-name">Tên ngắn</label>
+                    <input
+                      id="company-short-name"
+                      className="input"
+                      value={form.shortName}
+                      onChange={e => updateField('shortName', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="cfg-form-grid cfg-row">
                   <div className="field">
                     <label>Mã số thuế</label>
                     <input

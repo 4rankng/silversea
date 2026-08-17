@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 interface FulfillmentEstimateCellProps {
@@ -20,49 +20,81 @@ function toNullableVnd(value: string): number | null {
   return Number.isInteger(amount) && amount >= 0 ? amount : null;
 }
 
+function formatVnd(value: string | null): string {
+  if (value == null || value === '') return 'Chưa nhập';
+  const amount = Number(value);
+  return Number.isFinite(amount) ? `${new Intl.NumberFormat('vi-VN').format(amount)} đ` : value;
+}
+
 /** Editable dispatch estimates; this component never exposes a financial ledger. */
 export function FulfillmentEstimateCell({ row, onSave }: FulfillmentEstimateCellProps) {
   const estimates = row.estimates ?? { plannedRevenue: null, plannedCarrierCost: null };
   const [revenue, setRevenue] = useState(toInputValue(estimates.plannedRevenue));
   const [carrierCost, setCarrierCost] = useState(toInputValue(estimates.plannedCarrierCost));
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<'revenue' | 'carrierCost' | null>(null);
+  const [invalid, setInvalid] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     setRevenue(toInputValue(estimates.plannedRevenue));
     setCarrierCost(toInputValue(estimates.plannedCarrierCost));
   }, [estimates.plannedCarrierCost, estimates.plannedRevenue, row.fulfillmentId]);
 
-  const nextRevenue = toNullableVnd(revenue);
-  const nextCarrierCost = toNullableVnd(carrierCost);
-  const invalid = (revenue.trim() !== '' && nextRevenue == null)
-    || (carrierCost.trim() !== '' && nextCarrierCost == null);
-  const unchanged = revenue === toInputValue(estimates.plannedRevenue)
-    && carrierCost === toInputValue(estimates.plannedCarrierCost);
-
-  async function save() {
-    if (invalid || unchanged) return;
+  async function save(field: 'revenue' | 'carrierCost') {
+    if (savingRef.current) return;
+    const draft = field === 'revenue' ? revenue : carrierCost;
+    const nextValue = toNullableVnd(draft);
+    if (draft.trim() !== '' && nextValue == null) {
+      setInvalid(true);
+      return;
+    }
+    const currentValue = field === 'revenue' ? estimates.plannedRevenue : estimates.plannedCarrierCost;
+    if (draft === toInputValue(currentValue)) {
+      setEditing(null);
+      return;
+    }
+    savingRef.current = true;
     setSaving(true);
     try {
-      await onSave(row, { plannedRevenue: nextRevenue, plannedCarrierCost: nextCarrierCost });
+      await onSave(row, {
+        plannedRevenue: field === 'revenue' ? nextValue : toNullableVnd(estimates.plannedRevenue ?? ''),
+        plannedCarrierCost: field === 'carrierCost' ? nextValue : toNullableVnd(estimates.plannedCarrierCost ?? ''),
+      });
+      setEditing(null);
+      setInvalid(false);
+    } catch {
+      // The parent retains the operational error and the draft stays available.
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
+  function startEditing(field: 'revenue' | 'carrierCost') {
+    setInvalid(false);
+    setEditing(field);
+  }
+
+  function cancelEditing() {
+    setRevenue(toInputValue(estimates.plannedRevenue));
+    setCarrierCost(toInputValue(estimates.plannedCarrierCost));
+    setInvalid(false);
+    setEditing(null);
+  }
+
   return (
     <div className="fulfillment-estimate-cell">
-      <label>
-        <span>Cước thu dự kiến</span>
-        <input className="fulfillment-estimate-cell__input" aria-label="Cước thu dự kiến" inputMode="numeric" type="number" min="0" step="1" value={revenue} onChange={(event) => setRevenue(event.target.value)} disabled={saving} />
-      </label>
-      <label>
-        <span>Cước trả dự kiến</span>
-        <input className="fulfillment-estimate-cell__input" aria-label="Cước trả dự kiến" inputMode="numeric" type="number" min="0" step="1" value={carrierCost} onChange={(event) => setCarrierCost(event.target.value)} disabled={saving} />
-      </label>
-      <button type="button" className="btn btn--secondary btn--sm" onClick={() => void save()} disabled={saving || invalid || unchanged}>
-        {saving ? 'Đang lưu…' : 'Lưu cước'}
-      </button>
-      <small>Dự toán Điều vận — chưa hạch toán.</small>
+      {editing === 'revenue' ? (
+        <input autoFocus className="fulfillment-estimate-cell__input" aria-label="Cước thu dự kiến" inputMode="numeric" type="number" min="0" step="1" value={revenue} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { setRevenue(event.target.value); setInvalid(false); }} onBlur={() => void save('revenue')} onKeyDown={(event) => { if (event.key === 'Enter') { event.currentTarget.blur(); } if (event.key === 'Escape') cancelEditing(); }} disabled={saving} aria-invalid={invalid} />
+      ) : (
+        <button type="button" className={`fulfillment-estimate-cell__value${estimates.plannedRevenue == null ? ' is-placeholder' : ''}`} onClick={() => startEditing('revenue')} aria-label={`Chỉnh sửa cước thu dự kiến: ${formatVnd(estimates.plannedRevenue)}`}>Thu: {formatVnd(estimates.plannedRevenue)}</button>
+      )}
+      {editing === 'carrierCost' ? (
+        <input autoFocus className="fulfillment-estimate-cell__input" aria-label="Cước trả dự kiến" inputMode="numeric" type="number" min="0" step="1" value={carrierCost} onFocus={(event) => event.currentTarget.select()} onChange={(event) => { setCarrierCost(event.target.value); setInvalid(false); }} onBlur={() => void save('carrierCost')} onKeyDown={(event) => { if (event.key === 'Enter') { event.currentTarget.blur(); } if (event.key === 'Escape') cancelEditing(); }} disabled={saving} aria-invalid={invalid} />
+      ) : (
+        <button type="button" className={`fulfillment-estimate-cell__value${estimates.plannedCarrierCost == null ? ' is-placeholder' : ''}`} onClick={() => startEditing('carrierCost')} aria-label={`Chỉnh sửa cước trả dự kiến: ${formatVnd(estimates.plannedCarrierCost)}`}>Trả: {formatVnd(estimates.plannedCarrierCost)}</button>
+      )}
     </div>
   );
 }

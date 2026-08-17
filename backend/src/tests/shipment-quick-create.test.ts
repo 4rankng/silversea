@@ -54,6 +54,7 @@ const createdShipmentIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
+const createdContainerTypeIds: number[] = [];
 
 let adminToken: string;
 let managerToken: string;
@@ -66,6 +67,7 @@ let forwarderToken: string;
 let customerId: number;
 let clerkUserId: number;
 let clerkBusinessUnitId: number;
+let containerTypeId: number;
 
 let server: http.Server;
 let baseUrl: string;
@@ -205,6 +207,12 @@ before(async () => {
   customerId = customerRow.id;
   const businessUnit = await mkBusinessUnit();
   clerkBusinessUnitId = businessUnit.id;
+  const [containerType] = await db.insert(s.containerTypes).values({
+    code: `QC${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+    name: `QuickCreate 40HC ${suffix}`,
+  }).returning();
+  containerTypeId = containerType.id;
+  createdContainerTypeIds.push(containerType.id);
   await assignClerkScope(clerkUserId, customerId, clerkBusinessUnitId);
   clerkToken = jwt.sign(
     {
@@ -228,6 +236,8 @@ after(async () => {
       // shipment ids we own, never a global sweep (test files run in
       // parallel and would corrupt each other's setup).
       if (createdShipmentIds.length > 0) {
+        await tx.delete(s.shipmentAccountingLocks)
+          .where(inArray(s.shipmentAccountingLocks.shipmentId, createdShipmentIds));
         await tx.delete(s.idempotencyKeys)
           .where(inArray(s.idempotencyKeys.entityId, createdShipmentIds));
         await tx.delete(s.shipmentStatusHistory)
@@ -244,6 +254,9 @@ after(async () => {
       }
       if (createdCustomerIds.length > 0) {
         await tx.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
+      }
+      if (createdContainerTypeIds.length > 0) {
+        await tx.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
       }
     });
   } catch (err) {
@@ -529,6 +542,166 @@ describe('POST /api/shipments/quick — RBAC', () => {
     assert.equal(res.status, 201);
     createdShipmentIds.push(res.data.id);
     await trackCreated();
+  });
+
+  test('DISPATCHER can persist the declaration and containers from the canonical intake workspace', async () => {
+    const created = await quickFetch('/quick', {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-chain-${suffix}`,
+      body: {
+        customerId,
+        tradeDirection: 'EXPORT',
+        bookingRef: `BOOKING-${suffix}`,
+        cargoMode: 'FCL',
+      },
+    });
+    assert.equal(created.status, 201);
+    createdShipmentIds.push(created.data.id);
+
+    const declaration = await quickFetch(`/${created.data.id}/declarations`, {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-declaration-${suffix}`,
+      body: { declarationNumber: `DECL-${suffix}`, scope: 'SINGLE' },
+    });
+    assert.equal(declaration.status, 201);
+
+    const updatedDeclaration = await quickFetch(`/${created.data.id}/declarations/${declaration.data.id}`, {
+      method: 'PUT',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-declaration-update-${suffix}`,
+      body: { declarationNumber: `DECL-UPDATED-${suffix}`, scope: 'SINGLE' },
+    });
+    assert.equal(updatedDeclaration.status, 200);
+    assert.equal(updatedDeclaration.data.declarationNumber, `DECL-UPDATED-${suffix}`);
+
+    const containers = await quickFetch(`/${created.data.id}/containers`, {
+      method: 'PUT',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-containers-${suffix}`,
+      body: {
+        expectedVersion: created.data.version,
+        containers: [{ containerTypeId, containerNumber: 'MSKU1234565' }],
+      },
+    });
+    assert.equal(containers.status, 200);
+    assert.equal(containers.data.items.length, 1);
+    assert.equal(containers.data.items[0].containerNumber, 'MSKU1234565');
+  });
+
+  test('DISPATCHER can resume a partially-created intake draft with updated root fields', async () => {
+    const created = await quickFetch('/quick', {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-resume-${suffix}`,
+      body: { customerId },
+    });
+    assert.equal(created.status, 201);
+    createdShipmentIds.push(created.data.id);
+
+    const updated = await quickFetch(`/${created.data.id}`, {
+      method: 'PUT',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-update-${suffix}`,
+      body: {
+        expectedVersion: created.data.version,
+        tradeDirection: 'EXPORT',
+        bookingRef: `RESUMED-${suffix}`,
+        cargoMode: 'FCL',
+      },
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.data.bookingRef, `RESUMED-${suffix}`);
+  });
+
+  test('DISPATCHER cannot use intake mutations after the shipment leaves intake', async () => {
+    const created = await quickFetch('/quick', {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-post-intake-${suffix}`,
+      body: {
+        customerId,
+        tradeDirection: 'EXPORT',
+        bookingRef: `POST-INTAKE-${suffix}`,
+        cargoMode: 'FCL',
+      },
+    });
+    assert.equal(created.status, 201);
+    createdShipmentIds.push(created.data.id);
+
+    const declaration = await quickFetch(`/${created.data.id}/declarations`, {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-post-intake-seed-declaration-${suffix}`,
+      body: { declarationNumber: `POST-INTAKE-DECL-${suffix}`, scope: 'SINGLE' },
+    });
+    assert.equal(declaration.status, 201);
+
+    await db.update(s.shipments)
+      .set({ status: 'DISPATCHED' })
+      .where(eq(s.shipments.id, created.data.id));
+
+    const attemptPostIntakeMutations = (scenario: string) => Promise.all([
+      quickFetch(`/${created.data.id}`, {
+        method: 'PUT',
+        token: dispatcherToken,
+        idempotencyKey: `qc-rbac-dispatcher-post-intake-update-${scenario}-${suffix}`,
+        body: { expectedVersion: created.data.version, customerNotes: 'must be denied' },
+      }),
+      quickFetch(`/${created.data.id}/declarations`, {
+        method: 'POST',
+        token: dispatcherToken,
+        idempotencyKey: `qc-rbac-dispatcher-post-intake-declaration-create-${scenario}-${suffix}`,
+        body: { declarationNumber: `DENIED-${scenario}-${suffix}`, scope: 'SINGLE' },
+      }),
+      quickFetch(`/${created.data.id}/declarations/${declaration.data.id}`, {
+        method: 'PUT',
+        token: dispatcherToken,
+        idempotencyKey: `qc-rbac-dispatcher-post-intake-declaration-update-${scenario}-${suffix}`,
+        body: { declarationNumber: `DENIED-UPDATED-${scenario}-${suffix}`, scope: 'SINGLE' },
+      }),
+      quickFetch(`/${created.data.id}/containers`, {
+        method: 'PUT',
+        token: dispatcherToken,
+        idempotencyKey: `qc-rbac-dispatcher-post-intake-containers-${scenario}-${suffix}`,
+        body: {
+          expectedVersion: created.data.version,
+          containers: [{ containerTypeId, containerNumber: 'MSKU1234565' }],
+        },
+      }),
+    ]);
+
+    const attempts = await attemptPostIntakeMutations('unlocked');
+
+    for (const attempt of attempts) {
+      assert.equal(attempt.status, 403);
+      assert.match(String(attempt.data.error ?? ''), /giai đoạn tiếp nhận/);
+    }
+
+    await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId: created.data.id,
+      billingDocumentId: 900_000 + created.data.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-08-01',
+        rangeTo: '2026-08-31',
+        issuedAt: '2026-09-01T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: created.data.version,
+      reason: 'Verify lifecycle authorization precedes accounting lock state',
+      activatedBy: clerkUserId,
+    });
+    try {
+      const lockedAttempts = await attemptPostIntakeMutations('locked');
+      for (const attempt of lockedAttempts) {
+        assert.equal(attempt.status, 403);
+        assert.match(String(attempt.data.error ?? ''), /giai đoạn tiếp nhận/);
+      }
+    } finally {
+      await db.delete(s.shipmentAccountingLocks)
+        .where(eq(s.shipmentAccountingLocks.shipmentId, created.data.id));
+    }
   });
 
   test('ADMIN can quick-create', async () => {

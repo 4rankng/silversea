@@ -55,6 +55,7 @@ export async function seedFactories(): Promise<void> {
       customerId: longMinhCustomer.id,
       code,
       name: factory.name,
+      shortName: factory.name.slice(0, 60),
       siteType: 'WAREHOUSE' as const,
       address: factory.address || 'Địa chỉ theo file Excel',
       googleMapsUrl: factory.locationUrl || null,

@@ -1,17 +1,19 @@
 /**
- * Wave 0 — `seedShipments()` integration test.
+ * `seedShipments()` integration test.
  *
  * Verifies the seed block exported from `seed.ts`:
  *   - Creates the CUSTOMER demo user.
- *   - Creates the 2 stable sample customers (or finds them by taxCode).
- *   - Creates the 3 sample shipments across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
+ *   - Creates the 5 stable sample customers (or finds them by taxCode).
+ *   - Creates the 16 sample shipments across both trade directions and every
+ *   - lifecycle status, each addressed by exactly ONE document ref
+ *     (blNumber for IMPORT, bookingRef for EXPORT — the one-ref invariant).
  *   - Attaches the expected children to the seeded shipments (containers,
  *     documents, declarations, status-history rows).
  *   - IDEMPOTENCY: running the seed twice produces the same row counts —
  *     no duplicate shipments, no duplicate children, no duplicate users.
  *
  * Hits the real Postgres DB (mirrors shipment-service.test.ts). All rows
- * created by THIS test (the SEED-* sentinels + the 2 stable sample customers
+ * created by THIS test (the sample shipments + the 5 stable sample customers
  * + the CUSTOMER demo user if it did not pre-exist) are cleaned up in `after`
  * so re-running the test file does not accumulate. Rows that pre-existed
  * (from `pnpm seed`) are preserved via the `preExisting*` snapshots so the
@@ -20,7 +22,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, or } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -35,9 +37,40 @@ import { seedShipments } from '../seed';
 const PASSWORD_HASH = bcrypt.hashSync('admin123', 10);
 
 // Stable identifiers from seed.ts — used for both assertions and cleanup.
-const SENTINEL_BL_NUMBERS = ['SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3'];
-const SAMPLE_TAX_CODES = ['0101234567', '0107654321'];
+// The one-ref invariant stores each ref in exactly one column: blNumber for
+// IMPORT, bookingRef for EXPORT.
+const IMPORT_BL_REFS = [
+  '105254544125', '105254544198', '137465191612', '137465191698',
+  '105254549001', '105254549088', '137465192255', '105254550147', '137465192801',
+];
+const EXPORT_BOOKING_REFS = ['DNKM13333', 'DNKM13334', 'DNKM13335', 'DNKM13336', 'DNKM13337', 'DNKM13338', 'DNKM13339'];
+const SAMPLE_TAX_CODES = ['0101234567', '0107654321', '1100987654', '1100456789', '0700321654'];
 const CUSTOMER_USERNAME = 'customer';
+
+// Expected status after seedShipments' own ladder — refs later dispatched by
+// seed-trips (through the real dispatch chain) are NOT asserted here.
+const EXPECTED_STATUS: Record<string, string> = {
+  '105254544125': 'READY_FOR_DISPATCH', // expectedDeliveryDate → date-derived readiness
+  '105254544198': 'PENDING_DATE', // no dates → awaiting schedule
+  '137465192801': 'CANCELED',
+  DNKM13333: 'READY_FOR_DISPATCH',
+  DNKM13334: 'PENDING_DATE',
+  DNKM13337: 'PENDING_EXPENSE_APPROVAL', // full ladder: DISPATCHED → IN_TRANSIT → PENDING_EXPENSE_APPROVAL
+  DNKM13339: 'CANCELED',
+};
+
+// Per-ref child expectations (containers / document / declaration counts).
+const EXPECTED_CONTAINERS: Record<string, number> = {
+  '137465191612': 2, '137465191698': 1, '105254549001': 2, '105254549088': 1,
+  '137465192255': 2, '105254550147': 1, DNKM13335: 1, DNKM13336: 2, DNKM13337: 1, DNKM13338: 1,
+};
+
+// Lifecycle-ladder history depth ≥ creation + one row per legal transition.
+const EXPECTED_HISTORY: Record<string, number> = {
+  '105254544125': 1, '105254544198': 1,
+  '137465192801': 2, DNKM13333: 1, DNKM13334: 1,
+  DNKM13337: 4, DNKM13339: 2,
+};
 
 // Snapshot of SEED-* rows that existed BEFORE this test ran (created by a
 // prior `pnpm seed`). The test cleans up only what it creates, so a prior
@@ -48,10 +81,13 @@ const preExistingCustomerUser: {
   value: Pick<typeof s.users.$inferSelect, 'id' | 'email' | 'customerId'> | null;
 } = { value: null };
 
-async function findSeedShipments(): Promise<{ id: number; blNumber: string | null }[]> {
-  return await db.select({ id: s.shipments.id, blNumber: s.shipments.blNumber })
+async function findSeedShipments(): Promise<{ id: number; blNumber: string | null; bookingRef: string | null }[]> {
+  return await db.select({ id: s.shipments.id, blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef })
     .from(s.shipments)
-    .where(inArray(s.shipments.blNumber, SENTINEL_BL_NUMBERS));
+    .where(or(
+      inArray(s.shipments.blNumber, IMPORT_BL_REFS),
+      inArray(s.shipments.bookingRef, EXPORT_BOOKING_REFS),
+    ));
 }
 
 async function findSampleCustomers(): Promise<{ id: number; taxCode: string | null }[]> {
@@ -146,65 +182,72 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
     }
   });
 
-  test('creates 3 sample shipments across PENDING_DATE / DISPATCHED / PENDING_EXPENSE_APPROVAL', async () => {
+  test('creates 16 sample shipments — one document ref each, across both directions', async () => {
     const shipments = await findSeedShipments();
-    assert.equal(shipments.length, 3, 'exactly 3 SEED-SHIP-* shipments');
-
-    const byRef = new Map(shipments.map((sh) => [sh.blNumber, sh.id]));
-    for (const ref of SENTINEL_BL_NUMBERS) {
-      assert.ok(byRef.has(ref), `shipment with blNumber=${ref} exists`);
+    assert.equal(shipments.length, 16, 'exactly 16 sample shipments');
+    const refOf = (sh: { blNumber: string | null; bookingRef: string | null }) => sh.blNumber ?? sh.bookingRef;
+    const byRef = new Map(shipments.map((sh) => [refOf(sh), sh.id]));
+    for (const ref of [...IMPORT_BL_REFS, ...EXPORT_BOOKING_REFS]) {
+      assert.ok(byRef.has(ref), `shipment with ref=${ref} exists`);
     }
 
-    // Verify the expected status for each.
-    const rows = await db.select({ blNumber: s.shipments.blNumber, status: s.shipments.status })
+    // One-ref invariant: IMPORT rows carry blNumber only, EXPORT rows carry
+    // bookingRef only — never both, never neither.
+    for (const sh of shipments) {
+      assert.ok(
+        (sh.blNumber != null) !== (sh.bookingRef != null),
+        `shipment ${sh.id} populates exactly one document ref`,
+      );
+    }
+
+    // Verify the expected status for refs the trip-seeder does not dispatch.
+    const rows = await db.select({ blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef, status: s.shipments.status })
       .from(s.shipments)
-      .where(inArray(s.shipments.blNumber, SENTINEL_BL_NUMBERS));
-    const statusByRef = new Map(rows.map((r) => [r.blNumber, r.status]));
-    // SEED-SHIP-1 carries an expectedDeliveryDate, so createShipment's
-    // date-derived readiness lands it directly on READY_FOR_DISPATCH.
-    assert.equal(statusByRef.get('SEED-SHIP-1'), 'READY_FOR_DISPATCH');
-    assert.equal(statusByRef.get('SEED-SHIP-2'), 'DISPATCHED');
-    assert.equal(statusByRef.get('SEED-SHIP-3'), 'PENDING_EXPENSE_APPROVAL');
+      .where(or(
+        inArray(s.shipments.blNumber, IMPORT_BL_REFS),
+        inArray(s.shipments.bookingRef, EXPORT_BOOKING_REFS),
+      ));
+    const statusByRef = new Map(rows.map((r) => [r.blNumber ?? r.bookingRef, r.status]));
+    for (const [ref, expected] of Object.entries(EXPECTED_STATUS)) {
+      assert.equal(statusByRef.get(ref), expected, `shipment ${ref} status`);
+    }
   });
 
   test('attaches expected children to seeded shipments', async () => {
     const shipments = await findSeedShipments();
     const ids = shipments.map((sh) => sh.id);
-    const idByRef = new Map(shipments.map((sh) => [sh.blNumber, sh.id]));
+    const idByRef = new Map(shipments.map((sh) => [sh.blNumber ?? sh.bookingRef, sh.id]));
 
-    // SEED-SHIP-2 has 2 containers; SEED-SHIP-3 has 1 container.
-    const containers = await db.select()
+    const containers = await db.select({ shipmentId: s.shipmentContainers.shipmentId })
       .from(s.shipmentContainers)
       .where(inArray(s.shipmentContainers.shipmentId, ids));
-    const ship2Containers = containers.filter((c) => c.shipmentId === idByRef.get('SEED-SHIP-2'));
-    const ship3Containers = containers.filter((c) => c.shipmentId === idByRef.get('SEED-SHIP-3'));
-    assert.equal(ship2Containers.length, 2, 'SEED-SHIP-2 has 2 containers');
-    assert.equal(ship3Containers.length, 1, 'SEED-SHIP-3 has 1 container');
+    for (const [ref, expected] of Object.entries(EXPECTED_CONTAINERS)) {
+      const actual = containers.filter((c) => c.shipmentId === idByRef.get(ref)).length;
+      assert.equal(actual, expected, `shipment ${ref} has ${expected} containers`);
+    }
 
-    // SEED-SHIP-3 has 1 document + 1 declaration.
-    const docs = await db.select()
+    // 105254549088 has 1 document; DNKM13338 has 1 document.
+    const docs = await db.select({ shipmentId: s.shipmentDocuments.shipmentId })
       .from(s.shipmentDocuments)
       .where(inArray(s.shipmentDocuments.shipmentId, ids));
-    const ship3Docs = docs.filter((d) => d.shipmentId === idByRef.get('SEED-SHIP-3'));
-    assert.equal(ship3Docs.length, 1, 'SEED-SHIP-3 has 1 document');
+    assert.equal(docs.filter((d) => d.shipmentId === idByRef.get('105254549088')).length, 1, '105254549088 has 1 document');
+    assert.equal(docs.filter((d) => d.shipmentId === idByRef.get('DNKM13338')).length, 1, 'DNKM13338 has 1 document');
 
-    const decls = await db.select()
+    // 105254549001 has 1 declaration; DNKM13337 has 1 declaration.
+    const decls = await db.select({ shipmentId: s.shipmentDeclarations.shipmentId })
       .from(s.shipmentDeclarations)
       .where(inArray(s.shipmentDeclarations.shipmentId, ids));
-    const ship3Decls = decls.filter((d) => d.shipmentId === idByRef.get('SEED-SHIP-3'));
-    assert.equal(ship3Decls.length, 1, 'SEED-SHIP-3 has 1 declaration');
+    assert.equal(decls.filter((d) => d.shipmentId === idByRef.get('105254549001')).length, 1, '105254549001 has 1 declaration');
+    assert.equal(decls.filter((d) => d.shipmentId === idByRef.get('DNKM13337')).length, 1, 'DNKM13337 has 1 declaration');
 
-    // Status history: creation row + transitions.
-    // SEED-SHIP-1 (NEW): 1 row (creation).
-    // SEED-SHIP-2 (DISPATCHED): 2 rows (creation + NEW→DISPATCHED).
-    // SEED-SHIP-3 (PENDING_EXPENSE_APPROVAL): 4 rows (creation + the three legal transitions).
-    const history = await db.select()
+    // Status history: creation row + one row per legal ladder transition.
+    const history = await db.select({ shipmentId: s.shipmentStatusHistory.shipmentId })
       .from(s.shipmentStatusHistory)
       .where(inArray(s.shipmentStatusHistory.shipmentId, ids));
     const countFor = (ref: string) => history.filter((h) => h.shipmentId === idByRef.get(ref)).length;
-    assert.ok(countFor('SEED-SHIP-1') >= 1, 'SEED-SHIP-1 has creation/readiness history');
-    assert.ok(countFor('SEED-SHIP-2') >= 2, 'SEED-SHIP-2 has readiness and dispatch history');
-    assert.ok(countFor('SEED-SHIP-3') >= 4, 'SEED-SHIP-3 has the complete lifecycle history');
+    for (const [ref, minRows] of Object.entries(EXPECTED_HISTORY)) {
+      assert.ok(countFor(ref) >= minRows, `shipment ${ref} has ≥${minRows} history rows`);
+    }
   });
 
   test('is idempotent — running twice produces the same row counts', async () => {
@@ -225,8 +268,8 @@ describe('seedShipments — Wave 0 shipment + CUSTOMER seed', () => {
       .where(eq(s.users.username, CUSTOMER_USERNAME));
     assert.equal(customerUsers.length, 1, 'exactly one CUSTOMER demo user');
 
-    // Sample customers stay at 2 (no duplicate).
+    // Sample customers stay at 5 (no duplicate).
     const sampleCustomers = await findSampleCustomers();
-    assert.equal(sampleCustomers.length, 2, 'exactly two sample customers');
+    assert.equal(sampleCustomers.length, 5, 'exactly five sample customers');
   });
 });

@@ -7,7 +7,7 @@
  */
 import { Router } from 'express';
 import { db } from '../../db';
-import { asc, eq, getTableName, isNull, sql, and } from 'drizzle-orm';
+import { asc, eq, getTableName, isNull, sql, and, or } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
@@ -47,6 +47,7 @@ export interface CrudRouterOptions<
   TData = Record<string, unknown>,
 > {
   searchableField?: string;
+  searchableFields?: string[];
   disableDelete?: boolean;
   deleteMode?: 'soft' | 'hard';
   /** Override the default list-page maxLimit (100) for catalogs that may exceed
@@ -100,6 +101,7 @@ export function createCrudRouter<
 ) {
   const {
     searchableField,
+    searchableFields,
     disableDelete = false,
     deleteMode = 'soft',
     maxLimit,
@@ -203,10 +205,14 @@ export function createCrudRouter<
 
     const conditions = [];
     if (hasSoftDelete) conditions.push(isNull(column(table, 'deletedAt')));
-    if (search && searchableField) {
+    const searchFields = searchableFields ?? (searchableField ? [searchableField] : []);
+    if (search && searchFields.length > 0) {
       // Escape SQL LIKE metacharacters to prevent unintended wildcard expansion
       const escaped = search.replace(/[%_]/g, '\\$&');
-      conditions.push(sql`unaccent(${column(table, searchableField)}) ILIKE unaccent(${"%" + escaped + "%"})`);
+      const searchConditions = searchFields.map((field) =>
+        sql`unaccent(${column(table, field)}) ILIKE unaccent(${"%" + escaped + "%"})`,
+      );
+      conditions.push(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions)!);
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;

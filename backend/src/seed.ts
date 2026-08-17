@@ -28,6 +28,10 @@ import { seedOperationalSites } from './seed/seed-operational-sites';
 import { seedFactories } from './seed/seed-factories';
 import { seedPorts } from './seed/seed-ports';
 import { seedVehiclesFromExcel } from './seed/seed-vehicles-from-excel';
+import { resolveSeedActors, seedTrips } from './seed/seed-trips';
+import { seedVendorFinancials } from './seed/seed-vendor-financials';
+import { seedForwarderMoney } from './seed/seed-forwarder-money';
+import { seedCustomerAr } from './seed/seed-customer-ar';
 
 export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
@@ -48,6 +52,8 @@ export async function seed() {
   const existingUsers = await db.select({
     id: schema.users.id,
     username: schema.users.username,
+    email: schema.users.email,
+    phone: schema.users.phone,
   }).from(schema.users);
   const existingUserByUsername = new Map<string, (typeof existingUsers)[number]>();
   for (const existingUser of existingUsers) {
@@ -60,6 +66,15 @@ export async function seed() {
     const canonicalUser = { ...user, status: 'ACTIVE' as const };
     const existingUser = existingUserByUsername.get(user.username);
     if (existingUser) {
+      // Legacy rows (e.g. a pre-wipe `laixe` with NULL email/phone) keep
+      // their account but must carry the canonical contact identity so the
+      // driver↔user phone backfill below can link them.
+      if (!existingUser.email || !existingUser.phone) {
+        await db.update(schema.users).set({
+          email: canonicalUser.email,
+          phone: canonicalUser.phone,
+        }).where(eq(schema.users.id, existingUser.id));
+      }
       continue;
     }
     await db.insert(schema.users).values(canonicalUser);
@@ -608,6 +623,26 @@ export async function seed() {
 
   await seedShipments(passwordHash);
   await seedClerkScope();
+
+  // Trips flow through the real dispatch chain (carrier allocation → handoff
+  // → dispatch order → status transitions), so dispatch/ops screens show
+  // production-shaped rows.
+  const seedActors = await resolveSeedActors();
+  const opsUser = await db.select().from(schema.users)
+    .where(eq(schema.users.username, 'giaonhan')).limit(1);
+  const { opsExpenseIds } = await seedTrips({ ...seedActors, ops: opsUser[0] });
+  const adminUser = await db.select({ id: schema.users.id }).from(schema.users)
+    .where(eq(schema.users.username, 'admin')).limit(1);
+  await seedVendorFinancials(seedActors.manager.userId, adminUser[0]!.id);
+
+  await seedForwarderMoney({ ops: opsUser[0]!.id, approver: adminUser[0]!.id }, opsExpenseIds);
+
+  // e-POD acceptance + debit note + payment receipt close the O2C loop.
+  await seedCustomerAr({
+    cus: seedActors.cus as never,
+    accountant: seedActors.accountant as never,
+    manager: seedActors.manager as never,
+  });
 }
 
 export async function seedClerkScope(): Promise<void> {
@@ -660,12 +695,18 @@ export async function seedClerkScope(): Promise<void> {
     });
   }
 
+  // Scope the demo CUS unit to every seed shipment so the clerk can act on
+  // all of them (dispatch allocation is a CUS responsibility).
   await db.update(schema.shipments)
     .set({ responsibleUnitId: unitId, updatedAt: new Date() })
-    .where(sql`${schema.shipments.bookingRef} in ('SEED-SHIP-1', 'SEED-SHIP-2', 'SEED-SHIP-3')`);
+    .where(sql`(
+      ${schema.shipments.blNumber} in ('105254544125', '105254544198', '137465191612', '137465191698',
+        '105254549001', '105254549088', '137465192255', '105254550147')
+      or ${schema.shipments.bookingRef} in ('DNKM13333', 'DNKM13334', 'DNKM13335', 'DNKM13336', 'DNKM13337', 'DNKM13338', 'DNKM13339')
+    )`);
 
   const scopedCustomers = await db.select({ id: schema.customers.id }).from(schema.customers)
-    .where(and(isNull(schema.customers.deletedAt), sql`${schema.customers.taxCode} in ('0101234567', '0107654321')`));
+    .where(and(isNull(schema.customers.deletedAt), sql`${schema.customers.taxCode} in ('0101234567', '0107654321', '1100987654', '1100456789', '0700321654', '2300540419')`));
   for (const customer of scopedCustomers) {
     const [existingCustomerLink] = await db.select({ id: schema.userCustomerLinks.id })
       .from(schema.userCustomerLinks)
@@ -693,23 +734,66 @@ export async function seedClerkScope(): Promise<void> {
 //
 // Seeds a CUSTOMER-role demo login + sample shipments in mixed statuses so
 // the Wave 0 ShipmentsPage has something to render during QA and the
-// eventual Wave 2 customer portal has a login to test against.
+// eventual Wave 2 customer portal has a login to test all the screens.
 //
 // Idempotency contract:
 //   - CUSTOMER user:               onConflictDoNothing on unique username.
 //   - Sample customers:            existence check by stable taxCode.
-//   - Sample shipments:            existence check by stable blNumber
-//                                  sentinel (SEED-SHIP-1/2/3) BEFORE calling
-//                                  createShipment (which would otherwise
-//                                  generate a new shipmentCode + row each
-//                                  invocation).
+//   - Sample shipments:            existence check by stable document ref
+//                                  (blNumber for IMPORT, bookingRef for
+//                                  EXPORT — the one-ref invariant) BEFORE
+//                                  calling createShipment (which would
+//                                  otherwise generate a new shipmentCode +
+//                                  row each invocation).
 //   - Status transitions + children: only attached when the shipment is
 //                                  first created (gated by the same
 //                                  existence check).
 //
 // Exported so the test in tests/seed-shipments.test.ts can exercise it
 // directly without re-running the full `pnpm seed` flow.
+
+// Stable reference IDs resolved by name/code at seed runtime (never
+// hard-coded) so they survive RESTART IDENTITY from a wipe.
+let PORT_HAI_PHONG = 0;
+let PORT_DINH_VU = 0;
+let PORT_LACH_HUYEN = 0;
+let CONTAINER_TYPE_40DC = 0;
+let CONTAINER_TYPE_40HC = 0;
+let ROUTE_NEWEB = 0;
+let ROUTE_ASKEY = 0;
+let ROUTE_SUNRISE = 0;
+
+async function resolveSeedReferenceIds() {
+  const portByName = await db.select({ id: schema.ports.id, name: schema.ports.name })
+    .from(schema.ports)
+    .where(isNull(schema.ports.deletedAt));
+  for (const p of portByName) {
+    if (p.name === 'Cảng Hải Phòng') PORT_HAI_PHONG = p.id;
+    if (p.name === 'Cảng Đình Vũ') PORT_DINH_VU = p.id;
+    if (p.name === 'Cảng Lạch Huyện (HICT)') PORT_LACH_HUYEN = p.id;
+  }
+  const ctByCode = await db.select({ id: schema.containerTypes.id, code: schema.containerTypes.code })
+    .from(schema.containerTypes)
+    .where(isNull(schema.containerTypes.deletedAt));
+  for (const ct of ctByCode) {
+    if (ct.code === '40DC') CONTAINER_TYPE_40DC = ct.id;
+    if (ct.code === '40HC') CONTAINER_TYPE_40HC = ct.id;
+  }
+  const routes = await db.select({ id: schema.routes.id, name: schema.routes.name })
+    .from(schema.routes)
+    .where(isNull(schema.routes.deletedAt));
+  for (const r of routes) {
+    if (r.name === 'Hải Phòng-NEWEB') ROUTE_NEWEB = r.id;
+    if (r.name === 'ASKEY') ROUTE_ASKEY = r.id;
+    if (r.name === 'SUNRISE+  SJ') ROUTE_SUNRISE = r.id;
+  }
+  if (!PORT_HAI_PHONG || !PORT_DINH_VU || !PORT_LACH_HUYEN || !CONTAINER_TYPE_40DC || !CONTAINER_TYPE_40HC) {
+    throw new Error('Seed reference lookup failed: ports/container types missing — run the earlier seeders first.');
+  }
+}
+
 export async function seedShipments(passwordHash: string) {
+  await resolveSeedReferenceIds();
   console.log('\n📦 Seeding Wave 0 shipments + CUSTOMER demo user...');
 
   // 2. Two sample customers (operator-side AR customers — distinct from the
@@ -721,6 +805,9 @@ export async function seedShipments(passwordHash: string) {
   const sampleCustomerSeeds = [
     { name: 'Công ty CP Vận tải Biển Bạc', taxCode: '0101234567', contactPerson: 'Phạm Thị Biển', phone: '02253555555' },
     { name: 'Công ty TNHH XNK Hà Nội', taxCode: '0107654321', contactPerson: 'Trịnh Văn Hà', phone: '02438888888' },
+    { name: 'Công ty TNHH SX TM Dệt May Vân Trung', taxCode: '1100987654', contactPerson: 'Vũ Thị Vân', phone: '02213654321' },
+    { name: 'Công ty CP Thực phẩm Đồng Văn', taxCode: '1100456789', contactPerson: 'Trần Văn Đồng', phone: '02213876543' },
+    { name: 'Công ty TNHH Điện tử ASKEY Việt Nam', taxCode: '0700321654', contactPerson: 'Lý Thị Kiều', phone: '0203333444' },
   ];
   const sampleCustomers: { id: number; name: string }[] = [];
   for (const c of sampleCustomerSeeds) {
@@ -736,7 +823,7 @@ export async function seedShipments(passwordHash: string) {
       sampleCustomers.push(existing);
       continue;
     }
-    const [created] = await db.insert(schema.customers).values(c).returning({ id: schema.customers.id, name: schema.customers.name });
+    const [created] = await db.insert(schema.customers).values({ ...c, shortName: c.name.replace(/^(Công ty|CÔNG TY)[^ ]* /, '').slice(0, 60) }).returning({ id: schema.customers.id, name: schema.customers.name });
     sampleCustomers.push(created);
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
@@ -763,87 +850,202 @@ export async function seedShipments(passwordHash: string) {
   }
   console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
 
-  // 3. Sample shipments — three across NEW / DISPATCHED / PENDING_EXPENSE_APPROVAL.
-  //    Sentinels via bookingRef so re-runs do NOT call createShipment twice.
+  // 3. Sample shipments — realistic refs, every lifecycle status, both trade
+  //    directions. Idempotency key = the document ref itself (blNumber for
+  //    IMPORT, bookingRef for EXPORT — the DB one-ref invariant means exactly
+  //    one of the two is populated per shipment).
   type ShipmentSeed = {
-    sentinel: string; // blNumber sentinel — must be unique + stable
+    tradeDirection: 'IMPORT' | 'EXPORT';
+    routeName?: 'NEWEB' | 'ASKEY' | 'SUNRISE';
+    ref: string; // BL number (IMPORT) or booking ref (EXPORT) — idempotency key
     customerId: number;
-    expectedDeliveryDate: string;
+    expectedDeliveryDate?: string; // omit → initial status PENDING_DATE
     pickupLocation: string;
     deliveryLocation: string;
     contactName: string;
     contactPhone: string;
     closingAt?: string;
-    advanceTo?: 'DISPATCHED' | 'PENDING_EXPENSE_APPROVAL';
+    advanceTo?: 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED';
     containers?: Array<{ containerNumber: string; sealNumber: string; cargoWeightKg: number }>;
     document?: { type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER'; storageKey: string };
     declaration?: { declarationNumber: string; scope: 'SINGLE' | 'SHARED'; note: string };
   };
 
-  const [bienBac, haNoi] = sampleCustomers;
+  const [bienBac, haNoi, vanTrung, dongVan, askey] = sampleCustomers;
   const shipmentSeeds: ShipmentSeed[] = [
+    // ── IMPORT — Bill refs, container haulage from Hai Phong ports ──────────
     {
-      sentinel: 'SEED-SHIP-1',
-      customerId: bienBac.id,
-      expectedDeliveryDate: '2026-08-15',
-      pickupLocation: 'Cảng Hải Phòng',
-      deliveryLocation: 'Kho Biển Bạc',
-      contactName: 'Phạm Thị Biển',
-      contactPhone: '02253555555',
-      // Stays in NEW — represents a freshly-created booking not yet dispatched.
+      tradeDirection: 'IMPORT', ref: '105254544125', customerId: bienBac.id,
+      expectedDeliveryDate: '2026-08-20',
+      pickupLocation: 'Cảng Hải Phòng', deliveryLocation: 'Kho Biển Bạc, Bắc Ninh',
+      contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
     },
     {
-      sentinel: 'SEED-SHIP-2',
-      customerId: haNoi.id,
-      expectedDeliveryDate: '2026-08-10',
-      pickupLocation: 'Cảng Hải Phòng',
-      deliveryLocation: 'ICD Hà Nội',
-      contactName: 'Trịnh Văn Hà',
-      contactPhone: '02438888888',
-      closingAt: '2026-08-09T08:00:00.000Z',
-      advanceTo: 'DISPATCHED',
-      containers: [
-        { containerNumber: 'MSKU1234565', sealNumber: 'SEED-SEAL-001', cargoWeightKg: 18500 },
-        { containerNumber: 'TCNU7425363', sealNumber: 'SEED-SEAL-002', cargoWeightKg: 19200 },
+      tradeDirection: 'IMPORT', ref: '105254544198', customerId: haNoi.id,
+      // No dates → stays PENDING_DATE (booking awaiting schedule).
+      pickupLocation: 'Cảng Đình Vũ', deliveryLocation: 'ICD Mỹ Đình, Hà Nội',
+      contactName: 'Trịnh Văn Hà', contactPhone: '02438888888',
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '137465191612', routeName: 'SUNRISE', customerId: vanTrung.id,
+      expectedDeliveryDate: '2026-08-18',
+      pickupLocation: 'Cảng Lạch Huyện (HICT)', deliveryLocation: 'KCN Vân Trung, Bắc Giang',
+      contactName: 'Vũ Thị Vân', contactPhone: '02213654321',
+            containers: [
+        { containerNumber: 'CMAU3145620', sealNumber: 'SL8437216', cargoWeightKg: 21600 },
+        { containerNumber: 'EGHU2047632', sealNumber: 'SL8437217', cargoWeightKg: 20400 },
       ],
     },
     {
-      sentinel: 'SEED-SHIP-3',
-      customerId: bienBac.id,
-      expectedDeliveryDate: '2026-07-30',
-      pickupLocation: 'Cảng Đà Nẵng',
-      deliveryLocation: 'Kho Biển Bạc',
-      contactName: 'Phạm Thị Biển',
-      contactPhone: '02253555555',
-      closingAt: '2026-07-29T08:00:00.000Z',
+      tradeDirection: 'IMPORT', ref: '137465191698', routeName: 'SUNRISE', customerId: dongVan.id,
+      expectedDeliveryDate: '2026-08-17',
+      pickupLocation: 'Cảng Nam Hải Đình Vũ', deliveryLocation: 'KCN Đồng Văn, Hà Nam',
+      contactName: 'Trần Văn Đồng', contactPhone: '02213876543',
+            containers: [
+        { containerNumber: 'HLXU6109346', sealNumber: 'SL7219084', cargoWeightKg: 18900 },
+      ],
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '105254549001', routeName: 'NEWEB', customerId: bienBac.id,
+      expectedDeliveryDate: '2026-08-13',
+      pickupLocation: 'Cảng Hải Phòng', deliveryLocation: 'Kho Biển Bạc, Bắc Ninh',
+      contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
+            containers: [
+        { containerNumber: 'TCLU5830190', sealNumber: 'SL7104562', cargoWeightKg: 19700 },
+        { containerNumber: 'MEDU7120398', sealNumber: 'SL7104563', cargoWeightKg: 18300 },
+      ],
+      declaration: { declarationNumber: '102250312456', scope: 'SINGLE', note: 'Tờ khai nhập khẩu riêng' },
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '105254549088', routeName: 'NEWEB', customerId: haNoi.id,
+      expectedDeliveryDate: '2026-08-02',
+      pickupLocation: 'Cảng Đình Vũ', deliveryLocation: 'ICD Mỹ Đình, Hà Nội',
+      contactName: 'Trịnh Văn Hà', contactPhone: '02438888888',
+            containers: [
+        { containerNumber: 'BEAU4281650', sealNumber: 'SL6955123', cargoWeightKg: 20800 },
+      ],
+      document: { type: 'BL', storageKey: 'uploads/seed/105254549088/bl.pdf' },
+      declaration: { declarationNumber: '102250310877', scope: 'SINGLE', note: 'Đã thông quan' },
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '137465192255', routeName: 'SUNRISE', customerId: askey.id,
+      expectedDeliveryDate: '2026-07-28',
+      pickupLocation: 'Cảng Lạch Huyện (HICT)', deliveryLocation: 'Kho ASKEY, Bắc Giang',
+      contactName: 'Lý Thị Kiều', contactPhone: '0203333444',
+            containers: [
+        { containerNumber: 'FCIU9034568', sealNumber: 'SL6822940', cargoWeightKg: 17400 },
+        { containerNumber: 'GPLU6781236', sealNumber: 'SL6822941', cargoWeightKg: 18100 },
+      ],
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '105254550147', routeName: 'NEWEB', customerId: bienBac.id,
+      expectedDeliveryDate: '2026-07-21',
+      pickupLocation: 'Cảng Hải Phòng', deliveryLocation: 'Kho Biển Bạc, Bắc Ninh',
+      contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
+            containers: [
+        { containerNumber: 'OOLU8312661', sealNumber: 'SL6714408', cargoWeightKg: 17800 },
+      ],
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '137465192801', customerId: vanTrung.id,
+      expectedDeliveryDate: '2026-08-05',
+      pickupLocation: 'Cảng Tân Vũ', deliveryLocation: 'KCN Vân Trung, Bắc Giang',
+      contactName: 'Vũ Thị Vân', contactPhone: '02213654321',
+      advanceTo: 'CANCELED',
+    },
+    // ── EXPORT — Booking refs, factory → port delivery ─────────────────────
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13333', customerId: vanTrung.id,
+      expectedDeliveryDate: '2026-08-21',
+      pickupLocation: 'NEWEB-Kho 1', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      contactName: 'Vũ Thị Vân', contactPhone: '02213654321',
+      closingAt: '2026-08-20T08:00:00.000Z',
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13334', customerId: dongVan.id,
+      // No dates → PENDING_DATE (booking awaiting closing schedule).
+      pickupLocation: 'Xưởng SUNRISE', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      contactName: 'Trần Văn Đồng', contactPhone: '02213876543',
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13335', routeName: 'ASKEY', customerId: askey.id,
+      expectedDeliveryDate: '2026-08-18',
+      pickupLocation: 'Kho ASKEY', deliveryLocation: 'Cảng Hải Phòng',
+      contactName: 'Lý Thị Kiều', contactPhone: '0203333444',
+      closingAt: '2026-08-17T16:00:00.000Z',
+            containers: [
+        { containerNumber: 'MSBU1245654', sealNumber: 'SL8512340', cargoWeightKg: 20500 },
+      ],
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13336', routeName: 'NEWEB', customerId: bienBac.id,
+      expectedDeliveryDate: '2026-08-16',
+      pickupLocation: 'NEWEB-Kho 1', deliveryLocation: 'Cảng Đình Vũ',
+      contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
+      closingAt: '2026-08-15T08:00:00.000Z',
+            containers: [
+        { containerNumber: 'MSDU1245780', sealNumber: 'SL8509912', cargoWeightKg: 19800 },
+        { containerNumber: 'TGBU3190086', sealNumber: 'SL8509913', cargoWeightKg: 21100 },
+      ],
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13337', customerId: haNoi.id,
+      expectedDeliveryDate: '2026-08-12',
+      pickupLocation: 'Kho Biển Bạc', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      contactName: 'Trịnh Văn Hà', contactPhone: '02438888888',
+      closingAt: '2026-08-11T08:00:00.000Z',
       advanceTo: 'PENDING_EXPENSE_APPROVAL',
       containers: [
-        { containerNumber: 'OOLU8312661', sealNumber: 'SEED-SEAL-003', cargoWeightKg: 17800 },
+        { containerNumber: 'MAGU2468720', sealNumber: 'SL8371065', cargoWeightKg: 19300 },
       ],
-      document: { type: 'BL', storageKey: 'uploads/seed/SEED-SHIP-3/bl.pdf' },
-      declaration: { declarationNumber: 'SEED-DECL-003', scope: 'SINGLE', note: 'Tờ khai mẫu (seed)' },
+      declaration: { declarationNumber: '102250318903', scope: 'SHARED', note: 'Tờ khai gộp 2 lô' },
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13338', routeName: 'ASKEY', customerId: askey.id,
+      expectedDeliveryDate: '2026-07-26',
+      pickupLocation: 'Kho ASKEY', deliveryLocation: 'Cảng Hải Phòng',
+      contactName: 'Lý Thị Kiều', contactPhone: '0203333444',
+      closingAt: '2026-07-25T08:00:00.000Z',
+            containers: [
+        { containerNumber: 'TRHU4510296', sealNumber: 'SL6782043', cargoWeightKg: 18700 },
+      ],
+      document: { type: 'BOOKING', storageKey: 'uploads/seed/DNKM13338/booking.pdf' },
+    },
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13339', customerId: dongVan.id,
+      expectedDeliveryDate: '2026-08-08',
+      pickupLocation: 'Xưởng SUNRISE', deliveryLocation: 'Cảng Nam Hải Đình Vũ',
+      contactName: 'Trần Văn Đồng', contactPhone: '02213876543',
+      closingAt: '2026-08-07T08:00:00.000Z',
+      advanceTo: 'CANCELED',
     },
   ];
 
   let createdCount = 0;
   for (const s of shipmentSeeds) {
-    // Idempotency: skip if a shipment with this sentinel blNumber already
-    // exists. createShipment would otherwise mint a new shipmentCode each call.
+    // Idempotency: skip if a shipment with this document ref already exists.
+    // The one-ref invariant stores it in exactly one of the two columns.
+    const refColumn = s.tradeDirection === 'IMPORT' ? schema.shipments.blNumber : schema.shipments.bookingRef;
     const [existing] = await db.select({ id: schema.shipments.id })
       .from(schema.shipments)
-      .where(eq(schema.shipments.blNumber, s.sentinel))
+      .where(eq(refColumn, s.ref))
       .limit(1);
     if (existing) {
       continue; // Already seeded — leave its status + children alone.
     }
 
     // Use createShipment so the row gets the canonical shipmentCode + an
-    // initial NEW history row, matching the production path. These are import
-    // shipments: the sentinel lives in blNumber and no bookingRef is stored.
+    // initial status-history row, matching the production path.
     const shipment = await createShipment({
       customerId: s.customerId,
-      tradeDirection: 'IMPORT',
-      blNumber: s.sentinel,
+      tradeDirection: s.tradeDirection,
+      cargoMode: 'FCL',
+      routeId: s.routeName === 'NEWEB' ? ROUTE_NEWEB
+        : s.routeName === 'ASKEY' ? ROUTE_ASKEY
+        : s.routeName === 'SUNRISE' ? ROUTE_SUNRISE
+        : null,
+      blNumber: s.tradeDirection === 'IMPORT' ? s.ref : undefined,
+      bookingRef: s.tradeDirection === 'EXPORT' ? s.ref : undefined,
       expectedDeliveryDate: s.expectedDeliveryDate,
       pickupLocation: s.pickupLocation,
       deliveryLocation: s.deliveryLocation,
@@ -852,12 +1054,25 @@ export async function seedShipments(passwordHash: string) {
       closingAt: s.closingAt,
     });
 
-    // Children + status transition attach ONLY on first creation.
+    // Children + status transitions attach ONLY on first creation, walking
+    // the legal ladder edge by edge.
     if (s.containers && s.containers.length > 0) {
+      // Dispatch readiness (assertIntakeReady) requires every container to
+      // carry type + both ports. IMPORT: lift at the sea port, drop at the
+      // inland site; EXPORT is the mirror.
+      const [pickupPortId, dropoffPortId] = s.tradeDirection === 'IMPORT'
+        ? [PORT_HAI_PHONG, PORT_DINH_VU]
+        : [PORT_DINH_VU, PORT_LACH_HUYEN];
       await batchUpsertShipmentContainers(shipment.id, null, s.containers.map((c) => ({
         containerNumber: c.containerNumber,
         sealNumber: c.sealNumber,
         cargoWeightKg: c.cargoWeightKg,
+        containerTypeId: c.containerNumber.startsWith('MS') || c.containerNumber.startsWith('TG')
+          ? CONTAINER_TYPE_40HC
+          : CONTAINER_TYPE_40DC,
+        shippingLineName: s.tradeDirection === 'IMPORT' ? 'MSC' : 'ONE',
+        pickupPortId,
+        dropoffPortId,
       })));
     }
     if (s.document) {
@@ -874,13 +1089,28 @@ export async function seedShipments(passwordHash: string) {
         note: s.declaration.note,
       });
     }
-    if (s.advanceTo === 'DISPATCHED') {
-      await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
-    } else if (s.advanceTo === 'PENDING_EXPENSE_APPROVAL') {
-      // Follow the current PRD lifecycle through every legal edge.
-      await transitionShipmentStatus(shipment.id, 'DISPATCHED', { reason: 'Điều vận (seed)' });
-      await transitionShipmentStatus(shipment.id, 'IN_TRANSIT', { reason: 'Đang vận chuyển (seed)' });
-      await transitionShipmentStatus(shipment.id, 'PENDING_EXPENSE_APPROVAL', { reason: 'Giao hàng (seed)' });
+    if (s.advanceTo) {
+      const ladder: Record<NonNullable<ShipmentSeed['advanceTo']>, readonly string[]> = {
+        DISPATCHED: ['DISPATCHED'],
+        IN_TRANSIT: ['DISPATCHED', 'IN_TRANSIT'],
+        PENDING_EXPENSE_APPROVAL: ['DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL'],
+        COMPLETED: ['DISPATCHED', 'IN_TRANSIT', 'PENDING_EXPENSE_APPROVAL', 'COMPLETED'],
+        CANCELED: ['CANCELED'],
+      };
+      const reasons: Record<string, string> = {
+        DISPATCHED: 'Điều vận',
+        IN_TRANSIT: 'Đang vận chuyển',
+        PENDING_EXPENSE_APPROVAL: 'Giao hàng',
+        COMPLETED: 'Hoàn tất duyệt chi phí',
+        CANCELED: 'Khách hủy lô hàng',
+      };
+      for (const next of ladder[s.advanceTo]) {
+        await transitionShipmentStatus(
+          shipment.id,
+          next as Parameters<typeof transitionShipmentStatus>[1],
+          { reason: `${reasons[next]} (seed)` },
+        );
+      }
     }
     createdCount++;
   }

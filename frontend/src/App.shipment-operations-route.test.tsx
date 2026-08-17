@@ -43,8 +43,8 @@ vi.mock('./pages/ShipmentsDetailPage', () => ({
   default: () => <div>Shipment containers test page</div>,
 }));
 
-vi.mock('./pages/clerk/ClerkShipmentDocsPage', () => ({
-  default: () => <div>Shipment dossier test page</div>,
+vi.mock('./pages/ShipmentsPage', () => ({
+  default: () => <div>Shipment overview test page</div>,
 }));
 
 vi.mock('./pages/DashboardPage', () => ({
@@ -75,13 +75,16 @@ describe('AppRoutes shipment operations reachability', () => {
     authState.role = Role.MANAGER;
   });
 
-  it('admits MANAGER to create and dossier routes', async () => {
-    const createView = renderRoute('/shipments/new');
+  it('admits MANAGER to the shipment create route', async () => {
+    renderRoute('/shipments/new');
     expect(await screen.findByText('Shipment create test page')).toBeTruthy();
-    createView.unmount();
+  });
 
+  it('redirects the removed dossier URL to the CUS shipment overview', async () => {
+    authState.role = Role.CUS;
     renderRoute('/clerk/shipments/42/docs');
-    expect(await screen.findByText('Shipment dossier test page')).toBeTruthy();
+    expect(await screen.findByText('Shipment overview test page')).toBeTruthy();
+    expect(screen.getByTestId('route-location').textContent).toBe('/shipments');
   });
 
   it('keeps ACCOUNTANT out of shipment write routes', async () => {

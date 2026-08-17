@@ -258,7 +258,6 @@ def ensure_fixture(results: TestResults) -> tuple[int, int]:
         "pickupWarehouseSiteId": warehouse["id"],
         "cargoMode": "FCL",
         "tradeDirection": "IMPORT",
-        "bookingRef": f"E2E-CUS-A11Y-{RUN_ID}",
         "blNumber": f"BLCUS{SEARCH_SUFFIX}",
         "expectedDeliveryDate": datetime.now().strftime("%Y-%m-%d"),
         "operationalNotes": f"CUS workspace accessibility {RUN_ID}",
@@ -507,7 +506,8 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 focus_in_dialog = page.evaluate(
                     "document.activeElement?.getAttribute('aria-label') === 'Đóng'"
                 )
-                dialog.get_by_role("button", name="Chỉnh sửa").click()
+                # Container fields are directly editable in the current drawer;
+                # the former edit-mode toggle no longer exists.
                 save_container_button = dialog.get_by_role("button", name="Lưu container", exact=False)
 
                 assert_min_target(

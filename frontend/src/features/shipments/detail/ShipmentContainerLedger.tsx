@@ -399,8 +399,8 @@ function InlineEditor({
       )}
       {mode === 'notes' && (
         <div className="shipment-container-ledger__editor-grid">
-          <UUITextArea label="Ghi chú thu khách" size="sm" rows={2} maxLength={2000} value={customerNotes} onChange={setCustomerNotes} isDisabled={saving} />
-          <UUITextArea label="Ghi chú điều xe" size="sm" rows={2} maxLength={2000} value={operationalNotes} onChange={setOperationalNotes} isDisabled={saving} />
+          <UUITextArea label="Ghi chú cho khách hàng" size="sm" rows={2} maxLength={2000} value={customerNotes} onChange={setCustomerNotes} isDisabled={saving} />
+          <UUITextArea label="Ghi chú cho lái xe" size="sm" rows={2} maxLength={2000} value={operationalNotes} onChange={setOperationalNotes} isDisabled={saving} />
           <small>Thay đổi áp dụng cho toàn bộ container trong lô hàng này.</small>
         </div>
       )}
@@ -592,7 +592,7 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
-                    {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}
+                    {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú cho khách hàng')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú cho lái xe')}</span></div>)}
                   </td>
                 </tr>
               );

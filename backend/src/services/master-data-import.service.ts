@@ -1060,6 +1060,7 @@ async function applyParsedRows(
       customerId: customer.id,
       code: payload.code,
       name: payload.name,
+      shortName: existing?.shortName.trim() || payload.name,
       siteType: payload.siteType,
       address: payload.address,
       googleMapsUrl: payload.googleMapsUrl,

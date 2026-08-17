@@ -9,7 +9,6 @@
 >
 > **Màn hình chính (clerk portal):**
 > - `/shipments/new` — tạo nhanh lô nháp (M10.1).
-> - `/clerk/shipments/:id/docs` — nhập số vận đơn (B/L), công-te-nơ, niêm phong, readiness (M10.2).
 > - `/shipments` — danh sách lô (góc nhìn văn phòng).
 > - `/shipments/:id` — chi tiết lô.
 >
@@ -46,10 +45,9 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
   4. Bấm "Lưu bản nháp".
 - **Kết quả mong đợi (Pass):**
   - Form một cột, nút "Lưu bản nháp" cao ≥ 44px, không bị keyboard che.
-  - Sau bấm → chuyển sang `/clerk/shipments/:id/docs` (hồ sơ chứng từ đúng phạm vi CLERK).
+  - Sau bấm → chuyển sang `/shipments` (Tổng quan lô hàng).
   - Trạng thái lô = "Bản nháp" (DRAFT). `shipmentCode` được sinh ra, duy nhất.
-  - Lô xuất hiện ngay trên `/shipments` (danh sách của người tạo); hồ sơ mới mở sẵn để bổ sung B/L,
-    chiều hàng, loại lô, nhà máy/công trường, hãng tàu, các mốc cut-off/closing/trả hàng và ghi chú vận hành.
+  - Lô xuất hiện ngay trên `/shipments` (danh sách của người tạo).
 - **Phụ thuộc:** Q17
 - **Bằng chứng:** ảnh mobile form đã điền + ảnh trang chi tiết + ảnh danh sách `/shipments`.
 
@@ -125,114 +123,11 @@ báo rõ chưa lưu; gửi lại không tạo bản trùng (idempotency qua head
 
 ---
 
-## 10.2 — Nhập vận đơn, công-te-nơ, tờ khai và thông tin giao nhận
+## 10.2 — Chưa định nghĩa sản phẩm
 
-**Quy tắc nghiệp vụ (PRD M10-02):** Kiểm tra định dạng và trùng lặp; cho phép nhiều công-te-nơ; định nghĩa
-các trường bắt buộc trước khi điều vận. Bắt buộc: số vận đơn (B/L), số công-te-nơ, số niêm phong, tờ khai,
-ngày giao, địa điểm. Hồ sơ hiển thị từng công-te-nơ và chứng từ; tra cứu được theo số tham chiếu. Dữ liệu
-sai → báo lỗi rõ; ngoại lệ cần người xác nhận có thẩm quyền + lý do. Biên: 1 tờ khai nhiều công-te-nơ; lệnh
-giao hàng hết hạn; thay thế chứng từ.
-
-> **Lưu ý kỹ thuật:** Số công-te-nơ được kiểm tra theo **ISO 6346** (định dạng `XXXXNNNNNNN` + chữ số kiểm
-> tra) ở `shared/src/calculations/iso6346.ts` (`validateContainerNumber`). Backend còn kiểm tra trùng trong
-> cùng batch → 400 với message chứa chữ "trùng" (xem `m102-container-validation.test.ts:117`). Readiness
-> (client mirror): B/L không trắng + ≥ 1 công-te-nơ.
-
-### TC-M10-02-01 — Nhập B/L + công-te-nơ hợp lệ, lưu thành công (luồng thường)
-
-- **Mã PRD:** M10-02-01
-- **Vai trò:** `admin`
-- **Thiết bị:** Mobile (iPhone SE 375×667)
-- **Tiền điều kiện:** có 1 lô DRAFT từ TC-M10-01-01 (ghi lại `:id`).
-- **Các bước:**
-  1. Mở `/clerk/shipments/:id/docs` với id lô DRAFT đó.
-  2. Tại "Số vận đơn (B/L)" gõ `MAEU1234567890` → bấm "Lưu vận đơn".
-  3. Bấm "Thêm công-te-nơ": loại = 20ft, số = `MSKU1234565` (hợp lệ ISO 6346), niêm phong `S-001`,
-     trọng lượng `15000`. Bấm "Lưu công-te-nơ".
-  4. Quan sát banner "Sẵn sàng điều vận".
-- **Kết quả mong đợi (Pass):**
-  - Lưu B/L thành công, thông báo "Đã lưu số vận đơn.", `version` tăng.
-  - Lưu công-te-nơ thành công, thông báo "Đã lưu 1 công-te-nơ.", row có `id`.
-  - Banner chuyển từ cảnh báo vàng "Còn thiếu…" sang xanh "Sẵn sàng điều vận".
-  - Trên `/shipments/:id` tra cứu theo số B/L hoặc số công-te-nơ → ra đúng lô.
-- **Phụ thuộc:** không
-- **Bằng chứng:** ảnh trang docs sau khi lưu + ảnh banner readiness + ảnh `/shipments/:id`.
-
-### TC-M10-02-02 — Số công-te-nơ sai định dạng / sai check digit
-
-- **Mã PRD:** M10-02-02
-- **Vai trò:** `admin`
-- **Thiết bị:** Mobile (iPhone SE 375×667)
-- **Tiền điều kiện:** lô DRAFT từ TC-M10-02-01.
-- **Các bước:**
-  1. Mở `/clerk/shipments/:id/docs`. Thêm 1 công-te-nơ.
-  2. Lần lượt nhập và "Lưu công-te-nơ" với các số: `ABC123` (sai định dạng), `MSKU1234567` (định dạng đúng
-     nhưng sai check digit), `MSKU1234565` (đúng — đối chứng).
-  3. Lần 4: thêm 2 row **cùng số** `OOLU8312661` trong cùng batch → bấm "Lưu công-te-nơ".
-- **Kết quả mong đợi (Pass):**
-  - `ABC123`: lỗi tiếng Việt "Sai định dạng. Đúng: XXXXNNNNNNN (4 chữ cái + 7 số…)".
-  - `MSKU1234567`: lỗi "Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp".
-  - `MSKU1234565`: lưu thành công.
-  - 2 row trùng `OOLU8312661`: backend trả 400 với message chứa chữ "trùng", không lưu.
-- **Phụ thuộc:** không
-- **Bằng chứng:** ảnh 3 thông báo lỗi + ảnh Network tab 400 (batch trùng).
-
-### TC-M10-02-03 — Ngoại lệ: 1 tờ khai nhiều công-te-nơ & readiness thiếu
-
-- **Mã PRD:** M10-02-03
-- **Vai trò:** `admin`
-- **Thiết bị:** Mobile (iPhone SE 375×667)
-- **Tiền điều kiện:** lô DRAFT mới, chưa có công-te-nơ.
-- **Các bước:**
-  1. Mở `/clerk/shipments/:id/docs`. Để trống B/L.
-  2. Thêm 3 công-te-nơ hợp lệ (giả lập 1 tờ khai cho nhiều cont). Bấm "Lưu công-te-nơ".
-  3. Quan sát banner readiness.
-  4. (Nếu đăng nhập MANAGER/ADMIN) bấm "Điều vận" khi còn thiếu B/L → quan sát dialog xác nhận.
-- **Kết quả mong đợi (Pass):**
-  - 3 công-te-nơ lưu thành công (cho phép nhiều cont/lô).
-  - Banner vàng: "Còn thiếu: Số vận đơn (B/L)".
-  - Dialog "Điều vận" cảnh báo: "Lô hàng còn thiếu: Số vận đơn (B/L). Điều vận tiếp tục?" — có nút hủy an toàn.
-- **Phụ thuộc:** không
-- **Bằng chứng:** ảnh 3 cont đã lưu + ảnh banner thiếu + ảnh dialog cảnh báo.
-
-### TC-M10-02-04 — Phân quyền: CLERK không thấy nút "Điều vận"
-
-- **Mã PRD:** M10-02-04
-- **Vai trò thử:** `cus`, đối chiếu `admin`/`giamdoc`
-- **Thiết bị:** Desktop
-- **Các bước:**
-  1. Tạo user `clerk-test` với role CLERK ở `/users`. Đăng xuất, đăng nhập lại bằng user này.
-  2. Mở `/clerk/shipments/:id/docs` (lô DRAFT đã có B/L + cont).
-  3. Kiểm tra có nút "Điều vận" hay không.
-  4. Đăng nhập lại `admin` → mở cùng URL → kiểm tra nút "Điều vận".
-- **Kết quả mong đợi (Pass):**
-  - CLERK: **không** thấy nút "Điều vận" (chỉ MANAGER/ADMIN mới thấy, `canDispatch` ở
-    `ClerkShipmentDocsPage.tsx:86`). CLERK vẫn sửa được B/L và cont.
-  - ADMIN/MANAGER: thấy nút "Điều vận".
-  - Điều vận là quyết định của điều vận viên (Q17).
-- **Phụ thuộc:** Q17
-- **Bằng chứng:** ảnh màn CLERK (không nút) + ảnh màn ADMIN (có nút).
-
-### TC-M10-02-05 — Gửi lại/đồng thời: lưu B/L 2 lần nhanh; sửa cont khi dispatch đang xem
-
-- **Mã PRD:** M10-02-05
-- **Vai trò:** `admin`
-- **Thiết bị:** Mobile (iPhone SE 375×667)
-- **Tiền điều kiện:** lô DRAFT có version hiện tại.
-- **Các bước:**
-  1. Mở `/clerk/shipments/:id/docs`. Gõ B/L = `BL-RETRY`. DevTools throttle = "Slow 3G".
-  2. Bấm "Lưu vận đơn" **2 lần liên tiếp** trước khi request đầu trả về.
-  3. Quan sát `version` và số request trong Network.
-  4. Thử lưu công-te-nơ khi cùng lô đang mở ở tab điều vận (mô phỏng sửa khi người khác đang xem — xem thêm
-    TC-M10-03-03 về cảnh báo version).
-- **Kết quả mong đợi (Pass):**
-  - Backend version-gated: chỉ 1 lưu thành công, request sau nhận lỗi version conflict nếu `version` đã thay đổi.
-  - Mọi lỗi là tiếng Việt, người dùng không mất dữ liệu đã gõ trên form.
-  - Toast/thông báo "Đã lưu" chỉ hiện đúng 1 lần (TC-HT-04).
-- **Phụ thuộc:** Q23
-- **Bằng chứng:** ảnh Network tab (version conflict) + ảnh thông báo.
-
----
+PM chưa định nghĩa màn nhập hồ sơ lô hàng riêng. Route `/clerk/shipments/:id/docs` và các ca kiểm thử giao
+diện tương ứng đã được rút khỏi phạm vi hiện hành. Chỉ bổ sung lại sau khi có luồng nghiệp vụ và tiêu chí
+nghiệm thu được PM phê duyệt; các API/dữ liệu nền hiện có không phải là cam kết về một màn hình riêng.
 
 ## 10.3 — Chuyển dữ liệu ngay cho điều vận
 

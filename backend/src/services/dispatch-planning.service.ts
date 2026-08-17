@@ -13,6 +13,11 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { operationalName } from '../db/master-data-name';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
+const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type DispatchActor = AuthUser & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };
@@ -505,7 +510,9 @@ function toFrozenSiteSummary(source: unknown) {
     : null;
   return {
     id: typeof site?.id === 'number' ? site.id : null,
-    name: typeof site?.name === 'string' ? site.name : null,
+    name: typeof site?.shortName === 'string'
+      ? site.shortName
+      : typeof site?.name === 'string' ? site.name : null,
     address: typeof site?.address === 'string' ? site.address : null,
     googleMapsUrl: typeof site?.googleMapsUrl === 'string' ? site.googleMapsUrl : null,
     strictRules: typeof site?.strictRules === 'string' ? site.strictRules : null,
@@ -544,9 +551,9 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
       operationalSiteId: s.shipments.operationalSiteId,
       pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
       customerId: s.customers.id,
-      customerName: s.customers.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
       routeId: s.routes.id,
-      routeName: s.routes.name,
+      routeName: ROUTE_OPERATIONAL_NAME,
       routeDistanceKm: s.routes.distanceKm,
     }).from(s.dispatchHandoffs)
       .innerJoin(s.shipments, eq(s.dispatchHandoffs.shipmentId, s.shipments.id))
@@ -560,6 +567,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
         qPattern ? or(
+          ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
           ilike(s.shipments.bookingRef, qPattern),
@@ -601,6 +609,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(${s.dispatchHandoffs.vehicleNeededBy})`, date) : undefined,
         qPattern ? or(
+          ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
           ilike(s.shipments.bookingRef, qPattern),
@@ -660,7 +669,7 @@ export async function listDispatchHandoffs(input: ListDispatchHandoffsInput) {
             }
             return redactDispatchSiteForAccountant(input.actor, {
               id: site.id,
-              name: site.name,
+              name: site.shortName || site.name,
               address: site.address,
               googleMapsUrl: site.googleMapsUrl,
               strictRules: site.strictRules,
@@ -714,9 +723,9 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       cargoWeightKg: s.shipments.cargoWeightKg,
       cargoVolumeCbm: s.shipments.cargoVolumeCbm,
       customerId: s.customers.id,
-      customerName: s.customers.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
       routeId: s.routes.id,
-      routeName: s.routes.name,
+      routeName: ROUTE_OPERATIONAL_NAME,
       routeDistanceKm: s.routes.distanceKm,
       priority: s.dispatchHandoffs.priority,
       handoffId: s.dispatchHandoffs.id,
@@ -767,6 +776,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
         qPattern ? or(
+          ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
           ilike(s.shipments.bookingRef, qPattern),
@@ -793,7 +803,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       truckIds.length === 0 ? [] : tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks).where(inArray(s.trucks.id, [...new Set(truckIds)])),
       driverIds.length === 0 ? [] : tx.select({ id: s.drivers.id, name: s.drivers.name, phone: s.drivers.phone }).from(s.drivers).where(inArray(s.drivers.id, [...new Set(driverIds)])),
       trailerIds.length === 0 ? [] : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate }).from(s.trailers).where(inArray(s.trailers.id, [...new Set(trailerIds)])),
-      carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: s.customers.name }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
+      carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
       portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: s.ports.name }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
     ]);
     const trucksById = new Map(trucks.map((row) => [row.id, row]));
@@ -826,6 +836,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
         date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
         qPattern ? or(
+          ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
           ilike(s.shipments.shipmentCode, qPattern),
           ilike(s.shipments.bookingRef, qPattern),
@@ -1124,27 +1135,27 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       eq(s.customers.isCarrier, true),
       eq(s.customers.status, 'ACTIVE'),
       isNull(s.customers.deletedAt),
-      qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
+      qPattern ? or(unaccentedIlike(CUSTOMER_OPERATIONAL_NAME, qPattern), unaccentedIlike(s.customers.name, qPattern)) : undefined,
       cursor ? or(
-        gt(s.customers.name, cursor.sortKey),
-        and(eq(s.customers.name, cursor.sortKey), gt(s.customers.id, cursor.id)),
+        gt(CUSTOMER_OPERATIONAL_NAME, cursor.sortKey),
+        and(eq(CUSTOMER_OPERATIONAL_NAME, cursor.sortKey), gt(s.customers.id, cursor.id)),
       ) : undefined,
     );
     const externalCarrierCountWhere = and(
       eq(s.customers.isCarrier, true),
       eq(s.customers.status, 'ACTIVE'),
       isNull(s.customers.deletedAt),
-      qPattern ? unaccentedIlike(s.customers.name, qPattern) : undefined,
+      qPattern ? or(unaccentedIlike(CUSTOMER_OPERATIONAL_NAME, qPattern), unaccentedIlike(s.customers.name, qPattern)) : undefined,
     );
     const [externalCarrierTotals, externalCarrierRows] = await Promise.all([
       tx.select({ value: count() }).from(s.customers).where(externalCarrierCountWhere),
       tx.select({
         id: s.customers.id,
-        name: s.customers.name,
+        name: CUSTOMER_OPERATIONAL_NAME,
         isActive: sql<boolean>`${s.customers.status} = 'ACTIVE'`,
       }).from(s.customers)
         .where(externalCarrierWhere)
-        .orderBy(asc(s.customers.name), asc(s.customers.id))
+        .orderBy(asc(CUSTOMER_OPERATIONAL_NAME), asc(s.customers.id))
         .limit(limit + 1),
     ]);
     const pageRows = externalCarrierRows.slice(0, limit);
@@ -1880,6 +1891,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
         : undefined,
       qPattern ? or(
+        ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
         ilike(s.customers.name, qPattern),
         ilike(s.shipments.shipmentCode, qPattern),
         ilike(s.shipments.bookingRef, qPattern),
@@ -1918,7 +1930,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       packageCount: s.shipments.packageCount,
       cargoWeightKg: s.shipments.cargoWeightKg,
       customerId: s.customers.id,
-      customerName: s.customers.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
       containerNumber: s.shipmentContainers.containerNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
@@ -1960,7 +1972,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     const portIds = pageRows.flatMap((row) => [row.pickupPortId, row.dropoffPortId]).filter((id): id is number => id != null);
     const [declarations, carriers, ports, platedCounts] = await Promise.all([
       loadDeclarationNumbers(tx, shipmentIds),
-      carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: s.customers.name }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
+      carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
       portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: s.ports.name }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
       shipmentIds.length === 0 ? [] : tx.select({
         shipmentId: s.shipmentFulfillments.shipmentId,
@@ -2053,7 +2065,7 @@ export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; 
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const qPattern = buildPattern(input.q);
-  const rows = await db.selectDistinct({ id: s.operationalSites.id, name: s.operationalSites.name })
+  const rows = await db.selectDistinct({ id: s.operationalSites.id, name: SITE_OPERATIONAL_NAME })
     .from(s.shipments)
     .innerJoin(s.shipmentFulfillments, and(
       eq(s.shipmentFulfillments.shipmentId, s.shipments.id),
@@ -2064,9 +2076,9 @@ export async function listDispatchDeliveryPointFacets(input: { actor: AuthUser; 
       isNull(s.shipments.deletedAt),
       eq(s.shipments.status, 'READY_FOR_DISPATCH'),
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
-      qPattern ? ilike(s.operationalSites.name, qPattern) : undefined,
+      qPattern ? or(ilike(SITE_OPERATIONAL_NAME, qPattern), ilike(s.operationalSites.name, qPattern)) : undefined,
     ))
-    .orderBy(asc(s.operationalSites.name))
+    .orderBy(asc(SITE_OPERATIONAL_NAME))
     .limit(100);
   return { items: rows };
 }
@@ -2195,7 +2207,7 @@ async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillmentCarr
     if (input.externalCarrierId != null) throw new ApiError(400, 'Xe nội bộ không dùng mã nhà xe ngoài.');
   } else {
     if (input.externalCarrierId == null) throw new ApiError(400, 'Nhà xe ngoài là bắt buộc.');
-    const [carrier] = await tx.select({ id: s.customers.id, name: s.customers.name })
+    const [carrier] = await tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME })
       .from(s.customers)
       .where(and(
         eq(s.customers.id, input.externalCarrierId),

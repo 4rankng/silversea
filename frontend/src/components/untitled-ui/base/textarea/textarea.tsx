@@ -31,7 +31,7 @@ export const TextAreaBase = ({ className, size = "md", ...props }: TextAreaBaseP
                 cx(
                     "w-full scroll-py-3 rounded-lg border border-primary bg-primary text-primary outline-focus-ring transition duration-100 ease-linear placeholder:text-placeholder autofill:rounded-lg autofill:text-primary",
 
-                    size === "sm" && "p-3 text-sm",
+                    size === "sm" && "p-3 text-xs max-md:text-sm",
                     size === "md" && "px-3.5 py-3 text-md",
 
                     // Resize handle
@@ -93,6 +93,7 @@ export const TextArea = ({
     return (
         <AriaTextField
             {...props}
+            data-input-size={size}
             className={(state) =>
                 cx("group flex h-max w-full flex-col items-start justify-start gap-1.5", typeof className === "function" ? className(state) : className)
             }

@@ -16,6 +16,10 @@ describe('shared control density', () => {
     expect(tokens).toMatch(/--control-compact-h:\s*34px;/);
     expect(tokens).toMatch(/--control-default-h:\s*40px;/);
     expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
+    expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--fs-xs\);/);
+    expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);
+    expect(tokens).toMatch(/--control-compact-touch-font-size:\s*var\(--fs-sm\);/);
+    expect(tokens).toMatch(/--control-compact-touch-line-height:\s*20px;/);
   });
 
   it('keeps the global native-control font reset below component utilities', () => {
@@ -49,15 +53,18 @@ describe('shared control density', () => {
     const input = read('src/components/untitled-ui/base/input/input.tsx');
     const nativeSelect = read('src/components/untitled-ui/base/select/select-native.tsx');
     const select = read('src/components/untitled-ui/base/select/select-shared.tsx');
+    const textarea = read('src/components/untitled-ui/base/textarea/textarea.tsx');
     const overview = read('src/pages/ShipmentsPage.css');
     const detail = read('src/pages/ShipmentsDetailPage.css');
+    const shipmentCreate = read('src/pages/clerk/ClerkShipmentCreatePage.css');
 
-    for (const source of [input, nativeSelect, select]) {
+    for (const source of [input, nativeSelect, select, textarea]) {
       expect(source).toContain('max-md:text-sm');
       expect(source).not.toContain('max-md:text-md');
     }
     expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*font\s*:/);
     expect(detail).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
+    expect(shipmentCreate).not.toMatch(/\.csc-section textarea\s*\{[^}]*font\s*:/);
   });
 
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {

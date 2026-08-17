@@ -99,6 +99,34 @@
       "when": 1786948582370,
       "tag": "0013_backfill-shipment-combined-flag",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786979628854,
+      "tag": "0014_add-master-data-short-names",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786979632922,
+      "tag": "0015_backfill-master-data-short-names",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786979653676,
+      "tag": "0016_require-master-data-short-names",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786980104881,
+      "tag": "0017_add-short-name-compat-defaults",
+      "breakpoints": true
     }
   ]
 }

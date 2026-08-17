@@ -22,9 +22,10 @@ function DetailRow({ label, value }: { label: string; value: string | null }) {
 
 export function OperationalSiteDetailsDialog({ site, isOpen, onClose }: OperationalSiteDetailsDialogProps) {
   return (
-    <Modal isOpen={isOpen && Boolean(site)} title={site?.name ?? 'Thông tin nhà máy'} onClose={onClose} maxWidth={640}>
+    <Modal isOpen={isOpen && Boolean(site)} title={site ? (site.shortName || site.name) : 'Thông tin nhà máy'} onClose={onClose} maxWidth={640}>
       {site && (
         <div style={{ display: 'grid', gap: 18 }}>
+          <DetailRow label="Tên đầy đủ" value={site.name} />
           <DetailRow label="Địa chỉ" value={site.address} />
           {site.googleMapsUrl && (
             <a

@@ -66,28 +66,6 @@
     "notes": null
   },
   {
-    "code": "OPS-004",
-    "group": "O2C & vận hành",
-    "name": "Hoàn thiện hồ sơ và kích hoạt ngày điều vận",
-    "priority": "Critical",
-    "role": "CLERK/CUS",
-    "page": "/clerk/shipments/:id/docs; /shipments/:id",
-    "surface": "UI HIỆN CÓ",
-    "preconditions": "Lô FCL ở Chờ ngày điều vận, chưa phát lệnh.",
-    "test_data": "B/L, tờ khai, lệnh giao hàng, hạn hạ container và ngày đóng hàng.",
-    "steps": "1. Nhập B/L, container, seal, tờ khai và chỉ hạn hạ container; lưu.\n2. Xác nhận lô vẫn ở Chờ ngày điều vận.\n3. Nhập ngày đóng hàng và lưu.\n4. Tải lại chi tiết, kiểm tra trạng thái và nút Gán nhà xe.",
-    "expected": "Hạn hạ container không làm lô sẵn sàng; khi có ngày đóng hàng, lô chuyển Sẵn sàng điều xe và hiển thị điều khiển Gán nhà xe.",
-    "business_rules": "Readiness dùng ngày đóng hàng HOẶC ngày trả container dự kiến; chuyển sẵn sàng là forward-only sau bàn giao.",
-    "negative_tests": "Sai loại/kích thước tệp; thiếu trường; hai người cùng sửa; thử xóa ngày sau khi lô đã vào điều xe.",
-    "status": "CHƯA CHẠY",
-    "tester": null,
-    "run_id": null,
-    "date": null,
-    "evidence": null,
-    "bug_code": null,
-    "notes": null
-  },
-  {
     "code": "OPS-005",
     "group": "O2C & vận hành",
     "name": "Tự động hiển thị lô trên Kế hoạch xe",

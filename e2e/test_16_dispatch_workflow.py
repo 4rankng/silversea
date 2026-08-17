@@ -257,9 +257,10 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
                         results,
                         f"TC-1604-{role.upper()}-{label}-control",
                         f"{label}: dispatch search control",
-                        # Desktop/laptop keep dense 36px data-entry controls;
-                        # compact touch layouts promote them to 44px.
-                        min_size=36 if width >= 768 else CONTROL_MIN_SIZE,
+                        # The canonical UUI `sm` input itself is 32px on
+                        # desktop/laptop; its bordered group is 34px. Compact
+                        # touch layouts promote the control to the mobile bar.
+                        min_size=32 if width >= 768 else CONTROL_MIN_SIZE,
                     )
 
             if not control_ok:
@@ -409,12 +410,17 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
     accountant_api.login(accountant_account["identifier"], accountant_account["password"])
     denied_queue = accountant_api.get("/api/shipments/dispatch-queue?limit=1")
     denied_fleet = accountant_api.get("/api/shipments/dispatch-fleet?resource=TRUCK&limit=1")
-    shipment_id = queue_items[0]["shipmentId"] if queue_items else None
-    if shipment_id is None:
-        shipment_list = manager_api.get("/api/shipments?page=1&pageSize=1")
-        shipment_items = shipment_list.get("data", {}).get("items", [])
-        shipment_id = shipment_items[0].get("id") if shipment_items else None
-    readable_shipment = accountant_api.get(f"/api/shipments/{shipment_id}") if shipment_id else {"status": 0}
+    shipment_list = accountant_api.get("/api/shipments?page=1&pageSize=50")
+    shipment_items = shipment_list.get("data", {}).get("items", [])
+    readable_shipment = {"status": 0}
+    for shipment in shipment_items:
+        shipment_id = shipment.get("id")
+        if not isinstance(shipment_id, int):
+            continue
+        candidate = accountant_api.get(f"/api/shipments/{shipment_id}")
+        if candidate.get("status") == 200:
+            readable_shipment = candidate
+            break
     if (
         denied_queue.get("status") == 403
         and denied_fleet.get("status") == 403

@@ -58,7 +58,9 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Phân bổ' })).toBeTruthy();
+    const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);
+    expect(allocationTrigger.closest('td')?.classList.contains('master-plan-grid__cell--action')).toBe(true);
   });
 
   it('anchors the direction pill at the lower-right of the document cell', () => {
@@ -85,7 +87,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('1 x 20HC')).toBeTruthy();
   });
 
-  it('renders allocation chips and edit label when fully allocated', () => {
+  it('uses the allocation values as the full-cell edit trigger without a separate edit button', () => {
     render(
       <MasterPlanGrid
         items={[item({
@@ -103,15 +105,41 @@ describe('MasterPlanGrid', () => {
       Boolean(element?.className.includes('master-plan-grid__chip')) && element?.textContent === "SilverSea: 2x40'")).toBeTruthy();
     expect(screen.getByText((_, element) =>
       Boolean(element?.className.includes('master-plan-grid__chip')) && element?.textContent === "HÀ AN: 1x20'")).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Sửa phân bổ' })).toBeTruthy();
+    const trigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    expect(trigger.querySelectorAll('.master-plan-grid__chip')).toHaveLength(2);
+    expect(screen.queryByText('Sửa phân bổ')).toBeNull();
+    expect(screen.queryByText('Phân bổ', { exact: true })).toBeNull();
   });
 
   it('fires onAllocate with the row payload and its allocation trigger', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
-    const trigger = screen.getByRole('button', { name: 'Phân bổ' });
+    const trigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     fireEvent.click(trigger);
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
+  });
+
+  it('opens the allocation editor when the blank cell surface is clicked', () => {
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
+    const trigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    const cell = trigger.closest('td');
+
+    expect(cell).toBeTruthy();
+    fireEvent.click(cell!);
+    expect(onAllocate).toHaveBeenCalledTimes(1);
+    expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('keeps the allocation editor full-width with visible focus and a touch-safe mobile target', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const triggerRule = css.match(/\.master-plan-grid__allocation-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(triggerRule).toContain('width: 100%');
+    expect(triggerRule).toContain('text-align: left');
+    expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
+    expect(css).toContain('min-height: 44px');
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {

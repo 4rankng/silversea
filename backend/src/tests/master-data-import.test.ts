@@ -40,6 +40,8 @@ const driverPhone = `09${String(Date.now()).slice(-8)}`;
 const truckPlate = `15A-${String(Date.now()).slice(-5)}`;
 const trailerPlate = `15R-${String(Date.now() + 1).slice(-5)}`;
 const unknownDriverTruckPlate = `15B-${String(Date.now() + 2).slice(-5)}`;
+const importedSiteCode = `SITE-${customerCode.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 48)}-1`;
+const importedSiteShortName = `NM ngắn import ${suffix}`;
 
 const userIds: number[] = [];
 const batchIds: number[] = [];
@@ -183,6 +185,14 @@ before(async () => {
     taxCode,
   }).returning({ id: s.customers.id });
   customerId = customer.id;
+  await db.insert(s.operationalSites).values({
+    customerId,
+    code: importedSiteCode,
+    name: `Tên điểm trước khi nhập lại ${suffix}`,
+    shortName: importedSiteShortName,
+    siteType: 'FACTORY',
+    address: 'Địa chỉ trước khi nhập lại',
+  });
 
   const app = express();
   app.use(express.json());
@@ -566,6 +576,7 @@ describe('master-data apply', () => {
       )),
     ]);
     assert.equal(sites.length, 2);
+    assert.equal(sites.find((site) => site.name === siteName)?.shortName, importedSiteShortName);
     assert.deepEqual(
       sites.map((site) => [site.name, site.siteType]).sort((left, right) => left[0]!.localeCompare(right[0]!)),
       [[siteName, 'FACTORY'], [warehouseName, 'WAREHOUSE']]

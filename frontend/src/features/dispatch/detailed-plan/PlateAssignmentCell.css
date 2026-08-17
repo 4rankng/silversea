@@ -1,9 +1,8 @@
 /* In-grid plate assignment (col 6 of the detail-plan grid). */
 
 .plate-assignment {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -19,33 +18,29 @@
   white-space: nowrap;
 }
 
-.plate-assignment__select .searchable-select__trigger--sm {
-  min-height: 30px;
-  height: 30px;
-  padding-inline: 8px;
-  font-size: var(--fs-xs);
-}
-
-@media (max-width: 640px) {
-  /* This dense dispatch worksheet prioritizes scan speed over form-style space. */
-  .plate-assignment__select .searchable-select__trigger--sm {
-    min-height: 34px;
-    height: 34px;
-    padding-inline: 10px;
-    font-size: var(--fs-sm);
-  }
-}
-
-.plate-assignment__field-label {
-  font-size: 11px;
+.plate-assignment__value {
+  width: calc(100% + 8px);
+  min-width: 0;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  overflow: hidden;
+  color: var(--text-primary, #101828);
+  font: inherit;
+  font-size: var(--ops-table-supporting-size);
   font-weight: 600;
-  line-height: 1.25;
-  color: var(--text-secondary, #64748b);
+  line-height: var(--ops-table-supporting-line-height);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-.plate-assignment__hint {
-  font-size: 11px;
-  font-style: italic;
-  line-height: 1.25;
-  color: var(--text-secondary, #94a3b8);
-}
+.plate-assignment__value--plate { font-family: var(--font-data, inherit); font-weight: 500; }
+.plate-assignment__value.is-placeholder { color: var(--text-secondary, #94a3b8); font-family: inherit; font-style: italic; }
+.plate-assignment__value:hover:not(:disabled),
+.plate-assignment__value:focus-visible { background: color-mix(in srgb, var(--accent) 7%, transparent); outline: none; }
+.plate-assignment__value:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.plate-assignment__value:disabled { cursor: default; }

@@ -24,6 +24,7 @@ import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
@@ -35,6 +36,10 @@ import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
 } from './shipment-accounting-lock.service';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
+const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
 type Executor = typeof db | Tx;
 type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -471,7 +476,9 @@ function readSiteSnapshotSite(
   return {
     id: typeof site.id === 'number' ? site.id : null,
     code: typeof site.code === 'string' ? site.code : null,
-    name: typeof site.name === 'string' ? site.name : null,
+    name: typeof site.shortName === 'string'
+      ? site.shortName
+      : typeof site.name === 'string' ? site.name : null,
     siteType: typeof site.siteType === 'string' ? site.siteType : null,
   };
 }
@@ -766,10 +773,10 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
   const [routes, containerTypes, operationalSites, externalCarriers, carrierVehicles] = await Promise.all([
     executor.select({
       id: s.routes.id,
-      name: s.routes.name,
+      name: ROUTE_OPERATIONAL_NAME,
     }).from(s.routes)
       .where(isNull(s.routes.deletedAt))
-      .orderBy(asc(s.routes.name), asc(s.routes.id)),
+      .orderBy(asc(ROUTE_OPERATIONAL_NAME), asc(s.routes.id)),
     executor.select({
       id: s.containerTypes.id,
       code: s.containerTypes.code,
@@ -781,25 +788,25 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
       id: s.operationalSites.id,
       siteType: s.operationalSites.siteType,
       code: s.operationalSites.code,
-      name: s.operationalSites.name,
+      name: SITE_OPERATIONAL_NAME,
     }).from(s.operationalSites)
       .where(and(
         eq(s.operationalSites.customerId, customerId),
         eq(s.operationalSites.isActive, true),
         isNull(s.operationalSites.deletedAt),
       ))
-      .orderBy(asc(s.operationalSites.name), asc(s.operationalSites.id)),
+      .orderBy(asc(SITE_OPERATIONAL_NAME), asc(s.operationalSites.id)),
     executor.select({
       id: s.customers.id,
-      name: s.customers.name,
-      shortName: sql<string | null>`null`,
+      name: CUSTOMER_OPERATIONAL_NAME,
+      shortName: CUSTOMER_OPERATIONAL_NAME,
     }).from(s.customers)
       .where(and(
         eq(s.customers.isCarrier, true),
         eq(s.customers.status, 'ACTIVE'),
         isNull(s.customers.deletedAt),
       ))
-      .orderBy(asc(s.customers.name), asc(s.customers.id)),
+      .orderBy(asc(CUSTOMER_OPERATIONAL_NAME), asc(s.customers.id)),
     executor.select({
       id: s.carrierFleetVehicles.id,
       carrierId: s.carrierFleetVehicles.carrierId,
@@ -1111,8 +1118,8 @@ async function loadShipmentRow(
 ) {
   const [row] = await executor.select({
     shipment: s.shipments,
-    customerName: s.customers.name,
-    routeName: s.routes.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
+    routeName: ROUTE_OPERATIONAL_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
@@ -1229,8 +1236,8 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
   const [items, totalRows] = await Promise.all([
     db.select({
       shipment: s.shipments,
-      customerName: s.customers.name,
-      routeName: s.routes.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
+      routeName: ROUTE_OPERATIONAL_NAME,
     }).from(s.shipments)
       .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
       .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
@@ -1257,11 +1264,11 @@ async function loadActorScopedCustomerOptions(actor: AuthUser) {
   ];
   return db.selectDistinct({
     id: s.customers.id,
-    name: s.customers.name,
+    name: CUSTOMER_OPERATIONAL_NAME,
   }).from(s.shipments)
     .innerJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .where(and(...conditions))
-    .orderBy(asc(s.customers.name), asc(s.customers.id));
+    .orderBy(asc(CUSTOMER_OPERATIONAL_NAME), asc(s.customers.id));
 }
 
 export async function listCusShipmentWorkspace(
@@ -1335,8 +1342,8 @@ export async function listCusShipmentContainers(
   const [selectedContainers, totalRows, customerOptions] = await Promise.all([
     db.select({
       shipment: s.shipments,
-      customerName: s.customers.name,
-      routeName: s.routes.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
+      routeName: ROUTE_OPERATIONAL_NAME,
       containerId: s.shipmentContainers.id,
     }).from(s.shipmentContainers)
       .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
@@ -1453,7 +1460,7 @@ async function loadOperationalSiteRecords(
   const rows = await tx.select({
     id: s.operationalSites.id,
     code: s.operationalSites.code,
-    name: s.operationalSites.name,
+    name: SITE_OPERATIONAL_NAME,
     siteType: s.operationalSites.siteType,
     address: s.operationalSites.address,
     googleMapsUrl: s.operationalSites.googleMapsUrl,
@@ -1497,7 +1504,7 @@ async function loadExternalCarrier(
 ) {
   const [carrier] = await tx.select({
     id: s.customers.id,
-    name: s.customers.name,
+    name: CUSTOMER_OPERATIONAL_NAME,
     isCarrier: s.customers.isCarrier,
     status: s.customers.status,
     deletedAt: s.customers.deletedAt,
@@ -1550,12 +1557,15 @@ async function resolveInlineExternalCarrier(
 
   const [matchedCarrier] = await tx.select({
     id: s.customers.id,
-    name: s.customers.name,
+    name: CUSTOMER_OPERATIONAL_NAME,
     status: s.customers.status,
     isCarrier: s.customers.isCarrier,
     deletedAt: s.customers.deletedAt,
   }).from(s.customers)
-    .where(sql`lower(btrim(${s.customers.name})) = ${normalizedCarrierName}`)
+    .where(or(
+      sql`lower(btrim(${CUSTOMER_OPERATIONAL_NAME})) = ${normalizedCarrierName}`,
+      sql`lower(btrim(${s.customers.name})) = ${normalizedCarrierName}`,
+    ))
     .limit(1)
     .for('update');
 
@@ -1567,11 +1577,12 @@ async function resolveInlineExternalCarrier(
   if (carrier == null) {
     [carrier] = await tx.insert(s.customers).values({
       name: displayCarrierName,
+      shortName: displayCarrierName,
       status: 'ACTIVE',
       isCarrier: true,
     }).onConflictDoNothing().returning({
       id: s.customers.id,
-      name: s.customers.name,
+      name: CUSTOMER_OPERATIONAL_NAME,
       status: s.customers.status,
       isCarrier: s.customers.isCarrier,
       deletedAt: s.customers.deletedAt,
@@ -1579,12 +1590,15 @@ async function resolveInlineExternalCarrier(
     if (!carrier) {
       [carrier] = await tx.select({
         id: s.customers.id,
-        name: s.customers.name,
+        name: CUSTOMER_OPERATIONAL_NAME,
         status: s.customers.status,
         isCarrier: s.customers.isCarrier,
         deletedAt: s.customers.deletedAt,
       }).from(s.customers)
-        .where(sql`lower(btrim(${s.customers.name})) = ${normalizedCarrierName}`)
+        .where(or(
+          sql`lower(btrim(${CUSTOMER_OPERATIONAL_NAME})) = ${normalizedCarrierName}`,
+          sql`lower(btrim(${s.customers.name})) = ${normalizedCarrierName}`,
+        ))
         .limit(1)
         .for('update');
       if (!carrier || carrier.deletedAt != null || carrier.status !== 'ACTIVE' || !carrier.isCarrier) {

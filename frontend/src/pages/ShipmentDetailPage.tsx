@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Package, FileText, FileCheck2, Container, History, ClipboardPenLine,
+  ArrowLeft, Package, FileText, FileCheck2, Container, History,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader } from '../components/UI';
@@ -85,7 +85,6 @@ export default function ShipmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const shipmentId = Number(id);
-  const canOperate = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS;
   const canReviewPod = user?.role === Role.CUS;
   const canCompleteShipment = user?.role === Role.ACCOUNTANT;
   const canSeePodReview = canReviewPod || canCompleteShipment || user?.role === Role.ADMIN || user?.role === Role.MANAGER;
@@ -182,22 +181,6 @@ export default function ShipmentDetailPage() {
         title={shipmentLabel}
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
-        action={canOperate ? (
-          accountingLock ? (
-            <button type="button" className="btn btn--secondary shipment-detail__operate" disabled title={lockReason ?? undefined}>
-              <ClipboardPenLine size={18} aria-hidden="true" />
-              Đã khóa bởi CUS
-            </button>
-          ) : (
-            <Link
-              to={`/clerk/shipments/${shipment.id}/docs`}
-              className="btn btn--primary shipment-detail__operate"
-            >
-              <ClipboardPenLine size={18} aria-hidden="true" />
-              Cập nhật &amp; điều xe
-            </Link>
-          )
-        ) : undefined}
       />
 
       <div className="shipment-detail__grid">
@@ -239,7 +222,7 @@ export default function ShipmentDetailPage() {
                 <dd>{lockReason}</dd>
               </div>
             )}
-            <div className="shipment-detail__field--wide"><dt>Ghi chú vận hành</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
+            <div className="shipment-detail__field--wide"><dt>Ghi chú cho lái xe</dt><dd>{shipment.operationalNotes ?? '—'}</dd></div>
           </dl>
           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-2)', paddingTop: 16, display: 'grid', gap: 8 }}>
             <strong style={{ fontSize: 14 }}>Ghi nhận giá theo cấu hình hiện hành</strong>

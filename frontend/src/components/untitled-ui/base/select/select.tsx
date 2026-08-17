@@ -1,6 +1,6 @@
 
-import type { FC, ReactNode, Ref, RefAttributes } from "react";
-import { isValidElement } from "react";
+import type { FC, ReactNode, RefAttributes } from "react";
+import { isValidElement, useRef } from "react";
 import { ChevronDown } from "@untitledui/icons";
 import type { SelectProps as AriaSelectProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
@@ -29,14 +29,12 @@ interface SelectValueProps {
     isFocused: boolean;
     isDisabled: boolean;
     placeholder?: string;
-    ref?: Ref<HTMLButtonElement>;
     icon?: FC | ReactNode;
 }
 
-const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, ref }: SelectValueProps) => {
+const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon }: SelectValueProps) => {
     return (
         <AriaButton
-            ref={ref}
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
                 (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",
@@ -94,9 +92,11 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, r
 };
 
 const Select = ({ placeholder = "Select", icon, size = "md", children, items, label, hint, tooltip, hideRequiredIndicator, className, ...rest }: SelectProps) => {
+    const triggerRef = useRef<HTMLDivElement>(null);
+
     return (
         <SelectContext.Provider value={{ size }}>
-            <AriaSelect {...rest} className={(state) => cx("flex flex-col gap-1.5", typeof className === "function" ? className(state) : className)}>
+            <AriaSelect ref={triggerRef} {...rest} className={(state) => cx("flex flex-col gap-1.5", typeof className === "function" ? className(state) : className)}>
                 {(state) => (
                     <>
                         {label && (
@@ -107,7 +107,7 @@ const Select = ({ placeholder = "Select", icon, size = "md", children, items, la
 
                         <SelectValue {...state} {...{ size, placeholder }} icon={icon} />
 
-                        <Popover size={size} className={rest.popoverClassName}>
+                        <Popover size={size} triggerRef={triggerRef} className={rest.popoverClassName}>
                             <AriaListBox items={items} className="size-full outline-hidden">
                                 {children}
                             </AriaListBox>

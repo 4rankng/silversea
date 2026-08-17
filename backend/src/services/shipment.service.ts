@@ -25,6 +25,7 @@ import * as s from '../db/schema';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
+import { operationalName } from '../db/master-data-name';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import {
   canonicalShipmentStatus,
@@ -70,6 +71,8 @@ import {
   assertShipmentAccountingUnlocked,
   getShipmentAccountingLock,
 } from './shipment-accounting-lock.service';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -138,6 +141,15 @@ function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'expect
 function isDirectlyEditableIntakeStatus(status: string | null | undefined): boolean {
   const canonical = canonicalShipmentStatus(status);
   return canonical === 'PENDING_DATE' || canonical === 'READY_FOR_DISPATCH';
+}
+
+function assertDispatcherCanMutateShipmentIntake(
+  actor: AuthUser | undefined,
+  status: string | null | undefined,
+): void {
+  if (actor?.role === Role.DISPATCHER && !isDirectlyEditableIntakeStatus(status)) {
+    throw new ApiError(403, 'Điều vận chỉ được cập nhật lô hàng trong giai đoạn tiếp nhận.');
+  }
 }
 
 async function ensureReadyShipmentHandoff(
@@ -577,7 +589,7 @@ async function loadShipmentDispatchAggregates(
       .map((row) => row.plannedExternalCarrierId as number),
   )];
   const carriersById = carrierIds.length > 0
-    ? new Map((await db.select({ id: s.customers.id, name: s.customers.name })
+    ? new Map((await db.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME })
       .from(s.customers)
       .where(inArray(s.customers.id, carrierIds))).map((row) => [row.id, row.name]))
     : new Map<number, string | null>();
@@ -755,6 +767,7 @@ function buildShipmentSearchPredicate(search: string | undefined) {
     ilike(s.shipments.shipmentCode, pattern),
     ilike(s.shipments.blNumber, pattern),
     ilike(s.shipments.bookingRef, pattern),
+    ilike(CUSTOMER_OPERATIONAL_NAME, pattern),
     ilike(s.customers.name, pattern),
     ilike(s.shipments.factoryName, pattern),
     ilike(s.shipments.shippingLineName, pattern),
@@ -878,7 +891,7 @@ async function loadShipmentListSummaries(
       fulfillmentId: s.trips.fulfillmentId,
       carrierType: s.trips.carrierType,
       truckPlate: s.trucks.licensePlate,
-      externalCarrierName: s.customers.name,
+      externalCarrierName: CUSTOMER_OPERATIONAL_NAME,
       externalPlateNumber: s.trips.externalPlateNumber,
     }).from(s.trips)
       .leftJoin(s.trucks, and(
@@ -906,7 +919,7 @@ async function loadShipmentListSummaries(
   const carriersById = plannedCarrierIds.length > 0
     ? new Map((await db.select({
       id: s.customers.id,
-      name: s.customers.name,
+      name: CUSTOMER_OPERATIONAL_NAME,
     }).from(s.customers)
       .where(and(
         inArray(s.customers.id, plannedCarrierIds),
@@ -1466,7 +1479,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   // must still appear, with customerName = null.
   const rowsQuery = db.select({
     shipment: s.shipments,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .where(and(...conditions))
@@ -1522,6 +1535,7 @@ export async function updateShipment(
       .for('update') // pessimistic row lock so the version bump is race-free
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, id);
 
     let clerkScope = null;
@@ -2873,7 +2887,7 @@ export async function listShipmentCarrierAssignments(shipmentId: number, tx?: Tx
     containerTypeName: s.containerTypes.name,
     carrierType: s.shipmentFulfillments.plannedCarrierType,
     externalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
-    externalCarrierName: s.customers.name,
+    externalCarrierName: CUSTOMER_OPERATIONAL_NAME,
   })
     .from(s.shipmentFulfillments)
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
@@ -2969,7 +2983,7 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
   // leftJoin keeps the row even if the
   // customer was hard-deleted (customerName = null in that case).
   const [joined] = await db.select({
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
     cargoTypeName: s.cargoTypes.name,
   })
     .from(s.shipments)
@@ -3320,6 +3334,7 @@ export async function batchUpsertShipmentContainers(
       .for('update')
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (expectedVersion != null && existing.version !== expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
@@ -3464,6 +3479,7 @@ export async function upsertShipmentDeclaration(
       .for('update')
       .limit(1);
     if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (actor && isClerkScopedUser(actor)) {
       const scope = await loadClerkShipmentScope(actor.userId, tx);

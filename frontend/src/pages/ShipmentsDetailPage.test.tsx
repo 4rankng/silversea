@@ -141,6 +141,32 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
+  it('renders the container-search illustration for a filtered empty result', async () => {
+    apiGet.mockResolvedValueOnce({ ...response, total: 0, totalPages: 0, items: [] });
+    render(<MemoryRouter initialEntries={['/?searchSuffix=ZZZZZ']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    const emptyState = (await screen.findByText('Không có container phù hợp')).closest<HTMLElement>('.ds-empty-state');
+    expect(emptyState).toBeTruthy();
+    const illustration = document.querySelector<HTMLImageElement>('.ds-empty-state__illustration');
+    expect(illustration?.getAttribute('src')).toBe('/assets/illustrations/empty-container-search-v1.png');
+    expect(within(emptyState!).getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
+  });
+
+  it('keeps a single pending container row in the ledger before pagination', async () => {
+    apiGet.mockResolvedValueOnce({ ...response, total: 1, totalPages: 1, items: [{ ...response.items[1], transportDate: today }] });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    const container = await screen.findByText('CONT-002');
+    const row = container.closest('tr');
+    const ledger = row?.closest('.shipment-container-ledger');
+    const pagination = ledger?.querySelector('.ds-pagination');
+    expect(row).toBeTruthy();
+    expect(row?.textContent).toContain('Chờ phân xe');
+    expect(pagination).toBeTruthy();
+    if (!row || !pagination) throw new Error('Expected the pending row and pagination to render');
+    expect(row.compareDocumentPosition(pagination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('keeps a fully read-only document group as a labelled value, not an editable cell', async () => {
     const readOnlyDocuments = {
       ...directShipmentAccess,
@@ -236,6 +262,23 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.click(trigger);
 
     expect(await screen.findByLabelText('Số container')).toBeTruthy();
+  });
+
+  it('labels shipment notes by recipient and sends driverNotes on save', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
+    apiPut.mockResolvedValueOnce({ id: 2, version: 8 });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ghi chú CONT-002/ }));
+    fireEvent.change(await screen.findByLabelText('Ghi chú cho khách hàng'), { target: { value: 'Khách nhận lúc 10h' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Vào cổng số 2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu ghi chú CONT-002' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', {
+      expectedVersion: 7,
+      customerNotes: 'Khách nhận lúc 10h',
+      driverNotes: 'Vào cổng số 2',
+    }));
   });
 
   it('uses labeled touch actions while retaining accessible save and cancel controls', async () => {

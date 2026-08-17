@@ -1,6 +1,7 @@
 import { eq, ne, and, isNull, inArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as schema from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { cacheGet } from '../lib/redis';
 import { TripStatus } from '@tingting/shared';
 import type { LiveFleetLeg, LiveFleetResponse, LiveFleetVehicle } from '@tingting/shared';
@@ -10,6 +11,9 @@ import { normalizePlate, isStale, deriveStatus, reviveDate } from './gps/parse';
 import { resolveRoute, decodePolyline } from './gps/route-capture';
 import { fetchRouteMap } from './gps/route-lookup';
 import { getAppSettings } from './app-settings.service';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(schema.customers.shortName, schema.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(schema.routes.shortName, schema.routes.name);
 
 // Re-export the pure helpers (consumed by unit tests and the providers).
 export { normalizePlate, parseBachKhoaDate, parseAspDate, isStale, deriveStatus, reviveDate } from './gps/parse';
@@ -143,8 +147,8 @@ async function loadActiveTrips(): Promise<ActiveTripRow[]> {
       truckId: schema.trucks.id,
       licensePlate: schema.trucks.licensePlate,
       driverName: schema.drivers.name,
-      customerName: schema.customers.name,
-      routeName: schema.routes.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
+      routeName: ROUTE_OPERATIONAL_NAME,
     })
     .from(schema.trips)
     .innerJoin(schema.trucks, eq(schema.trips.truckId, schema.trucks.id))
@@ -237,8 +241,8 @@ async function loadRecentTripsByTruck(truckIds: number[]): Promise<Map<number, T
       tripId: schema.trips.id,
       tripCode: schema.trips.tripCode,
       driverName: schema.drivers.name,
-      customerName: schema.customers.name,
-      routeName: schema.routes.name,
+      customerName: CUSTOMER_OPERATIONAL_NAME,
+      routeName: ROUTE_OPERATIONAL_NAME,
     })
     .from(schema.trips)
     .leftJoin(schema.drivers, eq(schema.trips.driverId, schema.drivers.id))

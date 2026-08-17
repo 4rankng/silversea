@@ -62,6 +62,7 @@ export interface Driver {
 export interface Customer {
   id: number;
   name: string;
+  shortName?: string;
   taxCode: string | null;
   partnerId?: number | null;
   contactPerson: string | null;
@@ -167,6 +168,7 @@ export interface TirePosition {
 export interface Route {
   id: number;
   name: string;
+  shortName?: string;
   distanceKm: number | null;
   isMountain: boolean;
   fixedFuelAllowance: string | null;
@@ -316,6 +318,7 @@ export interface TruckFinancialProfileState {
 
 export interface CompanyInfo {
   name: string;
+  shortName?: string;
   address: string;
   taxCode: string;
   representative: string;

@@ -203,6 +203,10 @@
   --control-compact-h: 34px;
   --control-default-h: 40px;
   --control-touch-h: 44px;
+  --control-compact-font-size: var(--fs-xs);
+  --control-compact-line-height: 18px;
+  --control-compact-touch-font-size: var(--fs-sm);
+  --control-compact-touch-line-height: 20px;
   --control-h: 44px;
   --content-max-w: 1440px;
 

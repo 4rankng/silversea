@@ -8,7 +8,8 @@
 //       ADMIN    → wildcard (everything)
 //       MANAGER  → shipments read|write|delete  (added in this slice)
 //       ACCOUNTANT → shipments read|write for O2C review/close flows
-//       CLERK    → shipments read|write          (existing Wave 0 rows)
+//       CUS      → shipments read|write          (existing Wave 0 rows)
+//       DISPATCHER → shipments read|write for the canonical intake workflow
 //       CUSTOMER / DRIVER / FORWARDER → denied at the mount
 //
 //   - Mutating handlers additionally use `requireRoles` for an explicit
@@ -278,6 +279,20 @@ const shipmentPricingPreviewSchema = z.object({
 });
 
 const router = Router();
+
+// `/shipments/new` is shared by CUS and Điều vận. Keep every mutation used by
+// its durable quick-create -> optional root update -> declaration -> containers
+// sequence on one authority list so route guards cannot drift apart again.
+const SHIPMENT_INTAKE_MUTATION_ROLES = [
+  Role.ADMIN,
+  Role.MANAGER,
+  Role.CUS,
+  Role.DISPATCHER,
+] as const;
+
+function resolveDriverNotes(input: { driverNotes?: string | null; operationalNotes?: string | null }) {
+  return input.driverNotes !== undefined ? input.driverNotes : input.operationalNotes;
+}
 
 interface ShipmentWriteEnvelope<T> {
   body: T;
@@ -1207,7 +1222,7 @@ router.get(
 // guard; the service additionally enforces CLERK customer-scope.
 router.post(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = operationalSiteSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -1238,19 +1253,21 @@ router.post(
 // ─── POST / — create draft shipment ────────────────────────────────────────
 router.post(
   '/',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
+    const { driverNotes, operationalNotes, ...shipmentInput } = parsed.data;
     const { result } = await runShipmentWrite(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CREATE,
       { data: parsed.data },
       async (tx) => {
         const shipment = await createShipment({
-          ...parsed.data,
-          cargoTypeId: parsed.data.cargoTypeId,
+          ...shipmentInput,
+          operationalNotes: driverNotes !== undefined ? driverNotes : operationalNotes,
+          cargoTypeId: shipmentInput.cargoTypeId,
           createdBy: user.userId,
         }, user, tx);
         return {
@@ -1276,12 +1293,12 @@ router.post(
 // is rejected 409 — never silently overwritten.
 //
 // RBAC: same mount-level `casbinAuthz('shipments')` applies. The explicit
-// `requireRoles` guard keeps quick-create limited to ADMIN/MANAGER/CLERK even
-// though ACCOUNTANT has shipment write permission for the direct-close flow.
-// CUSTOMER/DRIVER/FORWARDER remain denied at the mount.
+// `requireRoles` keeps quick-create aligned with the canonical intake roles,
+// while ACCOUNTANT remains limited to its separate review/close commands.
+// CUSTOMER/DRIVER/OPS remain denied at the mount.
 router.post(
   '/quick',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
@@ -1314,7 +1331,7 @@ router.post(
         cargoVolumeCbm: parsed.data.cargoVolumeCbm,
         packageCount: parsed.data.packageCount,
         packageType: parsed.data.packageType,
-        operationalNotes: parsed.data.operationalNotes,
+        operationalNotes: resolveDriverNotes(parsed.data),
         customerNotes: parsed.data.customerNotes,
         pickupLocation: parsed.data.pickupLocation,
         deliveryLocation: parsed.data.deliveryLocation,
@@ -1372,7 +1389,7 @@ router.get(
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 router.put(
   '/:id',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
@@ -1406,7 +1423,7 @@ router.put(
           cargoVolumeCbm: parsed.data.cargoVolumeCbm,
           packageCount: parsed.data.packageCount,
           packageType: parsed.data.packageType,
-          operationalNotes: parsed.data.operationalNotes,
+          operationalNotes: resolveDriverNotes(parsed.data),
           customerNotes: parsed.data.customerNotes,
           pickupLocation: parsed.data.pickupLocation,
           deliveryLocation: parsed.data.deliveryLocation,
@@ -1666,7 +1683,7 @@ router.post(
 
 router.post(
   '/:id/declarations',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1700,7 +1717,7 @@ router.post(
 
 router.put(
   '/:id/declarations/:declarationId',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1751,7 +1768,7 @@ router.get('/:id/containers', asyncHandler(async (req: Request, res: Response) =
 // ─── PUT /:id/containers — full reconcile of shipment containers ───────────
 router.put(
   '/:id/containers',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;

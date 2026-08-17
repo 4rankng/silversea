@@ -15,6 +15,10 @@ const sectionSource = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/ShipmentCreateSections.tsx'),
   'utf8',
 );
+const containerEditorSource = readFileSync(
+  resolve(process.cwd(), 'src/features/shipments/create/ShipmentContainerEditor.tsx'),
+  'utf8',
+);
 
 describe('shipment create responsive layout', () => {
   it('gives every form control a persistent visible boundary and focus state', () => {
@@ -27,16 +31,32 @@ describe('shipment create responsive layout', () => {
   });
 
   it('keeps container fields shrinkable inside the page workspace', () => {
-    expect(source).toContain('className="csc-container-grid"');
-    expect(css).toMatch(/\.csc-container-record\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+    expect(source).toContain('className="csc-container-row"');
+    expect(containerEditorSource).toContain('className="csc-container-table"');
     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.csc-container-grid\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.csc-container-grid\s+select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.csc-container-table select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
   });
 
-  it('collapses the container grid to one column on narrow screens', () => {
+  it('keeps the quantity-plus-add control touch-safe and contained on mobile', () => {
+    expect(containerEditorSource).toContain('id="container-add-count"');
+    expect(containerEditorSource).toContain('DEFAULT_ADD_COUNT = 1');
+    expect(containerEditorSource).toContain('aria-label="Số container cần thêm"');
+    expect(containerEditorSource.match(/<button/g)).toHaveLength(1);
+    expect(css).toMatch(/\.csc-container-actions\s*\{[^}]*justify-content:\s*flex-end;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control\s*\{[^}]*grid-template-columns:\s*72px minmax\(0,\s*1fr\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control input[^}]*min-height:\s*44px;/);
+  });
+
+  it('uses shared headers on desktop and deliberate record layouts below the wide canvas', () => {
+    expect(containerEditorSource).toContain('<table className="csc-container-table">');
+    expect(containerEditorSource).toContain('<th scope="col">Số container</th>');
+    expect(containerEditorSource).toContain('<th scope="col">Lịch hẹn giao cont</th>');
+    expect(source).toContain('hideLabel');
+    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(
-      /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important;/,
+      /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
     );
   });
 
@@ -53,6 +73,15 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*border-color:\s*color-mix\(in srgb,\s*var\(--accent-2\) 48%,\s*var\(--line-2\)\);[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--fg-1\);/);
     expect(css).toMatch(/\.csc-mode input:checked \+ span::before\s*\{[^}]*border-color:\s*var\(--accent-2\);[^}]*background:\s*var\(--accent-2\);/);
     expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*var\(--brand-subtle/);
+  });
+
+  it('uses one desktop decision row for cargo type and combined-load handling', () => {
+    expect(source).toContain('className="csc-cargo-choice-grid"');
+    expect(css).toMatch(/\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(280px,\s*1fr\);[^}]*align-items:\s*end;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*900px\)[\s\S]*?\.csc-cargo-choice-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+    expect(css).toMatch(/\.csc-combined-toggle\s*\{[^}]*min-height:\s*38px;[^}]*padding:\s*7px 10px;/);
+    expect(source).not.toContain('Điều vận có thể ghép chuyến hoặc xe kẹp.');
+    expect(source).not.toMatch(/className="csc-combined-toggle"[\s\S]*?<small>/);
   });
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
@@ -82,9 +111,16 @@ describe('shipment create responsive layout', () => {
 
   it('uses compact desktop density while retaining mobile touch targets', () => {
     // Counts: USearchableField, USelectField, UTextField, UTextAreaField,
-    // UDateField — all `size="md"` so the workspace rows stay at the same
-    // compact desktop height regardless of which primitive is used.
-    expect(fieldAdapters.match(/size="md"/g)).toHaveLength(5);
+    // UDateField — all use the shared operational `sm` contract used by
+    // dispatch, rather than growing labels and values through `md`.
+    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(5);
+    expect(fieldAdapters).not.toContain('size="md"');
+    expect(containerEditorSource).not.toContain('Số lượng cont');
+    expect(containerEditorSource.match(/type="number"/g)).toHaveLength(1);
+    expect(containerEditorSource).toContain('id="container-add-count"');
+    expect(css).toMatch(/\.csc-mode legend\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*font-size:\s*var\(--control-compact-font-size\);[^}]*line-height:\s*var\(--control-compact-line-height\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
     expect(css).toMatch(/\.csc-page\s*\{[^}]*padding:\s*12px 20px 28px;/);
@@ -102,6 +138,14 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s+svg\s*\{[^}]*flex:\s*0 0 auto;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-add-container\s*\{[^}]*width:\s*100%;[^}]*justify-self:\s*stretch;/);
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
+  });
+
+  it('keeps the shipping-line add action compact on desktop and touch-sized on mobile', () => {
+    expect(source).toContain('csc-identity-grid__shipping-line csc-shipping-line-picker');
+    expect(source).toContain('className="csc-utility-button csc-utility-button--dashed csc-shipping-line-picker__add"');
+    expect(css).toMatch(/\.csc-shipping-line-picker\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;/);
+    expect(css).toMatch(/\.csc-shipping-line-picker__add\s*\{[^}]*width:\s*fit-content;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-shipping-line-picker__add\s*\{[^}]*width:\s*100%;/);
   });
 
   it('keeps a long desktop validation list bounded without hiding any issue', () => {

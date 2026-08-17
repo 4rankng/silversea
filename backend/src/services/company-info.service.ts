@@ -14,6 +14,7 @@ import type { CompanyInfo } from '@tingting/shared';
 /** App-facing field name → app_settings.setting_key. */
 export const COMPANY_INFO_SETTING_KEYS = {
   name: 'company.name',
+  shortName: 'company.short_name',
   address: 'company.address',
   taxCode: 'company.tax_code',
   representative: 'company.representative',
@@ -36,6 +37,7 @@ export type CompanyInfoField = keyof typeof COMPANY_INFO_SETTING_KEYS;
  */
 export const COMPANY_INFO_DEFAULTS: Record<CompanyInfoField, string | null> = {
   name: '',
+  shortName: '',
   address: '',
   taxCode: '',
   representative: '',
@@ -76,6 +78,7 @@ export function companyInfoFromSettings(rows: SettingRow[]): CompanyInfo {
     if (!updatedAt || row.updatedAt > updatedAt) updatedAt = row.updatedAt;
   }
   if (!values.logoStorageKey) values.logoStorageKey = null;
+  if (!values.shortName) values.shortName = values.name;
   // Non-logo defaults are non-null strings and rows only overwrite with
   // strings, so every field except logoStorageKey is a string at runtime.
   return { ...values, updatedAt: updatedAt?.toISOString() ?? null } as CompanyInfo;

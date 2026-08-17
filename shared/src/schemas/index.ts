@@ -686,7 +686,8 @@ export const isoDateOnlySchema = z.string()
   }, 'Ngày không tồn tại');
 
 export const customerSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, 'Tên đầy đủ là bắt buộc').max(255),
+  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   taxCode: z.string().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
@@ -789,7 +790,8 @@ export const tirePositionSchema = z.object({
 });
 
 export const routeSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, 'Tên đầy đủ là bắt buộc').max(255),
+  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   distanceKm: positiveNumeric.optional(),
   isMountain: z.boolean().optional().default(false),
   fixedFuelAllowance: nonNegNumeric.nullable().optional(),
@@ -886,6 +888,7 @@ export const ancillaryRevenueSchema = z.object({
 
 export const companyInfoSchema = z.object({
   name: z.string().trim().min(1, 'Tên công ty là bắt buộc'),
+  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   address: z.string().trim().min(1, 'Địa chỉ là bắt buộc'),
   taxCode: z.string().trim().min(1, 'Mã số thuế là bắt buộc'),
   representative: z.string().trim().min(1, 'Người đại diện là bắt buộc'),
@@ -1332,6 +1335,8 @@ const createShipmentBaseSchema = z.object({
   cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).optional().nullable(),
+  driverNotes: z.string().max(4000).optional().nullable(),
+  /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes: z.string().max(4000).optional().nullable(),
   customerNotes: z.string().max(4000).optional().nullable(),
   pickupLocation: z.string().max(255).optional().nullable(),
@@ -1381,6 +1386,8 @@ export const updateShipmentSchema = z.object({
   cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).nullish(),
+  driverNotes: z.string().max(4000).nullish(),
+  /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes: z.string().max(4000).nullish(),
   customerNotes: z.string().max(4000).nullish(),
   pickupLocation: z.string().max(255).nullish(),
@@ -1478,6 +1485,7 @@ export const operationalSiteSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng là bắt buộc'),
   code: z.string().trim().min(1, 'Mã điểm vận hành là bắt buộc').max(80),
   name: z.string().trim().min(1, 'Tên điểm vận hành là bắt buộc').max(255),
+  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   siteType: z.nativeEnum(OperationalSiteType),
   address: z.string().trim().min(1, 'Địa chỉ là bắt buộc').max(2000),
   googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),

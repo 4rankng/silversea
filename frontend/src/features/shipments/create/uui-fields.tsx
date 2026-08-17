@@ -35,6 +35,7 @@ interface UTextFieldProps {
   maxLength?: number;
   min?: string | number;
   step?: string | number;
+  hideLabel?: boolean;
 }
 
 interface UDateFieldProps {
@@ -46,6 +47,7 @@ interface UDateFieldProps {
   required?: boolean;
   error?: string;
   min?: string | number;
+  hideLabel?: boolean;
 }
 
 /**
@@ -63,12 +65,14 @@ export function UDateField({
   required,
   error,
   min,
+  hideLabel,
 }: UDateFieldProps) {
   return (
     <BufferedUuiDateInput
       id={id}
-      label={label}
-      size="md"
+      label={hideLabel ? undefined : label}
+      aria-label={hideLabel ? label : undefined}
+      size="sm"
       value={value}
       onChange={(next) => onChange(asEvent(next))}
       isDisabled={disabled}
@@ -94,11 +98,13 @@ export function UTextField({
   maxLength,
   min,
   step,
+  hideLabel,
 }: UTextFieldProps) {
   return (
     <UUIInput
-      size="md"
-      label={label}
+      size="sm"
+      label={hideLabel ? undefined : label}
+      aria-label={hideLabel ? label : undefined}
       value={value}
       onChange={(next) => onChange(asEvent(next))}
       type={type}
@@ -131,6 +137,7 @@ interface USearchableFieldProps {
   shortcut?: boolean;
   /** Allow free-typed values that don't match any option (e.g. Hãng tàu). */
   allowsCustomValue?: boolean;
+  hideLabel?: boolean;
 }
 
 export function USearchableField({
@@ -148,14 +155,15 @@ export function USearchableField({
   optionClassName,
   shortcut,
   allowsCustomValue,
+  hideLabel,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
-        size="md"
+        size="sm"
         aria-label={label}
-        label={label}
+        label={hideLabel ? undefined : label}
         menuTrigger="manual"
         openOnPress
         selectedKey={value || null}
@@ -203,6 +211,7 @@ interface USelectFieldProps {
   required?: boolean;
   error?: string;
   hint?: ReactNode;
+  hideLabel?: boolean;
 }
 
 export function USelectField({
@@ -214,13 +223,15 @@ export function USelectField({
   required,
   error,
   hint,
+  hideLabel,
 }: USelectFieldProps) {
   return (
     <div className={`csc-select-field csc-control-boundary${error ? ' csc-select-field--error' : ''}`}>
       <NativeSelect
-        size="md"
+        size="sm"
         aria-label={label}
         label={required ? `${label} *` : label}
+        hideLabel={hideLabel}
         value={value}
         onChange={(event) => onChange(event)}
         options={options}
@@ -256,7 +267,7 @@ export function UTextAreaField({
 }: UTextAreaFieldProps) {
   return (
     <UUITextArea
-      size="md"
+      size="sm"
       label={label}
       value={value}
       onChange={(next) => onChange(asEvent(next))}

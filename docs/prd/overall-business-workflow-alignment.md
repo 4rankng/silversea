@@ -23,6 +23,16 @@
   exact staging fixtures make the affected Phase 7 scenario `BLOCKED` without
   changing an otherwise evidence-backed implementation disposition.
 
+## Master-data naming authority
+
+- For customers/companies, operational sites (including factories), and routes,
+  `name` is the full legal/reporting name and `short_name` is the compact
+  operational display name.
+- Operational lists, selectors, shipment/trip workspaces, and dispatch surfaces
+  use `short_name`, falling back to `name` for legacy records.
+- Legal forms, billing documents, exports, and reports use `name`. Search must
+  match both fields so using a compact display name does not hide legal records.
+
 ## Executable Authority Matrix
 
 | ID | Actor, precondition, action | Source authority | Automatic side effects | Permissions | Failure behavior | Current code, tests, staging evidence | Disposition | Owner phase |

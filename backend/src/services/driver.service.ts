@@ -1,5 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { eq, ne, and, isNull, isNotNull, or, desc, asc, gte, lte, sql, inArray, aliasedTable } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import {
@@ -35,6 +36,9 @@ import {
   projectSiteSnapshot,
   type DriverCompletionEvidenceStatus,
 } from './trip-pod.service';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 /**
  * Ledger txn types that count as cash the company has actually paid out / advanced
@@ -130,9 +134,9 @@ export async function getDriverTrips(driverId: number) {
     fuelLiters: s.trips.fuelLiters,
     totalRoadAllowance: s.trips.totalRoadAllowance,
     driverSalary: s.trips.driverSalary,
-    routeName: s.routes.name,
+    routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
   }).from(s.trips)
     .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
@@ -335,9 +339,9 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
         fuelLiters: s.trips.fuelLiters,
         totalRoadAllowance: s.trips.totalRoadAllowance,
         driverSalary: s.trips.driverSalary,
-        routeName: s.routes.name,
+        routeName: ROUTE_OPERATIONAL_NAME,
         truckPlate: s.trucks.licensePlate,
-        customerName: s.customers.name,
+        customerName: CUSTOMER_OPERATIONAL_NAME,
       }).from(s.trips)
         .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
         .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
@@ -394,9 +398,9 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
     fuelLiters: s.trips.fuelLiters,
     totalRoadAllowance: s.trips.totalRoadAllowance,
     driverSalary: s.trips.driverSalary,
-    routeName: s.routes.name,
+    routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
     createdAt: s.trips.createdAt,
   }).from(s.trips)
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
@@ -448,12 +452,12 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     hasReturnCargo: s.trips.hasReturnCargo,
     notes: s.trips.notes,
     customerReference: s.trips.customerReference,
-    routeName: s.routes.name,
+    routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
     trailerId: s.trips.trailerId,
     trailerPlate: s.trailers.licensePlate,
     trailerType: s.trips.trailerType,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
     cargoTypeName: s.cargoTypes.name,
     fuelSupplierName: s.suppliers.name,
     paperOrderCollectedAt: s.trips.paperOrderCollectedAt,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import { businessUnits, users } from '../db/schema';
@@ -84,6 +84,24 @@ describe('application-owned user and business-unit identity', () => {
       (error: { statusCode?: number }) => error.statusCode === 409,
     );
     assert.notEqual(first.id, second.id);
+  });
+
+  test('ignores identities belonging only to soft-deleted users', async () => {
+    const token = uniqueToken();
+    const deleted = await createInactiveManager({
+      username: `app-reusable-${token}`,
+      email: `reusable-${token}@example.test`,
+      phone: `09${Math.floor(Math.random() * 100_000_000).toString().padStart(8, '0')}`,
+    });
+    await db.update(users).set({ deletedAt: sql`now()` }).where(eq(users.id, deleted.id));
+
+    const replacement = await createInactiveManager({
+      username: ` APP-REUSABLE-${token.toUpperCase()} `,
+      email: `replacement-${token}@example.test`,
+      phone: `08${Math.floor(Math.random() * 100_000_000).toString().padStart(8, '0')}`,
+    });
+
+    assert.notEqual(replacement.id, deleted.id);
   });
 
   test('serializes concurrent canonical business-unit creation', async () => {

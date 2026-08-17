@@ -450,7 +450,7 @@ export default function ShipmentsDetailPage() {
       await updateShipment(row.shipmentId, {
         expectedVersion: row.shipmentVersion,
         customerNotes: draft.customerNotes,
-        operationalNotes: draft.operationalNotes,
+        driverNotes: draft.operationalNotes,
       });
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
@@ -492,7 +492,7 @@ export default function ShipmentsDetailPage() {
         {error && <Alert variant="error" style="soft" className="shipments-detail-error" icon={<AlertCircle size={18} />} action={<UUIButton size="sm" color="secondary" onPress={() => void loadRows()}>Thử lại</UUIButton>}>{error}</Alert>}
 
         {loading ? <ShipmentContainerLedgerSkeleton /> : error ? null : items.length === 0 ? (
-          <EmptyState icon={Search} title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
+          <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
           <ShipmentContainerLedger rows={items} totalContainers={totalContainers} today={today} footer={<Pagination page={page} totalPages={totalPages} summary={<span className="ds-pagination__summary">Trang này có <b>{items.length.toLocaleString('vi-VN')}</b> / <b>{totalContainers.toLocaleString('vi-VN')}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={activeEdit} editLoadingRowId={editLoadingRowId} editError={editError} onStartEdit={(row, mode, triggerId) => void startEdit(row, mode, triggerId)} onCancelEdit={cancelEdit} onSaveIdentity={saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={saveContainer} onSaveRoute={saveRoute} onSaveVehicle={saveVehicle} onSaveSchedule={saveSchedule} onSaveNotes={saveNotes} />
         </>}

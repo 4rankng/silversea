@@ -39,6 +39,7 @@ type CompanySeed = Record<Exclude<CompanyInfoField, 'logoStorageKey'>, string> &
 
 const COMPANY_OLD: CompanySeed = {
   name: 'Công ty Phát hành Cũ',
+  shortName: 'Phát hành Cũ',
   address: '12 Bến Cũ, Hải Phòng',
   taxCode: '0311000001',
   representative: 'Nguyễn Văn Cũ',
@@ -52,6 +53,7 @@ const COMPANY_OLD: CompanySeed = {
 
 const COMPANY_NEW: CompanySeed = {
   name: 'Công ty Phát hành Mới',
+  shortName: 'Phát hành Mới',
   address: '99 Bến Mới, Hải Phòng',
   taxCode: '0311000002',
   representative: 'Nguyễn Văn Mới',

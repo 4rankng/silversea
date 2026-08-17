@@ -50,7 +50,6 @@ const ShipmentsDetailPage = lazy(() => import('./pages/ShipmentsDetailPage'));
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
 const ClerkShipmentCreatePage = lazy(() => import('./pages/clerk/ClerkShipmentCreatePage'));
-const ClerkShipmentDocsPage = lazy(() => import('./pages/clerk/ClerkShipmentDocsPage'));
 const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesPage'));
 const PortalStatementPage = lazy(() => import('./pages/portal/PortalStatementPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
@@ -350,8 +349,6 @@ export function AppRoutes() {
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
           <Route path="/portal/statement" element={customerOnly(page(<PortalStatementPage />))} />
-          {/* Wave 4 M10.2: clerk doc-entry page (BL + containers + dispatch-readiness). */}
-          <Route path="/clerk/shipments/:id/docs" element={shipmentOperatorOnly(page(<ClerkShipmentDocsPage />))} />
           <Route path="*" element={<Navigate to={defaultHome} replace />} />
         </Routes>
       </Shell>

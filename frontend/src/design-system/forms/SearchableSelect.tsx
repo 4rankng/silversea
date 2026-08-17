@@ -50,6 +50,8 @@ export interface SearchableSelectProps {
   ariaDescribedBy?: string;
   /** Semantic trigger density. Use `sm` for compact operational toolbars and grids. */
   size?: 'sm' | 'md';
+  /** Notifies an inline host when the picker opens or returns to read mode. */
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 function normalizeSearchText(value: string): string {
@@ -114,6 +116,7 @@ export function SearchableSelect({
   ariaInvalid,
   ariaDescribedBy,
   size = 'md',
+  onOpenChange,
 }: SearchableSelectProps) {
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -124,6 +127,17 @@ export function SearchableSelect({
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const previousOpenState = useRef(isOpen);
+  const onOpenChangeRef = useRef(onOpenChange);
+
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  useEffect(() => {
+    if (previousOpenState.current !== isOpen) onOpenChangeRef.current?.(isOpen);
+    previousOpenState.current = isOpen;
+  }, [isOpen]);
 
   const selectedOption = options.find((option) => option.value === value);
   const normalizedQuery = normalizeSearchText(query);

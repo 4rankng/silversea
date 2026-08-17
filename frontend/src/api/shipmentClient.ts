@@ -124,6 +124,8 @@ export interface QuickCreateShipmentRequest {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  driverNotes?: string | null;
+  /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;
   customerNotes?: string | null;
 }
@@ -200,6 +202,7 @@ export interface OperationalSite {
   customerId: number;
   code: string;
   name: string;
+  shortName?: string;
   siteType: 'FACTORY' | 'WAREHOUSE';
   address: string;
   googleMapsUrl: string | null;
@@ -313,6 +316,8 @@ export interface UpdateShipmentRequest {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  driverNotes?: string | null;
+  /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;
   customerNotes?: string | null;
 }
@@ -592,6 +597,7 @@ export interface CreateOperationalSiteBody {
   customerId: number;
   code: string;
   name: string;
+  shortName: string;
   siteType: 'FACTORY' | 'WAREHOUSE';
   address: string;
   googleMapsUrl?: string | null;

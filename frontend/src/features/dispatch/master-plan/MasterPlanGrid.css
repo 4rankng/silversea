@@ -235,13 +235,14 @@
 
 .master-plan-grid__cell--action {
   min-width: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .master-plan-grid__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 6px;
 }
 
 .master-plan-grid__chip {
@@ -251,11 +252,54 @@
   text-overflow: ellipsis;
 }
 
-/* Chips and the allocate action are Untitled UI components — their color,
-   ring, and focus styling come from the kit. */
+/* Keep the semantic Untitled UI button behavior while presenting the existing
+   values as a flat, full-cell editor trigger instead of a second action. */
+.master-plan-grid__allocation-trigger {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+}
 
-.master-plan-grid__allocate-btn {
-  white-space: nowrap;
+.master-plan-grid__allocation-trigger > [data-text] {
+  display: block;
+  width: 100%;
+}
+
+.master-plan-grid__allocation-trigger:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .master-plan-grid__cell--action:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+}
+
+.master-plan-grid__allocation-trigger:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.master-plan-grid__allocation-label {
+  display: none;
+}
+
+.master-plan-grid__allocation-empty {
+  color: var(--fg-3);
+  font-size: var(--ops-table-meta-size);
+  font-weight: var(--fw-medium);
+  line-height: var(--ops-table-meta-line-height);
 }
 
 @container (max-width: 900px) {
@@ -315,11 +359,27 @@
 
   .master-plan-grid__cell--action {
     min-width: 0;
+    padding: 0;
   }
 
-  .master-plan-grid__allocate-btn {
+  .master-plan-grid__cell--action::before {
+    display: none;
+  }
+
+  .master-plan-grid__allocation-trigger {
     min-height: 44px;
-    width: 100%;
+    padding: 10px 16px;
+  }
+
+  .master-plan-grid__allocation-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--fg-3);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-transform: uppercase;
   }
 }
 
@@ -348,9 +408,6 @@
     border-top: 0;
   }
 
-  .master-plan-grid__chips {
-    margin-bottom: 8px;
-  }
 }
 
 @container (max-width: 360px) {

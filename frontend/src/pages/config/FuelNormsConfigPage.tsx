@@ -97,7 +97,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
             onChange={e => setRouteId(Number(e.target.value))}
           >
             <option value={0}>-- Áp dụng chung --</option>
-            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {routes.map(r => <option key={r.id} value={r.id}>{r.shortName || r.name}</option>)}
           </select>
         </Field>
       </div>

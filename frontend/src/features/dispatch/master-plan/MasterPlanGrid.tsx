@@ -62,7 +62,8 @@ function formatContainerSummaryLines(summary: string | null): string[] {
 
 /**
  * Multi-line dispatch master-plan grid (docx §3): 7 grouped columns, ≤3 lines
- * per cell, no horizontal scroll. Col 7 hosts the allocation action (Phase 3).
+ * per cell, no horizontal scroll. Col 7 exposes its allocation values as the
+ * edit trigger, matching the full-cell editing contract used by data grids.
  */
 export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
   return (
@@ -145,37 +146,51 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                     {item.operationalNotes ?? '—'}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell master-plan-grid__cell--action" data-label="Phân bổ nhà xe">
-                  {item.carrierAllocationSummary.length > 0 && (
-                    <div className="master-plan-grid__chips">
-                      {item.carrierAllocationSummary.map((entry) => {
-                        const counts = [
-                          entry.count20 > 0 ? `${entry.count20}x20'` : null,
-                          entry.count40 > 0 ? `${entry.count40}x40'` : null,
-                        ].filter(Boolean).join(' · ');
-                        return (
-                          <Badge
-                            key={`${entry.carrierType}-${entry.externalCarrierId}`}
-                            type="pill-color"
-                            size="sm"
-                            color="gray"
-                            className="master-plan-grid__chip"
-                          >
-                            {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  )}
+                <td
+                  className="master-plan-grid__cell master-plan-grid__cell--action"
+                  data-label="Phân bổ nhà xe"
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest('button')) return;
+                    const trigger = event.currentTarget.querySelector<HTMLButtonElement>('.master-plan-grid__allocation-trigger');
+                    if (!trigger) return;
+                    trigger.focus();
+                    onAllocate(item, trigger);
+                  }}
+                >
                   <UUIButton
                     size="sm"
-                    color="secondary"
-                    className="master-plan-grid__allocate-btn"
+                    color="tertiary"
+                    noTextPadding
+                    aria-label="Chỉnh sửa phân bổ nhà xe"
+                    className="master-plan-grid__allocation-trigger"
                     // The press target may be the button's inner text span — resolve
                     // back to the button itself for focus restoration.
                     onPress={(event) => onAllocate(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                   >
-                    {item.allocationStatus === 'FULLY_ALLOCATED' ? 'Sửa phân bổ' : 'Phân bổ'}
+                    <span className="master-plan-grid__allocation-label" aria-hidden="true">Phân bổ nhà xe</span>
+                    {item.carrierAllocationSummary.length > 0 ? (
+                      <span className="master-plan-grid__chips">
+                        {item.carrierAllocationSummary.map((entry) => {
+                          const counts = [
+                            entry.count20 > 0 ? `${entry.count20}x20'` : null,
+                            entry.count40 > 0 ? `${entry.count40}x40'` : null,
+                          ].filter(Boolean).join(' · ');
+                          return (
+                            <Badge
+                              key={`${entry.carrierType}-${entry.externalCarrierId}`}
+                              type="pill-color"
+                              size="sm"
+                              color="gray"
+                              className="master-plan-grid__chip"
+                            >
+                              {counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel}
+                            </Badge>
+                          );
+                        })}
+                      </span>
+                    ) : (
+                      <span className="master-plan-grid__allocation-empty">Chưa phân bổ</span>
+                    )}
                   </UUIButton>
                 </td>
               </tr>

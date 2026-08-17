@@ -26,7 +26,7 @@ function RoadAllowanceForm({ saving, item, onsave, oncancel, routes }: {
         <Field label="Tuyến đường">
           <select className="input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
             <option value={0}>-- Chọn --</option>
-            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {routes.map(r => <option key={r.id} value={r.id}>{r.shortName || r.name}</option>)}
           </select>
         </Field>
       </div>

@@ -1250,7 +1250,7 @@ describe('POST /', () => {
         cargoVolumeCbm: 33.444,
         packageCount: 9,
         packageType: 'Bag',
-        operationalNotes: 'Create-route coverage',
+        driverNotes: 'Create-route coverage',
       },
     });
     assert.equal(r.status, 201);
@@ -1419,11 +1419,12 @@ describe('GET /cus-workspace', () => {
   });
 
   test('keeps a planned internal carrier pending until an actual vehicle plate exists', async () => {
+    const plannedInternalSuffix = Math.random().toString(36).slice(2, 7).toUpperCase();
     const fixture = await createAcceptedFulfillmentFixture({
-      bookingRef: `BOOK-${suffix}-OWN9`,
+      bookingRef: `BOOK-${suffix}-${plannedInternalSuffix}`,
       expectedDeliveryDate: '2026-08-20',
     });
-    const response = await testFetch('/cus-workspace?searchSuffix=OWN9&page=1&limit=20', { token: adminToken });
+    const response = await testFetch(`/cus-workspace?searchSuffix=${plannedInternalSuffix}&page=1&limit=20`, { token: adminToken });
     assert.equal(response.status, 200);
     const row = response.data.items.find((item: { id: number }) => item.id === fixture.shipment.id);
     assert.ok(row);
@@ -2698,7 +2699,7 @@ describe('PUT /:id', () => {
         cargoVolumeCbm: 44.555,
         packageCount: 18,
         packageType: 'Case',
-        operationalNotes: 'Direct update coverage',
+        driverNotes: 'Direct update coverage',
       },
     });
     assert.equal(r.status, 200);

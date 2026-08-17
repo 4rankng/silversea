@@ -18,6 +18,7 @@ type SiteType = 'FACTORY' | 'WAREHOUSE';
 interface SiteFormState {
   code: string;
   name: string;
+  shortName: string;
   siteType: SiteType;
   address: string;
   googleMapsUrl: string;
@@ -28,6 +29,7 @@ interface SiteFormState {
 const EMPTY_FORM: SiteFormState = {
   code: '',
   name: '',
+  shortName: '',
   siteType: 'FACTORY',
   address: '',
   googleMapsUrl: '',
@@ -78,6 +80,7 @@ export function OperationalSiteCreateDialog({
   function validate(): string | null {
     if (!form.code.trim()) return 'Vui lòng nhập mã điểm vận hành';
     if (!form.name.trim()) return 'Vui lòng nhập tên điểm vận hành';
+    if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
     if (!form.address.trim()) return 'Vui lòng nhập địa chỉ';
     if (form.googleMapsUrl.trim() && !/^https?:\/\//i.test(form.googleMapsUrl.trim())) {
       return 'Liên kết Google Maps phải bắt đầu bằng http:// hoặc https://';
@@ -95,6 +98,7 @@ export function OperationalSiteCreateDialog({
         customerId,
         code: form.code.trim(),
         name: form.name.trim(),
+        shortName: form.shortName.trim(),
         siteType: form.siteType,
         address: form.address.trim(),
         googleMapsUrl: form.googleMapsUrl.trim() || null,
@@ -167,14 +171,24 @@ export function OperationalSiteCreateDialog({
             <option value="WAREHOUSE">Kho</option>
           </SelectField>
         </div>
-        <TextField
-          label="Tên điểm vận hành"
-          value={form.name}
-          onChange={(event) => update('name', event.target.value)}
-          maxLength={255}
-          placeholder="VD: Nhà máy Biển Bạc - Long Biên"
-          disabled={saving}
-        />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
+          <TextField
+            label="Tên đầy đủ"
+            value={form.name}
+            onChange={(event) => update('name', event.target.value)}
+            maxLength={255}
+            placeholder="Tên đầy đủ dùng trên chứng từ, báo cáo"
+            disabled={saving}
+          />
+          <TextField
+            label="Tên ngắn"
+            value={form.shortName}
+            onChange={(event) => update('shortName', event.target.value)}
+            maxLength={255}
+            placeholder="Tên hiển thị trong vận hành"
+            disabled={saving}
+          />
+        </div>
         <TextField
           label="Địa chỉ"
           value={form.address}

@@ -174,9 +174,10 @@ async function assertUserIdentityAvailable(
     return value ? [sql`lower(btrim(${users[field]})) = ${value}`] : [];
   });
   if (clauses.length === 0) return;
+  const activeIdentity = and(isNull(users.deletedAt), or(...clauses));
   const where = options.excludeUserId == null
-    ? or(...clauses)
-    : and(ne(users.id, options.excludeUserId), or(...clauses));
+    ? activeIdentity
+    : and(ne(users.id, options.excludeUserId), activeIdentity);
   const [conflict] = await tx.select({ id: users.id }).from(users).where(where).limit(1);
   if (conflict) throw new ApiError(409, 'Tên đăng nhập, email hoặc số điện thoại đã tồn tại');
 }

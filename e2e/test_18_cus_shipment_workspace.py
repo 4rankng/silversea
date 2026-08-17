@@ -132,7 +132,6 @@ def main() -> bool:
             "pickupWarehouseSiteId": warehouse["id"],
             "cargoMode": "FCL",
             "tradeDirection": "IMPORT",
-            "bookingRef": f"E2E-CUS-{RUN_ID}",
             "blNumber": f"BLCUS{BOOK_SUFFIX_STORED}",
             "expectedDeliveryDate": datetime.now().strftime("%Y-%m-%d"),
             "operationalNotes": f"CUS workspace E2E {RUN_ID}",
@@ -380,7 +379,9 @@ def main() -> bool:
             ctx.login_as("clerk", page)
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             page.wait_for_load_state("networkidle")
-            container_row = page.locator(".shipment-container-ledger tbody tr").filter(has_text="MSKU1234565")
+            # The responsive ledger keeps a second semantic table in the DOM;
+            # interact with the rendered row instead of its hidden counterpart.
+            container_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
             container_row.wait_for(timeout=10_000)
             all_cells_open = True
             full_coverage = True
@@ -412,11 +413,14 @@ def main() -> bool:
                     editor.wait_for(timeout=10_000)
                     page.keyboard.press("Escape")
                     editor.wait_for(state="detached", timeout=3_000)
-                    focus_restored = focus_restored and page.evaluate(
-                        "(id) => document.activeElement?.id === id", trigger_id
+                    page.wait_for_function(
+                        "(id) => document.activeElement?.id === id",
+                        arg=trigger_id,
+                        timeout=2_000,
                     )
                 except Exception:
                     all_cells_open = False
+                    focus_restored = False
             ctx.screenshot(page, "TC-1815_detail_full_cell_click")
             check(
                 results,

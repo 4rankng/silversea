@@ -680,7 +680,6 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results.fail("TC-1705", "Long Minh operational site contract", str({"factory": factory, "warehouse": warehouse}))
         return
 
-    booking_ref = f"{BOOKING_PREFIX}-BOOKING-{SEARCH_SUFFIX}"
     bl_number = f"BL-{BOOKING_PREFIX}-{SEARCH_SUFFIX}"
     create_payload = {
         "customerId": customer["id"],
@@ -690,7 +689,6 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         "tradeDirection": "IMPORT",
         "operationalSiteId": factory["id"],
         "pickupWarehouseSiteId": warehouse["id"],
-        "bookingRef": booking_ref,
         "blNumber": bl_number,
         "expectedDeliveryDate": datetime.now().strftime("%Y-%m-%d"),
         "packageType": "Pallet",
@@ -1717,8 +1715,8 @@ def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
         results,
         "TC-1729",
         "Shipment detail page shows the closed chain",
-        booking_ref in body_text and customer["name"] in body_text,
-        f"booking={booking_ref} customer={customer['name']}",
+        bl_number in body_text and customer["name"] in body_text,
+        f"bill={bl_number} customer={customer['name']}",
     )
     ctx.screenshot(page, f"TC-1729_shipment_{shipment_id}_closed")
     page.close()

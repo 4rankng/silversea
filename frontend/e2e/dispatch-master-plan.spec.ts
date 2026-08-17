@@ -34,6 +34,24 @@ test.describe('Dispatch master plan', () => {
     await expect(headers).toHaveCount(7);
     await expect(headers.nth(0)).toHaveText('Thời gian & lịch trình');
     await expect(headers.nth(6)).toHaveText('Phân bổ nhà xe');
+
+    const firstAllocationCell = page.locator('.master-plan-grid tbody tr').first().locator('td').nth(6);
+    const firstAllocationTrigger = firstAllocationCell.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
+    await expect(firstAllocationTrigger).toBeVisible();
+    await expect(firstAllocationCell.getByText('Sửa phân bổ', { exact: true })).toHaveCount(0);
+    const [cellBox, triggerBox] = await Promise.all([
+      firstAllocationCell.boundingBox(),
+      firstAllocationTrigger.boundingBox(),
+    ]);
+    expect(cellBox).not.toBeNull();
+    expect(triggerBox).not.toBeNull();
+    expect(Math.abs((cellBox?.width ?? 0) - (triggerBox?.width ?? 0))).toBeLessThanOrEqual(1);
+    await firstAllocationCell.click({ position: { x: (cellBox?.width ?? 2) - 2, y: (cellBox?.height ?? 2) - 2 } });
+    const dialog = page.getByRole('dialog', { name: 'Phân bổ nhà xe' });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(firstAllocationTrigger).toBeFocused();
   });
 
   test('filters round-trip to the API', async ({ page }) => {
@@ -65,7 +83,7 @@ test.describe('Dispatch master plan', () => {
     let demand20 = 0;
     let demand40 = 0;
     for (let index = 0; index < await candidateRows.count(); index += 1) {
-      await candidateRows.nth(index).locator('.master-plan-grid__allocate-btn').click();
+      await candidateRows.nth(index).getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' }).click();
       await expect(dialog).toBeVisible();
       const balanceRows = dialog.locator('.dispatch-allocation-popover__balance-row');
       demand20 = Number(await balanceRows.nth(0).getByRole('cell').first().innerText());

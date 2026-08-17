@@ -64,6 +64,7 @@ export async function seedReference(): Promise<ReferenceSeedResult> {
     }
     const [row] = await tx.insert(s.routes).values({
       name: r.name,
+      shortName: r.name.split(/[+-]/)[0]!.trim(),
       distanceKm: r.twoWayKm ?? r.oneWayKm ?? null,
       fixedFuelAllowance: null,
     }).returning({ id: s.routes.id });

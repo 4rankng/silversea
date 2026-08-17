@@ -523,7 +523,13 @@ registerGovernedCustomResource({
   resource: GOVERNED_SINGLETON_RESOURCES.companyInfo,
   reasonLabel: 'thông tin pháp lý công ty',
   apply: async (tx, action, before, after) => {
-    const payload = companyInfoSchema.parse(after.data);
+    const candidate = after.data as Record<string, unknown>;
+    const payload = companyInfoSchema.parse({
+      ...candidate,
+      shortName: typeof candidate.shortName === 'string' && candidate.shortName.trim()
+        ? candidate.shortName
+        : candidate.name,
+    });
     const current = await getCompanyInfoGovernedState(tx);
     assertGovernedSnapshotUnchanged(
       GOVERNED_SINGLETON_RESOURCES.companyInfo,
@@ -1074,7 +1080,7 @@ function validatePricingSelector<T extends { containerTypeId?: number | null; ra
 // ─── CRUD routes ─────────────────────────────────────────────────────────────
 
 router.use('/customers', createCrudRouter(s.customers, customerSchema, {
-  searchableField: 'name',
+  searchableFields: ['shortName', 'name'],
   updateSchema: customerUpdateSchema,
   governance: {
     reasonLabel: 'cấu hình khách hàng ảnh hưởng công nợ',
@@ -1083,11 +1089,19 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     shouldGovernDelete: () => true,
   },
   beforeCreate: async (data, _req, tx) => {
+    data.shortName = data.shortName?.trim() || data.name.trim();
     await lockCustomerMutationKeys(tx, data);
     await validateCustomerUniqueness(data);
     return data;
   },
   beforeUpdate: async (id, data, _req, tx) => {
+    if (data.name !== undefined && data.shortName === undefined) {
+      const [current] = await tx.select({ shortName: s.customers.shortName })
+        .from(s.customers)
+        .where(eq(s.customers.id, id))
+        .limit(1);
+      if (!current?.shortName.trim()) data.shortName = data.name.trim();
+    }
     if ((data as Record<string, unknown>).debitNoteMode === 'PER_BATCH') {
       const [current] = await tx.select({ debitNoteMode: s.customers.debitNoteMode })
         .from(s.customers)
@@ -1181,7 +1195,7 @@ router.use('/trailers', createCrudRouter(s.trailers, trailerSchema, {
   beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'trailer', id),
 }));
 router.use('/routes', createCrudRouter(s.routes, routeSchema, {
-  searchableField: 'name',
+  searchableFields: ['shortName', 'name'],
   // Keep the definition registered so legacy pending actions remain
   // reviewable/applicable, while all new route changes take effect directly.
   governance: {
@@ -1189,6 +1203,17 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     shouldGovernCreate: () => false,
     shouldGovernUpdate: () => false,
     shouldGovernDelete: () => false,
+  },
+  beforeCreate: (data) => ({ ...data, shortName: data.shortName?.trim() || data.name.trim() }),
+  beforeUpdate: async (id, data, _req, tx) => {
+    if (data.name !== undefined && data.shortName === undefined) {
+      const [current] = await tx.select({ shortName: s.routes.shortName })
+        .from(s.routes)
+        .where(eq(s.routes.id, id))
+        .limit(1);
+      if (!current?.shortName.trim()) data.shortName = data.name.trim();
+    }
+    return data;
   },
   beforeDelete: (id, _req, tx) => lockCatalogDelete(tx, 'route', id),
 }));
@@ -1778,7 +1803,13 @@ router.get('/company-info', asyncHandler(async (_req: Request, res: Response) =>
 }));
 
 router.put('/company-info', asyncHandler(async (req: Request, res: Response) => {
-  const data = companyInfoSchema.parse(req.body);
+  const candidate = req.body as Record<string, unknown>;
+  const data = companyInfoSchema.parse({
+    ...candidate,
+    shortName: typeof candidate.shortName === 'string' && candidate.shortName.trim()
+      ? candidate.shortName
+      : candidate.name,
+  });
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật thông tin công ty.');
   const expectedUpdatedAt = readExpectedUpdatedAt(req);
   const actor = getUser(req);

@@ -608,12 +608,6 @@
 .shipment-detail__dot--danger  { background: var(--danger); }
 
 @media (max-width: 640px) {
-  .shipment-detail__operate {
-    min-height: 44px;
-    width: 100%;
-    justify-content: center;
-  }
-
   .shipment-detail {
     padding: 12px;
   }

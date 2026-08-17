@@ -88,7 +88,7 @@ describe('ShipmentDetailPage', () => {
     getShipmentDetailMock.mockResolvedValue(detail);
   });
 
-  it('describes the lock as a CUS lock instead of attributing it to Kế toán', async () => {
+  it('shows CUS lock metadata without exposing the removed dossier action', async () => {
     render(
       <MemoryRouter initialEntries={['/shipments/1']}>
         <Routes>
@@ -97,10 +97,9 @@ describe('ShipmentDetailPage', () => {
       </MemoryRouter>,
     );
 
-    const button = await screen.findByRole('button', { name: 'Đã khóa bởi CUS' });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
-    expect(button.getAttribute('title')).toContain('Khóa lô do CUS');
-    expect(screen.getByText(/Khóa lô do CUS/)).toBeTruthy();
+    expect(await screen.findByText(/Khóa lô do CUS/)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Cập nhật & điều xe' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đã khóa bởi CUS' })).toBeNull();
     expect(screen.queryByText(/Đã khóa bởi Kế toán/)).toBeNull();
     await waitFor(() => expect(getShipmentDetailMock).toHaveBeenCalledWith(1));
   });

@@ -1,5 +1,5 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
-        logs-db logs-redis infra demo demo-push demo-deploy demo-health
+        logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
@@ -117,8 +117,12 @@ logs-redis: ## Show redis logs
 # containers and applies pending Drizzle migrations on top of the existing DB.
 # It never touches the database volume, so existing data is preserved.
 #
-# Flow:  build+push images → pull on server → recreate backend/frontend only
-#        → drizzle-kit migrate (additive, on top of live DB) → health check.
+# Flow:  build+push images → record the running backend/frontend images for
+#        rollback → pull on server → recreate backend/frontend only → drizzle-kit
+#        migrate (additive, on top of live DB) → public backend + frontend checks.
+#
+# Automatic image pruning is intentionally excluded: the recorded pre-cutover
+# image IDs must remain available until a later, explicitly reviewed cleanup.
 #
 # Prereqs: gh CLI authenticated with the `write:packages` scope
 # (gh auth refresh -h github.com -s write:packages), and SSH access to
@@ -128,6 +132,9 @@ DEMO_SERVER := vantai.tingting.vip
 DEMO_PATH   := /opt/vantai
 DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 
+demo-capture-rollback: ## Record running demo backend/frontend images before a cutover
+	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(DEMO_COMPOSE) ps -q backend); frontend_container=\$$($(DEMO_COMPOSE) ps -q frontend); test -n \"\$$backend_container\" || { echo 'No running backend container; refusing cutover without rollback image.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'No running frontend container; refusing cutover without rollback image.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(DEMO_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
+
 demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
 	@echo ""
@@ -135,15 +142,15 @@ demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@cd backend && $(MAKE) push
 	@cd frontend && $(MAKE) push
 	@echo ""
-	@echo "2/3  Pulling, migrating, then restarting services on $(DEMO_SERVER) (DB volume untouched)..."
+	@echo "2/3  Recording rollback images, then pulling, migrating, and restarting services on $(DEMO_SERVER) (DB volume untouched)..."
+	@$(MAKE) --no-print-directory demo-capture-rollback
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
 	@echo "Running pending migrations with the pulled backend image before cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
-	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@echo ""
-	@echo "3/3  Health check..."
+	@echo "3/3  Public backend and frontend acceptance checks..."
 	@$(MAKE) --no-print-directory demo-health
 	@echo ""
 	@echo "✅ Demo deployed: https://$(DEMO_SERVER)  (use approved staging credentials)"
@@ -163,14 +170,14 @@ demo-local: ## Build images locally only (fast, native platform, no push)
 	@echo "Run with: docker compose -f deploy/docker-compose.prod.yml up -d backend frontend"
 
 demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
+	@$(MAKE) --no-print-directory demo-capture-rollback
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"
-	@ssh root@$(DEMO_SERVER) "docker image prune -f"
 	@$(MAKE) --no-print-directory demo-health
 
-demo-health: ## Hit the demo backend health endpoint
+demo-health: ## Check public demo backend and frontend endpoints
 	@echo "  Backend: https://$(DEMO_SERVER)/api/health"
 	@attempt=1; \
 	while [ "$$attempt" -le 12 ]; do \
@@ -184,6 +191,22 @@ demo-health: ## Hit the demo backend health endpoint
 			exit 1; \
 		fi; \
 		echo "    Waiting for backend readiness ($$attempt/12)..."; \
+		sleep 5; \
+		attempt=$$((attempt + 1)); \
+	done
+	@echo "  Frontend: https://$(DEMO_SERVER)/"
+	@attempt=1; \
+	while [ "$$attempt" -le 12 ]; do \
+		if curl -fsS --max-time 10 -o /dev/null https://$(DEMO_SERVER)/; then \
+			echo "    public HTTP check passed"; \
+			exit 0; \
+		fi; \
+		if [ "$$attempt" -eq 12 ]; then \
+			echo "    ⚠️  frontend HTTP check failed after 12 attempts — check logs:"; \
+			echo "    ssh root@$(DEMO_SERVER) 'cd $(DEMO_PATH) && $(DEMO_COMPOSE) logs --tail=80 frontend'"; \
+			exit 1; \
+		fi; \
+		echo "    Waiting for frontend readiness ($$attempt/12)..."; \
 		sleep 5; \
 		attempt=$$((attempt + 1)); \
 	done

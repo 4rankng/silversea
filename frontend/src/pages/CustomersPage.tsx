@@ -76,10 +76,11 @@ export function buildCustomerDebtMap(entries: LedgerEntry[]): Map<number, number
 // looked cramped (5 fields squeezed into one table cell) and made it easy to
 // miss that edit mode had even opened. Modal gives proper breathing room.
 
-function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }: {
+export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }: {
   item?: Customer; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean; suppliers: Supplier[];
 }) {
   const [name, setName] = useState(item?.name || '');
+  const [shortName, setShortName] = useState(item?.shortName || item?.name || '');
   const [taxCode, setTaxCode] = useState(item?.taxCode || '');
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
@@ -101,6 +102,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   useEffect(() => {
     if (isOpen) {
       setName(item?.name || '');
+      setShortName(item?.shortName || item?.name || '');
       setTaxCode(item?.taxCode || '');
       setContactPerson(item?.contactPerson || '');
       setPhone(item?.phone || '');
@@ -117,9 +119,10 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   }, [isOpen, item?.id]);
 
   const handleSave = () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !shortName.trim()) return;
     onsave({
       name: name.trim(),
+      shortName: shortName.trim(),
       taxCode: taxCode.trim() || undefined,
       contactPerson: contactPerson.trim() || undefined,
       phone: phone.trim() || undefined,
@@ -139,7 +142,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
   return (
     <Modal
       isOpen={isOpen}
-      title={item ? `Sửa khách hàng — ${item.name}` : 'Thêm khách hàng'}
+      title={item ? `Sửa khách hàng — ${item.shortName || item.name}` : 'Thêm khách hàng'}
       onClose={oncancel}
       onConfirm={handleSave}
       footer={
@@ -147,7 +150,7 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
           <button className="btn btn--ghost btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
+          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim() || !shortName.trim()} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm khách hàng'}
           </button>
@@ -155,11 +158,15 @@ function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, suppliers }
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div className="field">
-          <label htmlFor="cust-name" style={labelStyle}>
-            Tên khách hàng <span style={{ color: 'var(--danger)' }}>*</span>
-          </label>
-          <input id="cust-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên công ty hoặc cá nhân" autoFocus />
+        <div style={pairedFieldGridStyle}>
+          <div className="field">
+            <label htmlFor="cust-name" style={labelStyle}>Tên đầy đủ <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <input id="cust-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Tên pháp lý dùng trên chứng từ, báo cáo" autoFocus />
+          </div>
+          <div className="field">
+            <label htmlFor="cust-short-name" style={labelStyle}>Tên ngắn <span style={{ color: 'var(--danger)' }}>*</span></label>
+            <input id="cust-short-name" className="input" value={shortName} onChange={e => setShortName(e.target.value)} placeholder="Tên hiển thị trong vận hành" />
+          </div>
         </div>
         <div style={pairedFieldGridStyle}>
           <div className="field">
@@ -328,7 +335,7 @@ export default function CustomersPage() {
 
   const top4Revenue = useMemo(() => {
     const customerRevenues = customers
-      .map(c => ({ id: c.id, name: c.name, revenue: revenueMap.get(c.id) || 0 }))
+      .map(c => ({ id: c.id, name: c.shortName || c.name, revenue: revenueMap.get(c.id) || 0 }))
       .filter(c => c.revenue > 0)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 4);
@@ -549,7 +556,7 @@ export default function CustomersPage() {
                 <div className="m-card__top">
                   <span className="m-card__title">
                     <span className={`risk-dot risk-dot--${riskDot(debtMap.get(c.id) ?? 0, Number(c.creditLimit || 0))}`} />
-                    {c.name}
+                    {c.shortName || c.name}
                     {c.linkedSupplierId && (
                       <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle' }}>
                         2 chiều
@@ -654,7 +661,7 @@ export default function CustomersPage() {
                       <StatusStrip status={c.status} />
                       <div style={{ fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
-                          {c.name}
+                          {c.shortName || c.name}
                         </span>
                         {c.linkedSupplierId && (
                           <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', marginTop: 1 }}>
@@ -667,6 +674,7 @@ export default function CustomersPage() {
                           </span>
                         )}
                       </div>
+                      <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2 }}>{c.name}</div>
                       {c.taxCode && <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'var(--font-data)' }}>MST {c.taxCode}</div>}
                     </td>
                     <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' }}>
@@ -688,7 +696,7 @@ export default function CustomersPage() {
                     </td>
                     <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', position: 'relative' }}>
                       <div className="row-actions">
-                        <button className="row-action" aria-label={`Mở thao tác cho ${c.name}`} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}>
+                        <button className="row-action" aria-label={`Mở thao tác cho ${c.shortName || c.name}`} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}>
                           <MoreHorizontal size={14} />
                         </button>
                       </div>

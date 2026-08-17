@@ -123,10 +123,6 @@ export const routes = {
   portalDebitNotes: '/portal/debit-notes',
   portalStatement: '/portal/statement',
 
-  /* ── Clerk portal (Wave 4) ────────────────────────────────────────── */
-
-  clerkShipmentDocs: (id: number | string) => `/clerk/shipments/${id}/docs`,
-
   /* ── Legacy paths that the router redirects from (kept for old links) */
 
   legacy: {
@@ -226,7 +222,6 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.portalShipments), title: 'Lô hàng của tôi' },
   { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },
   { test: p => p.startsWith(routes.portalStatement), title: 'Sao kê công nợ' },
-  { test: p => /^\/clerk\/shipments\/\d+\/docs$/.test(p), title: 'Hồ sơ lô hàng' },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
   { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },

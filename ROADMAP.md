@@ -587,9 +587,9 @@ biggest new surface area and the biggest customer-facing differentiator.
         <!-- autonomous-sdlc:completed task=wave4-m101-quick-create-backend -->
       - slice 2 — frontend `ClerkShipmentCreatePage.tsx` mobile page calling
         slice 1 with a client-generated UUID v4 `Idempotency-Key`.
-- [x] M10.2: clerk doc-entry page; format + duplicate checks; mandatory fields before dispatch.
-      <!-- autonomous-sdlc:completed task=wave4-m102-doc-entry-frontend -->
-      Implemented across three slices (scope unchanged):
+- [ ] M10.2: UI pending PM definition. The separate clerk dossier page was removed;
+      do not reintroduce it until the workflow and acceptance criteria are approved.
+      Backend foundations remain available but do not define a frontend screen:
       - slice 1 — backend container-number format (ISO 6346) + duplicate-
         within-shipment checks in `batchUpsertShipmentContainers`. Commit b59c8dc.
         <!-- autonomous-sdlc:completed task=wave4-m102-container-validation -->
@@ -598,9 +598,6 @@ biggest new surface area and the biggest customer-facing differentiator.
         enforcing — the mandatory field set is pending customer sign-off
         (Q17 / M10.2 §1); a follow-up flip enforces once confirmed. Commit 22812ef.
         <!-- autonomous-sdlc:completed task=wave4-m102-mandatory-fields -->
-      - slice 3 — frontend `ClerkShipmentDocsPage.tsx` wiring slice 1+2:
-        BL + container entry, inline validation surfacing, readiness banner,
-        dispatch gated to MANAGER/ADMIN (Q17).
 - [x] Offline-queue client lib (`idb-keyval`) + idempotent sync endpoint; client-gen request
       id + server dedupe table.
       <!-- autonomous-sdlc:completed task=wave4-offline-queue-client -->

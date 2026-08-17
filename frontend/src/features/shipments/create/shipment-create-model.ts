@@ -24,7 +24,7 @@ export interface ShipmentCreateFormState {
   /**
    * LCL split-lot extra delivery dates (doc Create Shipment Block 2B: "[+]"
    * adds more delivery days). The backend has no array column for these yet,
-   * so they persist formatted inside `operationalNotes`; the first date is
+   * so they persist formatted inside the driver note; the first date is
    * `expectedDeliveryDate` proper and drives the auto-status rule.
    */
   extraDeliveryDates: string[];
@@ -215,6 +215,7 @@ export function validateShipmentCreate(
 interface OperationalSiteName {
   id: number;
   name: string;
+  shortName?: string;
 }
 
 export function buildShipmentRootPayload(
@@ -233,7 +234,10 @@ export function buildShipmentRootPayload(
     isCombined: form.isCombined,
     operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
-    factoryName: sites.find((site) => String(site.id) === form.operationalSiteId)?.name ?? null,
+    factoryName: (() => {
+      const site = sites.find((item) => String(item.id) === form.operationalSiteId);
+      return site?.shortName || site?.name || null;
+    })(),
     shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),
@@ -245,7 +249,7 @@ export function buildShipmentRootPayload(
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
-    operationalNotes: [
+    driverNotes: [
       form.declarationNumber ? `Số tờ khai: ${form.declarationNumber}` : '',
       form.cargoMode === 'LCL' && form.extraDeliveryDates.length > 0
         ? `Ngày giao bổ sung: ${form.extraDeliveryDates.filter(Boolean).join(', ')}`

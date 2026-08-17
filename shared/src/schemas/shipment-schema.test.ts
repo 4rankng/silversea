@@ -39,6 +39,14 @@ test('shipment schemas carry the explicit consolidation flag', () => {
   assert.equal(updated.isCombined, false);
 });
 
+test('shipment write schemas accept recipient-specific driver notes', () => {
+  const created = createShipmentSchema.parse({ customerId: 1, driverNotes: 'Gọi trước khi vào cổng' });
+  const updated = updateShipmentSchema.parse({ expectedVersion: 1, driverNotes: null });
+
+  assert.equal(created.driverNotes, 'Gọi trước khi vào cổng');
+  assert.equal(updated.driverNotes, null);
+});
+
 test('shipment schemas reject a Bill and Booking on the same shipment', () => {
   assert.equal(createShipmentSchema.safeParse({
     customerId: 1,

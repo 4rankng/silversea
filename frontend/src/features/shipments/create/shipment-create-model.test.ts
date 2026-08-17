@@ -62,7 +62,7 @@ describe('shipment create model', () => {
       factoryName: 'Nhà máy Long Minh',
       shippingLineName: 'MSC',
       isCombined: true,
-      operationalNotes: 'Số tờ khai: TK-01',
+      driverNotes: 'Số tờ khai: TK-01',
     });
     expect(buildShipmentContainerPayload(form, [container])).toEqual([{
       containerNumber: 'MSCU6639870',
@@ -227,7 +227,7 @@ describe('shipment create model', () => {
     expect(buildShipmentRootPayload(scheduled, [{ ...container, expectedDeliveryDate: '2026-08-21' }], []).expectedDeliveryDate).toBe('2026-08-20');
   });
 
-  it('formats LCL extra delivery dates into operationalNotes and only for LCL', () => {
+  it('formats LCL extra delivery dates into driverNotes and only for LCL', () => {
     const lcl = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -236,10 +236,10 @@ describe('shipment create model', () => {
       extraDeliveryDates: ['2026-08-15', ''],
     };
     expect(buildShipmentRootPayload(lcl, [], [])).toMatchObject({
-      operationalNotes: 'Ngày giao bổ sung: 2026-08-15',
+      driverNotes: 'Ngày giao bổ sung: 2026-08-15',
     });
 
     const fcl = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', extraDeliveryDates: ['2026-08-15'] };
-    expect(buildShipmentRootPayload(fcl, [], []).operationalNotes).toBeNull();
+    expect(buildShipmentRootPayload(fcl, [], []).driverNotes).toBeNull();
   });
 });

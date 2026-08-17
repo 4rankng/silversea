@@ -25,7 +25,7 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
         <Field label="Khách hàng">
           <select className="input" value={customerId} onChange={e => setCustomerId(Number(e.target.value))}>
             <option value={0}>-- Chọn --</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.map(c => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
           </select>
         </Field>
       </div>
@@ -33,7 +33,7 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
         <Field label="Tuyến đường">
           <select className="input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
             <option value={0}>-- Chọn --</option>
-            {routes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            {routes.map(r => <option key={r.id} value={r.id}>{r.shortName || r.name}</option>)}
           </select>
         </Field>
       </div>

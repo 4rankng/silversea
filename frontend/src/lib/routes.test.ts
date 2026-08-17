@@ -51,7 +51,6 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/portal/debit-notes': 'Giấy báo nợ',
     '/portal/statement': 'Sao kê công nợ',
     '/shipments/new': 'Tạo lô hàng',
-    '/clerk/shipments/42/docs': 'Hồ sơ lô hàng',
     '/my-trips': 'Hành trình',
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',

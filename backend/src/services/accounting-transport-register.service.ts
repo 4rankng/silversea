@@ -106,12 +106,17 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
     conditions.push(or(
       ilike(s.trips.tripCode, pattern),
       ilike(s.customers.name, pattern),
+      ilike(s.customers.shortName, pattern),
       ilike(carrier.name, pattern),
+      ilike(carrier.shortName, pattern),
       ilike(s.routes.name, pattern),
+      ilike(s.routes.shortName, pattern),
       ilike(s.shipments.shipmentCode, pattern),
       ilike(s.shipments.bookingRef, pattern),
       ilike(s.shipments.blNumber, pattern),
       ilike(s.shipments.factoryName, pattern),
+      ilike(s.operationalSites.name, pattern),
+      ilike(s.operationalSites.shortName, pattern),
       ilike(s.trucks.licensePlate, pattern),
       ilike(s.trips.externalPlateNumber, pattern),
       sql`${containerProjection.containerNumbers}::text ilike ${pattern}`,
@@ -157,7 +162,7 @@ export async function listAccountingTransportRows(
     shipmentCode: s.shipments.shipmentCode,
     routeId: s.routes.id,
     routeName: s.routes.name,
-    factoryName: s.shipments.factoryName,
+    factoryName: sql<string | null>`coalesce(${s.operationalSites.name}, ${s.shipments.factoryName})`,
     containerNumbers: containerProjection.containerNumbers,
     containerTypes: containerProjection.containerTypes,
     plateNumber: sql<string | null>`case
@@ -182,6 +187,7 @@ export async function listAccountingTransportRows(
       s.tripFinancialPostings.id,
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))
@@ -206,6 +212,7 @@ export async function listAccountingTransportRows(
       s.tripFinancialPostings.id,
     ))
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(carrier, and(eq(carrier.id, s.trips.externalEntityId), eq(s.trips.externalEntityType, 'CUSTOMER')))
     .leftJoin(containerProjection, eq(containerProjection.tripId, s.trips.id))

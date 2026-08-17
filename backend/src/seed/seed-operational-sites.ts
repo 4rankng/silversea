@@ -117,6 +117,7 @@ export async function seedOperationalSites(): Promise<void> {
       customerId,
       code: seed.code,
       name: seed.name,
+      shortName: seed.code,
       siteType: seed.siteType,
       address: seed.address,
       googleMapsUrl: seed.googleMapsUrl ?? null,

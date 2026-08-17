@@ -196,6 +196,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     customerId: s.operationalSites.customerId,
     code: s.operationalSites.code,
     name: s.operationalSites.name,
+    shortName: s.operationalSites.shortName,
     siteType: s.operationalSites.siteType,
     address: s.operationalSites.address,
     googleMapsUrl: s.operationalSites.googleMapsUrl,
@@ -210,7 +211,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     eq(s.operationalSites.customerId, customerId),
     eq(s.operationalSites.isActive, true),
     isNull(s.operationalSites.deletedAt),
-  )).orderBy(s.operationalSites.name);
+  )).orderBy(s.operationalSites.shortName, s.operationalSites.name);
 
   if (actor.role === Role.ACCOUNTANT) {
     return sites.map((site) => ({
@@ -218,6 +219,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
       customerId: site.customerId,
       code: site.code,
       name: site.name,
+      shortName: site.shortName,
       siteType: site.siteType,
       address: site.address,
       liftFeeInvoiceName: site.liftFeeInvoiceName,
@@ -269,6 +271,7 @@ export async function createOperationalSiteForIntake(
       customerId: input.customerId,
       code: input.code,
       name: input.name,
+      shortName: input.shortName?.trim() || existing?.shortName.trim() || input.name.trim(),
       siteType: input.siteType,
       address: input.address,
       googleMapsUrl: input.googleMapsUrl ?? null,
@@ -296,6 +299,7 @@ export async function createOperationalSiteForIntake(
       customerId: row.customerId,
       code: row.code,
       name: row.name,
+      shortName: row.shortName,
       siteType: row.siteType,
       address: row.address,
       googleMapsUrl: row.googleMapsUrl,

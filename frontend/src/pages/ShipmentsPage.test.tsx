@@ -547,13 +547,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Ghi chú cho khách'), { target: { value: 'LƯU CA SÁNG' } });
-    fireEvent.change(screen.getByLabelText('Ghi chú nội bộ'), { target: { value: 'Ưu tiên cổng số 2' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú cho khách hàng'), { target: { value: 'LƯU CA SÁNG' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Ưu tiên cổng số 2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', {
       expectedVersion: 4,
-      operationalNotes: 'Ưu tiên cổng số 2',
+      driverNotes: 'Ưu tiên cổng số 2',
       customerNotes: 'LƯU CA SÁNG',
     }));
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
@@ -671,7 +671,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(notesCell!).getAllByRole('button')).toEqual([notesButton]);
 
     fireEvent.click(notesButton);
-    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).contains(screen.getByLabelText('Ghi chú cho khách'))).toBe(true);
+    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).contains(screen.getByLabelText('Ghi chú cho khách hàng'))).toBe(true);
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
 
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -781,7 +781,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     }
 
     expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
-    expect(screen.queryByLabelText('Ghi chú cho khách')).toBeNull();
+    expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
@@ -827,13 +827,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    const notesInput = screen.getByLabelText('Ghi chú nội bộ');
+    const notesInput = screen.getByLabelText('Ghi chú cho lái xe');
     fireEvent.change(notesInput, { target: { value: 'Dòng một\nDòng hai' } });
     fireEvent.keyDown(notesInput, { key: 'Enter', shiftKey: true });
 
     expect(apiPut).not.toHaveBeenCalled();
     expect((notesInput as HTMLTextAreaElement).value).toBe('Dòng một\nDòng hai');
-    expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
+    expect(screen.getByLabelText('Ghi chú cho lái xe')).toBeTruthy();
   });
 
   it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
@@ -847,19 +847,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
 
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    const notesInput = screen.getByLabelText('Ghi chú nội bộ');
+    const notesInput = screen.getByLabelText('Ghi chú cho lái xe');
     fireEvent.change(notesInput, { target: { value: 'Ưu tiên cổng số 3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(apiPut).toHaveBeenCalledTimes(1);
     expect((notesInput as HTMLTextAreaElement).disabled).toBe(true);
-    expect((screen.getByLabelText('Ghi chú cho khách') as HTMLTextAreaElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement).disabled).toBe(true);
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.getByLabelText('Ghi chú nội bộ')).toBeTruthy();
+    expect(screen.getByLabelText('Ghi chú cho lái xe')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
     resolveUpdate?.({ ...row, version: 4 });
-    await waitFor(() => expect(screen.queryByLabelText('Ghi chú nội bộ')).toBeNull());
+    await waitFor(() => expect(screen.queryByLabelText('Ghi chú cho lái xe')).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })));
   });
 
@@ -895,7 +895,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
     expect(within(dialog).getByText('Hành động tiếp theo')).toBeTruthy();
     expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
-    const custodySelect = within(dialog).getByRole('combobox');
+    const custodySelect = within(dialog).getByRole('combobox', { name: 'Phơi phiếu' });
     expect(custodySelect).toBeTruthy();
     expect((within(custodySelect).getByRole('option', { name: 'Chưa xác định' }) as HTMLOptionElement).disabled).toBe(true);
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
@@ -961,9 +961,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
     expect(within(ledger).queryByText('Maersk')).toBeNull();
     expect(within(ledger).getByText('Đã tạo chuyến')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chỉnh sửa' })).toBeTruthy();
-    expect(screen.queryByLabelText(/Biển số xe của container MSKU1234567/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Hoàn tất' })).toBeTruthy();
+    expect(screen.getByLabelText(/Biển số xe của container MSKU1234567/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lưu container MSKU1234567' })).toBeTruthy();
     expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();
     expect(screen.queryByText('Cước đầu vào')).toBeNull();
@@ -976,7 +976,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Chỉnh sửa' }));
     fireEvent.change(within(dialog).getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-888.88' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
     expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeTruthy();
@@ -988,8 +987,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
-    fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-555.55' } });
+    fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-555.55' } });
     fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất' }));
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và hoàn tất' }));
     fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa' }));
@@ -1014,7 +1012,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Chỉnh sửa' }));
     fireEvent.change(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-777.77' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
     expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeTruthy();
@@ -1041,7 +1038,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Chỉnh sửa' }));
     fireEvent.change(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-666.66' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu container MSKU1234567' }));
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
@@ -1107,7 +1103,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
     expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
@@ -1144,7 +1139,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-999.99' } });
     fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { target: { value: '15C-888.88' } });
@@ -1173,7 +1167,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    fireEvent.click(await screen.findByRole('button', { name: 'Chỉnh sửa' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhà xe' }));
     fireEvent.change(screen.getByLabelText('Tên nhà xe mới'), { target: { value: 'Nhà xe Tân Cảng' } });

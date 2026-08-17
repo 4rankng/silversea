@@ -25,6 +25,10 @@ describe('O2C clean-baseline safety', () => {
       { idx: 11, tag: '0011_mean_vulture' },
       { idx: 12, tag: '0012_sharp_jack_power' },
       { idx: 13, tag: '0013_backfill-shipment-combined-flag' },
+      { idx: 14, tag: '0014_add-master-data-short-names' },
+      { idx: 15, tag: '0015_backfill-master-data-short-names' },
+      { idx: 16, tag: '0016_require-master-data-short-names' },
+      { idx: 17, tag: '0017_add-short-name-compat-defaults' },
     ]);
   });
 

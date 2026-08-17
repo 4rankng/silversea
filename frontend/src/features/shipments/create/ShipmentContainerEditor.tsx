@@ -1,27 +1,73 @@
 import { Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+
+const DEFAULT_ADD_COUNT = 1;
+const MAX_ADD_COUNT = 50;
 
 interface ShipmentContainerEditorProps {
   rows: ReactNode;
   saving: boolean;
-  quantity: string;
-  onQuantityChange: (value: string) => void;
-  onAdd: () => void;
+  onAdd: (count: number) => void;
 }
 
 /** Feature-local FCL editor shell for repeatable container records. */
-export function ShipmentContainerEditor({ rows, saving, quantity, onQuantityChange, onAdd }: ShipmentContainerEditorProps) {
+export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContainerEditorProps) {
+  const [addCount, setAddCount] = useState(String(DEFAULT_ADD_COUNT));
+  const parsedAddCount = Number(addCount);
+  const addCountIsValid = Number.isInteger(parsedAddCount)
+    && parsedAddCount >= 1
+    && parsedAddCount <= MAX_ADD_COUNT;
+
   return (
     <div className="csc-container-editor">
-      <label className="csc-container-editor__quantity">
-        <span>Số lượng cont</span>
-        <input type="number" min="1" step="1" value={quantity} onChange={(event) => onQuantityChange(event.target.value)} disabled={saving} />
-      </label>
-      {rows}
-      <button type="button" className="csc-add-container" onClick={onAdd} disabled={saving}>
-        <Plus size={16} aria-hidden="true" />
-        <span>Thêm container</span>
-      </button>
+      <div className="csc-container-table-scroll">
+        <table className="csc-container-table">
+          <caption className="sr-only">Danh sách container</caption>
+          <thead>
+            <tr>
+              <th scope="col">STT</th>
+              <th scope="col">Số container</th>
+              <th scope="col">Loại container</th>
+              <th scope="col">Cảng nâng</th>
+              <th scope="col">Cảng hạ</th>
+              <th scope="col">Trọng lượng (kg)</th>
+              <th scope="col">Lịch hẹn giao cont</th>
+              <th scope="col"><span className="sr-only">Thao tác</span></th>
+            </tr>
+          </thead>
+          <tbody>{rows}</tbody>
+        </table>
+      </div>
+      <div className="csc-container-actions">
+        <div className="csc-container-add-control">
+          <input
+            id="container-add-count"
+            type="number"
+            min="1"
+            max={MAX_ADD_COUNT}
+            step="1"
+            inputMode="numeric"
+            value={addCount}
+            aria-label="Số container cần thêm"
+            aria-invalid={!addCountIsValid}
+            aria-describedby="container-add-count-hint"
+            onChange={(event) => setAddCount(event.target.value)}
+            disabled={saving}
+          />
+          <span id="container-add-count-hint" className="sr-only">
+            Nhập từ 1 đến {MAX_ADD_COUNT} container.
+          </span>
+          <button
+            type="button"
+            className="csc-add-container"
+            onClick={() => onAdd(parsedAddCount)}
+            disabled={saving || !addCountIsValid}
+          >
+            <Plus size={16} aria-hidden="true" />
+            <span>Thêm container</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

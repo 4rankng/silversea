@@ -156,7 +156,7 @@ export default function RoutesConfigPage() {
         </div>
         <div className="kpi">
           <div className="kpi__top"><span className="kpi__label">Phổ biến nhất</span></div>
-          <div className="kpi__value" style={{ fontSize: 16, lineHeight: 1.3 }}>{popularRoute ? popularRoute.name.split(' - ')[0] : '—'}</div>
+          <div className="kpi__value" style={{ fontSize: 16, lineHeight: 1.3 }}>{popularRoute ? (popularRoute.shortName || popularRoute.name) : '—'}</div>
           <div className="kpi__meta">{popularCount > 0 ? `${popularCount} chuyến ${monthLabel}` : 'Chưa có dữ liệu'}</div>
           <div className="kpi__watermark" aria-hidden="true"><Route size={72} /></div>
         </div>
@@ -234,7 +234,8 @@ export default function RoutesConfigPage() {
                       }}
                     >
                       <td data-label="Tuyến đường">
-                        <div className="row-strong">{r.name}</div>
+                        <div className="row-strong">{r.shortName || r.name}</div>
+                        {r.shortName && r.shortName !== r.name && <div className="row-meta">{r.name}</div>}
                         {r.fixedFuelAllowance && <div className="row-meta">Định mức dầu: {r.fixedFuelAllowance} L</div>}
                       </td>
                       <td className="num" data-label="KM">{r.distanceKm != null ? `${r.distanceKm}` : '—'}</td>
@@ -315,8 +316,9 @@ export default function RoutesConfigPage() {
 
             <div style={{ borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
               <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--fg-1)', marginBottom: '4px' }}>
-                {selectedRoute.name}
+                {selectedRoute.shortName || selectedRoute.name}
               </div>
+              {selectedRoute.shortName && selectedRoute.shortName !== selectedRoute.name && <div style={{ color: 'var(--fg-3)', fontSize: 12, marginBottom: 8 }}>{selectedRoute.name}</div>}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="pill pill--neutral">
                   {selectedRoute.distanceKm ? `${selectedRoute.distanceKm} km` : '— km'}

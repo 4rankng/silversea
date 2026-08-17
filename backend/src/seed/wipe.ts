@@ -52,13 +52,13 @@ export const WIPE_TABLES = {
     'trip_photos', 'trip_gps_tracks', 'trip_gps_capture_jobs',
     'vehicle_last_positions', 'trip_legs', 'trip_pairs', 'trips',
     'trip_code_counters', 'driver_progress_events', 'driver_incidental_costs',
-    'driver_work_days',
+    'driver_work_days', 'trip_pod_files', 'trip_pod_submissions',
   ],
   // 2. Shipment children → shipments
   shipmentsChildren: [
     'shipment_milestones', 'shipment_change_requests', 'shipment_containers',
     'shipment_documents', 'shipment_declarations', 'shipment_status_history',
-    'user_shipment_links', 'shipments',
+    'user_shipment_links', 'shipment_fulfillments', 'shipments',
   ],
   // 3. Financial / billing / ledger
   financial: [
@@ -101,7 +101,10 @@ export const WIPE_TABLES = {
     'road_config', 'app_settings',
   ],
   // 10. Operational logs/jobs (wiped so the demo starts clean)
-  logs: ['notifications', 'audit_logs', 'photo_geotags', 'scheduler_run_logs', 'durable_effect_jobs'],
+  logs: [
+    'notifications', 'audit_logs', 'photo_geotags', 'scheduler_run_logs',
+    'durable_effect_jobs', 'customer_visible_events', 'customer_event_acknowledgements',
+  ],
 } as const;
 
 /** Flatten the grouped wipe list into a single ordered table-name array. */

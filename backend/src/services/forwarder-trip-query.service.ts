@@ -6,6 +6,10 @@ import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { listFuelEvidenceReviewsForTrip } from './fuel-evidence-review.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
+import { operationalName } from '../db/master-data-name';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 /**
  * Derived payment/approval status for a forwarder trip row, used for row
@@ -157,6 +161,7 @@ export async function getForwarderTrips(
   if (filters?.search) {
     const term = `%${filters.search.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
     conditions.push(or(
+      sql`unaccent(${CUSTOMER_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
       sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
       sql`${s.shipments.shipmentCode} ILIKE ${term}`,
       sql`${s.shipments.blNumber} ILIKE ${term}`,
@@ -196,9 +201,9 @@ export async function getForwarderTrips(
     status: s.trips.status,
     tripStatus: s.trips.status,
     shipmentStatus: s.shipments.status,
-    routeName: s.routes.name,
+    routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
     customerReference: s.trips.customerReference,
     billNumber: s.shipments.blNumber,
     bookingNumber: s.shipments.bookingRef,
@@ -324,9 +329,9 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     version: s.trips.version,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
-    routeName: s.routes.name,
+    routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
-    customerName: s.customers.name,
+    customerName: CUSTOMER_OPERATIONAL_NAME,
     customerReference: s.trips.customerReference,
     shipmentCode: s.shipments.shipmentCode,
     billNumber: s.shipments.blNumber,

@@ -12,15 +12,19 @@ import { fetchRouteMap } from './gps/route-lookup';
 import { resolveLegCoords } from './maps.service';
 import { loadTripPairingSummaries } from './trip-pairs.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
+import { operationalName } from '../db/master-data-name';
+
+const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 // ─── Query helpers ─────────────────────────────────────────────────────────
 
 /** Common field set joined with relation names for trip list/detail. */
 const TRIP_RELATION_FIELDS = {
-  customerName: s.customers.name,
+  customerName: CUSTOMER_OPERATIONAL_NAME,
   driverName: s.drivers.name,
   truckPlate: s.trucks.licensePlate,
-  routeName: s.routes.name,
+  routeName: ROUTE_OPERATIONAL_NAME,
   routeDistance: s.routes.distanceKm,
   routeIsMountain: s.routes.isMountain,
   routeFixedFuelAllowance: s.routes.fixedFuelAllowance,
@@ -175,8 +179,10 @@ export async function getTrips(filters: TripListFilters) {
       or(
         sql`unaccent(${s.trips.tripCode}) ILIKE unaccent(${term})`,
         sql`${s.trips.id}::text ILIKE ${term}`,
+        sql`unaccent(${CUSTOMER_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trucks.licensePlate}) ILIKE unaccent(${term})`,
+        sql`unaccent(${ROUTE_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.routes.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trips.customerReference}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trips.externalPlateNumber}) ILIKE unaccent(${term})`,
@@ -192,8 +198,10 @@ export async function getTrips(filters: TripListFilters) {
       or(
         sql`unaccent(${s.trips.tripCode}) ILIKE unaccent(${term})`,
         sql`${s.trips.id}::text ILIKE ${term}`,
+        sql`unaccent(${CUSTOMER_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.customers.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trucks.licensePlate}) ILIKE unaccent(${term})`,
+        sql`unaccent(${ROUTE_OPERATIONAL_NAME}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.routes.name}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trips.customerReference}) ILIKE unaccent(${term})`,
         sql`unaccent(${s.trips.externalPlateNumber}) ILIKE unaccent(${term})`,
@@ -389,11 +397,11 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
   // Distinct customer options
   const customerRows = await db.selectDistinct({
     id: s.customers.id,
-    name: s.customers.name,
+    name: CUSTOMER_OPERATIONAL_NAME,
   }).from(s.trips)
     .innerJoin(s.customers, eq(s.trips.customerId, s.customers.id))
     .where(where)
-    .orderBy(s.customers.name);
+    .orderBy(CUSTOMER_OPERATIONAL_NAME);
 
   return {
     statusCounts,

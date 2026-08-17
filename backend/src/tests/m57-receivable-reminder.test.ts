@@ -1105,7 +1105,8 @@ describe('M5.7 — retry delivery', () => {
     const retry = await runReceivableReminderRetries(new Date());
     assert.equal(retry.retried, 1);
 
-    const [updated] = await fetchTodayEmailLogForCustomer(c.id);
+    const [updated] = await db.select().from(s.customerEmailLogs)
+      .where(eq(s.customerEmailLogs.id, log.id));
     assert.equal(updated.status, 'SENT');
   });
 

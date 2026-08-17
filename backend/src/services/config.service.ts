@@ -61,13 +61,15 @@ export async function getBootstrapData() {
       }));
 
     return {
-      customers: customersList.filter(c => c.status === 'ACTIVE'),
+      customers: customersList
+        .filter(c => c.status === 'ACTIVE')
+        .map((customer) => ({ ...customer, fullName: customer.name, name: customer.shortName || customer.name })),
       externalCarriers: customersList
         .filter((customer) => customer.status === 'ACTIVE' && customer.isCarrier)
-        .map((customer) => ({ id: customer.id, name: customer.name, isActive: true })),
+        .map((customer) => ({ id: customer.id, name: customer.shortName || customer.name, fullName: customer.name, isActive: true })),
       trucks: trucksList.filter(t => t.status === 'ACTIVE'),
       drivers: driversList.filter(d => d.status === 'ACTIVE'),
-      routes: routesList,
+      routes: routesList.map((route) => ({ ...route, fullName: route.name, name: route.shortName || route.name })),
       cargoTypes: cargoTypesList,
       expenseCategories: expenseCategoriesList.filter(c => c.status === 'ACTIVE'),
       suppliers: suppliersList.filter(s => s.status === 'ACTIVE'),

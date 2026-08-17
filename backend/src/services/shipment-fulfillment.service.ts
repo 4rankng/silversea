@@ -49,7 +49,8 @@ function publicSiteSnapshot(snapshot: Record<string, unknown>): Record<string, u
     return {
       id: site.id,
       code: site.code,
-      name: site.name,
+      name: site.shortName || site.name,
+      fullName: site.name,
       siteType: site.siteType,
       address: site.address,
       googleMapsUrl: site.googleMapsUrl,
@@ -132,7 +133,8 @@ async function loadSiteSnapshot(
   const allowlist = (site: typeof sites[number]) => ({
     id: site.id,
     code: site.code,
-    name: site.name,
+    name: site.shortName || site.name,
+    fullName: site.name,
     siteType: site.siteType,
     address: site.address,
     googleMapsUrl: site.googleMapsUrl,

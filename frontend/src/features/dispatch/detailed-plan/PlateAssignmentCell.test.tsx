@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
@@ -60,12 +60,12 @@ describe('PlateAssignmentCell', () => {
     mockFleet([{ id: 9, licensePlate: '51C-123.45' }, { id: 10, licensePlate: '51C-678.90' }]);
     const { container } = render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
 
-    expect(container.querySelector('.plate-assignment__select')).toBeTruthy();
+    expect(container.querySelector('.plate-assignment__select')).toBeNull();
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
 
     await waitFor(() => {
       expect(listDispatchFleetResources).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ limit: 50 }));
     });
-    // Options live in the popover — open the trigger first.
     screen.getByRole('button', { name: /chọn biển số xe/i }).click();
     expect(await screen.findByText('51C-123.45')).toBeTruthy();
   });
@@ -81,12 +81,14 @@ describe('PlateAssignmentCell', () => {
     const onAssignCarrier = vi.fn().mockResolvedValue({});
     const { rerender } = render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} onAssignCarrier={onAssignCarrier} />);
 
+    screen.getByRole('button', { name: /chỉnh sửa nhà xe/i }).click();
     await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_CARRIER', expect.anything()));
-    screen.getByRole('button', { name: /silversea/i }).click();
+    screen.getByRole('button', { name: /^silversea/i }).click();
     (await screen.findByText('Nhà xe Việt')).click();
     await waitFor(() => expect(onAssignCarrier).toHaveBeenCalledWith(expect.objectContaining({ fulfillmentId: 101 }), { carrierType: 'EXTERNAL', externalCarrierId: 77 }));
 
     rerender(<PlateAssignmentCell row={ownRow({ dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Việt', externalCarrierId: 77, externalCarrierVehicleId: null, assignedPlate: null } })} onAssign={vi.fn()} onAssignCarrier={onAssignCarrier} />);
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
     await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 })));
   });
 
@@ -97,10 +99,9 @@ describe('PlateAssignmentCell', () => {
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe đã khóa', externalCarrierId: 77, externalCarrierVehicleId: null, assignedPlate: '51H-123.45' },
     })} onAssign={vi.fn()} />);
 
-    await waitFor(() => {
-      expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 }));
-    });
     expect(screen.getByRole('button', { name: /51H-123\.45/i })).toBeTruthy();
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 })));
   });
 
   it('loads the vendor vehicle population for EXTERNAL rows with carrierId', async () => {
@@ -115,9 +116,8 @@ describe('PlateAssignmentCell', () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 }));
-    });
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('EXTERNAL_VEHICLE', expect.objectContaining({ carrierId: 77 })));
     screen.getByRole('button', { name: /chọn hoặc nhập biển số/i }).click();
     expect(await screen.findByText('51H-888.88')).toBeTruthy();
   });
@@ -128,6 +128,8 @@ describe('PlateAssignmentCell', () => {
     const onAssign = vi.fn().mockResolvedValue({});
     render(<PlateAssignmentCell row={ownRow()} onAssign={onAssign} />);
 
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('TRUCK', expect.anything()));
     screen.getByRole('button', { name: /chọn biển số xe/i }).click();
     const option = await screen.findByText('51C-123.45');
     (option as HTMLElement).click();
@@ -137,6 +139,20 @@ describe('PlateAssignmentCell', () => {
         { truckId: 9 },
       );
     });
+  });
+
+  it('returns a picker to its plain cell label when Escape dismisses it', async () => {
+    useDesktopViewport();
+    mockFleet([{ id: 9, licensePlate: '51C-123.45' }]);
+    render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
+
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('TRUCK', expect.anything()));
+    screen.getByRole('button', { name: /chọn biển số xe/i }).click();
+    fireEvent.keyDown(await screen.findByRole('combobox'), { key: 'Escape' });
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /chỉnh sửa biển số xe/i })).toBeTruthy());
+    expect(screen.queryByRole('combobox')).toBeNull();
   });
 
   it('shows the vendor-empty hint "CUS sẽ bổ sung"', () => {
@@ -164,6 +180,8 @@ describe('PlateAssignmentCell', () => {
     });
     render(<PlateAssignmentCell row={ownRow()} onAssign={vi.fn()} />);
 
+    screen.getByRole('button', { name: /chỉnh sửa biển số xe/i }).click();
+    await waitFor(() => expect(listDispatchFleetResources).toHaveBeenCalledWith('TRUCK', expect.anything()));
     screen.getByRole('button', { name: /chọn biển số xe/i }).click();
     expect(await screen.findByText('51C-123.45')).toBeTruthy();
 
