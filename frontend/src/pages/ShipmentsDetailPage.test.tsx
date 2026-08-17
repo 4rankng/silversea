@@ -202,6 +202,29 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sửa')).toBeNull();
   });
 
+  it('marks every editable detail cell as a full-cell editor target', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    const editableControls = [
+      /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/,
+      /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/,
+      /^Chỉnh sửa ô thông số container CONT-002/,
+      /^Chỉnh sửa điểm nâng hạ CONT-002/,
+      /^Chỉnh sửa lịch trình CONT-002/,
+      /^Chỉnh sửa phân xe CONT-002/,
+      /^Chỉnh sửa ghi chú CONT-002/,
+    ];
+
+    for (const name of editableControls) {
+      const trigger = screen.getByRole('button', { name });
+      const cell = trigger.closest<HTMLElement>('th, td');
+      expect(cell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
+      expect(cell?.querySelector('.shipment-container-ledger__cell-editor')).toContain(trigger);
+    }
+  });
+
   it('opens an editor from the cell\'s single control', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);

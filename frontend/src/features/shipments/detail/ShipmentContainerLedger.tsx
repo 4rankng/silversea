@@ -542,9 +542,14 @@ export function ShipmentContainerLedger({
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
               const routeEditable = row.liftSiteEditable || row.dropoffSiteEditable;
               const vehicleEditable = row.carrierEditable || row.plateEditable;
+              const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
+                extraClassName,
+                editable && 'shipment-container-ledger__editable-cell',
+                edit?.mode === mode && 'shipment-container-ledger__editing-cell',
+              ].filter(Boolean).join(' ') || undefined;
               return (
                 <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
-                  <th scope="row" data-label="Khách hàng & lộ trình" className={edit?.mode === 'identity' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <th scope="row" data-label="Khách hàng & lộ trình" className={cellClassName(identityEditable, 'identity')}>
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
@@ -552,7 +557,7 @@ export function ShipmentContainerLedger({
                       {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
                     </div>)}
                   </th>
-                  <td data-label="Chứng từ & hãng tàu" className={`${documentsEditable ? 'shipment-container-ledger__editable-cell' : ''}${edit?.mode === 'documents' ? ' shipment-container-ledger__editing-cell' : ''}`}>
+                  <td data-label="Chứng từ & hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable, <div className="shipment-container-ledger__cell-stack">
                       <div className="shipment-container-ledger__multiline">
                         <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
@@ -561,7 +566,7 @@ export function ShipmentContainerLedger({
                       <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
                     </div>)}
                   </td>
-                  <td data-label="Thông số container" className={edit?.mode === 'container' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
@@ -569,14 +574,14 @@ export function ShipmentContainerLedger({
                       <BadgeWithDot className="shipment-container-ledger__dispatch-badge" size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>)}
                   </td>
-                  <td data-label="Địa điểm nâng / hạ" className={edit?.mode === 'route' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
                     {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
-                  <td data-label="Lịch trình" className={edit?.mode === 'schedule' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{formatDate(appointmentInput?.slice(0, 10) ?? row.transportDate)}</strong><span>{scheduleTime ? `${scheduleTime} · ${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span></div>)}
                   </td>
-                  <td data-label="Phân xe" className={`${missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : ''}${edit?.mode === 'vehicle' ? ' shipment-container-ledger__editing-cell' : ''}`}>
+                  <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
                       {missingVehicleToday && <span className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" /> Chờ phân xe</span>}
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
@@ -586,7 +591,7 @@ export function ShipmentContainerLedger({
                       {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
                     </div>)}
                   </td>
-                  <td data-label="Ghi chú" className={edit?.mode === 'notes' ? 'shipment-container-ledger__editing-cell' : undefined}>
+                  <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú thu khách')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú điều xe')}</span></div>)}
                   </td>
                 </tr>

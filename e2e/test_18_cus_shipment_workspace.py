@@ -376,6 +376,57 @@ def main() -> bool:
                 )
                 page.context.close()
 
+            page = ctx.new_page({"width": 1440, "height": 1000})
+            ctx.login_as("clerk", page)
+            page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
+            page.wait_for_load_state("networkidle")
+            container_row = page.locator(".shipment-container-ledger tbody tr").filter(has_text="MSKU1234565")
+            container_row.wait_for(timeout=10_000)
+            all_cells_open = True
+            full_coverage = True
+            focus_restored = True
+            for label in ("Khách hàng & lộ trình", "Chứng từ & hãng tàu", "Thông số container", "Địa điểm nâng / hạ", "Lịch trình", "Phân xe", "Ghi chú"):
+                cell = container_row.locator(f'[data-label="{label}"]')
+                trigger = cell.locator("button")
+                trigger_id = trigger.get_attribute("id")
+                coverage = cell.evaluate(
+                    """cell => {
+                        const trigger = cell.querySelector('button');
+                        const cellRect = cell.getBoundingClientRect();
+                        const triggerRect = trigger?.getBoundingClientRect();
+                        return Boolean(triggerRect
+                            && triggerRect.left <= cellRect.left + 1
+                            && triggerRect.top <= cellRect.top + 1
+                            && triggerRect.right >= cellRect.right - 1
+                            && triggerRect.bottom >= cellRect.bottom - 1);
+                    }"""
+                )
+                full_coverage = full_coverage and coverage
+                box = cell.bounding_box()
+                if not box:
+                    all_cells_open = False
+                    continue
+                cell.click(position={"x": max(4, box["width"] - 4), "y": max(4, box["height"] - 4)})
+                editor = page.locator(".shipment-container-ledger__inline-editor")
+                try:
+                    editor.wait_for(timeout=10_000)
+                    page.keyboard.press("Escape")
+                    editor.wait_for(state="detached", timeout=3_000)
+                    focus_restored = focus_restored and page.evaluate(
+                        "(id) => document.activeElement?.id === id", trigger_id
+                    )
+                except Exception:
+                    all_cells_open = False
+            ctx.screenshot(page, "TC-1815_detail_full_cell_click")
+            check(
+                results,
+                "TC-1815",
+                "Mọi ô chi tiết được phép sửa mở editor từ vùng trống của toàn ô",
+                full_coverage and all_cells_open and focus_restored,
+                f"coverage={full_coverage}, opened={all_cells_open}, focusRestored={focus_restored}",
+            )
+            page.context.close()
+
     except Exception as error:
         results.fail("TC-1899", "Suite CUS workspace chạy hoàn chỉnh", repr(error))
 
