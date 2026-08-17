@@ -1,7 +1,7 @@
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { OperationalSiteType, Role } from '@tingting/shared';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -10,6 +10,7 @@ import { disconnectRedis } from '../lib/redis';
 import type { AuthUser } from '../middleware/auth';
 import {
   assignShipmentCarriers,
+  createOperationalSiteForIntake,
   listOperationalSitesForIntake,
   submitShipmentForDispatch,
 } from '../services/shipment-intake.service';
@@ -96,6 +97,25 @@ describe('shipment intake submission', () => {
     assert.equal('contactPhone' in factory, false);
     assert.equal('strictRules' in factory, false);
     assert.equal('googleMapsUrl' in factory, false);
+  });
+
+  test('allows DISPATCHER to load and add customer operational sites from intake', async () => {
+    const dispatcher = await actor(Role.DISPATCHER);
+    const ref = await references();
+
+    const existing = await listOperationalSitesForIntake(ref.customer.id, dispatcher);
+    assert.ok(existing.some((site) => site.id === ref.site.id));
+    assert.ok(existing.some((site) => site.id === ref.warehouse.id));
+
+    const created = await createOperationalSiteForIntake({
+      customerId: ref.customer.id,
+      code: `DISPATCHER-${suffix}-${siteIds.length}`,
+      name: 'Bãi giao nhận Điều vận',
+      siteType: OperationalSiteType.WAREHOUSE,
+      address: 'KCN Sóng Thần, Bình Dương',
+    }, dispatcher);
+    siteIds.push(created.id);
+    assert.equal(created.name, 'Bãi giao nhận Điều vận');
   });
 
   test('reassigns exact per-container carriers while ready and before any order is issued', async () => {

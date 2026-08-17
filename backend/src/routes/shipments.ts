@@ -1192,7 +1192,7 @@ router.post(
 
 router.get(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const customerId = Number(req.query.customerId);
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -1207,7 +1207,7 @@ router.get(
 // guard; the service additionally enforces CLERK customer-scope.
 router.post(
   '/operational-sites',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = operationalSiteSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);

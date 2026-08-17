@@ -14,6 +14,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     listDispatchDropoffPortFacets: vi.fn(),
     assignDispatchDetailPlate: vi.fn(),
     assignDispatchDetailCarrier: vi.fn(),
+    updateDispatchDetailEstimates: vi.fn(),
   };
 });
 
@@ -21,6 +22,7 @@ import {
   assignDispatchDetailCarrier,
   assignDispatchDetailPlate,
   listDispatchDetailPlanRows,
+  updateDispatchDetailEstimates,
 } from '../../../api/dispatchPlanningClient';
 
 const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedResponse<DispatchDetailPlanRow> => ({
@@ -33,6 +35,7 @@ const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedRe
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
 const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
 const assignDispatchDetailCarrierMock = vi.mocked(assignDispatchDetailCarrier);
+const updateDispatchDetailEstimatesMock = vi.mocked(updateDispatchDetailEstimates);
 
 const assignmentResult = (assignedPlate: string | null) => ({
   fulfillmentId: 101,
@@ -61,6 +64,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   notes: { vehicleNote: 'Giao giờ hành chính', customerNote: 'Gặp anh Hùng' },
   dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
+  estimates: { plannedRevenue: null, plannedCarrierCost: null },
   lotFullyPlated: false,
   ...overrides,
 } as DispatchDetailPlanRow);
@@ -171,6 +175,35 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
 
     expect(assignDispatchDetailCarrierMock).toHaveBeenCalledWith(101, { expectedVersion: 3, carrierType: 'EXTERNAL', externalCarrierId: 77 });
     expect(result.current.items).toEqual([]);
+  });
+
+  it('persists fee estimates and updates only the edited fulfillment row', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    updateDispatchDetailEstimatesMock.mockResolvedValue({
+      fulfillmentId: 101,
+      version: 4,
+      plannedRevenue: '2500000',
+      plannedCarrierCost: '1900000',
+    });
+
+    await act(async () => {
+      await result.current.updateEstimates(result.current.items[0], {
+        plannedRevenue: 2_500_000,
+        plannedCarrierCost: 1_900_000,
+      });
+    });
+
+    expect(updateDispatchDetailEstimatesMock).toHaveBeenCalledWith(101, {
+      expectedVersion: 3,
+      plannedRevenue: 2_500_000,
+      plannedCarrierCost: 1_900_000,
+    });
+    expect(result.current.items[0]).toMatchObject({
+      version: 4,
+      estimates: { plannedRevenue: '2500000', plannedCarrierCost: '1900000' },
+    });
+    expect(result.current.items[1]).toMatchObject({ version: 3, estimates: { plannedRevenue: null, plannedCarrierCost: null } });
   });
 
   it('replaces rows when moving between offset pages', async () => {

@@ -6,7 +6,7 @@
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -22,6 +22,9 @@ const createdPricingTableIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdPortIds: number[] = [];
+const createdContainerTypeIds: number[] = [];
+const createdLiftPricingIds: number[] = [];
 
 async function mkCustomer() {
   const [c] = await db.insert(s.customers)
@@ -45,6 +48,19 @@ async function mkCargoType(isBulk: boolean) {
     .returning();
   createdCargoTypeIds.push(c.id);
   return c;
+}
+
+async function mkLiftReference() {
+  const [port] = await db.insert(s.ports).values({
+    name: `PricingSvc lift port ${suffix}-${createdPortIds.length}`,
+  }).returning();
+  createdPortIds.push(port.id);
+  const [containerType] = await db.insert(s.containerTypes).values({
+    code: `LPS${suffix.replace(/[^a-z0-9]/gi, '').slice(-12)}${createdContainerTypeIds.length}`.slice(0, 20),
+    name: `PricingSvc lift container ${suffix}-${createdContainerTypeIds.length}`,
+  }).returning();
+  createdContainerTypeIds.push(containerType.id);
+  return { port, containerType };
 }
 
 async function mkTier(routeId: number, cargoTypeId: number, minKg: string, maxKg: string, pricePerKg: string, effectiveDate = '2026-01-01') {
@@ -71,6 +87,9 @@ async function mkPricingTable(
 
 after(async () => {
   try {
+    if (createdLiftPricingIds.length > 0) {
+      await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, createdLiftPricingIds));
+    }
     if (createdTierIds.length > 0) {
       await db.delete(s.weightPricingTiers).where(inArray(s.weightPricingTiers.id, createdTierIds));
     }
@@ -79,6 +98,12 @@ after(async () => {
     }
     if (createdCargoTypeIds.length > 0) {
       await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
+    }
+    if (createdContainerTypeIds.length > 0) {
+      await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+    }
+    if (createdPortIds.length > 0) {
+      await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
     }
     if (createdRouteIds.length > 0) {
       await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
@@ -403,38 +428,31 @@ import { resolveLiftPrice } from '../services/pricing.service';
 
 describe('M2.4 — resolveLiftPrice', () => {
   test('finds the matching lift price for port + container + direction', async () => {
-    // Use existing seeded ports/containerTypes if possible
-    const [port] = await db.select().from(s.ports).limit(1);
-    const [ct] = await db.select().from(s.containerTypes).limit(1);
-    if (!port || !ct) return; // skip if no seed data
+    const { port, containerType } = await mkLiftReference();
 
     // Insert a lift_pricing row
     const [lp] = await db.insert(s.liftPricing).values({
-      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_UP',
+      portId: port.id, containerTypeId: containerType.id, direction: 'LIFT_UP',
       loadState: 'LOADED',
       unitPrice: '1200000', effectiveDate: '2026-01-01',
     }).returning();
 
     const result = await resolveLiftPrice({
-      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_UP', loadState: 'LOADED', date: '2026-07-01',
+      portId: port.id, containerTypeId: containerType.id, direction: 'LIFT_UP', loadState: 'LOADED', date: '2026-07-01',
     });
     assert.ok(result, 'found a lift price');
     assert.equal(result!.suggestedPrice, 1_200_000);
 
-    // Cleanup
-    await db.delete(s.liftPricing).where(eq(s.liftPricing.id, lp.id));
-    createdTierIds.pop();
+    createdLiftPricingIds.push(lp.id);
   });
 
   test('distinguishes loaded and empty prices for the same matrix key', async () => {
-    const [port] = await db.select().from(s.ports).limit(1);
-    const [ct] = await db.select().from(s.containerTypes).limit(1);
-    if (!port || !ct) return;
+    const { port, containerType } = await mkLiftReference();
 
     const rows = await db.insert(s.liftPricing).values([
       {
         portId: port.id,
-        containerTypeId: ct.id,
+        containerTypeId: containerType.id,
         direction: 'LIFT_UP',
         loadState: 'LOADED',
         unitPrice: '1300000',
@@ -442,7 +460,7 @@ describe('M2.4 — resolveLiftPrice', () => {
       },
       {
         portId: port.id,
-        containerTypeId: ct.id,
+        containerTypeId: containerType.id,
         direction: 'LIFT_UP',
         loadState: 'EMPTY',
         unitPrice: '950000',
@@ -452,14 +470,14 @@ describe('M2.4 — resolveLiftPrice', () => {
 
     const loaded = await resolveLiftPrice({
       portId: port.id,
-      containerTypeId: ct.id,
+      containerTypeId: containerType.id,
       direction: 'LIFT_UP',
       loadState: 'LOADED',
       date: '2026-02-02',
     });
     const empty = await resolveLiftPrice({
       portId: port.id,
-      containerTypeId: ct.id,
+      containerTypeId: containerType.id,
       direction: 'LIFT_UP',
       loadState: 'EMPTY',
       date: '2026-02-02',
@@ -467,7 +485,7 @@ describe('M2.4 — resolveLiftPrice', () => {
 
     assert.equal(loaded?.suggestedPrice, 1_300_000);
     assert.equal(empty?.suggestedPrice, 950_000);
-    await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, rows.map(row => row.id)));
+    createdLiftPricingIds.push(...rows.map((row) => row.id));
   });
 
   test('returns null when no lift_pricing exists', async () => {
@@ -479,28 +497,25 @@ describe('M2.4 — resolveLiftPrice', () => {
   });
 
   test('picks the most recent effectiveDate', async () => {
-    const [port] = await db.select().from(s.ports).limit(1);
-    const [ct] = await db.select().from(s.containerTypes).limit(1);
-    if (!port || !ct) return;
+    const { port, containerType } = await mkLiftReference();
 
     const [lp1] = await db.insert(s.liftPricing).values({
-      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN',
+      portId: port.id, containerTypeId: containerType.id, direction: 'LIFT_DOWN',
       loadState: 'LOADED',
       unitPrice: '800000', effectiveDate: '2026-01-01',
     }).returning();
     const [lp2] = await db.insert(s.liftPricing).values({
-      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN',
+      portId: port.id, containerTypeId: containerType.id, direction: 'LIFT_DOWN',
       loadState: 'LOADED',
       unitPrice: '900000', effectiveDate: '2026-06-01',
     }).returning();
 
     const result = await resolveLiftPrice({
-      portId: port.id, containerTypeId: ct.id, direction: 'LIFT_DOWN', loadState: 'LOADED', date: '2026-07-01',
+      portId: port.id, containerTypeId: containerType.id, direction: 'LIFT_DOWN', loadState: 'LOADED', date: '2026-07-01',
     });
     assert.ok(result);
     assert.equal(result!.suggestedPrice, 900_000);
 
-    // Cleanup
-    await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, [lp1.id, lp2.id]));
+    createdLiftPricingIds.push(lp1.id, lp2.id);
   });
 });

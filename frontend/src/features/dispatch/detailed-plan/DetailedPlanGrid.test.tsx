@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
@@ -23,6 +23,8 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   notes: { vehicleNote: 'Giao giờ hành chính', customerNote: 'Gặp anh Hùng' },
   dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
   ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
+  isCombined: false,
+  estimates: { plannedRevenue: null, plannedCarrierCost: null },
   lotFullyPlated: false,
   ...overrides,
 } as DispatchDetailPlanRow);
@@ -46,6 +48,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       onToggleSort={vi.fn()}
       onAssignPlate={vi.fn()}
       onAssignCarrier={vi.fn()}
+      onSaveEstimates={vi.fn()}
       {...extraProps}
     />,
   );
@@ -146,14 +149,26 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Nhà xe Việt')).toBeTruthy();
   });
 
-  it('keeps only carrier and vehicle assignment editable in the dispatch cell', () => {
-    renderGrid([row()]);
+  it('shows a combined-lot tag when the shipment was marked for combined transport', () => {
+    renderGrid([row({ isCombined: true })]);
+
+    expect(screen.getByText('ĐÓNG KẾT HỢP')).toBeTruthy();
+  });
+
+  it('keeps carrier and vehicle assignment alongside editable operational fee estimates', async () => {
+    const onSaveEstimates = vi.fn().mockResolvedValue(undefined);
+    renderGrid([row()], { onSaveEstimates });
 
     expect(screen.getByText('Nhà xe')).toBeTruthy();
     expect(screen.getByText('Xe / biển số')).toBeTruthy();
-    expect(screen.queryByLabelText('Cước thu dự kiến')).toBeNull();
-    expect(screen.queryByLabelText('Cước trả dự kiến')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Lưu cước' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
+    fireEvent.change(screen.getByLabelText('Cước trả dự kiến'), { target: { value: '1900000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cước' }));
+
+    await waitFor(() => expect(onSaveEstimates).toHaveBeenCalledWith(
+      expect.objectContaining({ fulfillmentId: 101 }),
+      { plannedRevenue: 2500000, plannedCarrierCost: 1900000 },
+    ));
   });
 
   it('surfaces assignment errors and the lot banner', () => {

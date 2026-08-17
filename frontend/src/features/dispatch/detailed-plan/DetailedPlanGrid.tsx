@@ -1,6 +1,7 @@
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { FulfillmentEstimateCell } from './FulfillmentEstimateCell';
 import { PlateAssignmentCell } from './PlateAssignmentCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
@@ -43,6 +44,10 @@ interface DetailedPlanGridProps {
     row: DispatchDetailPlanRow,
     carrier: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null },
   ) => Promise<unknown>;
+  onSaveEstimates: (
+    row: DispatchDetailPlanRow,
+    estimates: { plannedRevenue: number | null; plannedCarrierCost: number | null },
+  ) => Promise<unknown>;
 }
 
 /**
@@ -67,6 +72,7 @@ export function DetailedPlanGrid({
   onToggleSort,
   onAssignPlate,
   onAssignCarrier,
+  onSaveEstimates,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -208,6 +214,7 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Điều phối">
                     <PlateAssignmentCell row={row} onAssign={onAssignPlate} onAssignCarrier={onAssignCarrier} />
+                    <FulfillmentEstimateCell row={row} onSave={onSaveEstimates} />
                     {row.lotFullyPlated && !row.dispatch.assignedPlate && (
                       <div className="detailed-plan-grid__lot-flag">Đã phân xe</div>
                     )}

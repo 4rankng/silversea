@@ -14,7 +14,7 @@
  *     is present (offline-queue client lib path).
  *   - Conflict: same `Idempotency-Key` + different payload → 409.
  *   - No key: two distinct POSTs create two distinct shipments.
- *   - RBAC: CLERK/MANAGER/ADMIN allowed; ACCOUNTANT/CUSTOMER/DRIVER/FORWARDER
+ *   - RBAC: CLERK/DISPATCHER/MANAGER/ADMIN allowed; ACCOUNTANT/CUSTOMER/DRIVER/FORWARDER
  *     denied (403). ACCOUNTANT has shipments read only; the others are
  *     denied at the casbinAuthz('shipments') mount.
  *   - Validation: missing customerId → 400.
@@ -57,6 +57,7 @@ const createdBusinessUnitIds: number[] = [];
 
 let adminToken: string;
 let managerToken: string;
+let dispatcherToken: string;
 let accountantToken: string;
 let clerkToken: string;
 let customerToken: string;
@@ -183,6 +184,7 @@ before(async () => {
 
   const admin = await mkUser(`qc-admin-${suffix}`, Role.ADMIN);
   const manager = await mkUser(`qc-manager-${suffix}`, Role.MANAGER);
+  const dispatcher = await mkUser(`qc-dispatcher-${suffix}`, Role.DISPATCHER);
   const accountant = await mkUser(`qc-acct-${suffix}`, Role.ACCOUNTANT);
   const clerk = await mkUser(`qc-clerk-${suffix}`, Role.CUS);
   const customer = await mkUser(`qc-cust-${suffix}`, Role.CUSTOMER);
@@ -191,6 +193,7 @@ before(async () => {
 
   adminToken = sign(admin);
   managerToken = sign(manager);
+  dispatcherToken = sign(dispatcher);
   accountantToken = sign(accountant);
   clerkToken = sign(clerk);
   customerToken = sign(customer);
@@ -509,6 +512,18 @@ describe('POST /api/shipments/quick — RBAC', () => {
       method: 'POST',
       token: managerToken,
       idempotencyKey: `qc-rbac-manager-${suffix}`,
+      body: { customerId },
+    });
+    assert.equal(res.status, 201);
+    createdShipmentIds.push(res.data.id);
+    await trackCreated();
+  });
+
+  test('DISPATCHER can quick-create from the canonical intake workspace', async () => {
+    const res = await quickFetch('/quick', {
+      method: 'POST',
+      token: dispatcherToken,
+      idempotencyKey: `qc-rbac-dispatcher-${suffix}`,
       body: { customerId },
     });
     assert.equal(res.status, 201);

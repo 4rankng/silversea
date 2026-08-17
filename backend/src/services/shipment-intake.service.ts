@@ -178,7 +178,7 @@ type SubmitShipmentForDispatchResult = {
 };
 
 export async function listOperationalSitesForIntake(customerId: number, actor: AuthUser) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT].includes(actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
   }
   if (actor.role === Role.CUS) {
@@ -243,7 +243,7 @@ export async function createOperationalSiteForIntake(
   input: OperationalSiteInput,
   actor: AuthUser,
 ) {
-  if (![Role.ADMIN, Role.MANAGER, Role.CUS].includes(actor.role)) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền thêm điểm vận hành.');
   }
   if (actor.role === Role.CUS) {
