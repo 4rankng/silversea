@@ -63,8 +63,10 @@
   transition: background 120ms var(--ease);
 }
 
-.ds-table tbody tr.is-clickable:hover {
-  background: color-mix(in srgb, var(--surface-accent) 72%, white);
+@media (hover: hover) and (pointer: fine) {
+  .ds-table tbody tr.is-clickable:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 .ds-table tbody tr.is-clickable:focus-visible {
@@ -123,9 +125,11 @@
   transition: background 120ms var(--ease), border-color 120ms var(--ease);
 }
 
-.ds-mobile-card.is-clickable:hover {
-  border-color: var(--line-strong);
-  background: var(--surface-2);
+@media (hover: hover) and (pointer: fine) {
+  .ds-mobile-card.is-clickable:hover {
+    border-color: var(--line-strong);
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 .ds-mobile-card.is-clickable:focus-visible {

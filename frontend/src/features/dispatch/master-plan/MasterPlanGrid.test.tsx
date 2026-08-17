@@ -125,6 +125,20 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('max-inline-size: 100%');
     expect(css).toContain('text-overflow: ellipsis');
   });
+
+  it('keeps the mobile record surface stable while scrolling and uses one semantic text scale', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+
+    expect(css).toContain('@media (hover: hover) and (pointer: fine)');
+    expect(css).toContain('.master-plan-grid__row:hover');
+    expect(css).toContain('background: color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
+    expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
+    expect(css).toContain('@container (max-width: 599px)');
+    expect(css).toContain('.master-plan-grid__cell:nth-child(4),\n  .master-plan-grid__cell:nth-child(5)');
+    expect(css).toContain('color: var(--fg-1)');
+    expect(css).toContain('color: var(--fg-2)');
+    expect(css).toContain('color: var(--fg-3)');
+  });
 });
 
 describe('MasterPlanFilters', () => {

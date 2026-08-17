@@ -98,7 +98,7 @@
   /* No card chrome to clip: keep the wrapper transparent to overflow so the
      grid's sticky thead can pin against the app-body scrollport. */
   overflow: visible;
-  border-top: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-top: 1px solid var(--line);
 }
 
 .master-plan-grid {
@@ -133,22 +133,36 @@
   font-weight: var(--ops-table-header-weight);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-secondary, #64748b);
-  background: var(--background-color-secondary, var(--surface, #fff));
-  border-bottom: 2px solid var(--border-color, #e2e8f0);
+  color: var(--fg-3);
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--line);
   line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
-.master-plan-grid__row:hover {
-  background: var(--bg-hover, #f8fafc);
+/* A record is not itself an action. Restrict the quiet desktop scan aid to
+   fine pointers: touch browsers otherwise retain :hover while the user is
+   merely scrolling, which made whole records look selected. */
+@media (prefers-reduced-motion: no-preference) {
+  .master-plan-grid__row {
+    transition: background-color 150ms var(--ease);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .master-plan-grid__row:hover {
+    /* A neutral two-percent ink wash provides orientation in a dense desktop
+       grid without impersonating an active, selected, or status state. */
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 .master-plan-grid__cell {
   padding: 12px;
   vertical-align: top;
-  border-bottom: 1px solid var(--border-color, #eef2f7);
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
   min-width: 0;
   overflow: hidden;
 }
@@ -172,11 +186,11 @@
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   line-height: var(--ops-table-primary-line-height);
-  color: var(--text-primary, #0f172a);
+  color: var(--fg-1);
 }
 
 .master-plan-grid__line--muted {
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-3);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
 }
@@ -198,18 +212,18 @@
 .master-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
 
 .master-plan-grid__line--soon {
-  color: #d97706;
+  color: var(--warning-deep);
   font-weight: 500;
 }
 
 .master-plan-grid__line--urgent {
-  color: #dc2626;
+  color: var(--danger);
   font-weight: 600;
 }
 
 .master-plan-grid__line--notes {
   white-space: normal;
-  color: var(--text-secondary, #64748b);
+  color: var(--fg-2);
   font-size: var(--ops-table-note-size);
   font-weight: var(--ops-table-note-weight);
   line-height: var(--ops-table-note-line-height);
@@ -253,31 +267,31 @@
 
   .master-plan-grid tbody {
     display: grid;
-    gap: 12px;
+    gap: 8px;
   }
 
   .master-plan-grid__row {
     display: block;
     overflow: hidden;
-    border: 1px solid var(--border-color, #e2e8f0);
-    border-radius: 10px;
-    background: var(--surface, #fff);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
   }
 
   .master-plan-grid__cell {
     display: block;
-    padding: 12px;
+    padding: 10px 16px;
     border: 0;
   }
 
   .master-plan-grid__cell + .master-plan-grid__cell {
-    border-top: 1px solid var(--border-color, #eef2f7);
+    border-top: 1px solid var(--line);
   }
 
   .master-plan-grid__cell::before {
     display: block;
-    margin-bottom: 6px;
-    color: var(--text-secondary, #64748b);
+    margin-bottom: 4px;
+    color: var(--fg-3);
     content: attr(data-label);
     font-size: 11px;
     font-weight: 700;
@@ -292,7 +306,7 @@
   }
 
   .master-plan-grid__documents {
-    min-height: 52px;
+    min-height: 0;
   }
 
   .master-plan-grid__cell--action {
@@ -302,6 +316,47 @@
   .master-plan-grid__allocate-btn {
     min-height: 44px;
     width: 100%;
+  }
+}
+
+/* Phone records keep their primary identity in a single vertical story, then
+   pair the two short factual groups. It removes a full record section without
+   compressing meaningful text or making the allocation action harder to use. */
+@container (max-width: 599px) {
+  .master-plan-grid__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .master-plan-grid__cell:nth-child(-n + 3),
+  .master-plan-grid__cell:nth-child(6),
+  .master-plan-grid__cell--action {
+    grid-column: 1 / -1;
+  }
+
+  .master-plan-grid__cell:nth-child(4),
+  .master-plan-grid__cell:nth-child(5) {
+    padding-inline: 12px;
+  }
+
+  .master-plan-grid__cell:nth-child(5) {
+    border-inline-start: 1px solid var(--line);
+    border-top: 0;
+  }
+
+  .master-plan-grid__chips {
+    margin-bottom: 8px;
+  }
+}
+
+@container (max-width: 360px) {
+  .master-plan-grid__row {
+    display: block;
+  }
+
+  .master-plan-grid__cell:nth-child(5) {
+    border-inline-start: 0;
+    border-top: 1px solid var(--line);
   }
 }
 
@@ -316,11 +371,11 @@
   }
 
   .master-plan-grid__cell:nth-child(even) {
-    border-inline-start: 1px solid var(--border-color, #eef2f7);
+    border-inline-start: 1px solid var(--line);
   }
 
   .master-plan-grid__cell:nth-child(n + 3) {
-    border-top: 1px solid var(--border-color, #eef2f7);
+    border-top: 1px solid var(--line);
   }
 
   .master-plan-grid__cell--action {

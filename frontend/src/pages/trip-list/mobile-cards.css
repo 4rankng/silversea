@@ -21,10 +21,6 @@
   border-radius: var(--status-strip-radius);
   background: linear-gradient(to bottom, var(--strip-top) 50%, var(--strip-bottom) 50%);
 }
-.trip-list-page .trip-mcard:hover {
-  background: var(--surface-2);
-  border-color: var(--ink-2);
-}
 .trip-list-page .trip-mcard__main-link {
   color: inherit;
   display: block;
@@ -39,7 +35,19 @@
   pointer-events: none;
   transform: translateY(-2px);
 }
-.trip-list-page .trip-mcard:hover .trip-copy-btn--mobile,
+@media (hover: hover) and (pointer: fine) {
+  .trip-list-page .trip-mcard:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+    border-color: var(--line-strong);
+  }
+
+  .trip-list-page .trip-mcard:hover .trip-copy-btn--mobile {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+}
+
 .trip-list-page .trip-mcard:focus-within .trip-copy-btn--mobile,
 .trip-list-page .trip-copy-btn--mobile:focus-visible,
 .trip-list-page .trip-copy-btn--mobile.is-copying {
@@ -252,7 +260,9 @@
 .trip-list-page .legend-dot--warn { background: #F59E0B; }
 /* Table row completeness uses edge strip now, removing old background tints */
 /* Hover overrides completeness tint with standard hover */
-.trip-list-page .table-row:hover {
-  background: var(--tbl-green-050);
+@media (hover: hover) and (pointer: fine) {
+  .trip-list-page .table-row:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 /* Mobile cards completeness uses edge strip now, removing old borders */

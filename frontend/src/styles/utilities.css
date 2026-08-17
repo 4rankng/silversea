@@ -129,7 +129,6 @@
   transition: background 0.1s;
   -webkit-tap-highlight-color: transparent;
 }
-.m-card:active { background: var(--surface-2); }
 .m-card:last-child { border-bottom: none; }
 
 /* Card top row: primary info + right badge */

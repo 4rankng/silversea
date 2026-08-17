@@ -132,8 +132,10 @@
   border-radius: var(--status-strip-radius);
   background: linear-gradient(to bottom, var(--strip-top) 50%, var(--strip-bottom) 50%);
 }
-.trip-list-page .table-row:hover {
-  background: var(--tbl-green-050);
+@media (hover: hover) and (pointer: fine) {
+  .trip-list-page .table-row:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 /* Hover chevron — sits inside the sticky status cell so it stays visible
    regardless of horizontal scroll. Hidden at rest; fades in + slides on
@@ -146,11 +148,19 @@
   transition: opacity 140ms ease, transform 140ms ease;
   pointer-events: none;
 }
-.trip-list-page .table-row:hover .table-row__chev,
+@media (hover: hover) and (pointer: fine) {
+  .trip-list-page .table-row:hover .table-row__chev,
+  .trip-list-page .table-row:focus-visible .table-row__chev {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .trip-list-page .table-row:focus-visible .table-row__chev {
   opacity: 1;
   transform: translateX(0);
 }
+
 /* Keyboard focus ring */
 .trip-list-page .table-row:focus-visible {
   outline: 2px solid var(--tbl-green-600);
