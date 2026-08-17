@@ -3,8 +3,8 @@
    dispatch-plan-page__* BEM conventions. */
 
 .master-plan-filters {
-  display: grid;
-  grid-template-columns: minmax(248px, 1.25fr) minmax(124px, 0.6fr) minmax(184px, 0.9fr) minmax(320px, 1.3fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 10px;
   margin-bottom: 14px;
@@ -14,7 +14,8 @@
    these rules only shape them inside the flex bar. */
 
 .master-plan-filters__search {
-  min-width: 0;
+  flex: 1 1 300px;
+  min-width: 248px;
 }
 
 .master-plan-filters__field {
@@ -28,10 +29,23 @@
 }
 
 .master-plan-filters__select {
-  width: 100%;
+  width: auto;
+}
+
+.master-plan-filters__direction {
+  /* The field label needs a little more room than the selected "Tất cả"
+     value; anything wider is unused toolbar space. */
+  flex: 0 0 132px;
+}
+
+.master-plan-filters__allocation {
+  /* This fits the longest allocation label plus the Select affordance without
+     turning a categorical filter into a half-row control. */
+  flex: 0 0 180px;
 }
 
 .master-plan-filters__date-range {
+  flex: 0 1 360px;
   display: grid;
   gap: 5px;
 }
@@ -56,55 +70,21 @@
 }
 
 .master-plan-filters__actions {
+  flex: 0 0 auto;
   align-self: end;
-  justify-self: end;
   white-space: nowrap;
 }
 
-/* Keep the common dispatcher canvas as one command bar. The old 1240px
-   breakpoint detached the date range into a second row even when the page
-   still had ample working width, leaving most of the toolbar empty. */
-@container (max-width: 1020px) {
-  .master-plan-filters {
-    grid-template-columns: minmax(260px, 1.3fr) minmax(124px, 0.65fr) minmax(184px, 0.9fr) auto;
-  }
-
-  .master-plan-filters__date-range {
-    grid-column: 1 / span 3;
-  }
-
-  .master-plan-filters__actions {
-    grid-column: 4;
-  }
-}
-
-@container (max-width: 820px) {
-  .master-plan-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .master-plan-filters__search,
-  .master-plan-filters__date-range {
-    grid-column: 1 / -1;
-  }
-
-  .master-plan-filters__actions {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-}
-
 @container (max-width: 640px) {
-  .master-plan-filters {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  .master-plan-filters__search,
+  .master-plan-filters__direction,
+  .master-plan-filters__allocation,
   .master-plan-filters__date-range {
-    width: 100%;
+    flex-basis: 100%;
   }
 
   .master-plan-filters__actions {
-    justify-self: stretch;
+    flex-basis: 100%;
   }
 
   .master-plan-filters__actions > .btn {

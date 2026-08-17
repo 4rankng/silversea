@@ -44,7 +44,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         aria-label="Tìm kiếm lô hàng"
       />
       <UUISelect
-        className="master-plan-filters__field master-plan-filters__select"
+        className="master-plan-filters__field master-plan-filters__select master-plan-filters__direction"
         size="sm"
         label="Chiều hàng"
         selectedKey={filters.tradeDirection || 'ALL_DIRECTIONS'}
@@ -56,7 +56,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
       </UUISelect>
       <UUISelect
-        className="master-plan-filters__field master-plan-filters__select"
+        className="master-plan-filters__field master-plan-filters__select master-plan-filters__allocation"
         size="sm"
         label="Phân xe"
         selectedKey={filters.allocationStatus || 'ALL_ALLOCATIONS'}

@@ -185,11 +185,12 @@ describe('MasterPlanFilters', () => {
     expect(container.querySelector('.master-plan-filters__actions')?.textContent).toBe('Tạo lô hàng');
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('grid-template-columns: minmax(248px, 1.25fr) minmax(124px, 0.6fr) minmax(184px, 0.9fr) minmax(320px, 1.3fr) auto');
-    expect(css).toContain('@container (max-width: 1020px)');
-    expect(css).toContain('grid-column: 1 / span 3');
-    expect(css).toContain('@container (max-width: 820px)');
-    expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
+    expect(css).toContain('display: flex');
+    expect(css).toContain('flex-wrap: wrap');
+    expect(css).toContain('flex: 0 1 360px');
+    expect(css).toContain('flex: 0 0 132px');
+    expect(css).toContain('flex: 0 0 180px');
+    expect(css).toContain('flex: 0 0 auto');
     expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
     expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
