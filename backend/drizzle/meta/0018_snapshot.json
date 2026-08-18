@@ -1,6 +1,6 @@
 {
-  "id": 18,
-  "prevId": "49904a23-ea9a-477d-9ee0-ceab415d4e0b",
+  "id": "a2d4295e-eca3-4a5e-a6a8-918041a26f25",
+  "prevId": "262eadc2-23af-4174-a6b8-35d5df0ba886",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -12902,8 +12902,7 @@
           "name": "short_name",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         }
       },
       "indexes": {

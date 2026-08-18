@@ -984,7 +984,7 @@ export const supplierSchema = z.object({
   // Short operational label (mã nội bộ / tên ngắn). Optional input: blank or
   // missing falls back to `name` at the write boundary; operational surfaces
   // display it while legal/report projections keep the full name.
-  shortName: z.string().trim().min(1).optional(),
+  shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
   taxCode: z.string().optional(),

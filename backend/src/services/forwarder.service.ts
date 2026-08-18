@@ -690,7 +690,7 @@ export async function getTripExpenses(txOrDb: DbOrTx, tripId: number) {
     updatedAt: s.tripExpenses.updatedAt,
     forwarderName: s.users.fullName,
     expenseTypeName: s.forwarderExpenseTypes.name,
-    supplierName: s.suppliers.name,
+    supplierName: operationalName(s.suppliers.shortName, s.suppliers.name),
   }).from(s.tripExpenses)
     .leftJoin(s.users, eq(s.tripExpenses.forwarderId, s.users.id))
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
@@ -795,7 +795,7 @@ export async function getTripExpenseAuditInfo(expenseId: number, executor: DbOrT
     buyAmount: s.tripExpenses.buyAmount,
     typeName: s.forwarderExpenseTypes.name,
     tripCode: s.trips.tripCode,
-    supplierName: s.suppliers.name,
+    supplierName: operationalName(s.suppliers.shortName, s.suppliers.name),
   }).from(s.tripExpenses)
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
     .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))

@@ -882,9 +882,10 @@ async function normalizeSupplierPayload(
   data: Partial<SupplierPayload>,
   supplierId?: number,
 ): Promise<Partial<SupplierPayload>> {
-  // Short-name write boundary: blank/missing shortName falls back to the full
-  // name so legacy callers and quick creates keep the NOT NULL invariant
-  // (same contract as customers/routes short-name hooks above).
+  // Short-name write boundary: explicit-but-blank shortName falls back to the
+  // full name (zod rejects blank before this on the API path, so this covers
+  // internal callers). Key-absent creates store '' and display falls back at
+  // read time via operationalName — same end-state as the customers hook.
   const shortName = typeof data.shortName === 'string' ? data.shortName.trim() : '';
   if ('name' in data && 'shortName' in data) {
     data.shortName = shortName || (data.name ?? '').toString().trim();
