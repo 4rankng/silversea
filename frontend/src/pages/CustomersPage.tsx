@@ -4,7 +4,7 @@ import {
   Users, UserCheck, BarChart3, Lock, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
 } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
 import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
@@ -304,8 +304,22 @@ export default function CustomersPage() {
   const allSuppliers = suppliersData?.items ?? [];
   const customers = useMemo(() => customersData?.items ?? [], [customersData]);
   const total = customersData?.total ?? 0;
-  const [mutationError, setMutationError] = useState<string | null>(null);
-  const error = queryError ? 'Không thể tải dữ liệu' : mutationError;
+  const error = queryError ? 'Không thể tải dữ liệu' : null;
+
+  /**
+   * Mutation failures must surface as a toast: the edit modal stays open and
+   * would otherwise cover the table-slot error row below it. For the
+   * pending-governance 409, point the user at the approval center where the
+   * blocking request can be approved/rejected.
+   */
+  const toastMutationError = (e: unknown, fallback: string) => {
+    const status = e instanceof ApiError ? e.status : null;
+    const baseMessage = e instanceof Error && e.message ? e.message : fallback;
+    const hint = status === 409
+      ? ' Đang có yêu cầu chỉnh sửa khách hàng này chờ xử lý — kiểm tra Trung tâm phê duyệt trước khi sửa tiếp.'
+      : '';
+    toast({ kind: 'error', message: baseMessage + hint, duration: 7000 });
+  };
 
   const debtMap = useMemo(() => {
     return buildCustomerDebtMap(ledgerEntries ?? []);
@@ -383,7 +397,7 @@ export default function CustomersPage() {
       }
       setShowAddForm(false);
       await refetchCustomers();
-    } catch (e: unknown) { setMutationError(e instanceof Error ? e.message : 'Lỗi lưu'); } finally { setSaving(false); }
+    } catch (e: unknown) { toastMutationError(e, 'Lỗi lưu'); } finally { setSaving(false); }
   }
 
   async function doUpdate(id: number, body: Record<string, unknown>) {
@@ -405,7 +419,7 @@ export default function CustomersPage() {
       await refetchCustomers();
       setEditingId(null);
       setMenuOpenId(null);
-    } catch (e: unknown) { setMutationError(e instanceof Error ? e.message : 'Lỗi cập nhật'); } finally { setSaving(false); }
+    } catch (e: unknown) { toastMutationError(e, 'Lỗi cập nhật'); } finally { setSaving(false); }
   }
 
   async function doDelete(id: number) {
@@ -414,7 +428,7 @@ export default function CustomersPage() {
       await api.delete(`/customers/${id}`);
       setMenuOpenId(null);
       await refetchCustomers();
-    } catch (e: unknown) { setMutationError(e instanceof Error ? e.message : 'Lỗi xóa'); } finally { setDeleting(null); }
+    } catch (e: unknown) { toastMutationError(e, 'Lỗi xóa'); } finally { setDeleting(null); }
   }
 
   return (
