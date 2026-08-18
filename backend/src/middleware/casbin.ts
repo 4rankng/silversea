@@ -20,7 +20,18 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
-  // Dispatcher catalog creates: DISPATCHER may POST exactly the three
+  // The shipment-create screen is shared by CUS and Dispatchers. Permit only
+  // creation of the missing route they need; all other config writes and all
+  // route updates/deletes remain governed by the normal config policy.
+  if (
+    resource === 'config'
+    && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)
+    && req.method === 'POST'
+    && /^\/routes\/?$/.test(req.path)
+  ) {
+    return true;
+  }
+  // Other Dispatcher catalog creates: DISPATCHER may POST exactly the three
   // resource-catalog rows it staffs dispatch plans from (trucks, drivers,
   // suppliers). Every other config write stays Casbin-denied, and
   // PUT/DELETE on these three are not matched here.

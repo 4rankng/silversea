@@ -1866,6 +1866,59 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(persistedContainers.find((row) => row.id === secondContainer.id)?.customerAppointmentAt?.toISOString(), secondAppointment);
   });
 
+  test('CUS list groups containers by appointment with type counts', async () => {
+    const fixture = await createAcceptedFulfillmentFixture();
+    const [firstContainer] = await db.select().from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id))
+      .limit(1);
+    assert.ok(firstContainer);
+
+    // A second container type so one appointment group mixes "1x40 + 1x20".
+    const [secondType] = await db.insert(s.containerTypes)
+      .values({ code: `20GP${Math.random().toString(16).slice(2, 10)}`, name: `ShipmentRoute gp ${suffix}` })
+      .returning();
+    createdContainerTypeIds.push(secondType.id);
+
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: fixture.shipment.id,
+      containerTypeId: firstContainer.containerTypeId,
+      containerNumber: 'MSKU1111111',
+      customerAppointmentAt: new Date('2026-08-25T02:00:00.000Z'),
+      createdBy: clerkUserId,
+    });
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: fixture.shipment.id,
+      containerTypeId: secondType.id,
+      containerNumber: 'MSKU2222222',
+      customerAppointmentAt: new Date('2026-09-01T09:30:00.000Z'),
+      createdBy: clerkUserId,
+    });
+    // No appointment → must not appear in any group.
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: fixture.shipment.id,
+      containerTypeId: secondType.id,
+      containerNumber: 'MSKU3333333',
+      createdBy: clerkUserId,
+    });
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date('2026-08-25T02:00:00.000Z') })
+      .where(eq(s.shipmentContainers.id, firstContainer.id));
+
+    const [firstType] = await db.select({ code: s.containerTypes.code })
+      .from(s.containerTypes)
+      .where(eq(s.containerTypes.id, firstContainer.containerTypeId));
+    assert.ok(firstType);
+
+    const list = await testFetch('/cus-workspace?page=1&limit=100', { token: adminToken });
+    assert.equal(list.status, 200);
+    const row = list.data.items.find((item: { id: number }) => item.id === fixture.shipment.id);
+    assert.ok(row, 'CUS list includes the grouped shipment');
+    assert.deepEqual(row.appointmentGroups, [
+      { at: '2026-08-25T02:00:00.000Z', containerSummary: `2x${firstType.code}` },
+      { at: '2026-09-01T09:30:00.000Z', containerSummary: `1x${secondType.code}` },
+    ]);
+  });
+
   test('CUS cannot resurrect an inactive external carrier vehicle through inline creation', async () => {
     const fixture = await createAcceptedFulfillmentFixture();
     const [container] = await db.select().from(s.shipmentContainers)

@@ -442,17 +442,41 @@ function deriveCusBucket(status: string | null, hasActiveLock: boolean): Shipmen
   return ShipmentCusBucket.NEW;
 }
 
-function buildContainerSummary(rows: ContainerRow[], packageCount: number | null, packageType: string | null): string {
-  if (rows.length === 0) {
-    if (packageCount == null) return '';
-    return `${packageCount} ${trimOrNull(packageType) ?? 'kiện'}`;
-  }
+function countContainerTypes(rows: ContainerRow[]): string {
   const counts = new Map<string, number>();
   for (const row of rows) {
     const label = row.containerTypeCode ?? row.containerTypeName ?? 'Cont';
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return Array.from(counts.entries()).map(([label, qty]) => `${qty}x${label}`).join(' + ');
+}
+
+function buildContainerSummary(rows: ContainerRow[], packageCount: number | null, packageType: string | null): string {
+  if (rows.length === 0) {
+    if (packageCount == null) return '';
+    return `${packageCount} ${trimOrNull(packageType) ?? 'kiện'}`;
+  }
+  return countContainerTypes(rows);
+}
+
+/**
+ * Group a lot's containers by their per-container customerAppointmentAt so the
+ * "Lịch trình & điều xe" cell can show every close/return date group on its
+ * own line ("09:00 25/08/2026 · 1x40HC"). Containers without an appointment
+ * are skipped; groups are ordered earliest-first.
+ */
+function buildAppointmentGroups(containers: ContainerRow[]): Array<{ at: string; containerSummary: string }> {
+  const byAt = new Map<string, ContainerRow[]>();
+  for (const container of containers) {
+    if (container.customerAppointmentAt == null) continue;
+    const key = container.customerAppointmentAt.toISOString();
+    const group = byAt.get(key);
+    if (group) group.push(container);
+    else byAt.set(key, [container]);
+  }
+  return Array.from(byAt.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([at, group]) => ({ at, containerSummary: countContainerTypes(group) }));
 }
 
 function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
@@ -896,6 +920,7 @@ function buildListItem(
   const customerAppointmentAts = uniqueNonEmpty(containers.map((container) => (
     container.customerAppointmentAt?.toISOString() ?? null
   )));
+  const appointmentGroups = buildAppointmentGroups(containers);
   const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
     if (assignment == null) return result;
     const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
@@ -956,6 +981,7 @@ function buildListItem(
     liftSiteNames,
     dropoffSiteNames,
     customerAppointmentAts,
+    appointmentGroups,
     carrierAssignments,
     customerNotes: trimOrNull(row.shipment.customerNotes),
     operationalNotes: trimOrNull(row.shipment.operationalNotes),

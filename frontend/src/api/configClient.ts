@@ -19,6 +19,7 @@ import type {
   ContainerType,
   SealType,
   Route,
+  RouteInput,
   Customer,
   PenaltyReason,
   RoadAllowance,
@@ -95,6 +96,8 @@ export const configClient = {
 
   getRoutesList: (search?: string) =>
     fetchAllPaginated<Route>(CONFIG.ROUTES, search ? { search } : undefined),
+
+  createRoute: (data: RouteInput) => api.post<Route>(CONFIG.ROUTES, data),
 
   getAllCustomers: (search?: string) =>
     fetchAllPaginated<Customer>(CONFIG.CUSTOMERS, search ? { search } : undefined),

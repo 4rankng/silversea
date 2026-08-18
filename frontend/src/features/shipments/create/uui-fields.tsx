@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
-import { NativeSelect } from '../../../components/untitled-ui/base/select/select-native';
+import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
@@ -16,6 +16,8 @@ import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDa
  */
 
 type HtmlInputEvent = { target: { value: string } };
+
+const EMPTY_SELECT_KEY = '__EMPTY_SELECT_VALUE__';
 
 function asEvent(value: string): HtmlInputEvent {
   return { target: { value } };
@@ -215,6 +217,7 @@ interface USelectFieldProps {
 }
 
 export function USelectField({
+  id,
   label,
   value,
   onChange,
@@ -227,18 +230,23 @@ export function USelectField({
 }: USelectFieldProps) {
   return (
     <div className={`csc-select-field csc-control-boundary${error ? ' csc-select-field--error' : ''}`}>
-      <NativeSelect
+      <UUISelect
+        id={id}
         size="sm"
-        aria-label={label}
-        label={required ? `${label} *` : label}
-        hideLabel={hideLabel}
-        value={value}
-        onChange={(event) => onChange(event)}
-        options={options}
-        disabled={disabled}
-        required={required}
-        aria-invalid={Boolean(error) || undefined}
-      />
+        aria-label={hideLabel ? label : undefined}
+        label={hideLabel ? undefined : label}
+        selectedKey={value || EMPTY_SELECT_KEY}
+        onSelectionChange={(key) => onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)))}
+        items={options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label }))}
+        isDisabled={disabled}
+        isRequired={required}
+        isInvalid={Boolean(error)}
+        hideRequiredIndicator={!required}
+        popoverClassName="csc-select-popover"
+        className="csc-uui-field"
+      >
+        {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+      </UUISelect>
       {error
         ? <span className="csc-field-error">{error}</span>
         : hint && <span className="csc-field-hint">{hint}</span>}

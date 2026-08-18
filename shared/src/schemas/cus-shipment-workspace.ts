@@ -144,6 +144,14 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   liftSiteNames: z.array(z.string()),
   dropoffSiteNames: z.array(z.string()),
   customerAppointmentAts: z.array(z.string().datetime()),
+  // Per-appointment container groups for the "Lịch trình & điều xe" cell: one
+  // entry per distinct customerAppointmentAt, with a container-type summary
+  // ("2x20HC + 1x40HC") so a lot whose containers close/return on different
+  // days shows each date group on its own line.
+  appointmentGroups: z.array(z.object({
+    at: z.string().datetime(),
+    containerSummary: z.string(),
+  }).strict()),
   carrierAssignments: z.array(z.object({
     carrierName: z.string().nullable(),
     plateNumber: z.string().nullable(),

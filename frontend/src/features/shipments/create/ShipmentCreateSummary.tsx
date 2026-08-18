@@ -1,4 +1,5 @@
 import { AlertCircle, Check, X } from 'lucide-react';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import type {
   SaveIntent,
   ShipmentCreateIssue,
@@ -42,16 +43,28 @@ export function ShipmentCreateSummary({
 
       {submitError && <div className="csc-submit-error" role="alert">{submitError}</div>}
 
-      <section className="csc-summary__section csc-summary__actions" aria-label="Thao tác tạo lô hàng">
-        <button type="button" className="csc-button csc-button--primary" onClick={onCreate} disabled={Boolean(saving)}>
-          <Check size={18} aria-hidden="true" />
-          {saving === 'DRAFT' ? 'Đang tạo…' : 'Tạo lô hàng'}
-        </button>
-        <button type="button" className="csc-button csc-button--secondary" onClick={onCancel} disabled={Boolean(saving)}>
-          <X size={18} aria-hidden="true" />
+      <div className="csc-summary__actions" role="group" aria-label="Thao tác tạo lô hàng">
+        <UUIButton
+          type="button"
+          size="md"
+          color="tertiary"
+          iconLeading={X}
+          onClick={onCancel}
+          isDisabled={Boolean(saving)}
+        >
           Huỷ
-        </button>
-      </section>
+        </UUIButton>
+        <UUIButton
+          type="button"
+          size="md"
+          color="primary"
+          iconLeading={Check}
+          onClick={onCreate}
+          isDisabled={Boolean(saving)}
+        >
+          {saving === 'DRAFT' ? 'Đang tạo…' : 'Tạo lô hàng'}
+        </UUIButton>
+      </div>
     </aside>
   );
 }

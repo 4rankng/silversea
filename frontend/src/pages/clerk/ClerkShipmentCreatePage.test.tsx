@@ -13,9 +13,11 @@ const mocks = vi.hoisted(() => ({
   updateDeclaration: vi.fn(),
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
+  createRoute: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
+vi.mock('../../api/configClient', () => ({ configClient: { createRoute: mocks.createRoute } }));
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
@@ -67,6 +69,18 @@ async function choose(label: string, value: string) {
     fireEvent.change(nativeSelect, { target: { value } });
     return;
   }
+  const selectButton = screen.queryByRole('button', { name: new RegExp(label) });
+  if (selectButton) {
+    fireEvent.click(selectButton);
+    const option = await waitFor(() => {
+      const match = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
+      if (!match) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường ${label}`);
+      return match;
+    });
+    fireEvent.click(option);
+    await waitFor(() => expect(selectButton).toHaveAttribute('aria-expanded', 'false'));
+    return;
+  }
   const combobox = screen.getByRole('combobox', { name: new RegExp(`^${label}`) });
   fireEvent.focus(combobox);
   fireEvent.keyDown(combobox, { key: 'ArrowDown' });
@@ -91,6 +105,20 @@ describe('ClerkShipmentCreatePage', () => {
     mocks.updateDeclaration.mockResolvedValue({ id: 1 });
     mocks.updateShipment.mockResolvedValue({ id: 90, version: 2 });
     mocks.getShipmentDetail.mockResolvedValue({ shipment: { id: 90, version: 1 } });
+    mocks.createRoute.mockResolvedValue({
+      id: 12,
+      name: 'Cảng Cái Mép — KCN Mỹ Phước',
+      shortName: 'Cái Mép — Mỹ Phước',
+      distanceKm: 95,
+      isMountain: false,
+      fixedFuelAllowance: null,
+      tollsStations: null,
+      driverSalary: null,
+      defaultLegs: null,
+      createdAt: '2026-08-18T00:00:00.000Z',
+      updatedAt: '2026-08-18T00:00:00.000Z',
+      deletedAt: null,
+    });
   });
 
   it('shows only create and cancel actions, without the superseded draft or dispatch actions', async () => {
@@ -131,6 +159,30 @@ describe('ClerkShipmentCreatePage', () => {
     expect(combobox.closest('.csc-customer-field')).toBeTruthy();
   });
 
+  it('uses an application-styled menu for every shipment-create select', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    const tradeDirection = screen.getByRole('button', { name: /Hình thức xuất nhập khẩu/ });
+    expect(tradeDirection.tagName).not.toBe('SELECT');
+    const accessibilitySelect = tradeDirection.closest('.csc-select-field')?.querySelector('select');
+    expect(accessibilitySelect).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.click(tradeDirection);
+    expect(tradeDirection).toHaveAttribute('aria-expanded', 'true');
+    expect((await screen.findByRole('listbox')).closest('.csc-select-popover')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập khẩu' }));
+    await waitFor(() => expect(tradeDirection).toHaveAttribute('aria-expanded', 'false'));
+    expect(tradeDirection).toHaveFocus();
+
+    tradeDirection.focus();
+    fireEvent.click(tradeDirection);
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(tradeDirection).toHaveAttribute('aria-expanded', 'false'));
+    expect(tradeDirection).toHaveFocus();
+  });
+
   it('adds a custom shipping line through the visible add action', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
@@ -165,6 +217,50 @@ describe('ClerkShipmentCreatePage', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm hãng tàu' })).toBeNull());
     expect((shippingLine as HTMLInputElement).value).toBe('MSC');
+    expect(addButton).toHaveFocus();
+  });
+
+  it('creates and selects a route from the visible shipment-intake action', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+
+    const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm tuyến đường' }));
+    expect(within(dialog).getByRole('alert').textContent).toContain('Vui lòng nhập tên đầy đủ');
+
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: '  Cảng Cái Mép — KCN Mỹ Phước  ' } });
+    fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: '  Cái Mép — Mỹ Phước  ' } });
+    fireEvent.change(within(dialog).getByLabelText('Khoảng cách (km)'), { target: { value: '95' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm tuyến đường' }));
+
+    await waitFor(() => expect(mocks.createRoute).toHaveBeenCalledWith({
+      name: 'Cảng Cái Mép — KCN Mỹ Phước',
+      shortName: 'Cái Mép — Mỹ Phước',
+      distanceKm: 95,
+      isMountain: false,
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm tuyến đường' })).toBeNull());
+    expect((screen.getByRole('combobox', { name: /^Tuyến đường/ }) as HTMLInputElement).value).toBe('Cái Mép — Mỹ Phước');
+    expect(addButton).toHaveFocus();
+  });
+
+  it('keeps the selected route when route creation is cancelled', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+    await choose('Tuyến đường', '11');
+
+    const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
+    fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: 'Không lưu' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm tuyến đường' })).toBeNull());
+    expect((screen.getByRole('combobox', { name: /^Tuyến đường/ }) as HTMLInputElement).value).toBe('Cát Lái — Sóng Thần');
+    expect(mocks.createRoute).not.toHaveBeenCalled();
     expect(addButton).toHaveFocus();
   });
 

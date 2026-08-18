@@ -62,6 +62,10 @@ const row: ShipmentCusWorkspaceListItem = {
   liftSiteNames: ['Cảng Đình Vũ'],
   dropoffSiteNames: ['Bãi Tân Vũ'],
   customerAppointmentAts: ['2026-08-12T02:30:00.000Z'],
+  appointmentGroups: [
+    { at: new Date(2026, 7, 12, 9, 30).toISOString(), containerSummary: '1x40HC' },
+    { at: new Date(2026, 8, 1, 16, 30).toISOString(), containerSummary: '1x20GP' },
+  ],
   carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
   customerNotes: 'Giao buổi sáng',
   operationalNotes: 'Ưu tiên cổng số 2',
@@ -303,7 +307,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(surface.getByText('Hải Phòng → Hà Nội')).toBeTruthy();
     expect(surface.getByText('TK-54321')).toBeTruthy();
     expect(surface.queryByText(/CBM/)).toBeNull();
-    expect(surface.getByText(/12\/8\/2026/)).toBeTruthy();
+    expect(surface.getAllByText(/12\/8\/2026/).length).toBeGreaterThan(0);
+    // Per-container appointment groups: one line per distinct close/return
+    // datetime, with the container-type mix of that group.
+    expect(surface.getByText('09:30 12/8/2026 · 1x40HC')).toBeTruthy();
+    expect(surface.getByText('16:30 1/9/2026 · 1x20GP')).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Xem chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();

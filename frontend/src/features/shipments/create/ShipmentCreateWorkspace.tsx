@@ -32,6 +32,8 @@ import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { ShippingLineAddDialog } from './ShippingLineAddDialog';
+import { RouteCreateDialog } from './RouteCreateDialog';
+import type { Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 import { Modal } from '../../../components/UI';
 import '../../../pages/clerk/ClerkShipmentCreatePage.css';
@@ -67,6 +69,8 @@ export function ShipmentCreateWorkspace() {
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [shippingLineDialogOpen, setShippingLineDialogOpen] = useState(false);
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
+  const [routeDialogOpen, setRouteDialogOpen] = useState(false);
+  const routeAddButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,6 +157,23 @@ export function ShipmentCreateWorkspace() {
   function applyShippingLine(name: string) {
     update('shippingLineName', name);
     closeShippingLineDialog();
+  }
+
+  function closeRouteDialog() {
+    setRouteDialogOpen(false);
+    queueMicrotask(() => routeAddButtonRef.current?.focus());
+  }
+
+  function handleRouteCreated(route: Route) {
+    setCatalogs((current) => current ? {
+      ...current,
+      routes: [
+        ...current.routes.filter((item) => item.id !== route.id),
+        { ...route, fullName: route.name, name: route.shortName || route.name },
+      ],
+    } : current);
+    update('routeId', String(route.id));
+    closeRouteDialog();
   }
 
   /**
@@ -340,18 +361,27 @@ export function ShipmentCreateWorkspace() {
 
         <ShipmentCreateSection id="route" number="02" title="Điểm vận hành & tuyến" description="Chọn tuyến và điểm giao hoặc lấy hàng theo hình thức lô.">
           <div style={gridStyle}>
-            <div data-field-id="shipment-route">
-            <SearchableField
-              id="shipment-route"
-              label="Tuyến đường"
-              required
-              value={form.routeId}
-              onChange={(value) => update('routeId', value)}
-              options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
-              placeholder="Gõ chọn"
-              disabled={Boolean(saving)}
-              error={issueByField.get('shipment-route')}
-            />
+            <div className="csc-route-picker" data-field-id="shipment-route">
+              <SearchableField
+                id="shipment-route"
+                label="Tuyến đường"
+                required
+                value={form.routeId}
+                onChange={(value) => update('routeId', value)}
+                options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                placeholder="Gõ chọn"
+                disabled={Boolean(saving)}
+                error={issueByField.get('shipment-route')}
+              />
+              <button
+                ref={routeAddButtonRef}
+                type="button"
+                onClick={() => setRouteDialogOpen(true)}
+                disabled={Boolean(saving)}
+                className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+              >
+                <Plus size={15} aria-hidden="true" />Thêm tuyến đường
+              </button>
             </div>
             <div className="csc-site-picker">
               <SearchableField
@@ -539,6 +569,11 @@ export function ShipmentCreateWorkspace() {
         currentName={form.shippingLineName}
         onClose={closeShippingLineDialog}
         onApply={applyShippingLine}
+      />
+      <RouteCreateDialog
+        isOpen={routeDialogOpen}
+        onClose={closeRouteDialog}
+        onCreated={handleRouteCreated}
       />
       <Modal
         isOpen={backConfirmOpen}

@@ -122,6 +122,19 @@ function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
   return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+/**
+ * One display line per per-container appointment group:
+ * "09:00 25/08/2026 · 1x40HC" — the time, date and container-type mix of every
+ * container sharing that close/return appointment in the lot.
+ */
+function formatAppointmentGroupLine(at: string): string {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return at;
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const day = date.toLocaleDateString('vi-VN');
+  return `${time} ${day}`;
+}
+
 function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {
   const { totalContainers, plateAssignedContainers, vehicleReadiness } = item.operational;
   if (vehicleReadiness === 'READY') return 'Đã phân xe';
@@ -1689,8 +1702,8 @@ export default function ShipmentsPage() {
                           >
                             <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                             <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
-                            {item.customerAppointmentAts.map((appointment) => (
-                              <span key={appointment}>{item.direction === 'IMPORT' ? 'Trả' : 'Đóng'}: {formatDateTime(appointment)}</span>
+                            {item.appointmentGroups.map((group) => (
+                              <span key={group.at}>{formatAppointmentGroupLine(group.at)} · {group.containerSummary}</span>
                             ))}
                             <span>{vehicleReadinessLabel(item)}</span>
                           </button>

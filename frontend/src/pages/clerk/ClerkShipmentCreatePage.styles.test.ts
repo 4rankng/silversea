@@ -19,6 +19,10 @@ const containerEditorSource = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/ShipmentContainerEditor.tsx'),
   'utf8',
 );
+const summarySource = readFileSync(
+  resolve(process.cwd(), 'src/features/shipments/create/ShipmentCreateSummary.tsx'),
+  'utf8',
+);
 
 describe('shipment create responsive layout', () => {
   it('gives every form control a persistent visible boundary and focus state', () => {
@@ -148,6 +152,15 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-shipping-line-picker__add\s*\{[^}]*width:\s*100%;/);
   });
 
+  it('keeps the route add action compact on desktop and full-width on mobile', () => {
+    expect(source).toContain('className="csc-route-picker"');
+    expect(source).toContain('csc-route-picker__add');
+    expect(css).toMatch(/\.csc-route-picker\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;/);
+    expect(css).toMatch(/\.csc-route-picker__add\s*\{[^}]*width:\s*fit-content;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-route-picker__add\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-route-dialog__grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  });
+
   it('keeps a long desktop validation list bounded without hiding any issue', () => {
     expect(css).toMatch(
       /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,
@@ -160,5 +173,17 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toContain('.csc-readiness');
     expect(css).toMatch(/\.csc-summary\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
     expect(css).not.toContain('position: sticky');
+  });
+
+  it('keeps the final actions compact, flat, and aligned by hierarchy', () => {
+    expect(summarySource).toContain('Button as UUIButton');
+    expect(summarySource).toContain('className="csc-summary__actions" role="group"');
+    expect(summarySource).toContain('size="md"');
+    expect(summarySource).toContain('color="tertiary"');
+    expect(summarySource).toContain('color="primary"');
+    expect(summarySource).not.toContain('csc-summary__section');
+    expect(css).toMatch(/\.csc-summary__actions\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*flex-end;[^}]*padding-top:\s*4px;/);
+    expect(css).not.toContain('.csc-button');
+    expect(css).not.toContain('.csc-summary__actions { display: grid');
   });
 });

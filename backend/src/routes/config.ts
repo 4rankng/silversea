@@ -86,6 +86,7 @@ import { getPenaltyStats } from '../services/reporting.service';
 import { normalizeSupplierTypeSelection } from '../services/supplier-types.service';
 import { normalizeTaxCode } from '../services/legal-partner.service';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
+import { restrictRouteCreateForIntake } from '../services/route-intake.service';
 import {
   buildGovernedConfigSnapshot,
   governedConfigVersionFromUpdatedAt,
@@ -1204,7 +1205,10 @@ router.use('/routes', createCrudRouter(s.routes, routeSchema, {
     shouldGovernUpdate: () => false,
     shouldGovernDelete: () => false,
   },
-  beforeCreate: (data) => ({ ...data, shortName: data.shortName?.trim() || data.name.trim() }),
+  beforeCreate: (data, req) => restrictRouteCreateForIntake(
+    { ...data, shortName: data.shortName?.trim() || data.name.trim() },
+    getUser(req).role,
+  ),
   beforeUpdate: async (id, data, _req, tx) => {
     if (data.name !== undefined && data.shortName === undefined) {
       const [current] = await tx.select({ shortName: s.routes.shortName })

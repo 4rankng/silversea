@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 import type { NextFunction, Request, Response } from 'express';
-import { Role } from '@tingting/shared';
+import { Role, routeSchema } from '@tingting/shared';
 import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
+import { restrictRouteCreateForIntake } from '../services/route-intake.service';
 
 function request(role: Role, method: string, path: string): Request {
   return {
@@ -45,8 +46,8 @@ describe('Dispatcher resource-catalog create authorization', () => {
   });
 
   describe('Casbin config gate', () => {
-    it('lets DISPATCHER create trucks, drivers, and suppliers', async () => {
-      for (const path of ['/trucks', '/drivers', '/suppliers']) {
+    it('lets DISPATCHER create trucks, drivers, suppliers, and shipment routes', async () => {
+      for (const path of ['/trucks', '/drivers', '/suppliers', '/routes']) {
         assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', path), {
           nextCalled: true,
           statusCode: 200,
@@ -72,7 +73,6 @@ describe('Dispatcher resource-catalog create authorization', () => {
       // Other config catalogs stay fully read-only for DISPATCHER.
       for (const [method, path] of [
         ['POST', '/customers'],
-        ['POST', '/routes'],
         ['POST', '/pricing-tables'],
         ['POST', '/expense-categories'],
       ] as const) {
@@ -99,6 +99,48 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
     });
 
+    it('lets CUS create only the route needed by shipment intake', async () => {
+      assert.deepEqual(await authorize(Role.CUS, 'POST', '/routes'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+      for (const [method, path] of [
+        ['PUT', '/routes/1'],
+        ['DELETE', '/routes/1'],
+        ['POST', '/trucks'],
+        ['POST', '/customers'],
+        ['POST', '/pricing-tables'],
+      ] as const) {
+        assert.deepEqual(await authorize(Role.CUS, method, path), {
+          nextCalled: false,
+          statusCode: 403,
+        }, `${method} ${path}`);
+      }
+    });
+
+    it('strips route cost and itinerary fields from CUS and Dispatcher payloads', () => {
+      const payload = routeSchema.parse({
+        name: 'Cảng Cát Lái — KCN Sóng Thần',
+        shortName: 'Cát Lái — Sóng Thần',
+        distanceKm: 32,
+        isMountain: true,
+        fixedFuelAllowance: 90,
+        tollsStations: 4,
+        driverSalary: 750000,
+        defaultLegs: [{ origin: 'Cát Lái', destination: 'Sóng Thần', km: 32, loadingType: 'HANG' }],
+      });
+
+      for (const role of [Role.CUS, Role.DISPATCHER]) {
+        assert.deepEqual(restrictRouteCreateForIntake(payload, role), {
+          name: 'Cảng Cát Lái — KCN Sóng Thần',
+          shortName: 'Cát Lái — Sóng Thần',
+          distanceKm: 32,
+          isMountain: false,
+        });
+      }
+      assert.deepEqual(restrictRouteCreateForIntake(payload, Role.MANAGER), payload);
+    });
+
     it('leaves MANAGER/ACCOUNTANT config writes exactly as before', async () => {
       assert.deepEqual(await authorize(Role.MANAGER, 'POST', '/routes'), {
         nextCalled: true,
@@ -121,7 +163,7 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
     });
 
-    it('keeps the create allowance restricted to the three catalogs', async () => {
+    it('does not broaden Dispatcher create access to unrelated catalogs', async () => {
       assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/customers'), {
         nextCalled: false,
         statusCode: 403,
