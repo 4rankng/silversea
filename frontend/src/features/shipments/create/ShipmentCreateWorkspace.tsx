@@ -306,12 +306,6 @@ export function ShipmentCreateWorkspace() {
 
   return (
     <div className="csc-page">
-      <header className="csc-header">
-        <span className="csc-header__eyebrow">Lô hàng CUS</span>
-        <h1>Tạo lô hàng mới</h1>
-        <p>Thông tin lịch vận hành sẽ tự xác định trạng thái lô hàng và thời điểm Điều vận có thể tiếp nhận.</p>
-      </header>
-
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         <ShipmentCreateSection id="identity" number="01" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
@@ -393,11 +387,9 @@ export function ShipmentCreateWorkspace() {
                 placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Gõ chọn'}
                 disabled={!form.customerId || sitesLoading || Boolean(saving)}
                 error={issueByField.get('shipment-operational-site')}
-                hint={!form.customerId
-                  ? 'Vui lòng chọn khách hàng để tải danh sách.'
-                  : (form.customerId && !sitesLoading && operationalSites.length === 0
+                hint={form.customerId && !sitesLoading && operationalSites.length === 0
                     ? <>Chưa có nhà máy.{' '}<button type="button" onClick={(e) => { e.preventDefault(); openCreateSiteDialog('FACTORY'); }} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm mới</button></>
-                    : undefined)}
+                    : undefined}
               />
               <div className="csc-site-picker__actions">
                 {form.operationalSiteId && (
@@ -484,11 +476,9 @@ export function ShipmentCreateWorkspace() {
                   placeholder={sitesLoading ? 'Đang tải…' : !form.customerId ? 'Chọn khách hàng trước' : 'Chọn kho lấy hàng'}
                   disabled={!form.customerId || sitesLoading || Boolean(saving)}
                   error={issueByField.get('shipment-pickup-warehouse')}
-                  hint={!form.customerId
-                    ? 'Vui lòng chọn khách hàng để tải danh sách kho.'
-                    : (form.customerId && !sitesLoading && warehouseSites.length === 0
+                  hint={form.customerId && !sitesLoading && warehouseSites.length === 0
                       ? <>Chưa có kho cho khách hàng này.{' '}<button type="button" onClick={() => openCreateSiteDialog('WAREHOUSE')} disabled={Boolean(saving)} style={{ border: 0, background: 'none', padding: 0, color: 'var(--accent, #2563eb)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>Thêm kho</button></>
-                      : undefined)}
+                      : undefined}
                 />
                 {!sitesLoading && form.customerId ? (
                   <button
