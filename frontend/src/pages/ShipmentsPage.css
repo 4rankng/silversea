@@ -359,13 +359,26 @@
 }
 
 .cus-drawer-workflow__action {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   padding: 14px 16px;
-  border-left: 3px solid var(--accent-2);
   background: var(--surface-accent);
+}
+
+.cus-drawer-workflow__action::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--accent-2);
+  transform: translateY(-50%);
+  content: '';
+  pointer-events: none;
 }
 
 .cus-drawer-workflow__action > div {
@@ -1083,6 +1096,7 @@
 }
 
 .cus-notice {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1091,21 +1105,39 @@
   padding: 8px 12px;
   border: 0;
   border-radius: 0;
-  border-left: 3px solid var(--line);
   background: transparent;
   font-size: var(--fs-sm);
 }
 
+.cus-notice::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--status-strip-width);
+  height: var(--status-strip-height);
+  border-radius: var(--status-strip-radius);
+  background: var(--line);
+  transform: translateY(-50%);
+  content: '';
+  pointer-events: none;
+}
+
 .cus-notice--success {
-  border-left-color: var(--success);
   background: transparent;
   color: var(--success-text);
 }
 
+.cus-notice--success::before {
+  background: var(--success);
+}
+
 .cus-notice--error {
-  border-left-color: var(--danger);
   background: transparent;
   color: var(--danger-text);
+}
+
+.cus-notice--error::before {
+  background: var(--danger);
 }
 
 .cus-loading,

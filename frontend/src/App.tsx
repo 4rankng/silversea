@@ -193,11 +193,6 @@ export function AppRoutes() {
       ? el
       : <Navigate to={homeRedirect} replace />
   );
-  const shipmentOperatorOnly = (el: ReactElement) => (
-    isAdmin || isCus || currentRole === Role.MANAGER
-      ? el
-      : <Navigate to={homeRedirect} replace />
-  );
   const shipmentCreatorOnly = (el: ReactElement) => (
     isAdmin || isCus || isDispatcher || currentRole === Role.MANAGER
       ? el
