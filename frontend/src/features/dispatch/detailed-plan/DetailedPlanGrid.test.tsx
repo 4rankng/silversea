@@ -200,6 +200,13 @@ describe('DetailedPlanGrid', () => {
     expect(plateCss).toContain('height: 100%;');
     expect(plateCss).toContain('cursor: pointer;');
     expect(plateCss).toContain('.dispatch-assignment-dialog__fields {');
+    // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
+    // equal class specificity; the editable cell must win on `td` so its
+    // trigger covers the whole cell — not just below a stray label strip.
+    expect(plateCss).toMatch(/td\.detailed-plan-grid__cell--editable::before\s*\{\s*display:\s*none/);
+    // Keyboard focus must never switch the trigger to relative positioning:
+    // that shrink wraps it and un-clicks the bottom of the cell.
+    expect(plateCss).not.toMatch(/:focus-visible\s*\{[^}]*position:\s*relative/);
     expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
   });
 

@@ -8,6 +8,7 @@ import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
 import { formatCurrency } from '../../lib/format';
+import { UuiSelectField } from '../../design-system';
 import {
   buildCustomerDebitNoteModeOptions,
   describeCustomerDebitNoteMode,
@@ -101,48 +102,50 @@ function CustomerForm({ saving, item, onsave, oncancel }: {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Field label="Trạng thái">
-          <select className="input" value={status} onChange={e => setStatus(e.target.value as CustomerStatus)}>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="LOCKED">Tạm khoá</option>
-          </select>
-        </Field>
-        <Field label="Chu kỳ giấy báo nợ">
-          <select
-            className="input"
+        <UuiSelectField
+          label="Trạng thái"
+          value={status}
+          onChange={e => setStatus(e.target.value as CustomerStatus)}
+          options={[
+            { value: 'ACTIVE', label: 'Hoạt động' },
+            { value: 'LOCKED', label: 'Tạm khoá' },
+          ]}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <UuiSelectField
+            label="Chu kỳ giấy báo nợ"
             value={debitNoteMode}
             onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
-          >
-            {debitNoteModeOptions.map((option) => (
-              <option key={option.value} value={option.value} disabled={option.disabled}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={debitNoteModeOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+              disabled: option.disabled,
+            }))}
+          />
           {debitNoteModeDescription ? (
             <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
               {debitNoteModeDescription}
             </div>
           ) : null}
-        </Field>
+        </div>
       </div>
 
       <Field label="Thông tin liên hệ khác / Địa chỉ">
         <textarea className="input" value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="SĐT, email, địa chỉ khác…" rows={3} style={{ resize: 'vertical' }} />
       </Field>
 
-      <Field label="Mẫu giấy báo nợ">
-        <select
-          className="input"
-          value={debitNoteTemplateId ?? ''}
-          onChange={e => setDebitNoteTemplateId(e.target.value === '' ? null : Number(e.target.value))}
-        >
-          <option value="">Dùng mẫu mặc định</option>
-          {(templates ?? []).map(t => (
-            <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' — mặc định' : ''}</option>
-          ))}
-        </select>
-      </Field>
+      <UuiSelectField
+        label="Mẫu giấy báo nợ"
+        value={debitNoteTemplateId === null || debitNoteTemplateId === undefined ? '' : String(debitNoteTemplateId)}
+        onChange={e => setDebitNoteTemplateId(e.target.value === '' ? null : Number(e.target.value))}
+        options={[
+          { value: '', label: 'Dùng mẫu mặc định' },
+          ...(templates ?? []).map(t => ({
+            value: String(t.id),
+            label: `${t.name}${t.isDefault ? ' — mặc định' : ''}`,
+          })),
+        ]}
+      />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
         <button type="button" className="btn btn--secondary" onClick={oncancel} disabled={saving}>Hủy</button>

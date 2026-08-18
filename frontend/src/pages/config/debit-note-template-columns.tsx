@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw } from 'lucide-react';
+import { UuiSelectField } from '../../design-system';
 import type { DebitNoteColumnVariable, DebitNoteTemplateColumn } from '@tingting/shared';
 import { cloneStarterColumns, variableLabel, variableMap, VARIABLES, makeColumn } from './debit-note-template-editor-utils';
 import { Field } from './debit-note-template-preview';
@@ -165,18 +166,13 @@ export function ColumnTable({
                   onChange={(event) => updateSelected({ label: event.target.value })}
                 />
               </Field>
-              <Field label="Biến dữ liệu">
-                <select
-                  className="input"
-                  value={selectedColumn.variable}
-                  disabled={disabled}
-                  onChange={(event) => updateSelected({ variable: event.target.value as DebitNoteColumnVariable })}
-                >
-                  {VARIABLES.map(variable => (
-                    <option key={variable.value} value={variable.value}>{variable.label}</option>
-                  ))}
-                </select>
-              </Field>
+              <UuiSelectField
+                label="Biến dữ liệu"
+                value={selectedColumn.variable}
+                disabled={disabled}
+                onChange={(event) => updateSelected({ variable: event.target.value as DebitNoteColumnVariable })}
+                options={VARIABLES.map(variable => ({ value: variable.value, label: variable.label }))}
+              />
             </div>
             <div className="debit-editor-variable-grid">
               {VARIABLES.map(variable => (
@@ -280,21 +276,16 @@ export function ColumnPropertyPanel({
 
       <div className="debit-editor-selected-group">
         <strong>Thuộc tính cột</strong>
-        <Field label="Biến dữ liệu">
-          <select
-            className="input"
-            value={column.variable}
-            disabled={disabled}
-            onChange={event => {
-              const variable = event.target.value as DebitNoteColumnVariable;
-              onChange({ variable, label: variableLabel(variable) });
-            }}
-          >
-            {VARIABLES.map(item => (
-              <option key={item.value} value={item.value}>{item.label}</option>
-            ))}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Biến dữ liệu"
+          value={column.variable}
+          disabled={disabled}
+          onChange={event => {
+            const variable = event.target.value as DebitNoteColumnVariable;
+            onChange({ variable, label: variableLabel(variable) });
+          }}
+          options={VARIABLES.map(item => ({ value: item.value, label: item.label }))}
+        />
         <Field label="Căn lề">
           <div className="debit-editor-align-control" role="group" aria-label="Căn lề">
             {[

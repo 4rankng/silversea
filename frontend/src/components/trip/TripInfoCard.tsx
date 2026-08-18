@@ -6,7 +6,7 @@ import type { SelectOption, RouteOption, TrailerTypeOption } from '../../hooks/u
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 import { formatCurrency } from '../../lib/format';
 import { SearchableSelect, DateInput } from '../../design-system';
-import { selectStyle } from '../../utils/formStyles';
+import { UuiSelectField } from '../../design-system';
 import './TripInfoCard.css';
 
 interface TripInfoCardProps {
@@ -72,18 +72,36 @@ export function TripInfoCard(props: TripInfoCardProps) {
     })));
   };
 
-  const sel = (value: string, onChange: (v: string) => void, options: SelectOption[], placeholder: string, id?: string, required?: boolean) => (
-    <select id={id} name={id} className="input" style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)} disabled={props.loading} required={required}>
-      <option value="">{props.loading ? 'Đang tải…' : placeholder}</option>
-      {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-    </select>
+  const sel = (value: string, onChange: (v: string) => void, options: SelectOption[], placeholder: string, id?: string, required?: boolean, label?: string) => (
+    <UuiSelectField
+      id={id}
+      label={label || placeholder}
+      hideLabel
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={props.loading}
+      required={required}
+      options={[
+        { value: '', label: props.loading ? 'Đang tải…' : placeholder },
+        ...options.map((o) => ({ value: String(o.id), label: o.label })),
+      ]}
+    />
   );
 
-  const selStatic = (value: string, onChange: (v: string) => void, options: TrailerTypeOption[], placeholder: string, id?: string, required?: boolean) => (
-    <select id={id} name={id} className="input" style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)} disabled={props.loading} required={required}>
-      <option value="">{props.loading ? 'Đang tải…' : placeholder}</option>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+  const selStatic = (value: string, onChange: (v: string) => void, options: TrailerTypeOption[], placeholder: string, id?: string, required?: boolean, label?: string) => (
+    <UuiSelectField
+      id={id}
+      label={label || placeholder}
+      hideLabel
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={props.loading}
+      required={required}
+      options={[
+        { value: '', label: props.loading ? 'Đang tải…' : placeholder },
+        ...options.map((o) => ({ value: o.value, label: o.label })),
+      ]}
+    />
   );
 
   const marginPreview = form.carrierType === 'EXTERNAL' && form.externalFreightCost && form.revenue
@@ -95,7 +113,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
       <div className="tc-form-row trip-info-card__layout">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Field label="Khách hàng" required controlId="customerId">
-            {sel(form.customerId, form.setCustomerId, props.customers, 'Chọn khách hàng', 'customerId', true)}
+            {sel(form.customerId, form.setCustomerId, props.customers, 'Chọn khách hàng', 'customerId', true, 'Khách hàng')}
           </Field>
           <Field label="Tuyến đường" required controlId="routeId">
             <SearchableSelect
@@ -113,7 +131,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
             <RouteChips routes={props.routes} onSelect={(id) => form.setRouteId(String(id))} />
           </Field>
           <Field label="Loại hàng" required controlId="cargoTypeId">
-            {sel(form.cargoTypeId, form.setCargoTypeId, props.cargoTypes, 'Chọn loại hàng', 'cargoTypeId', true)}
+            {sel(form.cargoTypeId, form.setCargoTypeId, props.cargoTypes, 'Chọn loại hàng', 'cargoTypeId', true, 'Loại hàng')}
           </Field>
           <Field label="Mã tham chiếu khách hàng" controlId="customerReference">
             <input id="customerReference" name="customerReference" className="input mono" type="text" placeholder="VD: PO-12345" value={form.customerReference} onChange={(e) => form.setCustomerReference(e.target.value)} maxLength={50} />
@@ -147,13 +165,13 @@ export function TripInfoCard(props: TripInfoCardProps) {
           {form.carrierType === 'OWN' && (
             <>
               <Field label="Xe đầu kéo" required controlId="truckId">
-                {sel(form.truckId, form.setTruckId, props.trucks, 'Chọn xe đầu kéo', 'truckId', true)}
+                {sel(form.truckId, form.setTruckId, props.trucks, 'Chọn xe đầu kéo', 'truckId', true, 'Xe đầu kéo')}
               </Field>
               <Field label="Loại rơ moóc" required controlId="trailerType">
-                {selStatic(form.trailerType, form.setTrailerType, props.trailerTypes, 'Chọn loại rơ moóc', 'trailerType', true)}
+                {selStatic(form.trailerType, form.setTrailerType, props.trailerTypes, 'Chọn loại rơ moóc', 'trailerType', true, 'Loại rơ moóc')}
               </Field>
               <Field label="Lái xe" required controlId="driverId">
-                {sel(form.driverId, form.setDriverId, props.drivers, 'Chọn lái xe', 'driverId', true)}
+                {sel(form.driverId, form.setDriverId, props.drivers, 'Chọn lái xe', 'driverId', true, 'Lái xe')}
               </Field>
             </>
           )}
@@ -161,20 +179,18 @@ export function TripInfoCard(props: TripInfoCardProps) {
           {form.carrierType === 'EXTERNAL' && (
             <>
               <Field label="Đối tác vận chuyển" controlId="externalCarrierId">
-                <select
+                <UuiSelectField
                   id="externalCarrierId"
-                  name="externalCarrierId"
-                  className="input"
-                  style={selectStyle}
-                  value={form.externalCarrierId ?? ''}
+                  label="Đối tác vận chuyển"
+                  hideLabel
+                  value={form.externalCarrierId === null || form.externalCarrierId === undefined ? '' : String(form.externalCarrierId)}
                   onChange={(e) => form.setExternalCarrierId(e.target.value ? Number(e.target.value) : null)}
                   disabled={props.loading}
-                >
-                  <option value="">-- Chọn đối tác --</option>
-                  {props.carrierCustomers.map(c => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
+                  options={[
+                    { value: '', label: '-- Chọn đối tác --' },
+                    ...props.carrierCustomers.map(c => ({ value: String(c.id), label: c.label })),
+                  ]}
+                />
               </Field>
               <Field label="Giá cước thuê ngoài (gồm VAT)" controlId="externalFreightCost">
                 <InputWithPrefix
@@ -246,24 +262,24 @@ export function TripInfoCard(props: TripInfoCardProps) {
             <span className="tc-field-hint">Mặc định: 1</span>
           </Field>
           <Field label="Loại container" required className="trip-info-card__container-type" controlId="plannedContainerTypeId">
-            {sel(plannedContainerTypeId, setPlannedContainerTypeId, props.containerTypes, 'Chọn loại container', 'plannedContainerTypeId', true)}
+            {sel(plannedContainerTypeId, setPlannedContainerTypeId, props.containerTypes, 'Chọn loại container', 'plannedContainerTypeId', true, 'Loại container')}
             <span className="tc-field-hint">Số container/seal cập nhật sau</span>
           </Field>
 
           {/* VAT rate */}
           <Field label="Thuế VAT" controlId="vatRate">
-            <select
+            <UuiSelectField
               id="vatRate"
-              name="vatRate"
-              className="input"
-              style={selectStyle}
-              value={form.vatRate}
+              label="Thuế VAT"
+              hideLabel
+              value={String(form.vatRate)}
               onChange={(e) => form.setVatRate(Number(e.target.value))}
-            >
-              <option value={0.08}>8%</option>
-              <option value={0.10}>10%</option>
-              <option value={0}>Không VAT</option>
-            </select>
+              options={[
+                { value: '0.08', label: '8%' },
+                { value: '0.1', label: '10%' },
+                { value: '0', label: 'Không VAT' },
+              ]}
+            />
           </Field>
         </div>
       </div>

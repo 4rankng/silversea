@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -35,12 +36,15 @@ function ExpenseCategoryForm({ saving, item, onsave, oncancel }: {
         </div>
       )}
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Trạng thái">
-          <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Ngừng</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Trạng thái"
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          options={[
+            { value: 'ACTIVE', label: 'Hoạt động' },
+            { value: 'INACTIVE', label: 'Ngừng' },
+          ]}
+        />
       </div>
       <FormActions
         saving={saving}

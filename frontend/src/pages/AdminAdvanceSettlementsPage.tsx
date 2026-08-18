@@ -26,6 +26,7 @@ import {
   summarizeSettlementExpenses,
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
+import { UuiSelectField } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -499,16 +500,17 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
         </Toolbar>
         <label className="as-mobile-filter">
           <span>Lọc theo trạng thái</span>
-          <select
+          <UuiSelectField
+            id="as-status-filter"
+            label="Lọc theo trạng thái"
+            hideLabel
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-          >
-            {TABS.map((tab) => (
-              <option key={tab.key || 'all'} value={tab.key}>
-                {tab.label} ({tabCounts[tab.key]})
-              </option>
-            ))}
-          </select>
+            options={TABS.map((tab) => ({
+              value: tab.key || 'all',
+              label: `${tab.label} (${tabCounts[tab.key]})`,
+            }))}
+          />
         </label>
 
         {isLoading ? (

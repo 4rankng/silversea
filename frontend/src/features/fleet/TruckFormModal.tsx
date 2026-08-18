@@ -5,6 +5,7 @@ import { DateInput } from '../../design-system/forms/DateInput';
 import { TrailerType, TRAILER_TYPE_LABELS, computeVehicleAlerts } from '@tingting/shared';
 import type { Truck as TruckType, VehicleAlert } from '@tingting/shared';
 import { TRUCK_STATUS } from './constants';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 /**
  * TruckForm rendered inside a Modal — the previous tr-based inline edit row
@@ -119,23 +120,31 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
             </div>
             <div className="field fleet-form__field">
               <label htmlFor="trailer-select">Rơ-moóc hiện tại</label>
-              <select
+              <UuiSelectField
                 id="trailer-select"
-                className="input"
-                value={currentTrailerId ?? ''}
-                onChange={e => setCurrentTrailerId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">— Không có —</option>
-                {trailers.map(t => (
-                  <option key={t.id} value={t.id}>{t.licensePlate} ({TRAILER_TYPE_LABELS[t.type as TrailerType] || t.type})</option>
-                ))}
-              </select>
+                label="Rơ-moóc hiện tại"
+                value={String(currentTrailerId ?? '')}
+                onChange={(e) => setCurrentTrailerId(e.target.value ? Number(e.target.value) : null)}
+                options={[
+                  { value: '', label: '— Không có —' },
+                  ...trailers.map((t) => ({
+                    value: String(t.id),
+                    label: `${t.licensePlate} (${TRAILER_TYPE_LABELS[t.type as TrailerType] || t.type})`,
+                  })),
+                ]}
+                wrapperClassName="input"
+              />
             </div>
             <div className="field fleet-form__field">
               <label htmlFor="truck-status">Trạng thái</label>
-              <select id="truck-status" className="input" value={status} onChange={e => setStatus(e.target.value)}>
-                {Object.entries(TRUCK_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              <UuiSelectField
+                id="truck-status"
+                label="Trạng thái"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={Object.entries(TRUCK_STATUS).map(([k, v]) => ({ value: k, label: v }))}
+                wrapperClassName="input"
+              />
             </div>
           </div>
         </section>
@@ -192,12 +201,12 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                     }
                   }}
                 />
-                <select
+                <UuiSelectField
                   id="truck-oil-interval"
-                  className="input fleet-form__interval"
+                  label="Chu kỳ thay dầu (tháng)"
                   aria-label="Chu kỳ thay dầu (tháng)"
                   value={oilIntervalMonths ? String(oilIntervalMonths) : ''}
-                  onChange={e => {
+                  onChange={(e) => {
                     const n = e.target.value ? Number(e.target.value) : 0;
                     setOilIntervalMonths(n);
                     if (lastOilChangeDate && n) {
@@ -205,13 +214,16 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                       if (next) setLastOilServiceDate(next);
                     }
                   }}
-                >
-                  <option value="">Chu kỳ…</option>
-                  <option value="3">3 tháng</option>
-                  <option value="6">6 tháng</option>
-                  <option value="9">9 tháng</option>
-                  <option value="12">12 tháng</option>
-                </select>
+                  options={[
+                    { value: '', label: 'Chu kỳ…' },
+                    { value: '3', label: '3 tháng' },
+                    { value: '6', label: '6 tháng' },
+                    { value: '9', label: '9 tháng' },
+                    { value: '12', label: '12 tháng' },
+                  ]}
+                  controlClassName="fleet-form__interval"
+                  hideLabel
+                />
               </div>
             </div>
           </div>

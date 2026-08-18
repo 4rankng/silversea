@@ -3,6 +3,7 @@ import { formatDate } from '../lib/format';
 import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
 import { DateInput } from '../design-system/forms/DateInput';
+import { UuiSelectField } from '../design-system';
 
 interface BasicFieldsProps { form: FormState; errors: Record<string, string>; isEdit: boolean; existingExpense?: ExpenseWithRefs; set: <K extends keyof FormState>(key: K, value: FormState[K]) => void }
 export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set }: BasicFieldsProps) {
@@ -36,18 +37,17 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                   </div>
 
                   <div className="expense-group">
-                    <label htmlFor="paymentStatus" className="expense-label">Trạng thái thanh toán <span style={{ color: 'var(--danger)' }}>*</span></label>
-                    <select
-                      name="paymentStatus"
+                    <UuiSelectField
                       id="paymentStatus"
-                      className="expense-input"
+                      label="Trạng thái thanh toán"
+                      required
                       value={form.paymentStatus}
                       onChange={e => set('paymentStatus', e.target.value as 'PAID' | 'UNPAID')}
-                    >
-                      <option value="UNPAID">Ghi nợ</option>
-                      <option value="PAID">Trả ngay</option>
-                    </select>
-                    {errors.paymentStatus && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.paymentStatus}</p>}
+                      options={[{ value: 'UNPAID', label: 'Ghi nợ' }, { value: 'PAID', label: 'Trả ngay' }]}
+                      error={errors.paymentStatus}
+                      wrapperClassName="expense-group"
+                      controlClassName="expense-input"
+                    />
                   </div>
   </>;
 }

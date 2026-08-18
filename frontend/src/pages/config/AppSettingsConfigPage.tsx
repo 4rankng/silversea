@@ -42,6 +42,7 @@ import { userClient } from '../../api/userClient';
 import { qk } from '../../api/keys';
 import { isGovernancePendingResponse } from '../../lib/governance';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { UuiSelectField } from '../../design-system';
 import './config-page.css';
 
 type FeatureSwitchProps = {
@@ -840,25 +841,22 @@ export default function AppSettingsConfigPage() {
             <div className="cfg-finance-workspace">
               <div className="cfg-finance-summary">
                 <div className="cfg-finance-summary__section">
-                  <div className="field">
-                    <label htmlFor="truck-financial-profile-truck">Xe đầu kéo</label>
-                    <select
-                      id="truck-financial-profile-truck"
-                      className="input"
-                      value={truckProfiles.data?.selectedTruckId ?? ''}
-                      onChange={(event) => {
-                        const nextTruckId = Number(event.target.value);
-                        if (Number.isInteger(nextTruckId) && nextTruckId > 0) {
-                          void handleTruckSelectionChange(nextTruckId);
-                        }
-                      }}
-                      disabled={(truckProfiles.data?.trucks.length ?? 0) === 0}
-                    >
-                      {(truckProfiles.data?.trucks ?? []).map((truck) => (
-                        <option key={truck.id} value={truck.id}>{truck.label}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <UuiSelectField
+                    id="truck-financial-profile-truck"
+                    label="Xe đầu kéo"
+                    value={truckProfiles.data?.selectedTruckId === null || truckProfiles.data?.selectedTruckId === undefined ? '' : String(truckProfiles.data?.selectedTruckId)}
+                    onChange={(event) => {
+                      const nextTruckId = Number(event.target.value);
+                      if (Number.isInteger(nextTruckId) && nextTruckId > 0) {
+                        void handleTruckSelectionChange(nextTruckId);
+                      }
+                    }}
+                    disabled={(truckProfiles.data?.trucks.length ?? 0) === 0}
+                    options={(truckProfiles.data?.trucks ?? []).map((truck) => ({
+                      value: String(truck.id),
+                      label: truck.label,
+                    }))}
+                  />
                   {truckProfiles.data?.status === 'UNCONFIGURED' ? (
                     <div className="cfg-finance-note cfg-finance-note--warning">
                       <strong>Xe này chưa có hồ sơ tài chính được phê duyệt</strong>
@@ -1038,38 +1036,35 @@ export default function AppSettingsConfigPage() {
                   : 'giá trị không hợp lệ'}
               </p>
             </div>
-            <div className="field">
-              <label htmlFor="salary-payroll-business-unit">Phạm vi chốt kỳ lương</label>
-              <select
-                id="salary-payroll-business-unit"
-                className="input"
-                value={features.salaryPayrollBusinessUnitId ?? ''}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setFeatures((current) => ({
-                    ...current,
-                    salaryPayrollBusinessUnitId: value ? Number(value) : null,
-                  }));
-                }}
-                disabled={
-                  appSettings.isLoading
-                  || appSettings.isError
-                  || businessUnits.isLoading
-                  || businessUnits.isError
-                  || saveAppSettings.isPending
-                }
-              >
-                <option value="">Toàn công ty</option>
-                {(businessUnits.data?.items ?? [])
+            <UuiSelectField
+              id="salary-payroll-business-unit"
+              label="Phạm vi chốt kỳ lương"
+              value={features.salaryPayrollBusinessUnitId === null || features.salaryPayrollBusinessUnitId === undefined ? '' : String(features.salaryPayrollBusinessUnitId)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setFeatures((current) => ({
+                  ...current,
+                  salaryPayrollBusinessUnitId: value ? Number(value) : null,
+                }));
+              }}
+              disabled={
+                appSettings.isLoading
+                || appSettings.isError
+                || businessUnits.isLoading
+                || businessUnits.isError
+                || saveAppSettings.isPending
+              }
+              options={[
+                { value: '', label: 'Toàn công ty' },
+                ...(businessUnits.data?.items ?? [])
                   .filter((unit) => unit.status === 'ACTIVE')
-                  .map((unit) => (
-                    <option key={unit.id} value={unit.id}>{unit.name}</option>
-                  ))}
-              </select>
-              <p className="cfg-field-hint">
-                Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó.
-              </p>
-            </div>
+                  .map((unit) => ({
+                    value: String(unit.id),
+                    label: unit.name,
+                  })),
+              ]}
+              hint="Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó."
+            />
             <div className="field">
               <label htmlFor="credit-tier-one-amount-cap">Ngưỡng tiền duyệt cấp 1 (VND)</label>
               <input

@@ -14,6 +14,7 @@ import type {
 import { useToast } from '../components/shared/Toast';
 import { ROLE_LABELS, Role } from '@tingting/shared';
 import { DateInput } from '../design-system/forms/DateInput';
+import { UuiSelectField } from '../design-system';
 import './SalaryAttendancePage.css';
 
 export const DOW_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -699,20 +700,15 @@ export function DriverPayoutModal({
         {error && (
           <div className="commission-form__error" role="alert">{error}</div>
         )}
-        <div className="field">
-          <label htmlFor="payout-driver">Lái xe <span className="req" aria-hidden="true">*</span></label>
-          <select
-            id="payout-driver"
-            className="input"
-            value={form.driverId}
-            onChange={e => setForm(f => ({ ...f, driverId: e.target.value === '' ? '' : Number(e.target.value) }))}
-          >
-            <option value="">— Chọn lái xe —</option>
-            {sortedDrivers.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
+        <UuiSelectField
+          id="payout-driver"
+          label="Lái xe"
+          required
+          value={form.driverId === null || form.driverId === undefined ? '' : String(form.driverId)}
+          onChange={e => setForm(f => ({ ...f, driverId: e.target.value === '' ? '' : Number(e.target.value) }))}
+          options={[{ value: '', label: '— Chọn lái xe —' }, ...sortedDrivers.map(d => ({ value: String(d.id), label: d.name }))]}
+          wrapperClassName="field"
+        />
         <div className="field">
           <label htmlFor="payout-amount">Số tiền <span className="req" aria-hidden="true">*</span></label>
           <input
@@ -730,18 +726,15 @@ export function DriverPayoutModal({
             <div className="commission-form__error" role="note">Số tiền vượt quá giới hạn tối đa 1 tỷ VND.</div>
           )}
         </div>
-        <div className="field">
-          <label htmlFor="payout-method">Phương thức <span className="req" aria-hidden="true">*</span></label>
-          <select
-            id="payout-method"
-            className="input"
-            value={form.method}
-            onChange={e => setForm(f => ({ ...f, method: e.target.value as 'CASH' | 'BANK' }))}
-          >
-            <option value="CASH">Tiền mặt</option>
-            <option value="BANK">Chuyển khoản</option>
-          </select>
-        </div>
+        <UuiSelectField
+          id="payout-method"
+          label="Phương thức"
+          required
+          value={form.method}
+          onChange={e => setForm(f => ({ ...f, method: e.target.value as 'CASH' | 'BANK' }))}
+          options={[{ value: 'CASH', label: 'Tiền mặt' }, { value: 'BANK', label: 'Chuyển khoản' }]}
+          wrapperClassName="field"
+        />
         <div className="field">
           <label htmlFor="payout-date">Ngày thanh toán <span className="req" aria-hidden="true">*</span></label>
           <DateInput

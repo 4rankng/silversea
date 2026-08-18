@@ -1,5 +1,6 @@
 import { X, Check } from 'lucide-react';
 import type { ReassignState, Truck, Driver } from '../utils';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 
 interface ReassignDialogProps {
   reassignState: ReassignState;
@@ -41,52 +42,61 @@ export function ReassignDialog({
 
       {reassignState.carrierType === 'OWN' ? (
         <div className="row">
-          <select
+          <UuiSelectField
+            label="Chọn xe đầu kéo"
+            hideLabel
             value={reassignState.truckId}
             onChange={(e) =>
               setReassignState((s) => ({ ...s, truckId: e.target.value }))
             }
             disabled={reassignState.loading}
-          >
-            <option value="">Chọn xe đầu kéo</option>
-            {trucks
-              .filter((t) => t.status !== 'MAINTENANCE')
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.licensePlate}
-                </option>
-              ))}
-          </select>
-          <select
+            options={[
+              { value: '', label: 'Chọn xe đầu kéo' },
+              ...trucks
+                .filter((t) => t.status !== 'MAINTENANCE')
+                .map((t) => ({
+                  value: String(t.id),
+                  label: t.licensePlate,
+                })),
+            ]}
+            wrapperClassName="input"
+          />
+          <UuiSelectField
+            label="Chọn lái xe"
+            hideLabel
             value={reassignState.driverId}
             onChange={(e) =>
               setReassignState((s) => ({ ...s, driverId: e.target.value }))
             }
             disabled={reassignState.loading}
-          >
-            <option value="">Chọn lái xe</option>
-            {drivers.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'Chọn lái xe' },
+              ...drivers.map((d) => ({
+                value: String(d.id),
+                label: d.name,
+              })),
+            ]}
+            wrapperClassName="input"
+          />
         </div>
       ) : (
         <>
           <div className="row">
-            <select
+            <UuiSelectField
+              label="Chọn đối tác xe ngoài"
+              hideLabel
               value={reassignState.externalCarrierId}
               onChange={(e) => setReassignState((s) => ({ ...s, externalCarrierId: e.target.value }))}
               disabled={reassignState.loading}
-            >
-              <option value="">Chọn đối tác xe ngoài</option>
-              {carrierCustomers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Chọn đối tác xe ngoài' },
+                ...carrierCustomers.map((c) => ({
+                  value: String(c.id),
+                  label: c.label,
+                })),
+              ]}
+              wrapperClassName="input"
+            />
             <input 
               type="text" 
               placeholder="Biển số xe" 

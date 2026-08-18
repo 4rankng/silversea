@@ -1,0 +1,119 @@
+/*
+ * Global skin for the shared Untitled UI select adapter (UuiSelectField).
+ *
+ * The app must never render a native <select> in user-facing UI: the macOS
+ * native picker ignores app theming, overflows its container, and re-introduces
+ * the "OS-styled dropdown" visual bug class this component exists to kill.
+ * These rules were promoted from the clerk shipment-create page CSS so every
+ * migrated surface shares one control boundary treatment.
+ */
+
+.ds-uui-select {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  width: 100%;
+}
+
+.ds-uui-select > label {
+  color: var(--fg-1);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ds-uui-select__hint,
+.ds-uui-select__error {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.ds-uui-select__hint {
+  color: var(--fg-3);
+}
+
+.ds-uui-select__error {
+  color: var(--danger);
+}
+
+/* Inline variant: label on the left, control on the right (filter toolbars). */
+.ds-uui-select--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+
+.ds-uui-select--inline > label {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.ds-uui-select--inline .ds-uui-select__control {
+  flex: 1 1 auto;
+  min-width: 140px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Content-sized variant: shrink the field to its label + control. */
+.ds-uui-select--content {
+  width: fit-content;
+}
+
+/*
+ * Control boundary: one consistent border/hover/focus/invalid/disabled
+ * treatment for the UUI trigger regardless of the page it lives on.
+ */
+.ds-uui-boundary > [role='presentation'],
+.ds-uui-boundary [data-input-wrapper='true'],
+.ds-uui-boundary [role='group'],
+.ds-uui-boundary select,
+.ds-uui-boundary textarea {
+  border: 1px solid color-mix(in srgb, var(--fg-1) 22%, transparent);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.ds-uui-boundary :where(input, select, textarea):focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+.ds-uui-boundary:not(:focus-within):hover > [role='presentation'],
+.ds-uui-boundary:not(:focus-within):hover [data-input-wrapper='true'],
+.ds-uui-boundary:not(:focus-within):hover [role='group'],
+.ds-uui-boundary:not(:focus-within):hover select,
+.ds-uui-boundary:not(:focus-within):hover textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 38%, transparent);
+}
+
+.ds-uui-boundary:focus-within > [role='presentation'],
+.ds-uui-boundary:focus-within [data-input-wrapper='true'],
+.ds-uui-boundary:focus-within [role='group'],
+.ds-uui-boundary:focus-within select,
+.ds-uui-boundary:focus-within textarea {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+
+.ds-uui-boundary:has([aria-invalid='true']) > [role='presentation'],
+.ds-uui-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
+.ds-uui-boundary:has([aria-invalid='true']) [role='group'],
+.ds-uui-boundary:has([aria-invalid='true']) select,
+.ds-uui-boundary:has([aria-invalid='true']) textarea {
+  border-color: var(--danger, #dc2626);
+}
+
+.ds-uui-boundary:has(:disabled) > [role='presentation'],
+.ds-uui-boundary:has(:disabled) [data-input-wrapper='true'],
+.ds-uui-boundary:has(:disabled) [role='group'],
+.ds-uui-boundary:has(:disabled) select,
+.ds-uui-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2, #f8fafc);
+}

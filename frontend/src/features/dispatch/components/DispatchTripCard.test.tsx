@@ -123,7 +123,7 @@ describe('DispatchTripCard pairing UI', () => {
     expect(screen.queryByText('Ghép 2 chiều')).toBeNull();
   });
 
-  it('shows the pairing editor with the available return-trip candidates', () => {
+  it('shows the pairing editor with the available return-trip candidates', async () => {
     const onSelectPairCandidate = vi.fn();
     render(
       <DispatchTripCard
@@ -161,7 +161,9 @@ describe('DispatchTripCard pairing UI', () => {
     );
 
     expect(screen.getByText(/Ghép điều vận 2 chiều/)).toBeTruthy();
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2' } });
+    const trigger = screen.getByRole('button', { name: /Chuyến chiều về/ });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: /TRIP-002/ }));
     expect(onSelectPairCandidate).toHaveBeenCalledWith(2);
   });
 });

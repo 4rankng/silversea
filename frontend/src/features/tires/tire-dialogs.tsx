@@ -5,6 +5,7 @@ import type { Tire } from "@tingting/shared";
 import type { Supplier } from "@tingting/shared";
 import { formatErrorMessage } from "../../lib/api";
 import { DateInput } from "../../design-system/forms/DateInput";
+import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
 import { draftFromTire, patchFromDraft, positionPayloadFromLabel, type TireEditDraft, type TirePatch } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -173,13 +174,14 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
         {choice === "dispose" && (
           <div className="ttp-field ttp-unmount-reason">
             <label>Lý do thanh lý *</label>
-            <select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
-              {TIRE_DISPOSAL_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            <UuiSelectField
+              label="Lý do thanh lý"
+              hideLabel
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              options={TIRE_DISPOSAL_REASONS.map((r) => ({ value: r, label: r }))}
+              wrapperClassName="input"
+            />
             {reason === "Khác" && <input className="input ttp-unmount-reason-custom" value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Ghi lý do khác" maxLength={120} autoFocus />}
           </div>
         )}
@@ -368,27 +370,28 @@ export function TransferTireDialog({
         <div className="ttp-edit-form">
           <div className="ttp-field">
             <label>Phương tiện nhận lốp *</label>
-            <select className="input" value={targetKey} onChange={(e) => setTargetKey(e.target.value)}>
-              <option value="">— Chọn xe / rơ-moóc —</option>
-              <optgroup label="Xe đầu kéo">
-                {vehicles
+            <UuiSelectField
+              label="Phương tiện nhận lốp"
+              hideLabel
+              value={targetKey}
+              onChange={(e) => setTargetKey(e.target.value)}
+              options={[
+                { value: '', label: '— Chọn xe / rơ-moóc —' },
+                ...vehicles
                   .filter((v) => v.kind === "truck")
-                  .map((v) => (
-                    <option key={`truck-${v.id}`} value={`truck:${v.id}`}>
-                      {v.label}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="Rơ-moóc">
-                {vehicles
+                  .map((v) => ({
+                    value: `truck:${v.id}`,
+                    label: `Xe đầu kéo: ${v.label}`,
+                  })),
+                ...vehicles
                   .filter((v) => v.kind === "trailer")
-                  .map((v) => (
-                    <option key={`trailer-${v.id}`} value={`trailer:${v.id}`}>
-                      {v.label}
-                    </option>
-                  ))}
-              </optgroup>
-            </select>
+                  .map((v) => ({
+                    value: `trailer:${v.id}`,
+                    label: `Rơ-moóc: ${v.label}`,
+                  })),
+              ]}
+              wrapperClassName="input"
+            />
           </div>
           <div className="ttp-field">
             <label>Vị trí lắp</label>

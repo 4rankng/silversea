@@ -409,7 +409,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));
     const documentEditor = (await screen.findByLabelText('Số Booking')).closest<HTMLElement>('.shipment-container-ledger__inline-editor')!;
-    fireEvent.change(within(documentEditor).getByLabelText('Nhập / Xuất'), { target: { value: 'IMPORT' } });
+    fireEvent.click(within(documentEditor).getByRole('button', { name: /Nhập \/ Xuất/ }));
+    // The UUI listbox portals to the body — query it outside the editor scope.
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhập' }));
     fireEvent.change(within(documentEditor).getByLabelText('Số Bill'), { target: { value: 'BILL-NEW' } });
     fireEvent.change(within(documentEditor).getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chứng từ và hãng tàu CONT-002' }));

@@ -10,6 +10,7 @@ import { tripClient } from '../../../api/tripClient';
 import { qk } from '../../../api/keys';
 import { SearchableSelect } from '../../../design-system/forms/SearchableSelect';
 import { DateInput } from '../../../design-system/forms/DateInput';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 
 interface PenaltyFormDrawerProps {
   isOpen: boolean;
@@ -132,10 +133,17 @@ export function PenaltyFormDrawer({
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <FormGroup label="Lái xe vi phạm *">
-          <select className="input" value={formDriverId} onChange={e => setFormDriverId(e.target.value)}>
-            <option value="">-- Chọn lái xe --</option>
-            {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+          <UuiSelectField
+            label="Lái xe vi phạm"
+            hideLabel
+            value={formDriverId}
+            onChange={(e) => setFormDriverId(e.target.value)}
+            options={[
+              { value: '', label: '-- Chọn lái xe --' },
+              ...drivers.map((d) => ({ value: String(d.id), label: d.name })),
+            ]}
+            wrapperClassName="input"
+          />
         </FormGroup>
         <FormGroup label="Chuyến liên quan (tùy chọn)">
           <SearchableSelect
@@ -150,10 +158,20 @@ export function PenaltyFormDrawer({
           />
         </FormGroup>
         <FormGroup label="Lý do danh mục">
-          <select className="input" value={formReasonId} onChange={e => handleReasonChange(e.target.value)}>
-            <option value="">-- Chọn danh mục --</option>
-            {reasons.map(r => <option key={r.id} value={r.id}>{r.reasonText} ({formatCurrency(Number(r.defaultAmount))})</option>)}
-          </select>
+          <UuiSelectField
+            label="Lý do danh mục"
+            hideLabel
+            value={formReasonId}
+            onChange={(e) => handleReasonChange(e.target.value)}
+            options={[
+              { value: '', label: '-- Chọn danh mục --' },
+              ...reasons.map((r) => ({
+                value: String(r.id),
+                label: `${r.reasonText} (${formatCurrency(Number(r.defaultAmount))})`,
+              })),
+            ]}
+            wrapperClassName="input"
+          />
         </FormGroup>
         <FormGroup label="Lý do chi tiết khác">
           <input className="input" placeholder="Mô tả lỗi phát sinh..." value={formCustomReason} onChange={e => setFormCustomReason(e.target.value)} />

@@ -7,6 +7,7 @@ import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { TRIP_STATUS_COLORS, type TripStatus } from '@tingting/shared';
 import type { NormalizedTrip } from '../../../hooks/useTripQueries';
 import type { PairingState, ReassignState, Truck as TruckType, Driver } from '../utils';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 
 interface DispatchTripCardProps {
   trip: NormalizedTrip;
@@ -164,18 +165,20 @@ export function DispatchTripCard({
 
         <label style={{ display: 'grid', gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 600 }}>Chuyến chiều về</span>
-          <select
+          <UuiSelectField
+            label="Chuyến chiều về"
+            hideLabel
             value={pairingState.secondTripId}
             onChange={(event) => onSelectPairCandidate(Number(event.target.value))}
-            className="input"
-          >
-            <option value="">Chọn chuyến ghép</option>
-            {pairCandidates.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>
-                {(candidate.tripCode ?? 'Chuyến chưa có mã')} · {candidate.routeName}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'Chọn chuyến ghép' },
+              ...pairCandidates.map((candidate) => ({
+                value: String(candidate.id),
+                label: `${candidate.tripCode ?? 'Chuyến chưa có mã'} · ${candidate.routeName}`,
+              })),
+            ]}
+            wrapperClassName="input"
+          />
         </label>
 
         <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>

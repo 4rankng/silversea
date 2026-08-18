@@ -46,7 +46,11 @@ describe('PenaltyFormDrawer trip selector', () => {
       search: undefined,
     }));
 
-    fireEvent.change(screen.getByLabelText('Lái xe vi phạm *'), { target: { value: '17' } });
+    // UuiSelectField pattern: trigger button -> click option
+    const driverTrigger = screen.getByRole('button', { name: /Lái xe vi phạm/i });
+    fireEvent.click(driverTrigger);
+    fireEvent.click(screen.getByRole('option', { name: 'Nguyễn Văn An' }));
+
     await waitFor(() => expect(listTripsMock).toHaveBeenCalledWith({
       limit: 50,
       page: 1,

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { BRAND } from '../../brand';
 import { routes, titleForPath } from '../../lib/routes';
 import { CustomerPortalScopeProvider, useCustomerPortalScope } from './CustomerPortalScope';
+import { UuiSelectField } from '../../design-system';
 import './CustomerPortalLayout.css';
 
 const portalNav = [
@@ -155,16 +156,15 @@ function CustomerPortalLayoutBody({ children }: { children: React.ReactNode }) {
         </div>
         {customers.length > 1 && (
           <div className="customer-shell__scope-bar">
-            <label htmlFor="customer-portal-scope">Pháp nhân đang xem</label>
-            <select
+            <UuiSelectField
               id="customer-portal-scope"
-              value={selectedCustomerId ?? ''}
+              label="Pháp nhân đang xem"
+              value={selectedCustomerId === null || selectedCustomerId === undefined ? '' : String(selectedCustomerId)}
               onChange={(event) => setSelectedCustomerId(Number(event.target.value))}
-            >
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>{customer.name}</option>
-              ))}
-            </select>
+              options={customers.map(customer => ({ value: String(customer.id), label: customer.name }))}
+              inline
+              hideLabel
+            />
             <span>Dữ liệu được tách riêng theo từng pháp nhân.</span>
           </div>
         )}

@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { api } from '../../lib/api/client';
 import { PageHeader, Panel, useConfirm, StatusPill } from '../../components/UI';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -51,12 +52,15 @@ function TruckOwnerForm({ saving, item, onsave, oncancel }: {
         </Field>
       </div>
       <div style={{ flex: 1.2, minWidth: 140 }}>
-        <Field label="Vai trò">
-          <select className="input" value={role} onChange={e => setRole(e.target.value as TruckCapRole)}>
-            <option value={TruckCapRole.INVESTOR}>{TRUCK_CAP_ROLE_LABELS[TruckCapRole.INVESTOR]} (góp vốn)</option>
-            <option value={TruckCapRole.DRIVER}>{TRUCK_CAP_ROLE_LABELS[TruckCapRole.DRIVER]}</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Vai trò"
+          value={role}
+          onChange={e => setRole(e.target.value as TruckCapRole)}
+          options={[
+            { value: TruckCapRole.INVESTOR, label: `${TRUCK_CAP_ROLE_LABELS[TruckCapRole.INVESTOR]} (góp vốn)` },
+            { value: TruckCapRole.DRIVER, label: TRUCK_CAP_ROLE_LABELS[TruckCapRole.DRIVER] },
+          ]}
+        />
       </div>
       <div style={{ flex: 1.4, minWidth: 150 }}>
         <Field label="Ngày hiệu lực">

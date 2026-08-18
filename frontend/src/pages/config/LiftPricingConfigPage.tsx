@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -32,36 +33,48 @@ function LiftPricingForm({ saving, item, onsave, oncancel, ports, containerTypes
   return (
     <InlineForm colSpan={6}>
       <div style={{ flex: 1, minWidth: 180 }}>
-        <Field label="Cảng / bãi">
-          <select className="input" value={portId} onChange={e => setPortId(e.target.value)}>
-            <option value="">— Chọn cảng —</option>
-            {ports.map(port => <option key={port.id} value={port.id}>{port.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Cảng / bãi"
+          value={portId}
+          onChange={e => setPortId(e.target.value)}
+          options={[
+            { value: '', label: '— Chọn cảng —' },
+            ...ports.map(port => ({ value: String(port.id), label: port.name })),
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 170 }}>
-        <Field label="Loại container">
-          <select className="input" value={containerTypeId} onChange={e => setContainerTypeId(e.target.value)}>
-            <option value="">— Chọn loại —</option>
-            {containerTypes.map(type => <option key={type.id} value={type.id}>{type.code} — {type.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Loại container"
+          value={containerTypeId}
+          onChange={e => setContainerTypeId(e.target.value)}
+          options={[
+            { value: '', label: '— Chọn loại —' },
+            ...containerTypes.map(type => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Chiều">
-          <select className="input" value={direction} onChange={e => setDirection(e.target.value)}>
-            <option value="LIFT_UP">Nâng</option>
-            <option value="LIFT_DOWN">Hạ</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Chiều"
+          value={direction}
+          onChange={e => setDirection(e.target.value)}
+          options={[
+            { value: 'LIFT_UP', label: 'Nâng' },
+            { value: 'LIFT_DOWN', label: 'Hạ' },
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Trạng thái hàng">
-          <select className="input" value={loadState} onChange={e => setLoadState(e.target.value)}>
-            <option value="LOADED">Hàng</option>
-            <option value="EMPTY">Rỗng</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Trạng thái hàng"
+          value={loadState}
+          onChange={e => setLoadState(e.target.value)}
+          options={[
+            { value: 'LOADED', label: 'Hàng' },
+            { value: 'EMPTY', label: 'Rỗng' },
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Đơn giá (₫)"><input className="input" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="1200000" /></Field>

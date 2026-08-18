@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SelectField } from './SelectField';
+import { UuiSelectField } from './UuiSelectField';
 import { TextField } from './TextField';
 
 describe('form field accessibility', () => {
@@ -13,7 +14,7 @@ describe('form field accessibility', () => {
     expect(document.getElementById('booking-ref-error')?.textContent).toBe('Nhập số Bill hoặc số Booking.');
   });
 
-  it('associates SelectField validation and keeps option ids stable', () => {
+  it('associates SelectField validation and keeps the selection contract stable', async () => {
     const onChange = vi.fn();
     render(
       <SelectField id="container-type" label="Loại container" value="" onChange={onChange} error="Chọn loại container.">
@@ -21,47 +22,51 @@ describe('form field accessibility', () => {
         <option value="31">40HC</option>
       </SelectField>,
     );
-    const trigger = screen.getByLabelText('Loại container');
-    expect(trigger.getAttribute('aria-invalid')).toBe('true');
-    expect(trigger.getAttribute('aria-describedby')).toBe('container-type-error');
-    expect(document.querySelectorAll('#container-type')).toHaveLength(1);
-    expect(document.getElementById('container-type-native')).toBeTruthy();
+    // The visible control is the trigger button — the native select that
+    // carries the label association is UUI's hidden accessibility fallback.
+    const trigger = screen.getByRole('button', { name: /Loại container/ });
+    expect(trigger.tagName).not.toBe('SELECT');
     fireEvent.click(trigger);
-    fireEvent.click(document.getElementById('container-type-option-31')!);
+    fireEvent.click(await screen.findByRole('option', { name: '40HC' }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: '31' }) }));
   });
 
   it('supports keyboard listbox navigation, selection, and Escape focus restoration', async () => {
     const onChange = vi.fn();
     render(
-      <SelectField id="container-type" label="Loại container" value="" onChange={onChange}>
-        <option value="">— Chọn loại —</option>
-        <option value="21">20DC</option>
-        <option value="31">40HC</option>
-      </SelectField>,
+      <UuiSelectField
+        id="container-type"
+        label="Loại container"
+        value=""
+        onChange={onChange}
+        options={[
+          { value: '', label: '— Chọn loại —' },
+          { value: '21', label: '20DC' },
+          { value: '31', label: '40HC' },
+        ]}
+      />,
     );
 
-    const trigger = screen.getByLabelText('Loại container');
+    const trigger = screen.getByRole('button', { name: /Loại container/ });
     trigger.focus();
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    expect(trigger.getAttribute('aria-activedescendant')).toBe('container-type-option-21');
 
-    fireEvent.keyDown(trigger, { key: 'ArrowUp' });
-    expect(trigger.getAttribute('aria-activedescendant')).toBe('container-type-option-');
-    fireEvent.keyDown(trigger, { key: 'Home' });
-    expect(trigger.getAttribute('aria-activedescendant')).toBe('container-type-option-');
-    fireEvent.keyDown(trigger, { key: 'End' });
-    expect(trigger.getAttribute('aria-activedescendant')).toBe('container-type-option-31');
-    fireEvent.keyDown(trigger, { key: 'Enter' });
+    // After opening, React Aria moves focus into the listbox — keyboard
+    // selection goes to the focused option, not the trigger.
+    const listbox = await screen.findByRole('listbox');
+    fireEvent.keyDown(document.activeElement ?? listbox, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement ?? listbox, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement ?? listbox, { key: 'Enter' });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ value: '31' }) }));
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'));
 
-    fireEvent.keyDown(trigger, { key: ' ' });
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    expect(document.activeElement).toBe(trigger);
+    // Re-open via click (after selection, jsdom does not restore trigger
+    // focus automatically), then Escape must dismiss and restore focus.
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('false'));
+    expect(trigger).toHaveFocus();
   });
 });

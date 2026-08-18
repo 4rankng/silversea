@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -90,16 +91,15 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
   return (
     <InlineForm colSpan={6}>
       <div style={{ flex: 2, minWidth: 180 }}>
-        <Field label="Tuyến đường">
-          <select
-            className="input"
-            value={routeId}
-            onChange={e => setRouteId(Number(e.target.value))}
-          >
-            <option value={0}>-- Áp dụng chung --</option>
-            {routes.map(r => <option key={r.id} value={r.id}>{r.shortName || r.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Tuyến đường"
+          value={String(routeId)}
+          onChange={e => setRouteId(Number(e.target.value))}
+          options={[
+            { value: '0', label: '-- Áp dụng chung --' },
+            ...routes.map(r => ({ value: String(r.id), label: r.shortName || r.name })),
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 110 }}>
         <Field label="Lit/100km (có hàng)">

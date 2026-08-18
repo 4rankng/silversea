@@ -139,13 +139,13 @@ describe('CustomerPortalLayout', () => {
       </MemoryRouter>,
     );
 
-    const selector = await screen.findByRole('combobox', { name: 'Pháp nhân đang xem' });
-    expect((selector as HTMLSelectElement).value).toBe('7');
+    const trigger = await screen.findByRole('button', { name: /Pháp nhân đang xem/ });
     expect(screen.getByText('Selected customer: 7')).toBeTruthy();
 
-    fireEvent.change(selector, { target: { value: '9' } });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'SilverSea Miền Bắc' }));
 
-    expect(screen.getByText('Selected customer: 9')).toBeTruthy();
+    expect(await screen.findByText('Selected customer: 9')).toBeTruthy();
     expect(screen.getByText('Portal query: ?customerId=9')).toBeTruthy();
     expect(screen.getByText('Dữ liệu được tách riêng theo từng pháp nhân.')).toBeTruthy();
   });
@@ -167,8 +167,7 @@ describe('CustomerPortalLayout', () => {
       </MemoryRouter>,
     );
 
-    const selector = await screen.findByRole('combobox', { name: 'Pháp nhân đang xem' });
-    expect((selector as HTMLSelectElement).value).toBe('9');
+    await screen.findByRole('button', { name: /Pháp nhân đang xem/ });
     expect(screen.getByText('Selected customer: 9')).toBeTruthy();
   });
 });

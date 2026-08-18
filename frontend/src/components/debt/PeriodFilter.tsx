@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { UuiSelectField } from '../../design-system';
 
 /**
  * Period filter for the AR/AP detail ledger tab. Two modes:
@@ -66,12 +67,12 @@ export function PeriodFilter(props: PeriodFilterProps) {
   } = props;
   const yearOptions = useYearOptions();
 
-  const handleMonth = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onMonthYearChange({ month: Number(e.target.value), year });
+  const handleMonth = useCallback((value: string) => {
+    onMonthYearChange({ month: Number(value), year });
   }, [year, onMonthYearChange]);
 
-  const handleYear = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    onMonthYearChange({ month, year: Number(e.target.value) });
+  const handleYear = useCallback((value: string) => {
+    onMonthYearChange({ month, year: Number(value) });
   }, [month, onMonthYearChange]);
 
   return (
@@ -106,27 +107,31 @@ export function PeriodFilter(props: PeriodFilterProps) {
           </div>
 
           {mode === 'month' ? (
-            <div className="d-join d-join-vertical w-full shrink-0 lg:w-auto lg:d-join-horizontal">
-              <select
-                className="d-select d-select-sm d-join-item w-full lg:w-auto"
-                value={month}
-                onChange={handleMonth}
-                aria-label="Chọn tháng"
-              >
-                {MONTH_LABELS.map((label, i) => (
-                  <option key={i + 1} value={i + 1}>{label}</option>
-                ))}
-              </select>
-              <select
-                className="d-select d-select-sm d-join-item w-full lg:w-auto"
-                value={year}
-                onChange={handleYear}
-                aria-label="Chọn năm"
-              >
-                {yearOptions.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+            <div className="flex w-full shrink-0 gap-2 lg:w-auto">
+              <UuiSelectField
+                id="period-month-select"
+                label="Chọn tháng"
+                value={String(month)}
+                onChange={(e) => handleMonth(e.target.value)}
+                options={MONTH_LABELS.map((label, i) => ({
+                  value: String(i + 1),
+                  label,
+                }))}
+                hideLabel
+                inline
+              />
+              <UuiSelectField
+                id="period-year-select"
+                label="Chọn năm"
+                value={String(year)}
+                onChange={(e) => handleYear(e.target.value)}
+                options={yearOptions.map(y => ({
+                  value: String(y),
+                  label: String(y),
+                }))}
+                hideLabel
+                inline
+              />
             </div>
           ) : (
             <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">

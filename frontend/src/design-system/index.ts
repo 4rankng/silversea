@@ -32,6 +32,8 @@ export { TextField } from './forms/TextField';
 export type { TextFieldProps, BaseFieldProps } from './forms/TextField';
 export { SelectField } from './forms/SelectField';
 export type { SelectFieldProps } from './forms/SelectField';
+export { UuiSelectField } from './forms/UuiSelectField';
+export type { UuiSelectFieldProps } from './forms/UuiSelectField';
 export { SearchableSelect } from './forms/SearchableSelect';
 export type { SearchableSelectOption, SearchableSelectProps } from './forms/SearchableSelect';
 export { NumberField } from './forms/NumberField';

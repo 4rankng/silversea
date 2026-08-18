@@ -22,7 +22,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { SearchableSelect } from '../design-system/forms/SearchableSelect';
+import { SearchableSelect, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -147,20 +147,17 @@ export function CommissionModal({
         {error && (
           <div className="commission-form__error" role="alert">{error}</div>
         )}
-        <div className="field">
-          <label htmlFor="commission-supplier">Nhà cung cấp <span className="req" aria-hidden="true">*</span></label>
-          <select
-            id="commission-supplier"
-            className="input"
-            value={form.supplierId}
-            onChange={e => setForm(f => ({ ...f, supplierId: e.target.value === '' ? '' : Number(e.target.value) }))}
-          >
-            <option value="">— Chọn nhà cung cấp —</option>
-            {suppliers.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        <UuiSelectField
+          id="commission-supplier"
+          label="Nhà cung cấp *"
+          required
+          value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
+          onChange={e => setForm(f => ({ ...f, supplierId: e.target.value === '' ? '' : Number(e.target.value) }))}
+          options={[
+            { value: '', label: '— Chọn nhà cung cấp —' },
+            ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+          ]}
+        />
         <div className="field">
           <label htmlFor="commission-amount">Số tiền hoa hồng <span className="req" aria-hidden="true">*</span></label>
           <input

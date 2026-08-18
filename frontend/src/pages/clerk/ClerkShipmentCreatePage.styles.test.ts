@@ -11,6 +11,10 @@ const fieldAdapters = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/uui-fields.tsx'),
   'utf8',
 );
+const uuiSelectSource = readFileSync(
+  resolve(process.cwd(), 'src/design-system/forms/UuiSelectField.tsx'),
+  'utf8',
+);
 const sectionSource = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/ShipmentCreateSections.tsx'),
   'utf8',
@@ -114,10 +118,12 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses compact desktop density while retaining mobile touch targets', () => {
-    // Counts: USearchableField, USelectField, UTextField, UTextAreaField,
-    // UDateField — all use the shared operational `sm` contract used by
-    // dispatch, rather than growing labels and values through `md`.
-    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(5);
+    // Counts: USearchableField, UTextField, UTextAreaField, UDateField in the
+    // page adapters, plus USelectField via the shared UuiSelectField adapter —
+    // all use the operational `sm` contract used by dispatch, rather than
+    // growing labels and values through `md`.
+    expect(fieldAdapters.match(/size="sm"/g)).toHaveLength(4);
+    expect(uuiSelectSource).toContain('size="sm"');
     expect(fieldAdapters).not.toContain('size="md"');
     expect(containerEditorSource).not.toContain('Số lượng cont');
     expect(containerEditorSource.match(/type="number"/g)).toHaveLength(1);

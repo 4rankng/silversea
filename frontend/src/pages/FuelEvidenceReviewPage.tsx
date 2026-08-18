@@ -7,7 +7,7 @@ import { qk } from '../api/keys';
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
 import { StatusPill } from '../components/UI';
 import { formatCurrency } from '../lib/format';
-import { Pagination } from '../design-system';
+import { Pagination, UuiSelectField } from '../design-system';
 
 const STATUS_VARIANT: Record<FuelEvidenceReviewStatus, 'warn' | 'success' | 'danger'> = {
   PENDING: 'warn',
@@ -130,19 +130,23 @@ export default function FuelEvidenceReviewPage() {
             OCR chỉ là gợi ý. Kế toán phải xác nhận hoặc từ chối từng ảnh nhiên liệu.
           </p>
         </div>
-        <select
-          className="input fuel-evidence-review__select"
+        <UuiSelectField
+          id="fuel-status-filter"
+          label="Trạng thái"
+          hideLabel
           value={status}
           onChange={(event) => {
             setStatus(event.target.value as FuelEvidenceReviewStatus | 'ALL');
             setPage(1);
           }}
-        >
-          <option value="ALL">Tất cả trạng thái</option>
-          <option value="PENDING">Chờ xác nhận</option>
-          <option value="CONFIRMED">Đã xác nhận</option>
-          <option value="REJECTED">Đã từ chối</option>
-        </select>
+          controlClassName="fuel-evidence-review__select"
+          options={[
+            { value: 'ALL', label: 'Tất cả trạng thái' },
+            { value: 'PENDING', label: 'Chờ xác nhận' },
+            { value: 'CONFIRMED', label: 'Đã xác nhận' },
+            { value: 'REJECTED', label: 'Đã từ chối' },
+          ]}
+        />
       </div>
 
       {query.isLoading && <div className="panel" style={{ padding: 20 }}>Đang tải danh sách OCR nhiên liệu…</div>}

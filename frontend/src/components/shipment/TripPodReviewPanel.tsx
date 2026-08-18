@@ -18,6 +18,7 @@ import {
   type ShipmentPodReviewItem,
 } from '../../api/shipmentClient';
 import { Modal } from '../UI';
+import { UuiSelectField } from '../../design-system';
 
 export interface TripPodReviewPanelProps {
   shipmentId: number;
@@ -423,23 +424,23 @@ export function TripPodReviewPanel({
             <strong>Kế toán hoàn thành lô hàng và chuyển số liệu sang công nợ</strong>
             <span>Hệ thống sẽ yêu cầu hồ sơ đã được CUS/CLERK kiểm tra, khác tài khoản Kế toán hoàn thành, rồi mới ghi nhận công nợ.</span>
           </div>
-          <label className="shipment-pod-review__vat-field">
-            <span>Thuế VAT khi hoàn thành</span>
-            <select
-              value={vatRate}
-              onChange={(event) => {
-                setVatRate(event.target.value as typeof vatRate);
-                setConfirmZeroRevenue(false);
-              }}
-              disabled={pendingKey != null}
-            >
-              <option value="">Chọn mức VAT</option>
-              <option value="0">0%</option>
-              <option value="0.05">5%</option>
-              <option value="0.08">8%</option>
-              <option value="0.1">10%</option>
-            </select>
-          </label>
+          <UuiSelectField
+            id="vat-rate-select"
+            label="Thuế VAT khi hoàn thành"
+            value={vatRate}
+            onChange={(event) => {
+              setVatRate(event.target.value as typeof vatRate);
+              setConfirmZeroRevenue(false);
+            }}
+            disabled={pendingKey != null}
+            options={[
+              { value: '', label: 'Chọn mức VAT' },
+              { value: '0', label: '0%' },
+              { value: '0.05', label: '5%' },
+              { value: '0.08', label: '8%' },
+              { value: '0.1', label: '10%' },
+            ]}
+          />
           <button
             type="button"
             className="btn btn--primary shipment-pod-review__complete-button"

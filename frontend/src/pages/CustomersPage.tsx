@@ -9,7 +9,7 @@ import { downloadCSV } from '../lib/csv';
 import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency, formatNumber } from '../lib/format';
 import {
@@ -173,12 +173,13 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
             <label htmlFor="cust-tax" style={labelStyle}>Mã số thuế</label>
             <input id="cust-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
           </div>
-          <div className="field">
-            <label htmlFor="cust-status" style={labelStyle}>Trạng thái</label>
-            <select id="cust-status" className="input" value={status} onChange={e => setStatus(e.target.value)}>
-              {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+          <UuiSelectField
+            id="cust-status"
+            label="Trạng thái"
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            options={Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+          />
         </div>
         <div style={pairedFieldGridStyle}>
           <div className="field">
@@ -224,40 +225,34 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
               Để trống nếu khách hàng không áp dụng phụ phí.
             </div>
           </div>
-          <div className="field">
-            <label htmlFor="cust-payment-date-policy" style={labelStyle}>Ngày đến hạn rơi vào ngày nghỉ</label>
-            <select
-              id="cust-payment-date-policy"
-              className="input"
-              value={paymentDatePolicy}
-              onChange={e => setPaymentDatePolicy(e.target.value as 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY')}
-            >
-              <option value="NEXT_BUSINESS_DAY">Chuyển sang ngày làm việc tiếp theo</option>
-              <option value="CALENDAR_DAY">Giữ nguyên theo hợp đồng</option>
-            </select>
-          </div>
+          <UuiSelectField
+            id="cust-payment-date-policy"
+            label="Ngày đến hạn rơi vào ngày nghỉ"
+            value={paymentDatePolicy}
+            onChange={e => setPaymentDatePolicy(e.target.value as 'NEXT_BUSINESS_DAY' | 'CALENDAR_DAY')}
+            options={[
+              { value: 'NEXT_BUSINESS_DAY', label: 'Chuyển sang ngày làm việc tiếp theo' },
+              { value: 'CALENDAR_DAY', label: 'Giữ nguyên theo hợp đồng' },
+            ]}
+          />
         </div>
         <div style={pairedFieldGridStyle}>
-          <div className="field">
-            <label htmlFor="cust-debit-mode" style={labelStyle}>Giấy báo nợ</label>
-            <select
-              id="cust-debit-mode"
-              className="input"
-              value={debitNoteMode}
-              onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
-            >
-              {debitNoteModeOptions.map((option) => (
-                <option key={option.value} value={option.value} disabled={option.disabled}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {debitNoteModeDescription && (
-              <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
-                {debitNoteModeDescription}
-              </div>
-            )}
-          </div>
+          <UuiSelectField
+            id="cust-debit-mode"
+            label="Giấy báo nợ"
+            value={debitNoteMode}
+            onChange={e => setDebitNoteMode(e.target.value as EditableCustomerDebitNoteMode)}
+            options={debitNoteModeOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+              disabled: option.disabled,
+            }))}
+          />
+          {debitNoteModeDescription && (
+            <div style={{ marginTop: 6, fontSize: 12, lineHeight: 1.4, color: 'var(--ink-3)' }}>
+              {debitNoteModeDescription}
+            </div>
+          )}
           <div className="field" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', paddingBottom: 4 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input
@@ -270,20 +265,16 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
             </label>
           </div>
         </div>
-        <div className="field">
-          <label htmlFor="cust-linked-supplier" style={labelStyle}>Nhà cung cấp liên quan</label>
-          <select
-            id="cust-linked-supplier"
-            className="input"
-            value={linkedSupplierId ?? ''}
-            onChange={e => setLinkedSupplierId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">-- Không liên kết --</option>
-            {suppliers.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        <UuiSelectField
+          id="cust-linked-supplier"
+          label="Nhà cung cấp liên quan"
+          value={linkedSupplierId === null || linkedSupplierId === undefined ? '' : String(linkedSupplierId)}
+          onChange={e => setLinkedSupplierId(e.target.value ? Number(e.target.value) : null)}
+          options={[
+            { value: '', label: '-- Không liên kết --' },
+            ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+          ]}
+        />
       </div>
     </Modal>
   );

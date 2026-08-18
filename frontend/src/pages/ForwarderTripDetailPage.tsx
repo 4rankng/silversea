@@ -14,6 +14,7 @@ import { StatusPill, FormGroup, useConfirm } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { qk } from '../api/keys';
 import { DateInput } from '../design-system/forms/DateInput';
+import { UuiSelectField } from '../design-system';
 import { useForwarderTripDetail, useCreateForwarderContainer, useCreateForwarderExpense, useDeleteForwarderExpense } from '../hooks/useQueries';
 import { useUpdateForwarderExpense, useSetForwarderExpenseCompletion } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -633,18 +634,20 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             {/* Row 1: type + amounts + settlement */}
             <div className="fwd-expense-grid fwd-expense-grid--primary">
               <FormGroup label="Loại chi phí">
-                <select
-                  className="input"
+                <UuiSelectField
+                  id="fwd-expense-type"
+                  label="Loại chi phí"
+                  hideLabel
                   value={expenseForm.expenseType}
                   onChange={e => handleExpenseTypeChange(e.target.value)}
-                >
-                  {(forwarderExpenseTypeOptions.length > 0
+                  options={(forwarderExpenseTypeOptions.length > 0
                     ? forwarderExpenseTypeOptions.map((type) => [type.code, { name: type.name }] as const)
                     : Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)
-                  ).map(([code, cfg]) => (
-                    <option key={code} value={code}>{cfg.name}</option>
-                  ))}
-                </select>
+                  ).map(([code, cfg]) => ({
+                    value: code,
+                    label: cfg.name,
+                  }))}
+                />
               </FormGroup>
 
               <FormGroup
@@ -705,18 +708,21 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
               </FormGroup>
 
               <FormGroup label="Hình thức chi">
-                <select
-                  className="input"
+                <UuiSelectField
+                  id="fwd-settlement-method"
+                  label="Hình thức chi"
+                  hideLabel
                   value={expenseForm.settlementMethod}
                   onChange={e => {
                     const v = e.target.value as 'OPS_ADVANCE' | 'COMPANY_DIRECT';
                     setExpenseForm(f => ({ ...f, settlementMethod: v, supplierId: v === 'OPS_ADVANCE' ? '' : f.supplierId }));
                     if (expenseErrors.supplierId) setExpenseErrors(e => ({ ...e, supplierId: undefined }));
                   }}
-                >
-                  <option value="FORWARDER_ADVANCE">Chi hộ tạm ứng</option>
-                  <option value="COMPANY_DIRECT">Công ty trả trực tiếp</option>
-                </select>
+                  options={[
+                    { value: 'FORWARDER_ADVANCE', label: 'Chi hộ tạm ứng' },
+                    { value: 'COMPANY_DIRECT', label: 'Công ty trả trực tiếp' },
+                  ]}
+                />
               </FormGroup>
             </div>
 
@@ -725,30 +731,54 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
               {isLiftExpense && (
                 <>
                   <FormGroup label="Cảng / bãi *">
-                    <select className="input" value={expenseForm.portId} onChange={e => { setExpenseForm(f => ({ ...f, portId: e.target.value })); }}>
-                      <option value="">— Chọn cảng —</option>
-                      {portOptions.map(port => <option key={port.id} value={port.id}>{port.name}</option>)}
-                    </select>
+                    <UuiSelectField
+                      id="fwd-port"
+                      label="Cảng / bãi"
+                      hideLabel
+                      value={expenseForm.portId}
+                      onChange={e => { setExpenseForm(f => ({ ...f, portId: e.target.value })); }}
+                      options={[
+                        { value: '', label: '— Chọn cảng —' },
+                        ...portOptions.map(port => ({ value: String(port.id), label: port.name })),
+                      ]}
+                    />
                   </FormGroup>
                   <FormGroup label="Loại container *">
-                    <select className="input" value={expenseForm.containerTypeId} onChange={e => { setExpenseForm(f => ({ ...f, containerTypeId: e.target.value })); }}>
-                      <option value="">— Chọn loại —</option>
-                      {containerTypeOptions.map(type => <option key={type.id} value={type.id}>{type.code} — {type.name}</option>)}
-                    </select>
+                    <UuiSelectField
+                      id="fwd-container-type"
+                      label="Loại container"
+                      hideLabel
+                      value={expenseForm.containerTypeId}
+                      onChange={e => { setExpenseForm(f => ({ ...f, containerTypeId: e.target.value })); }}
+                      options={[
+                        { value: '', label: '— Chọn loại —' },
+                        ...containerTypeOptions.map(type => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
+                      ]}
+                    />
                   </FormGroup>
                   <FormGroup label="Hàng / Rỗng">
-                    <select className="input" value={expenseForm.loadState} onChange={e => { setExpenseForm(f => ({ ...f, loadState: e.target.value as 'LOADED' | 'EMPTY' })); }}>
-                      <option value="LOADED">Hàng</option>
-                      <option value="EMPTY">Rỗng</option>
-                    </select>
+                    <UuiSelectField
+                      id="fwd-load-state"
+                      label="Hàng / Rỗng"
+                      hideLabel
+                      value={expenseForm.loadState}
+                      onChange={e => { setExpenseForm(f => ({ ...f, loadState: e.target.value as 'LOADED' | 'EMPTY' })); }}
+                      options={[
+                        { value: 'LOADED', label: 'Hàng' },
+                        { value: 'EMPTY', label: 'Rỗng' },
+                      ]}
+                    />
                   </FormGroup>
                 </>
               )}
               {expenseForm.settlementMethod === 'COMPANY_DIRECT' && (
                 <FormGroup label="Nhà cung cấp *">
-                  <select
-                    className={`input${expenseErrors.supplierId ? ' input--error' : ''}`}
+                  <UuiSelectField
+                    id="fwd-supplier"
+                    label="Nhà cung cấp"
+                    hideLabel
                     value={expenseForm.supplierId}
+                    error={expenseErrors.supplierId}
                     onChange={e => {
                       const selectedSupplier = supplierOptions.find(item => String(item.id) === e.target.value);
                       setExpenseForm(f => ({
@@ -758,17 +788,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                       }));
                       if (expenseErrors.supplierId) setExpenseErrors(err => ({ ...err, supplierId: undefined }));
                     }}
-                  >
-                    <option value="">-- Chọn NCC --</option>
-                    {supplierOptions.map(s => (
-                      <option key={s.id} value={String(s.id)}>{s.name}</option>
-                    ))}
-                  </select>
-                  {expenseErrors.supplierId && (
-                    <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--danger)', display: 'block', marginTop: 2 }}>
-                      {expenseErrors.supplierId}
-                    </span>
-                  )}
+                    options={[
+                      { value: '', label: '-- Chọn NCC --' },
+                      ...supplierOptions.map(s => ({ value: String(s.id), label: s.name })),
+                    ]}
+                  />
                 </FormGroup>
               )}
 
@@ -801,8 +825,10 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
 
               {containers.length > 1 && (
                 <FormGroup label="Container áp dụng">
-                  <select
-                    className="input"
+                  <UuiSelectField
+                    id="fwd-container"
+                    label="Container áp dụng"
+                    hideLabel
                     value={expenseForm.tripContainerId}
                     onChange={e => {
                       const selected = containers.find(container => String(container.id) === e.target.value);
@@ -812,15 +838,14 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                         containerTypeId: selected?.containerTypeId ? String(selected.containerTypeId) : f.containerTypeId,
                       }));
                     }}
-                  >
-                    <option value="">Chi phí chung của chuyến</option>
-                    {containers.map(c => (
-                      <option key={c.id} value={String(c.id)}>
-                        {getForwarderContainerDisplayLabel(c)}
-                        {!isSyntheticLclContainer(c) && c.sealNumber ? ` · Seal ${c.sealNumber}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: 'Chi phí chung của chuyến' },
+                      ...containers.map(c => ({
+                        value: String(c.id),
+                        label: `${getForwarderContainerDisplayLabel(c)}${!isSyntheticLclContainer(c) && c.sealNumber ? ` · Seal ${c.sealNumber}` : ''}`,
+                      })),
+                    ]}
+                  />
                   <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', display: 'block', marginTop: 4 }}>
                     {containers.some((container) => isSyntheticLclContainer(container))
                       ? `Chọn ${FORWARDER_LCL_SCOPE_LABEL.toLowerCase()} hoặc container từ danh sách đã nhập, không cần gõ lại.`

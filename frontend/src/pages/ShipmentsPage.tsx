@@ -35,7 +35,7 @@ import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
-import { EmptyState, Pagination, SearchableSelect, BufferedUuiDateInput, DateInput } from '../design-system';
+import { EmptyState, Pagination, SearchableSelect, BufferedUuiDateInput, DateInput, UuiSelectField } from '../design-system';
 import {
   createShipmentDeclaration,
   getCusShipmentWorkspaceDetail,
@@ -215,7 +215,14 @@ function ShipmentQuickEditFields({
         <p className="cus-quick-edit-modal__help">{documentDirection === 'IMPORT' ? 'Hàng Nhập chỉ dùng Số Bill.' : documentDirection === 'EXPORT' ? 'Hàng Xuất chỉ dùng Số Booking.' : 'Số Bill và Số Booking không thể cùng thuộc một lô hàng.'} Tờ khai đã có sẽ được cập nhật số mới.</p>
       </>}
       {draft.field === 'classification' && <>
-        <label><span>Xuất / Nhập</span><select autoFocus value={draft.tradeDirection} onChange={(event) => { const tradeDirection = event.target.value as ShipmentQuickEditDraft['tradeDirection']; update({ tradeDirection, ...(tradeDirection === 'IMPORT' ? { bookingRef: '' } : tradeDirection === 'EXPORT' ? { blNumber: '' } : {}) }); }} disabled={saving}><option value="">Chưa xác định</option><option value="IMPORT">Nhập</option><option value="EXPORT">Xuất</option></select></label>
+        <UuiSelectField
+          label="Xuất / Nhập"
+          value={draft.tradeDirection}
+          onChange={(event) => { const tradeDirection = event.target.value as ShipmentQuickEditDraft['tradeDirection']; update({ tradeDirection, ...(tradeDirection === 'IMPORT' ? { bookingRef: '' } : tradeDirection === 'EXPORT' ? { blNumber: '' } : {}) }); }}
+          disabled={saving}
+          options={[{ value: '', label: 'Chưa xác định' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]}
+          inline
+        />
         <label><span>Hãng tàu</span><input value={draft.shippingLineName} onChange={(event) => update({ shippingLineName: event.target.value })} maxLength={255} disabled={saving} /></label>
       </>}
       {draft.field === 'cargo' && <>

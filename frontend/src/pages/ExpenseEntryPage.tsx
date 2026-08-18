@@ -25,6 +25,7 @@ import {
 } from './expense-entry-utils';
 import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense-entry-sections';
 import { DateInput } from '../design-system/forms/DateInput';
+import { UuiSelectField } from '../design-system';
 import './ExpenseEntryPage.css';
 
 export default function ExpenseEntryPage() {
@@ -458,21 +459,19 @@ export default function ExpenseEntryPage() {
                     </button>
                   </div>
                 ) : (
-                  <select
-                    name="supplierId"
+                  <UuiSelectField
                     id="supplierId"
-                    className="expense-input"
-                    value={form.supplierId}
+                    label="Nhà cung cấp"
+                    hideLabel
+                    value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
                     disabled={loadingExpenseCatalogs}
                     onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
-                  >
-                    <option value="">
-                      {loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…'}
-                    </option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                    controlClassName="expense-input"
+                    options={[
+                      { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
+                      ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+                    ]}
+                  />
                 )}
                 {errors.supplierId && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.supplierId}</p>}
               </div>
@@ -508,31 +507,29 @@ export default function ExpenseEntryPage() {
                     </button>
                   </div>
                 ) : (
-                  <select
-                    name="categoryId"
+                  <UuiSelectField
                     id="categoryId"
-                    className="expense-input"
-                    value={form.categoryId}
+                    label="Hạng mục"
+                    hideLabel
+                    value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
                     disabled={loadingExpenseCatalogs}
                     onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
-                  >
-                    <option value="">
-                      {loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…'}
-                    </option>
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                    controlClassName="expense-input"
+                    options={[
+                      { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
+                      ...categories.map(c => ({ value: String(c.id), label: c.name })),
+                    ]}
+                  />
                 )}
                 {errors.categoryId && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.categoryId}</p>}
               </div>
 
               <div className="expense-group">
                 <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
-                <select
+                <UuiSelectField
                   id="expenseType"
-                  name="expenseType"
-                  className="expense-input"
+                  label="Loại chi phí"
+                  hideLabel
                   value={expenseType}
                   onChange={e => {
                     const val = e.target.value as 'COMPANY' | 'TRUCK' | 'TRAILER';
@@ -541,31 +538,33 @@ export default function ExpenseEntryPage() {
                       set('truckId', '');
                     } else {
                       set('vehicleComponent', val);
-                      set('truckId', ''); 
+                      set('truckId', '');
                     }
                   }}
-                >
-                  <option value="COMPANY">Chi phí công ty</option>
-                  <option value="TRUCK">Xe (Đầu kéo)</option>
-                  <option value="TRAILER">Rơ-moóc</option>
-                </select>
+                  controlClassName="expense-input"
+                  options={[
+                    { value: 'COMPANY', label: 'Chi phí công ty' },
+                    { value: 'TRUCK', label: 'Xe (Đầu kéo)' },
+                    { value: 'TRAILER', label: 'Rơ-moóc' },
+                  ]}
+                />
               </div>
 
               {expenseType === 'TRUCK' && (
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số xe <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select
-                    name="truckId"
+                  <UuiSelectField
                     id="truckId"
-                    className="expense-input"
-                    value={form.truckId}
+                    label="Biển số xe"
+                    hideLabel
+                    value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
                     onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                  >
-                    <option value="">Chọn xe…</option>
-                    {trucks.map(t => (
-                      <option key={t.id} value={t.id}>{t.licensePlate}</option>
-                    ))}
-                  </select>
+                    controlClassName="expense-input"
+                    options={[
+                      { value: '', label: 'Chọn xe…' },
+                      ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
+                    ]}
+                  />
                   {errors.truckId && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.truckId}</p>}
                 </div>
               )}
@@ -573,19 +572,18 @@ export default function ExpenseEntryPage() {
               {expenseType === 'TRAILER' && (
                 <div className="expense-group">
                   <label htmlFor="truckId" className="expense-label">Biển số rơ-moóc <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select
-                    name="truckId"
+                  <UuiSelectField
                     id="truckId"
-                    className="expense-input"
-                    value={form.truckId}
+                    label="Biển số rơ-moóc"
+                    hideLabel
+                    value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
                     onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                  >
-                    <option value="">Chọn rơ-moóc…</option>
-                    {trailers
-                      .map(t => (
-                        <option key={t.id} value={t.id}>{t.licensePlate}</option>
-                      ))}
-                  </select>
+                    controlClassName="expense-input"
+                    options={[
+                      { value: '', label: 'Chọn rơ-moóc…' },
+                      ...trailers.map(t => ({ value: String(t.id), label: t.licensePlate })),
+                    ]}
+                  />
                   {errors.truckId && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 4 }}>{errors.truckId}</p>}
                 </div>
               )}

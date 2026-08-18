@@ -11,6 +11,7 @@ import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
 import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContainer, lineTotal, normalizeLine, selectedTripIdsFromSearch, splitRouteName, thisMonthRange, displayDate, TITLE, type BillingRouteGroup } from './billing-document-builder-utils';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { UuiSelectField } from '../../design-system';
 import './BillingDocumentBuilder.css';
 import type {
   BillingDocument,
@@ -391,22 +392,20 @@ export default function BillingDocumentBuilder({
               disabled={busy}
             />
           </label>
-          <label>
-            <span>Mẫu xuất</span>
-            <select
-              className="input billing-builder__template-select"
-              value={templateId ?? ''}
-              onChange={(e) => setTemplateId(e.target.value === '' ? null : Number(e.target.value))}
-              disabled={busy}
-            >
-              <option value="">{type === 'DEBIT_NOTE' ? 'Mặc định (theo khách hàng)' : 'Mặc định bảng kê'}</option>
-              {(templates ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.isDefault ? ' — mặc định' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <UuiSelectField
+            id="billing-template-select"
+            label="Mẫu xuất"
+            value={templateId === null ? '' : String(templateId)}
+            onChange={(e) => setTemplateId(e.target.value === '' ? null : Number(e.target.value))}
+            disabled={busy}
+            options={[
+              { value: '', label: type === 'DEBIT_NOTE' ? 'Mặc định (theo khách hàng)' : 'Mặc định bảng kê' },
+              ...(templates ?? []).map((t) => ({
+                value: String(t.id),
+                label: `${t.name}${t.isDefault ? ' — mặc định' : ''}`,
+              })),
+            ]}
+          />
           <div className="billing-builder__action-cell">
             <span className="billing-builder__action-spacer" aria-hidden="true">Lọc</span>
             <button className="btn btn--secondary" type="button" onClick={() => generateDraft(rangeFrom, rangeTo)} disabled={busy}>

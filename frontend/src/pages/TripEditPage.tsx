@@ -25,7 +25,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import type { TripOptions } from '../hooks/useTripOptions';
-import { SearchableSelect, DateInput } from '../design-system';
+import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import './TripForm.css';
 import './TripEditPage.css';
 
@@ -202,25 +202,17 @@ export default function TripEditPage() {
               <CardSection number={1} title="Tuyến đường & ngày" subtitle="Thời gian và tuyến vận chuyển">
                 <div className="tc-field-row tc-field-row--2">
                   <div className="tc-field">
-                    <label className="tc-field-label" htmlFor="customerId">Khách hàng <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                    <select
+                    <UuiSelectField
                       id="customerId"
-                      className="input"
+                      label="Khách hàng"
+                      required
                       value={form.customerId}
                       onChange={(e) => form.setCustomerId(e.target.value)}
                       disabled={!catalogData || !canChangeCustomer}
-                      required
-                    >
-                      <option value="">{catalogData ? '-- Chọn khách hàng --' : 'Đang tải khách hàng…'}</option>
-                      {editOptions.customers.map((customer) => (
-                        <option key={customer.id} value={customer.id}>{customer.label}</option>
-                      ))}
-                    </select>
-                    <div className="tc-field-hint">
-                      {canChangeCustomer
-                        ? 'Đổi khách hàng không tự cập nhật giá cước.'
-                        : 'Chỉ Quản lý hoặc Quản trị viên được đổi khách hàng.'}
-                    </div>
+                      options={[{ value: '', label: catalogData ? '-- Chọn khách hàng --' : 'Đang tải khách hàng…' }, ...editOptions.customers.map((customer) => ({ value: String(customer.id), label: customer.label }))]}
+                      hint={canChangeCustomer ? 'Đổi khách hàng không tự cập nhật giá cước.' : 'Chỉ Quản lý hoặc Quản trị viên được đổi khách hàng.'}
+                      wrapperClassName="tc-field"
+                    />
                   </div>
                   <div className="tc-field">
                     <label className="tc-field-label">Ngày khởi hành <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
@@ -279,72 +271,53 @@ export default function TripEditPage() {
                     </div>
                   </div>
                   <div className="tc-field">
-                    <label className="tc-field-label">Loại container <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                    <select
+                    <UuiSelectField
                       id="plannedContainerTypeId"
-                      className="input"
+                      label="Loại container"
+                      required
                       value={plannedContainerTypeId}
                       onChange={(e) => setPlannedContainerTypeId(e.target.value)}
-                      required
-                    >
-                      <option value="">-- Chọn loại container --</option>
-                      {editOptions.containerTypes.map((type) => (
-                        <option key={type.id} value={type.id}>{type.label}</option>
-                      ))}
-                    </select>
-                    <div className="tc-field-hint">Số container/seal cập nhật ở Chi tiết container.</div>
+                      options={[{ value: '', label: '-- Chọn loại container --' }, ...editOptions.containerTypes.map((type) => ({ value: String(type.id), label: type.label }))]}
+                      hint="Số container/seal cập nhật ở Chi tiết container."
+                      wrapperClassName="tc-field"
+                    />
                   </div>
                 </div>
 
                 {form.carrierType === 'OWN' && (
                   <div className="tc-field-row tc-field-row--3" style={{ marginTop: 14 }}>
                     <div className="tc-field">
-                      <label className="tc-field-label">Xe đầu kéo <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                      <select
+                      <UuiSelectField
                         id="truckId"
-                        className="input"
+                        label="Xe đầu kéo"
+                        required
                         value={form.truckId}
                         onChange={(e) => form.setTruckId(e.target.value)}
-                      >
-                        <option value="">-- Chọn xe đầu kéo --</option>
-                        {editOptions.trucks.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
+                        options={[{ value: '', label: '-- Chọn xe đầu kéo --' }, ...editOptions.trucks.map((t) => ({ value: String(t.id), label: t.label }))]}
+                        wrapperClassName="tc-field"
+                      />
                     </div>
                     <div className="tc-field">
-                      <label className="tc-field-label">Loại rơ moóc <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                      <select
+                      <UuiSelectField
                         id="trailerType"
-                        className="input"
+                        label="Loại rơ moóc"
+                        required
                         value={form.trailerType}
                         onChange={(e) => form.setTrailerType(e.target.value)}
-                      >
-                        <option value="">-- Chọn loại rơ moóc --</option>
-                        {editOptions.trailerTypes.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                        options={[{ value: '', label: '-- Chọn loại rơ moóc --' }, ...editOptions.trailerTypes.map((o) => ({ value: o.value, label: o.label }))]}
+                        wrapperClassName="tc-field"
+                      />
                     </div>
                     <div className="tc-field">
-                      <label className="tc-field-label">Lái xe <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>
-                      <select
+                      <UuiSelectField
                         id="driverId"
-                        className="input"
+                        label="Lái xe"
+                        required
                         value={form.driverId}
                         onChange={(e) => form.setDriverId(e.target.value)}
-                      >
-                        <option value="">-- Chọn lái xe --</option>
-                        {editOptions.drivers.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.label}
-                          </option>
-                        ))}
-                      </select>
+                        options={[{ value: '', label: '-- Chọn lái xe --' }, ...editOptions.drivers.map((d) => ({ value: String(d.id), label: d.label }))]}
+                        wrapperClassName="tc-field"
+                      />
                     </div>
                   </div>
                 )}
@@ -357,18 +330,14 @@ export default function TripEditPage() {
                   <CardSection number={3} title="Thông tin xe ngoài" subtitle="Đối tác vận tải, biển số và lái xe ngoài">
                     <div className="tc-field-row tc-field-row--2">
                       <div className="tc-field">
-                        <label className="tc-field-label">Đối tác vận chuyển</label>
-                        <select
+                        <UuiSelectField
                           id="externalCarrierId"
-                          className="input"
-                          value={form.externalCarrierId ?? ''}
+                          label="Đối tác vận chuyển"
+                          value={form.externalCarrierId === null || form.externalCarrierId === undefined ? '' : String(form.externalCarrierId)}
                           onChange={(e) => form.setExternalCarrierId(e.target.value ? Number(e.target.value) : null)}
-                        >
-                          <option value="">-- Chọn đối tác --</option>
-                          {editOptions.carrierCustomers.map(c => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
-                          ))}
-                        </select>
+                          options={[{ value: '', label: '-- Chọn đối tác --' }, ...editOptions.carrierCustomers.map(c => ({ value: String(c.id), label: c.label }))]}
+                          wrapperClassName="tc-field"
+                        />
                       </div>
                       <div className="tc-field">
                         <label className="tc-field-label">Giá cước thuê ngoài (gồm VAT) <span style={{ color: 'var(--danger)', marginLeft: 3 }}>*</span></label>

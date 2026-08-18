@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { TrailerType, TRAILER_TYPE_LABELS } from '@tingting/shared';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 /**
  * Modal for creating/editing a trailer (rơ-moóc).
@@ -79,17 +80,29 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
             </div>
             <div className="field fleet-form__field">
               <label htmlFor="trailer-type-input">Loại rơ-moóc</label>
-              <select id="trailer-type-input" className="input" value={type} onChange={e => setType(e.target.value)}>
-                {Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              <UuiSelectField
+                id="trailer-type-input"
+                label="Loại rơ-moóc"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                options={Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                wrapperClassName="input"
+              />
             </div>
             <div className="field fleet-form__field">
               <label htmlFor="trailer-status-input">Trạng thái</label>
-              <select id="trailer-status-input" className="input" value={status} onChange={e => setStatus(e.target.value)}>
-                <option value="ACTIVE">Hoạt động</option>
-                <option value="MAINTENANCE">Bảo trì</option>
-                <option value="INACTIVE">Ngưng</option>
-              </select>
+              <UuiSelectField
+                id="trailer-status-input"
+                label="Trạng thái"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={[
+                  { value: 'ACTIVE', label: 'Hoạt động' },
+                  { value: 'MAINTENANCE', label: 'Bảo trì' },
+                  { value: 'INACTIVE', label: 'Ngưng' },
+                ]}
+                wrapperClassName="input"
+              />
             </div>
           </div>
         </section>

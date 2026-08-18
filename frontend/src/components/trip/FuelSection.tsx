@@ -6,7 +6,8 @@ import { useFuelConfig } from '../../hooks/useQueries';
 import { useCatalogs } from "../../hooks/useCatalogs";
 import { InputWithPrefix } from "./InputWithPrefix";
 import './FuelSection.css';
-import { selectStyleFullWidth, labelStyle } from '../../utils/formStyles';
+import { labelStyle } from '../../utils/formStyles';
+import { UuiSelectField } from '../../design-system';
 
 export function FuelSection() {
   const form = useTripFormContext();
@@ -29,26 +30,6 @@ export function FuelSection() {
   const configPrice = (
     fuelConfig && fuelConfig.unitPrice != null ? Number(fuelConfig.unitPrice) : 0
   ).toLocaleString('vi-VN');
-
-  const supplierSelect = (
-    <div className="field">
-      <label style={labelStyle}>Nhà cung cấp nhiên liệu</label>
-      <select
-        className="input"
-        value={fuelSupplierId || ''}
-        onChange={(e) => setFuelSupplierId(e.target.value ? Number(e.target.value) : null)}
-        style={selectStyleFullWidth}
-      >
-        <option value="">-- Chọn nhà cung cấp nhiên liệu --</option>
-        {catalogData?.suppliers?.filter(s => (s as Supplier).isFuelSupplier).map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
-        ))}
-      </select>
-      <p className="tc-field-hint">
-        Lựa chọn nhà cung cấp nhiên liệu cho chuyến này để ghi nhận công nợ.
-      </p>
-    </div>
-  );
 
   const unitPriceField = (
     <div className="field">
@@ -76,18 +57,16 @@ export function FuelSection() {
 
       {/* Row 1: Chế độ dầu + Số lít khoán (flat-rate) OR Đơn giá (auto) */}
       <div className="fs-row">
-        <div className="field">
-          <label style={labelStyle}>Chế độ dầu</label>
-          <select
-            className="input"
-            style={selectStyleFullWidth}
-            value={fuelMode}
-            onChange={(e) => setFuelMode(e.target.value as FuelMode)}
-          >
-            <option value={FuelMode.AUTO}>Tự động (Định mức × Km chặng)</option>
-            <option value={FuelMode.FLAT_RATE}>Khoán (Nhập thủ công)</option>
-          </select>
-        </div>
+        <UuiSelectField
+          id="fuel-mode-select"
+          label="Chế độ dầu"
+          value={fuelMode}
+          onChange={(e) => setFuelMode(e.target.value as FuelMode)}
+          options={[
+            { value: FuelMode.AUTO, label: 'Tự động (Định mức × Km chặng)' },
+            { value: FuelMode.FLAT_RATE, label: 'Khoán (Nhập thủ công)' },
+          ]}
+        />
 
         {fuelMode === FuelMode.FLAT_RATE ? (
           <div className="field">
@@ -109,14 +88,54 @@ export function FuelSection() {
       {fuelMode === FuelMode.FLAT_RATE && (
         <div className="fs-row">
           {unitPriceField}
-          {carrierType === 'OWN' ? supplierSelect : <div />}
+          {carrierType === 'OWN' ? (
+            <div className="field">
+              <label style={labelStyle}>Nhà cung cấp nhiên liệu</label>
+              <UuiSelectField
+                id="fuel-supplier-select-flat"
+                label="Nhà cung cấp nhiên liệu"
+                hideLabel
+                value={fuelSupplierId === null || fuelSupplierId === undefined ? '' : String(fuelSupplierId)}
+                onChange={(e) => setFuelSupplierId(e.target.value ? Number(e.target.value) : null)}
+                options={[
+                  { value: '', label: '-- Chọn nhà cung cấp nhiên liệu --' },
+                  ...(catalogData?.suppliers?.filter(s => (s as Supplier).isFuelSupplier).map((s) => ({
+                    value: String(s.id),
+                    label: s.name,
+                  })) ?? []),
+                ]}
+              />
+              <p className="tc-field-hint">
+                Lựa chọn nhà cung cấp nhiên liệu cho chuyến này để ghi nhận công nợ.
+              </p>
+            </div>
+          ) : <div />}
         </div>
       )}
 
       {/* Row 2 (auto mode): Nhà cung cấp only — span half */}
       {fuelMode === FuelMode.AUTO && carrierType === 'OWN' && (
         <div className="fs-row">
-          {supplierSelect}
+          <div className="field">
+            <label style={labelStyle}>Nhà cung cấp nhiên liệu</label>
+            <UuiSelectField
+              id="fuel-supplier-select-auto"
+              label="Nhà cung cấp nhiên liệu"
+              hideLabel
+              value={fuelSupplierId === null || fuelSupplierId === undefined ? '' : String(fuelSupplierId)}
+              onChange={(e) => setFuelSupplierId(e.target.value ? Number(e.target.value) : null)}
+              options={[
+                { value: '', label: '-- Chọn nhà cung cấp nhiên liệu --' },
+                ...(catalogData?.suppliers?.filter(s => (s as Supplier).isFuelSupplier).map((s) => ({
+                  value: String(s.id),
+                  label: s.name,
+                })) ?? []),
+              ]}
+            />
+            <p className="tc-field-hint">
+              Lựa chọn nhà cung cấp nhiên liệu cho chuyến này để ghi nhận công nợ.
+            </p>
+          </div>
           <div />
         </div>
       )}

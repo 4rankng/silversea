@@ -8,6 +8,7 @@ import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import type { Customer, Truck } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, UserRow, CreateData, EditData } from '../utils';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 
 // ── Icon Input ─────────────────────────────────────────────────────────────
 
@@ -70,16 +71,20 @@ function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssigne
         </div>
         <div className="users-form-card">
           <FormGroup label="Xe phân công">
-            <select
-              className="input"
-              value={assignedTruckId ?? 0}
-              onChange={e => setAssignedTruckId(Number(e.target.value) || null)}
-            >
-              <option value={0}>Chưa phân công</option>
-              {truckList.filter(t => t.status === 'ACTIVE').map(t => (
-                <option key={t.id} value={t.id}>{t.licensePlate}</option>
-              ))}
-            </select>
+            <UuiSelectField
+              label="Xe phân công"
+              hideLabel
+              value={String(assignedTruckId ?? 0)}
+              onChange={(e) => setAssignedTruckId(Number(e.target.value) || null)}
+              options={[
+                { value: '0', label: 'Chưa phân công' },
+                ...truckList.filter((t) => t.status === 'ACTIVE').map((t) => ({
+                  value: String(t.id),
+                  label: t.licensePlate,
+                })),
+              ]}
+              wrapperClassName="input"
+            />
           </FormGroup>
         </div>
       </div>
@@ -487,17 +492,29 @@ export function EditPanel({
       <div className="users-form-section__title"><ShieldCheck size={12} /> Quyền & trạng thái</div>
       <div className="row-2">
         <FormGroup label="Vai trò">
-          <select className="input" value={role} disabled={roleSelectDisabled} onChange={e => setRole(e.target.value as Role)}>
-            {roleOptions.map(r => (
-              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-            ))}
-          </select>
+          <UuiSelectField
+            label="Vai trò"
+            hideLabel
+            value={role}
+            disabled={roleSelectDisabled}
+            onChange={(e) => setRole(e.target.value as Role)}
+            options={roleOptions.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+            wrapperClassName="input"
+          />
         </FormGroup>
         <FormGroup label="Trạng thái">
-          <select className="input" value={status} disabled={canEditDriversOnly} onChange={e => setStatus(e.target.value)}>
-            <option value="ACTIVE">Hoạt động</option>
-            <option value="INACTIVE">Bị khoá</option>
-          </select>
+          <UuiSelectField
+            label="Trạng thái"
+            hideLabel
+            value={status}
+            disabled={canEditDriversOnly}
+            onChange={(e) => setStatus(e.target.value)}
+            options={[
+              { value: 'ACTIVE', label: 'Hoạt động' },
+              { value: 'INACTIVE', label: 'Bị khoá' },
+            ]}
+            wrapperClassName="input"
+          />
         </FormGroup>
       </div>
 
@@ -533,15 +550,18 @@ export function EditPanel({
         <>
           {canManageClerkScope && (
             <FormGroup label="Loại phạm vi cổng khách hàng">
-              <select
-                className="input"
+              <UuiSelectField
+                label="Loại phạm vi cổng khách hàng"
+                hideLabel
                 value={customerAccountType}
-                onChange={event => setCustomerAccountType(event.target.value as CustomerAccountType)}
-              >
-                <option value={CustomerAccountType.SINGLE_ENTITY}>Một pháp nhân</option>
-                <option value={CustomerAccountType.CORPORATE_GROUP}>Nhóm công ty</option>
-                <option value={CustomerAccountType.AGENCY}>Đại lý</option>
-              </select>
+                onChange={(event) => setCustomerAccountType(event.target.value as CustomerAccountType)}
+                options={[
+                  { value: CustomerAccountType.SINGLE_ENTITY, label: 'Một pháp nhân' },
+                  { value: CustomerAccountType.CORPORATE_GROUP, label: 'Nhóm công ty' },
+                  { value: CustomerAccountType.AGENCY, label: 'Đại lý' },
+                ]}
+                wrapperClassName="input"
+              />
             </FormGroup>
           )}
           <CustomerScopeFields
@@ -867,11 +887,14 @@ export function AddPanel({
       <div className="users-form-section__title"><ShieldCheck size={12} /> Quyền & Mật khẩu</div>
       <div className="row-2">
         <FormGroup label="Vai trò">
-          <select className="input" value={role} onChange={e => setRole(e.target.value as Role)}>
-            {roleOptions.map(r => (
-              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-            ))}
-          </select>
+          <UuiSelectField
+            label="Vai trò"
+            hideLabel
+            value={role}
+            onChange={(e) => setRole(e.target.value as Role)}
+            options={roleOptions.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
+            wrapperClassName="input"
+          />
         </FormGroup>
         <FormGroup
           label="Mật khẩu *"
@@ -932,15 +955,18 @@ export function AddPanel({
         <>
           {canManageClerkScope && (
             <FormGroup label="Loại phạm vi cổng khách hàng">
-              <select
-                className="input"
+              <UuiSelectField
+                label="Loại phạm vi cổng khách hàng"
+                hideLabel
                 value={customerAccountType}
-                onChange={event => setCustomerAccountType(event.target.value as CustomerAccountType)}
-              >
-                <option value={CustomerAccountType.SINGLE_ENTITY}>Một pháp nhân</option>
-                <option value={CustomerAccountType.CORPORATE_GROUP}>Nhóm công ty</option>
-                <option value={CustomerAccountType.AGENCY}>Đại lý</option>
-              </select>
+                onChange={(event) => setCustomerAccountType(event.target.value as CustomerAccountType)}
+                options={[
+                  { value: CustomerAccountType.SINGLE_ENTITY, label: 'Một pháp nhân' },
+                  { value: CustomerAccountType.CORPORATE_GROUP, label: 'Nhóm công ty' },
+                  { value: CustomerAccountType.AGENCY, label: 'Đại lý' },
+                ]}
+                wrapperClassName="input"
+              />
             </FormGroup>
           )}
           <CustomerScopeFields

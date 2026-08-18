@@ -10,6 +10,7 @@ import {
 } from './accountingWorkspaceUtils';
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
 import { Pagination } from '../../design-system';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -130,58 +131,52 @@ export function AccountingTransportRegister({
             <button type="submit">Tìm</button>
           </div>
           <div className="accounting-register__filters">
-            <label>
-              Khách hàng
-              <select
+            <UuiSelectField
+                label="Khách hàng"
                 value={customerId}
                 onChange={(event) => onFilterChange('customerId', event.target.value)}
-              >
-                <option value="">Tất cả khách hàng</option>
-                {customers.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Nhà xe
-              <select
+                options={[
+                  { value: '', label: 'Tất cả khách hàng' },
+                  ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
+                ]}
+                inline
+              />
+            <UuiSelectField
+                label="Nhà xe"
                 value={carrierId}
                 onChange={(event) => onFilterChange('carrierId', event.target.value)}
-              >
-                <option value="">Tất cả nhà xe</option>
-                {carriers.map((carrier) => (
-                  <option key={carrier.id} value={carrier.id}>{carrier.name}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Loại xe
-              <select
+                options={[
+                  { value: '', label: 'Tất cả nhà xe' },
+                  ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
+                ]}
+                inline
+              />
+            <UuiSelectField
+                label="Loại xe"
                 value={ownership}
                 onChange={(event) =>
                   onFilterChange('ownership', event.target.value)
                 }
-              >
-                <option value="">Tất cả</option>
-                <option value="OWN">Xe nhà</option>
-                <option value="EXTERNAL">Nhà xe ngoài</option>
-              </select>
-            </label>
-            <label>
-              Điều kiện
-              <select
+                options={[
+                  { value: '', label: 'Tất cả' },
+                  { value: 'OWN', label: 'Xe nhà' },
+                  { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
+                ]}
+                inline
+              />
+            <UuiSelectField
+                label="Điều kiện"
                 value={readiness}
                 onChange={(event) =>
                   onFilterChange('readiness', event.target.value)
                 }
-              >
-                <option value="">Tất cả</option>
-                <option value="READY">Sẵn sàng</option>
-                <option value="MISSING_PROFITABILITY_SNAPSHOT">
-                  Thiếu dữ liệu lợi nhuận
-                </option>
-              </select>
-            </label>
+                options={[
+                  { value: '', label: 'Tất cả' },
+                  { value: 'READY', label: 'Sẵn sàng' },
+                  { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
+                ]}
+                inline
+              />
           </div>
         </form>
       </header>

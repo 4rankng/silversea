@@ -9,7 +9,7 @@ import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { AssetIcon } from '../components/AssetIcon';
-import { EmptyState, Pagination, DateInput } from '../design-system';
+import { EmptyState, Pagination, DateInput, UuiSelectField } from '../design-system';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -223,40 +223,46 @@ export default function ExpenseListPage() {
 
       {/* ── Filter Bar ───────────────────────────────────────────────── */}
       <div className="expense-filter-bar">
-        <select
-          className="expense-filter-bar__select"
-          value={supplierId}
+        <UuiSelectField
+          id="expense-supplier-filter"
+          label="Nhà cung cấp"
+          inline
+          value={supplierId === null || supplierId === undefined ? '' : String(supplierId)}
           disabled={loadingExpenseCatalogs}
           onChange={e => { setSupplierId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
-        >
-          <option value="">{loadingExpenseCatalogs ? 'Đang tải NCC…' : 'Tất cả NCC'}</option>
-          {suppliers.map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+          controlClassName="expense-filter-bar__select"
+          options={[
+            { value: '', label: loadingExpenseCatalogs ? 'Đang tải NCC…' : 'Tất cả NCC' },
+            ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+          ]}
+        />
 
-        <select
-          className="expense-filter-bar__select"
-          value={categoryId}
+        <UuiSelectField
+          id="expense-category-filter"
+          label="Hạng mục"
+          inline
+          value={categoryId === null || categoryId === undefined ? '' : String(categoryId)}
           disabled={loadingExpenseCatalogs}
           onChange={e => { setCategoryId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
-        >
-          <option value="">{loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Tất cả hạng mục'}</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+          controlClassName="expense-filter-bar__select"
+          options={[
+            { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Tất cả hạng mục' },
+            ...categories.map(c => ({ value: String(c.id), label: c.name })),
+          ]}
+        />
 
-        <select
-          className="expense-filter-bar__select"
-          value={truckId}
+        <UuiSelectField
+          id="expense-truck-filter"
+          label="Xe"
+          inline
+          value={truckId === null || truckId === undefined ? '' : String(truckId)}
           onChange={e => { setTruckId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
-        >
-          <option value="">Tất cả xe</option>
-          {trucks.map(t => (
-            <option key={t.id} value={t.id}>{t.licensePlate}</option>
-          ))}
-        </select>
+          controlClassName="expense-filter-bar__select"
+          options={[
+            { value: '', label: 'Tất cả xe' },
+            ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
+          ]}
+        />
 
         <div className="expense-filter-bar__divider" />
 

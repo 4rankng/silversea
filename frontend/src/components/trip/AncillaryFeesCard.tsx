@@ -13,6 +13,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { qk } from '../../api/keys';
 import { AncillaryEmptyState, AncillaryMobileTotals, AncillaryTableTotals, EMPTY_FORM, feeTypeLabel, resolveMarkupConfig, suggestedSellFor, type AncillaryFeesCardProps } from './ancillary-fees-card-utils';
 import { DateInput } from '../../design-system/forms/DateInput';
+import { UuiSelectField } from '../../design-system';
 
 export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = false }: AncillaryFeesCardProps) {
   const queryClient = useQueryClient();
@@ -483,21 +484,16 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div className="field">
-                    <label style={{ fontSize: 12 }}>Loại phí *</label>
-                    <select
-                      className="input"
-                      value={form.expenseType}
-                      onChange={(e) => handleExpenseTypeChange(e.target.value)}
-                    >
-                      {(catalogData?.forwarderExpenseTypes && catalogData.forwarderExpenseTypes.length > 0
+                  <UuiSelectField
+                    id="expense-type-select"
+                    label="Loại phí *"
+                    value={form.expenseType}
+                    onChange={(e) => handleExpenseTypeChange(e.target.value)}
+                    options={(catalogData?.forwarderExpenseTypes && catalogData.forwarderExpenseTypes.length > 0
                         ? catalogData.forwarderExpenseTypes
                         : ANCILLARY_EXPENSE_TYPES.map(t => ({ code: t, name: feeTypeLabel(t) }))
-                      ).map(t => (
-                        <option key={t.code} value={t.code}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                      ).map(t => ({ value: t.code, label: t.name }))}
+                  />
 
                   <div className="field">
                     <label style={{ fontSize: 12 }}>Số tiền gốc *</label>

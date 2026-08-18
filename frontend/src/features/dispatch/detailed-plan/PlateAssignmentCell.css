@@ -24,8 +24,9 @@
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
 
+/* Stay absolute so keyboard focus never shrinks the cell's hit area;
+   z-index alone lifts the ring above the td's stacking context. */
 .dispatch-assignment-cell__trigger:focus-visible {
-  position: relative;
   z-index: 1;
   outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
   outline-offset: -2px;
@@ -132,7 +133,9 @@
     inset: auto;
   }
 
-  .detailed-plan-grid__cell--editable::before {
+  /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
+     label rule (equal class specificity would lose on bundle order). */
+  td.detailed-plan-grid__cell--editable::before {
     display: none;
   }
 

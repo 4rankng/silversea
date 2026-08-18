@@ -3,6 +3,7 @@ import './JourneyLegRow.css';
 import { Trash2 } from 'lucide-react';
 import type { FormLeg } from '../../hooks/useTripForm';
 import { LocationAutocomplete } from '../LocationAutocomplete';
+import { UuiSelectField } from '../../design-system';
 
 interface JourneyLegRowProps {
   leg: FormLeg;
@@ -55,10 +56,18 @@ export function JourneyLegRow({ leg, onRemove, onUpdate, canRemove }: JourneyLeg
         </div>
         <div>
           <div className="leg-card__mini-label">Tải trọng</div>
-          <select className="input input--sm" value={leg.loadingType} onChange={(e) => onUpdate('loadingType', e.target.value)}>
-            <option value="HANG">Có hàng</option>
-            <option value="VO">Vỏ rỗng</option>
-          </select>
+          <UuiSelectField
+            id={`loading-type-${leg.sequence}`}
+            label="Tải trọng"
+            hideLabel
+            value={leg.loadingType}
+            onChange={(e) => onUpdate('loadingType', e.target.value)}
+            options={[
+              { value: 'HANG', label: 'Có hàng' },
+              { value: 'VO', label: 'Vỏ rỗng' },
+            ]}
+            controlClassName="input--sm"
+          />
         </div>
       </div>
     </div>

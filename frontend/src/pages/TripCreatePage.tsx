@@ -17,7 +17,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useDirtyGuard } from '../hooks/useDirtyGuard';
 import { useConfirm } from '../components/UI';
-import { Pagination } from '../design-system';
+import { Pagination, UuiSelectField } from '../design-system';
 import { useAuth } from '../hooks/useAuth';
 import type { CreditOverrideRequestRecord } from '../api/creditOverrideClient';
 import {
@@ -328,21 +328,20 @@ export default function TripCreatePage() {
                 <strong>{estimatedProposedAmount > 0 ? formatCurrency(estimatedProposedAmount) : 'Chưa xác định'}</strong>
               </div>
               <div style={creditMetricStyle}>
-                <span style={creditMetricLabelStyle}>Đề nghị hiện có</span>
-                <select
-                  className="input"
+                <UuiSelectField
+                  label="Đề nghị hiện có"
                   value={creditRequestIdInput}
                   onChange={(event) => setCreditRequestIdInput(event.target.value)}
-                >
-                  <option value="">Chọn theo lý do và trạng thái</option>
-                  {(creditQueue.data?.items ?? [])
-                    .filter((request) => request.shipmentId == null && request.status !== 'CANCELED')
-                    .map((request) => (
-                      <option key={request.id} value={request.id}>
-                        {request.reason} · {request.status === 'APPROVED' ? 'Đã duyệt' : request.status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}
-                      </option>
-                    ))}
-                </select>
+                  options={[
+                    { value: '', label: 'Chọn theo lý do và trạng thái' },
+                    ...(creditQueue.data?.items ?? [])
+                      .filter((request) => request.shipmentId == null && request.status !== 'CANCELED')
+                      .map((request) => ({
+                        value: String(request.id),
+                        label: `${request.reason} · ${request.status === 'APPROVED' ? 'Đã duyệt' : request.status === 'REJECTED' ? 'Đã từ chối' : 'Chờ duyệt'}`
+                      }))
+                  ]}
+                />
               </div>
             </div>
 

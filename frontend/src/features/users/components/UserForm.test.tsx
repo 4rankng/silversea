@@ -123,9 +123,10 @@ describe('customer account scope', () => {
       />,
     );
 
-    fireEvent.change(screen.getByText('Vai trò').closest('label')!.querySelector('select')!, {
-      target: { value: Role.CUSTOMER },
-    });
+    // UuiSelectField pattern: trigger button -> click option
+    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    fireEvent.click(roleTrigger);
+    fireEvent.click(screen.getByRole('option', { name: /Khách hàng/i }));
 
     const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(true);
@@ -134,10 +135,11 @@ describe('customer account scope', () => {
     fireEvent.click(screen.getAllByRole('checkbox', { name: /SilverSea Miền Nam/ })[0]!);
     fireEvent.click(screen.getByRole('checkbox', { name: /SilverSea Miền Bắc/ }));
     expect((submitButton as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(
-      screen.getByText('Loại phạm vi cổng khách hàng').closest('label')!.querySelector('select')!,
-      { target: { value: CustomerAccountType.CORPORATE_GROUP } },
-    );
+
+    const accountTypeTrigger = screen.getByRole('button', { name: /Loại phạm vi/i });
+    fireEvent.click(accountTypeTrigger);
+    fireEvent.click(screen.getByRole('option', { name: /Nhóm công ty/i }));
+
     expect((submitButton as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(submitButton);
@@ -267,9 +269,9 @@ describe('customer account scope', () => {
       />,
     );
 
-    fireEvent.change(screen.getByText('Vai trò').closest('label')!.querySelector('select')!, {
-      target: { value: Role.CUS },
-    });
+    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    fireEvent.click(roleTrigger);
+    fireEvent.click(screen.getByRole('option', { name: /Nhân viên CSKH/i }));
 
     const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(true);
@@ -394,9 +396,9 @@ describe('customer account scope', () => {
       />,
     );
 
-    fireEvent.change(screen.getByText('Vai trò').closest('label')!.querySelector('select')!, {
-      target: { value: Role.ACCOUNTANT },
-    });
+    const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
+    fireEvent.click(roleTrigger);
+    fireEvent.click(screen.getByRole('option', { name: /Kế toán/i }));
 
     expect(screen.getByText('Phạm vi khách hàng của kế toán')).toBeTruthy();
     expect(screen.getByText(/Nếu để trống, kế toán có phạm vi tài chính toàn công ty/)).toBeTruthy();

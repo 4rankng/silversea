@@ -3,6 +3,7 @@ import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import type { Truck as TruckType, Driver } from '@tingting/shared';
 import { DRIVER_STATUS } from './constants';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen, showSalary = true }: {
   saving: boolean; item?: Driver; trucks: TruckType[]; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -110,16 +111,28 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
           <div className="fleet-form__grid">
             <div className="field fleet-form__field">
               <label htmlFor="driver-truck">Xe phân công</label>
-              <select id="driver-truck" className="input" value={truckId} onChange={e => setTruckId(Number(e.target.value))}>
-                <option value={0}>— Chưa phân —</option>
-                {trucks.filter(t => t.status === 'ACTIVE').map(t => <option key={t.id} value={t.id}>{t.licensePlate}</option>)}
-              </select>
+              <UuiSelectField
+                id="driver-truck"
+                label="Xe phân công"
+                value={String(truckId)}
+                onChange={(e) => setTruckId(Number(e.target.value))}
+                options={[
+                  { value: '0', label: '— Chưa phân —' },
+                  ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
+                ]}
+                wrapperClassName="input"
+              />
             </div>
             <div className="field fleet-form__field">
               <label htmlFor="driver-status">Trạng thái</label>
-              <select id="driver-status" className="input" value={status} onChange={e => setStatus(e.target.value)}>
-                {Object.entries(DRIVER_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              <UuiSelectField
+                id="driver-status"
+                label="Trạng thái"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
+                wrapperClassName="input"
+              />
             </div>
           </div>
         </section>

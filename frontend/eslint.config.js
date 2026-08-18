@@ -86,6 +86,45 @@ const noAny = {
 };
 
 // ---------------------------------------------------------------------------
+// T4.1.4 — Custom rule: ban native <select> in JSX (macOS picker visual bug)
+//
+// Native selects render OS-owned menus (translucent macOS dropdowns) that
+// ignore app theming and overflow their containers — a recurring visual bug.
+// All selects must use the shared Untitled UI adapter
+// (design-system/forms/UuiSelectField). The vendored UUI base keeps its
+// native-select accessibility fallback.
+// ---------------------------------------------------------------------------
+const noNativeSelect = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description: 'Ban native <select> in JSX — use UuiSelectField from design-system/forms',
+    },
+    schema: [],
+    messages: {
+      noNativeSelect:
+        "Native <select> renders the OS-styled picker menu (the recurring macOS dropdown visual bug). Use UuiSelectField from 'design-system/forms/UuiSelectField' (or SelectField for the children API).",
+    },
+  },
+  create(context) {
+    return {
+      /** JSX <select> elements, including member expressions like Foo.Select */
+      JSXOpeningElement(node) {
+        const name = node.name;
+        const isPlainSelect =
+          name.type === 'JSXIdentifier' && name.name === 'select';
+        const isMemberSelect =
+          name.type === 'JSXMemberExpression' &&
+          name.property.name === 'Select';
+        if (isPlainSelect || isMemberSelect) {
+          context.report({ node, messageId: 'noNativeSelect' });
+        }
+      },
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Local plugin container for @tingting namespace rules
 // ---------------------------------------------------------------------------
 const tingtingPlugin = {
@@ -93,6 +132,7 @@ const tingtingPlugin = {
   rules: {
     'no-bare-query-key': noBareQueryKey,
     'no-any': noAny,
+    'no-native-select': noNativeSelect,
   },
 };
 
@@ -170,16 +210,31 @@ export default defineConfig([
       // ---- TingTing custom rules ----
       '@tingting/no-bare-query-key': 'error',
       '@tingting/no-any': 'warn',
+      '@tingting/no-native-select': 'error',
+    },
+  },
+
+  // Test files may keep native <select> as component doubles: they render in
+  // jsdom (never shown to users, so the OS-picker visual bug cannot occur)
+  // and `fireEvent.change` semantics rely on a real select element.
+  {
+    files: ['**/*.test.tsx', '**/*.test.ts'],
+    rules: {
+      '@tingting/no-native-select': 'off',
     },
   },
 
   // Untitled UI CLI-managed components are vendored canonical source — never
   // edited locally, so stylistic rules that fire on upstream code are relaxed.
+  // The UUI select base also owns the one sanctioned native <select>: its
+  // screen-reader accessibility fallback (select-native.tsx), so the
+  // no-native-select guard is off there.
   {
     files: ['src/components/untitled-ui/**'],
     rules: {
       '@typescript-eslint/no-empty-object-type': 'off',
       'prefer-const': 'off',
+      '@tingting/no-native-select': 'off',
     },
   },
 

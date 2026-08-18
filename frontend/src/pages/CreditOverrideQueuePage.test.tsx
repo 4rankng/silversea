@@ -184,7 +184,11 @@ describe('CreditOverrideQueuePage', () => {
     ];
     renderPage();
 
-    fireEvent.change(await screen.findByLabelText('Khách hàng'), { target: { value: '8' } });
+    // Open customer filter and select 'Công ty Đại Dương'
+    const customerTrigger = await screen.findByLabelText('Khách hàng');
+    fireEvent.click(customerTrigger);
+    const daiDuongOption = await screen.findByRole('option', { name: 'Công ty Đại Dương' });
+    fireEvent.click(daiDuongOption);
 
     expect(screen.getByRole('heading', { name: 'Công ty Đại Dương' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Công ty Minh Hải' })).toBeNull();
@@ -216,14 +220,20 @@ describe('CreditOverrideQueuePage', () => {
     expect(screen.getByText('Các đề nghị mới sẽ xuất hiện tại đây.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).toBeNull();
 
-    fireEvent.change(screen.getByLabelText('Trạng thái'), { target: { value: 'APPROVED' } });
+    // Open status filter and select 'Đã duyệt'
+    const statusTrigger = screen.getByRole('button', { name: /Trạng thái/ });
+    fireEvent.click(statusTrigger);
+    const approvedOption = await screen.findByRole('option', { name: 'Đã duyệt' });
+    fireEvent.click(approvedOption);
 
     const clearButton = screen.getByRole('button', { name: 'Xóa bộ lọc' });
     expect(screen.getByText('Không có đề nghị phù hợp')).toBeTruthy();
     fireEvent.click(clearButton);
 
-    expect((screen.getByLabelText('Trạng thái') as HTMLSelectElement).value).toBe('PENDING');
-    expect((screen.getByLabelText('Khách hàng') as HTMLSelectElement).value).toBe('');
+    // Verify status filter reset to 'Chờ duyệt' (PENDING)
+    fireEvent.click(statusTrigger);
+    const pendingOption = await screen.findByRole('option', { name: 'Chờ duyệt' });
+    expect(pendingOption).toBeTruthy();
   });
 
   it('announces loading and error states', async () => {

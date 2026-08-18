@@ -180,9 +180,10 @@ describe('TripPodReviewPanel', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/Thuế VAT khi hoàn thành/i), {
-      target: { value: '0.08' },
-    });
+    const vatTrigger = screen.getByRole('button', { name: /Thuế VAT khi hoàn thành/i });
+    fireEvent.click(vatTrigger);
+    const vatOption = await screen.findByRole('option', { name: '8%' });
+    fireEvent.click(vatOption);
     fireEvent.click(screen.getByRole('button', { name: /Hoàn thành lô hàng/i }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Xác nhận hoàn thành/i }));
@@ -219,9 +220,10 @@ describe('TripPodReviewPanel', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText(/Thuế VAT khi hoàn thành/i), {
-      target: { value: '0.08' },
-    });
+    const vatTrigger = screen.getByRole('button', { name: /Thuế VAT khi hoàn thành/i });
+    fireEvent.click(vatTrigger);
+    const vatOption = await screen.findByRole('option', { name: '8%' });
+    fireEvent.click(vatOption);
     fireEvent.click(screen.getByRole('button', { name: /Hoàn thành lô hàng/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /doanh thu 0/i }));
     fireEvent.click(screen.getByRole('button', { name: /Xác nhận hoàn thành/i }));

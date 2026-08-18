@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { getActiveCapTable } from '../lib/cap-table';
-import { PageHeader, Card, FormGroup, useConfirm } from '../components/UI';
+import { PageHeader, Card, useConfirm } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { formatCurrency as formatVND } from '../lib/format';
@@ -24,6 +24,7 @@ import './ProfitPage.css';
 import './WorkflowFinance.css';
 import { ProfitabilityReportPanel } from '../components/finance/ProfitabilityReportPanel';
 import { useAuth } from '../hooks/useAuth';
+import { UuiSelectField } from '../design-system';
 
 /** B2 — render a partner-role tag. Driver-contributors get a distinct "Lái xe"
  * label so investors and drivers are visually distinguishable in the per-truck
@@ -411,26 +412,20 @@ export default function ProfitPage() {
             >
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  <FormGroup label="Chọn Quý">
-                    <select
-                      className="input"
-                      style={{ minWidth: 120, flex: '1 1 auto' }}
-                      value={selectedQuarter}
-                      onChange={e => { setSelectedQuarter(Number(e.target.value)); setPreview(null); }}
-                    >
-                      {[1, 2, 3, 4].map(q => <option key={q} value={q}>Quý {q}</option>)}
-                    </select>
-                  </FormGroup>
-                  <FormGroup label="Năm quyết toán">
-                    <select
-                      className="input"
-                      style={{ minWidth: 120, flex: '1 1 auto' }}
-                      value={distQuarterYear}
-                      onChange={e => { setDistQuarterYear(Number(e.target.value)); setPreview(null); }}
-                    >
-                      {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>Năm {y}</option>)}
-                    </select>
-                  </FormGroup>
+                  <UuiSelectField
+                    label="Chọn Quý"
+                    value={String(selectedQuarter)}
+                    onChange={e => { setSelectedQuarter(Number(e.target.value)); setPreview(null); }}
+                    options={[1, 2, 3, 4].map(q => ({ value: String(q), label: `Quý ${q}` }))}
+                    inline
+                  />
+                  <UuiSelectField
+                    label="Năm quyết toán"
+                    value={String(distQuarterYear)}
+                    onChange={e => { setDistQuarterYear(Number(e.target.value)); setPreview(null); }}
+                    options={[2024, 2025, 2026, 2027].map(y => ({ value: String(y), label: `Năm ${y}` }))}
+                    inline
+                  />
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
                   <button

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -22,20 +23,26 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
   return (
     <InlineForm colSpan={7}>
       <div style={{ flex: 2, minWidth: 180 }}>
-        <Field label="Khách hàng">
-          <select className="input" value={customerId} onChange={e => setCustomerId(Number(e.target.value))}>
-            <option value={0}>-- Chọn --</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Khách hàng"
+          value={String(customerId)}
+          onChange={e => setCustomerId(Number(e.target.value))}
+          options={[
+            { value: '0', label: '-- Chọn --' },
+            ...customers.map(c => ({ value: String(c.id), label: c.shortName || c.name })),
+          ]}
+        />
       </div>
       <div style={{ flex: 2, minWidth: 180 }}>
-        <Field label="Tuyến đường">
-          <select className="input" value={routeId} onChange={e => setRouteId(Number(e.target.value))}>
-            <option value={0}>-- Chọn --</option>
-            {routes.map(r => <option key={r.id} value={r.id}>{r.shortName || r.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Tuyến đường"
+          value={String(routeId)}
+          onChange={e => setRouteId(Number(e.target.value))}
+          options={[
+            { value: '0', label: '-- Chọn --' },
+            ...routes.map(r => ({ value: String(r.id), label: r.shortName || r.name })),
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Giá (đ)"><input className="input" type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" /></Field>
@@ -44,12 +51,15 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
         <Field label="Lớp giá"><input className="input" value={rateKey} onChange={e => { setRateKey(e.target.value.toUpperCase()); if (e.target.value) setContainerTypeId(''); }} placeholder="CONT20, 5T…" maxLength={32} /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
-        <Field label="Loại container">
-          <select className="input" value={containerTypeId} onChange={e => { setContainerTypeId(e.target.value); if (e.target.value) setRateKey(''); }}>
-            <option value="">— Không áp dụng —</option>
-            {containerTypes.map((type) => <option key={type.id} value={type.id}>{type.code} — {type.name}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Loại container"
+          value={containerTypeId}
+          onChange={e => { setContainerTypeId(e.target.value); if (e.target.value) setRateKey(''); }}
+          options={[
+            { value: '', label: '— Không áp dụng —' },
+            ...containerTypes.map((type) => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
         <Field label="Hiệu lực từ"><DateInput className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>

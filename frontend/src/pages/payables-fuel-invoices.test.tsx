@@ -90,6 +90,28 @@ vi.mock('../design-system', () => ({
       ))}
     </select>
   ),
+  UuiSelectField: ({
+    id,
+    label,
+    value,
+    onChange,
+    options,
+  }: {
+    id?: string;
+    label?: string;
+    value: string;
+    onChange: (e: { target: { value: string } }) => void;
+    options: Array<{ value: string; label: string }>;
+  }) => (
+    <div>
+      {label && <label>{label}</label>}
+      <select id={id} aria-label={label || id} value={value} onChange={onChange}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </div>
+  ),
   DateInput: ({ id, value, onChange, ...rest }: { id?: string; value: string; onChange: (value: string) => void; [k: string]: unknown }) => (
     <input
       id={id}

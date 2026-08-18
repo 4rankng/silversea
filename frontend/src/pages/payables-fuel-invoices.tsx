@@ -8,7 +8,7 @@ import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { round2dp } from '../lib/round';
 import { Panel, Modal } from '../components/UI';
-import { SearchableSelect, DateInput } from '../design-system';
+import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import { useAuth } from '../hooks/useAuth';
 import { useAllSuppliers } from '../hooks/useCatalogQueries';
 import {
@@ -344,19 +344,17 @@ function TripExpenseReferenceSelect({
   }
 
   return (
-    <select
-      className="input"
-      value={value ?? ''}
+    <UuiSelectField
+      label="Liên kết chi phí nhiên liệu đã duyệt"
+      hideLabel
+      value={value === null || value === undefined ? '' : String(value)}
       onChange={(event) => onChange(event.target.value ? Number(event.target.value) : null)}
       aria-label="Liên kết chi phí nhiên liệu đã duyệt"
-    >
-      <option value="">Chọn chi phí nhiên liệu đã duyệt</option>
-      {options.map((expense) => (
-        <option key={expense.id} value={expense.id}>
-          {formatDate(expense.expenseDate ?? expense.createdAt)} · {formatCurrency(expense.buyAmount)}
-        </option>
-      ))}
-    </select>
+      options={[{ value: '', label: 'Chọn chi phí nhiên liệu đã duyệt' }, ...options.map((expense) => ({
+        value: String(expense.id),
+        label: `${formatDate(expense.expenseDate ?? expense.createdAt)} · ${formatCurrency(expense.buyAmount)}`
+      }))]}
+    />
   );
 }
 
@@ -846,30 +844,29 @@ export function FuelInvoicesPanel() {
               aria-label="Tìm hóa đơn nhiên liệu"
             />
           </div>
-          <select
-            className="input fuel-invoices-toolbar__select"
+          <UuiSelectField
+            label="Lọc nhà cung cấp nhiên liệu"
+            hideLabel
             value={supplierFilter}
             onChange={(event) => setSupplierFilter(event.target.value)}
             aria-label="Lọc nhà cung cấp nhiên liệu"
-          >
-            <option value="">Tất cả nhà cung cấp nhiên liệu</option>
-            {suppliers
+            options={[{ value: '', label: 'Tất cả nhà cung cấp nhiên liệu' }, ...suppliers
               .slice()
               .sort((left, right) => left.name.localeCompare(right.name, 'vi'))
-              .map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-              ))}
-          </select>
-          <select
-            className="input fuel-invoices-toolbar__select"
+              .map((supplier) => ({ value: String(supplier.id), label: supplier.name }))]}
+            inline
+            controlClassName="fuel-invoices-toolbar__select"
+          />
+          <UuiSelectField
+            label="Lọc trạng thái hóa đơn nhiên liệu"
+            hideLabel
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value as FuelInvoiceStatus | '')}
             aria-label="Lọc trạng thái hóa đơn nhiên liệu"
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.label} value={option.value}>{option.label}</option>
-            ))}
-          </select>
+            options={STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            inline
+            controlClassName="fuel-invoices-toolbar__select"
+          />
         </div>
 
         {invoicesQuery.error && (

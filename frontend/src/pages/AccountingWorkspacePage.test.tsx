@@ -112,8 +112,13 @@ describe('AccountingWorkspacePage', () => {
     expect(await screen.findByRole('heading', { name: 'Sổ đối chiếu vận tải' })).toBeTruthy();
     expect((await screen.findAllByText('C-009')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Sẵn sàng').length).toBeGreaterThan(0);
-    expect(screen.getByRole('option', { name: 'Silver Sea' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Nhà xe Minh Phát' })).toBeTruthy();
+    // Options live in the UUI popover — open each filter to list its options.
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/ }));
+    expect(await screen.findByRole('option', { name: 'Silver Sea' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: /Nhà xe/ }));
+    expect(await screen.findByRole('option', { name: 'Nhà xe Minh Phát' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
     expect(screen.getAllByRole('link', { name: /Công nợ|Mở công nợ/ })[0].getAttribute('href')).toBe('/debt/5');
     expect(getMock).toHaveBeenCalledWith(expect.stringContaining('/finance/billing-documents/transport-register?'));
 
@@ -122,7 +127,8 @@ describe('AccountingWorkspacePage', () => {
     expect(screen.getByRole('link', { name: 'Tạo bản nháp giấy báo nợ' }).getAttribute('href'))
       .toBe('/debt/5/billing/new?selectedTripIds=9&from=2026-08-01&to=2026-08-01');
 
-    fireEvent.change(screen.getByLabelText('Khách hàng'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Silver Sea' }));
     await waitFor(() => expect(getMock).toHaveBeenCalledWith(expect.stringContaining('customerId=5')));
   });
 });

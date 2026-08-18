@@ -10,7 +10,7 @@ import { labelStyle } from '../utils/formStyles';
 import { downloadCSV } from '../lib/csv';
 import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField } from '../design-system';
 import type { Supplier, Customer } from '@tingting/shared';
 import { CONFIG, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS } from '@tingting/shared';
 import { useSuppliers } from '../hooks/useQueries';
@@ -123,12 +123,14 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
             <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
           </div>
-          <div className="field">
-            <label htmlFor="supp-status" style={labelStyle}>Trạng thái</label>
-            <select id="supp-status" className="input" value={status} onChange={e => setStatus(e.target.value)}>
-              {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </div>
+          <UuiSelectField
+            id="supp-status"
+            label="Trạng thái"
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            options={Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+            wrapperClassName="field"
+          />
         </div>
         <div className="supplier-form-grid">
           <div className="field">
@@ -172,20 +174,14 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             />
           </div>
         </div>
-        <div className="field">
-          <label htmlFor="supp-linked-customer" style={labelStyle}>Khách hàng liên quan</label>
-          <select
-            id="supp-linked-customer"
-            className="input"
-            value={linkedCustomerId ?? ''}
-            onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">-- Không liên kết --</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+        <UuiSelectField
+          id="supp-linked-customer"
+          label="Khách hàng liên quan"
+          value={linkedCustomerId === null || linkedCustomerId === undefined ? '' : String(linkedCustomerId)}
+          onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
+          options={[{ value: '', label: '-- Không liên kết --' }, ...customers.map(c => ({ value: String(c.id), label: c.name }))]}
+          wrapperClassName="field"
+        />
         <div className="field">
           <label style={labelStyle}>Nhóm dịch vụ</label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
@@ -215,24 +211,16 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             ))}
           </div>
         </div>
-        <div className="field">
-          <label htmlFor="supp-primary-type" style={labelStyle}>Nhóm chính cho báo cáo</label>
-          <select
-            id="supp-primary-type"
-            className="input"
-            value={primaryType}
-            onChange={(e) => setPrimaryType(e.target.value)}
-            disabled={types.length === 0}
-          >
-            <option value="">-- Không chọn nhóm chính --</option>
-            {types.map((type) => (
-              <option key={type} value={type}>{SUPPLIER_TYPE_LABELS[type as keyof typeof SUPPLIER_TYPE_LABELS]}</option>
-            ))}
-          </select>
-          <div style={{ marginTop: 6, fontSize: 12, color: 'var(--ink-3)' }}>
-            Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế.
-          </div>
-        </div>
+        <UuiSelectField
+          id="supp-primary-type"
+          label="Nhóm chính cho báo cáo"
+          value={primaryType}
+          onChange={(e) => setPrimaryType(e.target.value)}
+          disabled={types.length === 0}
+          options={[{ value: '', label: '-- Không chọn nhóm chính --' }, ...types.map((type) => ({ value: type, label: SUPPLIER_TYPE_LABELS[type as keyof typeof SUPPLIER_TYPE_LABELS] }))]}
+          hint="Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế."
+          wrapperClassName="field"
+        />
       </div>
     </Modal>
   );

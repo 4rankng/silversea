@@ -3,6 +3,7 @@ import {
   TripStatus, TRIP_STATUS_COLORS,
   type TripDetail,
 } from '@tingting/shared';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 export interface StatusCounts {
   all: number;
@@ -95,15 +96,17 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
         <label className={`filter-pill${truckFilter ? ' has-value' : ''}`}>
           <div className="filter-lbl-wrap">
             <span className="filter-lbl-cap">Phương tiện</span>
-            <select
-              value={truckFilter}
+            <UuiSelectField
+              label="Phương tiện"
+              hideLabel
+              value={truckFilter === null || truckFilter === undefined ? '' : String(truckFilter)}
               onChange={(e) => onTruckFilter(e.target.value ? Number(e.target.value) : '')}
-            >
-              <option value="">Tất cả xe</option>
-              {truckOptions.map((t) => (
-                <option key={t.id} value={t.id}>{t.licensePlate}</option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Tất cả xe' },
+                ...truckOptions.map((t) => ({ value: String(t.id), label: t.licensePlate })),
+              ]}
+              inline
+            />
           </div>
           {CHEVRON}
         </label>
@@ -111,15 +114,17 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
         <label className={`filter-pill${customerFilter ? ' has-value' : ''}`}>
           <div className="filter-lbl-wrap">
             <span className="filter-lbl-cap">Khách hàng</span>
-            <select
-              value={customerFilter}
+            <UuiSelectField
+              label="Khách hàng"
+              hideLabel
+              value={customerFilter === null || customerFilter === undefined ? '' : String(customerFilter)}
               onChange={(e) => onCustomerFilter(e.target.value ? Number(e.target.value) : '')}
-            >
-              <option value="">Tất cả khách hàng</option>
-              {customerOptions.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'Tất cả khách hàng' },
+                ...customerOptions.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+              inline
+            />
           </div>
           {CHEVRON}
         </label>

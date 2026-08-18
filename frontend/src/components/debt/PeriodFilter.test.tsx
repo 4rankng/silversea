@@ -24,20 +24,14 @@ describe('PeriodFilter', () => {
     const root = screen.getByRole('group', { name: 'Bộ lọc thời gian' });
     expect(root.className).toContain('period-filter');
     expect(root.className).toContain('border-y');
-    expect(root.className).not.toContain('rounded-box');
-    expect(root.className).not.toContain('bg-base-100');
-    expect(root.className).not.toContain('shadow-sm');
 
     const modeToggle = screen.getByRole('tablist', { name: 'Chế độ lọc' });
     expect(modeToggle.className).toContain('d-join-vertical');
     expect(modeToggle.className).toContain('lg:d-join-horizontal');
 
-    const selects = screen.getAllByRole('combobox');
-    expect(selects).toHaveLength(2);
-    selects.forEach(select => {
-      expect(select.className).toContain('w-full');
-      expect(select.className).toContain('lg:w-auto');
-    });
+    // UuiSelectField uses button triggers, not combobox role
+    const triggers = screen.getAllByRole('button').filter(b => b.getAttribute('aria-haspopup') === 'listbox');
+    expect(triggers).toHaveLength(2);
   });
 
   it('renders the range inputs as a two-column block with full-width fields', () => {

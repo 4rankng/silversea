@@ -14,10 +14,12 @@
 .csc-section__heading > span { display: inline-grid; place-items: center; width: 24px; height: 24px; flex: 0 0 auto; border-radius: 6px; background: var(--brand-subtle, #eff6ff); color: var(--accent, #2563eb); font-size: 11px; font-weight: 800; }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: 15px; line-height: 1.3; }
 .csc-section__heading p { margin: 1px 0 0; color: var(--fg-3); font-size: 12px; line-height: 1.35; }
-.csc-section .ds-field__input, .csc-section .ds-select-trigger { background: var(--surface-2); }
+.csc-section .ds-field__input { background: var(--surface-2); }
 .csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-searchable-field > label { color: var(--fg-1); font-size: 14px; font-weight: 600; }
-.csc-searchable-field--error .ds-select-trigger { border-color: var(--danger); }
+/* Selects migrated to the shared adapter: `ds-uui-*` classes
+ * (design-system/forms/UuiSelectField.css, global) own the visuals. The
+ * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
 .csc-identity-grid__customer { grid-column: span 6; }
@@ -97,6 +99,11 @@
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
 .csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 9px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+/* Retired with the shared adapter promotion: control boundary + popover skin
+ * now live in design-system/forms/UuiSelectField.css (`ds-uui-boundary`). The
+ * csc-control-boundary rules below remain for the clerk page's input/textarea
+ * fields (UTextField/UDateField), which still use the marker. */
+
 .csc-control-boundary > [role='presentation'],
 .csc-control-boundary [data-input-wrapper='true'],
 .csc-control-boundary [role='group'],

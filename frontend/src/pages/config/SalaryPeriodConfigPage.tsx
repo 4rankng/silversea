@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
-import { Field } from '../../components/config/Field';
+import { UuiSelectField } from '../../design-system';
 import { CalendarDays, Settings2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
@@ -155,36 +155,32 @@ export default function SalaryPeriodConfigPage() {
           {/* Configuration Inputs */}
           {mode === 'custom' ? (
             <div className="sp-default-card__fields">
-              <Field label="Ngày bắt đầu (tháng trước)">
-                <select
-                  className="input"
-                  value={startDay}
-                  onChange={e => {
-                    const val = Number(e.target.value);
-                    setStartDay(val);
-                    // Automatically adjust endDay if it's no longer valid/contiguous
-                    if (endDay >= val) {
-                      setEndDay(val - 1);
-                    }
-                  }}
-                >
-                  {Array.from({ length: 27 }, (_, i) => i + 2).map(d => (
-                    <option key={d} value={d}>Ngày {d}</option>
-                  ))}
-                </select>
-              </Field>
+              <UuiSelectField
+                label="Ngày bắt đầu (tháng trước)"
+                value={String(startDay)}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setStartDay(val);
+                  // Automatically adjust endDay if it's no longer valid/contiguous
+                  if (endDay >= val) {
+                    setEndDay(val - 1);
+                  }
+                }}
+                options={Array.from({ length: 27 }, (_, i) => i + 2).map(d => ({
+                  value: String(d),
+                  label: `Ngày ${d}`,
+                }))}
+              />
 
-              <Field label="Ngày kết thúc (tháng này)">
-                <select
-                  className="input"
-                  value={endDay}
-                  onChange={e => setEndDay(Number(e.target.value))}
-                >
-                  {Array.from({ length: startDay - 1 }, (_, i) => i + 1).map(d => (
-                    <option key={d} value={d}>Ngày {d}</option>
-                  ))}
-                </select>
-              </Field>
+              <UuiSelectField
+                label="Ngày kết thúc (tháng này)"
+                value={String(endDay)}
+                onChange={e => setEndDay(Number(e.target.value))}
+                options={Array.from({ length: startDay - 1 }, (_, i) => i + 1).map(d => ({
+                  value: String(d),
+                  label: `Ngày ${d}`,
+                }))}
+              />
 
               <div className="sp-preview">
                 <span className="sp-preview__label">Ví dụ (tháng này):</span>

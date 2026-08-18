@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { labelStyle } from '../../utils/formStyles';
 import { Plus, Trash2, Loader2, Save, X, Mountain } from 'lucide-react';
 import { Modal } from '../../components/UI';
+import { UuiSelectField } from '../../design-system';
 import { LocationAutocomplete } from '../../components/LocationAutocomplete';
 import { calculateRoute } from '../../lib/maps';
 import { LeafletMap } from '../../components/shared/LeafletMap';
@@ -279,10 +280,18 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
                   <input className="input input--sm w-full" type="number" placeholder="Km" value={leg.km} onChange={e => updateLeg(leg.id, 'km', e.target.value)} />
                 </div>
                 <div className="w-[100px] shrink-0">
-                  <select className="input input--sm w-full" value={leg.loadingType} onChange={e => updateLeg(leg.id, 'loadingType', e.target.value)}>
-                    <option value={LoadingType.HANG}>Có hàng</option>
-                    <option value={LoadingType.VO}>Vỏ rỗng</option>
-                  </select>
+                  <UuiSelectField
+                    label="Loại hàng"
+                    hideLabel
+                    value={leg.loadingType}
+                    onChange={e => updateLeg(leg.id, 'loadingType', e.target.value)}
+                    options={[
+                      { value: LoadingType.HANG, label: 'Có hàng' },
+                      { value: LoadingType.VO, label: 'Vỏ rỗng' },
+                    ]}
+                    controlClassName="input--sm"
+                    wrapperClassName="w-full"
+                  />
                 </div>
                 <div className="w-[40px] shrink-0 flex justify-center">
                   <button

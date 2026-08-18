@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -33,14 +34,17 @@ function AncillaryRevenueForm({ saving, item, onsave, oncancel }: {
   return (
     <InlineForm colSpan={4}>
       <div style={{ flex: 1, minWidth: 140 }}>
-        <Field label="Loại">
-          <select className="input" value={type} onChange={e => setType(e.target.value)}>
-            <option value="LCL">LCL (ghép lẻ)</option>
-            <option value="CONSOLIDATION">Gom hàng</option>
-            <option value="SERVICE_DIFF">Chênh lệch dịch vụ</option>
-            <option value="OTHER">Khác</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Loại"
+          value={type}
+          onChange={e => setType(e.target.value)}
+          options={[
+            { value: 'LCL', label: 'LCL (ghép lẻ)' },
+            { value: 'CONSOLIDATION', label: 'Gom hàng' },
+            { value: 'SERVICE_DIFF', label: 'Chênh lệch dịch vụ' },
+            { value: 'OTHER', label: 'Khác' },
+          ]}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Số tiền (₫)"><input className="input" value={amount} onChange={e => setAmount(e.target.value)} placeholder="500000" /></Field>

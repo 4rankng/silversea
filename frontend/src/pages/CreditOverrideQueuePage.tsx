@@ -22,7 +22,7 @@ import {
 } from '../hooks/useCreditOverrideQueries';
 import { useAuth } from '../hooks/useAuth';
 import { useCatalogs } from '../hooks/useCatalogs';
-import { Pagination } from '../design-system';
+import { Pagination, UuiSelectField } from '../design-system';
 import { canCheckCreditOverride, canDecideCreditOverride } from '../lib/credit-override-permissions';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
 import './CreditOverrideQueuePage.css';
@@ -320,32 +320,41 @@ export default function CreditOverrideQueuePage() {
             <span>Trang {page}</span>
           </div>
           <div className="credit-override-queue__filters" aria-label="Bộ lọc hàng chờ">
-            <label className="credit-override-queue__field is-status">
-              <span>Trạng thái</span>
-              <select value={statusFilter} onChange={(event) => {
+            <UuiSelectField
+              id="credit-override-status-filter"
+              label="Trạng thái"
+              inline
+              value={statusFilter}
+              onChange={(event) => {
                 setStatusFilter(event.target.value as QueueFilterStatus);
                 setPageCursors([null]);
-              }}>
-                <option value="PENDING">Chờ duyệt</option>
-                <option value="APPROVED">Đã duyệt</option>
-                <option value="REJECTED">Đã từ chối</option>
-                <option value="CANCELED">Đã hủy</option>
-                <option value="ALL">Tất cả</option>
-              </select>
-            </label>
+              }}
+              options={[
+                { value: 'PENDING', label: 'Chờ duyệt' },
+                { value: 'APPROVED', label: 'Đã duyệt' },
+                { value: 'REJECTED', label: 'Đã từ chối' },
+                { value: 'CANCELED', label: 'Đã hủy' },
+                { value: 'ALL', label: 'Tất cả' },
+              ]}
+            />
             <label className="credit-override-queue__field is-search">
               <span>Khách hàng</span>
               <span className="credit-override-queue__search-control">
                 <Search size={16} aria-hidden="true" />
-                <select value={selectedCustomerId} onChange={(event) => {
-                  setSelectedCustomerId(event.target.value);
-                  setPageCursors([null]);
-                }}>
-                  <option value="">Tất cả khách hàng</option>
-                  {customerOptions.map((customer) => (
-                    <option key={customer.id} value={customer.id}>{customer.name}</option>
-                  ))}
-                </select>
+                <UuiSelectField
+                  id="credit-override-customer-filter"
+                  label="Khách hàng"
+                  hideLabel
+                  value={selectedCustomerId}
+                  onChange={(event) => {
+                    setSelectedCustomerId(event.target.value);
+                    setPageCursors([null]);
+                  }}
+                  options={[
+                    { value: '', label: 'Tất cả khách hàng' },
+                    ...customerOptions.map((customer) => ({ value: String(customer.id), label: customer.name })),
+                  ]}
+                />
               </span>
             </label>
           </div>

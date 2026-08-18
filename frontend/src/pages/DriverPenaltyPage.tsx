@@ -5,6 +5,7 @@ import { ShieldCheck, AlertTriangle, AlertOctagon, Loader2, Calendar, Truck } fr
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
+import { UuiSelectField } from '../design-system';
 import './DriverPenaltyPage.css';
 
 interface DriverPenaltyRow {
@@ -136,20 +137,24 @@ export default function DriverPenaltyPage() {
           <span className="penalty-data-card__title">
             Sổ vi phạm · {filteredPenalties.length}
           </span>
-          <select
-            className="input penalty-month-select"
+          <UuiSelectField
+            id="penalty-month-filter"
+            label="Thời gian"
+            hideLabel
             value={monthFilter}
             onChange={e => setMonthFilter(e.target.value)}
-          >
-            <option value="">Tất cả thời gian</option>
-            {Array.from({ length: 12 }, (_, i) => {
-              const d = new Date();
-              d.setDate(1);
-              d.setMonth(d.getMonth() - i);
-              const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-              return <option key={value} value={value}>Tháng {d.getMonth() + 1}/{d.getFullYear()}</option>;
-            })}
-          </select>
+            controlClassName="penalty-month-select"
+            options={[
+              { value: '', label: 'Tất cả thời gian' },
+              ...Array.from({ length: 12 }, (_, i) => {
+                const d = new Date();
+                d.setDate(1);
+                d.setMonth(d.getMonth() - i);
+                const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                return { value, label: `Tháng ${d.getMonth() + 1}/${d.getFullYear()}` };
+              }),
+            ]}
+          />
         </div>
 
         {loading ? (

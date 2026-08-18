@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2, PenLine, Save, Star, Trash2 } from 'lucide-react';
 import { AssetIcon } from '../../components/AssetIcon';
 import { useConfirm } from '../../components/UI';
+import { UuiSelectField } from '../../design-system';
 import { useToast } from '../../components/shared/Toast';
 import { configClient } from '../../api/configClient';
 import { qk } from '../../api/keys';
@@ -192,24 +193,34 @@ export default function DebitNoteTemplateEditorPage() {
     if (activeSection === 'general') {
       return (
         <section className="debit-editor-settings">
-          <Field label="Loại tài liệu">
-            <select className="input debit-editor-inline-select debit-editor-settings-select" value={form.documentType} onChange={event => setDocumentType(event.target.value as DebitNoteTemplateInput['documentType'])} disabled={controlsDisabled || !!id}>
-              <option value="DEBIT_NOTE">Giấy báo nợ</option>
-              <option value="PAYMENT_STATEMENT">Bảng kê</option>
-            </select>
-          </Field>
+          <UuiSelectField
+            label="Loại tài liệu"
+            value={form.documentType}
+            onChange={event => setDocumentType(event.target.value as DebitNoteTemplateInput['documentType'])}
+            disabled={controlsDisabled || !!id}
+            options={[
+              { value: 'DEBIT_NOTE', label: 'Giấy báo nợ' },
+              { value: 'PAYMENT_STATEMENT', label: 'Bảng kê' },
+            ]}
+            wrapperClassName="debit-editor-settings-select"
+          />
           <Field label="Tên mẫu *">
             <input className="input debit-editor-inline-input" value={form.name} onChange={event => set('name', event.target.value)} disabled={controlsDisabled} />
           </Field>
           <Field label="Tiêu đề">
             <input className="input debit-editor-inline-input" value={form.titleText} onChange={event => set('titleText', event.target.value)} disabled={controlsDisabled} />
           </Field>
-          <Field label="Hướng giấy">
-            <select className="input debit-editor-inline-select debit-editor-settings-select" value={form.orientation} onChange={event => set('orientation', event.target.value as DebitNoteTemplateInput['orientation'])} disabled={controlsDisabled}>
-              <option value="landscape">Ngang</option>
-              <option value="portrait">Dọc</option>
-            </select>
-          </Field>
+          <UuiSelectField
+            label="Hướng giấy"
+            value={form.orientation}
+            onChange={event => set('orientation', event.target.value as DebitNoteTemplateInput['orientation'])}
+            disabled={controlsDisabled}
+            options={[
+              { value: 'landscape', label: 'Ngang' },
+              { value: 'portrait', label: 'Dọc' },
+            ]}
+            wrapperClassName="debit-editor-settings-select"
+          />
           <Field label="Màu nhấn">
             <div className="debit-editor-color">
               <input type="color" value={form.accentColor} onChange={event => set('accentColor', event.target.value)} disabled={controlsDisabled} />
@@ -266,13 +277,18 @@ export default function DebitNoteTemplateEditorPage() {
 
     return (
       <section className="debit-editor-settings debit-editor-settings--footer">
-        <Field label="Nhóm dòng">
-          <select className="input debit-editor-inline-select debit-editor-settings-select" value={form.groupingMode} onChange={event => set('groupingMode', event.target.value as DebitNoteTemplateInput['groupingMode'])} disabled={controlsDisabled}>
-            <option value="ROUTE">Theo tuyến</option>
-            <option value="LINE_TYPE">Theo loại dòng</option>
-            <option value="NONE">Không nhóm</option>
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Nhóm dòng"
+          value={form.groupingMode}
+          onChange={event => set('groupingMode', event.target.value as DebitNoteTemplateInput['groupingMode'])}
+          disabled={controlsDisabled}
+          options={[
+            { value: 'ROUTE', label: 'Theo tuyến' },
+            { value: 'LINE_TYPE', label: 'Theo loại dòng' },
+            { value: 'NONE', label: 'Không nhóm' },
+          ]}
+          wrapperClassName="debit-editor-settings-select"
+        />
         <Field label="Chữ ký trái">
           <input className="input debit-editor-inline-input" value={form.signatureLeftLabel ?? ''} onChange={event => set('signatureLeftLabel', event.target.value || null)} disabled={controlsDisabled} />
         </Field>

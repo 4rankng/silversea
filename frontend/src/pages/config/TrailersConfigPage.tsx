@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { StatusPill } from '../../components/UI';
+import { UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -20,18 +21,20 @@ function TrailerForm({ saving, item, onsave, oncancel }: {
         <Field label="Biển số rơ-moóc"><input className="input" value={plate} onChange={e => setPlate(e.target.value)} placeholder="VD: 60C-123.456" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Loại">
-          <select className="input" value={type} onChange={e => setType(e.target.value)}>
-            {Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Loại"
+          value={type}
+          onChange={e => setType(e.target.value)}
+          options={Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+        />
       </div>
       <div style={{ flex: 1, minWidth: 140 }}>
-        <Field label="Trạng thái">
-          <select className="input" value={status} onChange={e => setStatus(e.target.value)}>
-            {Object.entries(TRAILER_STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </Field>
+        <UuiSelectField
+          label="Trạng thái"
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          options={Object.entries(TRAILER_STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+        />
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} onsave={() => { if (!plate.trim()) return; onsave({ licensePlate: plate.trim(), type, status }); }} />
     </InlineForm>
