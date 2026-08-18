@@ -249,6 +249,84 @@ describe('Q23 generated configuration CRUD replay', () => {
     assert.equal(changed.fuelSurchargeSharePct, '35.00');
   });
 
+  it('updates a customer directly when only non-material fields (e.g. shortName) change in a full-payload edit', async () => {
+    const created = await api('POST', '/api/customers', {
+      name: `Q23 direct edit customer ${suffix}`,
+      shortName: `Q23 direct ${suffix}`,
+      fuelSurchargeSharePct: 10,
+    }, `q23-direct-customer-create-${suffix}`);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    await approvePendingAction(created.body);
+
+    const [customer] = await db.select().from(s.customers)
+      .where(eq(s.customers.name, `Q23 direct edit customer ${suffix}`));
+    assert.ok(customer);
+    customerIds.push(customer.id);
+    assert.equal(customer.fuelSurchargeSharePct, '10.00');
+    const originalShortName = customer.shortName;
+
+    // Full edit-form payload: every material field identical to the row,
+    // only shortName (non-material) differs. Optional-string fields mirror the
+    // edit form: null row values are sent as undefined (key dropped).
+    const updated = await api(
+      'PUT',
+      `/api/customers/${customer.id}`,
+      {
+        name: customer.name,
+        shortName: `Q23 renamed ${suffix}`,
+        taxCode: customer.taxCode ?? undefined,
+        contactPerson: customer.contactPerson ?? undefined,
+        phone: customer.phone ?? undefined,
+        creditLimit: customer.creditLimit ? Number(customer.creditLimit) : undefined,
+        paymentTermDays: customer.paymentTermDays,
+        fuelSurchargeSharePct: 10,
+        paymentDatePolicy: customer.paymentDatePolicy ?? undefined,
+        status: customer.status,
+        isCarrier: customer.isCarrier,
+        debitNoteMode: customer.debitNoteMode,
+        linkedSupplierId: customer.linkedSupplierId,
+      },
+      `q23-direct-customer-update-${suffix}`,
+      customer.updatedAt.toISOString(),
+      1,
+    );
+    // Direct writes return the row (no status/actionKind envelope).
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    assert.ok(!('actionKind' in updated.body), `expected direct row, got governance action: ${JSON.stringify(updated.body)}`);
+    assert.equal(updated.body.shortName, `Q23 renamed ${suffix}`);
+    assert.notEqual(updated.body.shortName, originalShortName);
+
+    // And a genuinely material change still goes through approval.
+    const [afterDirect] = await db.select().from(s.customers)
+      .where(eq(s.customers.id, customer.id));
+    const governed = await api(
+      'PUT',
+      `/api/customers/${customer.id}`,
+      {
+        name: afterDirect.name,
+        shortName: afterDirect.shortName,
+        taxCode: afterDirect.taxCode ?? undefined,
+        contactPerson: afterDirect.contactPerson ?? undefined,
+        phone: afterDirect.phone ?? undefined,
+        creditLimit: 5000000,
+        paymentTermDays: afterDirect.paymentTermDays,
+        fuelSurchargeSharePct: 10,
+        paymentDatePolicy: afterDirect.paymentDatePolicy ?? undefined,
+        status: afterDirect.status,
+        isCarrier: afterDirect.isCarrier,
+        debitNoteMode: afterDirect.debitNoteMode,
+        linkedSupplierId: afterDirect.linkedSupplierId,
+      },
+      `q23-material-customer-update-${suffix}`,
+      afterDirect.updatedAt.toISOString(),
+      1,
+    );
+    assert.equal(governed.status, 201, JSON.stringify(governed.body));
+    assert.equal(governed.body.status, 'PENDING_CHECK');
+    assert.equal(governed.body.actionKind, 'PRICE_CONFIG_CHANGE');
+    governanceActionIds.push(Number(governed.body.id));
+  });
+
   it('requires an idempotency key for material generated writes', async () => {
     const response = await api('POST', '/api/routes', {
       name: `Q23 missing key ${suffix}`,

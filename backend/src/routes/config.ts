@@ -272,6 +272,32 @@ function hasMaterialCustomerConfigChange(data: CustomerMutationPayload): boolean
   return Object.keys(data).some((key) => MATERIAL_CUSTOMER_CONFIG_FIELDS.has(key as keyof CustomerMutationPayload));
 }
 
+/**
+ * Edit forms resend the full record on every save, so key presence alone would
+ * route every update through approval even when nothing material changed.
+ * Compare the incoming values against the current row instead; treat numeric
+ * strings ("10.00") as equal to their numeric payload (10), and skip keys the
+ * payload omits.
+ */
+function sameConfigValue(current: unknown, incoming: unknown): boolean {
+  if (incoming === undefined) return true;
+  if (current === null || incoming === null) return current === incoming;
+  if (typeof current === 'number' || typeof incoming === 'number') {
+    return Number(current) === Number(incoming);
+  }
+  return String(current) === String(incoming);
+}
+
+function hasMaterialCustomerUpdate(
+  data: CustomerMutationPayload,
+  current: typeof s.customers.$inferSelect,
+): boolean {
+  return Object.entries(data).some(([key, value]) => (
+    MATERIAL_CUSTOMER_CONFIG_FIELDS.has(key as keyof CustomerMutationPayload)
+      && !sameConfigValue((current as Record<string, unknown>)[key], value)
+  ));
+}
+
 const MATERIAL_DRIVER_FIELDS = new Set<keyof DriverPayload>([
   'baseSalary',
   'socialInsurance',
@@ -1086,7 +1112,7 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   governance: {
     reasonLabel: 'cấu hình khách hàng ảnh hưởng công nợ',
     shouldGovernCreate: (data) => hasMaterialCustomerConfigChange(data as CustomerMutationPayload),
-    shouldGovernUpdate: (_id, data) => hasMaterialCustomerConfigChange(data as CustomerMutationPayload),
+    shouldGovernUpdate: (_id, data, _req, current) => hasMaterialCustomerUpdate(data as CustomerMutationPayload, current),
     shouldGovernDelete: () => true,
   },
   beforeCreate: async (data, _req, tx) => {

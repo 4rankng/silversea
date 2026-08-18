@@ -67,7 +67,10 @@ export interface CrudRouterOptions<
   governance?: {
     reasonLabel: string;
     shouldGovernCreate?: (data: TData, req: Request) => boolean;
-    shouldGovernUpdate?: (id: number, data: Partial<TData>, req: Request) => boolean;
+    /** Receives the current row so callers can compare actual value changes
+     * instead of key presence — edit forms resend full payloads, so a
+     * key-presence check would govern every update. */
+    shouldGovernUpdate?: (id: number, data: Partial<TData>, req: Request, current: TRow) => boolean;
     shouldGovernDelete?: (id: number, req: Request) => boolean;
   };
 }
@@ -196,7 +199,7 @@ export function createCrudRouter<
         'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.',
       );
     }
-    return actual;
+    return current as TTable['$inferSelect'];
   }
 
   sub.get('/', asyncHandler(async (req: Request, res: Response) => {
@@ -300,12 +303,13 @@ export function createCrudRouter<
       createdBy: actor.userId,
       entityType: resource,
       create: async (tx) => {
-        const currentUpdatedAt = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        const currentRow = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        const currentUpdatedAt = (currentRow as Record<string, unknown>).updatedAt as Date;
         let data = (updateSchema ?? createSchema).partial().parse(req.body) as Partial<output<TCreate>>;
         if (beforeUpdate) {
           data = (await beforeUpdate(id, data, req, tx)) as typeof data;
         }
-        if (governance && governanceResource && (governance.shouldGovernUpdate?.(id, data, req) ?? true)) {
+        if (governance && governanceResource && (governance.shouldGovernUpdate?.(id, data, req, currentRow) ?? true)) {
           return requestGovernedCrudUpdate({
             resource: governanceResource,
             id,
@@ -367,7 +371,8 @@ export function createCrudRouter<
       createdBy: actor.userId,
       entityType: resource,
       create: async (tx) => {
-        const currentUpdatedAt = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        const currentRow = await lockCurrentVersion(tx, id, expectedUpdatedAt);
+        const currentUpdatedAt = (currentRow as Record<string, unknown>).updatedAt as Date;
         if (governance && governanceResource && (governance.shouldGovernDelete?.(id, req) ?? true)) {
           return requestGovernedCrudDelete({
             resource: governanceResource,
