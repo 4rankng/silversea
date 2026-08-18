@@ -73,7 +73,7 @@ describe('shipment detail workboard styling', () => {
 
   it('keeps pagination out of single-row and mobile record content', () => {
     expect(css).toMatch(/\.shipment-container-ledger > \.ds-pagination\s*\{[^}]*position:\s*static;/);
-    expect(css).toMatch(/@media \(min-width:\s*761px\)[\s\S]*?\.shipment-container-ledger:has\(tbody > tr:nth-child\(2\)\) > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
+    expect(css).toMatch(/@media \(min-width:\s*1101px\)[\s\S]*?\.shipment-container-ledger:has\(tbody > tr:nth-child\(2\)\) > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
   });
 
   it('keeps an opened cell editor above the sticky pagination layer', () => {

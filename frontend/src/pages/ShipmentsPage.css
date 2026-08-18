@@ -414,6 +414,10 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .cus-worksheet-toolbar__filters .cus-plan-status-filter {
+    grid-column: 1 / -1;
+  }
+
   .cus-worksheet-toolbar__actions {
     align-items: stretch;
     flex-direction: column;
@@ -521,6 +525,12 @@
   padding: 12px;
   border-top: 1px solid var(--line);
   background: var(--surface);
+}
+
+@media (max-width: 1100px) {
+  .cus-dashboard-viewport > .ds-pagination {
+    position: static;
+  }
 }
 
 .cus-dashboard-table {

@@ -85,6 +85,7 @@ describe('FleetDriversView (dispatcher read-only)', () => {
 
     expect(screen.getByText('Nguyễn Văn B')).toBeTruthy();
     expect(screen.getByText('0901234567')).toBeTruthy();
+    expect(screen.getByText('0901234567').closest('td')).toHaveAttribute('data-label', 'Số điện thoại');
     expect(screen.getByText('51H-123.45')).toBeTruthy();
     expect(screen.getByText('Trần Thị C')).toBeTruthy();
     expect(screen.getByText('Ngưng')).toBeTruthy();

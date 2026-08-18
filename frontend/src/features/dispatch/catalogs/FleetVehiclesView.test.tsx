@@ -98,6 +98,7 @@ describe('FleetVehiclesView (dispatcher read-only)', () => {
     renderView();
 
     expect(screen.getByText('51H-123.45')).toBeTruthy();
+    expect(screen.getByText('51H-123.45').closest('td')).toHaveAttribute('data-label', 'Biển số');
     expect(screen.getByText('51H-999.99')).toBeTruthy();
     expect(screen.getByText('Nguyễn Văn B')).toBeTruthy();
     // "Hoạt động" appears in the KPI label and the ACTIVE status pill;

@@ -1508,7 +1508,7 @@ export default function ShipmentsPage() {
                 { value: '', label: 'Tất cả trạng thái' },
                 ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
               ]}
-              className="shipment-uui-field"
+              className="shipment-uui-field cus-plan-status-filter"
               selectClassName="shipment-uui-select"
             />
           </div>

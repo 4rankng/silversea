@@ -4,9 +4,12 @@
  * existing ones; those stay in the admin /fleet workspace.
  */
 import { useMemo, useState } from 'react';
-import { Plus, Truck } from 'lucide-react';
-import { KPI, StatusPill } from '../../../components/UI';
+import { Truck } from 'lucide-react';
+import { Plus } from '@untitledui/icons';
+import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
+import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { TRUCK_STATUS } from '../../fleet';
@@ -62,9 +65,9 @@ export function FleetVehiclesView() {
             Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ
           </p>
         </div>
-        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
-          <Plus size={14} /> Thêm xe đầu kéo
-        </button>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+          Thêm xe đầu kéo
+        </Button>
       </div>
       {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
@@ -100,16 +103,16 @@ export function FleetVehiclesView() {
                 const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
                 return (
                   <tr key={t.id}>
-                    <td className="dispatch-catalogs__plate">{t.licensePlate}</td>
-                    <td>{trailer ? trailer.licensePlate : '—'}</td>
-                    <td>{driverByTruck.get(t.id) ?? '—'}</td>
-                    <td>
-                      <StatusPill
-                        variant={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warn' : 'neutral'}
-                        dot
+                    <td data-label="Biển số" className="dispatch-catalogs__plate">{t.licensePlate}</td>
+                    <td data-label="Rơ-moóc đang nối">{trailer ? trailer.licensePlate : '—'}</td>
+                    <td data-label="Tài xế được gán">{driverByTruck.get(t.id) ?? '—'}</td>
+                    <td data-label="Trạng thái">
+                      <BadgeWithDot
+                        size="sm"
+                        color={t.status === 'ACTIVE' ? 'success' : t.status === 'MAINTENANCE' ? 'warning' : 'gray'}
                       >
                         {TRUCK_STATUS[t.status] || t.status}
-                      </StatusPill>
+                      </BadgeWithDot>
                     </td>
                   </tr>
                 );

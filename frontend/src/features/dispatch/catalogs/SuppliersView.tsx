@@ -5,9 +5,12 @@
  * subcontractors (createRoles allowance); edit/delete stay with admin.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Store } from 'lucide-react';
-import { KPI, StatusPill } from '../../../components/UI';
+import { Store } from 'lucide-react';
+import { Plus } from '@untitledui/icons';
+import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
+import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useSuppliers, useAllCustomers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
@@ -53,9 +56,9 @@ export function SuppliersView() {
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài
           </p>
         </div>
-        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
-          <Plus size={14} /> Thêm nhà thầu phụ
-        </button>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+          Thêm nhà thầu phụ
+        </Button>
       </div>
       {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
@@ -90,18 +93,18 @@ export function SuppliersView() {
               <tbody>
                 {suppliers.map((s) => (
                   <tr key={s.id}>
-                    <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td>{s.contactPerson ?? '—'}</td>
-                    <td>{s.phone ?? '—'}</td>
-                    <td>
+                    <td data-label="Tên" style={{ fontWeight: 600 }}>{s.name}</td>
+                    <td data-label="Liên hệ">{s.contactPerson ?? '—'}</td>
+                    <td data-label="SĐT">{s.phone ?? '—'}</td>
+                    <td data-label="Loại">
                       {(s.types ?? [])
                         .map((t) => SUPPLIER_TYPE_LABELS[t] || t)
                         .join(', ') || '—'}
                     </td>
-                    <td>
-                      <StatusPill variant={s.status === 'ACTIVE' ? 'success' : 'neutral'} dot>
+                    <td data-label="Trạng thái">
+                      <BadgeWithDot size="sm" color={s.status === 'ACTIVE' ? 'success' : 'gray'}>
                         {s.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng hoạt động'}
-                      </StatusPill>
+                      </BadgeWithDot>
                     </td>
                   </tr>
                 ))}

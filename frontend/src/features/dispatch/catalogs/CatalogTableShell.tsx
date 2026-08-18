@@ -4,8 +4,9 @@
  * affordances ever render here.
  */
 import type { ReactNode } from 'react';
-import { Search } from 'lucide-react';
+import { SearchSm } from '@untitledui/icons';
 import { Panel } from '../../../components/UI';
+import { Input } from '../../../components/untitled-ui/base/input/input';
 
 export function CatalogTableShell({
   search,
@@ -23,16 +24,16 @@ export function CatalogTableShell({
   return (
     <div className="dispatch-catalogs">
       <div className="dispatch-catalogs__toolbar">
-        <label className="dispatch-catalogs__search">
-          <Search size={15} aria-hidden="true" />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={searchPlaceholder}
-            aria-label={searchPlaceholder}
-          />
-        </label>
+        <Input
+          aria-label={searchPlaceholder}
+          className="dispatch-catalogs__search"
+          size="sm"
+          value={search}
+          onChange={onSearchChange}
+          placeholder={searchPlaceholder}
+          icon={SearchSm}
+          inputProps={{ type: 'search' }}
+        />
         <span className="dispatch-catalogs__count">{totalLabel}</span>
       </div>
       <Panel flush>{children}</Panel>

@@ -6,9 +6,12 @@
  * DISPATCHER role cannot make.
  */
 import { useMemo, useState } from 'react';
-import { Plus, Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
-import { KPI, StatusPill } from '../../../components/UI';
+import { Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
+import { Plus } from '@untitledui/icons';
+import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
+import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { DRIVER_STATUS } from '../../fleet';
@@ -61,9 +64,9 @@ export function FleetDriversView() {
             Tra cứu tài xế nội bộ để gán chuyến trong kế hoạch điều độ
           </p>
         </div>
-        <button className="btn btn--primary btn--sm" onClick={create.showForm}>
-          <Plus size={14} /> Thêm tài xế
-        </button>
+        <Button size="sm" color="primary" iconLeading={Plus} onPress={create.showForm}>
+          Thêm tài xế
+        </Button>
       </div>
       {create.error && <div className="dispatch-catalogs__error">{create.error}</div>}
       <div className="kpi-grid" style={{ marginBottom: 16 }}>
@@ -97,15 +100,15 @@ export function FleetDriversView() {
             <tbody>
               {filtered.map((d) => (
                 <tr key={d.id}>
-                  <td style={{ fontWeight: 600 }}>{d.name}</td>
-                  <td>{d.phone ?? '—'}</td>
-                  <td className="dispatch-catalogs__plate">
+                  <td data-label="Họ tên" style={{ fontWeight: 600 }}>{d.name}</td>
+                  <td data-label="Số điện thoại">{d.phone ?? '—'}</td>
+                  <td data-label="Xe đang gán" className="dispatch-catalogs__plate">
                     {d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '—' : '—'}
                   </td>
-                  <td>
-                    <StatusPill variant={d.status === 'ACTIVE' ? 'success' : 'neutral'} dot>
+                  <td data-label="Trạng thái">
+                    <BadgeWithDot size="sm" color={d.status === 'ACTIVE' ? 'success' : 'gray'}>
                       {DRIVER_STATUS[d.status] || d.status}
-                    </StatusPill>
+                    </BadgeWithDot>
                   </td>
                 </tr>
               ))}

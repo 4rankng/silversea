@@ -97,6 +97,10 @@
     padding-inline: 0;
   }
 
+  .dispatch-plan-page__workspace > .ds-pagination {
+    position: static;
+  }
+
   .dispatch-plan-page__workspace {
     border-radius: var(--radius-md);
     padding: 12px;

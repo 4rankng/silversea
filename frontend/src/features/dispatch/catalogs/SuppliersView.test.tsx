@@ -80,6 +80,7 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByText('Công ty Vận tải Biển Đông')).toBeTruthy();
     expect(screen.getByText('Lê Văn Tài')).toBeTruthy();
     expect(screen.getByText('0912345678')).toBeTruthy();
+    expect(screen.getByText('0912345678').closest('td')).toHaveAttribute('data-label', 'SĐT');
     expect(screen.getByText('Vận chuyển')).toBeTruthy();
     expect(screen.getByText('Cảng')).toBeTruthy();
     expect(screen.getByText('Ngừng hoạt động')).toBeTruthy();

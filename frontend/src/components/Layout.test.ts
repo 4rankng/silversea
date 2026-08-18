@@ -8,6 +8,7 @@ import {
   PRIMARY_SECTION_BY_ROLE,
   resolveInitialSidebarOpen,
   COMPACT_DESKTOP_MEDIA_QUERY,
+  getPageTitle,
 } from './Layout';
 
 describe('getNavItems', () => {
@@ -257,6 +258,13 @@ describe('getNavItems', () => {
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read']);
     expect(items.some((item) => item.key === 'dashboard')).toBe(false);
     expect(items[0]).toEqual(expect.objectContaining({ key: 'accounting' }));
+  });
+});
+
+describe('getPageTitle', () => {
+  it('uses dispatcher language for the shared supplier route', () => {
+    expect(getPageTitle('/suppliers', Role.DISPATCHER)).toBe('Nhà thầu phụ');
+    expect(getPageTitle('/suppliers', Role.ADMIN)).toBe('Nhà cung cấp');
   });
 });
 

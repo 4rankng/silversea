@@ -365,7 +365,10 @@ function getRoleLabel(role: Role | string): string {
   return ROLE_LABELS[modernRole as Role] || modernRole;
 }
 
-function getPageTitle(pathname: string): string {
+export function getPageTitle(pathname: string, role?: Role | string): string {
+  if (pathname.startsWith(routes.suppliers) && role && getModernRole(role) === Role.DISPATCHER) {
+    return 'Nhà thầu phụ';
+  }
   return titleForPath(pathname);
 }
 
@@ -542,7 +545,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     .filter(item => location.pathname.startsWith(item.path))
     .sort((a, b) => b.path.length - a.path.length)[0]?.key || '';
 
-  const pageTitle = getPageTitle(location.pathname);
+  const pageTitle = getPageTitle(location.pathname, user?.role);
   const activeSection = navItems.find(i => i.key === activeKey)?.section;
   // When the active item is the ungrouped start page (e.g. /dashboard,
   // /accounting), fall back to the role's primary section per spec rather than

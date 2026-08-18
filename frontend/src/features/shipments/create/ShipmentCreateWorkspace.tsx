@@ -306,6 +306,7 @@ export function ShipmentCreateWorkspace() {
 
   return (
     <div className="csc-page">
+      <h1 className="sr-only">Tạo lô hàng</h1>
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         <ShipmentCreateSection id="identity" number="01" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">

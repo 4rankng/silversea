@@ -124,6 +124,7 @@ describe('ClerkShipmentCreatePage', () => {
   it('shows only create and cancel actions, without the superseded draft or dispatch actions', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Tạo lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu bản nháp|Gửi sang điều phối/ })).toBeNull();
