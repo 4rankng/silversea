@@ -16,6 +16,8 @@ import { globSync } from 'node:fs';
 
 const distDir = resolve(process.argv[2] || './dist');
 const staticImportRegex = /(from\s+['"])(\.\.?\/[^'"]+)(['"])/g;
+// Bare side-effect import: `import './config-helpers';` (no `from` clause).
+const sideEffectImportRegex = /(import\s+['"])(\.\.?\/[^'"]+)(['"])/g;
 
 function resolveImport(importPath, fromFile) {
   const dir = dirname(fromFile);
@@ -58,6 +60,7 @@ function walkDir(dir) {
     };
 
     content = content.replace(staticImportRegex, rewriteImport);
+    content = content.replace(sideEffectImportRegex, rewriteImport);
 
     if (modified) {
       writeFileSync(filePath, content, 'utf-8');
