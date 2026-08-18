@@ -16,9 +16,9 @@ import paymentsRoutes from '../routes/financial/payments.routes';
 /**
  * Edit forms resend the full record on every save. Governed updates must
  * therefore compare incoming values against the current row (value-diff), not
- * key presence — otherwise every edit of drivers, penalty-reasons, or
- * forwarder-expense-types queues a PRICE_CONFIG_CHANGE even when the material
- * fields are byte-identical.
+ * key presence — otherwise every edit of drivers, penalty-reasons,
+ * expense-categories, or forwarder-expense-types queues a PRICE_CONFIG_CHANGE
+ * even when the material fields are byte-identical.
  *
  * Maker is MANAGER (non-ADMIN) so the queue path is exercised regardless of
  * any ADMIN immediate-apply behavior.
@@ -28,6 +28,7 @@ const idempotencyKeys: string[] = [];
 const driverIds: number[] = [];
 const penaltyReasonIds: number[] = [];
 const forwarderExpenseTypeIds: number[] = [];
+const expenseCategoryIds: number[] = [];
 const governanceActionIds: number[] = [];
 let actorIds: number[] = [];
 let server: http.Server;
@@ -140,6 +141,9 @@ after(async () => {
   }
   if (forwarderExpenseTypeIds.length > 0) {
     await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, forwarderExpenseTypeIds));
+  }
+  if (expenseCategoryIds.length > 0) {
+    await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, expenseCategoryIds));
   }
   if (governanceActionIds.length > 0) {
     await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
@@ -336,6 +340,60 @@ describe('value-diff governance for material config updates', () => {
         noInvoicePerItemLimit: 2000000,
       },
       `material-fwd-limit-${suffix}`,
+      afterDirect.updatedAt.toISOString(),
+    );
+    assert.equal(pending.status, 201, JSON.stringify(pending.body));
+    assert.ok(isGovernancePending(pending.body), `expected governed queue, got: ${JSON.stringify(pending.body)}`);
+    governanceActionIds.push(Number(pending.body.id));
+  });
+
+  it('queues an expense-category policy change but lets a name-only edit through directly', async () => {
+    // Creates always carry policy fields → governed.
+    const created = await api('POST', '/api/expense-categories', {
+      name: `Material expense category ${suffix}`,
+      isRenewable: true,
+      reminderLeadDays: 15,
+      status: 'ACTIVE',
+    }, `material-expense-cat-create-${suffix}`);
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.ok(isGovernancePending(created.body), `expected governed create, got: ${JSON.stringify(created.body)}`);
+    await approvePendingAction(created.body);
+
+    const [category] = await db.select().from(s.expenseCategories)
+      .where(eq(s.expenseCategories.name, `Material expense category ${suffix}`));
+    assert.ok(category);
+    expenseCategoryIds.push(category.id);
+
+    // Full edit-form payload, policy byte-identical, only the name changes → direct.
+    const direct = await api(
+      'PUT',
+      `/api/expense-categories/${category.id}`,
+      {
+        name: `Material expense category renamed ${suffix}`,
+        isRenewable: category.isRenewable ?? false,
+        reminderLeadDays: category.reminderLeadDays,
+        status: category.status,
+      },
+      `material-expense-cat-rename-${suffix}`,
+      category.updatedAt.toISOString(),
+    );
+    assert.equal(direct.status, 200, JSON.stringify(direct.body));
+    assert.ok(!isGovernancePending(direct.body), `expected direct row, got: ${JSON.stringify(direct.body)}`);
+    assert.equal(direct.body.name, `Material expense category renamed ${suffix}`);
+
+    // Changed reminderLeadDays → governed.
+    const [afterDirect] = await db.select().from(s.expenseCategories)
+      .where(eq(s.expenseCategories.id, category.id));
+    const pending = await api(
+      'PUT',
+      `/api/expense-categories/${category.id}`,
+      {
+        name: `Material expense category renamed ${suffix}`,
+        isRenewable: category.isRenewable ?? false,
+        reminderLeadDays: 45,
+        status: category.status,
+      },
+      `material-expense-cat-lead-days-${suffix}`,
       afterDirect.updatedAt.toISOString(),
     );
     assert.equal(pending.status, 201, JSON.stringify(pending.body));

@@ -12,7 +12,7 @@ import { createCrudRouter } from '../utils/crud-factory';
 import { runIdempotent, resolveIdempotencyKey } from '../../services/idempotency.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../../lib/redis';
 import * as H from './config-helpers';
-import type { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, SupplierPayload, ForwarderExpenseTypePayload } from './config-helpers';
+import type { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, SupplierPayload, ForwarderExpenseTypePayload, ExpenseCategoryPayload } from './config-helpers';
 import {
   lockApplicationOwnedUniqueness,
   lockApplicationOwnedUniquenessSet,
@@ -572,7 +572,9 @@ router.use('/expense-categories', createCrudRouter(s.expenseCategories, expenseC
   governance: {
     reasonLabel: 'nhóm chi phí',
     shouldGovernCreate: () => true,
-    shouldGovernUpdate: () => true,
+    // Name-only renames apply directly; policy fields (isRenewable,
+    // reminderLeadDays, status) still queue for maker→checker→approver.
+    shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialExpenseCategoryUpdate(data as ExpenseCategoryPayload, current),
     shouldGovernDelete: () => true,
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'expense-category', id),

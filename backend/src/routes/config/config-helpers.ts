@@ -14,6 +14,7 @@ import {
   driverSchema,
   penaltyReasonSchema,
   forwarderExpenseTypeSchema,
+  expenseCategorySchema,
   supplierSchema,
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
   NO_INVOICE_APPROVAL_TITLES,
@@ -55,6 +56,7 @@ export type SupplierPayload = output<typeof supplierSchema>;
 export type DriverPayload = Partial<output<typeof driverSchema>>;
 export type PenaltyReasonPayload = Partial<output<typeof penaltyReasonSchema>>;
 export type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
+export type ExpenseCategoryPayload = Partial<output<typeof expenseCategorySchema>>;
 export type NoInvoiceEvidenceType = typeof DEFAULT_NO_INVOICE_EVIDENCE_TYPES[number];
 export type NoInvoiceApprovalTitle = typeof NO_INVOICE_APPROVAL_TITLES[number];
 export type CrudTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -300,6 +302,26 @@ export function hasMaterialPenaltyReasonUpdate(
 ): boolean {
   return hasMaterialValueChange(
     MATERIAL_PENALTY_REASON_FIELDS,
+    data as Record<string, unknown>,
+    current as Record<string, unknown>,
+  );
+}
+
+// Name-only edits of an expense category are cosmetic (display label); the
+// renewable/reminder/status fields are what change expense policy, so only
+// those govern. Mirrors the customers/drivers/penalty-reasons value-diff fix.
+export const MATERIAL_EXPENSE_CATEGORY_FIELDS = new Set<keyof ExpenseCategoryPayload>([
+  'isRenewable',
+  'reminderLeadDays',
+  'status',
+]);
+
+export function hasMaterialExpenseCategoryUpdate(
+  data: ExpenseCategoryPayload,
+  current: typeof s.expenseCategories.$inferSelect,
+): boolean {
+  return hasMaterialValueChange(
+    MATERIAL_EXPENSE_CATEGORY_FIELDS,
     data as Record<string, unknown>,
     current as Record<string, unknown>,
   );
