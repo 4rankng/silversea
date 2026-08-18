@@ -8,6 +8,31 @@
   padding: 0 0 32px;
 }
 
+/* Keep the primary creation action in the header's right rail, so the page
+   title and its purpose remain one compact operational decision surface. */
+.dispatch-catalogs__page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dispatch-catalogs__page-heading {
+  min-width: 0;
+}
+
+.dispatch-catalogs__page-header > .btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .dispatch-catalogs__page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
 /* The card chrome would trap the table's sticky thead (overflow: hidden
    creates a clipping context). Catalogs are unbounded worksheets like the
    shipments pair: strip the clip and keep the sheet edge-to-edge. */

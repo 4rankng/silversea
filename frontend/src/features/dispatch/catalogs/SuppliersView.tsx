@@ -46,8 +46,8 @@ export function SuppliersView() {
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Nhà thầu phụ' }]} />
-      <div className="page-header-block" style={{ marginBottom: 16 }}>
-        <div>
+      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
+        <div className="dispatch-catalogs__page-heading">
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>Nhà thầu phụ</h1>
           <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
             Tra cứu nhà thầu phụ để phân bổ năng lực vận chuyển ngoài

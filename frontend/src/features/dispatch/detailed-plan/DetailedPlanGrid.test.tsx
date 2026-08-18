@@ -77,7 +77,10 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Điểm trả: Kho Bình Dương')).toBeTruthy();
     // Column 3: bill + badge
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
-    expect(screen.getByText('XUẤT')).toBeTruthy();
+    const directionBadge = screen.getByText('Xuất');
+    expect(directionBadge.classList.contains('rounded-full')).toBe(true);
+    expect(directionBadge.classList.contains('bg-utility-neutral-50')).toBe(true);
+    expect(directionBadge.classList.contains('text-xs')).toBe(true);
     // Column 4: container stack
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
@@ -120,7 +123,7 @@ describe('DetailedPlanGrid', () => {
 
   it('shows the NHẬP badge for import rows', () => {
     renderGrid([row({ docs: { billNumber: 'B-1', tradeDirection: 'IMPORT', declarationNumbers: [] } })]);
-    expect(screen.getByText('NHẬP')).toBeTruthy();
+    expect(screen.getByText('Nhập')).toBeTruthy();
     // Import rows label the date line "Nhận" instead of "Giao" (spec §3 col 1).
     expect(screen.getByText('Nhận: 20/08/2026')).toBeTruthy();
   });

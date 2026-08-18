@@ -1,6 +1,7 @@
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import {
   PlateAssignmentCell,
   type CarrierMutationResult,
@@ -181,9 +182,11 @@ export function DetailedPlanGrid({
                         Bill: {row.docs.billNumber ?? '—'}
                       </div>
                       <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                        <span className={`detailed-plan-grid__badge${row.docs.tradeDirection === 'EXPORT' ? ' detailed-plan-grid__badge--export' : ' detailed-plan-grid__badge--import'}`}>
-                          {row.docs.tradeDirection === 'EXPORT' ? 'XUẤT' : row.docs.tradeDirection === 'IMPORT' ? 'NHẬP' : '—'}
-                        </span>
+                        {row.docs.tradeDirection === 'IMPORT' ? (
+                          <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                        ) : row.docs.tradeDirection === 'EXPORT' ? (
+                          <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                        ) : '—'}
                       </div>
                       {row.isCombined && <span className="detailed-plan-grid__badge detailed-plan-grid__badge--combined">ĐÓNG KẾT HỢP</span>}
                     </div>

@@ -246,10 +246,14 @@
 }
 
 .master-plan-grid__chip {
+  /* Carrier allocation is identifying information, not a secondary label.
+     Keep the complete name visible inside the mobile record instead of
+     clipping it behind an ellipsis. */
+  display: inline-block;
   max-inline-size: 100%;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 /* Keep the semantic Untitled UI button behavior while presenting the existing

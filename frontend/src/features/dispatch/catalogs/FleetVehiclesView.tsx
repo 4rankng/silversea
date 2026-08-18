@@ -55,8 +55,8 @@ export function FleetVehiclesView() {
   return (
     <div ref={rootRef}>
       <Breadcrumbs items={[{ label: 'Điều độ' }, { label: 'Danh mục Xe nội bộ' }]} />
-      <div className="page-header-block" style={{ marginBottom: 16 }}>
-        <div>
+      <div className="page-header-block dispatch-catalogs__page-header" style={{ marginBottom: 16 }}>
+        <div className="dispatch-catalogs__page-heading">
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>Danh mục Xe nội bộ</h1>
           <p style={{ color: 'var(--fg-3)', fontSize: 14, marginTop: 4 }}>
             Tra cứu xe đầu kéo nội bộ để phân bổ kế hoạch điều độ

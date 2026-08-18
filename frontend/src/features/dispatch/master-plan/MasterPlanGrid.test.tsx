@@ -156,11 +156,35 @@ describe('MasterPlanGrid', () => {
     ]);
   });
 
-  it('keeps allocation chips inside their table cell instead of letting a long carrier label overflow', () => {
+  it('wraps long allocation carrier labels inside their cell instead of truncating them', () => {
+    render(
+      <MasterPlanGrid
+        items={[item({
+          allocationStatus: 'FULLY_ALLOCATED',
+          carrierAllocationSummary: [
+            {
+              carrierType: 'EXTERNAL',
+              externalCarrierId: 77,
+              carrierLabel: 'Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc',
+              count20: 0,
+              count40: 1,
+            },
+          ],
+        })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc: 1x40'")).toBeTruthy();
+
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('.master-plan-grid__chip {');
-    expect(css).toContain('max-inline-size: 100%');
-    expect(css).toContain('text-overflow: ellipsis');
+    const chipRule = css.match(/\.master-plan-grid__chip \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(chipRule).toContain('max-inline-size: 100%');
+    expect(chipRule).toContain('white-space: normal');
+    expect(chipRule).toContain('overflow-wrap: anywhere');
+    expect(chipRule).not.toContain('text-overflow: ellipsis');
+    expect(chipRule).not.toContain('overflow: hidden');
   });
 
   it('keeps the mobile record surface stable while scrolling and uses one semantic text scale', () => {
