@@ -35,6 +35,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
   item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean; customers: Customer[];
 }) {
   const [name, setName] = useState(item?.name || '');
+  const [shortName, setShortName] = useState(item?.shortName || '');
   const [contactPerson, setContactPerson] = useState(item?.contactPerson || '');
   const [phone, setPhone] = useState(item?.phone || '');
   const [taxCode, setTaxCode] = useState(item?.taxCode || '');
@@ -49,6 +50,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
   useEffect(() => {
     if (isOpen) {
       setName(item?.name || '');
+      setShortName(item?.shortName || '');
       setContactPerson(item?.contactPerson || '');
       setPhone(item?.phone || '');
       setTaxCode(item?.taxCode || '');
@@ -69,6 +71,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
     if (!name.trim()) return;
     onsave({
       name: name.trim(),
+      shortName: shortName.trim() || name.trim(),
       contactPerson: contactPerson.trim() || undefined,
       phone: phone.trim() || undefined,
       taxCode: taxCode.trim() || undefined,
@@ -117,6 +120,18 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             Tên nhà cung cấp <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
           <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Garage Auto 123" autoFocus />
+        </div>
+        <div className="field">
+          <label htmlFor="supp-short-name" style={labelStyle}>
+            Tên ngắn (mã nội bộ)
+          </label>
+          <input
+            id="supp-short-name"
+            className="input"
+            value={shortName}
+            onChange={e => setShortName(e.target.value)}
+            placeholder="Để trống sẽ dùng tên đầy đủ"
+          />
         </div>
         <div className="supplier-form-grid">
           <div className="field">
@@ -419,7 +434,7 @@ export default function SupplierListPage() {
                 <StatusStrip status={s.status} />
                 <div className="m-card__top">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span className="m-card__title">{s.name}</span>
+                    <span className="m-card__title">{s.shortName || s.name}</span>
                     {s.isFuelSupplier && (
                       <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brand, #10B981)', background: 'var(--brand-soft, #E6FBF3)', border: '1px solid var(--brand-border, #A7F3D0)', borderRadius: 4, padding: '1px 5px' }}>
                         Nhiên liệu
@@ -513,7 +528,7 @@ export default function SupplierListPage() {
                       <StatusStrip status={s.status} />
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
-                          {s.name}
+                          {s.shortName || s.name}
                         </span>
                         {s.isFuelSupplier && (
                           <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--brand, #10B981)', background: 'var(--brand-soft, #E6FBF3)', border: '1px solid var(--brand-border, #A7F3D0)', borderRadius: 4, padding: '1px 5px', marginTop: 1 }}>

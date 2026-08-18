@@ -19,6 +19,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 
@@ -173,7 +174,10 @@ export async function getApAgingDetail(opts: {
   const supplierIds = [...bySupplier.keys()];
   const supplierNames = new Map<number, string>();
   if (supplierIds.length > 0) {
-    const supRows = await db.select({ id: s.suppliers.id, name: s.suppliers.name })
+    const supRows = await db.select({
+      id: s.suppliers.id,
+      name: operationalName(s.suppliers.shortName, s.suppliers.name),
+    })
       .from(s.suppliers)
       .where(inArray(s.suppliers.id, supplierIds));
     for (const r of supRows) supplierNames.set(r.id, r.name);

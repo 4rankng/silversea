@@ -93,7 +93,7 @@ export function SuppliersView() {
               <tbody>
                 {suppliers.map((s) => (
                   <tr key={s.id}>
-                    <td data-label="Tên" style={{ fontWeight: 600 }}>{s.name}</td>
+                    <td data-label="Tên" style={{ fontWeight: 600 }}>{s.shortName || s.name}</td>
                     <td data-label="Liên hệ">{s.contactPerson ?? '—'}</td>
                     <td data-label="SĐT">{s.phone ?? '—'}</td>
                     <td data-label="Loại">

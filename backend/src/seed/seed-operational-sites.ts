@@ -20,6 +20,7 @@ interface SiteSeed {
   customerTaxCode: string;
   code: string;
   name: string;
+  shortName: string;
   siteType: OperationalSiteType;
   address: string;
   googleMapsUrl?: string | null;
@@ -35,6 +36,7 @@ const SITES: SiteSeed[] = [
     customerTaxCode: '0101234567', // Công ty CP Vận tải Biển Bạc
     code: 'BB-KHO-LONG-BIEN',
     name: 'Kho Biển Bạc - Long Biên',
+    shortName: 'BB Long Biên',
     siteType: OperationalSiteType.FACTORY,
     address: 'KCN Đài Linh, Phường Long Biên, Quận Long Biên, Hà Nội',
     contactName: 'Phạm Thị Biển',
@@ -44,6 +46,7 @@ const SITES: SiteSeed[] = [
     customerTaxCode: '0101234567', // Công ty CP Vận tải Biển Bạc
     code: 'BB-KHO-DA-NANG',
     name: 'Kho Biển Bạc - Đà Nẵng',
+    shortName: 'BB Đà Nẵng',
     siteType: OperationalSiteType.WAREHOUSE,
     address: 'KCN Hòa Khánh, Quận Liên Chiểu, Đà Nẵng',
     contactName: 'Phạm Thị Biển',
@@ -53,6 +56,7 @@ const SITES: SiteSeed[] = [
     customerTaxCode: '0107654321', // Công ty TNHH XNK Hà Nội
     code: 'XNK-ICD-HA-NOI',
     name: 'ICD Hà Nội',
+    shortName: 'ICD Hà Nội',
     siteType: OperationalSiteType.WAREHOUSE,
     address: 'ICD Hà Nội, Km 9+500 Đại lộ Thăng Long, Hà Nội',
     contactName: 'Trịnh Văn Hà',
@@ -62,6 +66,7 @@ const SITES: SiteSeed[] = [
     customerTaxCode: '0107654321', // Công ty TNHH XNK Hà Nội
     code: 'XNK-NHA-MAY-BAC-SON',
     name: 'Nhà máy Bắc Sơn',
+    shortName: 'Bắc Sơn',
     siteType: OperationalSiteType.FACTORY,
     address: 'KCN Bắc Sơn, Xã Tân Dân, Sóc Sơn, Hà Nội',
     contactName: 'Trịnh Văn Hà',
@@ -71,6 +76,7 @@ const SITES: SiteSeed[] = [
     customerTaxCode: '2300540419', // CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
     code: 'LM-NHA-MAY-VO-CUONG',
     name: 'Nhà máy Long Minh - Võ Cường',
+    shortName: 'LM Võ Cường',
     siteType: OperationalSiteType.FACTORY,
     address: 'Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh',
     contactName: 'Ms. Vân',
@@ -117,7 +123,7 @@ export async function seedOperationalSites(): Promise<void> {
       customerId,
       code: seed.code,
       name: seed.name,
-      shortName: seed.code,
+      shortName: seed.shortName,
       siteType: seed.siteType,
       address: seed.address,
       googleMapsUrl: seed.googleMapsUrl ?? null,

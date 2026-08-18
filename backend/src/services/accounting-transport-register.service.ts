@@ -22,6 +22,7 @@ import type {
 import { TxnType } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 
 const TIMEZONE = 'Asia/Ho_Chi_Minh' as const;
 const carrier = alias(s.customers, 'accounting_transport_carrier');
@@ -154,15 +155,19 @@ export async function listAccountingTransportRows(
     tripCode: s.trips.tripCode,
     completionDate: completionBusinessDate,
     customerId: s.customers.id,
-    customerName: s.customers.name,
+    customerName: operationalName(s.customers.shortName, s.customers.name),
     carrierId: carrier.id,
-    carrierName: carrier.name,
+    carrierName: operationalName(carrier.shortName, carrier.name),
     ownership: s.trips.carrierType,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     routeId: s.routes.id,
-    routeName: s.routes.name,
-    factoryName: sql<string | null>`coalesce(${s.operationalSites.name}, ${s.shipments.factoryName})`,
+    routeName: operationalName(s.routes.shortName, s.routes.name),
+    factoryName: sql<string | null>`coalesce(
+      nullif(btrim(${s.operationalSites.shortName}), ''),
+      ${s.operationalSites.name},
+      ${s.shipments.factoryName}
+    )`,
     containerNumbers: containerProjection.containerNumbers,
     containerTypes: containerProjection.containerTypes,
     plateNumber: sql<string | null>`case

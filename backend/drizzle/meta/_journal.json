@@ -127,6 +127,27 @@
       "when": 1786980104881,
       "tag": "0017_add-short-name-compat-defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786980104882,
+      "tag": "0018_add-supplier-short-name",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786980104883,
+      "tag": "0019_backfill-supplier-short-name",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786980104884,
+      "tag": "0020_require-supplier-short-name",
+      "breakpoints": true
     }
   ]
 }

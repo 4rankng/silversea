@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { operationalName } from '../db/master-data-name';
 import type { Tx } from './trip-shared';
 export type { Tx };
 import * as s from '../db/schema';
@@ -1202,7 +1203,12 @@ export async function deleteExpensePhoto(photoId: number, forwarderId: number) {
 
 export async function listActiveSuppliersForForwarder() {
   return db
-    .select({ id: s.suppliers.id, name: s.suppliers.name, contactPerson: s.suppliers.contactPerson, phone: s.suppliers.phone })
+    .select({
+      id: s.suppliers.id,
+      name: operationalName(s.suppliers.shortName, s.suppliers.name),
+      contactPerson: s.suppliers.contactPerson,
+      phone: s.suppliers.phone,
+    })
     .from(s.suppliers)
     .where(and(isNull(s.suppliers.deletedAt), eq(s.suppliers.status, 'ACTIVE')));
 }

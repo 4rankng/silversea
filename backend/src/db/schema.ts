@@ -196,6 +196,7 @@ export const partners = pgTable('partners', {
 export const suppliers = pgTable('suppliers', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   taxCode: varchar('tax_code', { length: 20 }),

@@ -613,6 +613,7 @@ export interface PushSubscriptionPayload {
 export interface Supplier {
   id: number;
   name: string;
+  shortName?: string;
   contactPerson: string | null;
   phone: string | null;
   taxCode: string | null;

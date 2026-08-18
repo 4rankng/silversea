@@ -1,0 +1,1 @@
+ALTER TABLE "suppliers" ADD COLUMN "short_name" varchar(255);

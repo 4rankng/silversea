@@ -129,6 +129,28 @@ function mutationBusy(mutation: GovernanceMutation, actionId: number): boolean {
   return mutation.isPending && mutation.variables?.id === actionId;
 }
 
+export function governanceSeparationGuidance(
+  action: GovernanceActionRecord,
+): string | null {
+  const canCancel = action.allowedActions.includes('CANCEL');
+  if (
+    action.status === 'PENDING_CHECK'
+    && canCancel
+    && !action.allowedActions.includes('CHECK')
+    && !action.allowedActions.includes('APPROVE')
+  ) {
+    return 'Bạn là người tạo nên không thể tự kiểm tra. Yêu cầu cần một người đủ thẩm quyền khác kiểm tra trước khi chuyển sang phê duyệt.';
+  }
+  if (
+    action.status === 'PENDING_APPROVAL'
+    && canCancel
+    && !action.allowedActions.includes('APPROVE')
+  ) {
+    return 'Bạn là người tạo nên không thể tự phê duyệt. Yêu cầu đang chờ một người đủ thẩm quyền khác phê duyệt.';
+  }
+  return null;
+}
+
 export function tripExpenseDecisionSummary(action: GovernanceActionRecord): {
   decision: string;
   reviewNote: string;
@@ -375,6 +397,7 @@ export default function GovernanceActionsPage() {
           <div className="governance-actions__cards" data-testid="governance-action-card-list">
           {actions.map((action) => {
             const tripExpenseDecision = tripExpenseDecisionSummary(action);
+            const separationGuidance = governanceSeparationGuidance(action);
             const canCheck = action.allowedActions.includes('CHECK');
             const canApprove = action.allowedActions.includes('APPROVE');
             const canReject = action.allowedActions.includes('REJECT');
@@ -450,6 +473,12 @@ export default function GovernanceActionsPage() {
                         ))
                       : <strong>Chỉ xem</strong>}
                   </div>
+
+                  {separationGuidance ? (
+                    <p className="governance-actions__separation-guidance">
+                      {separationGuidance}
+                    </p>
+                  ) : null}
 
                   {isPending(action.status) && hasDecisionActions ? (
                     <div className={`governance-actions__decision ${canReject ? 'has-rejection' : ''}`}>

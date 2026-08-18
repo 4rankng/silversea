@@ -124,6 +124,39 @@ describe('GovernanceActionsPage', () => {
     expect(screen.queryByRole('button', { name: 'Phê duyệt' })).toBeNull();
   });
 
+  it('explains why an admin maker cannot see a check or approve button', async () => {
+    governanceQueueState.data = [makeAction({
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      subjectType: 'PRICE_CONFIG',
+      makerId: 12,
+      makerRole: 'ADMIN',
+      allowedActions: ['CANCEL'],
+    })];
+
+    renderPage();
+
+    expect(await screen.findByText(
+      'Bạn là người tạo nên không thể tự kiểm tra. Yêu cầu cần một người đủ thẩm quyền khác kiểm tra trước khi chuyển sang phê duyệt.',
+    )).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Kiểm tra' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Phê duyệt' })).toBeNull();
+  });
+
+  it('shows approve for an admin maker with a legacy pending price-config request', async () => {
+    governanceQueueState.data = [makeAction({
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      subjectType: 'PRICE_CONFIG',
+      makerId: 12,
+      makerRole: 'ADMIN',
+      allowedActions: ['CANCEL', 'APPROVE'],
+    })];
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Phê duyệt' })).toBeTruthy();
+    expect(screen.queryByText(/không thể tự kiểm tra/)).toBeNull();
+  });
+
   it('labels salary issue and official posting operations distinctly from period close', async () => {
     governanceQueueState.data = [
       makeAction({

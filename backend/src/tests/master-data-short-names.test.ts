@@ -12,6 +12,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdSiteIds: number[] = [];
+const createdSupplierIds: number[] = [];
 
 test('company profile exposes a short operational name without changing its legal name', () => {
   const updatedAt = new Date();
@@ -32,6 +33,7 @@ test('company profile exposes a short operational name without changing its lega
 after(async () => {
   if (createdSiteIds.length > 0) await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdSiteIds));
   if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
+  if (createdSupplierIds.length > 0) await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
   if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
   await client.end();
 });
@@ -64,6 +66,33 @@ test('operational names prefer short names while legal names remain unchanged', 
   }).from(s.routes).where(eq(s.routes.id, route!.id));
   assert.equal(routeProjected!.routeDisplayName, `HP - Biển Bạc ${suffix}`);
   assert.equal(routeProjected!.routeFullName, fullRouteName);
+});
+
+test('supplier operational names prefer short names with full-name fallback', async () => {
+  const fullSupplierName = `CÔNG TY TNHH VẬN TẢI NHA XE BIEN BAC ${suffix}`;
+  const [withShort] = await db.insert(s.suppliers).values({
+    name: fullSupplierName,
+    shortName: `Nhà xe Biển Bạc ${suffix}`,
+  }).returning();
+  createdSupplierIds.push(withShort!.id);
+
+  const [blankShort] = await db.insert(s.suppliers).values({
+    name: `Công ty TNHH Nhà xe Dự phòng ${suffix}`,
+    shortName: '',
+  }).returning();
+  createdSupplierIds.push(blankShort!.id);
+
+  const rows = await db.select({
+    displayName: operationalName(s.suppliers.shortName, s.suppliers.name),
+    fullName: s.suppliers.name,
+  }).from(s.suppliers).where(inArray(s.suppliers.id, [withShort!.id, blankShort!.id]));
+
+  const explicit = rows.find((row) => row.fullName === fullSupplierName);
+  assert.equal(explicit!.displayName, `Nhà xe Biển Bạc ${suffix}`);
+  assert.equal(explicit!.fullName, fullSupplierName);
+
+  const fallback = rows.find((row) => row.fullName !== fullSupplierName);
+  assert.equal(fallback!.displayName, fallback!.fullName);
 });
 
 test('operational-site API returns both names and preserves full-name authority', async () => {

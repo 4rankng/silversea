@@ -981,6 +981,10 @@ const supplierTypeSchema = z.preprocess(
 
 export const supplierSchema = z.object({
   name: z.string().min(1),
+  // Short operational label (mã nội bộ / tên ngắn). Optional input: blank or
+  // missing falls back to `name` at the write boundary; operational surfaces
+  // display it while legal/report projections keep the full name.
+  shortName: z.string().trim().min(1).optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
   taxCode: z.string().optional(),
