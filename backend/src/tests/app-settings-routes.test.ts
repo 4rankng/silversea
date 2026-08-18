@@ -431,6 +431,9 @@ describe('app-settings route authorization', () => {
   test('policy request persists as governance and appears in future approved history after approval', async () => {
     const effectiveFrom = '2099-12-01';
 
+    // ADMIN is the final authority: the policy request applies immediately
+    // (recorded as an APPROVED governance action), so the pending-request
+    // branch below stays empty and futurePolicies holds the row right away.
     const requested = await request('/financial-reporting/policy/requests', {
       method: 'POST',
       token: adminToken,
@@ -442,26 +445,10 @@ describe('app-settings route authorization', () => {
       },
     });
     assert.equal(requested.status, 201);
-    assert.equal(requested.body.status, 'PENDING_CHECK');
+    assert.equal(requested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(requested.body.id));
 
-    const pendingState = await request('/financial-reporting/policy', { token: adminToken });
-    assert.equal(pendingState.status, 200);
-    assert.equal(pendingState.body.pendingRequest?.effectiveFrom, effectiveFrom);
-
-    const checked = await checkGovernanceAction({
-      actionId: Number(requested.body.id),
-      checkerId: createdUserIds[2]!,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: Number(requested.body.version),
-    });
-    await approveGovernanceAction({
-      actionId: Number(requested.body.id),
-      approverId: createdUserIds[1]!,
-      approverRole: Role.MANAGER,
-      expectedVersion: checked.version,
-    });
-
+    // Immediate apply: no pending phase — the future policy is live now.
     const approvedState = await request('/financial-reporting/policy', { token: adminToken });
     assert.equal(approvedState.status, 200);
     const futurePolicy = approvedState.body.futurePolicies.find(
@@ -483,6 +470,7 @@ describe('app-settings route authorization', () => {
     assert.equal(initial.body.status, 'UNCONFIGURED');
     assert.equal(initial.body.selectedTruckId, truck.id);
 
+    // ADMIN maker applies immediately — see the policy-request test above.
     const requested = await request('/financial-reporting/truck-profiles/requests', {
       method: 'POST',
       token: adminToken,
@@ -499,7 +487,7 @@ describe('app-settings route authorization', () => {
       },
     });
     assert.equal(requested.status, 201);
-    assert.equal(requested.body.status, 'PENDING_CHECK');
+    assert.equal(requested.body.status, 'APPROVED');
     createdGovernanceActionIds.push(Number(requested.body.id));
 
     const duplicate = await request('/financial-reporting/truck-profiles/requests', {
@@ -519,19 +507,8 @@ describe('app-settings route authorization', () => {
     });
     assert.equal(duplicate.status, 409);
 
-    const checked = await checkGovernanceAction({
-      actionId: Number(requested.body.id),
-      checkerId: createdUserIds[2]!,
-      checkerRole: Role.ACCOUNTANT,
-      expectedVersion: Number(requested.body.version),
-    });
-    await approveGovernanceAction({
-      actionId: Number(requested.body.id),
-      approverId: createdUserIds[1]!,
-      approverRole: Role.MANAGER,
-      expectedVersion: checked.version,
-    });
-
+    // ADMIN applied immediately at request time — the profile is live without
+    // the check/approve steps that used to run here.
     const approved = await request(`/financial-reporting/truck-profiles?truckId=${truck.id}`, {
       token: adminToken,
     });

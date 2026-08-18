@@ -18,8 +18,6 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import configRoutes from '../routes/config';
 import { disconnectRedis } from '../lib/redis';
 import {
-  approveGovernanceAction,
-  checkGovernanceAction,
 } from '../services/adjustment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -80,23 +78,6 @@ async function request(
   return { status: response.status, body };
 }
 
-async function approvePendingAction(action: { id: number; version: number; status: string }) {
-  createdGovernanceActionIds.push(action.id);
-  assert.equal(action.status, 'PENDING_CHECK');
-  const checked = await checkGovernanceAction({
-    actionId: action.id,
-    checkerId: accountantId,
-    checkerRole: Role.ACCOUNTANT,
-    expectedVersion: action.version,
-  });
-  const approved = await approveGovernanceAction({
-    actionId: action.id,
-    approverId: managerId,
-    approverRole: Role.MANAGER,
-    expectedVersion: checked.version,
-  });
-  assert.equal(approved.status, 'APPROVED');
-}
 
 before(async () => {
   await initEnforcer();
@@ -183,7 +164,7 @@ describe('Q19 business-calendar route authority and completeness', () => {
       body: { calendarDate: '2096-12-31', name: `Q19 API ${suffix}`, isWorkingDay: false },
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
-    await approvePendingAction(created.body);
+    assert.ok(!('actionKind' in created.body), `admin calendar create must apply immediately: ${JSON.stringify(created.body)}`);
     const [createdRow] = await db.select().from(s.businessCalendarDays)
       .where(eq(s.businessCalendarDays.calendarDate, '2096-12-31'))
       .limit(1);
@@ -197,8 +178,8 @@ describe('Q19 business-calendar route authority and completeness', () => {
       ifUnmodifiedSince: createdRow.updatedAt.toISOString(),
       body: { name: `Q19 API updated ${suffix}`, isWorkingDay: true },
     });
-    assert.equal(updated.status, 201, JSON.stringify(updated.body));
-    await approvePendingAction(updated.body);
+    assert.equal(updated.status, 200, JSON.stringify(updated.body));
+    assert.ok(!('actionKind' in updated.body), `admin calendar update must apply immediately: ${JSON.stringify(updated.body)}`);
     const [updatedRow] = await db.select().from(s.businessCalendarDays)
       .where(eq(s.businessCalendarDays.id, createdRow.id))
       .limit(1);
@@ -221,8 +202,8 @@ describe('Q19 business-calendar route authority and completeness', () => {
       idempotencyKey: `q19-delete-${suffix}`,
       ifUnmodifiedSince: updatedRow!.updatedAt.toISOString(),
     });
-    assert.equal(deleted.status, 201, JSON.stringify(deleted.body));
-    await approvePendingAction(deleted.body);
+    assert.equal(deleted.status, 200, JSON.stringify(deleted.body));
+    assert.ok(!('actionKind' in deleted.body), `admin calendar delete must apply immediately: ${JSON.stringify(deleted.body)}`);
     createdCalendarIds.splice(createdCalendarIds.indexOf(createdRow.id), 1);
   });
 });

@@ -95,7 +95,7 @@ before(async () => {
     {
       username: `q23-config-maker-${suffix}`,
       passwordHash: 'x',
-      role: Role.ADMIN,
+      role: Role.MANAGER,
       status: 'ACTIVE',
     },
     {
@@ -107,7 +107,7 @@ before(async () => {
     {
       username: `q23-config-approver-${suffix}`,
       passwordHash: 'x',
-      role: Role.MANAGER,
+      role: Role.ADMIN,
       status: 'ACTIVE',
     },
     {
@@ -196,6 +196,8 @@ after(async () => {
 
 describe('Q23 generated configuration CRUD replay', () => {
   it('keeps an accountant fuel-surcharge share update pending and unchanged until independent approval', async () => {
+    // Default actor (0) is MANAGER: ADMIN would apply the create immediately
+    // (final authority), which this pending-queue test is not exercising.
     const created = await api('POST', '/api/customers', {
       name: `Q23 governed fuel customer ${suffix}`,
       fuelSurchargeSharePct: 10,
@@ -250,9 +252,10 @@ describe('Q23 generated configuration CRUD replay', () => {
   });
 
   it('updates a customer directly when only non-material fields (e.g. shortName) change in a full-payload edit', async () => {
+    // Default actor (0) is MANAGER (queue path) — see note in the test above.
     const created = await api('POST', '/api/customers', {
       name: `Q23 direct edit customer ${suffix}`,
-      shortName: `Q23 direct ${suffix}`,
+      shortName: `Q23-direct-${suffix}`,
       fuelSurchargeSharePct: 10,
     }, `q23-direct-customer-create-${suffix}`);
     assert.equal(created.status, 201, JSON.stringify(created.body));

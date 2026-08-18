@@ -15,7 +15,7 @@ import * as s from '../db/schema';
 import { DURABLE_EFFECT_KIND, type DurableEffectInput } from './durable-effect.service';
 import {
   registerGovernedCustomResource,
-  requestGovernedConfigAction,
+  requestOrApplyGovernedConfigAction,
 } from './price-config-governance.service';
 import type { GovernanceActionRow } from './governance-transition.service';
 
@@ -424,7 +424,7 @@ export async function requestFinancialReportingPolicyVersion(input: {
         'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
       );
     }
-    return requestGovernedConfigAction({
+    return (await requestOrApplyGovernedConfigAction({
       resource: FINANCIAL_REPORTING_POLICY_RESOURCE,
       operation: 'CREATE',
       subjectId: null,
@@ -436,7 +436,7 @@ export async function requestFinancialReportingPolicyVersion(input: {
       makerId: input.actorId,
       makerRole: input.actorRole,
       transaction: tx,
-    });
+    })).action;
   };
   return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
@@ -483,7 +483,7 @@ export async function requestTruckFinancialProfileVersion(input: {
         'Dữ liệu đã thay đổi hoặc tháng hiệu lực đã có phiên bản. Tải lại để kiểm tra.',
       );
     }
-    return requestGovernedConfigAction({
+    return (await requestOrApplyGovernedConfigAction({
       resource: TRUCK_FINANCIAL_PROFILE_RESOURCE,
       operation: 'CREATE',
       subjectId: null,
@@ -495,7 +495,7 @@ export async function requestTruckFinancialProfileVersion(input: {
       makerId: input.actorId,
       makerRole: input.actorRole,
       transaction: tx,
-    });
+    })).action;
   };
   return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }

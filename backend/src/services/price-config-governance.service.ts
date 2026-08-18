@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Request } from 'express';
-import { and, eq, getTableName, inArray, isNull, ne, type SQL } from 'drizzle-orm';
+import { and, eq, getTableName, inArray, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
@@ -11,6 +11,7 @@ import type { GovernanceApplyResult, GovernanceActionRow } from './governance-tr
 import {
   DURABLE_EFFECT_KIND,
   type DurableEffectInput,
+  enqueueDurableEffects,
 } from './durable-effect.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
@@ -249,6 +250,7 @@ function syntheticApprovalRequest(action: GovernanceActionRow): Request {
 async function insertGovernanceAction(
   tx: Tx,
   values: Omit<typeof s.governanceActions.$inferInsert, 'id' | 'status' | 'version' | 'createdAt' | 'updatedAt'>,
+  options?: { supersedePending?: boolean },
 ) {
   const identity = values.subjectKey ?? values.subjectId;
   if (identity != null) {
@@ -257,25 +259,56 @@ async function insertGovernanceAction(
       'active-governance-action',
       [values.subjectType, values.actionKind, values.originalVersion, identity],
     );
-    const identityCondition = values.subjectKey != null
-      ? eq(s.governanceActions.subjectKey, values.subjectKey)
-      : eq(s.governanceActions.subjectId, values.subjectId as number);
-    const [existing] = await tx.select({ id: s.governanceActions.id })
-      .from(s.governanceActions)
-      .where(and(
+    // ADMIN immediate-apply writes supersede any pending request on the same
+    // config version: they apply in this transaction and bump the row's
+    // updatedAt, so the superseded request can never pass its apply-time
+    // fingerprint/version check. The stale rows are canceled first — the
+    // partial unique index on active statuses would otherwise reject the
+    // admin's insert.
+    if (options?.supersedePending) {
+      const supersedeCondition = values.subjectKey != null
+        ? eq(s.governanceActions.subjectKey, values.subjectKey)
+        : eq(s.governanceActions.subjectId, values.subjectId as number);
+      const supersededAt = new Date();
+      await tx.update(s.governanceActions).set({
+        status: 'CANCELED',
+        canceledBy: values.makerId,
+        canceledRole: values.makerRole,
+        canceledAt: supersededAt,
+        cancelReason: 'Bị thay thế bởi điều chỉnh trực tiếp của quản trị',
+        updatedAt: supersededAt,
+      }).where(and(
         eq(s.governanceActions.subjectType, values.subjectType),
         eq(s.governanceActions.actionKind, values.actionKind),
         eq(s.governanceActions.originalVersion, values.originalVersion),
-        identityCondition,
+        supersedeCondition,
         inArray(s.governanceActions.status, [
           'PENDING_CHECK',
           'PENDING_APPROVAL',
           'RETURNED_FOR_EVIDENCE',
         ]),
-      ))
-      .limit(1);
-    if (existing) {
-      throw new ApiError(409, 'Đã có yêu cầu quản trị đang xử lý cho cấu hình này');
+      ));
+    } else {
+      const identityCondition = values.subjectKey != null
+        ? eq(s.governanceActions.subjectKey, values.subjectKey)
+        : eq(s.governanceActions.subjectId, values.subjectId as number);
+      const [existing] = await tx.select({ id: s.governanceActions.id })
+        .from(s.governanceActions)
+        .where(and(
+          eq(s.governanceActions.subjectType, values.subjectType),
+          eq(s.governanceActions.actionKind, values.actionKind),
+          eq(s.governanceActions.originalVersion, values.originalVersion),
+          identityCondition,
+          inArray(s.governanceActions.status, [
+            'PENDING_CHECK',
+            'PENDING_APPROVAL',
+            'RETURNED_FOR_EVIDENCE',
+          ]),
+        ))
+        .limit(1);
+      if (existing) {
+        throw new ApiError(409, 'Đã có yêu cầu quản trị đang xử lý cho cấu hình này');
+      }
     }
   }
   const [action] = await tx.insert(s.governanceActions).values(values).returning();
@@ -379,7 +412,94 @@ export async function requestGovernedConfigAction(input: {
     makerId: input.makerId,
     makerRole: input.makerRole,
   });
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  const tx = input.transaction;
+  if (tx) return execute(tx);
+  return db.transaction(execute);
+}
+
+/**
+ * ADMIN is the final authority on governed price configuration: their request
+ * is recorded as an APPROVED governance action (full audit trail) and applied
+ * in the same transaction — no pending queue. Non-admin makers still go
+ * through maker → checker → approver. Application failures roll the whole
+ * write back, and any older pending request for the same subject dies at its
+ * own apply-time version check.
+ */
+export type GovernedConfigOutcome = {
+  action: GovernanceActionRow;
+  /** Resulting table row when a CRUD resource was applied immediately. */
+  appliedRow: CrudRow | null;
+};
+
+export async function requestOrApplyGovernedConfigAction(
+  input: Parameters<typeof requestGovernedConfigAction>[0],
+): Promise<GovernedConfigOutcome> {
+  if (input.makerRole !== Role.ADMIN) {
+    const action = await requestGovernedConfigAction(input);
+    return { action, appliedRow: null };
+  }
+  const definition = getDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, input.operation, input.reason);
+  const execute = async (tx: Tx): Promise<GovernedConfigOutcome> => {
+    const action = await insertGovernanceAction(tx, {
+      subjectType: definition.subjectType,
+      subjectId: input.subjectId,
+      subjectKey: input.subjectKey,
+      actionKind: definition.actionKind,
+      reason,
+      originalVersion: input.originalVersion,
+      beforeSnapshot: snapshotEnvelope(definition.resource, input.beforeRow),
+      afterSnapshot: {
+        resource: definition.resource,
+        data: input.afterData,
+      },
+      deltaSnapshot: {
+        resource: definition.resource,
+        operation: input.operation,
+      },
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+    }, { supersedePending: true });
+    const now = new Date();
+    const effect = await applyPriceConfigGovernanceAction(tx, {
+      ...action,
+      approverId: input.makerId,
+      approverRole: input.makerRole,
+    });
+    if (effect?.durableEffects?.length) {
+      await enqueueDurableEffects(tx, effect.durableEffects);
+    }
+    const [applied] = await tx.update(s.governanceActions).set({
+      status: 'APPROVED',
+      checkerId: null,
+      checkerRole: null,
+      checkedAt: null,
+      approverId: input.makerId,
+      approverRole: input.makerRole,
+      approvedAt: now,
+      appliedAt: now,
+      applicationResult: (effect?.applicationResult ?? null) as Record<string, unknown> | null,
+      updatedAt: now,
+      version: sql`${s.governanceActions.version} + 1`,
+    }).where(eq(s.governanceActions.id, action.id)).returning();
+    if (!applied) {
+      throw new ApiError(409, 'Không thể ghi nhận phê duyệt của quản trị');
+    }
+    let appliedRow: CrudRow | null = null;
+    const appliedSubjectId = effect?.applicationResult?.subjectId;
+    if (definition.kind === 'crud' && typeof appliedSubjectId === 'number') {
+      const [row] = await tx.select()
+        .from(definition.table)
+        .where(eq(column(definition.table, 'id'), appliedSubjectId))
+        .limit(1);
+      appliedRow = (row ?? null) as CrudRow | null;
+    }
+    return { action: applied, appliedRow };
+  };
+  const tx = input.transaction;
+  if (tx) return execute(tx);
+  return db.transaction(execute);
 }
 
 export async function requestGovernedCrudCreate(input: {
@@ -391,6 +511,30 @@ export async function requestGovernedCrudCreate(input: {
   transaction?: Tx;
 }) {
   return requestGovernedConfigAction({
+    resource: input.resource,
+    operation: 'CREATE',
+    subjectId: null,
+    subjectKey: createSubjectKey(input.resource, input.data),
+    originalVersion: 0,
+    beforeRow: null,
+    afterData: input.data,
+    reason: input.reason,
+    makerId: input.makerId,
+    makerRole: input.makerRole,
+    transaction: input.transaction,
+  });
+}
+
+/** ADMIN makers apply immediately (final authority); others queue as before. */
+export async function requestOrApplyGovernedCrudCreate(input: {
+  resource: string;
+  data: CrudData;
+  reason?: string;
+  makerId: number;
+  makerRole: string;
+  transaction?: Tx;
+}) {
+  return requestOrApplyGovernedConfigAction({
     resource: input.resource,
     operation: 'CREATE',
     subjectId: null,
@@ -441,6 +585,34 @@ export async function requestGovernedCrudUpdate(input: {
   return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
 
+/** ADMIN makers apply immediately (final authority); others queue as before. */
+export async function requestOrApplyGovernedCrudUpdate(input: Parameters<typeof requestGovernedCrudUpdate>[0]) {
+  const definition = getCrudDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, 'UPDATE', input.reason);
+  const execute = async (tx: Tx) => {
+    const row = await lockResourceRow(tx, definition, input.id);
+    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
+    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
+      throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
+    }
+    return requestOrApplyGovernedConfigAction({
+      resource: definition.resource,
+      operation: 'UPDATE',
+      subjectId: Number(row.id),
+      subjectKey: null,
+      originalVersion: configVersionFromUpdatedAt(updatedAt),
+      beforeRow: row,
+      afterData: input.data,
+      reason,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      transaction: tx,
+    });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
 export async function requestGovernedCrudDelete(input: {
   resource: string;
   id: number;
@@ -460,6 +632,34 @@ export async function requestGovernedCrudDelete(input: {
       throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật. Vui lòng tải lại trước khi lưu.');
     }
     return requestGovernedConfigAction({
+      resource: definition.resource,
+      operation: 'DELETE',
+      subjectId: Number(row.id),
+      subjectKey: null,
+      originalVersion: configVersionFromUpdatedAt(updatedAt),
+      beforeRow: row,
+      afterData: null,
+      reason,
+      makerId: input.makerId,
+      makerRole: input.makerRole,
+      transaction: tx,
+    });
+  };
+  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+}
+
+/** ADMIN makers apply immediately (final authority); others queue as before. */
+export async function requestOrApplyGovernedCrudDelete(input: Parameters<typeof requestGovernedCrudDelete>[0]) {
+  const definition = getCrudDefinition(input.resource);
+  assertCanMakeGovernanceAction(definition.actionKind, input.makerRole);
+  const reason = resolveReason(definition, 'DELETE', input.reason);
+  const execute = async (tx: Tx) => {
+    const row = await lockResourceRow(tx, definition, input.id);
+    const updatedAt = assertGovernedUpdatedAt(row, definition.resource);
+    if (updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) {
+      throw new ApiError(409, 'Dữ liệu đã được người دیگر cập nhật. Vui lòng tải lại trước khi lưu.');
+    }
+    return requestOrApplyGovernedConfigAction({
       resource: definition.resource,
       operation: 'DELETE',
       subjectId: Number(row.id),

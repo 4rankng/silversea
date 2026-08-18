@@ -91,7 +91,7 @@ import {
   buildGovernedConfigSnapshot,
   governedConfigVersionFromUpdatedAt,
   registerGovernedCustomResource,
-  requestGovernedConfigAction,
+  requestOrApplyGovernedConfigAction,
 } from '../services/price-config-governance.service';
 import {
   DURABLE_EFFECT_KIND,
@@ -276,26 +276,43 @@ function hasMaterialCustomerConfigChange(data: CustomerMutationPayload): boolean
  * Edit forms resend the full record on every save, so key presence alone would
  * route every update through approval even when nothing material changed.
  * Compare the incoming values against the current row instead; treat numeric
- * strings ("10.00") as equal to their numeric payload (10), and skip keys the
- * payload omits.
+ * strings ("10.00") as equal to their numeric payload (10), compare arrays of
+ * primitives as sets (jsonb evidence lists), and skip keys the payload omits.
  */
 function sameConfigValue(current: unknown, incoming: unknown): boolean {
   if (incoming === undefined) return true;
   if (current === null || incoming === null) return current === incoming;
+  if (Array.isArray(current) || Array.isArray(incoming)) {
+    if (!Array.isArray(current) || !Array.isArray(incoming)) return false;
+    if (current.length !== incoming.length) return false;
+    const sorted = (values: unknown[]) => [...values].map(String).sort();
+    return sorted(current).join(' ') === sorted(incoming).join(' ');
+  }
   if (typeof current === 'number' || typeof incoming === 'number') {
     return Number(current) === Number(incoming);
   }
   return String(current) === String(incoming);
 }
 
+function hasMaterialValueChange(
+  fields: ReadonlySet<string>,
+  data: Record<string, unknown>,
+  current: Record<string, unknown>,
+): boolean {
+  return Object.entries(data).some(([key, value]) => (
+    fields.has(key) && !sameConfigValue(current[key], value)
+  ));
+}
+
 function hasMaterialCustomerUpdate(
   data: CustomerMutationPayload,
   current: typeof s.customers.$inferSelect,
 ): boolean {
-  return Object.entries(data).some(([key, value]) => (
-    MATERIAL_CUSTOMER_CONFIG_FIELDS.has(key as keyof CustomerMutationPayload)
-      && !sameConfigValue((current as Record<string, unknown>)[key], value)
-  ));
+  return hasMaterialValueChange(
+    MATERIAL_CUSTOMER_CONFIG_FIELDS,
+    data as Record<string, unknown>,
+    current as Record<string, unknown>,
+  );
 }
 
 const MATERIAL_DRIVER_FIELDS = new Set<keyof DriverPayload>([
@@ -307,12 +324,34 @@ function hasMaterialDriverConfigChange(data: DriverPayload): boolean {
   return Object.keys(data).some((key) => MATERIAL_DRIVER_FIELDS.has(key as keyof DriverPayload));
 }
 
+function hasMaterialDriverUpdate(
+  data: DriverPayload,
+  current: typeof s.drivers.$inferSelect,
+): boolean {
+  return hasMaterialValueChange(
+    MATERIAL_DRIVER_FIELDS,
+    data as Record<string, unknown>,
+    current as Record<string, unknown>,
+  );
+}
+
 const MATERIAL_PENALTY_REASON_FIELDS = new Set<keyof PenaltyReasonPayload>([
   'defaultAmount',
 ]);
 
 function hasMaterialPenaltyReasonChange(data: PenaltyReasonPayload): boolean {
   return Object.keys(data).some((key) => MATERIAL_PENALTY_REASON_FIELDS.has(key as keyof PenaltyReasonPayload));
+}
+
+function hasMaterialPenaltyReasonUpdate(
+  data: PenaltyReasonPayload,
+  current: typeof s.penaltyReasons.$inferSelect,
+): boolean {
+  return hasMaterialValueChange(
+    MATERIAL_PENALTY_REASON_FIELDS,
+    data as Record<string, unknown>,
+    current as Record<string, unknown>,
+  );
 }
 
 async function markCompletedFuelSurchargeTripsDirty(
@@ -351,6 +390,17 @@ function hasMaterialForwarderExpenseTypeChange(
   data: Partial<ForwarderExpenseTypePayload>,
 ): boolean {
   return Object.keys(data).some((key) => MATERIAL_FORWARDER_POLICY_FIELDS.has(key as keyof ForwarderExpenseTypePayload));
+}
+
+function hasMaterialForwarderExpenseTypeUpdate(
+  data: Partial<ForwarderExpenseTypePayload>,
+  current: typeof s.forwarderExpenseTypes.$inferSelect,
+): boolean {
+  return hasMaterialValueChange(
+    MATERIAL_FORWARDER_POLICY_FIELDS,
+    data as Record<string, unknown>,
+    current as Record<string, unknown>,
+  );
 }
 
 function requireIdempotencyKey(req: Request, message: string): string {
@@ -832,6 +882,13 @@ async function normalizeSupplierPayload(
   data: Partial<SupplierPayload>,
   supplierId?: number,
 ): Promise<Partial<SupplierPayload>> {
+  // Short-name write boundary: blank/missing shortName falls back to the full
+  // name so legacy callers and quick creates keep the NOT NULL invariant
+  // (same contract as customers/routes short-name hooks above).
+  const shortName = typeof data.shortName === 'string' ? data.shortName.trim() : '';
+  if ('name' in data && 'shortName' in data) {
+    data.shortName = shortName || (data.name ?? '').toString().trim();
+  }
   if (!('types' in data) && !('primaryType' in data)) return data;
   let sourceTypes: unknown = data.types;
   if (sourceTypes === undefined && supplierId != null) {
@@ -1284,7 +1341,7 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
   governance: {
     reasonLabel: 'chính sách chứng từ và hạn mức chi hộ',
     shouldGovernCreate: () => true,
-    shouldGovernUpdate: (_id, data) => hasMaterialForwarderExpenseTypeChange(data),
+    shouldGovernUpdate: (_id, data, _req, current) => hasMaterialForwarderExpenseTypeUpdate(data, current),
     shouldGovernDelete: () => true,
   },
   beforeCreate: async (data, _req, tx) => {
@@ -1475,7 +1532,7 @@ router.use('/penalty-reasons', createCrudRouter(s.penaltyReasons, penaltyReasonS
   governance: {
     reasonLabel: 'mức phạt mặc định',
     shouldGovernCreate: (data) => hasMaterialPenaltyReasonChange(data as PenaltyReasonPayload),
-    shouldGovernUpdate: (_id, data) => hasMaterialPenaltyReasonChange(data as PenaltyReasonPayload),
+    shouldGovernUpdate: (_id, data, _req, current) => hasMaterialPenaltyReasonUpdate(data as PenaltyReasonPayload, current),
     shouldGovernDelete: () => true,
   },
 }));
@@ -1507,7 +1564,7 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
   },
 }));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
-  searchableField: 'name',
+  searchableFields: ['shortName', 'name'],
   // Dispatchers allocate external capacity from this catalog; they may add
   // subcontractors (casbin route-scoped POST allowance) while updates/deletes
   // stay with MANAGER/ACCOUNTANT/ADMIN.
@@ -1573,7 +1630,7 @@ router.use('/drivers', createCrudRouter(s.drivers, driverSchema, {
   governance: {
     reasonLabel: 'mức lương và bảo hiểm tài xế',
     shouldGovernCreate: (data) => hasMaterialDriverConfigChange(data as DriverPayload),
-    shouldGovernUpdate: (_id, data) => hasMaterialDriverConfigChange(data as DriverPayload),
+    shouldGovernUpdate: (_id, data, _req, current) => hasMaterialDriverUpdate(data as DriverPayload, current),
   },
 }));
 
@@ -1765,7 +1822,7 @@ router.put('/road-config', asyncHandler(async (req: Request, res: Response) => {
         'Thiếu phiên bản cấu hình đường. Vui lòng tải lại trước khi cập nhật.',
       );
       const data = normalizeRoadConfigPayload(requestedData, existing ?? null);
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.roadConfig,
         operation: existing ? 'UPDATE' : 'CREATE',
         subjectId: existing?.id ?? null,
@@ -1776,7 +1833,7 @@ router.put('/road-config', asyncHandler(async (req: Request, res: Response) => {
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -1808,7 +1865,7 @@ router.put('/fuel-config', asyncHandler(async (req: Request, res: Response) => {
         expectedUpdatedAt,
         'Thiếu phiên bản cấu hình nhiên liệu. Vui lòng tải lại trước khi cập nhật.',
       );
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.fuelConfig,
         operation: existing ? 'UPDATE' : 'CREATE',
         subjectId: existing?.id ?? null,
@@ -1819,7 +1876,7 @@ router.put('/fuel-config', asyncHandler(async (req: Request, res: Response) => {
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -1857,7 +1914,7 @@ router.put('/company-info', asyncHandler(async (req: Request, res: Response) => 
         expectedUpdatedAt,
         'Thiếu phiên bản thông tin công ty. Vui lòng tải lại trước khi cập nhật.',
       );
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.companyInfo,
         operation: current ? 'UPDATE' : 'CREATE',
         subjectId: null,
@@ -1868,7 +1925,7 @@ router.put('/company-info', asyncHandler(async (req: Request, res: Response) => 
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -1930,7 +1987,7 @@ salaryPeriodsAdminRouter.put('/default', asyncHandler(async (req: Request, res: 
         expectedUpdatedAt,
         'Thiếu phiên bản mặc định kỳ lương. Vui lòng tải lại trước khi cập nhật.',
       );
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.salaryDefault,
         operation: current ? 'UPDATE' : 'CREATE',
         subjectId: current?.id ?? null,
@@ -1941,7 +1998,7 @@ salaryPeriodsAdminRouter.put('/default', asyncHandler(async (req: Request, res: 
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -1980,7 +2037,7 @@ salaryPeriodsAdminRouter.post('/', asyncHandler(async (req: Request, res: Respon
         expectedUpdatedAt,
         'Thiếu phiên bản kỳ lương. Vui lòng tải lại trước khi cập nhật.',
       );
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.salaryOverride,
         operation: existing ? 'UPDATE' : 'CREATE',
         subjectId: existing?.id ?? null,
@@ -1991,7 +2048,7 @@ salaryPeriodsAdminRouter.post('/', asyncHandler(async (req: Request, res: Respon
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -2026,7 +2083,7 @@ salaryPeriodsAdminRouter.put('/:id', asyncHandler(async (req: Request, res: Resp
         .for('update');
       if (!row) throw new ApiError(404, 'Không tìm thấy');
       assertOptionalVersion(row.updatedAt, expectedUpdatedAt, 'Thiếu phiên bản kỳ lương. Vui lòng tải lại trước khi cập nhật.');
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.salaryOverride,
         operation: 'UPDATE',
         subjectId: id,
@@ -2037,7 +2094,7 @@ salaryPeriodsAdminRouter.put('/:id', asyncHandler(async (req: Request, res: Resp
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });
@@ -2070,7 +2127,7 @@ salaryPeriodsAdminRouter.delete('/:id', asyncHandler(async (req: Request, res: R
         .for('update');
       if (!row) throw new ApiError(404, 'Không tìm thấy');
       assertOptionalVersion(row.updatedAt, expectedUpdatedAt, 'Thiếu phiên bản kỳ lương. Vui lòng tải lại trước khi xóa.');
-      return requestGovernedConfigAction({
+      return (await requestOrApplyGovernedConfigAction({
         resource: GOVERNED_SINGLETON_RESOURCES.salaryOverride,
         operation: 'DELETE',
         subjectId: id,
@@ -2081,7 +2138,7 @@ salaryPeriodsAdminRouter.delete('/:id', asyncHandler(async (req: Request, res: R
         makerId: actor.userId,
         makerRole: actor.role,
         transaction: tx,
-      });
+      })).action;
     },
   });
   res.status(replayed ? 200 : 201).json({ ...result, replayed });

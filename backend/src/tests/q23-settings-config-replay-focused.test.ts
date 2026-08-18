@@ -43,6 +43,7 @@ let server: http.Server;
 let baseUrl = '';
 let adminToken = '';
 let managerToken = '';
+let managerMakerToken = '';
 let accountantToken = '';
 let driverToken = '';
 let originalAppSettings: Awaited<ReturnType<typeof getAppSettings>>;
@@ -192,9 +193,14 @@ before(async () => {
   const manager = await mkUser(`q23-manager-${suffix}`, 'MANAGER');
   const accountant = await mkUser(`q23-accountant-${suffix}`, 'ACCOUNTANT');
   const driver = await mkUser(`q23-driver-${suffix}`, 'DRIVER');
+  // Distinct MANAGER maker for governed salary/debit-template flows: ADMIN writes
+  // now apply immediately, so the pending/check/approve assertions need a
+  // non-admin maker that is also a different user from the MANAGER approver.
+  const managerMaker = await mkUser(`q23-manager-maker-${suffix}`, 'MANAGER');
 
 
   adminToken = sign({ ...admin, username: admin.username ?? `admin-${admin.id}` });
+  managerMakerToken = sign({ ...managerMaker, username: managerMaker.username ?? `manager-maker-${managerMaker.id}` });
   managerToken = sign({ ...manager, username: manager.username ?? `manager-${manager.id}` });
   accountantToken = sign({ ...accountant, username: accountant.username ?? `accountant-${accountant.id}` });
   driverToken = sign({ ...driver, username: driver.username ?? `driver-${driver.id}` });
@@ -503,14 +509,14 @@ describe('Q23 focused settings/config replay closure', () => {
     const salaryDefaultPayload = { defaultStartDay: 26, defaultEndDay: 25 };
     const salaryDefaultFirst = await requestJson('/api/salary-periods/default', {
       method: 'PUT',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: salaryDefaultKey,
       expectedUpdatedAt: salaryDefaultVersion,
       body: salaryDefaultPayload,
     });
     const salaryDefaultReplay = await requestJson('/api/salary-periods/default', {
       method: 'PUT',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: salaryDefaultKey,
       expectedUpdatedAt: salaryDefaultVersion,
       body: salaryDefaultPayload,
@@ -547,13 +553,13 @@ describe('Q23 focused settings/config replay closure', () => {
     const [overrideA, overrideB] = await Promise.all([
       requestJson('/api/salary-periods', {
         method: 'POST',
-        token: adminToken,
+        token: managerMakerToken,
         idempotencyKey: overrideKey,
         body: overridePayload,
       }),
       requestJson('/api/salary-periods', {
         method: 'POST',
-        token: adminToken,
+        token: managerMakerToken,
         idempotencyKey: overrideKey,
         body: overridePayload,
       }),
@@ -606,7 +612,7 @@ describe('Q23 focused settings/config replay closure', () => {
 
     const overrideConflict = await requestJson('/api/salary-periods', {
       method: 'POST',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: overrideKey,
       body: { ...overridePayload, label: `Drift ${suffix}` },
     });
@@ -615,7 +621,7 @@ describe('Q23 focused settings/config replay closure', () => {
     const overrideUpdateKey = `q23-salary-override-update-${suffix}`;
     const overrideUpdate = await requestJson(`/api/salary-periods/${overrideId}`, {
       method: 'PUT',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: overrideUpdateKey,
       expectedUpdatedAt: overrideVersion,
       body: { ...overridePayload, label: `Q23 Updated ${suffix}` },
@@ -651,7 +657,7 @@ describe('Q23 focused settings/config replay closure', () => {
     const overrideDeleteKey = `q23-salary-override-delete-${suffix}`;
     const overrideDelete = await requestJson(`/api/salary-periods/${overrideId}`, {
       method: 'DELETE',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: overrideDeleteKey,
       expectedUpdatedAt: String(updatedOverride?.updatedAt),
     });
@@ -692,13 +698,13 @@ describe('Q23 focused settings/config replay closure', () => {
     const [templateA, templateB] = await Promise.all([
       requestJson('/api/debit-note-templates', {
         method: 'POST',
-        token: adminToken,
+        token: managerMakerToken,
         idempotencyKey: templateKey,
         body: templatePayload,
       }),
       requestJson('/api/debit-note-templates', {
         method: 'POST',
-        token: adminToken,
+        token: managerMakerToken,
         idempotencyKey: templateKey,
         body: templatePayload,
       }),
@@ -747,7 +753,7 @@ describe('Q23 focused settings/config replay closure', () => {
 
     const templateConflict = await requestJson('/api/debit-note-templates', {
       method: 'POST',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: templateKey,
       body: { name: `Q23 Template Drift ${suffix}` },
     });
@@ -756,7 +762,7 @@ describe('Q23 focused settings/config replay closure', () => {
     const templateUpdateKey = `q23-template-update-${suffix}`;
     const templateUpdate = await requestJson(`/api/debit-note-templates/${templateId}`, {
       method: 'PUT',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: templateUpdateKey,
       expectedUpdatedAt: templateVersion,
       body: { ...templatePayload, name: `Q23 Template Updated ${suffix}` },
@@ -778,7 +784,7 @@ describe('Q23 focused settings/config replay closure', () => {
     const templateDeleteKey = `q23-template-delete-${suffix}`;
     const templateDelete = await requestJson(`/api/debit-note-templates/${templateId}`, {
       method: 'DELETE',
-      token: adminToken,
+      token: managerMakerToken,
       idempotencyKey: templateDeleteKey,
       expectedUpdatedAt: String(templateAfterUpdate.body.updatedAt),
     });

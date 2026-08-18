@@ -624,6 +624,13 @@ export function assertCanApproveGovernanceAction(
   actor: GovernanceActor,
 ): void {
   assertCapability(action.actionKind, actor.actorRole, 'approver');
+  if (
+    action.actionKind === 'PRICE_CONFIG_CHANGE'
+    && actor.actorRole === Role.ADMIN
+    && action.makerId === actor.actorId
+  ) {
+    return;
+  }
   if (action.makerId === actor.actorId || action.checkerId === actor.actorId) {
     throw new ApiError(403, 'Người phê duyệt phải khác người tạo và người kiểm tra');
   }
@@ -640,6 +647,9 @@ export function getGovernanceAllowedActions(
   if (!canViewGovernanceAction(actor.actorRole)) return [];
 
   const allowed: GovernanceAllowedAction[] = [];
+  const isAdminPriceConfigMaker = action.actionKind === 'PRICE_CONFIG_CHANGE'
+    && actor.actorRole === Role.ADMIN
+    && action.makerId === actor.actorId;
   if (
     actor.actorId === action.makerId
     && ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'].includes(action.status)
@@ -657,13 +667,20 @@ export function getGovernanceAllowedActions(
   }
 
   if (
-    action.status === 'PENDING_APPROVAL'
-    && actor.actorId !== action.makerId
-    && actor.actorId !== action.checkerId
+    (
+      action.status === 'PENDING_APPROVAL'
+      || (action.status === 'PENDING_CHECK' && isAdminPriceConfigMaker)
+    )
+    && (isAdminPriceConfigMaker || actor.actorId !== action.makerId)
+    && (isAdminPriceConfigMaker || actor.actorId !== action.checkerId)
   ) {
     try {
       assertCanApproveGovernanceAction(action, actor);
-      allowed.push('APPROVE', 'REJECT', 'RETURN_FOR_EVIDENCE');
+      if (isAdminPriceConfigMaker) {
+        allowed.push('APPROVE');
+      } else {
+        allowed.push('APPROVE', 'REJECT', 'RETURN_FOR_EVIDENCE');
+      }
     } catch (error) {
       if (!(error instanceof ApiError) || error.statusCode !== 403) throw error;
     }

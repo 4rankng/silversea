@@ -18,6 +18,7 @@ type RowWithUpdatedAt = { id: number; updatedAt: Date; deletedAt?: Date | null }
 type ResourceCase<TRow extends RowWithUpdatedAt> = {
   name: string;
   endpoint: string;
+  adminOnly?: boolean;
   createPayload: () => Record<string, unknown>;
   mutatePayload: (row: TRow) => Record<string, unknown>;
   fetchById: (id: number) => Promise<TRow | undefined>;
@@ -152,9 +153,9 @@ async function approvePendingAction(response: Awaited<ReturnType<typeof api>>) {
 
 before(async () => {
   actors = await db.insert(s.users).values([
-    { username: `q15-price-maker-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
+    { username: `q15-price-maker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
     { username: `q15-price-checker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
-    { username: `q15-price-approver-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
+    { username: `q15-price-approver-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
     { username: `q15-price-viewer-${suffix}`, passwordHash: 'x', role: Role.DRIVER, status: 'ACTIVE' },
   ]).returning({ id: s.users.id, role: s.users.role });
   actorIds.push(...actors.map((actor) => actor.id));
@@ -569,6 +570,7 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     {
       name: 'business calendar',
       endpoint: '/api/business-calendar',
+      adminOnly: true,
       createPayload: () => ({
         calendarDate: '2099-12-01',
         name: `Q15 Calendar ${suffix}`,
@@ -685,6 +687,70 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
     },
   ];
 
+  it('applies a new Admin price-config change immediately with an auditable approval', async () => {
+    const response = await api('POST', '/api/pricing-tables', {
+      actorIndex: 2,
+      body: {
+        customerId,
+        routeId,
+        price: 1_765_432,
+        effectiveDate: '2098-11-01',
+      },
+      idempotencyKey: `q15-admin-immediate-${suffix}`,
+    });
+
+    assert.equal(response.status, 201, JSON.stringify(response.body));
+    assert.ok(!('actionKind' in response.body), JSON.stringify(response.body));
+    const pricingTableId = Number(response.body.id);
+    pricingTableIds.push(pricingTableId);
+
+    const audits = await db.select().from(s.governanceActions).where(and(
+      eq(s.governanceActions.makerId, actors[2]!.id),
+      eq(s.governanceActions.status, 'APPROVED'),
+      eq(s.governanceActions.actionKind, 'PRICE_CONFIG_CHANGE'),
+    ));
+    const audit = audits.find((row) => Number(row.applicationResult?.subjectId) === pricingTableId);
+    assert.ok(audit, 'Admin immediate apply must retain a governance audit row');
+    governanceActionIds.push(audit.id);
+    assert.equal(audit.checkerId, null);
+    assert.equal(audit.approverId, actors[2]!.id);
+    assert.ok(audit.appliedAt instanceof Date);
+  });
+
+  it('lets Admin directly approve a legacy pending price-config request they created', async () => {
+    const pending = await api('POST', '/api/pricing-tables', {
+      body: {
+        customerId,
+        routeId,
+        price: 1_876_543,
+        effectiveDate: '2098-10-01',
+      },
+      idempotencyKey: `q15-admin-legacy-${suffix}`,
+    });
+    expectPendingAction(pending, 'legacy Admin request fixture');
+    await db.update(s.governanceActions).set({
+      makerId: actors[2]!.id,
+      makerRole: Role.ADMIN,
+    }).where(eq(s.governanceActions.id, Number(pending.body.id)));
+
+    const detail = await api('GET', `/api/governance-actions/${pending.body.id}`, {
+      actorIndex: 2,
+    });
+    assert.equal(detail.status, 200, JSON.stringify(detail.body));
+    assert.deepEqual(detail.body.allowedActions, ['CANCEL', 'APPROVE']);
+
+    const approved = await approveAction(
+      Number(pending.body.id),
+      Number(pending.body.version),
+      2,
+    );
+    assert.equal(approved.status, 200, JSON.stringify(approved.body));
+    assert.equal(approved.body.status, 'APPROVED');
+    assert.equal(approved.body.checkerId, null);
+    assert.equal(approved.body.approverId, actors[2]!.id);
+    pricingTableIds.push(Number(approved.body.subjectId));
+  });
+
   it('serializes duplicate governed requests even with different idempotency keys', async () => {
     const payload = {
       customerId,
@@ -717,6 +783,38 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
 
   it('submits all financially material generated config resources for maker/checker/approver review before any DB effect', async () => {
     for (const resource of materialCases) {
+      if (resource.adminOnly) {
+        const created = await api('POST', resource.endpoint, {
+          actorIndex: 2,
+          body: resource.createPayload(),
+        });
+        assert.equal(created.status, 201, `${resource.name}: ${JSON.stringify(created.body)}`);
+        assert.ok(!('actionKind' in created.body), `${resource.name}: Admin create must apply immediately`);
+        const createdId = Number(created.body.id);
+        const createdRow = await resource.fetchById(createdId);
+        assert.ok(createdRow, `${resource.name}: Admin create must persist immediately`);
+        await resource.expectCreated(createdRow);
+
+        const updated = await api('PUT', `${resource.endpoint}/${createdId}`, {
+          actorIndex: 2,
+          body: resource.mutatePayload(createdRow),
+          expectedUpdatedAt: createdRow.updatedAt,
+        });
+        assert.equal(updated.status, 200, `${resource.name}: ${JSON.stringify(updated.body)}`);
+        assert.ok(!('actionKind' in updated.body), `${resource.name}: Admin update must apply immediately`);
+        const updatedRow = await resource.fetchById(createdId);
+        assert.ok(updatedRow, `${resource.name}: Admin update must keep row visible`);
+        await resource.expectUpdated(updatedRow);
+
+        const deleted = await api('DELETE', `${resource.endpoint}/${createdId}`, {
+          actorIndex: 2,
+          body: {},
+          expectedUpdatedAt: updatedRow.updatedAt,
+        });
+        assert.equal(deleted.status, 200, `${resource.name}: ${JSON.stringify(deleted.body)}`);
+        await resource.expectDeleted(createdId);
+        continue;
+      }
       const create = await api('POST', resource.endpoint, { body: resource.createPayload() });
       expectPendingAction(create, `${resource.name} create`);
 
@@ -890,6 +988,47 @@ describe('Q15 governed material config resources', { concurrency: false }, () =>
       ))
       .orderBy(s.fuelNorms.id);
     assert.equal(afterReject, undefined);
+  });
+
+  it('applies ADMIN price-config writes immediately even when a pending request exists', async () => {
+    // The reported bug: an ADMIN edit 409'd because a pending governance
+    // request was already open for the same customer version. ADMIN is the
+    // final authority — the write must apply immediately, superseding the
+    // queue entry instead of being blocked by it. Uses its own customer so
+    // the shared-row tests below are unaffected.
+    const [ownCustomer] = await db.insert(s.customers).values({
+      name: `Q15 Admin Final Customer ${suffix}`,
+    }).returning();
+    customerIds.push(ownCustomer.id);
+    const [before] = await db.select().from(s.customers).where(eq(s.customers.id, ownCustomer.id)).limit(1);
+    assert.ok(before);
+
+    // Actor 0 (MANAGER) opens a pending update on the current version…
+    const pending = await api('PUT', `/api/customers/${ownCustomer.id}`, {
+      body: { paymentTermDays: 45 },
+      expectedUpdatedAt: before.updatedAt,
+    });
+    expectPendingAction(pending, 'manager pending update that admin supersedes');
+
+    // …and ADMIN edits the same row at the same version: direct 200 row, no queue.
+    const direct = await api('PUT', `/api/customers/${ownCustomer.id}`, {
+      actorIndex: 2,
+      body: { paymentTermDays: 21 },
+      expectedUpdatedAt: before.updatedAt,
+    });
+    assert.equal(direct.status, 200, `admin direct body ${JSON.stringify(direct.body)}`);
+    assert.ok(!('actionKind' in direct.body), `expected direct row, got action: ${JSON.stringify(direct.body)}`);
+    assert.equal(direct.body.paymentTermDays, 21);
+
+    const [after] = await db.select().from(s.customers).where(eq(s.customers.id, ownCustomer.id)).limit(1);
+    assert.equal(after?.paymentTermDays, 21);
+
+    // The superseded pending action was canceled outright (the partial unique
+    // index on active actions would otherwise block the admin's insert).
+    const [superseded] = await db.select().from(s.governanceActions)
+      .where(eq(s.governanceActions.id, Number(pending.body.id)))
+      .limit(1);
+    assert.equal(superseded?.status, 'CANCELED', `superseded action: ${JSON.stringify(superseded)}`);
   });
 
   it('keeps ordinary customer edits direct while debt-authority fields require governance', async () => {

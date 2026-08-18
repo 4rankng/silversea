@@ -343,7 +343,9 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     assert.equal((await getAppSettings()).creditWarningThresholdDefault, 0.67);
 
     const customerName = `Final Q01 customer ${suffix}`;
-    const createdCustomerAction = await request<PendingGovernanceAction>('/api/customers', {
+    // ADMIN is the final authority: customer writes apply immediately (200/201
+    // with the row) instead of queueing a governance action.
+    const createdCustomerAction = await request<Record<string, unknown>>('/api/customers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-${suffix}`),
@@ -353,7 +355,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       },
     });
     assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
-    await approvePendingAction(createdCustomerAction.body);
+    assert.ok(!('actionKind' in createdCustomerAction.body), `expected direct row: ${JSON.stringify(createdCustomerAction.body)}`);
     const [createdCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.name, customerName))
       .limit(1);
@@ -377,7 +379,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
     creditOverrideIds.push(defaultScopedOverride.body.id);
     assert.equal(toNumber(defaultScopedOverride.body.warningThreshold), 0.67);
 
-    const updatedCustomerAction = await request<PendingGovernanceAction>('/api/customers/' + createdCustomer.id, {
+    const updatedCustomerAction = await request<Record<string, unknown>>('/api/customers/' + createdCustomer.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q01-customer-update-${suffix}`),
@@ -386,8 +388,9 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         creditWarningThreshold: 0.92,
       },
     });
-    assert.equal(updatedCustomerAction.status, 201, JSON.stringify(updatedCustomerAction.body));
-    await approvePendingAction(updatedCustomerAction.body);
+    // Direct apply: 200 with the updated row, no approval step.
+    assert.equal(updatedCustomerAction.status, 200, JSON.stringify(updatedCustomerAction.body));
+    assert.ok(!('actionKind' in updatedCustomerAction.body), `expected direct row: ${JSON.stringify(updatedCustomerAction.body)}`);
     const [updatedCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.id, createdCustomer.id))
       .limit(1);
@@ -554,7 +557,8 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
 
   test('Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code', async () => {
     const q08CustomerName = `Final Q08 customer ${suffix}`;
-    const createdCustomerAction = await request<PendingGovernanceAction>('/api/customers', {
+    // ADMIN applies immediately — no pending action to approve.
+    const createdCustomerAction = await request<Record<string, unknown>>('/api/customers', {
       method: 'POST',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-customer-${suffix}`),
@@ -564,7 +568,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       },
     });
     assert.equal(createdCustomerAction.status, 201, JSON.stringify(createdCustomerAction.body));
-    await approvePendingAction(createdCustomerAction.body);
+    assert.ok(!('actionKind' in createdCustomerAction.body), `expected direct row: ${JSON.stringify(createdCustomerAction.body)}`);
     const [createdCustomer] = await db.select().from(s.customers)
       .where(eq(s.customers.name, q08CustomerName))
       .limit(1);
@@ -613,7 +617,7 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
       .where(eq(s.partners.normalizedTaxCode, 'mst123'));
     assert.equal(normalizedPartners.length, 1);
 
-    const updatedCustomerAction = await request<PendingGovernanceAction>('/api/customers/' + createdCustomer.id, {
+    const updatedCustomerAction = await request<Record<string, unknown>>('/api/customers/' + createdCustomer.id, {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: addIdempotencyKey(`final-q08-customer-update-${suffix}`),
@@ -622,8 +626,9 @@ describe('final audit proof coverage for Q01/Q02/Q07/Q08', () => {
         taxCode: ' M S T 123 ',
       },
     });
-    assert.equal(updatedCustomerAction.status, 201, JSON.stringify(updatedCustomerAction.body));
-    await approvePendingAction(updatedCustomerAction.body);
+    // Direct apply: 200 with the row, no approval step.
+    assert.equal(updatedCustomerAction.status, 200, JSON.stringify(updatedCustomerAction.body));
+    assert.ok(!('actionKind' in updatedCustomerAction.body), `expected direct row: ${JSON.stringify(updatedCustomerAction.body)}`);
     const [updatedCustomer] = await db.select({ partnerId: s.customers.partnerId })
       .from(s.customers)
       .where(eq(s.customers.id, createdCustomer.id))

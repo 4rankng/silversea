@@ -250,7 +250,13 @@ export async function approveGovernanceActionWithAdapter(input: {
   const execute = async (tx: Tx) => {
     const action = await lockGovernanceAction(tx, input.actionId);
     assertExpectedActionVersion(action.version, input.expectedVersion);
-    if (action.status !== 'PENDING_APPROVAL' || action.checkerId == null) {
+    const isAdminPriceConfigMaker = action.actionKind === 'PRICE_CONFIG_CHANGE'
+      && action.makerId === input.approverId
+      && input.approverRole === 'ADMIN';
+    if (
+      (action.status !== 'PENDING_APPROVAL' || action.checkerId == null)
+      && !(isAdminPriceConfigMaker && action.status === 'PENDING_CHECK')
+    ) {
       throw new ApiError(409, 'Yêu cầu chưa được kiểm tra hoặc đã được xử lý');
     }
     assertCanApproveGovernanceAction(action, {
@@ -272,7 +278,7 @@ export async function approveGovernanceActionWithAdapter(input: {
         version: sql`${s.governanceActions.version} + 1`,
       }).where(and(
         eq(s.governanceActions.id, action.id),
-        eq(s.governanceActions.status, 'PENDING_APPROVAL'),
+        eq(s.governanceActions.status, action.status),
         eq(s.governanceActions.version, input.expectedVersion),
       )).returning();
       if (!authorized) {
@@ -339,7 +345,7 @@ export async function approveGovernanceActionWithAdapter(input: {
       version: sql`${s.governanceActions.version} + 1`,
     }).where(and(
       eq(s.governanceActions.id, action.id),
-      eq(s.governanceActions.status, 'PENDING_APPROVAL'),
+      eq(s.governanceActions.status, action.status),
       eq(s.governanceActions.version, input.expectedVersion),
     )).returning();
     if (!approved) {

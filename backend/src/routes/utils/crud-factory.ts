@@ -24,9 +24,9 @@ import {
 import {
   getGovernedCrudResourceName,
   registerGovernedCrudResource,
-  requestGovernedCrudCreate,
-  requestGovernedCrudDelete,
-  requestGovernedCrudUpdate,
+  requestOrApplyGovernedCrudCreate,
+  requestOrApplyGovernedCrudDelete,
+  requestOrApplyGovernedCrudUpdate,
 } from '../../services/price-config-governance.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -249,7 +249,7 @@ export function createCrudRouter<
           data = (await beforeCreate(data, req, tx)) as typeof data;
         }
         if (governance && governanceResource && (governance.shouldGovernCreate?.(data, req) ?? true)) {
-          return requestGovernedCrudCreate({
+          const outcome = await requestOrApplyGovernedCrudCreate({
             resource: governanceResource,
             data: data as Record<string, unknown>,
             reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
@@ -257,6 +257,7 @@ export function createCrudRouter<
             makerRole: actor.role,
             transaction: tx,
           });
+          return outcome.appliedRow ?? outcome.action;
         }
         let item;
         try {
@@ -310,7 +311,7 @@ export function createCrudRouter<
           data = (await beforeUpdate(id, data, req, tx)) as typeof data;
         }
         if (governance && governanceResource && (governance.shouldGovernUpdate?.(id, data, req, currentRow) ?? true)) {
-          return requestGovernedCrudUpdate({
+          const outcome = await requestOrApplyGovernedCrudUpdate({
             resource: governanceResource,
             id,
             data: data as Record<string, unknown>,
@@ -320,6 +321,7 @@ export function createCrudRouter<
             expectedUpdatedAt: currentUpdatedAt,
             transaction: tx,
           });
+          return outcome.appliedRow ?? outcome.action;
         }
         const nextUpdatedAt = new Date(Math.max(Date.now(), currentUpdatedAt.getTime() + 1));
         let item;
@@ -374,7 +376,7 @@ export function createCrudRouter<
         const currentRow = await lockCurrentVersion(tx, id, expectedUpdatedAt);
         const currentUpdatedAt = (currentRow as Record<string, unknown>).updatedAt as Date;
         if (governance && governanceResource && (governance.shouldGovernDelete?.(id, req) ?? true)) {
-          return requestGovernedCrudDelete({
+          const outcome = await requestOrApplyGovernedCrudDelete({
             resource: governanceResource,
             id,
             reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
@@ -383,6 +385,10 @@ export function createCrudRouter<
             expectedUpdatedAt: currentUpdatedAt,
             transaction: tx,
           });
+          // An immediately applied ADMIN delete has no row to return. Use the
+          // approved audit action to preserve the route's normal success shape.
+          if (outcome.action.status === 'APPROVED') return { ok: true as const, id };
+          return outcome.action;
         }
         if (beforeDelete) {
           await beforeDelete(id, req, tx);

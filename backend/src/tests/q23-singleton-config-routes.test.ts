@@ -129,7 +129,9 @@ before(async () => {
     return user;
   };
 
-  const maker = await mkUser(`q23-singleton-maker-${suffix}`, 'ADMIN');
+  // Maker is MANAGER (not ADMIN): ADMIN writes bypass the queue and apply
+  // immediately, so the pending/check/approve flow below needs a non-admin maker.
+  const maker = await mkUser(`q23-singleton-maker-${suffix}`, 'MANAGER');
   const managerMaker = await mkUser(`q23-singleton-manager-maker-${suffix}`, 'MANAGER');
   const accountantMaker = await mkUser(`q23-singleton-accountant-maker-${suffix}`, 'ACCOUNTANT');
   const checker = await mkUser(`q23-singleton-checker-${suffix}`, 'ACCOUNTANT');
