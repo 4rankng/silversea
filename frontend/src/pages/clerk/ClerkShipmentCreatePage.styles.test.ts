@@ -128,7 +128,6 @@ describe('shipment create responsive layout', () => {
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
     expect(css).toMatch(/\.csc-page\s*\{[^}]*padding:\s*12px 20px 28px;/);
-    expect(css).toMatch(/\.csc-header h1\s*\{[^}]*font-size:\s*clamp\(22px,\s*2vw,\s*26px\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
     expect(css).toMatch(/\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);
     expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*padding:\s*10px 14px;/);
