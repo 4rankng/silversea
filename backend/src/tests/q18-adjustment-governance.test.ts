@@ -27,7 +27,7 @@ import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.serv
 import {
   TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE,
 } from '../services/trip-financial-authority-lock.service';
-import { updateDocument } from '../services/billingDocument.service';
+import { updateDocument } from '../services/billing-document.service';
 
 const actorIds: number[] = [];
 const customerIds: number[] = [];

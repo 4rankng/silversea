@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateVatSnapshot,
   effectiveAmount, docTotal, documentLedgerAdjustment, splitContainers, joinContainers,
-} from '../services/billingDocument.service';
+} from '../services/billing-document.service';
 import type { BillingDocumentLine } from '@tingting/shared';
 
 const line = (over: Partial<BillingDocumentLine>): BillingDocumentLine => ({

@@ -518,7 +518,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       "'CANCELED'",
     ),
     directMutationBoundary: source(
-      'services/billingDocument.service.ts',
+      'services/billing-document.service.ts',
       'updateDocument',
       'assertDraftDocumentLinesEditable',
       "eq(s.billingDocuments.debitNoteStatus, 'DRAFT')",

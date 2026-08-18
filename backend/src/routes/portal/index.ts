@@ -5,18 +5,18 @@ import {
   acknowledgeCustomerEventSchema,
   portalDebitNoteDecisionSchema,
 } from '@tingting/shared';
-import { and, count, desc, eq, isNotNull, isNull, ne } from 'drizzle-orm';
-import { db } from '../../db';
-import * as s from '../../db/schema';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { canAccessCustomer, scopedByCustomer } from '../../lib/scoped-by-customer';
+import { listCustomerDebitNotes, listCustomerScopeCustomers } from '../../services/portal-catalog.service';
+import {
+  getDocument,
+  resolveDebitNoteTemplateForDoc,
+} from '../../services/billing-document.service';
 import {
   buildLegacyXlsx,
-  getDocument,
   renderTemplatedXlsx,
-  resolveDebitNoteTemplateForDoc,
-} from '../../services/billingDocument.service';
+} from '../../services/billing-export.service';
 import { transitionDebitNoteStatus } from '../../services/debit-note-lifecycle.service';
 import {
   attachmentDisposition,
@@ -143,27 +143,7 @@ router.get('/customer-scope', asyncHandler(async (req: Request, res: Response) =
   if (user.role !== 'CUSTOMER') {
     return res.json({ primaryCustomerId: null, customers: [] });
   }
-  const customers = await db.select({
-    id: s.customers.id,
-    name: s.customers.name,
-  }).from(s.userCustomerLinks)
-    .innerJoin(s.customers, eq(s.userCustomerLinks.customerId, s.customers.id))
-    .where(and(
-      eq(s.userCustomerLinks.userId, user.userId),
-      isNull(s.customers.deletedAt),
-    ))
-    .orderBy(s.userCustomerLinks.customerId);
-  if (user.customerId != null && !customers.some((customer) => customer.id === user.customerId)) {
-    const [primaryCustomer] = await db.select({
-      id: s.customers.id,
-      name: s.customers.name,
-    }).from(s.customers)
-      .where(and(eq(s.customers.id, user.customerId), isNull(s.customers.deletedAt)))
-      .limit(1);
-    if (primaryCustomer) {
-      customers.unshift(primaryCustomer);
-    }
-  }
+  const customers = await listCustomerScopeCustomers(user.userId, user.customerId ?? null);
   res.json({
     primaryCustomerId: user.customerId ?? customers[0]?.id ?? null,
     customers,
@@ -272,41 +252,8 @@ router.post('/shipments/:id/customer-events/:eventId/acknowledge', asyncHandler(
 router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
   const customerId = resolveSelectedCustomerId(req);
-  const condition = and(
-    eq(s.billingDocuments.entityType, 'CUSTOMER'),
-    eq(s.billingDocuments.entityId, customerId),
-    eq(s.billingDocuments.type, 'DEBIT_NOTE'),
-    isNull(s.billingDocuments.deletedAt),
-    isNotNull(s.billingDocuments.debitNoteStatus),
-    ne(s.billingDocuments.debitNoteStatus, 'DRAFT'),
-  );
-  const [items, totalRows] = await Promise.all([
-    db.select({
-      id: s.billingDocuments.id,
-      version: s.billingDocuments.version,
-      entityId: s.billingDocuments.entityId,
-      entityName: s.billingDocuments.entityName,
-      rangeFrom: s.billingDocuments.rangeFrom,
-      rangeTo: s.billingDocuments.rangeTo,
-      totalInclVat: s.billingDocuments.totalInclVat,
-      originalDueDate: s.billingDocuments.originalDueDate,
-      processingDueDate: s.billingDocuments.processingDueDate,
-      paymentTermDaysApplied: s.billingDocuments.paymentTermDaysApplied,
-      paymentDatePolicyApplied: s.billingDocuments.paymentDatePolicyApplied,
-      debitNoteStatus: s.billingDocuments.debitNoteStatus,
-      customerConfirmedAt: s.billingDocuments.customerConfirmedAt,
-      customerConfirmedBy: s.billingDocuments.customerConfirmedBy,
-      legalInvoiceRef: s.billingDocuments.legalInvoiceRef,
-      createdAt: s.billingDocuments.createdAt,
-      updatedAt: s.billingDocuments.updatedAt,
-    }).from(s.billingDocuments)
-      .where(condition)
-      .orderBy(desc(s.billingDocuments.createdAt))
-      .limit(limit)
-      .offset((page - 1) * limit),
-    db.select({ value: count() }).from(s.billingDocuments).where(condition),
-  ]);
-  res.json({ items, total: Number(totalRows[0]?.value ?? 0), page, limit });
+  const { items, total } = await listCustomerDebitNotes(customerId, page, limit);
+  res.json({ items, total, page, limit });
 }));
 
 router.get('/debit-notes/:id', asyncHandler(async (req: Request, res: Response) => {

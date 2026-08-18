@@ -14,6 +14,8 @@ import {
   listUnlinkedTripExpenses,
   getExpensePhotos,
   getForwarderOwnedExpenseId,
+  getExpenseTripLink,
+  listForwarderExpenseTypeRows,
   listActiveSuppliersForForwarder,
   getTripExpenseAuditInfo,
   updateForwarderTripExpenseInTx,
@@ -919,12 +921,9 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
   if (!ownedExpenseId) {
     return res.status(404).json({ error: 'Không tìm thấy chi phí' });
   }
-  const [ownedExpense] = await db.select({ tripId: s.tripExpenses.tripId })
-    .from(s.tripExpenses)
-    .where(eq(s.tripExpenses.id, expenseId))
-    .limit(1);
-  if (!ownedExpense) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
-  await assertForwarderTripScope(ownedExpense.tripId, forwarder.id);
+  const ownedTripId = await getExpenseTripLink(expenseId);
+  if (ownedTripId == null) return res.status(404).json({ error: 'Không tìm thấy chi phí' });
+  await assertForwarderTripScope(ownedTripId, forwarder.id);
   const photos = await getExpensePhotos(expenseId);
   res.json({ items: photos });
 }));
@@ -1067,21 +1066,7 @@ router.delete('/expense-photos/:id', asyncHandler(async (req: Request, res: Resp
 // ── Expense type labels (for forwarder catalog) ──
 
 router.get('/expense-types', asyncHandler(async (_req: Request, res: Response) => {
-  const rows = await db.select({
-    code: s.forwarderExpenseTypes.code,
-    name: s.forwarderExpenseTypes.name,
-    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
-    substituteEvidenceAllowed: s.forwarderExpenseTypes.substituteEvidenceAllowed,
-    noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
-    noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
-    noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
-    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
-    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
-    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
-    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
-    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
-  }).from(s.forwarderExpenseTypes)
-    .orderBy(s.forwarderExpenseTypes.name);
+  const rows = await listForwarderExpenseTypeRows();
   res.json(rows.map((row) => ({
     code: row.code,
     name: row.name,

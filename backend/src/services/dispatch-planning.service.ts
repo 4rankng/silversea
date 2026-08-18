@@ -14,6 +14,7 @@ import { transitionShipmentStatus } from './shipment.service';
 import { createTrip } from './trip-mutations.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { operationalName } from '../db/master-data-name';
+import { escapeLikeTerm } from '../lib/format';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
@@ -335,10 +336,6 @@ function normalizeDate(raw: string | undefined): string | null {
     throw new ApiError(400, 'date phải theo định dạng YYYY-MM-DD.');
   }
   return raw;
-}
-
-function escapeLikeTerm(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 function buildPattern(raw: string | undefined): string | null {

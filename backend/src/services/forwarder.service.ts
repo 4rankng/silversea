@@ -1160,6 +1160,34 @@ export async function getExpensePhotos(tripExpenseId: number) {
  * and POST gate on this so an unowned expense yields 404 — not 403 — which
  * removes the photo-id existence oracle on a security-sensitive path.
  */
+/** Trip link for an owned expense (scope check downstream in the route). */
+export async function getExpenseTripLink(expenseId: number): Promise<number | null> {
+  const [row] = await db.select({ tripId: s.tripExpenses.tripId })
+    .from(s.tripExpenses)
+    .where(eq(s.tripExpenses.id, expenseId))
+    .limit(1);
+  return row?.tripId ?? null;
+}
+
+/** Forwarder expense-type catalog rows (policy snapshot inputs). */
+export async function listForwarderExpenseTypeRows() {
+  return db.select({
+    code: s.forwarderExpenseTypes.code,
+    name: s.forwarderExpenseTypes.name,
+    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    substituteEvidenceAllowed: s.forwarderExpenseTypes.substituteEvidenceAllowed,
+    noInvoiceEvidenceTypes: s.forwarderExpenseTypes.noInvoiceEvidenceTypes,
+    noInvoicePerItemLimit: s.forwarderExpenseTypes.noInvoicePerItemLimit,
+    noInvoicePerDayLimit: s.forwarderExpenseTypes.noInvoicePerDayLimit,
+    noInvoiceFinanceLeadItemApprovalLimit: s.forwarderExpenseTypes.noInvoiceFinanceLeadItemApprovalLimit,
+    noInvoiceDirectorDayApprovalLimit: s.forwarderExpenseTypes.noInvoiceDirectorDayApprovalLimit,
+    noInvoiceFinanceLeadApprovalTitle: s.forwarderExpenseTypes.noInvoiceFinanceLeadApprovalTitle,
+    noInvoiceDirectorApprovalTitle: s.forwarderExpenseTypes.noInvoiceDirectorApprovalTitle,
+    noInvoicePolicyVersion: s.forwarderExpenseTypes.noInvoicePolicyVersion,
+  }).from(s.forwarderExpenseTypes)
+    .orderBy(s.forwarderExpenseTypes.name);
+}
+
 export async function getForwarderOwnedExpenseId(
   expenseId: number,
   forwarderId: number,

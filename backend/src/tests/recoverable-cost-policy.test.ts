@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { documentLedgerAdjustment } from '../services/billingDocument.service';
+import { documentLedgerAdjustment } from '../services/billing-document.service';
 import { evaluateRecoverableEligibility } from '../services/recoverable-cost.service';
 import { DURABLE_EFFECT_KIND } from '../services/durable-effect.service';
 import { isValidTransition } from '../services/debit-note-lifecycle.service';

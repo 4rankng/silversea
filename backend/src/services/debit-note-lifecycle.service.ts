@@ -17,10 +17,8 @@ import { createHash } from 'node:crypto';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
-import {
-  captureIssuedOfficialIdentitySnapshot,
-  getDocument,
-} from './billingDocument.service';
+import { getDocument } from './billing-document.service';
+import { captureIssuedOfficialIdentitySnapshot } from './billing-export.service';
 import { DURABLE_EFFECT_KIND, enqueueDurableEffect } from './durable-effect.service';
 
 type DebitNoteStatus = typeof s.debitNoteStatusEnum.enumValues[number];

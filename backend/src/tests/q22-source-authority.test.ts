@@ -4,12 +4,13 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { withTestCleanup } from './helpers/db-isolation';
 import type { AuthUser } from '../middleware/auth';
 import {
   generateDraft,
   getDocument,
   saveDocument,
-} from '../services/billingDocument.service';
+} from '../services/billing-document.service';
 import { assembleDisbursementsForPeriod } from '../services/disbursement-assembly.service';
 import {
   approveGovernanceAction,
@@ -42,6 +43,7 @@ import { getStatementData } from '../services/statement.service';
 import { getPaymentTermEvalReport } from '../services/payment-term.service';
 import { getCustomerOverdueAmount } from '../services/receivable-reminder.service';
 
+const cleanup = withTestCleanup();
 const actorIds: number[] = [];
 const customerIds: number[] = [];
 const routeIds: number[] = [];
@@ -77,22 +79,16 @@ before(async () => {
 
 after(async () => {
   try {
-  if (notificationIds.length > 0) {
-    await db.delete(s.notifications).where(inArray(s.notifications.id, notificationIds));
-  }
+  await cleanup.deleteAll(s.notifications, notificationIds);
   if (actorIds.length > 0) {
     await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
   }
-  if (paymentAllocationIds.length > 0) {
-    await db.delete(s.paymentAllocations).where(inArray(s.paymentAllocations.id, paymentAllocationIds));
-  }
+  await cleanup.deleteAll(s.paymentAllocations, paymentAllocationIds);
   if (paymentReceiptIds.length > 0) {
     await db.delete(s.paymentRefunds).where(inArray(s.paymentRefunds.paymentReceiptId, paymentReceiptIds));
     await db.delete(s.paymentReceipts).where(inArray(s.paymentReceipts.id, paymentReceiptIds));
   }
-  if (governanceActionIds.length > 0) {
-    await db.delete(s.governanceActions).where(inArray(s.governanceActions.id, governanceActionIds));
-  }
+  await cleanup.deleteAll(s.governanceActions, governanceActionIds);
   if (receiptIds.length > 0 || expenseIds.length > 0) {
     await db.delete(s.ledger).where(or(
       receiptIds.length > 0 ? inArray(s.ledger.receiptId, receiptIds) : undefined,
@@ -109,45 +105,19 @@ after(async () => {
     await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, documentIds));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, documentIds));
   }
-  if (tripFinancialPostingIds.length > 0) {
-    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
-  }
-  if (expenseIds.length > 0) {
-    await db.delete(s.tripExpenses).where(inArray(s.tripExpenses.id, expenseIds));
-  }
-  if (podSubmissionIds.length > 0) {
-    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
-  }
-  if (shipmentContainerIds.length > 0) {
-    await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, shipmentContainerIds));
-  }
-  if (tripIds.length > 0) {
-    await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
-  }
-  if (fulfillmentIds.length > 0) {
-    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
-  }
-  if (shipmentIds.length > 0) {
-    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
-  }
-  if (cargoTypeIds.length > 0) {
-    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
-  }
-  if (containerTypeIds.length > 0) {
-    await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
-  }
-  if (expenseTypeIds.length > 0) {
-    await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, expenseTypeIds));
-  }
-  if (routeIds.length > 0) {
-    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
-  }
-  if (customerIds.length > 0) {
-    await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
-  }
-  if (actorIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, actorIds));
-  }
+  await cleanup.deleteAll(s.tripFinancialPostings, tripFinancialPostingIds);
+  await cleanup.deleteAll(s.tripExpenses, expenseIds);
+  await cleanup.deleteAll(s.tripPodSubmissions, podSubmissionIds);
+  await cleanup.deleteAll(s.shipmentContainers, shipmentContainerIds);
+  await cleanup.deleteAll(s.trips, tripIds);
+  await cleanup.deleteAll(s.shipmentFulfillments, fulfillmentIds);
+  await cleanup.deleteAll(s.shipments, shipmentIds);
+  await cleanup.deleteAll(s.cargoTypes, cargoTypeIds);
+  await cleanup.deleteAll(s.containerTypes, containerTypeIds);
+  await cleanup.deleteAll(s.forwarderExpenseTypes, expenseTypeIds);
+  await cleanup.deleteAll(s.routes, routeIds);
+  await cleanup.deleteAll(s.customers, customerIds);
+  await cleanup.deleteAll(s.users, actorIds);
   } finally {
     await client.end();
   }

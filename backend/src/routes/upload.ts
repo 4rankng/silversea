@@ -10,7 +10,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 // auth + Casbin applied at mount point in index.ts
 import { Role } from '@tingting/shared';
 import { storageService } from '../services/storage.service';
-import { authorizeExpensePhoto } from '../services/photo-authz.service';
+import { authorizeExpensePhoto, checkDriverTripPhotoAccess } from '../services/photo-authz.service';
 import { config } from '../config';
 import type { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -691,19 +691,12 @@ photosRouter.get('/{*path}', asyncHandler(async (req: Request, res: Response) =>
 
     // Check permissions
     if (getUser(req).role === Role.DRIVER) {
-      const [driver] = await db.select({ id: s.drivers.id }).from(s.drivers)
-        .where(eq(s.drivers.userId, getUser(req).userId)).limit(1);
-
-      if (!driver) {
+      // Driver may only fetch photos of trips assigned to their own profile.
+      const access = await checkDriverTripPhotoAccess(getUser(req).userId, tripId);
+      if (access === 'no_profile') {
         return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
       }
-
-      const [trip] = await db.select()
-        .from(s.trips)
-        .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driver.id)))
-        .limit(1);
-
-      if (!trip) {
+      if (access === 'not_owned') {
         return res.status(403).json({ error: 'Không có quyền truy cập ảnh của chuyến đi này' });
       }
     }

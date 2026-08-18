@@ -24,7 +24,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, inArray, isNull, lte, ne, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, ne, sql, type SQL } from 'drizzle-orm';
 import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/shared';
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -381,6 +381,24 @@ function normalizePricingRateKey(value: string | null | undefined): string | nul
  *   3. Never throws for a missing price — returns MANUAL so trip creation
  *      is not blocked by incomplete pricing setup.
  */
+/** Paginated active pricing-table rows for the governed config list. */
+export async function listPricingTablesPaginated(page: number, limit: number, offset: number) {
+  const where = isNull(s.pricingTables.deletedAt);
+  const [items, countRow] = await Promise.all([
+    db.select().from(s.pricingTables).where(where).limit(limit).offset(offset),
+    db.select({ count: sql<number>`count(*)` }).from(s.pricingTables).where(where),
+  ]);
+  return { items, total: Number(countRow[0]?.count ?? 0) };
+}
+
+/** One active pricing-table row or null (404 semantics live in the route). */
+export async function getPricingTableById(id: number) {
+  const [item] = await db.select().from(s.pricingTables)
+    .where(and(eq(s.pricingTables.id, id), isNull(s.pricingTables.deletedAt)))
+    .limit(1);
+  return item ?? null;
+}
+
 export async function resolveFreightPrice(
   input: ResolveFreightPriceInput,
 ): Promise<ResolvedFreightPrice> {

@@ -12,7 +12,8 @@ import {
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
-import * as billingService from '../../services/billingDocument.service';
+import * as billingService from '../../services/billing-document.service';
+import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
 import {
   requestBillingDocumentAdjustment,
   requestBillingDocumentIssue,
@@ -249,8 +250,8 @@ router.get('/finance/billing-documents/:id/export', requireRoles(...ROLES), asyn
   const doc = await billingService.getDocument(id);
   const snap = await billingService.resolveDebitNoteTemplateForDoc(doc, { templateIdOverride });
   const buffer = snap
-    ? await billingService.renderTemplatedXlsx(doc, snap)
-    : await billingService.buildLegacyXlsx(doc);
+    ? await renderTemplatedXlsx(doc, snap)
+    : await buildLegacyXlsx(doc);
   const kind = doc.type === 'DEBIT_NOTE' ? 'giay-bao-no' : 'bang-ke';
   const name = doc.entityName ?? String(doc.entityId);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

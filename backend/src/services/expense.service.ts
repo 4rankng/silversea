@@ -623,6 +623,17 @@ export async function applyCompanyExpenseGovernanceAction(
   };
 }
 
+/** Photos attached to a company expense (list view: id, key, uploadedAt). */
+export async function getExpensePhotoList(expenseId: number) {
+  return db.select({
+    id: s.expensePhotos.id,
+    storageKey: s.expensePhotos.storageKey,
+    uploadedAt: s.expensePhotos.uploadedAt,
+  }).from(s.expensePhotos)
+    .where(eq(s.expensePhotos.expenseId, expenseId))
+    .orderBy(s.expensePhotos.uploadedAt);
+}
+
 export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListFilters) {
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = Math.min(100, filters.pageSize ?? 20);

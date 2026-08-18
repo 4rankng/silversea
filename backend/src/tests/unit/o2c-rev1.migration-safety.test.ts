@@ -2,8 +2,8 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const baselineUrl = new URL('../../drizzle/0000_flexible-baseline.sql', import.meta.url);
-const journalUrl = new URL('../../drizzle/meta/_journal.json', import.meta.url);
+const baselineUrl = new URL('../../../drizzle/0000_flexible-baseline.sql', import.meta.url);
+const journalUrl = new URL('../../../drizzle/meta/_journal.json', import.meta.url);
 
 describe('O2C clean-baseline safety', () => {
   test('preserves the consolidated baseline before ordered additive migrations', async () => {

@@ -8,6 +8,7 @@ import {
   computeSalary,
   batchUpsertWorkDays,
   getWorkDays,
+  getTripLabelsForWorkDays,
   computeAllDriverSalaries,
 } from '../services/attendance.service';
 import {
@@ -926,17 +927,7 @@ router.get('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.A
   const tripIds = workDays
     .filter(w => w.status === 'TRIP_DAY' && w.tripId)
     .map(w => w.tripId!);
-
-  let trips: Array<{ id: number; tripCode: string | null; routeName: string | null }> = [];
-  if (tripIds.length > 0) {
-    trips = await db.select({
-      id: s.trips.id,
-      tripCode: s.trips.tripCode,
-      routeName: s.routes.name,
-    }).from(s.trips)
-      .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-      .where(inArray(s.trips.id, tripIds));
-  }
+  const trips = await getTripLabelsForWorkDays(tripIds);
 
   const tripMap = Object.fromEntries(trips.map(t => [t.id, t]));
 

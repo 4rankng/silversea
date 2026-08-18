@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { TripStatus, NotificationType, Role, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
+import { getTripStatusOr404, markTripPodRecovered } from '../services/trip-mutations.service';
 import * as gpsService from '../services/gps.service';
 import * as financialService from '../services/financial.service';
 import { listTripContainers, batchUpsertTripContainers, createTripExpense, updateTripExpense, getTripExpenses, deleteTripExpenseGuarded, getTripExpenseAuditInfo, latestTripPhotoKey, listTripPhotoKeys } from '../services/forwarder.service';
@@ -490,12 +491,9 @@ router.post('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   const idempotencyKey = getRequestIdempotencyKey(req);
-  const [current] = await db.select({
-    status: s.trips.status,
-  }).from(s.trips).where(eq(s.trips.id, id)).limit(1);
-  if (!current) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  const currentStatus = await getTripStatusOr404(id);
 
-  if (current.status === TripStatus.COMPLETED) {
+  if (currentStatus === TripStatus.COMPLETED) {
     if (expectedVersion === undefined) {
       throw new ApiError(400, 'Phiên bản chuyến đi là bắt buộc');
     }
@@ -568,16 +566,7 @@ router.post('/:id/pod-recovered', requireRoles(Role.ACCOUNTANT, Role.CUS), async
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   const user = getUser(req);
-  const [updated] = await db.update(s.trips).set({
-    podRecoveredAt: new Date(),
-    podRecoveredBy: user.userId,
-    version: sql`${s.trips.version} + 1`,
-    updatedAt: new Date(),
-  }).where(and(
-    eq(s.trips.id, id),
-    ...(expectedVersion !== undefined ? [eq(s.trips.version, expectedVersion)] : []),
-  )).returning();
-  if (!updated) throw new ApiError(409, 'Chuyến đi đã bị thay đổi. Vui lòng tải lại.');
+  const updated = await markTripPodRecovered(id, user.userId, expectedVersion);
   res.json(updated);
 }));
 

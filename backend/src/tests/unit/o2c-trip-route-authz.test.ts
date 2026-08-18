@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 import type { NextFunction, Request, Response } from 'express';
 import { Role } from '@tingting/shared';
-import { initEnforcer } from '../casbin/enforcer';
-import { tripRouteAuthz } from '../middleware/casbin';
+import { initEnforcer } from '../../casbin/enforcer';
+import { tripRouteAuthz } from '../../middleware/casbin';
 
 function request(role: Role, method: string, path: string): Request {
   return {

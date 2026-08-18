@@ -10,7 +10,7 @@ import {
   buildExpenseSourceVersionToken,
   postingChecksum,
   postDebitNoteDelta,
-} from './billingDocument.service';
+} from './billing-document.service';
 import { transitionDebitNoteStatus } from './debit-note-lifecycle.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceActionRow, GovernanceApplyResult } from './governance-transition.service';

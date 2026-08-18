@@ -7,6 +7,7 @@ import { and, eq, inArray, or } from 'drizzle-orm';
 import { Role, TxnType, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { withTestCleanup } from './helpers/db-isolation';
 import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import advancesRoutes from '../routes/financial/advances.routes';
@@ -15,13 +16,14 @@ import debtOffsetsRoutes from '../routes/financial/debt-offsets.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import { initAuditService } from '../services/audit.service';
-import { generateDraft } from '../services/billingDocument.service';
+import { generateDraft } from '../services/billing-document.service';
 import { initNotificationService } from '../services/notification.service';
 import { disconnectRedis } from '../lib/redis';
 import { upsertPartnerFromTaxCode } from '../services/legal-partner.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const cleanup = withTestCleanup();
 const userIds: number[] = [];
 const customerIds: number[] = [];
 const supplierIds: number[] = [];
@@ -384,9 +386,7 @@ after(async () => {
   if (idempotencyKeys.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, idempotencyKeys));
   }
-  if (auditLogIds.length > 0) {
-    await db.delete(s.auditLogs).where(inArray(s.auditLogs.id, auditLogIds));
-  }
+  await cleanup.deleteAll(s.auditLogs, auditLogIds);
   if (userIds.length > 0) {
     await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, userIds));
     await db.delete(s.governanceActions).where(or(
@@ -412,9 +412,7 @@ after(async () => {
     ));
     await db.delete(s.advanceRequests).where(inArray(s.advanceRequests.id, advanceRequestIds));
   }
-  if (billingLineDocIds.length > 0) {
-    await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, billingLineDocIds));
-  }
+  await cleanup.deleteWhere(s.billingDocumentLines, billingLineDocIds, (ids) => inArray(s.billingDocumentLines.documentId, ids));
   if (billingDocumentIds.length > 0) {
     await db.delete(s.ledger).where(and(
       eq(s.ledger.txnType, TxnType.ADJUSTMENT),
@@ -422,21 +420,11 @@ after(async () => {
     ));
     await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, billingDocumentIds));
   }
-  if (podSubmissionIds.length > 0) {
-    await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, podSubmissionIds));
-  }
-  if (tripFinancialPostingIds.length > 0) {
-    await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, tripFinancialPostingIds));
-  }
-  if (tripIds.length > 0) {
-    await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
-  }
-  if (fulfillmentIds.length > 0) {
-    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, fulfillmentIds));
-  }
-  if (shipmentIds.length > 0) {
-    await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
-  }
+  await cleanup.deleteAll(s.tripPodSubmissions, podSubmissionIds);
+  await cleanup.deleteAll(s.tripFinancialPostings, tripFinancialPostingIds);
+  await cleanup.deleteAll(s.trips, tripIds);
+  await cleanup.deleteAll(s.shipmentFulfillments, fulfillmentIds);
+  await cleanup.deleteAll(s.shipments, shipmentIds);
   if (supplierIds.length > 0) {
     await db.update(s.customers)
       .set({ linkedSupplierId: null })
@@ -452,25 +440,15 @@ after(async () => {
     ));
     await db.delete(s.debtOffsets).where(inArray(s.debtOffsets.id, debtOffsetIds));
   }
-  if (customerIds.length > 0) {
-    await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
-  }
-  if (supplierIds.length > 0) {
-    await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
-  }
-  if (routeIds.length > 0) {
-    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
-  }
-  if (cargoTypeIds.length > 0) {
-    await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
-  }
+  await cleanup.deleteAll(s.customers, customerIds);
+  await cleanup.deleteAll(s.suppliers, supplierIds);
+  await cleanup.deleteAll(s.routes, routeIds);
+  await cleanup.deleteAll(s.cargoTypes, cargoTypeIds);
   if (userIds.length > 0) {
     await db.delete(s.notifications)
       .where(inArray(s.notifications.userId, userIds));
   }
-  if (userIds.length > 0) {
-    await db.delete(s.users).where(inArray(s.users.id, userIds));
-  }
+  await cleanup.deleteAll(s.users, userIds);
   } finally {
     await disconnectRedis();
     await client.end();

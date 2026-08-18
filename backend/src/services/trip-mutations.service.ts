@@ -748,6 +748,33 @@ export type TripFigureUpdateInput = {
     trailerType?: string | null;
 };
 
+/** Status read for the cancel-route guard; throws 404 when the trip is missing. */
+export async function getTripStatusOr404(tripId: number): Promise<string | null> {
+  const [current] = await db.select({ status: s.trips.status })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!current) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  return current.status;
+}
+
+/** Marks a trip's paper POD as recovered (optimistic-locked write). */
+export async function markTripPodRecovered(
+  tripId: number,
+  recoveredBy: number,
+  expectedVersion?: number,
+) {
+  const [updated] = await db.update(s.trips).set({
+    podRecoveredAt: new Date(),
+    podRecoveredBy: recoveredBy,
+    version: sql`${s.trips.version} + 1`,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.trips.id, tripId),
+    ...(expectedVersion !== undefined ? [eq(s.trips.version, expectedVersion)] : []),
+  )).returning();
+  if (!updated) throw new ApiError(409, 'Chuyến đi đã bị thay đổi. Vui lòng tải lại.');
+  return updated;
+}
+
 export async function updateTripFigures(
   tripId: number,
   data: TripFigureUpdateInput,

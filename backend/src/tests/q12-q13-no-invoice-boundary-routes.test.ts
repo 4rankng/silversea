@@ -115,7 +115,7 @@ async function approvePendingAction(action: { id: number; version: number }) {
 
   const approved = await request(`/api/governance-actions/${action.id}/approve`, {
     method: 'POST',
-    token: managerToken,
+    token: adminToken,
     headers: { 'Idempotency-Key': `q12q13-approve-${action.id}-${checked.body.version}` },
     body: { expectedVersion: checked.body.version },
   });
@@ -250,7 +250,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
   test('config CRUD persists policy-configurable approval titles and only bumps version on policy change', async () => {
     const create = await request('/api/forwarder-expense-types', {
       method: 'POST',
-      token: adminToken,
+      token: managerToken,
       headers: { 'Idempotency-Key': `q12q13-create-${suffix}` },
       body: {
         code: `Q12Q13-${suffix}`.slice(0, 50),
@@ -287,7 +287,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
 
     const noChange = await request(`/api/forwarder-expense-types/${created.id}`, {
       method: 'PUT',
-      token: adminToken,
+      token: managerToken,
       headers: {
         'Idempotency-Key': `q12q13-nochange-${suffix}`,
         'If-Unmodified-Since': created.updatedAt.toISOString(),
@@ -299,8 +299,9 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
         deletedAt: undefined,
       },
     });
-    assert.equal(noChange.status, 201, JSON.stringify(noChange.body));
-    await approvePendingAction(noChange.body);
+    // No material value change → value-diff predicate skips governance and
+    // the update applies directly (200 + applied row, no approval flow).
+    assert.equal(noChange.status, 200, JSON.stringify(noChange.body));
     const [unchanged] = await db.select().from(s.forwarderExpenseTypes)
       .where(eq(s.forwarderExpenseTypes.id, created.id))
       .limit(1);
@@ -308,7 +309,7 @@ describe('Q12/Q13 no-invoice route boundaries', () => {
 
     const changed = await request(`/api/forwarder-expense-types/${created.id}`, {
       method: 'PUT',
-      token: adminToken,
+      token: managerToken,
       headers: {
         'Idempotency-Key': `q12q13-change-${suffix}`,
         'If-Unmodified-Since': unchanged.updatedAt.toISOString(),

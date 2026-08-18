@@ -13,7 +13,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { getTripArStatus } from '../services/ar-status.service';
 import { getCustomerOverdueAmount } from '../services/receivable-reminder.service';
 import { LedgerService } from '../services/ledger.service';
-import { getDocument, saveDocument } from '../services/billingDocument.service';
+import { getDocument, saveDocument } from '../services/billing-document.service';
 import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
 import {

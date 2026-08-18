@@ -13,6 +13,7 @@ import {
   getExpense,
   isGovernedCompanyExpenseMutation,
   requestCompanyExpenseGovernance,
+  getExpensePhotoList,
 } from '../services/expense.service';
 import type { ExpenseUpdateInput } from '../services/expense.service';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -361,12 +362,7 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
 router.get('/:id/photos', asyncHandler(async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: 'ID không hợp lệ' });
-  const rows = await db.select({
-    id: s.expensePhotos.id,
-    storageKey: s.expensePhotos.storageKey,
-    uploadedAt: s.expensePhotos.uploadedAt,
-  }).from(s.expensePhotos).where(eq(s.expensePhotos.expenseId, id))
-    .orderBy(s.expensePhotos.uploadedAt);
+  const rows = await getExpensePhotoList(id);
   res.json({ items: rows.map(r => ({ ...r, url: `/api/photos/${encodeURIComponent(r.storageKey)}` })) });
 }));
 

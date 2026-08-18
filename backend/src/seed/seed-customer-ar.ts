@@ -13,7 +13,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { generateDraft, saveDocument } from '../services/billingDocument.service';
+import { generateDraft, saveDocument } from '../services/billing-document.service';
 import { recordPaymentReceipt } from '../services/payment-allocation.service';
 import type { AuthUser } from '../middleware/auth';
 

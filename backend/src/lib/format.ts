@@ -53,6 +53,14 @@ export function formatDateShort(dateStr: string): string {
 }
 
 /**
+ * Escape SQL LIKE metacharacters (backslash, %, _) so user input is matched
+ * literally in ILIKE/LIKE patterns. Single canonical copy for all services.
+ */
+export function escapeLikeTerm(value: string): string {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+/**
  * Sniff image MIME type from file magic bytes.
  * Supports JPEG, PNG, WebP, and HEIC.
  */

@@ -10,10 +10,10 @@ import {
 import {
   generateDraft,
   getDocument,
-  renderTemplatedXlsx,
   resolveDebitNoteTemplateForDoc,
   saveDocument,
-} from '../services/billingDocument.service';
+} from '../services/billing-document.service';
+import { renderTemplatedXlsx } from '../services/billing-export.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 import { exportDebitNoteHtml } from '../services/debit-note-pdf.service';
 import type { BillingDocument, DebitNoteTemplateSnapshot, SaveBillingDocumentInput } from '@tingting/shared';

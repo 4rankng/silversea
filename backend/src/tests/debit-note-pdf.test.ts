@@ -21,7 +21,7 @@ import {
 } from '../services/debit-note-pdf.service';
 import type { DebitNoteTemplateSnapshot } from '@tingting/shared';
 import { exportDebitNotePdf } from '../services/pdf-export.service';
-import { getDocument } from '../services/billingDocument.service';
+import { getDocument } from '../services/billing-document.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdDocIds: number[] = [];

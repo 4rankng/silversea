@@ -1,11 +1,11 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { client } from '../db';
+import { templateToSnapshot } from '../services/billing-document.service';
 import {
   buildBillingXlsx,
   renderTemplatedXlsx,
-  templateToSnapshot,
-} from '../services/billingDocument.service';
+} from '../services/billing-export.service';
 import { defaultDebitNoteColumns, defaultPaymentStatementColumns } from '@tingting/shared';
 import type {
   BillingDocument,

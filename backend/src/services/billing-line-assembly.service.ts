@@ -8,7 +8,7 @@
 //
 // Each line carries its source type (TRIP / EXPENSE / ANCILLARY / ADHOC),
 // source id, base amount, and a description for the debit-note template.
-// The caller (billingDocument.service.ts) decides which lines to include.
+// The caller (billing-document.service.ts) decides which lines to include.
 
 import { db } from '../db';
 import * as s from '../db/schema';

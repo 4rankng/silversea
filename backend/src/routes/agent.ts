@@ -11,12 +11,13 @@
 // — the bot impersonates the caller; Casbin gates office roles. A 503 is
 // returned for every route while BOT_ENABLE is off.
 import { Router, type Request, type Response } from 'express';
-import { desc, eq } from 'drizzle-orm';
-import { db } from '../db';
-import * as schema from '../db/schema';
 import { getAppSettings } from '../services/app-settings.service';
 import { getUser } from '../middleware/auth';
-import { agentResponseSchema, type AgentConversation } from '@tingting/shared';
+import { asyncHandler } from '../middleware/asyncHandler';
+import {
+  getConversationHistory,
+  listRecentConversations,
+} from '../services/agent/conversations';
 
 export const agentRoutes = Router();
 
@@ -29,69 +30,17 @@ async function disabled(res: Response): Promise<boolean> {
   return false;
 }
 
-agentRoutes.get('/conversations', async (req: Request, res: Response) => {
+agentRoutes.get('/conversations', asyncHandler(async (req: Request, res: Response) => {
   if (await disabled(res)) return;
-  try {
-    const userId = getUser(req).userId;
-    const rows = await db
-      .select({
-        id: schema.agentConversations.id,
-        title: schema.agentConversations.title,
-        createdAt: schema.agentConversations.createdAt,
-        updatedAt: schema.agentConversations.updatedAt,
-      })
-      .from(schema.agentConversations)
-      .where(eq(schema.agentConversations.userId, userId))
-      .orderBy(desc(schema.agentConversations.updatedAt))
-      .limit(30);
-    res.json(rows.map((r) => ({ ...r, id: String(r.id), messages: [] })));
-  } catch (e) {
-    console.error('[agent] list conversations failed', e);
-    res.status(500).json({ error: 'Lỗi máy chủ' });
-  }
-});
+  res.json(await listRecentConversations(getUser(req).userId));
+}));
 
-agentRoutes.get('/conversations/:id', async (req: Request, res: Response) => {
+agentRoutes.get('/conversations/:id', asyncHandler(async (req: Request, res: Response) => {
   if (await disabled(res)) return;
-  try {
-    const userId = getUser(req).userId;
-    const id = Number(req.params.id);
-    const [conv] = await db
-      .select()
-      .from(schema.agentConversations)
-      .where(eq(schema.agentConversations.id, id))
-      .limit(1);
-    if (!conv || conv.userId !== userId) {
-      res.status(404).json({ error: 'Không tìm thấy' });
-      return;
-    }
-    const messages = await db
-      .select()
-      .from(schema.agentMessages)
-      .where(eq(schema.agentMessages.conversationId, id))
-      .orderBy(schema.agentMessages.id);
-    const result: AgentConversation = {
-      id: String(conv.id),
-      title: conv.title ?? undefined,
-      createdAt: conv.createdAt.toISOString(),
-      updatedAt: conv.updatedAt.toISOString(),
-      messages: messages.map((m) => {
-        // Re-validate persisted jsonb: schema drift / corrupt / degraded rows
-        // must not crash InsightCard on history reload. Drop non-conforming
-        // responses (MessageBubble falls back to `content`).
-        const parsed = m.response != null ? agentResponseSchema.safeParse(m.response) : null;
-        return {
-          id: String(m.id),
-          role: m.role as 'user' | 'assistant',
-          content: m.content ?? undefined,
-          response: parsed?.success ? parsed.data : undefined,
-          createdAt: m.createdAt.toISOString(),
-        };
-      }),
-    };
-    res.json(result);
-  } catch (e) {
-    console.error('[agent] get conversation failed', e);
-    res.status(500).json({ error: 'Lỗi máy chủ' });
+  const id = Number(req.params.id);
+  const result = await getConversationHistory(id, getUser(req).userId);
+  if (!result) {
+    return res.status(404).json({ error: 'Không tìm thấy' });
   }
-});
+  res.json(result);
+}));

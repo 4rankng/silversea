@@ -12,7 +12,7 @@ import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import { disconnectRedis } from '../lib/redis';
-import { generateDraft } from '../services/billingDocument.service';
+import { generateDraft } from '../services/billing-document.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

@@ -16,7 +16,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { eq, and, isNull, sql, desc } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { debitNoteTemplateSchema } from '@tingting/shared';
 import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -30,6 +30,7 @@ import {
   requestGovernedCrudDelete,
   requestGovernedCrudUpdate,
 } from '../../services/price-config-governance.service';
+import { listDebitNoteTemplates, getDebitNoteTemplateById } from '../../services/debit-note-template-reads.service';
 
 const router = Router();
 const COMMANDS = {
@@ -101,31 +102,20 @@ registerGovernedCrudResource({
 // GET / — list (search by name; default first, then by name)
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, offset } = parsePagination(req);
-  const search = req.query.search as string;
-  const documentType = req.query.documentType as string | undefined;
-  const conds = [isNull(s.debitNoteTemplates.deletedAt)];
-  if (documentType === 'DEBIT_NOTE' || documentType === 'PAYMENT_STATEMENT') {
-    conds.push(eq(s.debitNoteTemplates.documentType, documentType));
-  }
-  if (search) {
-    const escaped = search.replace(/[%_]/g, '\\$&');
-    conds.push(sql`unaccent(${s.debitNoteTemplates.name}) ILIKE unaccent(${"%" + escaped + "%"})`);
-  }
-  const where = and(...conds);
-  const [items, countRow] = await Promise.all([
-    db.select().from(s.debitNoteTemplates).where(where)
-      .limit(limit).offset(offset)
-      .orderBy(desc(s.debitNoteTemplates.isDefault), s.debitNoteTemplates.name),
-    db.select({ count: sql<number>`count(*)` }).from(s.debitNoteTemplates).where(where),
-  ]);
-  res.json({ items, total: Number(countRow[0]?.count ?? 0), page, pageSize: limit });
+  const { items, total } = await listDebitNoteTemplates({
+    page,
+    limit,
+    offset,
+    search: req.query.search as string | undefined,
+    documentType: req.query.documentType as string | undefined,
+  });
+  res.json({ items, total, page, pageSize: limit });
 }));
 
 // GET /:id
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
-  const [row] = await db.select().from(s.debitNoteTemplates)
-    .where(and(eq(s.debitNoteTemplates.id, id), isNull(s.debitNoteTemplates.deletedAt))).limit(1);
+  const row = await getDebitNoteTemplateById(id);
   if (!row) return res.status(404).json({ error: 'Không tìm thấy' });
   res.json(row);
 }));

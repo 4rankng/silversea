@@ -8,7 +8,7 @@ import {
   LOCKED_ENTITY_BOUNDARIES,
   type ExecutableProofBinding,
   type SourceDeclarationBinding,
-} from '../governance/locked-entity-manifest';
+} from '../../governance/locked-entity-manifest';
 
 const sourceRoot = path.resolve(process.cwd(), 'src');
 

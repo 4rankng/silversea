@@ -1,9 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { and, eq, isNull, sql } from 'drizzle-orm';
 import { pricingTableSchema } from '@tingting/shared';
-import { db } from '../../db';
-import * as s from '../../db/schema';
 import { ApiError } from '../../errors';
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -13,6 +10,7 @@ import {
   requestPricingTableDelete,
   requestPricingTableUpdate,
 } from '../../services/price-config-governance.service';
+import { listPricingTablesPaginated, getPricingTableById } from '../../services/pricing.service';
 import {
   buildCrudIdempotencyEndpoint,
   resolveIdempotencyKey,
@@ -57,27 +55,13 @@ function requestIdempotencyKey(req: Request): string | undefined {
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, offset } = parsePagination(req);
-  const where = isNull(s.pricingTables.deletedAt);
-  const items = await db.select()
-    .from(s.pricingTables)
-    .where(where)
-    .limit(limit)
-    .offset(offset);
-  const [countRow] = await db.select({ count: sql<number>`count(*)` })
-    .from(s.pricingTables)
-    .where(where);
-  res.json({ items, total: Number(countRow?.count ?? 0), page, pageSize: limit });
+  const { items, total } = await listPricingTablesPaginated(page, limit, offset);
+  res.json({ items, total, page, pageSize: limit });
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parsePricingTableId(req);
-  const [item] = await db.select()
-    .from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.id, id),
-      isNull(s.pricingTables.deletedAt),
-    ))
-    .limit(1);
+  const item = await getPricingTableById(id);
   if (!item) {
     return res.status(404).json({ error: 'Không tìm thấy' });
   }

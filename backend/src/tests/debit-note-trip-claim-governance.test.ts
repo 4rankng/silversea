@@ -5,7 +5,7 @@ import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { generateDraft, getDocument, saveDocument } from '../services/billingDocument.service';
+import { generateDraft, getDocument, saveDocument } from '../services/billing-document.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 import { listRecoverableCosts } from '../services/recoverable-cost.service';
 

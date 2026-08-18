@@ -25,7 +25,7 @@ import {
   loadLegRenderDataByTrip,
   postDebitNoteDelta,
   postingChecksum,
-} from './billingDocument.service';
+} from './billing-document.service';
 import {
   resolveCustomerPaymentDueDate,
   resolveSupplierPaymentDueDate,

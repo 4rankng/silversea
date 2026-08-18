@@ -4,7 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { SaveBillingDocumentInput } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { deleteDocument, updateDocument } from '../services/billingDocument.service';
+import { deleteDocument, updateDocument } from '../services/billing-document.service';
 import { transitionDebitNoteStatus } from '../services/debit-note-lifecycle.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

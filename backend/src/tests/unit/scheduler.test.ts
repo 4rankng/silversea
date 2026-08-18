@@ -6,8 +6,8 @@ import {
   listJobs,
   clearRegistry,
   advisoryLockKey,
-} from '../scheduler/registry';
-import { executeWithRetries } from '../scheduler/runner';
+} from '../../scheduler/registry';
+import { executeWithRetries } from '../../scheduler/runner';
 
 describe('scheduler registry', () => {
   beforeEach(() => clearRegistry());

@@ -6,7 +6,7 @@ import { FuelMode, LoadingType, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { createTrip, updateTripFigures } from '../services/trip-mutations.service';
-import { buildTripRenderData, documentLedgerAdjustment } from '../services/billingDocument.service';
+import { buildTripRenderData, documentLedgerAdjustment } from '../services/billing-document.service';
 import { resolveFuelSurcharge } from '../services/pricing.service';
 import { customerTripReceivableAmount, LedgerService } from '../services/ledger.service';
 

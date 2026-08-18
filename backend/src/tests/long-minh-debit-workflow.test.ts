@@ -5,7 +5,7 @@ import type { SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { generateDraft, saveDocument } from '../services/billingDocument.service';
+import { generateDraft, saveDocument } from '../services/billing-document.service';
 
 const actorIds: number[] = [];
 const customerIds: number[] = [];

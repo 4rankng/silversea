@@ -26,6 +26,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sq
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { operationalName } from '../db/master-data-name';
+import { escapeLikeTerm } from '../lib/format';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import {
   canonicalShipmentStatus,
@@ -753,10 +754,6 @@ function toNullableTimestamp(
     throw new ApiError(400, `${fieldLabel} không hợp lệ.`);
   }
   return parsed;
-}
-
-function escapeLikeTerm(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 function buildShipmentSearchPredicate(search: string | undefined) {

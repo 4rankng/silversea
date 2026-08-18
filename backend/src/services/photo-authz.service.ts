@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 
 /**
@@ -37,6 +37,24 @@ export interface PhotoAuthDecision {
 }
 
 const FINANCE_ROLES: ReadonlySet<Role> = new Set([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]);
+
+export type DriverTripPhotoAccess = 'owned' | 'no_profile' | 'not_owned';
+
+/** Trip-photo access for DRIVERS. Distinguishes "no driver profile bound to
+ * this user" from "profile exists but the trip is not assigned to it" so the
+ * route can keep its two distinct 403 messages. */
+export async function checkDriverTripPhotoAccess(
+  userId: number,
+  tripId: number,
+): Promise<DriverTripPhotoAccess> {
+  const [driver] = await db.select({ id: s.drivers.id }).from(s.drivers)
+    .where(eq(s.drivers.userId, userId)).limit(1);
+  if (!driver) return 'no_profile';
+  const [trip] = await db.select({ id: s.trips.id }).from(s.trips)
+    .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driver.id)))
+    .limit(1);
+  return trip ? 'owned' : 'not_owned';
+}
 
 export async function authorizeExpensePhoto(
   storageKey: string,

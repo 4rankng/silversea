@@ -3,7 +3,7 @@ import test from 'node:test';
 
 process.env.SETTINGS_ENCRYPTION_KEY = 'ab'.repeat(32);
 
-const { decryptSecret, encryptSecret } = await import('../services/crypto');
+const { decryptSecret, encryptSecret } = await import('../../services/crypto');
 
 test('encryptSecret accepts a documented 32-byte hex master key', () => {
   const encrypted = encryptSecret('gps-password');

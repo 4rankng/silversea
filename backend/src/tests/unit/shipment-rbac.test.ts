@@ -25,8 +25,8 @@ import { fileURLToPath } from 'node:url';
 import { newEnforcer, type Enforcer } from 'casbin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const modelPath = path.resolve(__dirname, '../casbin/model.conf');
-const policyPath = path.resolve(__dirname, '../casbin/policy.csv');
+const modelPath = path.resolve(__dirname, '../../casbin/model.conf');
+const policyPath = path.resolve(__dirname, '../../casbin/policy.csv');
 
 let enforcerPromise: Promise<Enforcer> | null = null;
 const enforcer = () => (enforcerPromise ??= newEnforcer(modelPath, policyPath));

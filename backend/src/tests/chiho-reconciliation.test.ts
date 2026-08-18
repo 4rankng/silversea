@@ -4,7 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { TripStatus, Role, TxnType, FuelMode, LoadingType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { generateDraft } from '../services/billingDocument.service';
+import { generateDraft } from '../services/billing-document.service';
 import { getTopOverdueCustomer, getCustomerAgingList } from '../services/aging.service';
 import {
   exportStatementXlsx,

@@ -10,7 +10,7 @@ import {
   saveDocument,
   getDocument,
   deleteDocument,
-} from '../services/billingDocument.service';
+} from '../services/billing-document.service';
 import {
   approveGovernanceAction,
   checkGovernanceAction,

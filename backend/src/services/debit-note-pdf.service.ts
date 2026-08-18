@@ -23,11 +23,11 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { resolveDebitNoteTemplateForDoc } from './billing-document.service';
 import {
   resolveBillingDocumentIdentity,
-  resolveDebitNoteTemplateForDoc,
   renderColumnValue,
-} from './billingDocument.service';
+} from './billing-export.service';
 import type {
   BillingDocument,
   BillingDocumentLine,
@@ -132,7 +132,7 @@ export async function getDebitNoteForRender(
 ): Promise<DebitNoteRenderInput> {
   // Reuse the canonical hydration path so screen ↔ export always see the
   // same line data (including canonicalFreightDescription normalization).
-  const { getDocument } = await import('./billingDocument.service.js');
+  const { getDocument } = await import('./billing-document.service');
   const doc = await getDocument(documentId);
   // resolveDebitNoteTemplateForDoc always falls back to a system default
   // (never null in practice), but its declared return type is nullable.

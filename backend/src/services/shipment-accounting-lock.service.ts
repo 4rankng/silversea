@@ -17,7 +17,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
-import { effectiveAmount } from './billingDocument.service';
+import { effectiveAmount } from './billing-document.service';
 import { persistNotificationInTx } from './notification.service';
 
 const ISSUED_DEBIT_NOTE_STATUSES = new Set([

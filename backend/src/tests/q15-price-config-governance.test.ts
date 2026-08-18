@@ -12,6 +12,7 @@ import configRoutes from '../routes/config';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import governanceActionsRoutes from '../routes/financial/governance-actions.routes';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import { withTestCleanup } from './helpers/db-isolation';
 
 type RowWithUpdatedAt = { id: number; updatedAt: Date; deletedAt?: Date | null };
 
@@ -27,6 +28,7 @@ type ResourceCase<TRow extends RowWithUpdatedAt> = {
   expectDeleted: (id: number) => Promise<void>;
 };
 
+const cleanup = withTestCleanup();
 const actorIds: number[] = [];
 const governanceActionIds: number[] = [];
 const customerIds: number[] = [];
@@ -236,10 +238,12 @@ after(async () => {
     }
   } finally {
     try {
+      // Scoped pre-cleanups whose targets are not row-for-row tracked:
+      // governance actions + idempotency keys created by our actors, and
+      // durable jobs keyed to those actions. These reference actorIds, so
+      // they must run before the harness deletes the users themselves.
       if (actorIds.length > 0) {
         await db.delete(s.governanceActions).where(inArray(s.governanceActions.makerId, actorIds));
-      }
-      if (actorIds.length > 0) {
         await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
       }
       const scopedDurableJobs = (await db.select({
@@ -252,75 +256,35 @@ after(async () => {
         await db.delete(s.durableEffectJobs)
           .where(inArray(s.durableEffectJobs.id, scopedDurableJobs.map((row) => row.id)));
       }
-      if (ancillaryRevenueIds.length > 0) {
-        await db.delete(s.ancillaryRevenue).where(inArray(s.ancillaryRevenue.id, ancillaryRevenueIds));
-      }
-      if (forwarderExpenseTypeIds.length > 0) {
-        await db.delete(s.forwarderExpenseTypes).where(inArray(s.forwarderExpenseTypes.id, forwarderExpenseTypeIds));
-      }
-      if (penaltyReasonIds.length > 0) {
-        await db.delete(s.penaltyReasons).where(inArray(s.penaltyReasons.id, penaltyReasonIds));
-      }
-      if (pricingTableIds.length > 0) {
-        await db.delete(s.pricingTables).where(inArray(s.pricingTables.id, pricingTableIds));
-      }
-      if (roadAllowanceIds.length > 0) {
-        await db.delete(s.roadAllowances).where(inArray(s.roadAllowances.id, roadAllowanceIds));
-      }
-      if (fuelNormIds.length > 0) {
-        await db.delete(s.fuelNorms).where(inArray(s.fuelNorms.id, fuelNormIds));
-      }
-      if (weightPricingTierIds.length > 0) {
-        await db.delete(s.weightPricingTiers).where(inArray(s.weightPricingTiers.id, weightPricingTierIds));
-      }
-      if (liftPricingIds.length > 0) {
-        await db.delete(s.liftPricing).where(inArray(s.liftPricing.id, liftPricingIds));
-      }
-      if (managementFeeIds.length > 0) {
-        await db.delete(s.managementFees).where(inArray(s.managementFees.id, managementFeeIds));
-      }
-      if (capTableIds.length > 0) {
-        await db.delete(s.capTableHistory).where(inArray(s.capTableHistory.id, capTableIds));
-      }
-      if (truckCapIds.length > 0) {
-        await db.delete(s.truckCapTable).where(inArray(s.truckCapTable.id, truckCapIds));
-      }
-      if (expenseCategoryIds.length > 0) {
-        await db.delete(s.expenseCategories).where(inArray(s.expenseCategories.id, expenseCategoryIds));
-      }
-      if (driverIds.length > 0) {
-        await db.delete(s.drivers).where(inArray(s.drivers.id, driverIds));
-      }
-      if (truckIds.length > 0) {
-        await db.delete(s.trucks).where(inArray(s.trucks.id, truckIds));
-      }
+      // Catalog teardown: same child-first order as before, but each delete is
+      // error-isolated and empty-safe, so one failure cannot orphan the rest.
       if (supplierIds.length > 0) {
         await db.update(s.customers)
           .set({ linkedSupplierId: null, updatedAt: new Date() })
           .where(inArray(s.customers.linkedSupplierId, supplierIds));
-        await db.delete(s.suppliers).where(inArray(s.suppliers.id, supplierIds));
       }
-      if (routeIds.length > 0) {
-        await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
-      }
-      if (businessCalendarIds.length > 0) {
-        await db.delete(s.businessCalendarDays).where(inArray(s.businessCalendarDays.id, businessCalendarIds));
-      }
-      if (cargoTypeIds.length > 0) {
-        await db.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, cargoTypeIds));
-      }
-      if (portIds.length > 0) {
-        await db.delete(s.ports).where(inArray(s.ports.id, portIds));
-      }
-      if (containerTypeIds.length > 0) {
-        await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
-      }
-      if (customerIds.length > 0) {
-        await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
-      }
-      if (actorIds.length > 0) {
-        await db.delete(s.users).where(inArray(s.users.id, actorIds));
-      }
+      await cleanup.deleteAll(s.ancillaryRevenue, ancillaryRevenueIds);
+      await cleanup.deleteAll(s.forwarderExpenseTypes, forwarderExpenseTypeIds);
+      await cleanup.deleteAll(s.penaltyReasons, penaltyReasonIds);
+      await cleanup.deleteAll(s.pricingTables, pricingTableIds);
+      await cleanup.deleteAll(s.roadAllowances, roadAllowanceIds);
+      await cleanup.deleteAll(s.fuelNorms, fuelNormIds);
+      await cleanup.deleteAll(s.weightPricingTiers, weightPricingTierIds);
+      await cleanup.deleteAll(s.liftPricing, liftPricingIds);
+      await cleanup.deleteAll(s.managementFees, managementFeeIds);
+      await cleanup.deleteAll(s.capTableHistory, capTableIds);
+      await cleanup.deleteAll(s.truckCapTable, truckCapIds);
+      await cleanup.deleteAll(s.expenseCategories, expenseCategoryIds);
+      await cleanup.deleteAll(s.drivers, driverIds);
+      await cleanup.deleteAll(s.trucks, truckIds);
+      await cleanup.deleteAll(s.suppliers, supplierIds);
+      await cleanup.deleteAll(s.routes, routeIds);
+      await cleanup.deleteAll(s.businessCalendarDays, businessCalendarIds);
+      await cleanup.deleteAll(s.cargoTypes, cargoTypeIds);
+      await cleanup.deleteAll(s.ports, portIds);
+      await cleanup.deleteAll(s.containerTypes, containerTypeIds);
+      await cleanup.deleteAll(s.customers, customerIds);
+      await cleanup.deleteAll(s.users, actorIds);
     } finally {
       await disconnectRedis();
       await client.end();

@@ -13,9 +13,10 @@
     "db:studio": "drizzle-kit studio",
     "preseed": "pnpm --dir ../shared build",
     "seed": "tsx src/seed.ts",
-    "repair:legacy-trip-salaries": "tsx scripts/repair-legacy-trip-salaries.ts",
     "pretest": "pnpm --dir ../shared build",
-    "test": "npx tsx --test --test-concurrency=1 src/tests/*.test.ts"
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:unit": "npx tsx --test 'src/tests/unit/*.test.ts'",
+    "test:integration": "npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",

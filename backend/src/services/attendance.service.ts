@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, isNull, ne, inArray } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
@@ -43,6 +43,20 @@ export function computeStandardWorkDays(year: number, month: number): number {
 /**
  * Get work days for a driver in a given date range.
  */
+/** Trip labels (code + route name) for TRIP_DAY work-day enrichment. */
+export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
+  Array<{ id: number; tripCode: string | null; routeName: string | null }>
+> {
+  if (tripIds.length === 0) return [];
+  return db.select({
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+    routeName: s.routes.name,
+  }).from(s.trips)
+    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    .where(inArray(s.trips.id, tripIds));
+}
+
 export async function getWorkDays(
   driverId: number,
   startDate: string,

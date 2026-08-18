@@ -18,7 +18,7 @@ import {
 import { recordShipmentRecovery } from '../services/shipment-recovery.service';
 import { updateShipment } from '../services/shipment.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
-import { postingChecksum } from '../services/billingDocument.service';
+import { postingChecksum } from '../services/billing-document.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 let setupSequence = 0;

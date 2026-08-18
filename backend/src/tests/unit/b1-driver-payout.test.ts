@@ -25,7 +25,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { driverPayoutSchema } from '@tingting/shared';
-import { ApiError } from '../errors';
+import { ApiError } from '../../errors';
 
 describe('driverPayoutSchema — input contract', () => {
   test('accepts a valid CASH payout', () => {

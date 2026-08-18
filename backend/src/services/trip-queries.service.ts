@@ -13,6 +13,7 @@ import { resolveLegCoords } from './maps.service';
 import { loadTripPairingSummaries } from './trip-pairs.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import { operationalName } from '../db/master-data-name';
+import { escapeLikeTerm } from '../lib/format';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
@@ -84,10 +85,6 @@ export interface TripListFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
-}
-
-function escapeLikeTerm(value: string): string {
-  return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
 function normalizedContainerSql(column: unknown): SQL {

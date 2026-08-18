@@ -6,7 +6,7 @@
 //   2. Return a "pending list" of unapproved expenses that are available for
 //      the NEXT period's debit note — so the operator sees what's waiting.
 //
-// This service works alongside the existing billingDocument.service.ts and
+// This service works alongside the existing billing-document.service.ts and
 // the M4.5 disbursement-period guard (assertCanAllocateDisbursement). The
 // assembly function queries a customer's approved + pending expenses within
 // a date range and partitions them into two lists.
@@ -47,7 +47,7 @@ export interface DisbursementAssemblyResult {
  *   - pending: PENDING/REJECTED expenses shown as "pending for next period."
  *
  * This does NOT create billing_document_lines — it returns the data so the
- * caller (billingDocument.service.ts or the route handler) can decide what
+ * caller (billing-document.service.ts or the route handler) can decide what
  * to include.
  */
 export async function assembleDisbursementsForPeriod(

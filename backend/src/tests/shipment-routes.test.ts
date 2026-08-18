@@ -724,7 +724,7 @@ async function createCusWorkspaceLockFixture() {
     issuedAt,
   }).returning();
   createdBillingDocumentIds.push(document.id);
-  const { postingChecksum } = await import('../services/billingDocument.service');
+  const { postingChecksum } = await import('../services/billing-document.service');
   await db.insert(s.billingDocumentTripClaims).values({
     documentId: document.id,
     tripId: trip.id,
