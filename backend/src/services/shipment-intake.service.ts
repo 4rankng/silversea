@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, OperationalSiteType, Role } from '@tingting/shared';
 import type { OperationalSiteInput } from '@tingting/shared';
 
@@ -10,6 +10,10 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import type {
+  ShipmentDeclarationScopeValue,
+  ShipmentDocumentTypeValue,
+} from './shipment-types';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -567,3 +571,83 @@ export async function assignShipmentCarriers(input: AssignShipmentCarriersComman
   };
   return input.transaction ? execute(input.transaction) : db.transaction(execute);
 }
+
+
+// ─── Intake-phase guard helpers (moved from shipment.service.ts) ────────────
+//
+// These guards are shared by the shipment mutation surface (main service),
+// container reconcile, and document attach flows, so they live in this leaf
+// module to keep the dependency direction one-way: features -> intake guards.
+
+export function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>): boolean {
+  return shipment.expectedDeliveryDate != null || shipment.closingAt != null || shipment.plannedReturnAt != null;
+}
+
+export function isDirectlyEditableIntakeStatus(status: string | null | undefined): boolean {
+  const canonical = canonicalShipmentStatus(status);
+  return canonical === 'PENDING_DATE' || canonical === 'READY_FOR_DISPATCH';
+}
+
+export function assertDispatcherCanMutateShipmentIntake(
+  actor: AuthUser | undefined,
+  status: string | null | undefined,
+): void {
+  if (actor?.role === Role.DISPATCHER && !isDirectlyEditableIntakeStatus(status)) {
+    throw new ApiError(403, 'Điều vận chỉ được cập nhật lô hàng trong giai đoạn tiếp nhận.');
+  }
+}
+
+export async function ensureReadyShipmentHandoff(
+  tx: Tx,
+  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'version' | 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>,
+  createdBy: number | null,
+) {
+  if (!hasDispatchDate(shipment)) return;
+  const [existing] = await tx.select({ id: s.dispatchHandoffs.id })
+    .from(s.dispatchHandoffs)
+    .where(and(
+      eq(s.dispatchHandoffs.shipmentId, shipment.id),
+      sql`${s.dispatchHandoffs.status} <> 'REJECTED'`,
+    ))
+    .orderBy(desc(s.dispatchHandoffs.id))
+    .limit(1);
+  if (existing) return;
+  await tx.insert(s.dispatchHandoffs).values({
+    shipmentId: shipment.id,
+    handoffVersion: shipment.version,
+    createdBy,
+    status: 'UNSEEN',
+  });
+}
+
+
+export function normalizeShipmentDocumentType(input: unknown): ShipmentDocumentTypeValue | null {
+  if (typeof input !== 'string') return null;
+  switch (input.trim().toUpperCase()) {
+    case 'BOOKING':
+      return 'BOOKING';
+    case 'BL':
+      return 'BL';
+    case 'DO':
+      return 'DO';
+    case 'DECLARATION':
+      return 'DECLARATION';
+    case 'OTHER':
+      return 'OTHER';
+    default:
+      return null;
+  }
+}
+
+export function normalizeShipmentDeclarationScope(input: unknown): ShipmentDeclarationScopeValue | null {
+  if (typeof input !== 'string') return null;
+  switch (input.trim().toUpperCase()) {
+    case 'SINGLE':
+      return 'SINGLE';
+    case 'SHARED':
+      return 'SHARED';
+    default:
+      return null;
+  }
+}
+

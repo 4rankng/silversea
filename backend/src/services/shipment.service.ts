@@ -21,12 +21,19 @@
 //     rely on the per-call transaction.
 
 import { db } from '../db';
+import type {
+  ShipmentContainerInput,
+  ShipmentContainerMutationResult,
+  ShipmentDeclarationMutationInput,
+  ShipmentDeclarationScopeValue,
+  ShipmentDocumentTypeValue,
+  UpdateShipmentInput,
+} from './shipment-types';
 import * as s from '../db/schema';
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { operationalName } from '../db/master-data-name';
-import { escapeLikeTerm } from '../lib/format';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import {
   canonicalShipmentStatus,
@@ -34,11 +41,9 @@ import {
   Role,
   round2dp,
   TripStatus,
-  shipmentContainerBatchSchema,
   TripPodStatus,
   TRIP_POD_REQUIRED_FILE_TYPES,
   updateShipmentSchema,
-  validateContainerNumber,
 } from '@tingting/shared';
 import { resolveFreightPrice, resolveShipmentPricingProjection } from './pricing.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
@@ -72,6 +77,39 @@ import {
   assertShipmentAccountingUnlocked,
   getShipmentAccountingLock,
 } from './shipment-accounting-lock.service';
+
+// T3b split: read-model aggregates + list summaries (leaf query module) and
+// shared intake guards / doc normalizers now live in sibling services. The
+// container + document mutation surfaces moved to their own services; the
+// re-export block at the bottom keeps every existing importer untouched.
+import {
+  loadShipmentDispatchAggregates,
+  buildShipmentSearchPredicate,
+  loadShipmentListSummaries,
+  loadShipmentListDeclarationNumbers,
+  type AllocationStatus,
+} from './shipment-queries.service';
+import {
+  DEFAULT_SHIPMENT_DECLARATION_SCOPE,
+  listShipmentDocuments,
+  listShipmentDeclarations,
+} from './shipment-documents.service';
+import {
+  assertDispatcherCanMutateShipmentIntake,
+  ensureReadyShipmentHandoff,
+  hasDispatchDate,
+  isDirectlyEditableIntakeStatus,
+  normalizeShipmentDocumentType,
+  normalizeShipmentDeclarationScope,
+} from './shipment-intake.service';
+import {
+  assertContainerSetValid,
+  listShipmentContainers,
+  parseContainerChangeSnapshot,
+  parsePlanUpdateSnapshot,
+  reconcileShipmentContainersWithFulfillmentGuard,
+} from './shipment-containers.service';
+
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 
@@ -127,83 +165,9 @@ const CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY: Partial<Record<ShipmentStatus, {
 };
 
 const SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX = '__fulfillment_lcl:';
-type ShipmentDocumentTypeValue = (typeof s.shipmentDocuments.type.enumValues)[number];
-type ShipmentDeclarationScopeValue = (typeof s.shipmentDeclarations.scope.enumValues)[number];
-const DEFAULT_SHIPMENT_DECLARATION_SCOPE: ShipmentDeclarationScopeValue = 'SINGLE';
 
 function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
   return canonicalShipmentStatus(status);
-}
-
-function hasDispatchDate(shipment: Pick<typeof s.shipments.$inferSelect, 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>): boolean {
-  return shipment.expectedDeliveryDate != null || shipment.closingAt != null || shipment.plannedReturnAt != null;
-}
-
-function isDirectlyEditableIntakeStatus(status: string | null | undefined): boolean {
-  const canonical = canonicalShipmentStatus(status);
-  return canonical === 'PENDING_DATE' || canonical === 'READY_FOR_DISPATCH';
-}
-
-function assertDispatcherCanMutateShipmentIntake(
-  actor: AuthUser | undefined,
-  status: string | null | undefined,
-): void {
-  if (actor?.role === Role.DISPATCHER && !isDirectlyEditableIntakeStatus(status)) {
-    throw new ApiError(403, 'Điều vận chỉ được cập nhật lô hàng trong giai đoạn tiếp nhận.');
-  }
-}
-
-async function ensureReadyShipmentHandoff(
-  tx: Tx,
-  shipment: Pick<typeof s.shipments.$inferSelect, 'id' | 'version' | 'expectedDeliveryDate' | 'closingAt' | 'plannedReturnAt'>,
-  createdBy: number | null,
-) {
-  if (!hasDispatchDate(shipment)) return;
-  const [existing] = await tx.select({ id: s.dispatchHandoffs.id })
-    .from(s.dispatchHandoffs)
-    .where(and(
-      eq(s.dispatchHandoffs.shipmentId, shipment.id),
-      sql`${s.dispatchHandoffs.status} <> 'REJECTED'`,
-    ))
-    .orderBy(desc(s.dispatchHandoffs.id))
-    .limit(1);
-  if (existing) return;
-  await tx.insert(s.dispatchHandoffs).values({
-    shipmentId: shipment.id,
-    handoffVersion: shipment.version,
-    createdBy,
-    status: 'UNSEEN',
-  });
-}
-
-function normalizeShipmentDocumentType(input: unknown): ShipmentDocumentTypeValue | null {
-  if (typeof input !== 'string') return null;
-  switch (input.trim().toUpperCase()) {
-    case 'BOOKING':
-      return 'BOOKING';
-    case 'BL':
-      return 'BL';
-    case 'DO':
-      return 'DO';
-    case 'DECLARATION':
-      return 'DECLARATION';
-    case 'OTHER':
-      return 'OTHER';
-    default:
-      return null;
-  }
-}
-
-function normalizeShipmentDeclarationScope(input: unknown): ShipmentDeclarationScopeValue | null {
-  if (typeof input !== 'string') return null;
-  switch (input.trim().toUpperCase()) {
-    case 'SINGLE':
-      return 'SINGLE';
-    case 'SHARED':
-      return 'SHARED';
-    default:
-      return null;
-  }
 }
 
 function isSyntheticLclFulfillmentScope(notes: string | null | undefined): boolean {
@@ -396,53 +360,6 @@ export interface CreateShipmentInput {
   createdBy?: number | null;
 }
 
-export interface UpdateShipmentInput {
-  expectedVersion?: number; // Required for optimistic-lock check
-  version?: number;
-  customerId?: number;
-  routeId?: number | null;
-  cargoTypeId?: number | null;
-  responsibleUnitId?: number | null;
-  bookingRef?: string | null;
-  blNumber?: string | null;
-  tradeDirection?: typeof s.shipmentTradeDirectionEnum.enumValues[number] | null;
-  cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
-  operationalSiteId?: number | null;
-  pickupWarehouseSiteId?: number | null;
-  factoryName?: string | null;
-  isCombined?: boolean;
-  shippingLineName?: string | null;
-  expectedDeliveryDate?: string | null;
-  customsCutoffAt?: string | null;
-  closingAt?: string | null;
-  plannedReturnAt?: string | null;
-  cargoWeightKg?: string | number | null;
-  cargoVolumeCbm?: string | number | null;
-  packageCount?: number | null;
-  packageType?: string | null;
-  operationalNotes?: string | null;
-  customerNotes?: string | null;
-  pickupLocation?: string | null;
-  deliveryLocation?: string | null;
-  contactName?: string | null;
-  contactPhone?: string | null;
-  updatedBy?: number | null;
-}
-
-export interface ShipmentContainerInput {
-  id?: number;
-  containerTypeId?: number | null;
-  containerNumber?: string | null;
-  sealNumber?: string | null;
-  cargoWeightKg?: string | number | null;
-  cargoVolumeCbm?: string | number | null;
-  shippingLineName?: string | null;
-  pickupPortId?: number | null;
-  dropoffPortId?: number | null;
-  customerAppointmentAt?: string | null;
-  notes?: string | null;
-}
-
 export interface ListShipmentsOptions {
   customerId?: number;
   customerIds?: number[];
@@ -468,182 +385,6 @@ export interface ListShipmentsOptions {
 }
 
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
-export type AllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
-export const ALLOCATION_STATUSES: AllocationStatus[] = [
-  'NOT_ALLOCATED',
-  'PARTIALLY_ALLOCATED',
-  'FULLY_ALLOCATED',
-];
-
-/**
- * Bucket a free-text container type into the 20'/40' size classes the carrier
- * allocation model works in. Uses the same anchored regex as
- * `containerSizeBucket` in shipment-intake.service.ts so aggregate counts can
- * never disagree with the enforcement path.
- */
-function inferContainerBucket(label: string | null | undefined): 20 | 40 | null {
-  const normalized = (label ?? '').toUpperCase().trim();
-  if (/^20(?:\D|$)/.test(normalized)) return 20;
-  if (/^40(?:\D|$)/.test(normalized)) return 40;
-  return null;
-}
-
-interface ShipmentContainerAggregates {
-  containerCount20: number;
-  containerCount40: number;
-  /** e.g. "2 x 40HC + 1 x 20DC" — grouped by raw container type code. */
-  containerTypeSummary: string | null;
-  totalCargoWeightKg: number | null;
-  allocationStatus: AllocationStatus;
-}
-
-function computeContainerAggregates(
-  containers: Array<{ containerTypeCode: string | null; containerTypeName: string | null; cargoWeightKg: string | null }>,
-  allocatedCount20: number,
-  allocatedCount40: number,
-): ShipmentContainerAggregates {
-  const countByType = new Map<string, number>();
-  let containerCount20 = 0;
-  let containerCount40 = 0;
-  let totalWeight = 0;
-  let hasWeight = false;
-  for (const container of containers) {
-    const bucket = inferContainerBucket(`${container.containerTypeCode ?? ''} ${container.containerTypeName ?? ''}`.trim());
-    if (bucket === 20) containerCount20 += 1;
-    if (bucket === 40) containerCount40 += 1;
-    const typeLabel = container.containerTypeCode ?? container.containerTypeName;
-    if (typeLabel) countByType.set(typeLabel, (countByType.get(typeLabel) ?? 0) + 1);
-    const weight = Number(container.cargoWeightKg);
-    if (!isNaN(weight) && weight > 0) {
-      totalWeight += weight;
-      hasWeight = true;
-    }
-  }
-  const typeParts = [...countByType.entries()].map(([code, count]) => `${count} x ${code}`);
-  const allocationStatus: AllocationStatus = containers.length === 0 || (containerCount20 + containerCount40) === 0
-    ? 'NOT_ALLOCATED'
-    : allocatedCount20 === 0 && allocatedCount40 === 0
-      ? 'NOT_ALLOCATED'
-      : allocatedCount20 >= containerCount20 && allocatedCount40 >= containerCount40
-        ? 'FULLY_ALLOCATED'
-        : 'PARTIALLY_ALLOCATED';
-  return {
-    containerCount20,
-    containerCount40,
-    containerTypeSummary: typeParts.length > 0 ? typeParts.join(' + ') : null,
-    totalCargoWeightKg: hasWeight ? round2dp(totalWeight) : null,
-    allocationStatus,
-  };
-}
-
-export interface ShipmentCarrierAllocationSummaryEntry {
-  carrierType: 'OWN' | 'EXTERNAL';
-  externalCarrierId: number | null;
-  carrierLabel: string;
-  count20: number;
-  count40: number;
-}
-
-/**
- * Dispatch master-plan enrichment: container aggregates + allocation status per
- * shipment, plus per-carrier 20'/40' counts for chip rendering. Batched (3
- * queries for the whole page) — no N+1.
- */
-async function loadShipmentDispatchAggregates(
-  shipmentIds: number[],
-): Promise<Map<number, ShipmentContainerAggregates & {
-  carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
-}>> {
-  const ids = [...new Set(shipmentIds)];
-  const empty = new Map();
-  if (ids.length === 0) return empty;
-
-  const [containerRows, fulfillmentRows] = await Promise.all([
-    db.select({
-      shipmentId: s.shipmentContainers.shipmentId,
-      containerTypeCode: s.containerTypes.code,
-      containerTypeName: s.containerTypes.name,
-      cargoWeightKg: s.shipmentContainers.cargoWeightKg,
-    }).from(s.shipmentContainers)
-      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
-      .where(inArray(s.shipmentContainers.shipmentId, ids))
-      .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
-    db.select({
-      shipmentId: s.shipmentFulfillments.shipmentId,
-      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
-      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
-      containerTypeCode: s.containerTypes.code,
-      containerTypeName: s.containerTypes.name,
-    }).from(s.shipmentFulfillments)
-      .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
-      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
-      .where(and(
-        inArray(s.shipmentFulfillments.shipmentId, ids),
-        isNull(s.shipmentFulfillments.canceledAt),
-      ))
-      .orderBy(asc(s.shipmentFulfillments.shipmentId), asc(s.shipmentFulfillments.id)),
-  ]);
-
-  const carrierIds = [...new Set(
-    fulfillmentRows
-      .filter((row) => row.plannedCarrierType === 'EXTERNAL' && row.plannedExternalCarrierId != null)
-      .map((row) => row.plannedExternalCarrierId as number),
-  )];
-  const carriersById = carrierIds.length > 0
-    ? new Map((await db.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME })
-      .from(s.customers)
-      .where(inArray(s.customers.id, carrierIds))).map((row) => [row.id, row.name]))
-    : new Map<number, string | null>();
-
-  const containersByShipment = new Map<number, Array<typeof containerRows[number]>>();
-  for (const row of containerRows) {
-    const bucket = containersByShipment.get(row.shipmentId);
-    if (bucket) bucket.push(row);
-    else containersByShipment.set(row.shipmentId, [row]);
-  }
-
-  // Group once — the per-shipment loop below then reads its slice in O(1).
-  const fulfillmentsByShipment = new Map<number, Array<typeof fulfillmentRows[number]>>();
-  for (const row of fulfillmentRows) {
-    const bucket = fulfillmentsByShipment.get(row.shipmentId);
-    if (bucket) bucket.push(row);
-    else fulfillmentsByShipment.set(row.shipmentId, [row]);
-  }
-
-  const result = new Map<number, ShipmentContainerAggregates & {
-    carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
-  }>();
-  for (const id of ids) {
-    const containers = containersByShipment.get(id) ?? [];
-    // Group live fulfillments per carrier and bucket each assigned container.
-    const byCarrier = new Map<string, ShipmentCarrierAllocationSummaryEntry>();
-    let allocatedCount20 = 0;
-    let allocatedCount40 = 0;
-    for (const fulfillment of fulfillmentsByShipment.get(id) ?? []) {
-      if (!fulfillment.plannedCarrierType) continue;
-      const bucket = inferContainerBucket(`${fulfillment.containerTypeCode ?? ''} ${fulfillment.containerTypeName ?? ''}`.trim());
-      if (!bucket) continue;
-      const carrierType = fulfillment.plannedCarrierType as 'OWN' | 'EXTERNAL';
-      const key = carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${fulfillment.plannedExternalCarrierId}`;
-      const current = byCarrier.get(key) ?? {
-        carrierType,
-        externalCarrierId: fulfillment.plannedExternalCarrierId,
-        carrierLabel: carrierType === 'OWN'
-          ? INTERNAL_FLEET_CARRIER_NAME
-          : carriersById.get(fulfillment.plannedExternalCarrierId ?? -1) ?? 'Nhà xe chưa xác định',
-        count20: 0,
-        count40: 0,
-      };
-      if (bucket === 20) { current.count20 += 1; allocatedCount20 += 1; }
-      if (bucket === 40) { current.count40 += 1; allocatedCount40 += 1; }
-      byCarrier.set(key, current);
-    }
-    const aggregates = computeContainerAggregates(containers, allocatedCount20, allocatedCount40);
-    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()] });
-  }
-  return result;
-}
-
 export type ShipmentUpdateResult = typeof s.shipments.$inferSelect & {
   changeMode: 'DIRECT' | 'REQUESTED' | 'NOOP';
   changeRequestId: number | null;
@@ -696,16 +437,6 @@ function extractPricingSelectorFromSnapshot(snapshot: unknown): {
   };
 }
 
-export interface ShipmentContainerMutationResult {
-  items: Awaited<ReturnType<typeof listShipmentContainers>>;
-  upsertedIds: number[];
-  shipmentVersion: number;
-  changeMode: 'DIRECT' | 'REQUESTED' | 'NOOP';
-  changeRequestId: number | null;
-  message?: string;
-  notificationDelivered?: boolean;
-}
-
 export type ShipmentChangeRequestRow = typeof s.shipmentChangeRequests.$inferSelect;
 
 export type ShipmentChangeRequestSummary = ShipmentChangeRequestRow & {
@@ -756,281 +487,7 @@ function toNullableTimestamp(
   return parsed;
 }
 
-function buildShipmentSearchPredicate(search: string | undefined) {
-  const trimmed = search?.trim();
-  if (!trimmed) return undefined;
-  const pattern = `%${escapeLikeTerm(trimmed)}%`;
-  return or(
-    ilike(s.shipments.shipmentCode, pattern),
-    ilike(s.shipments.blNumber, pattern),
-    ilike(s.shipments.bookingRef, pattern),
-    ilike(CUSTOMER_OPERATIONAL_NAME, pattern),
-    ilike(s.customers.name, pattern),
-    ilike(s.shipments.factoryName, pattern),
-    ilike(s.shipments.shippingLineName, pattern),
-  );
-}
 
-const INTERNAL_FLEET_CARRIER_NAME = 'SilverSea';
-
-type ShipmentListSummary = {
-  cargoSummary: string | null;
-  shippingLineSummary: string | null;
-  carrierSummary: string | null;
-  vehiclePlateSummary: string | null;
-};
-
-function normalizeSummaryValue(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function appendUniqueSummaryValue(target: string[], seen: Set<string>, value: string | null | undefined) {
-  const normalized = normalizeSummaryValue(value);
-  if (!normalized) return;
-  if (seen.has(normalized)) return;
-  seen.add(normalized);
-  target.push(normalized);
-}
-
-function summarizeCargo(
-  shipment: Pick<typeof s.shipments.$inferSelect, 'cargoMode' | 'packageCount' | 'packageType'>,
-  containerRows: Array<{ containerNumber: string | null }>,
-): string | null {
-  if (shipment.cargoMode === 'LCL') {
-    if (shipment.packageCount != null) {
-      return `${shipment.packageCount} ${normalizeSummaryValue(shipment.packageType) ?? 'kiện'}`;
-    }
-    return normalizeSummaryValue(shipment.packageType);
-  }
-
-  const containerCount = containerRows.length;
-  if (containerCount === 0) return null;
-
-  const numbers: string[] = [];
-  const seenNumbers = new Set<string>();
-  for (const row of containerRows) {
-    appendUniqueSummaryValue(numbers, seenNumbers, row.containerNumber);
-  }
-  return numbers.length > 0
-    ? `${containerCount} cont: ${numbers.join(', ')}`
-    : `${containerCount} cont`;
-}
-
-function carrierNameFromPlannedAuthority(fulfillment: {
-  plannedCarrierType: string | null;
-  plannedExternalCarrierId: number | null;
-}, carriersById: Map<number, string>): string | null {
-  if (fulfillment.plannedCarrierType === 'OWN') return INTERNAL_FLEET_CARRIER_NAME;
-  if (fulfillment.plannedCarrierType === 'EXTERNAL' && fulfillment.plannedExternalCarrierId != null) {
-    return carriersById.get(fulfillment.plannedExternalCarrierId) ?? null;
-  }
-  return null;
-}
-
-function carrierNameFromTripAuthority(trip: {
-  carrierType: string | null;
-  externalCarrierName: string | null;
-}): string | null {
-  if (trip.carrierType === 'OWN') return INTERNAL_FLEET_CARRIER_NAME;
-  if (trip.carrierType === 'EXTERNAL') return normalizeSummaryValue(trip.externalCarrierName);
-  return null;
-}
-
-async function loadShipmentListDeclarationNumbers(
-  shipmentIds: number[],
-): Promise<Map<number, string>> {
-  if (shipmentIds.length === 0) return new Map();
-  const rows = await db.select({
-    shipmentId: s.shipmentDeclarations.shipmentId,
-    declarationNumber: s.shipmentDeclarations.declarationNumber,
-    id: s.shipmentDeclarations.id,
-  }).from(s.shipmentDeclarations)
-    .where(inArray(s.shipmentDeclarations.shipmentId, shipmentIds))
-    .orderBy(asc(s.shipmentDeclarations.shipmentId), desc(s.shipmentDeclarations.id));
-  const map = new Map<number, string>();
-  for (const row of rows) {
-    if (!row.declarationNumber) continue;
-    if (!map.has(row.shipmentId)) map.set(row.shipmentId, row.declarationNumber);
-  }
-  return map;
-}
-
-async function loadShipmentListSummaries(
-  shipments: Array<typeof s.shipments.$inferSelect>,
-): Promise<Map<number, ShipmentListSummary>> {
-  const shipmentIds = [...new Set(shipments.map((shipment) => shipment.id))];
-  if (shipmentIds.length === 0) return new Map();
-
-  const [containerRows, fulfillmentRows, tripRows] = await Promise.all([
-    db.select({
-      id: s.shipmentContainers.id,
-      shipmentId: s.shipmentContainers.shipmentId,
-      containerNumber: s.shipmentContainers.containerNumber,
-      shippingLineName: s.shipmentContainers.shippingLineName,
-    }).from(s.shipmentContainers)
-      .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
-      .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
-    db.select({
-      id: s.shipmentFulfillments.id,
-      shipmentId: s.shipmentFulfillments.shipmentId,
-      plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
-      plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
-    }).from(s.shipmentFulfillments)
-      .where(and(
-        inArray(s.shipmentFulfillments.shipmentId, shipmentIds),
-        isNull(s.shipmentFulfillments.canceledAt),
-      ))
-      .orderBy(asc(s.shipmentFulfillments.shipmentId), asc(s.shipmentFulfillments.id)),
-    db.select({
-      id: s.trips.id,
-      shipmentId: s.trips.shipmentId,
-      fulfillmentId: s.trips.fulfillmentId,
-      carrierType: s.trips.carrierType,
-      truckPlate: s.trucks.licensePlate,
-      externalCarrierName: CUSTOMER_OPERATIONAL_NAME,
-      externalPlateNumber: s.trips.externalPlateNumber,
-    }).from(s.trips)
-      .leftJoin(s.trucks, and(
-        eq(s.trucks.id, s.trips.truckId),
-        isNull(s.trucks.deletedAt),
-      ))
-      .leftJoin(s.customers, and(
-        eq(s.customers.id, s.trips.externalEntityId),
-        eq(s.trips.externalEntityType, 'CUSTOMER'),
-        isNull(s.customers.deletedAt),
-      ))
-      .where(and(
-        inArray(s.trips.shipmentId, shipmentIds),
-        isNull(s.trips.deletedAt),
-        ne(s.trips.status, TripStatus.CANCELED),
-      ))
-      .orderBy(asc(s.trips.shipmentId), asc(s.trips.id)),
-  ]);
-
-  const plannedCarrierIds = [...new Set(
-    fulfillmentRows
-      .map((row) => row.plannedExternalCarrierId)
-      .filter((value): value is number => value != null),
-  )];
-  const carriersById = plannedCarrierIds.length > 0
-    ? new Map((await db.select({
-      id: s.customers.id,
-      name: CUSTOMER_OPERATIONAL_NAME,
-    }).from(s.customers)
-      .where(and(
-        inArray(s.customers.id, plannedCarrierIds),
-        isNull(s.customers.deletedAt),
-      ))).map((row) => [row.id, row.name]))
-    : new Map<number, string | null>();
-
-  const containersByShipment = new Map<number, typeof containerRows>();
-  for (const row of containerRows) {
-    const bucket = containersByShipment.get(row.shipmentId);
-    if (bucket) bucket.push(row);
-    else containersByShipment.set(row.shipmentId, [row]);
-  }
-
-  const fulfillmentsByShipment = new Map<number, typeof fulfillmentRows>();
-  for (const row of fulfillmentRows) {
-    const bucket = fulfillmentsByShipment.get(row.shipmentId);
-    if (bucket) bucket.push(row);
-    else fulfillmentsByShipment.set(row.shipmentId, [row]);
-  }
-
-  const tripsByShipment = new Map<number, typeof tripRows>();
-  const tripsByFulfillment = new Map<number, typeof tripRows>();
-  for (const row of tripRows) {
-    if (row.shipmentId == null) continue;
-    const shipmentBucket = tripsByShipment.get(row.shipmentId);
-    if (shipmentBucket) shipmentBucket.push(row);
-    else tripsByShipment.set(row.shipmentId, [row]);
-
-    if (row.fulfillmentId != null) {
-      const fulfillmentBucket = tripsByFulfillment.get(row.fulfillmentId);
-      if (fulfillmentBucket) fulfillmentBucket.push(row);
-      else tripsByFulfillment.set(row.fulfillmentId, [row]);
-    }
-  }
-
-  const summaries = new Map<number, ShipmentListSummary>();
-  for (const shipment of shipments) {
-    const shipmentContainerRows = containersByShipment.get(shipment.id) ?? [];
-    const shippingLineValues: string[] = [];
-    const seenShippingLines = new Set<string>();
-    appendUniqueSummaryValue(shippingLineValues, seenShippingLines, shipment.shippingLineName);
-    for (const row of shipmentContainerRows) {
-      appendUniqueSummaryValue(shippingLineValues, seenShippingLines, row.shippingLineName);
-    }
-
-    const carrierValues: string[] = [];
-    const seenCarriers = new Set<string>();
-    const vehicleValues: string[] = [];
-    const seenVehicles = new Set<string>();
-    const consumedTripIds = new Set<number>();
-
-    for (const fulfillment of fulfillmentsByShipment.get(shipment.id) ?? []) {
-      const liveTrips = tripsByFulfillment.get(fulfillment.id) ?? [];
-      if (liveTrips.length > 0) {
-        for (const trip of liveTrips) {
-          consumedTripIds.add(trip.id);
-          appendUniqueSummaryValue(
-            carrierValues,
-            seenCarriers,
-            carrierNameFromTripAuthority(trip),
-          );
-          appendUniqueSummaryValue(
-            vehicleValues,
-            seenVehicles,
-            trip.carrierType === 'OWN' ? trip.truckPlate : trip.externalPlateNumber,
-          );
-        }
-        continue;
-      }
-      appendUniqueSummaryValue(
-        carrierValues,
-        seenCarriers,
-        carrierNameFromPlannedAuthority(fulfillment, carriersById as Map<number, string>),
-      );
-    }
-
-    for (const trip of tripsByShipment.get(shipment.id) ?? []) {
-      if (consumedTripIds.has(trip.id)) continue;
-      // Fulfillment-linked trips are authoritative only through the active
-      // fulfillment loop above. This excludes trips left live on a canceled
-      // fulfillment while preserving truly unlinked legacy trips.
-      if (trip.fulfillmentId != null) continue;
-      appendUniqueSummaryValue(
-        carrierValues,
-        seenCarriers,
-        carrierNameFromTripAuthority(trip),
-      );
-      appendUniqueSummaryValue(
-        vehicleValues,
-        seenVehicles,
-        trip.carrierType === 'OWN' ? trip.truckPlate : trip.externalPlateNumber,
-      );
-    }
-
-    summaries.set(shipment.id, {
-      cargoSummary: summarizeCargo(shipment, shipmentContainerRows),
-      shippingLineSummary: shippingLineValues.length > 0 ? shippingLineValues.join(', ') : null,
-      carrierSummary: carrierValues.length > 0 ? carrierValues.join(', ') : null,
-      vehiclePlateSummary: vehicleValues.length > 0 ? vehicleValues.join(', ') : null,
-    });
-  }
-
-  return summaries;
-}
-
-type ShipmentDeclarationMutationInput = {
-  id?: number;
-  declarationNumber?: string | null;
-  issuedAt?: string | null;
-  scope?: typeof s.shipmentDeclarations.scope.enumValues[number];
-  note?: string | null;
-  updatedBy?: number | null;
-};
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -2768,87 +2225,6 @@ export async function softDeleteShipment(
   return transaction ? execute(transaction) : db.transaction(execute);
 }
 
-// ─── Container snapshot into trip ───────────────────────────────────────────
-//
-// phase-01 architecture: a shipment exists before any trip; on dispatch, the
-// shipment's containers are snapshotted into `trip_containers` (which is
-// tightly coupled to trip expense photos, geotags, multi-seal). Reusing
-// `trip_containers` for the shipment side is explicitly wrong.
-//
-// Idempotency: if the trip already has any container row whose `createdBy`
-// matches this snapshot path (signalled via `notes` marker), the call is a
-// no-op. This makes dispatch retries safe.
-//
-// Marker convention: a snapshot row carries `notes = '__shipment_snapshot:<sid>'`
-// so we can detect existing snapshots without a schema change in this slice.
-
-const SNAPSHOT_MARKER = (shipmentId: number) => `__shipment_snapshot:${shipmentId}`;
-
-export async function snapshotContainersIntoTrip(
-  shipmentId: number,
-  tripId: number,
-  createdBy?: number | null,
-  tx?: Tx,
-): Promise<{ copied: number; skipped: boolean }> {
-  // Allow callers to pass an outer transaction (e.g. the dispatch flow) or rely
-  // on the top-level client. Matches the `listTripContainers(tripId, tx?: Tx)`
-  // convention in forwarder-container.service.ts.
-  const client = tx ?? db;
-
-  // 1. Idempotency: if any trip_container for this trip already carries the
-  //    shipment-snapshot marker, treat the snapshot as already done.
-  const [existing] = await client.select({ id: s.tripContainers.id })
-    .from(s.tripContainers)
-    .where(
-      and(
-        eq(s.tripContainers.tripId, tripId),
-        or(
-          eq(s.tripContainers.notes, SNAPSHOT_MARKER(shipmentId)),
-          eq(s.tripContainers.sourceShipmentId, shipmentId),
-        ),
-      ),
-    )
-    .limit(1);
-  if (existing) return { copied: 0, skipped: true };
-
-  const [shipment] = await client.select({
-    id: s.shipments.id,
-    version: s.shipments.version,
-  })
-    .from(s.shipments)
-    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-    .limit(1);
-  if (!shipment) {
-    throw new ApiError(404, 'Không tìm thấy lô hàng');
-  }
-
-  // 2. Pull the shipment's containers (only non-deleted shipment).
-  const containers = await client.select().from(s.shipmentContainers)
-    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
-
-  if (containers.length === 0) return { copied: 0, skipped: false };
-
-  // 3. Bulk-insert into trip_containers with the snapshot marker. We snapshot
-  //    the immutable fields (type, number, seal, weight). trip_container_seals
-  //    (multi-seal) are populated by the dispatch/trip layer when the trip is
-  //    actually built out — this slice only carries the primary seal forward.
-  const rows = containers.map((c) => ({
-    tripId,
-    sourceShipmentId: shipment.id,
-    sourceShipmentContainerId: c.id,
-    sourceShipmentVersion: shipment.version,
-    containerTypeId: c.containerTypeId,
-    containerNumber: c.containerNumber,
-    sealNumber: c.sealNumber,
-    cargoWeightKg: c.cargoWeightKg,
-    notes: SNAPSHOT_MARKER(shipmentId),
-    createdBy: createdBy ?? null,
-  }));
-
-  const inserted = await client.insert(s.tripContainers).values(rows).returning({ id: s.tripContainers.id });
-  return { copied: inserted.length, skipped: false };
-}
-
 // ─── Detail assembler (read model) ──────────────────────────────────────────
 //
 // `getShipment` returns the bare row; the route detail endpoint wants the full
@@ -2911,27 +2287,6 @@ export interface CancelShipmentFulfillmentResult {
   fulfillmentId: number;
   replacementFulfillmentId: number | null;
   shipmentVersion: number;
-}
-
-export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentContainers)
-    .where(eq(s.shipmentContainers.shipmentId, shipmentId))
-    .orderBy(desc(s.shipmentContainers.createdAt));
-}
-
-export async function listShipmentDocuments(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDocuments)
-    .where(eq(s.shipmentDocuments.shipmentId, shipmentId))
-    .orderBy(desc(s.shipmentDocuments.createdAt));
-}
-
-export async function listShipmentDeclarations(shipmentId: number, tx?: Tx) {
-  const client = tx ?? db;
-  return await client.select().from(s.shipmentDeclarations)
-    .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
-    .orderBy(desc(s.shipmentDeclarations.createdAt));
 }
 
 export async function listShipmentStatusHistory(shipmentId: number, tx?: Tx) {
@@ -3040,629 +2395,7 @@ export async function downloadShipmentPodFile(
  * same shipment may close on different days, so the shipment-level
  * `expectedDeliveryDate` follows the earliest one.
  */
-function deriveExpectedDeliveryDateFromContainers(
-  containers: ReadonlyArray<{ customerAppointmentAt?: string | null }>,
-): string | null {
-  let earliest: string | null = null;
-  for (const container of containers) {
-    if (!container.customerAppointmentAt) continue;
-    // Date part only — appointment timestamps arrive as ISO strings.
-    const day = container.customerAppointmentAt.slice(0, 10);
-    if (!earliest || day < earliest) earliest = day;
-  }
-  return earliest;
-}
 
-async function reconcileShipmentContainersInTx(
-  tx: Tx,
-  shipmentId: number,
-  userId: number | null,
-  containers: ShipmentContainerInput[],
-) {
-  const [shipment] = await tx.select({
-    shippingLineName: s.shipments.shippingLineName,
-    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
-    closingAt: s.shipments.closingAt,
-    plannedReturnAt: s.shipments.plannedReturnAt,
-    status: s.shipments.status,
-    version: s.shipments.version,
-  })
-    .from(s.shipments)
-    .where(eq(s.shipments.id, shipmentId))
-    .limit(1)
-    .for('update');
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-  const shippingLineName = resolveShipmentShippingLine(shipment.shippingLineName, containers);
-  const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
-  if (!shipment.shippingLineName?.trim() && shippingLineName) {
-    await tx.update(s.shipments).set({ shippingLineName, updatedAt: new Date() })
-      .where(eq(s.shipments.id, shipmentId));
-  }
-
-  const current = await tx.select()
-    .from(s.shipmentContainers)
-    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
-  const existingIds = new Set(current.map((row) => row.id));
-  const incomingIds = new Set(synchronizedContainers.filter((row) => row.id).map((row) => row.id as number));
-
-  const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
-  if (toDelete.length > 0) {
-    await tx.delete(s.shipmentContainers)
-      .where(inArray(s.shipmentContainers.id, toDelete));
-  }
-
-  const upserted: Array<{ id: number }> = [];
-  for (const container of synchronizedContainers) {
-    const payload = {
-      shipmentId,
-      containerTypeId: container.containerTypeId ?? null,
-      containerNumber: container.containerNumber?.trim() || null,
-      sealNumber: container.sealNumber?.trim() || null,
-      cargoWeightKg: container.cargoWeightKg != null ? String(container.cargoWeightKg) : null,
-      cargoVolumeCbm: container.cargoVolumeCbm != null ? String(container.cargoVolumeCbm) : null,
-      shippingLineName: container.shippingLineName?.trim() || null,
-      pickupPortId: container.pickupPortId ?? null,
-      dropoffPortId: container.dropoffPortId ?? null,
-      customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
-      notes: container.notes ?? null,
-      updatedAt: new Date(),
-    };
-    if (container.id && existingIds.has(container.id)) {
-      const [updated] = await tx.update(s.shipmentContainers)
-        .set(payload)
-        .where(eq(s.shipmentContainers.id, container.id))
-        .returning({ id: s.shipmentContainers.id });
-      if (updated) upserted.push(updated);
-    } else {
-      const [inserted] = await tx.insert(s.shipmentContainers)
-        .values({ ...payload, createdBy: userId })
-        .returning({ id: s.shipmentContainers.id });
-      if (inserted) upserted.push(inserted);
-    }
-  }
-
-  // Per-container delivery dates drive the shipment-level expected delivery
-  // date when the caller never set one: earliest container Ngày đóng/trả wins
-  // and may flip PENDING_DATE → READY_FOR_DISPATCH (+ handoff), mirroring the
-  // updateShipment date-gate. An explicit shipment-level date is never
-  // overwritten by a later reconcile.
-  const derivedDate = deriveExpectedDeliveryDateFromContainers(synchronizedContainers);
-  if (derivedDate && shipment.expectedDeliveryDate == null) {
-    const becomesReady = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE') === 'PENDING_DATE'
-      && !hasDispatchDate(shipment);
-    const [updatedShipment] = await tx.update(s.shipments).set({
-      expectedDeliveryDate: derivedDate,
-      ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
-      updatedAt: new Date(),
-    }).where(eq(s.shipments.id, shipmentId)).returning();
-    if (becomesReady) {
-      await tx.insert(s.shipmentStatusHistory).values({
-        shipmentId,
-        fromStatus: shipment.status ?? 'PENDING_DATE',
-        toStatus: 'READY_FOR_DISPATCH',
-        reason: 'Đã bổ sung ngày đóng/trả theo container và sẵn sàng điều xe.',
-        changedBy: userId,
-      });
-      // Both reconcile callers bump version to preBump+1 after this returns;
-      // snapshot that final version so handoffVersion matches the shipment.
-      await ensureReadyShipmentHandoff(tx, { ...updatedShipment, version: shipment.version + 1 }, userId);
-    }
-  }
-
-  return {
-    items: await listShipmentContainers(shipmentId, tx),
-    upsertedIds: upserted.map((row) => row.id),
-  };
-}
-
-async function reconcileShipmentContainersWithFulfillmentGuard(
-  tx: Tx,
-  shipmentId: number,
-  userId: number | null,
-  containers: ShipmentContainerInput[],
-) {
-  const activeFulfillments = await tx.select({
-    id: s.shipmentFulfillments.id,
-    tripId: s.trips.id,
-  })
-    .from(s.shipmentFulfillments)
-    .leftJoin(s.trips, and(
-      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, 'CANCELED'),
-    ))
-    .where(and(
-      eq(s.shipmentFulfillments.shipmentId, shipmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-    ));
-
-  if (activeFulfillments.some((fulfillment) => fulfillment.tripId != null)) {
-    throw new ApiError(409, 'Không thể thay đổi container sau khi đã phát hành lệnh điều xe. Hãy hủy hoặc thay thế lệnh theo quy trình điều vận.');
-  }
-  if (activeFulfillments.length > 0) {
-    await tx.update(s.shipmentFulfillments).set({
-      canceledAt: new Date(),
-      canceledBy: userId,
-      cancellationReason: 'Container của lô hàng đã được cập nhật; cần gán lại nhà xe.',
-      cancellationDisposition: 'REPLACED',
-      version: sql`${s.shipmentFulfillments.version} + 1`,
-      updatedAt: new Date(),
-    }).where(inArray(s.shipmentFulfillments.id, activeFulfillments.map((fulfillment) => fulfillment.id)));
-  }
-
-  return reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
-}
-
-function parsePlanUpdateSnapshot(snapshot: unknown): UpdateShipmentInput {
-  if (!snapshot || typeof snapshot !== 'object') {
-    throw new ApiError(500, 'Ảnh chụp yêu cầu thay đổi không hợp lệ');
-  }
-  const parsed = updateShipmentSchema.safeParse({
-    ...(snapshot as Record<string, unknown>),
-    expectedVersion: 0,
-  });
-  if (!parsed.success) {
-    throw new ApiError(500, 'Ảnh chụp yêu cầu thay đổi không còn hợp lệ');
-  }
-  const patch: UpdateShipmentInput = { ...parsed.data };
-  delete patch.expectedVersion;
-  return patch;
-}
-
-function parseContainerChangeSnapshot(snapshot: unknown) {
-  if (!Array.isArray(snapshot)) {
-    throw new ApiError(500, 'Ảnh chụp công-te-nơ không hợp lệ');
-  }
-  const parsed = shipmentContainerBatchSchema.safeParse({
-    expectedVersion: 0,
-    containers: snapshot,
-  });
-  if (!parsed.success) {
-    throw new ApiError(500, 'Ảnh chụp công-te-nơ không còn hợp lệ');
-  }
-  return parsed.data.containers;
-}
-
-// ─── Container batch upsert (full reconcile) ────────────────────────────────
-//
-// Mirrors `batchUpsertTripContainers`: the incoming list becomes the desired
-// full state — new rows are inserted, existing rows are updated by id, and any
-// existing row whose id is missing from the incoming list is deleted. This is
-// the same contract the trip-edit form uses, so the shipment UI behaves
-// identically.
-
-/**
- * M10.2 slice 1 — validate the desired container set of a shipment.
- *
- * Two checks, both PRD M10-02-03 ("format + duplicate checks"):
- *   1. Each non-null `containerNumber` must pass the shared ISO 6346
- *      validator (format + check digit). Null numbers are allowed — a
- *      shipment can hold placeholder rows before the BL arrives.
- *   2. No two containers in the desired set may share the same number.
- *      Cross-shipment reuse is legal (shared container pool), so the check
- *      is scoped to this batch only.
- *
- * Throws `ApiError(400, …)` on the first violation with a Vietnamese
- * message ready to surface in the UI. Runs inside the caller's transaction
- * BEFORE any write, so a rejected batch leaves the shipment untouched.
- */
-function assertContainerSetValid(
-  containers: ReadonlyArray<{
-    id?: number;
-    containerNumber?: string | null;
-  }>,
-): void {
-  const seen = new Set<string>();
-  for (const c of containers) {
-    const num = c.containerNumber?.trim() || null;
-    if (!num) continue; // placeholder row — allowed
-    const [ok, message] = validateContainerNumber(num);
-    if (!ok) {
-      throw new ApiError(400, `Số container "${num}" không hợp lệ: ${message}`);
-    }
-    const key = num.toUpperCase();
-    if (seen.has(key)) {
-      throw new ApiError(
-        400,
-        `Số container "${num}" bị trùng trong cùng lô hàng. Mỗi container phải có số duy nhất.`,
-      );
-    }
-    seen.add(key);
-  }
-}
-
-function resolveShipmentShippingLine(
-  shipmentShippingLineName: string | null,
-  containers: ReadonlyArray<ShipmentContainerInput>,
-): string | null {
-  const master = shipmentShippingLineName?.trim() || null;
-  const incomingByKey = new Map<string, string>();
-  for (const container of containers) {
-    const value = container.shippingLineName?.trim() || null;
-    if (value) incomingByKey.set(value.toLocaleLowerCase('vi'), value);
-  }
-  if (incomingByKey.size > 1) {
-    throw new ApiError(400, 'Các container trong cùng lô phải dùng chung một hãng tàu.');
-  }
-  const incoming = incomingByKey.values().next().value as string | undefined;
-  if (master && incoming && master.localeCompare(incoming, 'vi', { sensitivity: 'base' }) !== 0) {
-    throw new ApiError(400, 'Hãng tàu của container phải khớp với hãng tàu chung của lô hàng.');
-  }
-  return master ?? incoming ?? null;
-}
-
-function synchronizeContainerShippingLine(
-  containers: ReadonlyArray<ShipmentContainerInput>,
-  shippingLineName: string | null,
-): ShipmentContainerInput[] {
-  return containers.map((container) => ({ ...container, shippingLineName }));
-}
-
-export async function batchUpsertShipmentContainers(
-  shipmentId: number,
-  userId: number | null,
-  containers: ShipmentContainerInput[],
-): Promise<Array<{ id: number }>>;
-export async function batchUpsertShipmentContainers(
-  shipmentId: number,
-  userId: number | null,
-  expectedVersion: number,
-  containers: ShipmentContainerInput[],
-  actor?: AuthUser,
-  transaction?: Tx,
-): Promise<ShipmentContainerMutationResult>;
-export async function batchUpsertShipmentContainers(
-  shipmentId: number,
-  userId: number | null,
-  expectedVersionOrContainers: number | ShipmentContainerInput[],
-  maybeContainers?: ShipmentContainerInput[],
-  actor?: AuthUser,
-  transaction?: Tx,
-): Promise<ShipmentContainerMutationResult | Array<{ id: number }>> {
-  const legacyCompat = Array.isArray(expectedVersionOrContainers);
-  const expectedVersion = legacyCompat ? null : expectedVersionOrContainers;
-  const containers = legacyCompat ? expectedVersionOrContainers : (maybeContainers ?? []);
-  const execute = async (tx: Tx) => {
-    // Existence + ownership guard: a missing (or soft-deleted) shipment must
-    // surface as a 404, not an FK violation.
-    const [existing] = await tx.select()
-      .from(s.shipments)
-      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-      .for('update')
-      .limit(1);
-    if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
-    await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (expectedVersion != null && existing.version !== expectedVersion) {
-      throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
-    }
-
-    let clerkScope = null;
-    if (actor && isClerkScopedUser(actor)) {
-      clerkScope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(clerkScope, existing);
-    }
-
-    // M10.2 slice 1: validate the desired container set BEFORE any write so a
-    // rejected batch leaves the shipment untouched. The batch is a full
-    // reconcile — `containers` becomes the desired final list — so duplicate
-    // and format checks against it cover the post-state correctly. Null
-    // numbers are allowed (placeholder rows before the BL arrives); only
-    // non-null values are validated. Reuses the shared ISO 6346 validator
-    // already ported from vantaiphucloc.
-    const shippingLineName = resolveShipmentShippingLine(existing.shippingLineName, containers);
-    const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
-    assertContainerSetValid(synchronizedContainers);
-
-    const current = await tx.select()
-      .from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, shipmentId));
-
-    if (actor && isClerkScopedUser(actor) && !isDirectlyEditableIntakeStatus(existing.status)) {
-      const classification = classifyClerkContainerChange(current, synchronizedContainers);
-      if (classification.mode === 'NOOP') {
-        return {
-          items: current,
-          upsertedIds: current.map((row) => row.id),
-          shipmentVersion: existing.version,
-          changeMode: 'NOOP' as const,
-          changeRequestId: null,
-          notificationDelivered: true,
-        };
-      }
-      const changeRequestId = await createShipmentChangeRequest(tx, {
-        shipment: existing,
-        sourceVersion: existing.version,
-        requestKind: 'CONTAINER_RECONCILE',
-        requestedBy: actor.userId,
-        beforeSnapshot: classification.beforeSnapshot,
-        afterSnapshot: classification.afterSnapshot,
-      });
-      return {
-        items: current,
-        upsertedIds: current.map((row) => row.id),
-        shipmentVersion: existing.version,
-        changeMode: 'REQUESTED' as const,
-        changeRequestId,
-        notificationDelivered: false,
-        message: 'Đã ghi nhận thay đổi công-te-nơ.',
-      };
-    }
-
-    const reconciled = await reconcileShipmentContainersWithFulfillmentGuard(
-      tx,
-      shipmentId,
-      userId,
-      synchronizedContainers,
-    );
-
-    // Bump the shipment's version so any open editor is told to reload — the
-    // container set is part of the shipment's editable surface.
-    const nextVersion = existing.version + 1;
-    await tx.update(s.shipments)
-      .set({ version: nextVersion, updatedAt: new Date() })
-      .where(eq(s.shipments.id, shipmentId));
-
-    const directResult = {
-      items: reconciled.items,
-      upsertedIds: reconciled.upsertedIds,
-      shipmentVersion: nextVersion,
-      changeMode: 'DIRECT' as const,
-      changeRequestId: null,
-      notificationDelivered: true,
-    };
-    return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
-  };
-  const result = transaction ? await execute(transaction) : await db.transaction(execute);
-  if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED') {
-    return {
-      ...result,
-      notificationDelivered: true,
-      message: 'Đã ghi nhận thay đổi công-te-nơ và thông báo điều vận.',
-    };
-  }
-  return result;
-}
-
-// ─── Document attach ────────────────────────────────────────────────────────
-//
-// The file bytes themselves are uploaded separately via `/api/upload` (the same
-// path trip photos use); this endpoint records the metadata row that references
-// the resulting `storageKey`. Multipart upload is a Wave 2 portal concern.
-
-export async function attachShipmentDocument(
-  shipmentId: number,
-  input: { type: typeof s.shipmentDocuments.type.enumValues[number]; storageKey: string; uploadedBy?: number | null },
-  actor?: AuthUser,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const documentType = normalizeShipmentDocumentType(input.type);
-    if (!documentType) throw new ApiError(400, 'Loại chứng từ không hợp lệ');
-    const [existing] = await tx.select()
-      .from(s.shipments)
-      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-      .limit(1);
-    if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, existing);
-    }
-
-    const [doc] = await tx.insert(s.shipmentDocuments).values({
-      shipmentId,
-      type: documentType,
-      storageKey: input.storageKey,
-      uploadedBy: input.uploadedBy ?? null,
-    }).returning();
-    return doc;
-  };
-  return transaction ? execute(transaction) : db.transaction(execute);
-}
-
-export async function upsertShipmentDeclaration(
-  shipmentId: number,
-  input: ShipmentDeclarationMutationInput,
-  actor?: AuthUser,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const scope = normalizeShipmentDeclarationScope(input.scope) ?? DEFAULT_SHIPMENT_DECLARATION_SCOPE;
-    const issuedAt = input.issuedAt ? new Date(input.issuedAt) : null;
-    const [existingShipment] = await tx.select()
-      .from(s.shipments)
-      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-      .for('update')
-      .limit(1);
-    if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
-    await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, existingShipment);
-    }
-
-    if (input.id != null) {
-      const [updated] = await tx.update(s.shipmentDeclarations).set({
-        declarationNumber: input.declarationNumber ?? null,
-        issuedAt,
-        scope,
-        note: input.note ?? null,
-        updatedAt: new Date(),
-      })
-        .where(and(
-          eq(s.shipmentDeclarations.id, input.id),
-          eq(s.shipmentDeclarations.shipmentId, shipmentId),
-        ))
-        .returning();
-      if (!updated) throw new ApiError(404, 'Không tìm thấy tờ khai cần cập nhật');
-      return updated;
-    }
-
-    const [created] = await tx.insert(s.shipmentDeclarations).values({
-      shipmentId,
-      declarationNumber: input.declarationNumber ?? null,
-      issuedAt,
-      scope,
-      note: input.note ?? null,
-      createdBy: input.updatedBy ?? null,
-    }).returning();
-    return created;
-  };
-  return transaction ? execute(transaction) : db.transaction(execute);
-}
-
-// ─── M3.2: expired document check + document replacement ────────────────────
-
-/**
- * Check if a shipment has any expired documents (DO type with expiresAt in the
- * past). Returns the list of expired document rows. Empty = no expired docs.
- */
-export async function checkExpiredDocuments(shipmentId: number, transaction?: Tx) {
-  const client = transaction ?? db;
-  const today = new Date().toISOString().slice(0, 10);
-  const docs = await client.select()
-    .from(s.shipmentDocuments)
-    .where(and(
-      eq(s.shipmentDocuments.shipmentId, shipmentId),
-      eq(s.shipmentDocuments.type, 'DO'),
-      sql`${s.shipmentDocuments.expiresAt} IS NOT NULL`,
-      sql`${s.shipmentDocuments.expiresAt} < ${today}`,
-      isNull(s.shipmentDocuments.replacedBy), // not superseded by a newer version
-    ));
-  return docs;
-}
-
-// ─── M10.2 slice 2: dispatch readiness (advisory) ───────────────────────────
-//
-// PRD M10-02-03 ("mandatory fields defined before dispatch") + Q17 (clerk
-// editable surface, status `pending`). A hard mandatory gate would be a
-// breaking behavioural change while the field set is still unconfirmed, so
-// slice 2 ships the check as advisory: this helper returns the list of
-// missing recommended fields so fulfillment-dispatch callers can show
-// `preDispatchWarnings` without blocking dispatch. The UI (slice 3) shows a
-// confirm dialog; a follow-up slice flips enforcing on
-// once Q17 / M10.2 §1 sign-off lands (mirrors the M12.2 "advisory first"
-// precedent).
-//
-// Recommended set today: BL number + ≥1 shipment container. BL is the legal
-// shipping document; containers are what get snapshotted into the trip.
-
-export interface DispatchReadiness {
-  /** True when no recommended fields are missing. */
-  ready: boolean;
-  /** Vietnamese field labels not yet set (empty when `ready`). */
-  missing: string[];
-}
-
-/**
- * Return the list of recommended pre-dispatch fields that are not yet set on
- * the shipment. Throws 404 on a missing/soft-deleted shipment so callers can
- * surface the canonical not-found error before dispatch attempts.
- */
-export async function getDispatchReadiness(shipmentId: number, transaction?: Tx): Promise<DispatchReadiness> {
-  const client = transaction ?? db;
-  const [shipment] = await client.select({
-    blNumber: s.shipments.blNumber,
-  })
-    .from(s.shipments)
-    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-
-  const missing: string[] = [];
-  if (!shipment.blNumber || shipment.blNumber.trim() === '') {
-    missing.push('Số vận đơn (B/L)');
-  }
-
-  const [containerCountRow] = await client.select({ count: count() })
-    .from(s.shipmentContainers)
-    .where(eq(s.shipmentContainers.shipmentId, shipmentId));
-  const containerCount = containerCountRow?.count ?? 0;
-  if (containerCount === 0) {
-    missing.push('Công-te-nơ (ít nhất một)');
-  }
-
-  return { ready: missing.length === 0, missing };
-}
-
-/**
- * M3.2: Replace a shipment document with a new version. The old document is
- * NOT deleted — its `replacedBy` is set to the new document's id, preserving
- * the full audit history. The new document inherits the old one's type and
- * can have a new expiry date.
- */
-export async function replaceShipmentDocument(
-  shipmentId: number,
-  oldDocId: number,
-  newDocData: {
-    expectedVersion: number;
-    storageKey: string;
-    expiresAt?: string | null;
-    uploadedBy?: number | null;
-  },
-  actor?: AuthUser,
-  transaction?: Tx,
-) {
-  const execute = async (tx: Tx) => {
-    const [shipment] = await tx.select()
-      .from(s.shipments)
-      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
-      .for('update')
-      .limit(1);
-    if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (shipment.version !== newDocData.expectedVersion) {
-      throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
-    }
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, shipment);
-    }
-
-    const [oldDoc] = await tx.select()
-      .from(s.shipmentDocuments)
-      .where(and(
-        eq(s.shipmentDocuments.id, oldDocId),
-        eq(s.shipmentDocuments.shipmentId, shipmentId),
-      ))
-      .for('update')
-      .limit(1);
-    if (!oldDoc) throw new ApiError(404, 'Không tìm thấy tài liệu cần thay thế');
-    if (oldDoc.replacedBy != null) {
-      throw new ApiError(409, 'Tài liệu đã được thay thế. Vui lòng tải lại.');
-    }
-
-    const [newDoc] = await tx.insert(s.shipmentDocuments).values({
-      shipmentId,
-      type: oldDoc.type,
-      storageKey: newDocData.storageKey,
-      expiresAt: newDocData.expiresAt ?? null,
-      uploadedBy: newDocData.uploadedBy ?? null,
-    }).returning();
-
-    const [linked] = await tx.update(s.shipmentDocuments)
-      .set({ replacedBy: newDoc.id })
-      .where(and(
-        eq(s.shipmentDocuments.id, oldDocId),
-        eq(s.shipmentDocuments.shipmentId, shipmentId),
-        isNull(s.shipmentDocuments.replacedBy),
-      ))
-      .returning({ id: s.shipmentDocuments.id });
-    if (!linked) {
-      throw new ApiError(409, 'Tài liệu đã được thay thế. Vui lòng tải lại.');
-    }
-
-    const nextVersion = shipment.version + 1;
-    await tx.update(s.shipments)
-      .set({ version: nextVersion, updatedAt: new Date(), updatedBy: actor?.userId ?? null })
-      .where(eq(s.shipments.id, shipmentId));
-
-    return { ...newDoc, shipmentVersion: nextVersion };
-  };
-  return transaction ? execute(transaction) : db.transaction(execute);
-}
 
 export async function reviewShipmentChangeRequest(
   shipmentId: number,
@@ -3784,3 +2517,42 @@ export async function reviewShipmentChangeRequest(
       : 'Đã từ chối yêu cầu thay đổi.',
   };
 }
+
+
+// ─── Facade re-exports (T3b compatibility surface) ──────────────────────────
+//
+// The container + document mutation surfaces and list aggregates moved to
+// sibling services during the T3b split. Re-exporting them here keeps every
+// existing importer (routes, seeds, 14 test files) on a single canonical
+// import path; new code should import from the owning module directly.
+
+export { snapshotContainersIntoTrip } from './shipment-containers.service';
+export {
+  batchUpsertShipmentContainers,
+  reconcileShipmentContainersInTx,
+} from './shipment-containers.service';
+export {
+  attachShipmentDocument,
+  upsertShipmentDeclaration,
+  checkExpiredDocuments,
+  getDispatchReadiness,
+  replaceShipmentDocument,
+} from './shipment-documents.service';
+export type { DispatchReadiness } from './shipment-documents.service';
+export { ALLOCATION_STATUSES } from './shipment-queries.service';
+export type { AllocationStatus, ShipmentCarrierAllocationSummaryEntry } from './shipment-queries.service';
+export {
+  hasDispatchDate,
+  isDirectlyEditableIntakeStatus,
+  assertDispatcherCanMutateShipmentIntake,
+  ensureReadyShipmentHandoff,
+  normalizeShipmentDocumentType,
+  normalizeShipmentDeclarationScope,
+} from './shipment-intake.service';
+
+export type {
+  ShipmentContainerInput,
+  ShipmentContainerMutationResult,
+  ShipmentDeclarationMutationInput,
+  UpdateShipmentInput,
+} from './shipment-types';
