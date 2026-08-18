@@ -2,6 +2,7 @@
 // transitionTripStatus with all role checks, guard conditions, and ledger integration
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
@@ -17,7 +18,7 @@ import {
   getActiveFinancialPosting,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
-import { ArSnapshotService } from './ar-snapshot.service';
+import { ArSnapshotService } from './trip-snapshots.service';
 import { SnapshotServices } from './snapshot-services';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -439,5 +440,5 @@ export async function transitionTripStatus(
 
     return updated;
   };
-  return options?.transaction ? execute(options.transaction) : db.transaction(execute);
+  return runInTx(options?.transaction, execute);
 }

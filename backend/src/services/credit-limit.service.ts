@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { ROLE_LABELS, Role, TripStatus } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -512,10 +513,7 @@ export async function createCreditOverrideRequest(
     }).returning();
     return toCreditOverrideView(request, action);
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function approveCreditOverrideRequest(
@@ -543,10 +541,7 @@ export async function approveCreditOverrideRequest(
       approvedBy: actor.userId,
     };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function checkCreditOverrideRequest(
@@ -570,7 +565,7 @@ export async function checkCreditOverrideRequest(
     if (!request) throw new ApiError(404, 'Không tìm thấy đề nghị vượt hạn mức');
     return toCreditOverrideView(request, checked);
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function applyCreditOverrideGovernanceAction(
@@ -684,10 +679,7 @@ export async function rejectCreditOverrideRequest(
     }
     return toCreditOverrideView(rejected, rejectedAction);
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function listCreditOverrideRequests(filters: {

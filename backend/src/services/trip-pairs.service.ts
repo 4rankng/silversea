@@ -7,6 +7,7 @@ import {
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { getDistance } from './maps.service';
@@ -481,7 +482,7 @@ export async function createTripPair(
 
     return serializePairRecord(pair);
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {

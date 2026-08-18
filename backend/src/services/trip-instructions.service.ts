@@ -3,6 +3,7 @@
 // the driver portal (getDriverTripDetail includes `instructions`).
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -104,5 +105,5 @@ export async function upsertTripInstructions(
     }).where(eq(s.trips.id, tripId));
     return row;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }

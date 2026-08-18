@@ -14,7 +14,7 @@ import {
   requestTripFinancialClose,
   requestTripFinancialChange,
 } from '../services/adjustment-governance.service';
-import { ApSnapshotService } from '../services/ap-snapshot.service';
+import { ApSnapshotService } from '../services/trip-snapshots.service';
 import { LedgerService, tripExpenseVendorReceiptId } from '../services/ledger.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';

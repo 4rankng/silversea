@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { LedgerService } from './ledger.service';
@@ -186,7 +187,7 @@ export async function requestCommissionGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyCommissionGovernanceAction(tx: Tx, action: GovernanceActionRow) {

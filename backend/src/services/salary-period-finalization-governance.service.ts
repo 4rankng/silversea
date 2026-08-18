@@ -2,6 +2,7 @@ import { FINANCIAL_ROLES } from '@tingting/shared';
 import { eq } from 'drizzle-orm';
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
@@ -134,7 +135,7 @@ export async function requestSalaryPeriodFinalization(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function checkSalaryPeriodFinalization(input: {
@@ -158,7 +159,7 @@ export async function checkSalaryPeriodFinalization(input: {
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function approveSalaryPeriodFinalization(input: {
@@ -221,5 +222,5 @@ export async function approveSalaryPeriodFinalization(input: {
       },
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }

@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import { operationalName } from '../db/master-data-name';
 import type { Tx } from './trip-shared';
 export type { Tx };
@@ -170,7 +171,7 @@ export async function setTripExpenseCompletion(
     }
     return inserted;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function getTripExpenseCompletionScopes(tripId: number) {
@@ -849,7 +850,7 @@ export async function deleteTripExpenseGuarded(
     await resetExpenseScope(tx, expense.tripId, expense.tripContainerId);
     return { ok: true as const };
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**

@@ -15,6 +15,7 @@
  */
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, desc, sql, gte, inArray } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
@@ -201,7 +202,7 @@ export async function requestProfitDistributionGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 /**

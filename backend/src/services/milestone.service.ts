@@ -18,6 +18,7 @@
 // requests milestones through the portal.
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -120,7 +121,7 @@ export async function deriveMilestoneFromTripStatus(
       createdBy: actorUserId,
     }, undefined, tx);
   };
-  await (transaction ? execute(transaction) : db.transaction(execute));
+  await runInTx(transaction, execute);
 }
 
 // ─── Manual milestone entry ─────────────────────────────────────────────────

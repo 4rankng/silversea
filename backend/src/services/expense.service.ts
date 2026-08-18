@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, sql, desc, isNull, gte, lte } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
@@ -311,7 +312,7 @@ export async function requestCompanyExpenseGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 function assertExpectedUpdatedAt(actual: Date, expected: Date): void {

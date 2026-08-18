@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
@@ -310,7 +311,7 @@ export async function createCustomerVisibleEvent(
     if (inserted) return toCustomerEventDto(inserted);
     throw new ApiError(409, 'Khóa sự kiện đã được dùng cho nội dung khác');
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 async function loadShipmentForSystemEvent(tx: Tx, shipmentId: number): Promise<ShipmentAccessRow> {

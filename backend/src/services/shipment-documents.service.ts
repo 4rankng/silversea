@@ -7,6 +7,7 @@
 // shipment.service itself.
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, count, desc, eq, isNull, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -77,7 +78,7 @@ export async function attachShipmentDocument(
     }).returning();
     return doc;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function upsertShipmentDeclaration(
@@ -129,7 +130,7 @@ export async function upsertShipmentDeclaration(
     }).returning();
     return created;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ─── M3.2: expired document check + document replacement ────────────────────
@@ -280,5 +281,5 @@ export async function replaceShipmentDocument(
 
     return { ...newDoc, shipmentVersion: nextVersion };
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }

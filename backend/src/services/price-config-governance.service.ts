@@ -4,6 +4,7 @@ import { and, eq, getTableName, inArray, isNull, ne, sql, type SQL } from 'drizz
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { Role } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { assertCanMakeGovernanceAction } from './governance-policy';
@@ -582,7 +583,7 @@ export async function requestGovernedCrudUpdate(input: {
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 /** ADMIN makers apply immediately (final authority); others queue as before. */
@@ -610,7 +611,7 @@ export async function requestOrApplyGovernedCrudUpdate(input: Parameters<typeof 
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestGovernedCrudDelete(input: {
@@ -645,7 +646,7 @@ export async function requestGovernedCrudDelete(input: {
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 /** ADMIN makers apply immediately (final authority); others queue as before. */
@@ -673,7 +674,7 @@ export async function requestOrApplyGovernedCrudDelete(input: Parameters<typeof 
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 async function lockPricingTableByVersion(
@@ -738,7 +739,7 @@ export async function requestPricingTableUpdate(input: {
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestPricingTableDelete(input: {
@@ -761,7 +762,7 @@ export async function requestPricingTableDelete(input: {
       transaction: tx,
     });
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 async function applyGovernedCreate(

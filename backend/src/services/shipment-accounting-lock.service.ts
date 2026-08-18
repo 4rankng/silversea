@@ -12,6 +12,7 @@ import {
   type ShipmentCusReopenRequestInput,
 } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
@@ -1136,7 +1137,7 @@ export async function confirmShipmentFinance(args: {
       replayed: false,
     };
   };
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }
 
 export async function reviewShipmentChargeProposal(args: {
@@ -1344,7 +1345,7 @@ export async function reviewShipmentChargeProposal(args: {
     };
   };
 
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }
 
 export async function updateShipmentDocumentCustody(args: {
@@ -1383,7 +1384,7 @@ export async function updateShipmentDocumentCustody(args: {
       shipmentVersion: nextShipmentVersion,
     };
   };
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }
 
 export async function activateShipmentAccountingLock(args: {
@@ -1469,7 +1470,7 @@ export async function activateShipmentAccountingLock(args: {
     if (!persisted) throw new ApiError(500, 'Không thể tải lại bản ghi khóa lô vừa tạo.');
     return { lock: persisted, replayed: false };
   };
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }
 
 export async function requestShipmentReopen(args: {
@@ -1531,7 +1532,7 @@ export async function requestShipmentReopen(args: {
     }).returning();
     return { action, replayed: false };
   };
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }
 
 export async function decideShipmentReopen(args: {
@@ -1682,5 +1683,5 @@ export async function decideShipmentReopen(args: {
     }
     return approved;
   };
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }

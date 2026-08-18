@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 import { LedgerService } from './ledger.service';
@@ -321,10 +322,7 @@ export async function approveDebtOffset(
 
     return offset;
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**
@@ -418,10 +416,7 @@ export async function cancelDebtOffset(
 
     return claimed;
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**
@@ -504,7 +499,7 @@ export async function requestDebtOffsetApprovalGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestDebtOffsetCancelGovernance(input: {
@@ -568,7 +563,7 @@ export async function requestDebtOffsetCancelGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyDebtOffsetGovernanceAction(

@@ -11,6 +11,7 @@ import {
 } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { DURABLE_EFFECT_KIND, type DurableEffectInput } from './durable-effect.service';
 import {
@@ -438,7 +439,7 @@ export async function requestFinancialReportingPolicyVersion(input: {
       transaction: tx,
     })).action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestTruckFinancialProfileVersion(input: {
@@ -497,7 +498,7 @@ export async function requestTruckFinancialProfileVersion(input: {
       transaction: tx,
     })).action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 async function applyFinancialReportingPolicyVersion(

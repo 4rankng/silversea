@@ -2,6 +2,7 @@ import * as s from '../db/schema';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { FINANCIAL_ROLES } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { assertFuelReconClear } from './fuel-recon-guard.service';
@@ -222,10 +223,7 @@ export async function processExpenseApproval(
     });
     return { ok: true as const, outcome: result.outcome };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function requestTripExpenseDecision(input: {
@@ -316,7 +314,7 @@ export async function requestTripExpenseDecision(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyTripExpenseGovernanceAction(

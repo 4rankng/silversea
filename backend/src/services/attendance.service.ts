@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne, inArray } from 'drizzle-orm';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
@@ -189,10 +190,7 @@ export async function batchUpsertWorkDays(
     }
     return results;
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**
@@ -573,10 +571,7 @@ export async function confirmSalary(
     const salary = await computeSalary(driverId, year, month, undefined, tx);
     return { confirmation, salary };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**
@@ -620,8 +615,5 @@ export async function unconfirmSalary(
     const salary = await computeSalary(driverId, year, month, undefined, executor);
     return { ok: true as const, salary };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction((tx) => execute(tx));
+  return runInTx(transaction, execute);
 }

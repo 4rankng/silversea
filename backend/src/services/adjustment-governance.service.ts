@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { NotificationType, Role, TripStatus, TxnType } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
@@ -184,7 +185,7 @@ export async function requestTripArAdjustment(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestTripReopen(input: {
@@ -225,7 +226,7 @@ export async function requestTripReopen(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 async function assertNoPendingTripGovernanceAction(
@@ -313,7 +314,7 @@ export async function requestTripFinancialClose(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestTripFinancialChange(input: {
@@ -371,7 +372,7 @@ export async function requestTripFinancialChange(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestCompletedTripCancellation(input: {
@@ -460,7 +461,7 @@ export async function requestCompletedTripCancellation(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function approveGovernanceAction(input: {

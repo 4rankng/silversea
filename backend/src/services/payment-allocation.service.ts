@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
@@ -570,10 +571,7 @@ async function getLatestCustomerLedgerVersionTx(tx: Tx, customerId: number): Pro
 }
 
 export async function loadPaymentReceiptResult(paymentReceiptId: number, tx?: Tx): Promise<PaymentReceiptResult> {
-  if (tx) {
-    return loadPaymentReceiptResultTx(tx, paymentReceiptId);
-  }
-  return db.transaction((innerTx) => loadPaymentReceiptResultTx(innerTx, paymentReceiptId));
+  return runInTx(tx, (innerTx) => loadPaymentReceiptResultTx(innerTx, paymentReceiptId));
 }
 
 async function createOrReplayPaymentReceiptTx(
@@ -878,7 +876,7 @@ export async function requestPaymentReceiptGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyPaymentReceiptGovernanceAction(
@@ -1063,7 +1061,7 @@ export async function requestPaymentRefundGovernance(
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyPaymentRefundGovernanceAction(

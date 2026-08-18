@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import { round2dp } from '@tingting/shared';
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { todayIsoVn } from './agent/tools/period';
@@ -510,10 +511,7 @@ export async function createFuelInvoice(
       allocatedLiters: rows.reduce((sum, row) => sum + Number(row.liters), 0),
     };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function updateFuelInvoice(
@@ -556,10 +554,7 @@ export async function updateFuelInvoice(
     }).where(eq(s.fuelInvoices.id, invoiceId)).returning();
     return { ...toFuelInvoiceView(updated!), allocations: rows };
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function getFuelInvoice(invoiceId: number) {
@@ -854,10 +849,7 @@ export async function approveFuelInvoice(
     }).returning();
     return action;
   };
-  if (transaction) {
-    return execute(transaction);
-  }
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function requestFuelInvoiceCorrection(input: {
@@ -980,7 +972,7 @@ export async function requestFuelInvoiceCorrection(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyFuelInvoiceGovernanceAction(

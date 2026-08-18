@@ -21,6 +21,7 @@
 //     rely on the per-call transaction.
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import type {
   ShipmentContainerInput,
   ShipmentContainerMutationResult,
@@ -1202,7 +1203,7 @@ export async function updateShipment(
       notificationDelivered: true,
     };
   };
-  const result = transaction ? await execute(transaction) : await db.transaction(execute);
+  const result = await runInTx(transaction, execute);
   if (result.changeMode === 'REQUESTED') {
     return {
       ...result,
@@ -1286,7 +1287,7 @@ export async function transitionShipmentStatus(
 
     return updated;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 function isPodReviewWriter(actor: AuthUser): boolean {
@@ -1663,7 +1664,7 @@ export async function recomputeShipmentCompletion(
     }, tx);
   };
 
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function reviewTripPodSubmission(args: {
@@ -2222,7 +2223,7 @@ export async function softDeleteShipment(
 
     return updated;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ─── Detail assembler (read model) ──────────────────────────────────────────
@@ -2504,7 +2505,7 @@ export async function reviewShipmentChangeRequest(
       resolution,
     };
   };
-  const result = transaction ? await execute(transaction) : await db.transaction(execute);
+  const result = await runInTx(transaction, execute);
 
   return {
     shipment: result.shipment,

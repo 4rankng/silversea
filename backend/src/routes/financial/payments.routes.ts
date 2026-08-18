@@ -30,7 +30,7 @@ import {
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
 import { cacheInvalidatePattern, invalidateReportCaches } from '../../lib/redis';
-import { getPayablesSummary } from '../../services/payables.service';
+import { getPayablesSummary } from '../../services/aging.service';
 import { requestCommissionGovernance } from '../../services/commission.service';
 import {
   requestPaymentReceiptGovernance,

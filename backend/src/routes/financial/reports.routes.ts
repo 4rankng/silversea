@@ -8,7 +8,7 @@ import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribu
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
-import { getCustomerAgingList } from '../../services/receivables.service';
+import { getCustomerAgingList } from '../../services/aging.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';

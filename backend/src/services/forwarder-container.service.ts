@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { eq, and, desc, inArray, sql } from 'drizzle-orm';
@@ -370,7 +371,7 @@ export async function batchUpsertContainerSeals(
       seals: sealRows,
     };
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function batchUpsertTripContainers(
@@ -529,5 +530,5 @@ export async function batchUpsertTripContainers(
 
     return listTripContainers(tripId, tx);
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }

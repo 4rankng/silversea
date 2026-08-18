@@ -17,6 +17,7 @@
  *   - Notification: emitNotification on dispatch so the handler sees it.
  */
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { NotificationType } from '@tingting/shared';
@@ -160,7 +161,7 @@ export async function markSeen(
     if (!updated) throw new ApiError(409, 'Lệnh điều vận đã được người khác xử lý');
     return updated;
   };
-  return options.transaction ? execute(options.transaction) : db.transaction(execute);
+  return runInTx(options.transaction, execute);
 }
 
 /**
@@ -252,7 +253,7 @@ export async function resolveHandoff(
     if (!updated) throw new ApiError(409, 'Lệnh điều vận đã được người khác xử lý');
     return updated;
   };
-  return options.transaction ? execute(options.transaction) : db.transaction(execute);
+  return runInTx(options.transaction, execute);
 }
 
 /**

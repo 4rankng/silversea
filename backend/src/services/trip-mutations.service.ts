@@ -2,6 +2,7 @@
 // All write operations that modify trip data
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
@@ -633,7 +634,7 @@ export async function createTrip(data: {
 
     return trip;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ─── copyTrip ────────────────────────────────────────────────────────────────
@@ -1317,7 +1318,7 @@ export async function updateTripFigures(
 
     return updated;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ─── updateDepartureDate ────────────────────────────────────────────────────
@@ -1357,7 +1358,7 @@ export async function updateDepartureDate(
 
     return updated;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ─── reassignTrip ───────────────────────────────────────────────────────────
@@ -1413,7 +1414,7 @@ export async function reassignTrip(
 
     return updated;
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 
@@ -1442,5 +1443,5 @@ export async function deleteTrip(
     await tx.update(s.trips).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.trips.id, tripId));
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }

@@ -19,7 +19,7 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 import { initAuditService } from '../services/audit.service';
 import { initNotificationService } from '../services/notification.service';
-import { ArSnapshotService } from '../services/ar-snapshot.service';
+import { ArSnapshotService } from '../services/trip-snapshots.service';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

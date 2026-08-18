@@ -5,6 +5,7 @@
  * Routes are thin HTTP adapters; all business logic lives here.
  */
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, inArray, sql, desc, isNull } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
@@ -290,7 +291,7 @@ export async function requestDriverPayoutGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyDriverPayoutGovernanceAction(tx: Tx, action: GovernanceActionRow) {
@@ -519,7 +520,7 @@ export async function requestPenaltyCreateGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyPenaltyCreateGovernanceAction(tx: Tx, action: GovernanceActionRow) {
@@ -692,7 +693,7 @@ export async function requestPenaltyCancelGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyPenaltyCancelGovernanceAction(tx: Tx, action: GovernanceActionRow) {
@@ -905,7 +906,7 @@ export async function requestVendorPaymentGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyVendorPaymentGovernanceAction(tx: Tx, action: GovernanceActionRow) {
@@ -1188,7 +1189,7 @@ export async function requestCarrierPaymentGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyCarrierPaymentGovernanceAction(tx: Tx, action: GovernanceActionRow) {

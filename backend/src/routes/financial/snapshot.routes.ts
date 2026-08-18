@@ -6,8 +6,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { ApiError } from '../../errors';
-import { ApSnapshotService } from '../../services/ap-snapshot.service';
-import { ArSnapshotService } from '../../services/ar-snapshot.service';
+import { ApSnapshotService, ArSnapshotService } from '../../services/trip-snapshots.service';
 import { SnapshotServices } from '../../services/snapshot-services';
 import {
   IDEMPOTENCY_ENDPOINTS,

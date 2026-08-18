@@ -12,7 +12,7 @@ import {
   requestTripFinancialChange,
   requestTripFinancialClose,
 } from '../services/adjustment-governance.service';
-import { ApSnapshotService } from '../services/ap-snapshot.service';
+import { ApSnapshotService } from '../services/trip-snapshots.service';
 import { SnapshotServices } from '../services/snapshot-services';
 import { disconnectRedis } from '../lib/redis';
 import {

@@ -2,10 +2,10 @@ import { computeFuelSurcharge } from '@tingting/shared';
 import { and, eq, isNull } from 'drizzle-orm';
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { ApSnapshotService } from './ap-snapshot.service';
-import { ArSnapshotService } from './ar-snapshot.service';
+import { ApSnapshotService, ArSnapshotService } from './trip-snapshots.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import type { Tx } from './trip-shared';
 
@@ -125,10 +125,6 @@ export class SnapshotServices {
         updatedAt: new Date(),
       }).where(eq(s.trips.id, tripId));
     };
-    if (transaction) {
-      await execute(transaction);
-      return;
-    }
-    await db.transaction(execute);
+    await runInTx(transaction, execute);
   }
 }

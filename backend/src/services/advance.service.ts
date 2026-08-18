@@ -1,4 +1,5 @@
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
@@ -299,7 +300,7 @@ export async function requestAdvanceRequestApprovalGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestAdvanceRequestRejectionGovernance(input: {
@@ -348,7 +349,7 @@ export async function requestAdvanceRequestRejectionGovernance(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function approveAdvanceRequest(
@@ -408,11 +409,7 @@ export async function approveAdvanceRequest(
     return enriched;
   };
 
-  if (transaction) {
-    return execute(transaction);
-  }
-
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function rejectAdvanceRequest(
@@ -454,11 +451,7 @@ export async function rejectAdvanceRequest(
     return enriched;
   };
 
-  if (transaction) {
-    return execute(transaction);
-  }
-
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function applyAdvanceRequestGovernanceAction(
@@ -578,7 +571,7 @@ export async function createAdvanceSettlement(
     return enrichSettlementWithRequests(settlement, tx);
   };
 
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 /**
@@ -1131,11 +1124,7 @@ export async function checkAdvanceSettlement(
     return enrichSettlementWithRequests(enriched, tx);
   };
 
-  if (transaction) {
-    return execute(transaction);
-  }
-
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function approveAdvanceSettlement(
@@ -1688,7 +1677,7 @@ export async function requestAdvanceSettlementReversal(input: {
     return action;
   };
 
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 async function applyApprovedSettlementCorrection(
@@ -1967,11 +1956,7 @@ export async function rejectAdvanceSettlement(
     return enrichSettlementWithRequests(enriched, tx);
   };
 
-  if (transaction) {
-    return execute(transaction);
-  }
-
-  return db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 // ── Outstanding advance balance (F1) ─────────────────────────────────────────

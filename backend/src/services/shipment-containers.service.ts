@@ -8,6 +8,7 @@
 // shipment.service itself, which keeps the dependency direction one-way.
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -501,7 +502,7 @@ export async function batchUpsertShipmentContainers(
     };
     return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
   };
-  const result = transaction ? await execute(transaction) : await db.transaction(execute);
+  const result = await runInTx(transaction, execute);
   if (!legacyCompat && 'changeMode' in result && result.changeMode === 'REQUESTED') {
     return {
       ...result,

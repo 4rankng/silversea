@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, isNull, inArray, desc, or, sql, like, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -2412,11 +2413,7 @@ export async function updateDocument(
     await persistLines(tx, id, authoritativeLines);
     await replaceBillingDocumentSourcePeriodLocks(tx, id, sourceLockIds);
   };
-  if (transaction) {
-    await execute(transaction);
-  } else {
-    await db.transaction(execute);
-  }
+  await runInTx(transaction, execute);
   return getDocument(id, transaction ?? db);
 }
 
@@ -2603,9 +2600,5 @@ export async function deleteDocument(id: number, transaction?: Tx): Promise<void
     await tx.update(s.billingDocuments).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.billingDocuments.id, id));
   };
-  if (transaction) {
-    await execute(transaction);
-    return;
-  }
-  await db.transaction(execute);
+  await runInTx(transaction, execute);
 }

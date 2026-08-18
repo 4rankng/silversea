@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Role } from '@tingting/shared';
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -338,7 +339,7 @@ export async function getTreasuryPosition(accountId: number, transaction?: Tx): 
       cutoverAt: account.cutoverAt?.toISOString() ?? null,
     };
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 export async function getTreasuryPositions(accountIds: number[], transaction?: Tx): Promise<TreasuryPosition[]> {
@@ -383,7 +384,7 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
       };
     });
   };
-  return transaction ? execute(transaction) : db.transaction(execute);
+  return runInTx(transaction, execute);
 }
 
 function requiredText(value: unknown, label: string, max: number): string {
@@ -478,7 +479,7 @@ export async function requestTreasuryAccountSetup(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestTreasuryCutover(input: {
@@ -520,7 +521,7 @@ export async function requestTreasuryCutover(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function requestTreasuryMovementReversal(input: {
@@ -577,7 +578,7 @@ export async function requestTreasuryMovementReversal(input: {
     }).returning();
     return action;
   };
-  return input.transaction ? execute(input.transaction) : db.transaction(execute);
+  return runInTx(input.transaction, execute);
 }
 
 export async function applyTreasuryGovernanceAction(tx: Tx, action: GovernanceActionRow) {

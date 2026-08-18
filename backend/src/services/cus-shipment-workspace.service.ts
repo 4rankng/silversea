@@ -23,6 +23,7 @@ import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQ
 import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
+import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
@@ -1975,5 +1976,5 @@ export async function updateCusShipmentContainerLine(args: {
     return { line };
   };
 
-  return args.transaction ? execute(args.transaction) : db.transaction(execute);
+  return runInTx(args.transaction, execute);
 }

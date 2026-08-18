@@ -18,6 +18,7 @@ import {
 
 const routesRoot = path.resolve(process.cwd(), 'src/routes');
 const configRoutePath = path.join(routesRoot, 'config.ts');
+const catalogCrudRoutePath = path.join(routesRoot, 'config/catalog-crud.routes.ts');
 const applicationEntryPath = path.resolve(process.cwd(), 'src/index.ts');
 
 const schemaTables = schema as Record<string, unknown>;
@@ -267,7 +268,39 @@ function returnedRouterIdentifiers(node: ts.Node): string[] {
   return [...identifiers];
 }
 
-function resolveExportedRouterIdentifiers(filePath: string, exportName: string): string[] {
+function resolveReexportedRouterIdentifiers(
+  filePath: string,
+  exportName: string,
+  seen: Set<string>,
+): Array<{ file: string; name: string }> {
+  const results: Array<{ file: string; name: string }> = [];
+  const { sourceFile } = parseModule(filePath);
+  for (const statement of sourceFile.statements) {
+    if (!ts.isExportDeclaration(statement)
+      || !statement.exportClause
+      || !ts.isNamedExports(statement.exportClause)
+      || !statement.moduleSpecifier
+      || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const target = resolveLocalModule(filePath, statement.moduleSpecifier.text);
+    if (!target || seen.has(target)) continue;
+    seen.add(target);
+    for (const element of statement.exportClause.elements) {
+      if (element.name.text !== exportName) continue;
+      const inner = element.propertyName?.text ?? element.name.text;
+      // The defining module either declares the router itself or re-exports it
+      // again (chained aggregator); try direct resolution first, then recurse.
+      const local = resolveExportedRouterIdentifiers(target, inner);
+      if (local.length > 0) {
+        results.push(...local);
+      } else {
+        results.push(...resolveReexportedRouterIdentifiers(target, inner, seen));
+      }
+    }
+  }
+  return results;
+}
+
+function resolveExportedRouterIdentifiers(filePath: string, exportName: string): Array<{ file: string; name: string }> {
   const { sourceFile } = parseModule(filePath);
   const localNames = new Set<string>();
   for (const statement of sourceFile.statements) {
@@ -304,11 +337,28 @@ function resolveExportedRouterIdentifiers(filePath: string, exportName: string):
       }
     }
   }
+  if (localNames.size === 0) {
+    // Aggregator re-export (`export { X } from './mod'` with no local binding):
+    // follow the chain to the module that actually declares the router.
+    const viaReexport = resolveReexportedRouterIdentifiers(filePath, exportName, new Set([filePath]));
+    if (viaReexport.length > 0) return viaReexport;
+  }
   assert.ok(
     localNames.size > 0,
     `cannot resolve mounted router export ${exportName} from ${path.relative(routesRoot, filePath)}`,
   );
-  return [...localNames];
+  const results: Array<{ file: string; name: string }> = [];
+  for (const name of localNames) {
+    // Plain re-export of an imported binding (`import {X} from './mod'; export {X};`):
+    // the routes are declared in the source module, not this aggregator.
+    const imported = parseModule(filePath).imports.get(name);
+    if (imported && imported.filePath !== filePath) {
+      results.push(...resolveExportedRouterIdentifiers(imported.filePath, imported.exportName));
+    } else {
+      results.push({ file: filePath, name });
+    }
+  }
+  return results;
 }
 
 function staticTemplateExpressionValues(
@@ -418,11 +468,11 @@ function extractMountedMutationRoutes(): Array<{
             if (!ts.isIdentifier(argument)) continue;
             const imported = imports.get(argument.text);
             if (imported) {
-              for (const nestedIdentifier of resolveExportedRouterIdentifiers(
+              for (const nested of resolveExportedRouterIdentifiers(
                 imported.filePath,
                 imported.exportName,
               )) {
-                scanRouter(imported.filePath, nestedIdentifier, nestedPrefix);
+                scanRouter(nested.file, nested.name, nestedPrefix);
               }
             } else if (argument.text !== routerIdentifier) {
               scanRouter(filePath, argument.text, nestedPrefix);
@@ -451,11 +501,11 @@ function extractMountedMutationRoutes(): Array<{
         if (!ts.isIdentifier(argument)) continue;
         const imported = entry.imports.get(argument.text);
         if (!imported) continue;
-        for (const routerIdentifier of resolveExportedRouterIdentifiers(
+        for (const resolved of resolveExportedRouterIdentifiers(
           imported.filePath,
           imported.exportName,
         )) {
-          scanRouter(imported.filePath, routerIdentifier, mountPrefix);
+          scanRouter(resolved.file, resolved.name, mountPrefix);
         }
       }
     }
@@ -526,7 +576,7 @@ function extractExpectedEndpointsFromRouteFile(filePath: string): string[] {
 }
 
 function extractGeneratedCrudEndpoints(): string[] {
-  const source = fs.readFileSync(configRoutePath, 'utf8');
+  const source = fs.readFileSync(catalogCrudRoutePath, 'utf8');
   const endpoints = new Set<string>();
   const addCrudEndpoints = (basePath: string, tableKey: string, disableDelete = false) => {
     const table = schemaTables[tableKey];
@@ -558,7 +608,7 @@ describe('material-write registry coverage', () => {
       ['app-settings.ts|PUT|/', '/api/admin/app-settings'],
       ['upload.ts|POST|/company-logo', '/api/upload/company-logo'],
       ['financial/payments.routes.ts|POST|/payments/receive', '/api/payments/receive'],
-      ['config.ts|POST|/:period/exclusions', '/api/salary-periods/123/exclusions'],
+      ['config/salary-periods-config.routes.ts|POST|/:period/exclusions', '/api/salary-periods/123/exclusions'],
     ]);
     for (const [sourceKey, routePath] of expected) {
       assert.equal(discovered.get(sourceKey), routePath, `missing mounted route ${sourceKey}`);
