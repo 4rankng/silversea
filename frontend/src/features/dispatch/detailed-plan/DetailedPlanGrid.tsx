@@ -1,8 +1,12 @@
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
-import { FulfillmentEstimateCell } from './FulfillmentEstimateCell';
-import { PlateAssignmentCell } from './PlateAssignmentCell';
+import {
+  PlateAssignmentCell,
+  type CarrierMutationResult,
+  type EstimateMutationResult,
+  type PlateMutationResult,
+} from './PlateAssignmentCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import '../../../styles/operational-table-typography.css';
@@ -39,15 +43,15 @@ interface DetailedPlanGridProps {
   onAssignPlate: (
     row: DispatchDetailPlanRow,
     body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean },
-  ) => Promise<unknown>;
+  ) => Promise<PlateMutationResult>;
   onAssignCarrier: (
     row: DispatchDetailPlanRow,
     carrier: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null },
-  ) => Promise<unknown>;
+  ) => Promise<CarrierMutationResult>;
   onSaveEstimates: (
     row: DispatchDetailPlanRow,
     estimates: { plannedRevenue: number | null; plannedCarrierCost: number | null },
-  ) => Promise<unknown>;
+  ) => Promise<EstimateMutationResult>;
 }
 
 /**
@@ -212,12 +216,8 @@ export function DetailedPlanGrid({
                       Khách: {row.notes.customerNote ?? '—'}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Điều phối">
-                    <PlateAssignmentCell row={row} onAssign={onAssignPlate} onAssignCarrier={onAssignCarrier} />
-                    <FulfillmentEstimateCell row={row} onSave={onSaveEstimates} />
-                    {row.lotFullyPlated && !row.dispatch.assignedPlate && (
-                      <div className="detailed-plan-grid__lot-flag">Đã phân xe</div>
-                    )}
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
+                    <PlateAssignmentCell row={row} onAssign={onAssignPlate} onAssignCarrier={onAssignCarrier} onSaveEstimates={onSaveEstimates} />
                   </td>
                 </tr>
               ))}

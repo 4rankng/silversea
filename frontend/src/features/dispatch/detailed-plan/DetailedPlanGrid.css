@@ -541,18 +541,6 @@
 }
 .detailed-plan-grid__badge--combined { margin-top: 4px; border-color: color-mix(in srgb, var(--warning, #d97706) 38%, var(--line-2)); background: var(--warning-soft, #fffaeb); color: var(--warning-text, #92400e); }
 
-.fulfillment-estimate-cell { display: grid; gap: 3px; margin-top: 3px; padding-top: 4px; border-top: 1px solid var(--border-color, #eef2f7); }
-.fulfillment-estimate-cell__value { width: calc(100% + 8px); min-width: 0; margin: -2px -4px; padding: 2px 4px; overflow: hidden; color: var(--text-secondary, #64748b); font: inherit; font-family: var(--font-data, inherit); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); text-align: left; text-overflow: ellipsis; white-space: nowrap; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
-.fulfillment-estimate-cell__value:hover,
-.fulfillment-estimate-cell__value:focus-visible { background: color-mix(in srgb, var(--accent) 7%, transparent); outline: none; }
-.fulfillment-estimate-cell__value:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
-.fulfillment-estimate-cell__value.is-placeholder { color: var(--text-tertiary, #98a2b3); font-family: inherit; font-style: italic; }
-.fulfillment-estimate-cell__input { width: 100%; min-height: var(--control-compact-h); height: var(--control-compact-h); padding: 0 10px; color: var(--text-primary, #101828); font-size: var(--fs-xs); background: var(--surface, #fff); border: 1px solid var(--border-color-secondary, #e2e8f0); border-radius: 6px; }
-
-@media (max-width: 640px) {
-  .fulfillment-estimate-cell__input { min-height: var(--control-touch-h); height: var(--control-touch-h); padding-inline: 12px; font-size: 14px; }
-}
-
 .detailed-plan-grid__lot-flag {
   margin-top: 4px;
   display: inline-block;

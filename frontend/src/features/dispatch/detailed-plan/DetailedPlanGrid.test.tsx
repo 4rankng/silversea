@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
@@ -137,7 +137,7 @@ describe('DetailedPlanGrid', () => {
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-123.45' },
     })]);
 
-    expect(screen.getByRole('button', { name: /51C-123\.45/i })).toBeTruthy();
+    expect(screen.getByText('51C-123.45')).toBeTruthy();
     expect(screen.queryByText('Đã phân xe')).toBeNull();
   });
 
@@ -156,16 +156,16 @@ describe('DetailedPlanGrid', () => {
   });
 
   it('keeps carrier and vehicle assignment alongside editable operational fee estimates', async () => {
-    const onSaveEstimates = vi.fn().mockResolvedValue(undefined);
+    const onSaveEstimates = vi.fn().mockResolvedValue({
+      version: 4,
+      plannedRevenue: '2500000',
+      plannedCarrierCost: null,
+    });
     renderGrid([row()], { onSaveEstimates });
 
-    expect(screen.getByRole('button', { name: /chỉnh sửa nhà xe/i })).toHaveClass('plate-assignment__value');
-    expect(screen.getByRole('button', { name: /chỉnh sửa biển số xe/i })).toHaveClass('plate-assignment__value');
-    expect(screen.queryByRole('button', { name: 'Lưu cước' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /chỉnh sửa cước thu/i }));
-    expect(screen.getByLabelText('Cước thu dự kiến')).toHaveClass('fulfillment-estimate-cell__input');
+    fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
-    fireEvent.blur(screen.getByLabelText('Cước thu dự kiến'));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(onSaveEstimates).toHaveBeenCalledWith(
       expect.objectContaining({ fulfillmentId: 101 }),
@@ -173,16 +173,34 @@ describe('DetailedPlanGrid', () => {
     ));
   });
 
-  it('keeps the dispatcher column read-like until one value is clicked to edit', () => {
+  it('opens one four-field edit dialog from the full Điều phối cell', async () => {
+    const { container } = renderGrid([row()]);
+    const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
+    expect(dispatchCell).toBeTruthy();
+
+    const trigger = screen.queryByRole('button', { name: /sửa ô điều phối/i });
+    expect(trigger).toBeTruthy();
+    if (!trigger) return;
+    expect(dispatchCell?.querySelectorAll('button')).toHaveLength(1);
+    expect(trigger).toHaveClass('dispatch-assignment-cell__trigger');
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối' });
+    expect(within(dialog).getByLabelText('Nhà xe')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Xe / biển số')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Cước thu dự kiến')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Cước trả dự kiến')).toBeTruthy();
+  });
+
+  it('keeps the dispatcher column read-like until its one full-cell trigger is clicked', () => {
     const plateCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/PlateAssignmentCell.css'), 'utf8');
     const gridCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
-    expect(plateCss).toContain('.plate-assignment__value {');
+    expect(plateCss).toContain('.dispatch-assignment-cell__trigger {');
+    expect(plateCss).toContain('height: 100%;');
     expect(plateCss).toContain('cursor: pointer;');
-    expect(plateCss).not.toContain('plate-assignment__field-label');
-    expect(gridCss).toContain('.fulfillment-estimate-cell__value {');
-    expect(gridCss).toContain('min-height: var(--control-compact-h);');
-    expect(gridCss).not.toContain('Lưu cước');
+    expect(plateCss).toContain('.dispatch-assignment-dialog__fields {');
+    expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
   });
 
   it('surfaces assignment errors and the lot banner', () => {

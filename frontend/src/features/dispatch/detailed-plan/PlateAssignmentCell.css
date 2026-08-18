@@ -1,46 +1,161 @@
-/* In-grid plate assignment (col 6 of the detail-plan grid). */
+.detailed-plan-grid td.detailed-plan-grid__cell--editable {
+  position: relative;
+  padding: 0;
+}
 
-.plate-assignment {
+.dispatch-assignment-cell__trigger {
+  position: absolute;
+  inset: 0;
   display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
   gap: 3px;
-  min-width: 0;
-}
-
-.plate-assignment__select,
-.plate-assignment__select .searchable-select__trigger {
-  min-width: 0;
-}
-
-.plate-assignment__select .searchable-select__value,
-.plate-assignment__select .searchable-select__placeholder {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.plate-assignment__value {
-  width: calc(100% + 8px);
-  min-width: 0;
-  margin: -2px -4px;
-  padding: 2px 4px;
-  overflow: hidden;
+  padding: 12px;
   color: var(--text-primary, #101828);
   font: inherit;
-  font-size: var(--ops-table-supporting-size);
-  font-weight: 600;
-  line-height: var(--ops-table-supporting-line-height);
   text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   background: transparent;
   border: 0;
-  border-radius: 4px;
   cursor: pointer;
 }
 
-.plate-assignment__value--plate { font-family: var(--font-data, inherit); font-weight: 500; }
-.plate-assignment__value.is-placeholder { color: var(--text-secondary, #94a3b8); font-family: inherit; font-style: italic; }
-.plate-assignment__value:hover:not(:disabled),
-.plate-assignment__value:focus-visible { background: color-mix(in srgb, var(--accent) 7%, transparent); outline: none; }
-.plate-assignment__value:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
-.plate-assignment__value:disabled { cursor: default; }
+.dispatch-assignment-cell__trigger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.dispatch-assignment-cell__trigger:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: -2px;
+}
+
+.dispatch-assignment-cell__trigger:disabled {
+  cursor: default;
+}
+
+.dispatch-assignment-cell__carrier,
+.dispatch-assignment-cell__plate,
+.dispatch-assignment-cell__estimate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dispatch-assignment-cell__carrier {
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 600;
+  line-height: var(--ops-table-supporting-line-height);
+}
+
+.dispatch-assignment-cell__plate {
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 500;
+  line-height: var(--ops-table-supporting-line-height);
+}
+
+.dispatch-assignment-cell__estimate {
+  color: var(--text-secondary, #64748b);
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+.dispatch-assignment-cell__plate.is-placeholder,
+.dispatch-assignment-cell__estimate.is-placeholder {
+  color: var(--text-tertiary, #98a2b3);
+  font-family: inherit;
+  font-style: italic;
+}
+
+.dispatch-assignment-dialog {
+  display: grid;
+  gap: 12px;
+}
+
+.dispatch-assignment-dialog__context {
+  margin: 0;
+  color: var(--text-secondary, #64748b);
+  font-family: var(--font-data, inherit);
+  font-size: 12px;
+}
+
+.dispatch-assignment-dialog__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.dispatch-assignment-dialog__fields > label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__fields input {
+  width: 100%;
+  min-height: var(--control-h, 40px);
+  padding: 0 12px;
+  color: var(--text-primary, #101828);
+  font: inherit;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color-secondary, #d0d5dd);
+  border-radius: 8px;
+}
+
+.dispatch-assignment-dialog__fields input:focus-visible {
+  border-color: var(--accent, #005a2d);
+  outline: 2px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  outline-offset: 1px;
+}
+
+.dispatch-assignment-dialog__error {
+  margin: 0;
+  color: var(--color-fg-error-primary, #b42318);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@container (max-width: 640px) {
+  .detailed-plan-grid td.detailed-plan-grid__cell--editable {
+    position: static;
+  }
+
+  .dispatch-assignment-cell__trigger {
+    position: relative;
+    inset: auto;
+  }
+
+  .detailed-plan-grid__cell--editable::before {
+    display: none;
+  }
+
+  .dispatch-assignment-cell__trigger::before {
+    display: block;
+    margin-bottom: 3px;
+    color: var(--text-secondary, #64748b);
+    content: attr(data-cell-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+}
+
+@media (max-width: 640px) {
+  .dispatch-assignment-dialog__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dispatch-assignment-dialog__fields input,
+  .dispatch-assignment-dialog .searchable-select__trigger {
+    min-height: var(--control-touch-h, 44px);
+  }
+}
