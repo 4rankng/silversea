@@ -345,6 +345,7 @@ describe('ClerkShipmentCreatePage', () => {
       'Loại container',
       'Cảng nâng',
       'Cảng hạ',
+      'Nhà máy',
       'Trọng lượng (kg)',
       'Ngày giờ đóng trả',
       'Thao tác',

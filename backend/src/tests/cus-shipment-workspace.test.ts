@@ -656,6 +656,141 @@ describe('Overview operational priority ordering', () => {
     assert.deepEqual(ids, [unscheduledNew.id, unscheduledOld.id, cont20.id, cont40.id, lcl.id]);
     assert.deepEqual(pages.map((page) => page.total), [5, 5, 5]);
   });
+
+  // ── SILVER L1 P3: factory-aware groups, multi-factory display, edit routing ──
+
+  test('appointment groups carry factory identity and local dates (SILVER L1)', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const [factoryA] = await db.insert(s.operationalSites).values({
+      customerId,
+      code: `WS-FA-${marker}`,
+      name: `Nhà máy A ${marker}`,
+      shortName: `NM A ${marker}`,
+      siteType: 'FACTORY',
+      address: `Địa chỉ A ${marker}`,
+      isActive: true,
+    }).returning();
+    const [factoryB] = await db.insert(s.operationalSites).values({
+      customerId,
+      code: `WS-FB-${marker}`,
+      name: `Nhà máy B ${marker}`,
+      shortName: `NM B ${marker}`,
+      siteType: 'FACTORY',
+      address: `Địa chỉ B ${marker}`,
+      isActive: true,
+    }).returning();
+
+    const shipment = await seedShipment({
+      blNumber: `WS-GROUP-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+    });
+    // Two factories, two days: 2026-08-24T04:00Z = 24/08 local; 2026-08-25T20:00Z = 26/08 local.
+    await seedContainer(shipment.id, {
+      containerNumber: `WSGA-${marker}`,
+      operationalSiteId: factoryA.id,
+      customerAppointmentAt: new Date('2026-08-24T04:00:00.000Z'),
+    });
+    await seedContainer(shipment.id, {
+      containerNumber: `WSGB-${marker}`,
+      operationalSiteId: factoryB.id,
+      customerAppointmentAt: new Date('2026-08-25T20:00:00.000Z'),
+    });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const item = response.items.find((row) => row.id === shipment.id);
+    assert.ok(item, 'seeded shipment should appear in the CUS workspace list');
+
+    assert.deepEqual(item.appointmentGroups.map((group) => ({
+      localDate: group.localDate,
+      factoryName: group.factoryName,
+    })), [
+      { localDate: '2026-08-24', factoryName: `NM A ${marker}` },
+      { localDate: '2026-08-26', factoryName: `NM B ${marker}` },
+    ], 'groups must be keyed by local date + factory, earliest first');
+
+    assert.deepEqual(item.effectiveFactoryNames, [`NM A ${marker}`, `NM B ${marker}`],
+      'multi-factory lots show every distinct factory, never a false single factory');
+
+    await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, [factoryA.id, factoryB.id]));
+  });
+
+  test('legacy noon-UTC appointments group under their stored calendar date', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-NOON-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+      factoryName: `Nhà máy C ${marker}`,
+    });
+    await seedContainer(shipment.id, {
+      containerNumber: `WSN1-${marker}`,
+      customerAppointmentAt: new Date('2026-08-24T12:00:00.000Z'), // legacy date-only encoding
+    });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const item = response.items.find((row) => row.id === shipment.id);
+    assert.ok(item);
+    assert.equal(item.appointmentGroups.length, 1);
+    assert.equal(item.appointmentGroups[0]!.localDate, '2026-08-24', 'noon-UTC stays on its stored date in +07');
+    assert.equal(item.appointmentGroups[0]!.factoryName, `Nhà máy C ${marker}`,
+      'no container site → shipment factory text is the group factory');
+    assert.deepEqual(item.effectiveFactoryNames, [`Nhà máy C ${marker}`]);
+  });
+
+  test('post-handoff container edits are denied as direct writes and must go through change requests', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-ROUTE-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      // Left intake-editable territory (dispatched):
+      status: 'DISPATCHED',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `WSR1-${marker}` });
+    await seedFulfillment(shipment.id, container.id);
+
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: {
+          expectedShipmentVersion: shipment.version,
+          customerAppointmentAt: '2026-08-26T04:00:00.000Z',
+        },
+        actor: cusActor,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /yêu cầu thay đổi/);
+        return true;
+      },
+    );
+  });
+
+  test('pre-handoff container edits still save directly', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-PRE-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `WSP1-${marker}` });
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        customerAppointmentAt: '2026-08-25T04:00:00.000Z',
+      },
+      actor: cusActor,
+    });
+    assert.equal(result.line.customerAppointmentAt, '2026-08-25T04:00:00.000Z');
+  });
 });
 
 describe('Container workboard "Chưa cập nhật" completeness', () => {

@@ -69,8 +69,9 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 
 /**
  * One display line per per-container appointment group:
- * "09:00 25/08/2026 · 1x40HC" — the time, date and container-type mix of every
- * container sharing that close/return appointment in the lot.
+ * "09:00 25/08/2026 · Sunrise · 1x40HC" — the time, date, effective factory
+ * (SILVER L1), and container-type mix of every container sharing that
+ * (local date, factory) group in the lot.
  */
 export function formatAppointmentGroupLine(at: string): string {
   const date = new Date(at);
@@ -78,6 +79,12 @@ export function formatAppointmentGroupLine(at: string): string {
   const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
   const day = date.toLocaleDateString('vi-VN');
   return `${time} ${day}`;
+}
+
+/** Factory segment of a group line; empty string when the factory is unknown. */
+export function appointmentGroupFactorySegment(factoryName: string | null): string {
+  const trimmed = factoryName?.trim();
+  return trimmed ? ` · ${trimmed}` : '';
 }
 
 export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {

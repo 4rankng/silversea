@@ -178,6 +178,10 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   bucketLabel: z.string(),
   customerName: z.string().nullable(),
   factoryName: z.string().nullable(),
+  // Effective per-container factory labels (SILVER L1): distinct resolved
+  // factories across containers — a multi-factory lot shows every name,
+  // never a false single factory. Single-factory lots show one entry.
+  effectiveFactoryNames: z.array(z.string()),
   billOrBookNumber: z.string().nullable(),
   declarationNumber: z.string().nullable(),
   shippingLineName: z.string().nullable(),
@@ -198,11 +202,15 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   dropoffSiteNames: z.array(z.string()),
   customerAppointmentAts: z.array(z.string().datetime()),
   // Per-appointment container groups for the "Lịch trình & điều xe" cell: one
-  // entry per distinct customerAppointmentAt, with a container-type summary
-  // ("2x20HC + 1x40HC") so a lot whose containers close/return on different
-  // days shows each date group on its own line.
+  // entry per distinct (local date, factory), with a container-type summary
+  // ("2x20HC + 1x40HC") so a multi-factory lot whose containers close/return
+  // on different days at different factories shows each group on its own
+  // line. `factoryName` is the effective factory label (container site →
+  // shipment site → factory text); null groups with the shipment default.
   appointmentGroups: z.array(z.object({
     at: z.string().datetime(),
+    localDate: z.string(),
+    factoryName: z.string().nullable(),
     containerSummary: z.string(),
   }).strict()),
   carrierAssignments: z.array(z.object({

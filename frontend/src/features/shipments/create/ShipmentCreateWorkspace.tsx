@@ -446,7 +446,16 @@ export function ShipmentCreateWorkspace() {
                 const source = current[current.length - 1];
                 return [
                   ...current,
-                  ...Array.from({ length: count }, () => createContainerFromPrevious(source)),
+                  ...Array.from({ length: count }, () => {
+                    const next = createContainerFromPrevious(source);
+                    // New rows suggest the shipment factory as their starting
+                    // value (SILVER L1): a suggestion only — each row may name
+                    // its own factory.
+                    if (!source && form.operationalSiteId) {
+                      return { ...next, operationalSiteId: form.operationalSiteId };
+                    }
+                    return next;
+                  }),
                 ];
               })}
               rows={<>{containers.map((row, index) => (
@@ -459,6 +468,7 @@ export function ShipmentCreateWorkspace() {
                   <td data-label="Loại container *" data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} /></td>
                   <td data-label="Cảng nâng" data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></td>
                   <td data-label="Cảng hạ" data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></td>
+                  <td data-label="Nhà máy" data-field-id={`container-${row.key}-factory`}><SearchableField id={`container-${row.key}-factory`} label="Nhà máy" hideLabel value={row.operationalSiteId} onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)} options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))} placeholder="Chọn nhà máy" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-factory`)} /></td>
                   <td data-label="Trọng lượng (kg)"><TextField label="Trọng lượng (kg)" hideLabel type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} /></td>
                   <td data-label="Ngày giờ đóng trả"><TextField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel type="datetime-local" value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} /></td>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>

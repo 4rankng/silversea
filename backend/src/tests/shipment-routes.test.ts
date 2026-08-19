@@ -1930,9 +1930,11 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(list.status, 200);
     const row = list.data.items.find((item: { id: number }) => item.id === fixture.shipment.id);
     assert.ok(row, 'CUS list includes the grouped shipment');
+    // Groups carry (local date, factory) identity since SILVER L1; this
+    // fixture has no factory → null factoryName on both groups.
     assert.deepEqual(row.appointmentGroups, [
-      { at: '2026-08-25T02:00:00.000Z', containerSummary: `2x${firstType.code}` },
-      { at: '2026-09-01T09:30:00.000Z', containerSummary: `1x${secondType.code}` },
+      { at: '2026-08-25T02:00:00.000Z', localDate: '2026-08-25', factoryName: null, containerSummary: `2x${firstType.code}` },
+      { at: '2026-09-01T09:30:00.000Z', localDate: '2026-09-01', factoryName: null, containerSummary: `1x${secondType.code}` },
     ]);
   });
 

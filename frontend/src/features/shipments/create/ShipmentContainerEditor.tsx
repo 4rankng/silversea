@@ -30,6 +30,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
               <th scope="col">Loại container</th>
               <th scope="col">Cảng nâng</th>
               <th scope="col">Cảng hạ</th>
+              <th scope="col">Nhà máy</th>
               <th scope="col">Trọng lượng (kg)</th>
               <th scope="col">Ngày giờ đóng trả</th>
               <th scope="col"><span className="sr-only">Thao tác</span></th>

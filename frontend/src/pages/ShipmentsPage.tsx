@@ -53,6 +53,7 @@ import {
   directionLabel,
   cargoModeLabel,
   formatAppointmentGroupLine,
+  appointmentGroupFactorySegment,
   formatDate,
   formatQuantity,
   idempotencySignature,
@@ -688,7 +689,7 @@ export default function ShipmentsPage() {
         `ke-hoach-lo-hang-${new Date().toISOString().slice(0, 10)}.xlsx`,
         ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú', 'Trạng thái'],
         exportItems.map((item) => [
-          [item.customerName ?? '—', item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
+          [item.customerName ?? '—', item.effectiveFactoryNames.length > 0 ? item.effectiveFactoryNames.join(' + ') : item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
           [item.billOrBookNumber ?? '', item.declarationNumber ?? ''].filter(Boolean).join('\n'),
           [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
           [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
@@ -968,7 +969,11 @@ export default function ShipmentsPage() {
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
                           <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
                             <strong className="cus-customer-name">{item.customerName || '—'}</strong>
-                            <span>{item.factoryName || 'Chưa có nhà máy'}</span>
+                            <span>{item.effectiveFactoryNames.length > 0
+                              ? (item.effectiveFactoryNames.length <= 2
+                                ? item.effectiveFactoryNames.join(' + ')
+                                : `${item.effectiveFactoryNames[0]} + ${item.effectiveFactoryNames.length - 1} NM`)
+                              : item.factoryName || 'Chưa có nhà máy'}</span>
                             <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
                           </span></button>
                         </th>
@@ -1008,7 +1013,7 @@ export default function ShipmentsPage() {
                           >
                             <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
                             {item.appointmentGroups.map((group) => (
-                              <span key={group.at}>{formatAppointmentGroupLine(group.at)} · {group.containerSummary}</span>
+                              <span key={group.at}>{formatAppointmentGroupLine(group.at)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
                             ))}
                             <span>{vehicleReadinessLabel(item)}</span>
                           </button>

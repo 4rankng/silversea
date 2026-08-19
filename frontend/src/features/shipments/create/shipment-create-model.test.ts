@@ -20,6 +20,7 @@ const container: ShipmentContainerDraft = {
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
+  operationalSiteId: '',
   customerAppointmentAt: '',
 };
 
@@ -70,6 +71,7 @@ describe('shipment create model', () => {
       shippingLineName: 'MSC',
       pickupPortId: 21,
       dropoffPortId: 22,
+      operationalSiteId: null,
       cargoWeightKg: '12000.25',
       cargoVolumeCbm: '33.5',
       customerAppointmentAt: null,

@@ -7,6 +7,7 @@ import {
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   SHIPMENT_CUS_MISSING_FIELD_LABELS,
   canonicalShipmentStatus,
+  localDateInBusinessZone,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
   type ShipmentCusContainerQuery,
@@ -34,6 +35,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { isDirectlyEditableIntakeStatus } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertClerkCanAccessShipment, buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import {
@@ -67,6 +69,7 @@ type ContainerRow = {
   containerTypeCode: string | null;
   containerTypeName: string | null;
   shippingLineName: string | null;
+  operationalSiteId: number | null;
 };
 
 type DeclarationRow = {
@@ -585,23 +588,53 @@ function buildContainerSummary(rows: ContainerRow[], packageCount: number | null
 }
 
 /**
- * Group a lot's containers by their per-container customerAppointmentAt so the
- * "Lịch trình & điều xe" cell can show every close/return date group on its
- * own line ("09:00 25/08/2026 · 1x40HC"). Containers without an appointment
- * are skipped; groups are ordered earliest-first.
+ * Group a lot's containers by (Asia/Ho_Chi_Minh local date, effective
+ * factory) so the "Lịch trình & điều xe" cell can show every close/return
+ * group on its own line ("25/08/2026 · Sunrise · 1x40HC"). Factory resolves
+ * through the SILVER L1 precedence chain (container site → shipment site →
+ * shipment factory text). Containers without an appointment are skipped;
+ * groups are ordered earliest-first, then factory name. Legacy noon-UTC
+ * date-only encodings cast to their stored calendar date.
  */
-function buildAppointmentGroups(containers: ContainerRow[]): Array<{ at: string; containerSummary: string }> {
-  const byAt = new Map<string, ContainerRow[]>();
+function buildAppointmentGroups(
+  containers: ContainerRow[],
+  shipment: ShipmentRow,
+  factoryNameBySiteId: Map<number, string>,
+): Array<{ at: string; localDate: string; factoryName: string | null; containerSummary: string }> {
+  const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; group: ContainerRow[] }>();
   for (const container of containers) {
     if (container.customerAppointmentAt == null) continue;
-    const key = container.customerAppointmentAt.toISOString();
-    const group = byAt.get(key);
-    if (group) group.push(container);
-    else byAt.set(key, [container]);
+    const localDate = localDateInBusinessZone(container.customerAppointmentAt) ?? '0000-00-00';
+    const factoryName = container.operationalSiteId != null
+      ? factoryNameBySiteId.get(container.operationalSiteId)
+        ?? trimOrNull(shipment.factoryName)
+        ?? null
+      : shipment.operationalSiteId != null
+        ? factoryNameBySiteId.get(shipment.operationalSiteId)
+          ?? trimOrNull(shipment.factoryName)
+          ?? null
+        : trimOrNull(shipment.factoryName) ?? null;
+    // Group anchor keeps the earliest instant within the bucket so distinct
+    // times at the same (date, factory) merge into one line.
+    const at = container.customerAppointmentAt.toISOString();
+    const key = `${localDate}|${factoryName ?? ''}`;
+    const entry = byKey.get(key);
+    if (entry) {
+      entry.group.push(container);
+      if (at < entry.at) entry.at = at;
+    } else {
+      byKey.set(key, { at, localDate, factoryName, group: [container] });
+    }
   }
-  return Array.from(byAt.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([at, group]) => ({ at, containerSummary: countContainerTypes(group) }));
+  return Array.from(byKey.values())
+    .sort((a, b) => a.localDate.localeCompare(b.localDate)
+      || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''))
+    .map(({ at, localDate, factoryName, group }) => ({
+      at,
+      localDate,
+      factoryName,
+      containerSummary: countContainerTypes(group),
+    }));
 }
 
 function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
@@ -644,6 +677,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
+      factoryNameBySiteId: new Map<number, string>(),
     };
   }
 
@@ -669,6 +703,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
       shippingLineName: s.shipmentContainers.shippingLineName,
+      operationalSiteId: s.shipmentContainers.operationalSiteId,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
@@ -898,6 +933,24 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     assignmentsByContainer.set(row.shipmentContainerId, row as AssignmentRow);
   }
 
+  // Effective-factory labels for per-container authority + shipment fallback:
+  // short name preferred, unique by site id (one lookup for the whole page).
+  const factoryNameBySiteId = new Map<number, string>();
+  {
+    const siteIds = new Set<number>();
+    for (const container of containerRows) {
+      if (container.operationalSiteId != null) siteIds.add(container.operationalSiteId);
+    }
+    if (siteIds.size > 0) {
+      const siteRows = await executor.select({
+        id: s.operationalSites.id,
+        label: sql<string>`coalesce(nullif(btrim(${s.operationalSites.shortName}), ''), ${s.operationalSites.name})`,
+      }).from(s.operationalSites)
+        .where(inArray(s.operationalSites.id, [...siteIds]));
+      for (const siteRow of siteRows) factoryNameBySiteId.set(siteRow.id, siteRow.label);
+    }
+  }
+
   const recoveryFactsByShipment = new Map<number, RecoveryFactRow[]>();
   for (const row of recoveryFactRows) {
     if (!isCurrentRecoveryFact(row as RecoveryFactRow)) continue;
@@ -916,6 +969,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     billingLinesByShipment,
     assignmentsByContainer,
     recoveryFactsByShipment,
+    factoryNameBySiteId,
   };
 }
 
@@ -1046,7 +1100,27 @@ function buildListItem(
   const customerAppointmentAts = uniqueNonEmpty(containers.map((container) => (
     container.customerAppointmentAt?.toISOString() ?? null
   )));
-  const appointmentGroups = buildAppointmentGroups(containers);
+  const appointmentGroups = buildAppointmentGroups(
+    containers,
+    row.shipment,
+    support.factoryNameBySiteId,
+  );
+  // Multi-factory display (SILVER L1 P3): distinct effective factory labels
+  // across containers — never a false single factory. Falls back to the
+  // shipment-level factory text when no container names a site.
+  const containerFactoryNames = uniqueNonEmpty(containers.map((container) => (
+    container.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(container.operationalSiteId) ?? null
+      : null
+  )));
+  const effectiveFactoryNames = containerFactoryNames.length > 0
+    ? containerFactoryNames
+    : uniqueNonEmpty([
+        row.shipment.operationalSiteId != null
+          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId) ?? null
+          : null,
+        trimOrNull(row.shipment.factoryName),
+      ]);
   const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
     if (assignment == null) return result;
     const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
@@ -1086,6 +1160,7 @@ function buildListItem(
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
     customerName: row.customerName,
     factoryName: trimOrNull(row.shipment.factoryName),
+    effectiveFactoryNames,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
     declarationNumber: declaration?.declarationNumber ?? null,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
@@ -1461,14 +1536,14 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
   };
 }
 
-async function loadActorScopedCustomerOptions(actor: AuthUser) {
+async function loadActorScopedCustomerOptions(actor: AuthUser, executor: Executor = db) {
   const conditions = [
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, ShipmentStatus.CANCELED),
     isNull(s.customers.deletedAt),
     ...(await buildScopeConditions(actor)),
   ];
-  return db.selectDistinct({
+  return executor.selectDistinct({
     id: s.customers.id,
     name: CUSTOMER_OPERATIONAL_NAME,
   }).from(s.shipments)
@@ -1545,30 +1620,37 @@ export async function listCusShipmentContainers(
 ): Promise<ShipmentCusContainerFlatResponse> {
   const conditions = await buildShipmentPageConditions(query, actor, 'container');
   const offset = (query.page - 1) * query.limit;
-  const [selectedContainers, totalRows, customerOptions] = await Promise.all([
-    db.select({
-      shipment: s.shipments,
-      customerName: CUSTOMER_OPERATIONAL_NAME,
-      routeName: ROUTE_OPERATIONAL_NAME,
-      containerId: s.shipmentContainers.id,
-    }).from(s.shipmentContainers)
-      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
-      .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
-      .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
-      .where(and(...conditions))
-      .orderBy(
-        asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
-        asc(containerTransportDateSql()),
-        desc(s.shipments.createdAt),
-        asc(s.shipmentContainers.id),
-      )
-      .limit(query.limit)
-      .offset(offset),
-    db.select({ value: count() }).from(s.shipmentContainers)
-      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
-      .where(and(...conditions)),
-    loadActorScopedCustomerOptions(actor),
-  ]);
+  // Page rows, total count, and customer options run in one read-only
+  // REPEATABLE READ transaction so all three see the same snapshot — a
+  // container deleted between the page query and the support load can no
+  // longer produce a silently dropped row (`if (!container) continue`).
+  const [selectedContainers, totalRows, customerOptions] = await db.transaction(async (tx) => {
+    const [containers, totals, options] = await Promise.all([
+      tx.select({
+        shipment: s.shipments,
+        customerName: CUSTOMER_OPERATIONAL_NAME,
+        routeName: ROUTE_OPERATIONAL_NAME,
+        containerId: s.shipmentContainers.id,
+      }).from(s.shipmentContainers)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+        .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+        .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
+        .where(and(...conditions))
+        .orderBy(
+          asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
+          asc(containerTransportDateSql()),
+          desc(s.shipments.createdAt),
+          asc(s.shipmentContainers.id),
+        )
+        .limit(query.limit)
+        .offset(offset),
+      tx.select({ value: count() }).from(s.shipmentContainers)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+        .where(and(...conditions)),
+      loadActorScopedCustomerOptions(actor, tx),
+    ]);
+    return [containers, totals, options] as const;
+  }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
   const total = Number(totalRows[0]?.value ?? 0);
   const shipmentIds = [...new Set(selectedContainers.map((row) => row.shipment.id))];
   const support = await loadSupportRows(shipmentIds);
@@ -1992,6 +2074,21 @@ export async function updateCusShipmentContainerLine(args: {
     );
     if (trip && requestedOperationalMutation) {
       throw new ApiError(409, 'Tác vụ đã điều xe; hãy dùng luồng điều chỉnh hiện có thay vì ghi đè trực tiếp lịch sử thực hiện.');
+    }
+    // Three-way edit routing (SILVER L1 P3): once the container has been
+    // decomposed (fulfillment exists) the shipment has left direct-intake
+    // territory — identity/schedule/factory edits flow through the governed
+    // container change request, never a direct overwrite. Live-trip denial
+    // above stays the strictest gate.
+    const governedOperationalMutation = (
+      args.input.containerTypeId !== undefined
+      || args.input.containerNumber !== undefined
+      || args.input.cargoWeightKg !== undefined
+      || args.input.cargoVolumeCbm !== undefined
+      || args.input.customerAppointmentAt !== undefined
+    );
+    if (governedOperationalMutation && !isDirectlyEditableIntakeStatus(shipment.status)) {
+      throw new ApiError(409, 'Lô hàng đã bàn giao điều phối. Thay đổi container phải đi qua yêu cầu thay đổi để phê duyệt.');
     }
 
     let touched = false;

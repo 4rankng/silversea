@@ -45,6 +45,9 @@ export interface ShipmentContainerDraft {
   cargoVolumeCbm: string;
   /** Ngày giờ đóng/trả của riêng container này, entered in Vietnam local time. */
   customerAppointmentAt: string;
+  /** Per-container factory authority (SILVER L1): empty inherits nothing —
+   *  the shipment factory pre-fills new rows as a suggestion only. */
+  operationalSiteId: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -106,6 +109,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     cargoWeightKg: '',
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
+    operationalSiteId: '',
   };
 }
 
@@ -271,6 +275,7 @@ export function buildShipmentContainerPayload(
     shippingLineName: form.shippingLineName || null,
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
+    operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),
