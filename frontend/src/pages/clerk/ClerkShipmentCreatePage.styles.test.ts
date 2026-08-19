@@ -76,11 +76,11 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toMatch(/\.csc-mode\s+span(?:\s*\{|::before)/);
   });
 
-  it('uses a restrained single-hue selected state for cargo mode', () => {
+  it('uses a neutral ink selected state for cargo mode', () => {
     expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*background:\s*var\(--surface\);[^}]*color:\s*var\(--fg-2\);/);
-    expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*border-color:\s*color-mix\(in srgb,\s*var\(--accent-2\) 48%,\s*var\(--line-2\)\);[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--fg-1\);/);
-    expect(css).toMatch(/\.csc-mode input:checked \+ span::before\s*\{[^}]*border-color:\s*var\(--accent-2\);[^}]*background:\s*var\(--accent-2\);/);
-    expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*var\(--brand-subtle/);
+    expect(css).toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*border-color:\s*var\(--ink\);[^}]*background:\s*var\(--surface\);[^}]*box-shadow:\s*inset 3px 0 0 var\(--ink\);/);
+    expect(css).toMatch(/\.csc-mode input:checked \+ span::before\s*\{[^}]*border-color:\s*var\(--ink\);[^}]*background:\s*var\(--ink\);/);
+    expect(css).not.toMatch(/\.csc-mode input:checked \+ span\s*\{[^}]*(?:accent-soft|brand-subtle)/);
   });
 
   it('uses one desktop decision row for cargo type and combined-load handling', () => {

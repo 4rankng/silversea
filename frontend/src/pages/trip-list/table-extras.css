@@ -24,7 +24,7 @@
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
 .trip-list-page .page-btn:hover:not(:disabled):not(.active) { border-color: var(--ink-2); color: var(--ink); }
-.trip-list-page .page-btn.active { background: var(--tbl-green-700); color: var(--fg-on-brand); border-color: var(--tbl-green-700); font-weight: 600; }
+.trip-list-page .page-btn.active { background: var(--ink); color: var(--fg-on-brand); border-color: var(--ink); font-weight: 600; }
 .trip-list-page .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .trip-list-page .ps-select {

@@ -64,7 +64,8 @@
   cursor: not-allowed;
 }
 
-/* Active state — uses NEPO brand for fill (boxed), underline (bordered), tint (plain). */
+/* Active state — selection is structural. Brand colour is an edge indicator,
+ * never a soft semantic card fill that could be mistaken for workflow status. */
 .ds-tabs__btn--active {
   font-weight: var(--fw-semibold);
 }
@@ -83,15 +84,16 @@
 }
 
 .ds-tabs--bordered .ds-tabs__btn--active {
-  color: var(--accent-2);
-  border-bottom-color: var(--accent-2);
+  color: var(--ink);
+  border-bottom-color: var(--ink);
   background: transparent;
 }
 
 .ds-tabs--plain .ds-tabs__btn--active {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  border-color: var(--accent-soft);
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-2);
+  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 .ds-tabs__label {
@@ -116,12 +118,12 @@
 }
 
 .ds-tabs__count--active {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  background: var(--surface-3);
+  color: var(--ink-2);
 }
 
 .ds-tabs--boxed .ds-tabs__btn--active .ds-tabs__count,
 .ds-tabs--bordered .ds-tabs__btn--active .ds-tabs__count {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  background: var(--surface-3);
+  color: var(--ink-2);
 }

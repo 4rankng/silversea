@@ -208,9 +208,11 @@
 
 .ops-bill-row:hover { background: var(--ops-surface-muted); }
 .ops-bill-row.is-selected {
-  background: var(--brand-subtle);
-  box-shadow: inset 3px 0 0 var(--brand), inset 0 0 0 1px color-mix(in srgb, var(--brand) 24%, transparent);
+  background: var(--ops-surface);
+  box-shadow: inset 3px 0 0 var(--ink), inset 0 0 0 1px var(--ops-line);
 }
+.ops-bill-row.is-selected.is-pending { background: var(--warning-soft); }
+.ops-bill-row.is-selected.is-paid { background: var(--success-soft); }
 .ops-bill-row.is-pending:not(.is-selected) { background: var(--warning-soft); }
 .ops-bill-row.is-paid:not(.is-selected) { background: var(--success-soft); }
 
@@ -413,10 +415,13 @@
   }
 
   .ops-bill-mobile-list > .ops-bill-row.is-selected {
-    border-color: color-mix(in srgb, var(--brand) 55%, var(--border-1));
-    background: var(--brand-subtle);
-    box-shadow: inset 3px 0 0 var(--brand);
+    border-color: var(--border-2);
+    background: var(--ops-surface);
+    box-shadow: inset 3px 0 0 var(--ink);
   }
+
+  .ops-bill-mobile-list > .ops-bill-row.is-selected.is-pending { background: var(--warning-soft); }
+  .ops-bill-mobile-list > .ops-bill-row.is-selected.is-paid { background: var(--success-soft); }
 
   .ops-bill-mobile-list__head {
     display: flex;

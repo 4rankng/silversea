@@ -298,26 +298,30 @@ export function DetailedPlanFilters({
             size="sm"
             aria-label="Ngày vận chuyển"
           />
-          <UUIButton
-            className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
-            size="sm"
-            color="secondary"
-            onPress={() => onChange({ date: today })}
-            aria-label="Hôm nay"
-            aria-pressed={filters.date === today}
-          >
-            Hôm nay
-          </UUIButton>
-          <UUIButton
-            className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
-            size="sm"
-            color="secondary"
-            onPress={() => onChange({ date: '' })}
-            aria-label="Tất cả ngày"
-            aria-pressed={filters.date === ''}
-          >
-            Tất cả ngày
-          </UUIButton>
+          <div className="detailed-plan-filters__date-mode" role="group" aria-label="Phạm vi ngày vận chuyển">
+            <UUIButton
+              className={`detailed-plan-filters__date-shortcut${filters.date === today ? ' is-active' : ''}`}
+              size="sm"
+              color="secondary"
+              onPress={() => onChange({ date: today })}
+              aria-label="Hôm nay"
+              aria-pressed={filters.date === today}
+              iconLeading={filters.date === today ? <Check aria-hidden="true" /> : undefined}
+            >
+              Hôm nay
+            </UUIButton>
+            <UUIButton
+              className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
+              size="sm"
+              color="secondary"
+              onPress={() => onChange({ date: '' })}
+              aria-label="Tất cả ngày"
+              aria-pressed={filters.date === ''}
+              iconLeading={filters.date === '' ? <Check aria-hidden="true" /> : undefined}
+            >
+              Tất cả ngày
+            </UUIButton>
+          </div>
         </div>
       </div>
       <div className="detailed-plan-filters__toolbar-actions">

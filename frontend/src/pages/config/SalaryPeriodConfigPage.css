@@ -46,14 +46,14 @@
 }
 
 .sp-mode-card:hover {
-  border-color: var(--accent);
+  border-color: var(--line-2);
   background: var(--surface-2);
 }
 
 .sp-mode-card.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--ink);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .sp-mode-card__title {

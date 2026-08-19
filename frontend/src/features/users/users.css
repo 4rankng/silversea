@@ -159,10 +159,10 @@
   color: var(--fp-color);
 }
 
-/* Active state: solid role color */
+/* Active state: neutral high-contrast selection */
 .filter-pill[class*="filter-pill--"].is-active {
-  background: var(--fp-color);
-  border-color: var(--fp-color);
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--fg-on-brand);
 }
 
@@ -1133,7 +1133,8 @@
 }
 
 .users-customer-scope__option.is-selected {
-  background: var(--brand-soft);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .users-customer-scope__option input {

@@ -380,10 +380,15 @@
   padding: 0 14px;
 }
 
-.ttp-position-picker-option:hover,
+.ttp-position-picker-option:hover {
+  background: var(--surface-2, #f8fafc);
+  color: var(--fg-1, #101828);
+}
+
 .ttp-position-picker-option[aria-selected='true'] {
-  background: var(--accent-soft, #E6F7EE);
-  color: var(--accent-ink, #004D22);
+  background: var(--surface, #fff);
+  color: var(--fg-1, #101828);
+  box-shadow: inset 3px 0 0 var(--fg-1, #101828);
 }
 
 .ttp-position-picker-empty {
@@ -1188,8 +1193,9 @@
 }
 
 .ttp-unmount-choice.is-active {
-  border-color: rgba(0, 177, 79, 0.45);
-  background: rgba(0, 177, 79, 0.06);
+  border-color: var(--fg-1, #101828);
+  background: var(--bg-1, #fff);
+  box-shadow: inset 3px 0 0 var(--fg-1, #101828);
 }
 
 .ttp-unmount-choice input[type='radio'] {

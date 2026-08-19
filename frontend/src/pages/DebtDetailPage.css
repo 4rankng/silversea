@@ -324,10 +324,11 @@
 }
 .dd-aging-cell:hover { box-shadow: var(--sh-sm); }
 .dd-aging-cell--active {
-  background: var(--accent-soft);
-  border-color: #BCE9CF;
+  background: var(--surface);
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
-.dd-aging-cell--active .dd-ac-val { color: var(--sidebar); }
+.dd-aging-cell--active .dd-ac-val { color: var(--ink); }
 
 .dd-ac-head {
   display: flex;
@@ -436,8 +437,8 @@
 
 .dd-workspace-tab--active {
   background: var(--surface);
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
-  box-shadow: inset 0 -2px 0 var(--accent);
+  border-color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--ink);
   color: var(--ink);
 }
 

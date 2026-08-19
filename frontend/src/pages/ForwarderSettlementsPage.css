@@ -407,12 +407,13 @@
 }
 
 .fset-check-item:hover {
-  background: color-mix(in srgb, var(--accent-soft) 50%, var(--surface));
+  background: var(--surface-2);
 }
 
 .fset-check-item--selected {
-  background: color-mix(in srgb, var(--accent-soft) 40%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--surface);
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .fset-check-item__body {

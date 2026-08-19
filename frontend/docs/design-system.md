@@ -107,3 +107,28 @@ treatment. Reserve semantic color for a real operational condition: forest for
 active/completed work, bronze for attention needed, and oxblood only for a
 cancelled record, validation error, or an overdue deadline. Never introduce a
 blue, indigo, or orange badge simply to distinguish categories.
+
+## Selection and emphasis contract
+
+Selection is not workflow status. A selected view, filter, date scope, row, or
+choice uses a neutral surface plus one ink-coloured structural cue: a border, an inset edge,
+stronger label, and—when a user is choosing an option—a check, radio, or
+checkbox. Do not turn the entire control or card green, blue, or another soft
+semantic colour merely to show it is active.
+
+Keep these meanings separate:
+
+| State | Use | Visual treatment |
+|---|---|---|
+| Selection | Current tab, filter, mode, or chosen record | Neutral surface; border or 2px edge; stronger label; explicit indicator when required |
+| Workflow | Draft, ready, completed, cancelled | Domain-labelled badge; semantic colour only when the state itself has that meaning |
+| Risk | Late, missing, blocked, mismatch | Named warning/error plus a restrained strip or icon beside the affected record |
+| Hover | Pointer affordance | Quiet neutral surface or border change only |
+| Focus | Keyboard location | Separate visible focus ring; never rely on the selected-state styling |
+
+Use the shared `Tabs` variants for view changes. `plain` tabs use a neutral
+border and inset ink edge; `bordered` tabs use the existing underline. Brand
+colour belongs to focus and domain status, not to persistent selection. For
+compact filters, the existing dark `FilterBar` pill remains the deliberate
+high-contrast selection pattern. Keep status badges, alerts, and compact
+exception context semantic, but do not reuse their soft fills for selection.

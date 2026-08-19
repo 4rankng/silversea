@@ -689,5 +689,5 @@
 }
 .dash-wf .wf-chart-toggle__btn.is-active {
   color: var(--fg-on-brand);
-  background: var(--wf-green);
+  background: var(--ink);
 }

@@ -99,14 +99,45 @@
   min-width: 124px;
 }
 
+.detailed-plan-filters__date-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 1 248px;
+  min-width: 216px;
+  padding: 2px;
+  border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
+  border-radius: 8px;
+  background: var(--background-color-secondary, #f8fafc);
+}
+
 .detailed-plan-filters__date-shortcut {
-  flex: 0 0 auto;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-fg-secondary, var(--text-secondary, #64748b));
+}
+
+.detailed-plan-filters__date-shortcut:hover:not(.is-active) {
+  background: var(--background-color-primary, #fff);
+  color: var(--color-fg-primary, var(--text-primary, #101828));
 }
 
 .detailed-plan-filters__date-shortcut.is-active {
-  background: var(--background-color-brand-primary, #e6f6ec);
-  color: var(--color-fg-brand-primary, #005a2d);
-  box-shadow: inset 0 0 0 1px var(--border-color-brand, #98d4ad);
+  background: var(--background-color-primary, #fff);
+  border-color: var(--color-fg-primary, var(--text-primary, #101828));
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.detailed-plan-filters__date-shortcut.is-active [data-icon] {
+  color: currentColor;
+}
+
+.detailed-plan-filters__date-shortcut:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-fg-brand-primary, #005a2d));
+  outline-offset: 1px;
 }
 
 .detailed-plan-filters__points {
@@ -273,9 +304,10 @@
 }
 
 .detailed-plan-filters__point-option.is-selected {
-  background: var(--background-color-brand-primary, #f2faf5);
-  color: var(--color-fg-brand-primary, #005a2d);
-  font-weight: 500;
+  background: var(--background-color-primary, #fff);
+  color: var(--color-fg-primary, var(--text-primary, #101828));
+  font-weight: 650;
+  box-shadow: inset 3px 0 0 var(--color-fg-primary, var(--text-primary, #101828));
 }
 
 .detailed-plan-filters__point-option-checkbox {
@@ -472,7 +504,7 @@
 }
 
 .detailed-plan-grid__row--plated {
-  background: color-mix(in srgb, var(--background-color-success-primary, #f0fdf9) 58%, var(--surface, #fff));
+  background: var(--surface, #fff);
 }
 
 .detailed-plan-grid td {
@@ -602,6 +634,12 @@
     min-width: 0;
   }
 
+  .detailed-plan-filters__date-mode {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
   .detailed-plan-filters__toolbar-actions { width: 100%; justify-content: space-between; }
 
   .detailed-plan-filters__drawer-trigger { flex: 1 1 auto; }
@@ -638,12 +676,13 @@
     display: block;
     overflow: hidden;
     border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
-    border-radius: var(--radius-lg, 8px);
+    border-radius: 10px;
     background: var(--surface, #fff);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   }
 
   .detailed-plan-grid__row--plated {
-    background: color-mix(in srgb, var(--background-color-success-primary, #f0fdf9) 58%, var(--surface, #fff));
+    background: var(--surface, #fff);
   }
 
   .detailed-plan-grid__cell {

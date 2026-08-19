@@ -530,11 +530,17 @@ export default function SalaryAttendancePage() {
             {filteredDrivers.map((d) => {
               const isSelected = d.id === selectedDriverId;
               const net = d.salary?.netSalary ?? 0;
+              const salaryLabel = d.salary
+                ? `, lương thực nhận ${net >= 0 ? '' : 'âm '}${formatCurrency(Math.abs(net))}`
+                : '';
               return (
-                <div
+                <button
+                  type="button"
                   key={d.id}
                   onClick={() => setSelectedDriverId(d.id)}
                   className={`driver-select-card ${isSelected ? 'is-active' : ''}`}
+                  aria-pressed={isSelected}
+                  aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}
                 >
                   {isSelected && <span className="driver-select-card__dot" />}
                   <div className="driver-select-card__name">{d.name}</div>
@@ -546,7 +552,7 @@ export default function SalaryAttendancePage() {
                       {net >= 0 ? '' : '-'}{formatCurrency(Math.abs(net))}
                     </div>
                   )}
-                </div>
+                </button>
               );
             })}
             {filteredDrivers.length === 0 && (

@@ -229,7 +229,7 @@
 .shipments-detail-workspace > .empty-state { margin: 18px; }
 .shipments-detail-workspace > .ds-pagination { padding: 12px 14px; border-top: 1px solid var(--line); }
 .shipments-detail-workspace .ds-pagination__btn { background: var(--surface); box-shadow: none; }
-.shipments-detail-workspace .ds-pagination__btn--active { background: var(--brand); }
+.shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
 /* Operational filters use the same shell-owned edge as the other full-width
    workflows through tablet and compact desktop widths. */

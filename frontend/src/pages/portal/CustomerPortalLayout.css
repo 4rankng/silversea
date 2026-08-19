@@ -280,7 +280,11 @@
     line-height: 1.15;
     text-align: center;
   }
-  .customer-shell__bottom-nav a.is-active { background: #edf7f1; color: var(--brand, #007a3d); }
+  .customer-shell__bottom-nav a.is-active {
+    background: var(--surface, #fff);
+    color: var(--ink, #101828);
+    box-shadow: inset 0 2px 0 var(--ink, #101828);
+  }
   .customer-shell__account-popover {
     position: fixed;
     top: calc(54px + env(safe-area-inset-top, 0px));

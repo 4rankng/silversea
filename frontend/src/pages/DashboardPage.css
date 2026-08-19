@@ -369,7 +369,7 @@
 }
 .dash-wf .wf-chart-toggle__btn.is-active {
   color: var(--fg-on-brand);
-  background: var(--wf-green);
+  background: var(--ink);
 }
 
 .dash-wf .wf-kpis {
@@ -1253,8 +1253,8 @@
 }
 
 .dash-wf .wf-chart-toggle .d-btn.is-active {
-  background: var(--color-primary);
-  color: var(--color-primary-content);
+  background: var(--ink);
+  color: var(--fg-on-brand);
 }
 
 .dash-wf .wf-chart-actions {

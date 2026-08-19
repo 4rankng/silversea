@@ -878,8 +878,9 @@
 
 .cfg-finance-tab.is-active {
   color: var(--ink);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--ink);
+  background: var(--surface);
+  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 .cfg-finance-workspace {
@@ -1066,8 +1067,9 @@
 }
 
 .cfg-provider-option.is-selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--ink);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 .cfg-provider-option input {

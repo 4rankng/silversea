@@ -134,9 +134,8 @@
   gap: 8px;
 }
 .trip-list-page .trip-mcard--quick.selected {
-  border-color: color-mix(in srgb, var(--tbl-green-600) 42%, var(--line));
-  outline: 2px solid var(--tbl-green-100);
-  outline-offset: 2px;
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 .trip-list-page .trip-mcard--quick.locked {
   opacity: 0.72;

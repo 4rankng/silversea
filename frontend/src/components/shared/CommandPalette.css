@@ -105,7 +105,7 @@
 
 .cmd-palette__item--active,
 .cmd-palette__item:focus-visible {
-  background: var(--accent-2);
+  background: var(--ink);
   color: var(--fg-on-brand);
   outline: 0;
 }

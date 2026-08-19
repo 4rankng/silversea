@@ -262,16 +262,16 @@
   background: rgba(232, 241, 236, 0.96);
 }
 .month-picker__cell.is-selected {
-  background: var(--accent-2);
-  color: var(--fg-on-brand);
-  border-color: rgba(0, 90, 45, 0.92);
+  background: var(--ink);
+  color: var(--surface);
+  border-color: var(--ink);
 }
 .month-picker__cell.is-selected .month-picker__cell-code,
 .month-picker__cell.is-selected .month-picker__cell-name {
-  color: var(--fg-on-brand);
+  color: var(--surface);
 }
 .month-picker__cell.is-selected:hover {
-  background: var(--accent-ink);
+  background: var(--ink-2);
 }
 .month-picker__footer {
   display: flex;

@@ -60,13 +60,13 @@
 }
 
 .ds-pagination__btn--active {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--fg-on-brand);
 }
 
 .ds-pagination__btn--active:hover {
-  background: var(--brand);
+  background: var(--ink-2);
   color: var(--fg-on-brand);
 }
 

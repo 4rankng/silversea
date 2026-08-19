@@ -99,8 +99,8 @@
   outline-offset: -2px;
 }
 .audit-list-panel .table-hover tbody tr.is-selected {
-  background: var(--accent-soft);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
 }
 .audit-row-content {
   display: flex;

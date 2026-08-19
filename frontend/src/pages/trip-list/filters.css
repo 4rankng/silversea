@@ -76,8 +76,8 @@
 .trip-list-page .stab-pill.zero .stab-count { color: var(--ink-3); }
 /* active tab */
 .trip-list-page .stab-pill.active {
-  background: var(--fc-green);
-  border-color: var(--fc-green);
+  background: var(--ink);
+  border-color: var(--ink);
   color: var(--fg-on-brand);
 }
 .trip-list-page .stab-pill.active .stab-dot { background: rgba(255,255,255,.85); opacity: 1; }
@@ -254,12 +254,12 @@
 }
 /* active filter (has a value selected) */
 .trip-list-page .filter-pill.has-value {
-  border-color: var(--fc-green);
-  background: var(--fc-green-soft);
-  color: var(--fc-green);
+  border-color: var(--ink);
+  background: var(--surface);
+  color: var(--ink);
 }
-.trip-list-page .filter-pill.has-value .filter-lbl-cap { color: rgba(0,90,45,.6); }
-.trip-list-page .filter-pill.has-value .filter-chev { color: var(--fc-green); }
+.trip-list-page .filter-pill.has-value .filter-lbl-cap { color: var(--ink-3); }
+.trip-list-page .filter-pill.has-value .filter-chev { color: var(--ink); }
 
 /* ── Section heading ──────────────────────────────────────────────────── */
 .trip-list-page .section-head {
