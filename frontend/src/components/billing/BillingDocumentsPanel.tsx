@@ -46,7 +46,7 @@ export default function BillingDocumentsPanel({
   const [editing, setEditing] = useState<BillingDocument | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const queryKey = ['billing-docs', type, entityType, entityId];
+  const queryKey = qk.financial.billingDocuments(type, entityType, entityId);
   const { data: docs = [] } = useQuery<BillingDocument[]>({
     queryKey,
     queryFn: () => financialClient.listBillingDocuments(entityType, entityId, type),

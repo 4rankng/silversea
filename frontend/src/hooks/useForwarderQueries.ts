@@ -138,7 +138,7 @@ export function useCreateAdvanceRequest() {
 
 export function useForwarderSettlements(params?: { status?: string; page?: number; limit?: number }) {
   return useQuery({
-    queryKey: [...qk.forwarder.settlements, params?.status ?? 'all', params?.page ?? 1, params?.limit ?? 'default'],
+    queryKey: qk.forwarder.settlementsList(params),
     queryFn: () => forwarderClient.getAdvanceSettlements(params),
     placeholderData: keepPreviousData,
   });

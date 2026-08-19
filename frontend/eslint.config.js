@@ -43,6 +43,21 @@ const noBareQueryKey = {
           });
         }
       },
+      /** Match `const queryKey = ['...', ...]` (or *QueryKey) — the shorthand
+       * evasion of the Property rule: declare an array, then pass it as
+       * `queryKey,`. Flag the declaration itself. */
+      VariableDeclarator(node) {
+        if (
+          node.id.type === 'Identifier' &&
+          /queryKey$/i.test(node.id.name) &&
+          node.init?.type === 'ArrayExpression'
+        ) {
+          context.report({
+            node,
+            messageId: 'bareQueryKey',
+          });
+        }
+      },
     };
   },
 };

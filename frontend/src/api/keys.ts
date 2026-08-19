@@ -194,6 +194,9 @@ export const qk = {
     /** Broad prefix — matches all forwarder-advance-requests queries. */
     forwarderAdvanceRequestsAll: ['forwarder-advance-requests'] as const,
     settlements: ['forwarder-settlements'] as const,
+    /** Paginated settlements list — page/status ride the key. */
+    settlementsList: (params?: { status?: string; page?: number; limit?: number }) =>
+      [...qk.forwarder.settlements, params?.status ?? 'all', params?.page ?? 1, params?.limit ?? 'default'] as const,
     settlementDetail: (id: number) =>
       ['forwarder-settlement-detail', id] as const,
     unlinkedExpenses: ['forwarder-unlinked-expenses'],
@@ -277,6 +280,9 @@ export const qk = {
     fuelInvoicesAll: ['fuel-invoices'] as const,
     fuelInvoice: (id: number | null | undefined) => ['fuel-invoice', id ?? 'none'] as const,
     fuelInvoiceTripOptions: ['fuel-invoice-trip-options'] as const,
+    /** Billing documents panel — per document type + owning entity. */
+    billingDocuments: (type: string, entityType: string, entityId: number | null | undefined) =>
+      ['billing-docs', type, entityType, entityId ?? 'none'] as const,
     /** See `customerStatement` — AP mirror, keyed by supplier id + range. */
     supplierStatement: (
       supplierId: number | undefined,

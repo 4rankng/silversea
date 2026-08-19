@@ -26,13 +26,6 @@ import { Pagination, SearchableSelect, UuiSelectField, useDebouncedValue } from 
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
-interface PayablesResponse {
-  items: PayableSummary[];
-  totalOutstanding: string;
-  totalSuppliers: number;
-  overdueSuppliers: number;
-}
-
 export function payableDetailHref(payable: Pick<PayableSummary, 'kind' | 'supplier'>): string {
   return payable.kind === 'carrier'
     ? `/payables/${payable.supplier.id}?kind=carrier`
