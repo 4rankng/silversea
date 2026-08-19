@@ -155,7 +155,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
     expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
     expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*display:\s*grid;[^}]*width:\s*100%;[^}]*grid-template-columns:\s*13px minmax\(0, 1fr\);[^}]*align-items:\s*start;[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields > span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-text\s*\{[^}]*display:\s*grid;[^}]*min-width:\s*0;[^}]*gap:\s*2px;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*color:\s*var\(--warning-text\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*flex;[^}]*min-width:\s*0;[^}]*flex-direction:\s*column;[^}]*color:\s*var\(--ink-2\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span\s*\{[^}]*display:\s*block;[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 13px;/);
     expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
     expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);

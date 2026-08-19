@@ -124,12 +124,22 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
-    const warningText = screen.getByText('Chưa cập nhật: Ngày vận chuyển, Điểm nhận hàng, Điểm trả hàng, Lịch hẹn');
+    const warningText = screen.getByText('Chưa cập nhật:');
     const rowWarning = warningText.closest<HTMLElement>('.shipment-container-ledger__row-warning');
     expect(rowWarning).toBeTruthy();
     if (!rowWarning) throw new Error('Expected the missing-fields warning wrapper');
     expect(rowWarning.classList.contains('shipment-container-ledger__row-warning')).toBe(true);
-    expect(warningText.classList.contains('shipment-container-ledger__missing-fields-text')).toBe(true);
+    expect(warningText.classList.contains('shipment-container-ledger__missing-fields-label')).toBe(true);
+    const missingFieldsList = within(rowWarning).getByRole('list', { name: 'Thông tin còn thiếu' });
+    expect(missingFieldsList.classList.contains('shipment-container-ledger__missing-fields-list')).toBe(true);
+    expect(within(missingFieldsList).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Ngày vận chuyển',
+      'Điểm nhận hàng',
+      'Điểm trả hàng',
+      'Lịch hẹn',
+    ]);
+    expect(rowWarning.querySelector('.shipment-container-ledger__missing-fields-text')).toBeTruthy();
+    expect(rowWarning.textContent).not.toContain(',');
     expect(missingDateIdentityCell.contains(rowWarning)).toBe(true);
     expect(missingDateIdentityCell.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();

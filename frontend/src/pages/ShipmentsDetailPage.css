@@ -111,11 +111,13 @@
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; align-items: center; gap: 4px; margin-top: 3px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); white-space: nowrap; }
 .shipment-container-ledger__row-warning svg { width: 13px; height: 13px; flex: 0 0 13px; }
 
-/* Server-derived missing-field triage line ("Chưa cập nhật: …"). Same
-   warning ink as the single-field variant, but wraps and is not clamped so
-   long field lists stay readable on narrow viewports. */
+/* Server-derived missing-field triage list. Same warning ink as the
+   single-field variant; every missing label gets its own readable line. */
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { display: grid; width: 100%; grid-template-columns: 13px minmax(0, 1fr); align-items: start; white-space: normal; line-height: 1.5; }
-.shipment-container-ledger__missing-fields > span { min-width: 0; overflow-wrap: anywhere; }
+.shipment-container-ledger__missing-fields-text { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
+.shipment-container-ledger__missing-fields-label { color: var(--warning-text); }
+.shipment-container-ledger__missing-fields-list { display: flex; min-width: 0; flex-direction: column; gap: 1px; color: var(--ink-2); font-weight: var(--fw-semibold); }
+.shipment-container-ledger__missing-fields-list > span { display: block; min-width: 0; overflow-wrap: anywhere; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 .shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 1px 5px; border-radius: 999px; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .shipment-container-ledger__direction--import { background: var(--info-soft); color: var(--info-text); }

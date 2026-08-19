@@ -585,7 +585,14 @@ export function ShipmentContainerLedger({
                       {row.informationStatus === 'MISSING' && (
                         <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
                           <AlertTriangle aria-hidden="true" />
-                          <span className="shipment-container-ledger__missing-fields-text">Chưa cập nhật: {row.missingFields.map((field) => field.label).join(', ')}</span>
+                          <span className="shipment-container-ledger__missing-fields-text">
+                            <span className="shipment-container-ledger__missing-fields-label">Chưa cập nhật:</span>
+                            <span className="shipment-container-ledger__missing-fields-list" role="list" aria-label="Thông tin còn thiếu">
+                              {row.missingFields.map((field) => (
+                                <span key={field.code} role="listitem">{field.label}</span>
+                              ))}
+                            </span>
+                          </span>
                         </span>
                       )}
                     </div>)}
