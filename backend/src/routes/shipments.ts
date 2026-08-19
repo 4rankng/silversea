@@ -29,7 +29,7 @@ import { Router } from 'express';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
 import {
-  cancelShipmentFulfillmentSchema,
+  cancelShipmentFulfillmentSchema, atomicDispatchPlanEditSchema,
   createShipmentSchema,
   shipmentChargeProposalReviewSchema,
   updateShipmentSchema,
@@ -111,9 +111,11 @@ import {
   assignFulfillmentCarrierWriteCommand,
   assignFulfillmentPlate,
   updateFulfillmentEstimates,
+  updateDispatchDetailPlan,
   issueFulfillmentDispatchOrder,
   listDispatchDeliveryPointFacets,
   listDispatchPortFacets,
+  listLachHuyenPortFacets,
   listDispatchDetailPlanRows,
   listDispatchFleet,
   listDispatchHandoffs,
@@ -737,6 +739,38 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     allocationStatus = allocationStatusVal as AllocationStatus;
   }
 
+  // Dispatch master-plan Lạch Huyện facets: repeatable `portIds` /
+  // `carrierKeys` params, OR within one facet, AND across facets. Strict
+  // boundary parsing with Vietnamese 400s.
+  const rawPortIds = Array.isArray(req.query.portIds) ? req.query.portIds : [req.query.portIds];
+  const portIds: number[] = [];
+  for (const raw of rawPortIds) {
+    if (raw == null || String(raw).trim() === '') continue;
+    const id = Number(String(raw).trim());
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Cảng lọc không hợp lệ' });
+    }
+    portIds.push(id);
+  }
+  if (new Set(portIds).size !== portIds.length) portIds.splice(0, portIds.length, ...new Set(portIds));
+  if (portIds.length > 50) {
+    return res.status(400).json({ error: 'Chỉ được chọn tối đa 50 cảng' });
+  }
+  const rawCarrierKeys = Array.isArray(req.query.carrierKeys) ? req.query.carrierKeys : [req.query.carrierKeys];
+  const carrierKeys: string[] = [];
+  for (const raw of rawCarrierKeys) {
+    if (raw == null || String(raw).trim() === '') continue;
+    const key = String(raw).trim();
+    if (!/^(OWN|UNASSIGNED|EXTERNAL:[1-9]\d*)$/.test(key)) {
+      return res.status(400).json({ error: 'Nhà xe lọc không hợp lệ' });
+    }
+    carrierKeys.push(key);
+  }
+  const uniqueCarrierKeys = [...new Set(carrierKeys)];
+  if (uniqueCarrierKeys.length > 50) {
+    return res.status(400).json({ error: 'Chỉ được chọn tối đa 50 nhà xe' });
+  }
+
   const result = await listShipmentsPaginated({
     page,
     limit,
@@ -750,6 +784,9 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     deliveryDateFrom,
     deliveryDateTo,
     allocationStatus,
+    portIds: portIds.length > 0 ? portIds : undefined,
+    carrierKeys: uniqueCarrierKeys.length > 0 ? uniqueCarrierKeys : undefined,
+    includeDispatchSummary: req.query.includeDispatchSummary === 'true',
     actor: getUser(req),
   });
   res.json(result);
@@ -810,6 +847,9 @@ router.get(
       cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
       limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
+      fulfillmentId: typeof req.query.fulfillmentId === 'string' && req.query.fulfillmentId.trim() !== ''
+        ? Number(req.query.fulfillmentId)
+        : undefined,
     }));
   }),
 );
@@ -897,6 +937,19 @@ router.get(
   }),
 );
 
+// Master-plan Lạch Huyện port facet: only ports with persisted
+// dispatch_zone = 'LACH_HUYEN' referenced by active dispatch-eligible work.
+router.get(
+  '/dispatch-lach-huyen-port-facets',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json(await listLachHuyenPortFacets({
+      actor: getUser(req),
+      q: typeof req.query.q === 'string' ? req.query.q : undefined,
+    }));
+  }),
+);
+
 const assignFulfillmentPlateSchema = z.object({
   expectedVersion: z.number().int().positive(),
   truckId: z.number().int().positive().nullish(),
@@ -926,6 +979,10 @@ const updateFulfillmentEstimatesSchema = z.object({
   plannedRevenue: z.number().int().nonnegative().nullable(),
   plannedCarrierCost: z.number().int().nonnegative().nullable(),
 }).strict();
+
+// Single-save editor command: the schema is shared with the frontend so the
+// contract cannot drift; validation lives at the API boundary.
+const updateDispatchDetailPlanSchema = atomicDispatchPlanEditSchema;
 
 router.patch(
   '/dispatch-detail-plan-rows/:fulfillmentId/carrier',
@@ -989,6 +1046,40 @@ router.patch(
       expectedVersion: parsed.data.expectedVersion,
       plannedRevenue: parsed.data.plannedRevenue,
       plannedCarrierCost: parsed.data.plannedCarrierCost,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+      actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
+    }));
+  }),
+);
+
+// Atomic single-save editor command — replaces the editor's old sequence of
+// carrier → plate → estimates PATCHes with one fulfillment+shipment
+// transaction. Legacy endpoints remain for existing callers.
+router.patch(
+  '/dispatch-detail-plan-rows/:fulfillmentId/plan',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const fulfillmentId = Number(req.params.fulfillmentId);
+    if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+      throw new ApiError(400, 'fulfillmentId không hợp lệ.');
+    }
+    const parsed = updateDispatchDetailPlanSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    res.json(await updateDispatchDetailPlan({
+      fulfillmentId,
+      expectedFulfillmentVersion: parsed.data.expectedFulfillmentVersion,
+      expectedShipmentVersion: parsed.data.expectedShipmentVersion,
+      carrierType: parsed.data.carrierType,
+      externalCarrierId: parsed.data.externalCarrierId ?? null,
+      truckId: parsed.data.truckId ?? null,
+      externalCarrierVehicleId: parsed.data.externalCarrierVehicleId ?? null,
+      plateNumber: parsed.data.plateNumber ?? null,
+      clearVehicle: parsed.data.clearVehicle === true,
+      plannedRevenue: parsed.data.plannedRevenue,
+      plannedCarrierCost: parsed.data.plannedCarrierCost,
+      classification: parsed.data.classification,
+      isCombined: parsed.data.isCombined,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     }));

@@ -162,3 +162,16 @@
     min-height: var(--control-touch-h, 44px);
   }
 }
+
+/* Atomic editor additions: classification select + Đóng kết hợp toggle. */
+.dispatch-assignment-dialog__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dispatch-assignment-dialog__check input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}

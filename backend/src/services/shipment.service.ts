@@ -45,7 +45,9 @@ import {
   TripPodStatus,
   TRIP_POD_REQUIRED_FILE_TYPES,
   updateShipmentSchema,
+  DISPATCH_ZONES,
 } from '@tingting/shared';
+import type { DispatchSummary } from '@tingting/shared';
 import { resolveFreightPrice, resolveShipmentPricingProjection } from './pricing.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
@@ -86,6 +88,9 @@ import {
 import {
   loadShipmentDispatchAggregates,
   buildShipmentSearchPredicate,
+  buildDispatchPortFacetPredicate,
+  buildDispatchCarrierFacetPredicate,
+  computeDispatchSummaryForSet,
   loadShipmentListSummaries,
   loadShipmentListDeclarationNumbers,
   type AllocationStatus,
@@ -113,6 +118,7 @@ import {
 
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -380,10 +386,28 @@ export interface ListShipmentsOptions {
   deliveryDateTo?: string;
   /** Dispatch master-plan filter: derived carrier-allocation coverage. */
   allocationStatus?: AllocationStatus;
+  /** Dispatch master-plan filter (Lạch Huyện): OR-within pickup/dropoff port ids
+   *  matched against active fulfillments' containers. */
+  portIds?: number[];
+  /** Dispatch master-plan filter: OR-within carrier keys (OWN / EXTERNAL:<id> /
+   *  UNASSIGNED), AND-ed with portIds and dates. */
+  carrierKeys?: string[];
+  /** When true, also return dispatchSummary computed over the complete filtered
+   *  set in the same snapshot as rows+count. */
+  includeDispatchSummary?: boolean;
   limit?: number;
   offset?: number;
   actor?: AuthUser;
 }
+
+/** listShipmentsPaginated result extended with the full-filtered-set summary. */
+export type ListShipmentsPaginatedResult = {
+  items: Array<ReturnType<typeof normalizeShipmentRow> & Record<string, unknown>>;
+  total: number;
+  page: number;
+  limit: number;
+  dispatchSummary?: DispatchSummary;
+};
 
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentUpdateResult = typeof s.shipments.$inferSelect & {
@@ -906,6 +930,13 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (options.deliveryDateTo) {
     conditions.push(lte(s.shipments.expectedDeliveryDate, options.deliveryDateTo));
   }
+  // Dispatch master-plan Lạch Huyện facets: OR within each dimension, AND
+  // across dimensions. Correlated EXISTS keeps multi-container shipments to one
+  // row and totals exact.
+  const portFacet = buildDispatchPortFacetPredicate(options.portIds ?? []);
+  if (portFacet) conditions.push(portFacet);
+  const carrierFacet = buildDispatchCarrierFacetPredicate(options.carrierKeys ?? []);
+  if (carrierFacet) conditions.push(carrierFacet);
 
   // allocationStatus is derived from container/fulfillment aggregates and
   // cannot live in the WHERE clause. When filtering on it, resolve the full
@@ -935,17 +966,64 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const rowsQuery = db.select({
     shipment: s.shipments,
     customerName: CUSTOMER_OPERATIONAL_NAME,
+    // Operational site preferred via short-name authority; stored shipment
+    // factoryName remains the fallback when no site is linked.
+    operationalSiteName: SITE_OPERATIONAL_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+    .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
     .where(and(...conditions))
     .orderBy(desc(s.shipments.createdAt));
-  const [items, totalRows] = await Promise.all([
-    paginatedByIds ? rowsQuery : rowsQuery.limit(limit).offset(offset),
-    db.select({ value: count() }).from(s.shipments)
-      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      .where(and(...conditions)),
-  ]);
-  const total = Number(totalRows[0]?.value ?? 0);
+
+  // When the caller wants the filtered-set summary, run rows+count+summary in
+  // one read-only REPEATABLE READ transaction so all three see the same
+  // snapshot — header totals can never drift from the list mid-request.
+  let dispatchSummary: DispatchSummary | undefined;
+  let items: Array<{
+    shipment: typeof s.shipments.$inferSelect;
+    customerName: string | null;
+    operationalSiteName: string | null;
+  }> = [];
+  let total = 0;
+  if (options.includeDispatchSummary) {
+    await db.transaction(async (tx) => {
+      // All three reads share this transaction's snapshot: page rows, total
+      // count, and the filtered-set ids feeding the cargo summary.
+      const pageQuery = tx.select({
+        shipment: s.shipments,
+        customerName: CUSTOMER_OPERATIONAL_NAME,
+        operationalSiteName: SITE_OPERATIONAL_NAME,
+      }).from(s.shipments)
+        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+        .where(and(...conditions))
+        .orderBy(desc(s.shipments.createdAt));
+      const [pageRows, totalRows, filteredIdRows] = await Promise.all([
+        paginatedByIds ? pageQuery : pageQuery.limit(limit).offset(offset),
+        tx.select({ value: count() }).from(s.shipments)
+          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+          .where(and(...conditions)),
+        tx.select({ id: s.shipments.id }).from(s.shipments)
+          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+          .where(and(...conditions)),
+      ]);
+      items = pageRows;
+      total = Number(totalRows[0]?.value ?? 0);
+      dispatchSummary = await computeDispatchSummaryForSet(
+        filteredIdRows.map((row) => row.id),
+        tx as unknown as Pick<typeof db, 'select'>,
+      );
+    }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
+  } else {
+    const [pageRows, totalRows] = await Promise.all([
+      paginatedByIds ? rowsQuery : rowsQuery.limit(limit).offset(offset),
+      db.select({ value: count() }).from(s.shipments)
+        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+        .where(and(...conditions)),
+    ]);
+    items = pageRows;
+    total = Number(totalRows[0]?.value ?? 0);
+  }
   const summariesByShipmentId = await loadShipmentListSummaries(items.map((row) => row.shipment));
   // W4 20260805_03: also fetch the first declaration number per shipment so
   // the CUS grid can show "Số tờ khai" without a second roundtrip.
@@ -960,6 +1038,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),
     customerName: row.customerName,
+    // Operational-site short-name authority with stored factory text fallback
+    // (master-plan "Xưởng/Điểm" projection, plan phase-02).
+    factoryName: row.operationalSiteName ?? row.shipment.factoryName,
     cargoSummary: summariesByShipmentId.get(row.shipment.id)?.cargoSummary ?? null,
     shippingLineSummary: summariesByShipmentId.get(row.shipment.id)?.shippingLineSummary ?? null,
     carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,
@@ -973,7 +1054,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     carrierAllocationSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.carrierAllocationSummary ?? [],
   });
   const flatItems = items.map(enrichRow);
-  return { items: flatItems, total: derivedTotal ?? total, page, limit };
+  return dispatchSummary !== undefined
+    ? { items: flatItems, total: derivedTotal ?? total, page, limit, dispatchSummary }
+    : { items: flatItems, total: derivedTotal ?? total, page, limit };
 }
 
 // ─── Update (optimistic-lock) ───────────────────────────────────────────────

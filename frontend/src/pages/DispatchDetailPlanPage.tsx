@@ -37,9 +37,7 @@ export default function DispatchDetailPlanPage() {
           onClearLotBanner={detailPlan.clearLotBanner}
           sortKey={detailPlan.sortKey}
           onToggleSort={detailPlan.toggleSort}
-          onAssignPlate={detailPlan.assignPlate}
-          onAssignCarrier={detailPlan.assignCarrier}
-          onSaveEstimates={detailPlan.updateEstimates}
+          onAtomicSave={detailPlan.savePlan}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination

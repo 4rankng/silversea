@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { DispatchClassification } from '@tingting/shared';
 import {
   assignDispatchDetailPlate,
   assignDispatchDetailCarrier,
@@ -7,6 +8,7 @@ import {
   listDispatchDropoffPortFacets,
   listDispatchPickupPortFacets,
   updateDispatchDetailEstimates,
+  updateDispatchDetailPlan,
   type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
@@ -256,6 +258,61 @@ export function useDispatchDetailPlan() {
     }
   }, []);
 
+  /** Atomic editor save — one request replaces the sequential carrier → plate
+   *  → estimates writes. Replaces the returned row/version/shipmentVersion in
+   *  place and propagates lot-plated state to sibling rows. */
+  const savePlan = useCallback(async (
+    row: DispatchDetailPlanRow,
+    body: {
+      carrierType: 'OWN' | 'EXTERNAL';
+      externalCarrierId?: number | null;
+      truckId?: number | null;
+      externalCarrierVehicleId?: number | null;
+      plateNumber?: string | null;
+      clearVehicle?: boolean;
+      plannedRevenue: number | null;
+      plannedCarrierCost: number | null;
+      classification: DispatchClassification;
+      isCombined: boolean;
+    },
+  ) => {
+    setAssignmentError(null);
+    try {
+      const result = await updateDispatchDetailPlan(row.fulfillmentId, {
+        expectedFulfillmentVersion: row.version,
+        expectedShipmentVersion: row.shipmentVersion,
+        ...body,
+      });
+      setItems((previous) => previous.map((item) => {
+        if (item.fulfillmentId === row.fulfillmentId) {
+          return {
+            ...item,
+            version: result.fulfillmentVersion,
+            shipmentVersion: result.shipmentVersion,
+            isCombined: result.isCombined,
+            classification: result.classification,
+            lotFullyPlated: result.lotFullyPlated,
+            dispatch: { ...item.dispatch, ...result.dispatch },
+            estimates: { ...result.estimates },
+          };
+        }
+        return item.shipmentId === row.shipmentId
+          ? { ...item, shipmentVersion: result.shipmentVersion, lotFullyPlated: result.lotFullyPlated }
+          : item;
+      }));
+      if (result.lotFullyPlated) {
+        setLotBanner(`Lô ${row.shipmentCode ?? row.shipmentId} đã phân xe đủ.`);
+      }
+      return result;
+    } catch (mutationError) {
+      const status = (mutationError as { status?: number }).status;
+      setAssignmentError(status === 409
+        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
+      throw mutationError;
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
@@ -291,6 +348,7 @@ export function useDispatchDetailPlan() {
     assignPlate,
     assignCarrier,
     updateEstimates,
+    savePlan,
     assignmentError,
     clearAssignmentError: () => setAssignmentError(null),
     lotBanner,

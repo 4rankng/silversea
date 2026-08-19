@@ -28,9 +28,10 @@ export {
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
+  DISPATCH_ZONES, DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchZone, DispatchClassification } from './constants';
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
@@ -64,6 +65,7 @@ export type {
   DebitNoteTemplate, DebitNoteTemplateSnapshot,
   LiveFleetVehicle, LiveFleetResponse, LiveFleetStatus, LiveFleetDetails, LiveFleetLeg,
   GpsStop,
+  DispatchCarrierKey, DispatchSummary, DispatchPortOption, TruckSuggestion,
 } from './types';
 
 export { parseThreshold } from './types';
@@ -117,7 +119,7 @@ export {
   operationalSiteSchema, decomposeShipmentFulfillmentsSchema,
   submitShipmentForDispatchSchema, assignShipmentCarriersSchema, shipmentCarrierAllocationSchema,
   carrierFleetVehicleSchema, shipmentAccountingLockSchema,
-  cancelShipmentFulfillmentSchema, tripPodFileMetadataSchema,
+  cancelShipmentFulfillmentSchema, atomicDispatchPlanEditSchema, tripPodFileMetadataSchema,
   driverProgressSchema, driverIncidentalCostSchema,
   containerTypeSchema, portSchema, sealTypeSchema,
   debtOffsetSchema, ANCILLARY_EXPENSE_TYPES,

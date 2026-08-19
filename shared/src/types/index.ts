@@ -3,6 +3,7 @@ import type {
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
+  DispatchZone, DispatchClassification,
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -758,16 +759,10 @@ export interface Port {
 
 // ─── Dispatch planning ────────────────────────────────────────────────────────────
 
-/** Application-owned dispatch zone whitelist. LACH_HUYEN today; extend here,
- *  never in SQL, so zone membership stays a versioned application fact. */
-export const DISPATCH_ZONES = ['LACH_HUYEN'] as const;
-export type DispatchZone = (typeof DISPATCH_ZONES)[number];
-
-/** Fulfillment-owned operational classification. SINGLE (Đơn), DOUBLE (Kẹp),
- *  COMBINED (Kết hợp), LCL (Lẻ). A label only — never infers trip pairing,
- *  vehicle sharing, or shipment-level `Đóng kết hợp`. */
-export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL'] as const;
-export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
+// Domain vocabularies live in constants (single source); re-exported here for
+// the established `import { ... } from '@tingting/shared'` surface.
+export { DISPATCH_ZONES, DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '../constants';
+export type { DispatchZone, DispatchClassification } from '../constants';
 
 /** Carrier key for master-plan filtering: own fleet, a specific external
  *  carrier, or fulfillments still lacking any planned carrier. */

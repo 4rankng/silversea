@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
+import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type DispatchClassification, type FuelMode, type TruckSuggestion } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -50,6 +50,8 @@ export interface ListDispatchFleetInput {
   cursor?: string | null;
   limit?: number;
   q?: string;
+  /** Target row context for own-truck suggestions (resource=TRUCK only). */
+  fulfillmentId?: number;
 }
 
 export interface ListDispatchDetailPlanRowsInput {
@@ -65,6 +67,53 @@ export interface ListDispatchDetailPlanRowsInput {
   deliveryPointIds?: number[];
   hourFrom?: string;
   hourTo?: string;
+}
+
+/**
+ * One atomic editor save: carrier + vehicle + estimates + classification +
+ * isCombined in a single fulfillment-plus-shipment transaction. The editor
+ * always sends every field and both row versions, so a partially-stale tab
+ * cannot silently erase concurrent work.
+ */
+export interface UpdateDispatchDetailPlanInput {
+  fulfillmentId: number;
+  expectedFulfillmentVersion: number;
+  expectedShipmentVersion: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId?: number | null;
+  truckId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  plateNumber?: string | null;
+  clearVehicle?: boolean;
+  plannedRevenue: number | null;
+  plannedCarrierCost: number | null;
+  classification: DispatchClassification;
+  isCombined: boolean;
+  idempotencyKey: string;
+  actor: DispatchActor;
+}
+
+export interface DispatchDetailPlanMutationResult {
+  fulfillmentId: number;
+  fulfillmentVersion: number;
+  shipmentId: number;
+  shipmentVersion: number;
+  classification: DispatchClassification;
+  isCombined: boolean;
+  dispatch: {
+    carrierType: 'OWN' | 'EXTERNAL';
+    carrierName: string | null;
+    externalCarrierId: number | null;
+    externalCarrierVehicleId: number | null;
+    assignedPlate: string | null;
+  };
+  estimates: {
+    plannedRevenue: string | null;
+    plannedCarrierCost: string | null;
+  };
+  lotFullyPlated: boolean;
+  driverNotified: boolean;
+  driverHint: string | null;
 }
 
 export interface AssignFulfillmentPlateInput {
@@ -934,6 +983,150 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
   });
 }
 
+/**
+ * Set-based Lạch Huyện D-1/D+1 own-truck suggestions for the fleet picker.
+ *
+ * For an authorized target fulfillment on date D (shipment expected delivery
+ * date, Asia/Ho_Chi_Minh): a truck whose planned work includes an LH dropoff
+ * on D-1 gets `D-1_DROP`; an LH pickup on D+1 gets `D+1_PICKUP`. Evidence
+ * comes from active planned fulfillments (non-canceled, non-deleted) joined to
+ * zoned ports via containers, matched to owned trucks by normalized plate —
+ * the fulfillment stores a plate snapshot, not a truck id. Prefer the live
+ * trip's `departureDate`, fall back to the shipment's delivery date.
+ *
+ * Advisory only: reasons never gate eligibility and never expose other
+ * shipments/customers. One bounded query for the whole suggestion set — no
+ * per-truck lookups.
+ */
+async function buildLachHuyenTruckSuggestions(tx: Tx, args: {
+  actor: AuthUser;
+  fulfillmentId: number;
+  qPattern: string | null;
+}): Promise<TruckSuggestion[]> {
+  const [target] = await tx.select({
+    fulfillmentId: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    deliveryDate: s.shipments.expectedDeliveryDate,
+  }).from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
+    .where(and(
+      eq(s.shipmentFulfillments.id, args.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      isNull(s.shipments.deletedAt),
+    ))
+    .limit(1);
+  // Inaccessible/deleted/canceled target → no suggestions, not an error: the
+  // picker stays usable while the row context is stale.
+  if (!target) return [];
+  try {
+    await assertActorCanAccessShipment(tx, target.shipmentId, args.actor, { write: true });
+  } catch {
+    return [];
+  }
+  if (target.deliveryDate == null) return [];
+
+  // Planned work date: live trip's departure date when present, else the
+  // shipment's expected delivery date. Canceled/deleted trips never count.
+  const workDateSql = sql<string>`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`;
+
+  // One row per (truck, evidence fulfillment). The pickup/dropoff port must
+  // sit in the Lạch Huyện zone; OWN-planned only (own trucks are suggestable).
+  const evidence = await tx.select({
+    truckId: s.trucks.id,
+    plateNumber: s.trucks.licensePlate,
+    // Whether the JOINED LH port is the container's dropoff (vs pickup) —
+    // with an OR port join this distinguishes which side matched.
+    isDropoff: sql<boolean>`(${s.shipmentContainers.dropoffPortId} = ${s.ports.id})`,
+    workDate: workDateSql,
+  }).from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
+    .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+    .innerJoin(s.ports, or(
+      eq(s.shipmentContainers.dropoffPortId, s.ports.id),
+      eq(s.shipmentContainers.pickupPortId, s.ports.id),
+    ))
+    // Canonical plate normalizer on BOTH sides (strip every non-alphanumeric,
+    // uppercase) — identical to the write-path `normalizePlate` semantics, so
+    // hyphen/space formatting differences never break the match.
+    .innerJoin(s.trucks, eq(
+      sql`upper(regexp_replace(${s.trucks.licensePlate}, '[^A-Za-z0-9]', '', 'g'))`,
+      sql`upper(regexp_replace(${s.shipmentFulfillments.plannedVehiclePlateNumber}, '[^A-Za-z0-9]', '', 'g'))`,
+    ))
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      ne(s.trips.status, TripStatus.CANCELED),
+      isNull(s.trips.deletedAt),
+    ))
+    .where(and(
+      isNull(s.shipmentFulfillments.canceledAt),
+      isNull(s.shipments.deletedAt),
+      eq(s.shipmentFulfillments.plannedCarrierType, 'OWN'),
+      sql`${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null`,
+      eq(s.ports.dispatchZone, 'LACH_HUYEN'),
+      sql`${workDateSql} is not null`,
+    ))
+    .limit(500);
+
+  const targetDate = String(target.deliveryDate).slice(0, 10);
+  const dayBefore = addCalendarDays(targetDate, -1);
+  const dayAfter = addCalendarDays(targetDate, 1);
+
+  const reasonByTruck = new Map<number, { plateNumber: string; reasons: Set<'D-1_DROP' | 'D+1_PICKUP'> }>();
+  for (const row of evidence) {
+    const workDay = String(row.workDate).slice(0, 10);
+    let reason: 'D-1_DROP' | 'D+1_PICKUP' | null = null;
+    // Dropoff at LH on D-1 → the truck is near LH the day before.
+    if (row.isDropoff && workDay === dayBefore) reason = 'D-1_DROP';
+    // Pickup from LH on D+1 → the truck must be at LH the day after.
+    if (!row.isDropoff && workDay === dayAfter) reason = 'D+1_PICKUP';
+    if (reason == null) continue;
+    // Search applies to suggestions too — plate must match the typed query.
+    if (args.qPattern) {
+      const plateMatch = row.plateNumber != null
+        && unaccentedIlikeLike(row.plateNumber, args.qPattern);
+      if (!plateMatch) continue;
+    }
+    const entry = reasonByTruck.get(row.truckId) ?? { plateNumber: row.plateNumber ?? '', reasons: new Set<'D-1_DROP' | 'D+1_PICKUP'>() };
+    entry.reasons.add(reason);
+    reasonByTruck.set(row.truckId, entry);
+  }
+
+  // Merged visible order: both signals, D-1, D+1, then plate tie-break.
+  const rank = (reasons: Set<'D-1_DROP' | 'D+1_PICKUP'>) =>
+    (reasons.has('D-1_DROP') && reasons.has('D+1_PICKUP') ? 0
+      : reasons.has('D-1_DROP') ? 1
+      : 2);
+  return [...reasonByTruck.entries()]
+    .map(([truckId, entry]) => ({
+      truckId,
+      plateNumber: entry.plateNumber,
+      reasons: rank(entry.reasons) === 0
+        ? ['D-1_DROP', 'D+1_PICKUP'] as Array<'D-1_DROP' | 'D+1_PICKUP'>
+        : [...entry.reasons],
+    }))
+    .sort((a, b) =>
+      rank(new Set(a.reasons)) - rank(new Set(b.reasons))
+      || a.plateNumber.localeCompare(b.plateNumber, 'vi'),
+    )
+    .slice(0, 20);
+}
+
+/** Calendar-day arithmetic on YYYY-MM-DD strings, timezone-free. */
+function addCalendarDays(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const utc = Date.UTC(year!, (month ?? 1) - 1, day ?? 1);
+  return new Date(utc + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Plain LIKE pattern check for an already-fetched value (search parity with
+ *  the SQL `unaccentedIlike` used by the page query). */
+function unaccentedIlikeLike(value: string, pattern: string): boolean {
+  const normalize = (text: string) => text.trim().toUpperCase().replace(/\s+/g, '');
+  const normalizedValue = normalize(value);
+  const normalizedPattern = normalize(pattern.replace(/%/g, ''));
+  return normalizedValue.includes(normalizedPattern);
+}
+
 export async function listDispatchFleet(input: ListDispatchFleetInput) {
   assertDispatchReadActor(input.actor);
   if (input.actor.role === Role.ACCOUNTANT) {
@@ -996,6 +1189,12 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
         assignedDriverByTruckId.set(row.assignedTruckId, { id: row.id, name: row.name });
       }
 
+      // Advisory LH suggestions ride beside the cursor page — never inside it,
+      // so pagination semantics stay byte-compatible for existing callers.
+      const suggestedItems: TruckSuggestion[] = input.fulfillmentId != null
+        ? await buildLachHuyenTruckSuggestions(tx, { actor: input.actor, fulfillmentId: input.fulfillmentId, qPattern })
+        : [];
+
       return {
         items: pageRows.map((row) => ({
           id: row.id,
@@ -1008,6 +1207,7 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
           assignedDriverId: assignedDriverByTruckId.get(row.id)?.id ?? null,
           assignedDriverName: assignedDriverByTruckId.get(row.id)?.name ?? null,
         })),
+        suggestedItems,
         total: Number(truckTotals[0]?.value ?? 0),
         limit,
         nextCursor: truckRows.length > limit
@@ -1852,6 +2052,37 @@ function dispatchDetailDisplayHour(closingAt: Date | null, plannedReturnAt: Date
   return new Date(value.getTime() + 7 * 60 * 60 * 1000).getUTCHours();
 }
 
+/**
+ * Server-owned default priority order for the detailed-plan grid. The editor
+ * may layer explicit sorting on top, but pagination always follows this
+ * canonical order so page boundaries stay stable. Buckets are derived from
+ * canonical container codes / fulfillment type — never translated labels.
+ *
+ * 1. Cargo priority: 20-foot, 40-foot, LCL, everything else.
+ * 2. Direction: Import, Export, unknown.
+ * 3. Transport date ascending, nulls last (same date the grid filters on).
+ * 4. Fulfillment id ascending — stable tie-break.
+ */
+function dispatchDetailPriorityOrderSql() {
+  const cargoRank = sql<number>`case
+    when ${s.shipmentFulfillments.fulfillmentType} = 'LCL_SHIPMENT' then 3
+    when ${s.containerTypes.code} like '20%' then 1
+    when ${s.containerTypes.code} like '40%' then 2
+    else 4
+  end`;
+  const directionRank = sql<number>`case
+    when ${s.shipments.tradeDirection} = 'IMPORT' then 1
+    when ${s.shipments.tradeDirection} = 'EXPORT' then 2
+    else 3
+  end`;
+  return [
+    sql`${cargoRank} asc`,
+    sql`${directionRank} asc`,
+    sql`coalesce(${s.shipments.expectedDeliveryDate}, '9999-12-31') asc`,
+    sql`${s.shipmentFulfillments.id} asc`,
+  ];
+}
+
 export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
@@ -1909,6 +2140,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedRevenue: s.shipmentFulfillments.plannedRevenue,
       plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
+      classification: s.shipmentFulfillments.dispatchClassification,
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
       shipmentId: s.shipments.id,
@@ -1950,7 +2182,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         isNull(s.trips.deletedAt),
       ))
       .where(filters)
-      .orderBy(desc(s.shipmentFulfillments.id))
+      .orderBy(...dispatchDetailPriorityOrderSql())
       .limit(limit)
       .offset((page - 1) * limit),
       tx.select({ total: sql<number>`count(*)` })
@@ -2039,6 +2271,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             plannedRevenue: row.plannedRevenue,
             plannedCarrierCost: row.plannedCarrierCost,
           },
+          // Legacy rows created before classification existed stay null until
+          // an operator classifies them; the editor blocks save on null.
+          classification: row.classification,
           ports: {
             pickupPortId: row.pickupPortId,
             pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,
@@ -2286,25 +2521,30 @@ function buildPlateAssignmentNotificationPayload(result: PlateMutationResult): N
   };
 }
 
-async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateInput): Promise<PlateMutationResult> {
-  const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
-    .where(and(
-      eq(s.shipmentFulfillments.id, input.fulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-    ))
-    .limit(1)
-    .for('update');
-  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
-  if (fulfillment.version !== input.expectedVersion) {
-    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-  }
-  const carrierType = fulfillment.plannedCarrierType;
-  if (carrierType !== 'OWN' && carrierType !== 'EXTERNAL') {
-    throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
-  }
+interface DispatchVehicleResolution {
+  plannedVehiclePlateNumber: string | null;
+  plannedExternalCarrierVehicleId: number | null;
+  assignedTruckId: number | null;
+  assignedDriverId: number | null;
+  assignedDriverName: string | null;
+  driverHint: string | null;
+}
 
-  await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
-
+/**
+ * Resolve the editor's vehicle selection into fulfillment columns. Shared by
+ * the legacy plate endpoint and the atomic plan save. Vehicle ownership is
+ * validated against the passed carrier — for the atomic save that is the
+ * incoming carrier, so carrier and vehicle can switch together without
+ * stranding a stale carrier-vehicle link.
+ */
+async function resolveDispatchVehicleAssignment(tx: Tx, args: {
+  carrierType: 'OWN' | 'EXTERNAL';
+  plannedExternalCarrierId: number | null;
+  truckId: number | null;
+  externalCarrierVehicleId: number | null;
+  plateNumber: string | null;
+  clear: boolean;
+}): Promise<DispatchVehicleResolution> {
   let plannedVehiclePlateNumber: string | null = null;
   let plannedExternalCarrierVehicleId: number | null = null;
   let assignedTruckId: number | null = null;
@@ -2312,13 +2552,13 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
   let assignedDriverName: string | null = null;
   let driverHint: string | null = null;
 
-  if (input.clear === true) {
+  if (args.clear) {
     // Clear path: both carrier types allowed; un-assign everything.
-  } else if (carrierType === 'OWN') {
-    if (input.truckId == null) {
+  } else if (args.carrierType === 'OWN') {
+    if (args.truckId == null) {
       throw new ApiError(400, 'Xe nội bộ phải chọn biển số từ đội xe công ty.');
     }
-    if (input.plateNumber != null || input.externalCarrierVehicleId != null) {
+    if (args.plateNumber != null || args.externalCarrierVehicleId != null) {
       throw new ApiError(400, 'Nhà xe nội bộ không dùng biển số tự do hoặc xe nhà thầu.');
     }
     const [truck] = await tx.select({
@@ -2326,7 +2566,7 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
       licensePlate: s.trucks.licensePlate,
       status: s.trucks.status,
       deletedAt: s.trucks.deletedAt,
-    }).from(s.trucks).where(eq(s.trucks.id, input.truckId)).limit(1);
+    }).from(s.trucks).where(eq(s.trucks.id, args.truckId)).limit(1);
     if (!truck || truck.deletedAt || truck.status !== 'ACTIVE') {
       throw new ApiError(409, 'Xe đầu kéo không còn hiệu lực.');
     }
@@ -2354,8 +2594,8 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
     }
   } else {
     // EXTERNAL: catalog pick, free text, or empty (CUS fills later).
-    if (input.externalCarrierVehicleId != null) {
-      if (input.plateNumber != null) {
+    if (args.externalCarrierVehicleId != null) {
+      if (args.plateNumber != null) {
         throw new ApiError(400, 'Chỉ chọn một nguồn biển số: xe nhà thầu hoặc nhập tay.');
       }
       const [vehicle] = await tx.select({
@@ -2365,32 +2605,32 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
         isActive: s.carrierFleetVehicles.isActive,
         deletedAt: s.carrierFleetVehicles.deletedAt,
       }).from(s.carrierFleetVehicles)
-        .where(eq(s.carrierFleetVehicles.id, input.externalCarrierVehicleId))
+        .where(eq(s.carrierFleetVehicles.id, args.externalCarrierVehicleId))
         .limit(1);
       if (!vehicle || vehicle.deletedAt || !vehicle.isActive) {
         throw new ApiError(409, 'Xe nhà thầu không còn hiệu lực.');
       }
-      if (fulfillment.plannedExternalCarrierId != null && vehicle.carrierId !== fulfillment.plannedExternalCarrierId) {
+      if (args.plannedExternalCarrierId != null && vehicle.carrierId !== args.plannedExternalCarrierId) {
         throw new ApiError(409, 'Xe không thuộc nhà xe được phân công.');
       }
       plannedVehiclePlateNumber = vehicle.licensePlate;
       plannedExternalCarrierVehicleId = vehicle.id;
-    } else if (input.plateNumber != null) {
-      const normalized = normalizeFreeTextPlate(input.plateNumber);
-      const trimmed = input.plateNumber.trim();
+    } else if (args.plateNumber != null) {
+      const normalized = normalizeFreeTextPlate(args.plateNumber);
+      const trimmed = args.plateNumber.trim();
       if (trimmed.length < 4 || trimmed.length > 20) {
         throw new ApiError(400, 'Biển số xe không hợp lệ.');
       }
       plannedVehiclePlateNumber = normalized;
       // Match against the vendor catalog so a typed plate matching an existing
       // entry links to it instead of creating a phantom free-text plate.
-      if (fulfillment.plannedExternalCarrierId != null) {
+      if (args.plannedExternalCarrierId != null) {
         const normalizedCatalogKey = normalized.replace(/[^A-Z0-9]/g, '');
         const [match] = await tx.select({
           id: s.carrierFleetVehicles.id,
         }).from(s.carrierFleetVehicles)
           .where(and(
-            eq(s.carrierFleetVehicles.carrierId, fulfillment.plannedExternalCarrierId),
+            eq(s.carrierFleetVehicles.carrierId, args.plannedExternalCarrierId),
             eq(s.carrierFleetVehicles.normalizedPlate, normalizedCatalogKey),
             isNull(s.carrierFleetVehicles.deletedAt),
           ))
@@ -2401,18 +2641,38 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
     // else: empty assignment (bypass) — plate stays null, allowed for EXTERNAL.
   }
 
-  // Notify only when the truck actually changes (dedupe re-assign of same
-  // truck): skip when the stored plate/vehicle is already identical, OR when a
-  // notification for this fulfillment+driver+plate pair was already delivered
-  // (covers clear → re-assign of the same truck).
-  const sameTruck = assignedTruckId != null
-    && fulfillment.plannedVehiclePlateNumber === plannedVehiclePlateNumber
-    && fulfillment.plannedExternalCarrierVehicleId === plannedExternalCarrierVehicleId;
+  return {
+    plannedVehiclePlateNumber,
+    plannedExternalCarrierVehicleId,
+    assignedTruckId,
+    assignedDriverId,
+    assignedDriverName,
+    driverHint,
+  };
+}
+
+/**
+ * Notify only when the truck actually changes (dedupe re-assign of same
+ * truck): skip when the stored plate/vehicle is already identical, OR when a
+ * notification for this fulfillment+driver+plate pair was already delivered
+ * (covers clear → re-assign of the same truck). Shared by the legacy plate
+ * endpoint and the atomic plan save.
+ */
+async function decideDispatchDriverNotification(tx: Tx, args: {
+  fulfillment: typeof s.shipmentFulfillments.$inferSelect;
+  carrierType: 'OWN' | 'EXTERNAL';
+  clear: boolean;
+  vehicle: DispatchVehicleResolution;
+}): Promise<boolean> {
+  const { fulfillment, vehicle } = args;
+  const sameTruck = vehicle.assignedTruckId != null
+    && fulfillment.plannedVehiclePlateNumber === vehicle.plannedVehiclePlateNumber
+    && fulfillment.plannedExternalCarrierVehicleId === vehicle.plannedExternalCarrierVehicleId;
   let previouslyNotified = false;
-  if (!sameTruck && assignedDriverId != null && plannedVehiclePlateNumber != null) {
+  if (!sameTruck && vehicle.assignedDriverId != null && vehicle.plannedVehiclePlateNumber != null) {
     // Notifications are user-keyed; resolve the assigned driver's login user.
     const [driverRow] = await tx.select({ userId: s.drivers.userId }).from(s.drivers)
-      .where(eq(s.drivers.id, assignedDriverId))
+      .where(eq(s.drivers.id, vehicle.assignedDriverId))
       .limit(1);
     if (driverRow?.userId != null) {
       const [prior] = await tx.select({ id: s.notifications.id }).from(s.notifications)
@@ -2421,22 +2681,58 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
           eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
           eq(s.notifications.relatedEntityId, fulfillment.id),
           eq(s.notifications.userId, driverRow.userId),
-          sql`${s.notifications.message} like ${`%${plannedVehiclePlateNumber}%`}`,
+          sql`${s.notifications.message} like ${`%${vehicle.plannedVehiclePlateNumber}%`}`,
         ))
         .limit(1);
       previouslyNotified = prior != null;
     }
   }
-  const shouldNotifyDriver = carrierType === 'OWN'
-    && input.clear !== true
-    && assignedTruckId != null
+  return args.carrierType === 'OWN'
+    && !args.clear
+    && vehicle.assignedTruckId != null
     && !sameTruck
     && !previouslyNotified
-    && assignedDriverId != null;
+    && vehicle.assignedDriverId != null;
+}
+
+async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateInput): Promise<PlateMutationResult> {
+  const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.id, input.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .limit(1)
+    .for('update');
+  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+  if (fulfillment.version !== input.expectedVersion) {
+    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  const carrierType = fulfillment.plannedCarrierType;
+  if (carrierType !== 'OWN' && carrierType !== 'EXTERNAL') {
+    throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
+  }
+
+  await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
+
+  const vehicle = await resolveDispatchVehicleAssignment(tx, {
+    carrierType,
+    plannedExternalCarrierId: fulfillment.plannedExternalCarrierId,
+    truckId: input.truckId ?? null,
+    externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
+    plateNumber: input.plateNumber ?? null,
+    clear: input.clear === true,
+  });
+
+  const shouldNotifyDriver = await decideDispatchDriverNotification(tx, {
+    fulfillment,
+    carrierType,
+    clear: input.clear === true,
+    vehicle,
+  });
 
   const [updated] = await tx.update(s.shipmentFulfillments).set({
-    plannedVehiclePlateNumber,
-    plannedExternalCarrierVehicleId,
+    plannedVehiclePlateNumber: vehicle.plannedVehiclePlateNumber,
+    plannedExternalCarrierVehicleId: vehicle.plannedExternalCarrierVehicleId,
     version: fulfillment.version + 1,
     updatedAt: new Date(),
   }).where(and(
@@ -2453,10 +2749,10 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
       version: updated.version,
       lotFullyPlated,
       driverNotified: true,
-      assignedPlate: plannedVehiclePlateNumber,
-      assignedDriverId,
-      assignedDriverName,
-      driverHint,
+      assignedPlate: vehicle.plannedVehiclePlateNumber,
+      assignedDriverId: vehicle.assignedDriverId,
+      assignedDriverName: vehicle.assignedDriverName,
+      driverHint: vehicle.driverHint,
     }));
   }
 
@@ -2465,10 +2761,10 @@ async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateI
     version: updated.version,
     lotFullyPlated,
     driverNotified: shouldNotifyDriver,
-    assignedPlate: plannedVehiclePlateNumber,
-    assignedDriverId,
-    assignedDriverName,
-    driverHint,
+    assignedPlate: vehicle.plannedVehiclePlateNumber,
+    assignedDriverId: vehicle.assignedDriverId,
+    assignedDriverName: vehicle.assignedDriverName,
+    driverHint: vehicle.driverHint,
   };
 }
 
@@ -2534,6 +2830,231 @@ export async function updateFulfillmentEstimates(
   return { ...outcome.result, replayed: outcome.replayed };
 }
 
+/**
+ * Atomic editor save for one detailed-plan row. Locks shipment then
+ * fulfillment (the same order as dispatch issuance, so this cannot deadlock
+ * with it), applies the union of the strongest legacy guards, updates both
+ * versioned rows in one transaction, persists the in-app driver notification
+ * transactionally, and returns the complete row state. Web Push stays a
+ * best-effort post-commit side effect — only attempted on a new own-truck
+ * transition, never on replay.
+ */
+export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanInput): Promise<DispatchDetailPlanMutationResult & { replayed: boolean }> {
+  assertDispatchActor(input.actor);
+  const outcome = await runIdempotent<DispatchDetailPlanMutationResult>({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE,
+    idempotencyKey: input.idempotencyKey,
+    payload: {
+      fulfillmentId: input.fulfillmentId,
+      expectedFulfillmentVersion: input.expectedFulfillmentVersion,
+      expectedShipmentVersion: input.expectedShipmentVersion,
+      carrierType: input.carrierType,
+      externalCarrierId: input.externalCarrierId ?? null,
+      truckId: input.truckId ?? null,
+      externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
+      plateNumber: input.plateNumber ?? null,
+      clearVehicle: input.clearVehicle === true,
+      plannedRevenue: input.plannedRevenue,
+      plannedCarrierCost: input.plannedCarrierCost,
+      classification: input.classification,
+      isCombined: input.isCombined,
+    },
+    createdBy: input.actor.userId,
+    entityType: 'shipment_fulfillments',
+    getEntityId: (result) => result.fulfillmentId,
+    create: (tx) => updateDispatchDetailPlanInTx(tx, input),
+  });
+
+  const result = outcome.result;
+  // Best-effort post-commit push — mirrors the legacy plate endpoint. The
+  // durable in-app row (persisted in-tx) is the delivery guarantee; this
+  // surface ping may fail silently without affecting the write.
+  if (!outcome.replayed && result.driverNotified) {
+    const notificationPayload = buildPlateAssignmentNotificationPayload({
+      fulfillmentId: result.fulfillmentId,
+      version: result.fulfillmentVersion,
+      lotFullyPlated: result.lotFullyPlated,
+      driverNotified: true,
+      assignedPlate: result.dispatch.assignedPlate,
+      assignedDriverId: null,
+      assignedDriverName: null,
+      driverHint: result.driverHint,
+    });
+    if (hasExplicitNotificationTarget(notificationPayload)) {
+      await sendNotificationPush(notificationPayload).catch((error) => {
+        console.error('Atomic plan-save push delivery failed after commit:', error);
+      });
+    }
+  }
+  return { ...result, replayed: outcome.replayed };
+}
+
+async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatchDetailPlanInput): Promise<DispatchDetailPlanMutationResult> {
+  // Lock shipment first, then fulfillment — the dispatch-issuance lock order.
+  const [candidate] = await tx.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+    .from(s.shipmentFulfillments)
+    .where(and(eq(s.shipmentFulfillments.id, input.fulfillmentId), isNull(s.shipmentFulfillments.canceledAt)))
+    .limit(1);
+  if (!candidate) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+
+  const [shipment] = await tx.select().from(s.shipments)
+    .where(and(eq(s.shipments.id, candidate.shipmentId), isNull(s.shipments.deletedAt)))
+    .for('update')
+    .limit(1);
+  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
+
+  // Union of the strongest guards from every legacy single-field endpoint.
+  await assertActorCanAccessShipment(tx, shipment.id, input.actor, { write: true });
+  await assertShipmentAccountingUnlocked(tx, shipment.id);
+  if (canonicalShipmentStatus(shipment.status) !== 'READY_FOR_DISPATCH') {
+    throw new ApiError(409, 'Chỉ được lưu kế hoạch khi lô đang sẵn sàng điều xe.');
+  }
+  if (shipment.version !== input.expectedShipmentVersion) {
+    throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+  }
+
+  const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.id, input.fulfillmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .limit(1)
+    .for('update');
+  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+  if (fulfillment.version !== input.expectedFulfillmentVersion) {
+    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  if (await loadLiveTripForFulfillment(tx, fulfillment.id)) {
+    throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
+  }
+
+  // Carrier resolution — validated before any write, so an invalid carrier
+  // changes nothing (all-or-nothing).
+  let carrierName = INTERNAL_FLEET_CARRIER_NAME;
+  let plannedExternalCarrierId: number | null = null;
+  if (input.carrierType === 'OWN') {
+    if (input.externalCarrierId != null) throw new ApiError(400, 'Xe nội bộ không dùng mã nhà xe ngoài.');
+  } else {
+    if (input.externalCarrierId == null) throw new ApiError(400, 'Nhà xe ngoài là bắt buộc.');
+    const [carrier] = await tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME })
+      .from(s.customers)
+      .where(and(
+        eq(s.customers.id, input.externalCarrierId),
+        eq(s.customers.isCarrier, true),
+        eq(s.customers.status, 'ACTIVE'),
+        isNull(s.customers.deletedAt),
+      ))
+      .limit(1);
+    if (!carrier) throw new ApiError(409, 'Nhà xe không còn hiệu lực.');
+    carrierName = carrier.name;
+    plannedExternalCarrierId = carrier.id;
+  }
+
+  // Vehicle resolution validates ownership against the incoming carrier. In
+  // the atomic save the vehicle block is optional for both carrier types: an
+  // editor save that changes only estimates/classification sends no vehicle
+  // fields and leaves the plate untouched (null → keep stored columns).
+  const vehicleSelected = input.truckId != null
+    || input.externalCarrierVehicleId != null
+    || input.plateNumber != null
+    || input.clearVehicle === true;
+  let vehicle: DispatchVehicleResolution | null = null;
+  if (vehicleSelected) {
+    vehicle = await resolveDispatchVehicleAssignment(tx, {
+      carrierType: input.carrierType,
+      plannedExternalCarrierId,
+      truckId: input.truckId ?? null,
+      externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
+      plateNumber: input.plateNumber ?? null,
+      clear: input.clearVehicle === true,
+    });
+  }
+
+  const shouldNotifyDriver = vehicle != null && await decideDispatchDriverNotification(tx, {
+    fulfillment,
+    carrierType: input.carrierType,
+    clear: input.clearVehicle === true,
+    vehicle,
+  });
+
+  // Fulfillment row: assignment snapshot + estimates + classification.
+  // Without a vehicle block the stored vehicle columns keep their values.
+  const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
+    plannedCarrierType: input.carrierType,
+    plannedExternalCarrierId,
+    ...(vehicle != null ? {
+      plannedExternalCarrierVehicleId: vehicle.plannedExternalCarrierVehicleId,
+      plannedVehiclePlateNumber: vehicle.plannedVehiclePlateNumber,
+    } : {}),
+    plannedRevenue: input.plannedRevenue == null ? null : String(input.plannedRevenue),
+    plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
+    dispatchClassification: input.classification,
+    version: fulfillment.version + 1,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.shipmentFulfillments.id, fulfillment.id),
+    eq(s.shipmentFulfillments.version, fulfillment.version),
+  )).returning();
+  if (!updatedFulfillment) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+
+  // Shipment row: isCombined is lot-level and independent of classification.
+  // Version bumps only when the flag actually changes — a save that keeps the
+  // current value must not invalidate other tabs' shipment version.
+  let shipmentVersion = shipment.version;
+  if (shipment.isCombined !== input.isCombined) {
+    const [updatedShipment] = await tx.update(s.shipments).set({
+      isCombined: input.isCombined,
+      version: shipment.version + 1,
+      updatedAt: new Date(),
+    }).where(and(
+      eq(s.shipments.id, shipment.id),
+      eq(s.shipments.version, shipment.version),
+    )).returning();
+    if (!updatedShipment) throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+    shipmentVersion = updatedShipment.version;
+  }
+
+  const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
+
+  // In-app assignment notification lives inside the transaction — exactly
+  // once per actual transition, never on replay.
+  if (shouldNotifyDriver && vehicle != null) {
+    await persistNotificationInTx(tx, buildPlateAssignmentNotificationPayload({
+      fulfillmentId: fulfillment.id,
+      version: updatedFulfillment.version,
+      lotFullyPlated,
+      driverNotified: true,
+      assignedPlate: vehicle.plannedVehiclePlateNumber,
+      assignedDriverId: vehicle.assignedDriverId,
+      assignedDriverName: vehicle.assignedDriverName,
+      driverHint: vehicle.driverHint,
+    }));
+  }
+
+  return {
+    fulfillmentId: updatedFulfillment.id,
+    fulfillmentVersion: updatedFulfillment.version,
+    shipmentId: shipment.id,
+    shipmentVersion,
+    classification: updatedFulfillment.dispatchClassification ?? input.classification,
+    isCombined: input.isCombined,
+    dispatch: {
+      carrierType: input.carrierType,
+      carrierName,
+      externalCarrierId: plannedExternalCarrierId,
+      externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,
+      assignedPlate: vehicle?.plannedVehiclePlateNumber ?? updatedFulfillment.plannedVehiclePlateNumber,
+    },
+    estimates: {
+      plannedRevenue: updatedFulfillment.plannedRevenue,
+      plannedCarrierCost: updatedFulfillment.plannedCarrierCost,
+    },
+    lotFullyPlated,
+    driverNotified: shouldNotifyDriver,
+    driverHint: vehicle?.driverHint ?? null,
+  };
+}
+
 async function recomputeLotFullyPlated(tx: Tx, shipmentId: number): Promise<boolean> {
   const [counts] = await tx.select({
     total: sql<number>`count(*)`,
@@ -2546,4 +3067,39 @@ async function recomputeLotFullyPlated(tx: Tx, shipmentId: number): Promise<bool
   const total = Number(counts?.total ?? 0);
   const plated = Number(counts?.plated ?? 0);
   return total > 0 && plated === total;
+}
+
+// ─── Master-plan Lạch Huyện port facet (phase-02) ──────────────────────────────
+
+/**
+ * Lạch Huyện port options for the master-plan port multi-select. Only ports
+ * whose PERSISTED dispatch_zone is 'LACH_HUYEN' are returned — zone membership
+ * is stored authority, never inferred from names at request time. Scoped to
+ * the actor like every other dispatch read.
+ */
+export async function listLachHuyenPortFacets(input: { actor: AuthUser; q?: string }) {
+  assertDispatchReadActor(input.actor);
+  const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
+  const qPattern = buildPattern(input.q);
+  void accountantCustomerIds; // catalog read; actor scoping happens on the row set, not the port list
+  // Container-direct like the portIds facet predicate: the master grid lists
+  // all statuses and fulfillments only exist from READY_FOR_DISPATCH onward.
+  const rows = await db.selectDistinct({ id: s.ports.id, name: s.ports.name, code: s.ports.code })
+    .from(s.shipments)
+    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
+    .innerJoin(s.ports, and(
+      or(
+        eq(s.ports.id, s.shipmentContainers.pickupPortId),
+        eq(s.ports.id, s.shipmentContainers.dropoffPortId),
+      ),
+      eq(s.ports.dispatchZone, 'LACH_HUYEN'),
+      isNull(s.ports.deletedAt),
+    ))
+    .where(and(
+      isNull(s.shipments.deletedAt),
+      qPattern ? ilike(s.ports.name, qPattern) : undefined,
+    ))
+    .orderBy(asc(s.ports.name))
+    .limit(100);
+  return { items: rows };
 }

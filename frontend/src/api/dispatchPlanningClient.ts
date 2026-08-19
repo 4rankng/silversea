@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import type { CursorPaginatedResponse, PaginatedResponse } from '@tingting/shared';
+import type { CursorPaginatedResponse, PaginatedResponse, DispatchClassification, TruckSuggestion } from '@tingting/shared';
 
 export interface DispatchTruck {
   id: number;
@@ -121,9 +121,14 @@ type DispatchFleetResourceItem<R extends DispatchFleetResource> = R extends 'TRU
 
 export function listDispatchFleetResources<R extends DispatchFleetResource>(
   resource: R,
-  filters: { cursor?: string | null; limit?: number; q?: string; carrierId?: number | null } = {},
+  filters: { cursor?: string | null; limit?: number; q?: string; carrierId?: number | null; fulfillmentId?: number } = {},
 ) {
-  return api.get<CursorPaginatedResponse<DispatchFleetResourceItem<R>>>(`/shipments/dispatch-fleet?${queryString({ resource, ...filters })}`);
+  return api.get<
+    CursorPaginatedResponse<DispatchFleetResourceItem<R>>
+    // Advisory LH D-1/D+1 truck suggestions; present only on resource=TRUCK
+    // with a fulfillmentId context. Ranking only — never eligibility.
+    & { suggestedItems?: TruckSuggestion[] }
+  >(`/shipments/dispatch-fleet?${queryString({ resource, ...filters })}`);
 }
 
 export async function getDispatchFleet(filters: { limit?: number } = {}): Promise<DispatchFleet> {
@@ -205,6 +210,9 @@ export interface DispatchDetailPlanRow {
     plannedRevenue: string | null;
     plannedCarrierCost: string | null;
   };
+  // Legacy rows created before classification existed stay null; the editor
+  // requires an explicit choice before saving.
+  classification: DispatchClassification | null;
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
 }
@@ -296,6 +304,46 @@ export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
     plannedRevenue: string | null;
     plannedCarrierCost: string | null;
   }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/estimates`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+// One atomic save for the whole editor: carrier + vehicle + estimates +
+// classification + isCombined, guarded by both row versions.
+export function updateDispatchDetailPlan(fulfillmentId: number, body: {
+  expectedFulfillmentVersion: number;
+  expectedShipmentVersion: number;
+  carrierType: 'OWN' | 'EXTERNAL';
+  externalCarrierId?: number | null;
+  truckId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  plateNumber?: string | null;
+  clearVehicle?: boolean;
+  plannedRevenue: number | null;
+  plannedCarrierCost: number | null;
+  classification: DispatchClassification;
+  isCombined: boolean;
+}) {
+  return api.patch<{
+    fulfillmentId: number;
+    fulfillmentVersion: number;
+    shipmentId: number;
+    shipmentVersion: number;
+    classification: DispatchClassification;
+    isCombined: boolean;
+    dispatch: {
+      carrierType: 'OWN' | 'EXTERNAL';
+      carrierName: string | null;
+      externalCarrierId: number | null;
+      externalCarrierVehicleId: number | null;
+      assignedPlate: string | null;
+    };
+    estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+    lotFullyPlated: boolean;
+    driverNotified: boolean;
+    driverHint: string | null;
+    replayed: boolean;
+  }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/plan`, body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }

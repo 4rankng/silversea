@@ -205,7 +205,7 @@ describe('MasterPlanGrid', () => {
 describe('MasterPlanFilters', () => {
   it('propagates every filter control change', () => {
     const onChange = vi.fn();
-    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '' }} onChange={onChange} />);
+    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }} onChange={onChange} />);
 
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
@@ -228,7 +228,7 @@ describe('MasterPlanFilters', () => {
   it('keeps the complete delivery-date range and create action in one responsive control group', () => {
     const { container } = render(
       <MasterPlanFilters
-        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '' }}
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
         onChange={vi.fn()}
         action={<button type="button">Tạo lô hàng</button>}
       />,

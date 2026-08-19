@@ -10,10 +10,12 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { round2dp, TripStatus } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { operationalName } from '../db/master-data-name';
+import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';
 
 // Codebase convention: each query service defines its own operational-name
 // expression (see driver/gps/dispatch-planning/trip-queries services).
@@ -460,4 +462,139 @@ export async function loadShipmentListSummaries(
   }
 
   return summaries;
+}
+
+// ─── Dispatch master-plan facets (Lạch Huyện) ──────────────────────────────────
+
+/**
+ * EXISTS-style facet predicates for the master-plan list. Matching happens on
+ * active fulfillments only (canceled rows excluded) via correlated subqueries,
+ * so a multi-container shipment never duplicates rows or inflates totals.
+ * Semantics (plan phase-02):
+ * - portIds: OR within ports — a shipment matches when ANY of its containers
+ *   uses the port as pickup OR dropoff. Container-direct (not
+ *   fulfillment-mediated) because the master grid lists shipments of all
+ *   statuses and fulfillments only exist from READY_FOR_DISPATCH onward;
+ *   ports are physical attributes of the container row.
+ * - carrierKeys: OR within carriers; AND with ports/dates.
+ *   OWN = at least one active fulfillment planned OWN; EXTERNAL:<id> = at
+ *   least one planned to that carrier; UNASSIGNED = at least one active
+ *   required fulfillment with no planned carrier (partially allocated
+ *   shipments remain discoverable).
+ */
+
+/** Active (non-canceled) fulfillments only. */
+const activeFulfillment = () => isNull(s.shipmentFulfillments.canceledAt);
+
+export function buildDispatchPortFacetPredicate(portIds: number[]): SQL | undefined {
+  const ids = [...new Set(portIds)].filter((id) => Number.isInteger(id) && id > 0);
+  if (ids.length === 0) return undefined;
+  const idList = sql.join(ids.map((id) => sql`${id}`), sql`, `);
+  return sql`exists (
+    select 1 from ${s.shipmentContainers} c
+    where c.shipment_id = ${s.shipments.id}
+      and (c.pickup_port_id in (${idList}) or c.dropoff_port_id in (${idList}))
+  )`;
+}
+
+/** One selected carrier key → predicate over active fulfillments. */
+function carrierKeyPredicate(key: DispatchCarrierKey): SQL {
+  if (key === 'OWN') {
+    return sql`exists (
+      select 1 from ${s.shipmentFulfillments} f
+      where f.shipment_id = ${s.shipments.id}
+        and f.canceled_at is null
+        and f.planned_carrier_type = 'OWN'
+    )`;
+  }
+  if (key === 'UNASSIGNED') {
+    // Truthful "Chưa điều xe": either carrier planning has not started (no
+    // active fulfillment exists — mirrors NOT_ALLOCATED in the derived
+    // allocationStatus) or at least one active fulfillment lacks a planned
+    // carrier. Partially allocated shipments remain discoverable.
+    return sql`(
+      not exists (
+        select 1 from ${s.shipmentFulfillments} f
+        where f.shipment_id = ${s.shipments.id}
+          and f.canceled_at is null
+      )
+      or exists (
+        select 1 from ${s.shipmentFulfillments} f
+        where f.shipment_id = ${s.shipments.id}
+          and f.canceled_at is null
+          and f.planned_carrier_type is null
+      )
+    )`;
+  }
+  const carrierId = Number(key.slice('EXTERNAL:'.length));
+  return sql`exists (
+    select 1 from ${s.shipmentFulfillments} f
+    where f.shipment_id = ${s.shipments.id}
+      and f.canceled_at is null
+      and f.planned_carrier_type = 'EXTERNAL'
+      and f.planned_external_carrier_id = ${carrierId}
+  )`;
+}
+
+export function buildDispatchCarrierFacetPredicate(carrierKeys: string[]): SQL | undefined {
+  const seen = new Set<string>();
+  const predicates: SQL[] = [];
+  for (const raw of carrierKeys) {
+    if (!/^(OWN|UNASSIGNED|EXTERNAL:[1-9]\d*)$/.test(raw) || seen.has(raw)) continue;
+    seen.add(raw);
+    predicates.push(carrierKeyPredicate(raw as DispatchCarrierKey));
+  }
+  if (predicates.length === 0) return undefined;
+  return sql`(${sql.join(predicates, sql` or `)})`;
+}
+
+/**
+ * Cargo totals over the COMPLETE filtered set — never the loaded page. Runs in
+ * the same transaction/snapshot as rows+count so header totals cannot drift
+ * from the list. Sizes come from canonical container-type codes (20-prefixed
+ * or 40-prefixed), matching inferContainerBucket; unknown sizes stay in
+ * totalFclContainers but not in the 20/40 split. LCL fulfillments are counted
+ * separately and NEVER counted as containers.
+ */
+export async function computeDispatchSummaryForSet(
+  shipmentIds: number[],
+  tx: Pick<typeof db, 'select'> = db,
+): Promise<DispatchSummary> {
+  const ids = [...new Set(shipmentIds)];
+  if (ids.length === 0) {
+    return { totalFclContainers: 0, size20ft: 0, size40ft: 0, sizeOther: 0, lclFulfillments: 0 };
+  }
+  const [containerRows, lclRows] = await Promise.all([
+    tx.select({
+      shipmentId: s.shipmentContainers.shipmentId,
+      code: s.containerTypes.code,
+      name: s.containerTypes.name,
+    }).from(s.shipmentContainers)
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+      .where(inArray(s.shipmentContainers.shipmentId, ids)),
+    tx.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+      .from(s.shipmentFulfillments)
+      .where(and(
+        inArray(s.shipmentFulfillments.shipmentId, ids),
+        eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
+        activeFulfillment(),
+      )),
+  ]);
+  let size20 = 0;
+  let size40 = 0;
+  let sizeOther = 0;
+  for (const row of containerRows) {
+    const bucket = inferContainerBucket(`${row.code ?? ''} ${row.name ?? ''}`.trim());
+    if (bucket === 20) size20 += 1;
+    else if (bucket === 40) size40 += 1;
+    else sizeOther += 1;
+  }
+  const lclShipments = new Set(lclRows.map((row) => row.shipmentId));
+  return {
+    totalFclContainers: containerRows.length,
+    size20ft: size20,
+    size40ft: size40,
+    sizeOther,
+    lclFulfillments: lclShipments.size,
+  };
 }

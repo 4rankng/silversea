@@ -1,13 +1,13 @@
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
+import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
+import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import {
-  PlateAssignmentCell,
-  type CarrierMutationResult,
-  type EstimateMutationResult,
-  type PlateMutationResult,
-} from './PlateAssignmentCell';
+  DispatchPlanEditorCell,
+  type AtomicPlanSaveResult,
+} from './DispatchPlanEditorCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
@@ -36,18 +36,21 @@ interface DetailedPlanGridProps {
   onClearLotBanner: () => void;
   sortKey: DetailPlanSortKey;
   onToggleSort: (key: 'runHour' | 'deliveryPoint') => void;
-  onAssignPlate: (
+  onAtomicSave: (
     row: DispatchDetailPlanRow,
-    body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean },
-  ) => Promise<PlateMutationResult>;
-  onAssignCarrier: (
-    row: DispatchDetailPlanRow,
-    carrier: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null },
-  ) => Promise<CarrierMutationResult>;
-  onSaveEstimates: (
-    row: DispatchDetailPlanRow,
-    estimates: { plannedRevenue: number | null; plannedCarrierCost: number | null },
-  ) => Promise<EstimateMutationResult>;
+    body: {
+      carrierType: 'OWN' | 'EXTERNAL';
+      externalCarrierId?: number | null;
+      truckId?: number | null;
+      externalCarrierVehicleId?: number | null;
+      plateNumber?: string | null;
+      clearVehicle?: boolean;
+      plannedRevenue: number | null;
+      plannedCarrierCost: number | null;
+      classification: DispatchClassification;
+      isCombined: boolean;
+    },
+  ) => Promise<AtomicPlanSaveResult>;
 }
 
 /**
@@ -70,9 +73,7 @@ export function DetailedPlanGrid({
   onClearLotBanner,
   sortKey,
   onToggleSort,
-  onAssignPlate,
-  onAssignCarrier,
-  onSaveEstimates,
+  onAtomicSave,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -118,8 +119,9 @@ export function DetailedPlanGrid({
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
-              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
             </colgroup>
             <thead>
               <tr>
@@ -145,8 +147,9 @@ export function DetailedPlanGrid({
                 </th>
                 <th scope="col">Chứng từ</th>
                 <th scope="col">Container</th>
-                <th scope="col">Ghi chú</th>
                 <th scope="col">Điều phối</th>
+                <th scope="col">Phân loại</th>
+                <th scope="col">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -206,6 +209,20 @@ export function DetailedPlanGrid({
                       </>
                     )}
                   </td>
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
+                    <DispatchPlanEditorCell row={row} onAtomicSave={onAtomicSave} />
+                  </td>
+                  <td className="detailed-plan-grid__cell" data-label="Phân loại">
+                    {row.classification ? (
+                      <span
+                        className={`detailed-plan-grid__classification${row.classification === 'COMBINED' || row.classification === 'DOUBLE' ? ' detailed-plan-grid__classification--paired' : ''}`}
+                      >
+                        {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
+                      </span>
+                    ) : (
+                      <span className="detailed-plan-grid__classification detailed-plan-grid__classification--unclassified">Chưa phân loại</span>
+                    )}
+                  </td>
                   <td className="detailed-plan-grid__cell" data-label="Ghi chú">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
                       Xe: {row.notes.vehicleNote ?? '—'}
@@ -213,9 +230,6 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                       Khách: {row.notes.customerNote ?? '—'}
                     </div>
-                  </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
-                    <PlateAssignmentCell row={row} onAssign={onAssignPlate} onAssignCarrier={onAssignCarrier} onSaveEstimates={onSaveEstimates} />
                   </td>
                 </tr>
               ))}

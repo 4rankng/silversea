@@ -9,6 +9,8 @@ import {
   NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
+  DISPATCH_ZONES,
+  DISPATCH_CLASSIFICATIONS,
 } from '../constants';
 
 // Agent (command-and-insight assistant) wire contract — directive / widget /
@@ -1049,17 +1051,13 @@ export const sealTypeSchema = z.object({
 });
 
 export const portSchema = z.object({
+  dispatchZone: z.enum(DISPATCH_ZONES).optional().nullable(),
   name: z.string().min(1, 'Tên cảng/bãi không được để trống').max(255),
   code: z.string().max(20).optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().max(100).optional().nullable(),
   notes: z.string().optional().nullable(),
-  dispatchZone: z.enum(['LACH_HUYEN']).optional().nullable(),
 });
-
-// ─── Dispatch planning ─────────────────────────────────────────────────────────
-
-export const dispatchClassificationSchema = z.enum(['SINGLE', 'DOUBLE', 'COMBINED', 'LCL']);
 
 /** Carrier facet key for the master plan: own fleet, one external carrier,
  *  or fulfillments with no planned carrier yet. */
@@ -1067,6 +1065,9 @@ export const dispatchCarrierKeySchema = z.string().regex(
   /^(OWN|UNASSIGNED|EXTERNAL:[1-9]\d*)$/,
   'Giá trị lọc nhà xe không hợp lệ',
 );
+
+/** Fulfillment classification, derived from the shared vocabulary. */
+export const dispatchClassificationSchema = z.enum(DISPATCH_CLASSIFICATIONS);
 
 /** One atomic detailed-plan save: carrier, vehicle, estimates, classification
  *  and `Đóng kết hợp` change together or not at all. Both versions are
@@ -1098,6 +1099,12 @@ export const atomicDispatchPlanEditSchema = z.object({
   }
   if (vehicleFields.length > 1) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['plateNumber'], message: 'Chỉ chọn một nguồn biển số.' });
+  }
+  if (value.carrierType === 'OWN' && (value.externalCarrierVehicleId != null || value.plateNumber != null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['truckId'], message: 'Nhà xe nội bộ không dùng biển số tự do hoặc xe nhà thầu.' });
+  }
+  if (value.carrierType === 'EXTERNAL' && value.truckId != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['truckId'], message: 'Nhà xe ngoài không dùng xe nội bộ.' });
   }
 });
 

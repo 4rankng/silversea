@@ -107,7 +107,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
                   <div className="master-plan-grid__documents">
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__documents-bill">
+                    <div className="master-plan-grid__line master-plan-grid__documents-bill">
                       {item.blNumber || item.bookingRef || '—'}
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__documents-direction">
@@ -117,7 +117,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                         <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
                       ) : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">

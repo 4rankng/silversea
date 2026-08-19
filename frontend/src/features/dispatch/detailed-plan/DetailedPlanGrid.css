@@ -720,3 +720,28 @@
 
   .detailed-plan-filter-drawer .detailed-plan-filters__multi-trigger { font-size: 14px; }
 }
+
+/* Classification column (Phân loại): paired forms get emphasis, unclassified
+   rows stay visibly pending — meaning is carried by text, not color alone. */
+.detailed-plan-grid__classification {
+  display: inline-block;
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--text-secondary, #475467);
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: 9999px;
+  padding: 2px 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.detailed-plan-grid__classification--paired {
+  color: var(--text-primary, #101828);
+  border-color: var(--border-medium, #d0d5dd);
+}
+
+.detailed-plan-grid__classification--unclassified {
+  font-weight: 500;
+  color: var(--text-tertiary, #667085);
+  border-style: dashed;
+}

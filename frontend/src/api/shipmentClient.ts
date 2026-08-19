@@ -529,6 +529,27 @@ export interface ShipmentListResponse {
   total: number;
   page: number;
   limit: number;
+  /** Present when includeDispatchSummary=true: cargo totals over the complete
+   *  filtered set (never the loaded page). */
+  dispatchSummary?: {
+    totalFclContainers: number;
+    size20ft: number;
+    size40ft: number;
+    sizeOther: number;
+    lclFulfillments: number;
+  };
+}
+
+/** Lạch Huyện port option for the master-plan port facet. */
+export interface DispatchPortFacetItem {
+  id: number;
+  name: string;
+  code: string | null;
+}
+
+export async function listLachHuyenPortFacets(q?: string): Promise<{ items: DispatchPortFacetItem[] }> {
+  const suffix = q ? `?q=${encodeURIComponent(q)}` : '';
+  return api.get<{ items: DispatchPortFacetItem[] }>(`/shipments/dispatch-lach-huyen-port-facets${suffix}`);
 }
 
 /** Body for `POST /api/shipments/:id/dispatch`. */
@@ -741,6 +762,12 @@ export async function listShipments(params?: {
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
   allocationStatus?: ShipmentAllocationStatus;
+  /** Dispatch master-plan Lạch Huyện: OR within ports, AND with other facets. */
+  portIds?: number[];
+  /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
+  carrierKeys?: string[];
+  /** Include the full-filtered-set cargo summary in the response. */
+  includeDispatchSummary?: boolean;
 }): Promise<ShipmentListResponse> {
   const query = new URLSearchParams();
   if (params?.page != null) query.set('page', String(params.page));
@@ -755,6 +782,9 @@ export async function listShipments(params?: {
   if (params?.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
   if (params?.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
   if (params?.allocationStatus) query.set('allocationStatus', params.allocationStatus);
+  params?.portIds?.forEach((id) => query.append('portIds', String(id)));
+  params?.carrierKeys?.forEach((key) => query.append('carrierKeys', key));
+  if (params?.includeDispatchSummary) query.set('includeDispatchSummary', 'true');
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);
 }

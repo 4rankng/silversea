@@ -657,3 +657,30 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
   [SupplierType.SERVICE]: 'Dịch vụ',
   [SupplierType.FUEL]: 'Nhiên liệu',
 };
+
+// ─── Dispatch planning ──────────────────────────────────────────────────────────
+
+/**
+ * Application-owned dispatch zone whitelist (ports.dispatch_zone). LACH_HUYEN
+ * today; extend this list — never SQL or inline literals — so zone membership
+ * stays one versioned application fact. Zone values must never be inferred
+ * from port names at request time.
+ */
+export const DISPATCH_ZONES = ['LACH_HUYEN'] as const;
+export type DispatchZone = (typeof DISPATCH_ZONES)[number];
+
+/**
+ * Fulfillment-owned operational classification: SINGLE (Đơn), DOUBLE (Kẹp),
+ * COMBINED (Kết hợp), LCL (Lẻ). A label only — it never infers trip pairing,
+ * vehicle sharing, or shipment-level `Đóng kết hợp`.
+ */
+export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL'] as const;
+export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
+
+/** Vietnamese operator labels for each classification. */
+export const DISPATCH_CLASSIFICATION_LABELS: Record<DispatchClassification, string> = {
+  SINGLE: 'Đơn',
+  DOUBLE: 'Kẹp',
+  COMBINED: 'Kết hợp',
+  LCL: 'Lẻ',
+};

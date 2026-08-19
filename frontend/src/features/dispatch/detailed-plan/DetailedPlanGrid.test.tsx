@@ -46,16 +46,14 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       onClearLotBanner={vi.fn()}
       sortKey={null}
       onToggleSort={vi.fn()}
-      onAssignPlate={vi.fn()}
-      onAssignCarrier={vi.fn()}
-      onSaveEstimates={vi.fn()}
+      onAtomicSave={vi.fn()}
       {...extraProps}
     />,
   );
 }
 
 describe('DetailedPlanGrid', () => {
-  it('renders the 6 spec columns with multi-line typography', () => {
+  it('renders the 7 spec columns with multi-line typography', () => {
     const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
@@ -64,8 +62,9 @@ describe('DetailedPlanGrid', () => {
       'Khách hàng & lộ trình ↕',
       'Chứng từ',
       'Container',
-      'Ghi chú',
       'Điều phối',
+      'Phân loại',
+      'Ghi chú',
     ]);
 
     // Column 1: bold date line + muted hour line
@@ -93,8 +92,9 @@ describe('DetailedPlanGrid', () => {
       'Khách hàng & lộ trình',
       'Chứng từ',
       'Container',
-      'Ghi chú',
       'Điều phối',
+      'Phân loại',
+      'Ghi chú',
     ]);
   });
 
@@ -158,26 +158,56 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('ĐÓNG KẾT HỢP')).toBeTruthy();
   });
 
-  it('keeps carrier and vehicle assignment alongside editable operational fee estimates', async () => {
-    const onSaveEstimates = vi.fn().mockResolvedValue({
-      version: 4,
-      plannedRevenue: '2500000',
-      plannedCarrierCost: null,
+  it('saves the whole editor atomically: estimates plus required classification and Đóng kết hợp', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 5,
+      classification: 'DOUBLE',
+      isCombined: false,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: '2500000', plannedCarrierCost: null },
+      lotFullyPlated: false,
     });
-    renderGrid([row()], { onSaveEstimates });
+    renderGrid([row({ classification: 'SINGLE' })], { onAtomicSave });
 
     fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
+    fireEvent.change(screen.getByLabelText('Phân loại'), { target: { value: 'DOUBLE' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
-    await waitFor(() => expect(onSaveEstimates).toHaveBeenCalledWith(
-      expect.objectContaining({ fulfillmentId: 101 }),
-      { plannedRevenue: 2500000, plannedCarrierCost: null },
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.objectContaining({ fulfillmentId: 101, version: 3, shipmentVersion: 5 }),
+      expect.objectContaining({
+        carrierType: 'OWN',
+        plannedRevenue: 2500000,
+        plannedCarrierCost: null,
+        classification: 'DOUBLE',
+        isCombined: false,
+      }),
     ));
   });
 
-  it('opens one four-field edit dialog from the full Điều phối cell', async () => {
-    const { container } = renderGrid([row()]);
+  it('blocks the atomic save until classification is chosen', async () => {
+    const onAtomicSave = vi.fn();
+    renderGrid([row({ classification: null })], { onAtomicSave });
+
+    fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Chọn phân loại'));
+    expect(onAtomicSave).not.toHaveBeenCalled();
+  });
+
+  it('renders the classification column with the unclassified placeholder', () => {
+    renderGrid([row({ classification: 'SINGLE' })]);
+    expect(screen.getByText('Đơn')).toBeTruthy();
+
+    renderGrid([row({ classification: null })]);
+    expect(screen.getByText('Chưa phân loại')).toBeTruthy();
+  });
+
+  it('opens one atomic edit dialog from the full Điều phối cell', async () => {
+    const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     expect(dispatchCell).toBeTruthy();
 
@@ -191,25 +221,27 @@ describe('DetailedPlanGrid', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối' });
     expect(within(dialog).getByLabelText('Nhà xe')).toBeTruthy();
     expect(within(dialog).getByLabelText('Xe / biển số')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Phân loại')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước thu dự kiến')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước trả dự kiến')).toBeTruthy();
   });
 
   it('keeps the dispatcher column read-like until its one full-cell trigger is clicked', () => {
-    const plateCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/PlateAssignmentCell.css'), 'utf8');
+    const editorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
     const gridCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
-    expect(plateCss).toContain('.dispatch-assignment-cell__trigger {');
-    expect(plateCss).toContain('height: 100%;');
-    expect(plateCss).toContain('cursor: pointer;');
-    expect(plateCss).toContain('.dispatch-assignment-dialog__fields {');
+    expect(editorCss).toContain('.dispatch-assignment-cell__trigger {');
+    expect(editorCss).toContain('height: 100%;');
+    expect(editorCss).toContain('cursor: pointer;');
+    expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
     // equal class specificity; the editable cell must win on `td` so its
     // trigger covers the whole cell — not just below a stray label strip.
-    expect(plateCss).toMatch(/td\.detailed-plan-grid__cell--editable::before\s*\{\s*display:\s*none/);
+    expect(editorCss).toMatch(/td\.detailed-plan-grid__cell--editable::before\s*\{\s*display:\s*none/);
     // Keyboard focus must never switch the trigger to relative positioning:
     // that shrink wraps it and un-clicks the bottom of the cell.
-    expect(plateCss).not.toMatch(/:focus-visible\s*\{[^}]*position:\s*relative/);
+    expect(editorCss).not.toMatch(/:focus-visible\s*\{[^}]*position:\s*relative/);
     expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
   });
 

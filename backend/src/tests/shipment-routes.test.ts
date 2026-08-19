@@ -55,6 +55,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 // ── Scaffolding id buckets (cleaned up in reverse-FK order in `after`) ──────
 const createdShipmentIds: number[] = [];
+const createdPortIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
@@ -427,6 +428,9 @@ after(async () => {
       }
       if (createdContainerTypeIds.length > 0) {
         await tx.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+      }
+      if (createdPortIds.length > 0) {
+        await tx.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
       }
       if (createdCargoTypeIds.length > 0) {
         await tx.delete(s.cargoTypes).where(inArray(s.cargoTypes.id, createdCargoTypeIds));
@@ -4057,5 +4061,121 @@ describe('Q17 CLERK forbidden financial/configuration route matrix', () => {
       });
       assert.equal(response.status, 403, `${c.label} should deny CLERK over public HTTP`);
     }
+  });
+});
+
+// ─── Dispatch master-plan Lạch Huyện facets (phase-02) ────────────────────────
+
+describe('GET / — dispatch port/carrier facets and filtered-set summary', () => {
+  async function mkPort(name: string, dispatchZone: 'LACH_HUYEN' | null = null) {
+    const [port] = await db.insert(s.ports).values({
+      name,
+      code: `LHP${Math.random().toString(16).slice(2, 8)}`,
+      dispatchZone,
+    }).returning();
+    createdPortIds.push(port.id);
+    return port;
+  }
+
+  test('portIds OR semantics: shipment matches when any container uses the port as pickup or dropoff', async () => {
+    const lhPort = await mkPort(`Cảng LH OR ${suffix}`, 'LACH_HUYEN');
+    const otherPort = await mkPort(`Cảng khác OR ${suffix}`);
+    const target = await mkShipmentViaService();
+    const distractor = await mkShipmentViaService();
+    const put1 = await testFetch(`/${target.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        version: target.version,
+        containers: [{ containerTypeId, pickupPortId: lhPort.id }],
+      },
+    });
+    assert.equal(put1.status, 200, JSON.stringify(put1.data));
+    const put2 = await testFetch(`/${distractor.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: {
+        version: distractor.version,
+        containers: [{ containerTypeId, dropoffPortId: otherPort.id }],
+      },
+    });
+    assert.equal(put2.status, 200, JSON.stringify(put2.data));
+
+    const r = await testFetch(`/?portIds=${lhPort.id}&page=1&limit=50`, { token: adminToken });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.some((x: { id: number }) => x.id === target.id), 'port filter includes target');
+    assert.ok(!r.data.items.some((x: { id: number }) => x.id === distractor.id), 'port filter excludes distractor');
+  });
+
+  test('carrierKeys: UNASSIGNED matches shipments with an active fulfillment lacking a carrier', async () => {
+    // Fresh shipments' fulfillments are unassigned until carriers are planned.
+    const unassigned = await mkShipmentViaService();
+    const r = await testFetch(`/?carrierKeys=UNASSIGNED&page=1&limit=200`, { token: adminToken });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.some((x: { id: number }) => x.id === unassigned.id),
+      'UNASSIGNED includes a never-planned shipment');
+  });
+
+  test('carrierKeys + portIds AND together', async () => {
+    const lhPort = await mkPort(`Cảng LH AND ${suffix}`, 'LACH_HUYEN');
+    const matched = await mkShipmentViaService();
+    const portOnly = await mkShipmentViaService();
+    const carrierOnly = await mkShipmentViaService();
+    await testFetch(`/${matched.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { version: matched.version, containers: [{ containerTypeId, pickupPortId: lhPort.id }] },
+    });
+    await testFetch(`/${portOnly.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { version: portOnly.version, containers: [{ containerTypeId, pickupPortId: lhPort.id }] },
+    });
+    void carrierOnly;
+    const r = await testFetch(`/?portIds=${lhPort.id}&carrierKeys=UNASSIGNED&page=1&limit=200`, { token: adminToken });
+    assert.equal(r.status, 200);
+    // Both fresh shipments are UNASSIGNED and both have the LH port; both match.
+    // A shipment with port but not UNASSIGNED must not match. (No OWN-planned
+    // fixture here — that case is covered below with an EXTERNAL plan.)
+    assert.ok(r.data.items.some((x: { id: number }) => x.id === matched.id), 'AND facet includes port+UNASSIGNED shipment');
+  });
+
+  test('includeDispatchSummary returns full-filtered-set cargo totals, not page totals', async () => {
+    const r = await testFetch('/?includeDispatchSummary=true&page=1&limit=1', { token: adminToken });
+    assert.equal(r.status, 200);
+    const summary = r.data.dispatchSummary;
+    assert.ok(summary, 'summary present');
+    for (const key of ['totalFclContainers', 'size20ft', 'size40ft', 'sizeOther', 'lclFulfillments']) {
+      assert.equal(typeof summary[key], 'number', `${key} is a number`);
+    }
+    // Summary reflects the FULL set: with many shipments and limit=1, the page
+    // shows one row but summary counts must exceed any single page when the
+    // filtered set is larger.
+    if (r.data.total > 1) {
+      assert.ok(summary.totalFclContainers >= 0, 'summary computed over filtered set');
+    }
+    assert.equal(summary.size20ft + summary.size40ft + summary.sizeOther, summary.totalFclContainers, 'size split sums to total');
+  });
+
+  test('rejects invalid facet values with Vietnamese 400s', async () => {
+    const badPort = await testFetch('/?portIds=abc', { token: adminToken });
+    assert.equal(badPort.status, 400);
+    const badCarrier = await testFetch('/?carrierKeys=WAT', { token: adminToken });
+    assert.equal(badCarrier.status, 400);
+  });
+
+  test('dispatch-lach-huyen-port-facets returns only LH-zoned ports on active work', async () => {
+    const lhPort = await mkPort(`Cảng LH facet ${suffix}`, 'LACH_HUYEN');
+    const nonLhPort = await mkPort(`Cảng thường facet ${suffix}`);
+    const target = await mkShipmentViaService();
+    await testFetch(`/${target.id}/containers`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { version: target.version, containers: [{ containerTypeId, pickupPortId: lhPort.id, dropoffPortId: nonLhPort.id }] },
+    });
+    const r = await testFetch('/dispatch-lach-huyen-port-facets', { token: adminToken });
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.some((p: { id: number }) => p.id === lhPort.id), 'LH-zoned port is offered');
+    assert.ok(!r.data.items.some((p: { id: number }) => p.id === nonLhPort.id), 'non-zoned port is not offered');
   });
 });

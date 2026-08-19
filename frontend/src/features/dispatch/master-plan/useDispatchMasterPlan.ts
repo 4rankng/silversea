@@ -4,6 +4,7 @@ import {
   listShipments,
   type ShipmentAllocationStatus,
   type ShipmentListItem,
+  type ShipmentListResponse,
 } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 20;
@@ -14,6 +15,8 @@ export interface MasterPlanFilters {
   allocationStatus: ShipmentAllocationStatus | '';
   deliveryDateFrom: string;
   deliveryDateTo: string;
+  portIds: number[];
+  carrierKeys: string[];
 }
 
 export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
@@ -22,6 +25,8 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
   allocationStatus: '',
   deliveryDateFrom: '',
   deliveryDateTo: '',
+  portIds: [],
+  carrierKeys: [],
 };
 
 /**
@@ -38,6 +43,7 @@ export function useDispatchMasterPlan() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dispatchSummary, setDispatchSummary] = useState<ShipmentListResponse['dispatchSummary']>(undefined);
   const requestIdRef = useRef(0);
 
   // Debounce the free-text search so typing doesn't fire a request per keystroke.
@@ -60,11 +66,15 @@ export function useDispatchMasterPlan() {
       ...(filters.allocationStatus ? { allocationStatus: filters.allocationStatus } : {}),
       ...(filters.deliveryDateFrom ? { deliveryDateFrom: filters.deliveryDateFrom } : {}),
       ...(filters.deliveryDateTo ? { deliveryDateTo: filters.deliveryDateTo } : {}),
+      ...(filters.portIds.length > 0 ? { portIds: filters.portIds } : {}),
+      ...(filters.carrierKeys.length > 0 ? { carrierKeys: filters.carrierKeys } : {}),
+      includeDispatchSummary: true,
     })
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setTotal(response.total);
+        setDispatchSummary(response.dispatchSummary);
         setLoading(false);
       })
       .catch(() => {
@@ -72,7 +82,7 @@ export function useDispatchMasterPlan() {
         setError('Không thể tải danh sách lô hàng. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, refreshKey]);
+  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<MasterPlanFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -103,5 +113,6 @@ export function useDispatchMasterPlan() {
     refetch,
     replaceItem,
     pageSize: PAGE_SIZE,
+    dispatchSummary,
   };
 }

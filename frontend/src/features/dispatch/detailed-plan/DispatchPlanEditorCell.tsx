@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
-import type { CursorPaginatedResponse } from '@tingting/shared';
+import type { CursorPaginatedResponse, DispatchClassification } from '@tingting/shared';
+import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
@@ -10,7 +11,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, type SearchableSelectOption } from '../../../design-system';
-import './PlateAssignmentCell.css';
+import './DispatchPlanEditorCell.css';
 
 const PAGE_LOAD_SIZE = 50;
 const OWN_TRUCK_PREFIX = 'truck:';
@@ -20,61 +21,58 @@ const OWN_CARRIER_VALUE = 'carrier:own';
 const FREE_TEXT_PREFIX = 'free:';
 const CURRENT_PLATE_PREFIX = 'current:';
 
-export interface CarrierMutationResult {
-  version: number;
-  carrierType: 'OWN' | 'EXTERNAL';
-  externalCarrierId: number | null;
-  carrierName: string;
+const SUGGESTION_LABELS: Record<'D-1_DROP' | 'D+1_PICKUP', string> = {
+  'D-1_DROP': 'Hạ LH D-1',
+  'D+1_PICKUP': 'Lấy LH D+1',
+};
+
+export interface AtomicPlanSaveResult {
+  fulfillmentVersion: number;
+  shipmentVersion: number;
+  classification: DispatchClassification;
+  isCombined: boolean;
+  dispatch: {
+    carrierType: 'OWN' | 'EXTERNAL';
+    carrierName: string | null;
+    externalCarrierId: number | null;
+    externalCarrierVehicleId: number | null;
+    assignedPlate: string | null;
+  };
+  estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   lotFullyPlated: boolean;
 }
 
-export interface PlateMutationResult {
-  version: number;
-  assignedPlate: string | null;
-  lotFullyPlated: boolean;
-}
-
-export interface EstimateMutationResult {
-  version: number;
-  plannedRevenue: string | null;
-  plannedCarrierCost: string | null;
-}
-
-interface PlateAssignmentCellProps {
+interface DispatchPlanEditorCellProps {
   row: DispatchDetailPlanRow;
-  onAssign: (
+  onAtomicSave: (
     row: DispatchDetailPlanRow,
-    body: { truckId?: number | null; externalCarrierVehicleId?: number | null; plateNumber?: string | null; clear?: boolean },
-  ) => Promise<PlateMutationResult>;
-  onAssignCarrier: (
-    row: DispatchDetailPlanRow,
-    body: { carrierType: 'OWN' | 'EXTERNAL'; externalCarrierId?: number | null },
-  ) => Promise<CarrierMutationResult>;
-  onSaveEstimates: (
-    row: DispatchDetailPlanRow,
-    estimates: { plannedRevenue: number | null; plannedCarrierCost: number | null },
-  ) => Promise<EstimateMutationResult>;
+    body: {
+      carrierType: 'OWN' | 'EXTERNAL';
+      externalCarrierId?: number | null;
+      truckId?: number | null;
+      externalCarrierVehicleId?: number | null;
+      plateNumber?: string | null;
+      clearVehicle?: boolean;
+      plannedRevenue: number | null;
+      plannedCarrierCost: number | null;
+      classification: DispatchClassification;
+      isCombined: boolean;
+    },
+  ) => Promise<AtomicPlanSaveResult>;
   disabled?: boolean;
 }
 
-interface DispatchCellDraft {
+interface PlanEditorDraft {
   carrierValue: string;
   vehicleValue: string;
   plannedRevenue: string;
   plannedCarrierCost: string;
+  classification: DispatchClassification | '';
+  isCombined: boolean;
 }
 
 function normalizePlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
-}
-
-function mapFleetResponse(
-  response: CursorPaginatedResponse<DispatchTruck> | CursorPaginatedResponse<DispatchCarrierVehicle>,
-  isOwn: boolean,
-): SearchableSelectOption[] {
-  return isOwn
-    ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
-    : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
 }
 
 function carrierValueForRow(row: DispatchDetailPlanRow): string {
@@ -90,12 +88,16 @@ function vehicleValueForRow(row: DispatchDetailPlanRow): string {
   return row.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${row.dispatch.assignedPlate}` : '';
 }
 
-function draftForRow(row: DispatchDetailPlanRow): DispatchCellDraft {
+function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
   return {
     carrierValue: carrierValueForRow(row),
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
+    // Legacy rows created before classification existed carry null — the
+    // editor forces an explicit choice before the first save.
+    classification: row.classification ?? '',
+    isCombined: row.isCombined,
   };
 }
 
@@ -123,20 +125,34 @@ function formatVnd(value: string | null): string {
   return Number.isFinite(amount) ? `${new Intl.NumberFormat('vi-VN').format(amount)} đ` : value;
 }
 
-function plateBody(value: string) {
-  if (!value) return { clear: true };
+interface VehicleBody {
+  truckId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  plateNumber?: string | null;
+  clearVehicle?: boolean;
+}
+
+/** Vehicle body for the atomic save. '' → keep stored columns (send nothing);
+ *  CURRENT_PLATE → also keep (the snapshot is already the stored value). */
+function vehicleBody(value: string): VehicleBody | null {
+  if (!value) return {};
   if (value.startsWith(OWN_TRUCK_PREFIX)) return { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) };
   if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) return { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) };
   if (value.startsWith(FREE_TEXT_PREFIX)) return { plateNumber: value.slice(FREE_TEXT_PREFIX.length) };
+  if (value.startsWith(CURRENT_PLATE_PREFIX)) return {};
   return null;
 }
 
-/** One full-cell trigger and one four-field editor, matching the /shipments cell contract. */
-export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEstimates, disabled = false }: PlateAssignmentCellProps) {
+/**
+ * One full-cell trigger and one atomic editor for the whole detailed-plan row:
+ * carrier, vehicle, estimates, classification and Đóng kết hợp save together
+ * through PATCH /dispatch-detail-plan-rows/:id/plan or not at all.
+ */
+export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<DispatchCellDraft>(() => draftForRow(row));
+  const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
   const [carrierOptions, setCarrierOptions] = useState<SearchableSelectOption[]>([]);
   const [carrierSearch, setCarrierSearch] = useState('');
   const [carrierCursor, setCarrierCursor] = useState<string | null>(null);
@@ -145,13 +161,12 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleCursor, setVehicleCursor] = useState<string | null>(null);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [suggestions, setSuggestions] = useState<Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
-  const currentCarrierValue = carrierValueForRow(row);
-  const currentVehicleValue = vehicleValueForRow(row);
 
   useEffect(() => {
     if (!open) setDraft(draftForRow(row));
@@ -189,8 +204,14 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
     if (!open || !selectedCarrier) return undefined;
     let cancelled = false;
     setLoadingVehicles(true);
+    // Own-truck loads carry the row context so the backend can pin LH
+    // D-1/D+1 suggestions beside the page.
     const request = selectedCarrier.carrierType === 'OWN'
-      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined })
+      ? listDispatchFleetResources('TRUCK', {
+        limit: PAGE_LOAD_SIZE,
+        q: vehicleSearch || undefined,
+        fulfillmentId: row.fulfillmentId,
+      })
       : listDispatchFleetResources('EXTERNAL_VEHICLE', {
         limit: PAGE_LOAD_SIZE,
         q: vehicleSearch || undefined,
@@ -198,7 +219,9 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
       });
     request.then((response) => {
       if (cancelled) return;
-      const mapped = mapFleetResponse(response, selectedCarrier.carrierType === 'OWN');
+      const mapped = selectedCarrier.carrierType === 'OWN'
+        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
+        : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       const normalizedSearch = normalizePlate(vehicleSearch);
       const freeTextOption = selectedCarrier.carrierType === 'EXTERNAL'
         && normalizedSearch.length >= 4
@@ -207,14 +230,16 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
         : [];
       setVehicleOptions([...freeTextOption, ...mapped]);
       setVehicleCursor(response.nextCursor);
+      setSuggestions(selectedCarrier.carrierType === 'OWN' ? response.suggestedItems ?? [] : []);
     }).catch(() => {
       if (!cancelled) {
         setVehicleOptions([]);
         setVehicleCursor(null);
+        setSuggestions([]);
       }
     }).finally(() => { if (!cancelled) setLoadingVehicles(false); });
     return () => { cancelled = true; };
-  }, [open, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]);
+  }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch]);
 
   const selectableCarrierOptions = useMemo(() => {
     const options = [{ value: OWN_CARRIER_VALUE, label: 'SilverSea — xe nội bộ' }, ...carrierOptions];
@@ -224,13 +249,29 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
     return options;
   }, [carrierOptions, draft.carrierValue, row.dispatch.carrierName]);
 
+  // Pinned LH suggestions render ahead of the page's trucks, deduped by option
+  // value; reason tags travel in the label so screen readers get the same
+  // signal as sighted users.
   const selectableVehicleOptions = useMemo(() => {
-    if (!draft.vehicleValue || vehicleOptions.some((option) => option.value === draft.vehicleValue)) return vehicleOptions;
+    const suggestionOptions: SearchableSelectOption[] = suggestions
+      .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
+      .map((suggestion) => {
+        const tags = suggestion.reasons.map((reason) => SUGGESTION_LABELS[reason]).join(' · ');
+        return {
+          value: `${OWN_TRUCK_PREFIX}${suggestion.truckId}`,
+          label: `${suggestion.plateNumber} — ${tags}`,
+        };
+      });
+    const merged: SearchableSelectOption[] = [];
+    for (const option of [...suggestionOptions, ...vehicleOptions]) {
+      if (!merged.some((existing) => existing.value === option.value)) merged.push(option);
+    }
+    if (!draft.vehicleValue || merged.some((option) => option.value === draft.vehicleValue)) return merged;
     const label = draft.vehicleValue.startsWith(CURRENT_PLATE_PREFIX)
       ? draft.vehicleValue.slice(CURRENT_PLATE_PREFIX.length)
       : row.dispatch.assignedPlate ?? 'Biển số hiện tại';
-    return [{ value: draft.vehicleValue, label }, ...vehicleOptions];
-  }, [draft.vehicleValue, row.dispatch.assignedPlate, vehicleOptions]);
+    return [{ value: draft.vehicleValue, label }, ...merged];
+  }, [draft.vehicleValue, row.dispatch.assignedPlate, suggestions, vehicleOptions]);
 
   function openEditor() {
     if (disabled) return;
@@ -257,6 +298,7 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
     setVehicleOptions([]);
     setVehicleCursor(null);
     setVehicleSearch('');
+    setSuggestions([]);
     setError(null);
   }
 
@@ -280,7 +322,7 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
     if (vehicleCursor == null || loadingVehicles || !selectedCarrier) return;
     setLoadingVehicles(true);
     const request = selectedCarrier.carrierType === 'OWN'
-      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, cursor: vehicleCursor })
+      ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, cursor: vehicleCursor, fulfillmentId: row.fulfillmentId })
       : listDispatchFleetResources('EXTERNAL_VEHICLE', {
         limit: PAGE_LOAD_SIZE,
         q: vehicleSearch || undefined,
@@ -288,7 +330,9 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
         cursor: vehicleCursor,
       });
     request.then((response) => {
-      const mapped = mapFleetResponse(response, selectedCarrier.carrierType === 'OWN');
+      const mapped = selectedCarrier.carrierType === 'OWN'
+        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
+        : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       setVehicleOptions((previous) => [...previous, ...mapped.filter((item) => !previous.some((option) => option.value === item.value))]);
       setVehicleCursor(response.nextCursor);
     }).catch(() => setVehicleCursor(null)).finally(() => setLoadingVehicles(false));
@@ -307,64 +351,39 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
       setError('Cước dự kiến phải là số nguyên không âm.');
       return;
     }
-
-    const carrierChanged = draft.carrierValue !== currentCarrierValue;
-    // A carrier change already clears the old vehicle in the backend. Only
-    // issue a second write when the dialog assigns a replacement vehicle.
-    const vehicleChanged = carrierChanged
-      ? draft.vehicleValue !== ''
-      : draft.vehicleValue !== currentVehicleValue;
-    const estimatesChanged = draft.plannedRevenue !== (row.estimates.plannedRevenue ?? '')
-      || draft.plannedCarrierCost !== (row.estimates.plannedCarrierCost ?? '');
-    if (!carrierChanged && !vehicleChanged && !estimatesChanged) {
-      closeEditor();
+    if (!draft.classification) {
+      setError('Chọn phân loại trước khi lưu.');
       return;
     }
+    const body = vehicleBody(draft.vehicleValue);
+    if (body == null) {
+      setError('Biển số đã chọn không hợp lệ.');
+      return;
+    }
+    const carrierSwitched = draft.carrierValue !== carrierValueForRow(row);
+    const vehicleTouched = carrierSwitched
+      ? draft.vehicleValue !== ''
+      : draft.vehicleValue !== vehicleValueForRow(row);
 
     setSaving(true);
     setError(null);
-    let workingRow = row;
     try {
-      if (carrierChanged) {
-        const result = await onAssignCarrier(workingRow, carrier);
-        workingRow = {
-          ...workingRow,
-          version: result.version,
-          lotFullyPlated: result.lotFullyPlated,
-          dispatch: {
-            ...workingRow.dispatch,
-            carrierType: result.carrierType,
-            carrierName: result.carrierName,
-            externalCarrierId: result.externalCarrierId,
-            externalCarrierVehicleId: null,
-            assignedPlate: null,
-          },
-        };
-      }
-
-      if (vehicleChanged) {
-        const body = plateBody(draft.vehicleValue);
-        if (!body) throw new Error('Biển số đã chọn không hợp lệ.');
-        const result = await onAssign(workingRow, body);
-        workingRow = {
-          ...workingRow,
-          version: result.version,
-          lotFullyPlated: result.lotFullyPlated,
-          dispatch: { ...workingRow.dispatch, assignedPlate: result.assignedPlate },
-        };
-      }
-
-      if (estimatesChanged) {
-        await onSaveEstimates(workingRow, {
-          plannedRevenue: revenue.value,
-          plannedCarrierCost: carrierCost.value,
-        });
-      }
-
+      await onAtomicSave(row, {
+        carrierType: carrier.carrierType,
+        externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
+        // Send the vehicle block only when the editor actually touches it —
+        // an estimates/classification-only save must not disturb stored columns.
+        ...(vehicleTouched ? body : {}),
+        plannedRevenue: revenue.value,
+        plannedCarrierCost: carrierCost.value,
+        classification: draft.classification,
+        isCombined: draft.isCombined,
+      });
       restoreFocusRef.current = true;
       setOpen(false);
     } catch {
-      setError('Không thể lưu đủ dữ liệu điều phối. Kiểm tra thông báo của bảng và thử lại.');
+      // Keep the modal and draft open — the caller surfaced the banner error.
+      setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
     } finally {
       setSaving(false);
     }
@@ -372,6 +391,9 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
 
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
+  const classificationLabel = row.classification
+    ? DISPATCH_CLASSIFICATION_LABELS[row.classification]
+    : null;
 
   return (
     <>
@@ -454,6 +476,37 @@ export function PlateAssignmentCell({ row, onAssign, onAssignCarrier, onSaveEsti
                 onLoadMore={loadMoreVehicles}
                 loadingMore={loadingVehicles && vehicleOptions.length > 0}
               />
+            </label>
+            <label htmlFor={`dispatch-classification-${row.fulfillmentId}`}>
+              <span>Phân loại</span>
+              <select
+                id={`dispatch-classification-${row.fulfillmentId}`}
+                className="input"
+                value={draft.classification}
+                onChange={(event) => {
+                  const value = event.target.value as DispatchClassification | '';
+                  setDraft((current) => ({ ...current, classification: value }));
+                  setError(null);
+                }}
+                disabled={saving}
+                required
+                aria-required="true"
+              >
+                <option value="" disabled>Chọn phân loại…</option>
+                {DISPATCH_CLASSIFICATIONS.map((value) => (
+                  <option key={value} value={value}>{DISPATCH_CLASSIFICATION_LABELS[value]}</option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor={`dispatch-combined-${row.fulfillmentId}`} className="dispatch-assignment-dialog__check">
+              <input
+                id={`dispatch-combined-${row.fulfillmentId}`}
+                type="checkbox"
+                checked={draft.isCombined}
+                onChange={(event) => setDraft((current) => ({ ...current, isCombined: event.target.checked }))}
+                disabled={saving}
+              />
+              <span>Đóng kết hợp (kẹp chuyến)</span>
             </label>
             <label htmlFor={`dispatch-revenue-${row.fulfillmentId}`}>
               <span>Cước thu dự kiến</span>

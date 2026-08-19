@@ -75,10 +75,245 @@
   white-space: nowrap;
 }
 
+/* Multi-select facet controls for ports and carriers */
+.master-plan-filters__facet {
+  flex: 0 0 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.master-plan-filters__facet-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--fg-2);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+.master-plan-filters__facet-trigger:hover {
+  border-color: var(--fg-3);
+}
+
+.master-plan-filters__facet-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.master-plan-filters__facet-trigger.has-selection {
+  color: var(--fg-1);
+  font-weight: 500;
+}
+
+.master-plan-filters__facet-trigger-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.master-plan-filters__facet-trigger-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-3);
+  transition: transform 150ms var(--ease);
+}
+
+.master-plan-filters__facet-trigger-icon.is-open {
+  transform: rotate(180deg);
+}
+
+/* Popover dropdown for multi-select facets */
+.master-plan-filters__facet-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  min-width: 260px;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+}
+
+.master-plan-filters__facet-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.master-plan-filters__facet-search-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--fg-3);
+}
+
+.master-plan-filters__facet-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  color: var(--fg-1);
+  outline: none;
+}
+
+.master-plan-filters__facet-search-input::placeholder {
+  color: var(--fg-3);
+}
+
+.master-plan-filters__facet-search-clear {
+  flex-shrink: 0;
+  padding: 2px;
+  background: transparent;
+  border: 0;
+  color: var(--fg-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.master-plan-filters__facet-search-clear:hover {
+  color: var(--fg-1);
+}
+
+.master-plan-filters__facet-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.master-plan-filters__facet-feedback {
+  display: block;
+  padding: 16px 12px;
+  text-align: center;
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.master-plan-filters__facet-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 100ms var(--ease);
+}
+
+.master-plan-filters__facet-option:hover {
+  background: color-mix(in srgb, var(--fg-1) 4%, transparent);
+}
+
+.master-plan-filters__facet-option-checkbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.master-plan-filters__facet-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--fg-1);
+}
+
+.master-plan-filters__facet-option-check {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+}
+
+.master-plan-filters__facet-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.master-plan-filters__facet-footer-text {
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+.master-plan-filters__facet-footer-clear {
+  padding: 4px 8px;
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: background-color 100ms var(--ease);
+}
+
+.master-plan-filters__facet-footer-clear:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* Cargo summary header */
+.master-plan-cargo-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--fg-2);
+}
+
+.master-plan-cargo-summary__label {
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.master-plan-cargo-summary__count {
+  font-weight: 500;
+  color: var(--fg-1);
+}
+
+.master-plan-cargo-summary__separator {
+  color: var(--fg-3);
+}
+
 @container (max-width: 640px) {
   .master-plan-filters__search,
   .master-plan-filters__direction,
   .master-plan-filters__allocation,
+  .master-plan-filters__facet,
   .master-plan-filters__date-range {
     flex-basis: 100%;
   }
@@ -93,6 +328,29 @@
 
   .master-plan-filters__date-inputs {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .master-plan-filters__facet-picker {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    animation: slideUp 200ms var(--ease);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

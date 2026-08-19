@@ -239,6 +239,7 @@ type DetailPlanRow = {
     assignedPlate: string | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+  classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | null;
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
 };
@@ -882,5 +883,602 @@ describe('dispatch detail plan plate assignment', () => {
       plannedRevenue: '2500000',
       plannedCarrierCost: '1900000',
     });
+  });
+});
+
+describe('atomic dispatch detail plan save', () => {
+  type PlanResponse = {
+    fulfillmentId: number;
+    fulfillmentVersion: number;
+    shipmentId: number;
+    shipmentVersion: number;
+    classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
+    isCombined: boolean;
+    dispatch: {
+      carrierType: 'OWN' | 'EXTERNAL';
+      carrierName: string | null;
+      externalCarrierId: number | null;
+      externalCarrierVehicleId: number | null;
+      assignedPlate: string | null;
+    };
+    estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+    lotFullyPlated: boolean;
+    driverNotified: boolean;
+    driverHint: string | null;
+    replayed: boolean;
+  };
+
+  async function fetchShipmentAndFulfillment(fulfillmentId: number) {
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentId));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+    return { shipment, fulfillment };
+  }
+
+  test('one save applies carrier, vehicle, estimates, classification, and isCombined atomically', async () => {
+    const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        plannedRevenue: 3_000_000,
+        plannedCarrierCost: 2_200_000,
+        classification: 'DOUBLE',
+        isCombined: !shipment.isCombined,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.replayed, false);
+    assert.equal(response.data.dispatch.carrierType, 'EXTERNAL');
+    assert.equal(response.data.dispatch.externalCarrierId, carrier.id);
+    assert.equal(response.data.classification, 'DOUBLE');
+    assert.equal(response.data.estimates.plannedRevenue, '3000000');
+    assert.equal(response.data.isCombined, !shipment.isCombined);
+    // isCombined flipped → shipment version bumped exactly once.
+    assert.equal(response.data.shipmentVersion, freshShipment.version + 1);
+    assert.equal(response.data.fulfillmentVersion, fulfillment.version + 1);
+
+    // The vehicle switched away from OWN with no plate — plate cleared.
+    assert.equal(response.data.dispatch.assignedPlate, null);
+    void truck; void driver;
+  });
+
+  test('isCombined unchanged → shipment version not bumped; classification exposed on rows', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', isCombined: false });
+    const { shipment: freshShipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: freshShipment.version,
+        carrierType: 'OWN',
+        truckId: null,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: false,
+      },
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    assert.equal(response.data.shipmentVersion, freshShipment.version, 'shipment version must stay flat when isCombined is unchanged');
+    void shipment;
+
+    const rows = await fetchRows(dispatcherToken, `?q=${freshShipment.shipmentCode}`);
+    assert.equal(rows.status, 200);
+    const row = rows.data.items.find((item) => item.fulfillmentId === fulfillment.id)!;
+    assert.equal(row.classification, 'SINGLE');
+  });
+
+  test('OWN truck assignment notifies driver once; replay is silent', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const body = {
+      expectedFulfillmentVersion: fulfillment.version,
+      expectedShipmentVersion: shipment.version,
+      carrierType: 'OWN' as const,
+      truckId: truck.id,
+      plannedRevenue: null,
+      plannedCarrierCost: null,
+      classification: 'SINGLE' as const,
+      isCombined: shipment.isCombined,
+    };
+    const key = `plan-${suffix}-${fulfillment.id}-a`;
+    const first = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH', token: dispatcherToken, body, idempotencyKey: key,
+    });
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.equal(first.data.driverNotified, true);
+    assert.equal(first.data.dispatch.assignedPlate, truck.licensePlate);
+    assert.equal(first.data.lotFullyPlated, true);
+
+    const replay = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH', token: dispatcherToken, body, idempotencyKey: key,
+    });
+    assert.equal(replay.status, 200, JSON.stringify(replay.data));
+    assert.equal(replay.data.replayed, true);
+
+    // Exactly one in-app notification for the transition.
+    const notes = await db.select({ id: s.notifications.id }).from(s.notifications)
+      .where(and(
+        eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+        eq(s.notifications.relatedEntityId, fulfillment.id),
+      ));
+    assert.equal(notes.length, 1);
+  });
+
+  test('stale shipment version or stale fulfillment version changes nothing', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const staleShipment = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version + 5,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        plannedRevenue: 1,
+        plannedCarrierCost: 1,
+        classification: 'SINGLE',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.equal(staleShipment.status, 409);
+
+    const staleFulfillment = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version + 9,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        plannedRevenue: 1,
+        plannedCarrierCost: 1,
+        classification: 'SINGLE',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.equal(staleFulfillment.status, 409);
+
+    // All-or-nothing: nothing was written.
+    const after = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.fulfillment.version, fulfillment.version);
+    assert.equal(after.fulfillment.plannedVehiclePlateNumber, null);
+    assert.equal(after.fulfillment.plannedRevenue, null);
+    assert.equal(after.shipment.version, shipment.version);
+  });
+
+  test('invalid vehicle for the incoming carrier rolls everything back', async () => {
+    const carrier = await createCustomer(`Detail ext carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const { shipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    // EXTERNAL carrier but an OWN truck id → ownership mismatch → 400/409 and
+    // classification/estimates must not land either.
+    const response = await apiFetch<PlanResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        truckId: truck.id,
+        plannedRevenue: 5_000_000,
+        plannedCarrierCost: 4_000_000,
+        classification: 'COMBINED',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.ok(response.status === 400 || response.status === 409, `expected 400/409, got ${response.status}`);
+    const after = await fetchShipmentAndFulfillment(fulfillment.id);
+    assert.equal(after.fulfillment.plannedCarrierType, 'OWN');
+    assert.equal(after.fulfillment.plannedRevenue, null);
+    assert.equal(after.fulfillment.dispatchClassification, null);
+    assert.equal(after.shipment.version, shipment.version);
+  });
+
+  test('classification is required — schema rejects a missing/null value', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+
+    const missing = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        isCombined: false,
+      },
+    });
+    assert.equal(missing.status, 400);
+
+    const invalid = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'KEP',
+        isCombined: false,
+      },
+    });
+    assert.equal(invalid.status, 400);
+  });
+
+  test('CUS cannot save the plan; accounting lock blocks the atomic save', async () => {
+    const { shipment, fulfillmentIds, customer } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
+
+    const forbidden = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: clerkToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: false,
+      },
+    });
+    assert.equal(forbidden.status, 403);
+
+    const [billingDoc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customer.id,
+      entityName: customer.name,
+      rangeFrom: '2026-08-01',
+      rangeTo: '2026-08-31',
+      totalInclVat: '0',
+      debitNoteStatus: 'SENT',
+      issuedAt: new Date(),
+      createdBy: adminUserId,
+    }).returning();
+    try {
+      await db.insert(s.shipmentAccountingLocks).values({
+        shipmentId: shipment.id,
+        billingDocumentId: billingDoc.id,
+        billingDocumentVersion: billingDoc.version,
+        billingPeriodSnapshot: {
+          rangeFrom: billingDoc.rangeFrom,
+          rangeTo: billingDoc.rangeTo,
+          issuedAt: billingDoc.issuedAt!.toISOString(),
+        },
+        shipmentVersionAtLock: shipment.version,
+        reason: 'Kết thúc chu kỳ công nợ',
+        activatedBy: adminUserId,
+      });
+      const locked = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+        method: 'PATCH',
+        token: dispatcherToken,
+        body: {
+          expectedFulfillmentVersion: fulfillment.version,
+          expectedShipmentVersion: shipment.version,
+          carrierType: 'OWN',
+          plannedRevenue: null,
+          plannedCarrierCost: null,
+          classification: 'SINGLE',
+          isCombined: false,
+        },
+      });
+      assert.equal(locked.status, 409);
+    } finally {
+      await db.delete(s.shipmentAccountingLocks).where(eq(s.shipmentAccountingLocks.shipmentId, shipment.id));
+      await db.delete(s.billingDocuments).where(eq(s.billingDocuments.id, billingDoc.id));
+    }
+  });
+});
+
+describe('dispatch detail plan server ordering', () => {
+  test('rows follow cargo priority (20ft, 40ft, LCL, other) before pagination', async () => {
+    const customer = await createCustomer(`Detail order customer ${suffix}`);
+    const route = await createRoute();
+    const site = await createOperationalSite(customer.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      isCombined: false,
+      shipmentCode: `ORD-${suffix}`,
+      bookingRef: `ORD-BOOK-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-20T08:00:00.000Z'),
+      tradeDirection: 'EXPORT',
+      operationalSiteId: site.id,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+
+    const type40 = await createContainerType('40HC');
+    const type20 = await createContainerType('20DC');
+    const type45 = await createContainerType('45G1');
+    const [port] = await db.insert(s.ports).values({ name: `Detail order port ${suffix}` }).returning();
+    createdPortIds.push(port.id);
+
+    const specs: Array<{ type: typeof type20; classify?: 'LCL' }> = [
+      { type: type45 },
+      { type: type40 },
+      { type: type20 },
+    ];
+    const expectedOrder: number[] = [];
+    for (const spec of specs) {
+      const [container] = await db.insert(s.shipmentContainers).values({
+        shipmentId: shipment.id,
+        containerTypeId: spec.type.id,
+        containerNumber: `ORD${String(400000 + shipment.id).slice(-6)}${expectedOrder.length}`,
+        pickupPortId: port.id,
+        dropoffPortId: port.id,
+        createdBy: adminUserId,
+      }).returning();
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: shipment.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        shipmentContainerId: container.id,
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+        plannedCarrierType: 'OWN',
+        createdBy: adminUserId,
+      }).returning();
+      expectedOrder.push(fulfillment.id);
+    }
+    // LCL fulfillment on the same lot — should sort after all FCL containers.
+    const [lclFulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'LCL_SHIPMENT',
+      cargoMode: 'LCL',
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
+    }).returning();
+    // uniqueIndex on shipment_fulfillments_active_lcl_uniq_idx is per-shipment
+    // and this shipment is fresh, so the insert is safe.
+
+    const rows = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&limit=50`);
+    assert.equal(rows.status, 200, JSON.stringify(rows.data));
+    const ids = rows.data.items.map((item) => item.fulfillmentId);
+
+    // Expected: 20 (index 2 in specs) → 40 (index 1) → LCL → 45 other (index 0).
+    assert.ok(ids.includes(expectedOrder[2]!), '20ft container missing');
+    assert.ok(ids.includes(expectedOrder[1]!), '40ft container missing');
+    assert.ok(ids.includes(expectedOrder[0]!), '45ft container missing');
+    assert.ok(ids.includes(lclFulfillment.id), 'LCL fulfillment missing');
+
+    const pos20 = ids.indexOf(expectedOrder[2]!);
+    const pos40 = ids.indexOf(expectedOrder[1]!);
+    const posOther = ids.indexOf(expectedOrder[0]!);
+    const posLcl = ids.indexOf(lclFulfillment.id);
+    assert.ok(pos20 < pos40, `20ft (${pos20}) must sort before 40ft (${pos40})`);
+    assert.ok(pos40 < posLcl, `40ft (${pos40}) must sort before LCL (${posLcl})`);
+    assert.ok(posLcl < posOther, `LCL (${posLcl}) must sort before other (${posOther})`);
+  });
+});
+
+describe('dispatch fleet LH truck suggestions', () => {
+  type FleetResponse = {
+    items: Array<{ id: number; licensePlate: string }>;
+    suggestedItems: Array<{ truckId: number; plateNumber: string; reasons: Array<'D-1_DROP' | 'D+1_PICKUP'> }>;
+    total: number;
+    nextCursor: string | null;
+  };
+
+  // Target lot on D=2026-08-20 with an LH-zoned dropoff port on its container.
+  async function createTargetWithLhPort(args: { dropoffLh: boolean; pickupLh: boolean; deliveryDate: string }) {
+    const customer = await createCustomer(`Sugg target ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const site = await createOperationalSite(customer.id);
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `SUG-${suffix}-${createdShipmentIds.length}`,
+      bookingRef: `SUG-BOOK-${suffix}-${createdShipmentIds.length}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-20T08:00:00.000Z'),
+      tradeDirection: 'EXPORT',
+      operationalSiteId: site.id,
+      expectedDeliveryDate: args.deliveryDate,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const containerType = await createContainerType('20G');
+    const [lhPort] = await db.insert(s.ports).values({
+      name: `Sugg LH port ${suffix}-${createdPortIds.length}`,
+      dispatchZone: 'LACH_HUYEN',
+    }).returning();
+    createdPortIds.push(lhPort.id);
+    const [plainPort] = await db.insert(s.ports).values({ name: `Sugg plain port ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(plainPort.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: containerType.id,
+      containerNumber: `SUG${String(500000 + shipment.id).slice(-6)}`,
+      pickupPortId: args.pickupLh ? lhPort.id : plainPort.id,
+      dropoffPortId: args.dropoffLh ? lhPort.id : plainPort.id,
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
+    }).returning();
+    return { shipment, fulfillment, lhPort };
+  }
+
+  // Evidence lot: an OWN-planned fulfillment on some date whose plate matches
+  // an owned truck.
+  async function createEvidenceLot(args: {
+    plate: string;
+    workDate: string | null;
+    lhPortId: number | null;
+    atLhDropoff: boolean;
+    canceled?: boolean;
+  }) {
+    const customer = await createCustomer(`Sugg evidence ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      shipmentCode: `SGE-${suffix}-${createdShipmentIds.length}`,
+      bookingRef: `SGE-BOOK-${suffix}-${createdShipmentIds.length}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-20T08:00:00.000Z'),
+      tradeDirection: 'EXPORT',
+      expectedDeliveryDate: args.workDate,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+    const containerType = await createContainerType('20G');
+    const [port] = await db.insert(s.ports).values({ name: `SGE port ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(port.id);
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      containerTypeId: containerType.id,
+      containerNumber: `SGE${String(600000 + shipment.id).slice(-6)}`,
+      pickupPortId: args.atLhDropoff ? port.id : (args.lhPortId ?? port.id),
+      dropoffPortId: args.atLhDropoff ? (args.lhPortId ?? port.id) : port.id,
+      createdBy: adminUserId,
+    }).returning();
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'OWN',
+      plannedVehiclePlateNumber: args.plate,
+      canceledAt: args.canceled ? new Date() : null,
+      createdBy: adminUserId,
+    }).returning();
+    return { shipment, fulfillment };
+  }
+
+  test('D-1 LH dropoff and D+1 LH pickup surface as ranked reasons; canceled evidence ignored', async () => {
+    const { fulfillment: target } = await createTargetWithLhPort({ dropoffLh: true, pickupLh: false, deliveryDate: '2026-08-20' });
+    const { truck: truckA } = await createOwnedTruckWithDriver();
+    const { truck: truckB } = await createOwnedTruckWithDriver();
+
+    // LH port id comes from the target fixture's zoned port.
+    const [targetContainer] = await db.select({ dropoffPortId: s.shipmentContainers.dropoffPortId })
+      .from(s.shipmentFulfillments)
+      .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .where(eq(s.shipmentFulfillments.id, target.id));
+    const lhPortId = targetContainer.dropoffPortId!;
+
+    // truckA: LH dropoff on D-1 (2026-08-19) → D-1_DROP.
+    await createEvidenceLot({ plate: truckA.licensePlate, workDate: '2026-08-19', lhPortId, atLhDropoff: true });
+    // truckB: LH pickup on D+1 (2026-08-21) → D+1_PICKUP.
+    await createEvidenceLot({ plate: truckB.licensePlate, workDate: '2026-08-21', lhPortId, atLhDropoff: false });
+    // truckA canceled evidence — must not surface.
+    await createEvidenceLot({ plate: truckA.licensePlate, workDate: '2026-08-21', lhPortId, atLhDropoff: false, canceled: true });
+
+    const response = await apiFetch<FleetResponse>(`/dispatch-fleet?resource=TRUCK&limit=100&fulfillmentId=${target.id}`, {
+      token: dispatcherToken,
+    });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const suggested = response.data.suggestedItems ?? [];
+    const truckASuggestion = suggested.find((item) => item.truckId === truckA.id);
+    const truckBSuggestion = suggested.find((item) => item.truckId === truckB.id);
+    assert.ok(truckASuggestion, `truckA expected in suggestions: ${JSON.stringify(suggested)}`);
+    assert.deepEqual(truckASuggestion.reasons, ['D-1_DROP']);
+    assert.ok(truckBSuggestion, `truckB expected in suggestions: ${JSON.stringify(suggested)}`);
+    assert.deepEqual(truckBSuggestion.reasons, ['D+1_PICKUP']);
+    // Reasons only — no shipment codes or customer names leak.
+    assert.deepEqual(Object.keys(truckASuggestion).sort(), ['plateNumber', 'reasons', 'truckId']);
+  });
+
+  test('both signals rank first; neither-signal trucks and no-context calls stay unsuggested', async () => {
+    const { fulfillment: target } = await createTargetWithLhPort({ dropoffLh: true, pickupLh: false, deliveryDate: '2026-08-20' });
+    const [targetContainer] = await db.select({ dropoffPortId: s.shipmentContainers.dropoffPortId })
+      .from(s.shipmentFulfillments)
+      .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .where(eq(s.shipmentFulfillments.id, target.id));
+    const lhPortId = targetContainer.dropoffPortId!;
+    const { truck } = await createOwnedTruckWithDriver();
+    await createEvidenceLot({ plate: truck.licensePlate, workDate: '2026-08-19', lhPortId, atLhDropoff: true });
+    await createEvidenceLot({ plate: truck.licensePlate, workDate: '2026-08-21', lhPortId, atLhDropoff: false });
+
+    const both = await apiFetch<FleetResponse>(`/dispatch-fleet?resource=TRUCK&limit=100&fulfillmentId=${target.id}`, {
+      token: dispatcherToken,
+    });
+    assert.equal(both.status, 200);
+    const bothSuggestion = (both.data.suggestedItems ?? []).find((item) => item.truckId === truck.id);
+    assert.ok(bothSuggestion);
+    assert.deepEqual(bothSuggestion.reasons, ['D-1_DROP', 'D+1_PICKUP']);
+    assert.equal((both.data.suggestedItems ?? [])[0]!.truckId, truck.id, 'both-signals truck ranks first');
+
+    // No fulfillmentId → no suggestedItems at all (legacy callers unaffected).
+    const plain = await apiFetch<FleetResponse>('/dispatch-fleet?resource=TRUCK&limit=100', { token: dispatcherToken });
+    assert.equal(plain.status, 200);
+    assert.deepEqual(plain.data.suggestedItems ?? [], []);
+  });
+
+  test('search narrows suggestions; current plate preserved outside suggestion set', async () => {
+    const { fulfillment: target } = await createTargetWithLhPort({ dropoffLh: true, pickupLh: false, deliveryDate: '2026-08-20' });
+    const [targetContainer] = await db.select({ dropoffPortId: s.shipmentContainers.dropoffPortId })
+      .from(s.shipmentFulfillments)
+      .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .where(eq(s.shipmentFulfillments.id, target.id));
+    const lhPortId = targetContainer.dropoffPortId!;
+    const { truck } = await createOwnedTruckWithDriver();
+    await createEvidenceLot({ plate: truck.licensePlate, workDate: '2026-08-19', lhPortId, atLhDropoff: true });
+
+    const searched = await apiFetch<FleetResponse>(
+      `/dispatch-fleet?resource=TRUCK&limit=100&fulfillmentId=${target.id}&q=${encodeURIComponent(truck.licensePlate.slice(0, 4))}`,
+      { token: dispatcherToken },
+    );
+    assert.equal(searched.status, 200);
+    assert.ok((searched.data.suggestedItems ?? []).some((item) => item.truckId === truck.id), 'search-matched suggestion kept');
+
+    const missed = await apiFetch<FleetResponse>(
+      `/dispatch-fleet?resource=TRUCK&limit=100&fulfillmentId=${target.id}&q=ZZZZ`,
+      { token: dispatcherToken },
+    );
+    assert.equal(missed.status, 200);
+    assert.deepEqual((missed.data.suggestedItems ?? []).filter((item) => item.truckId === truck.id), [], 'non-matching search drops suggestion');
+
+    // Inaccessible target (random id) → no suggestions, request still 200.
+    const stale = await apiFetch<FleetResponse>('/dispatch-fleet?resource=TRUCK&limit=100&fulfillmentId=99999999', {
+      token: dispatcherToken,
+    });
+    assert.equal(stale.status, 200);
+    assert.deepEqual(stale.data.suggestedItems ?? [], []);
   });
 });
