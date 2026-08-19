@@ -377,14 +377,14 @@ def main() -> bool:
             {
                 "expectedShipmentVersion": updated_line.get("shipmentVersion", shipment["version"]),
                 "carrierType": "OWN",
-                "truckId": 1,
+                "plateNumber": "29C-123.45",
             },
         )
         check(
             results,
             "TC-1820",
             "CUS không thể tự gán xe nội bộ: authority từ chối carrierType OWN",
-            own_fleet_response.get("status") in (400, 403, 422),
+            own_fleet_response.get("status") == 409,
             str(own_fleet_response),
         )
 
@@ -476,24 +476,35 @@ def main() -> bool:
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             page.wait_for_load_state("networkidle")
             # URL-backed Chưa cập nhật filter: applying it updates the URL
-            # (replaceState) and shows the active-filter chip. The fixture's
+            # (replaceState) and keeps the select visibly active. The fixture's
             # warning line is asserted via the API in TC-1816/1817; here the
             # fixture row (still missing its appointment) must render the
             # server-derived warning after the filter is applied.
             fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
             fixture_warning.first.wait_for(timeout=10_000)
             info_select = page.locator("select", has=page.locator("option[value='MISSING']")).first
-            info_select.select_option("MISSING")
+            with page.expect_response(
+                lambda response: (
+                    "/api/shipments/cus-workspace/containers?" in response.url
+                    and "informationStatus=MISSING" in response.url
+                    and response.status == 200
+                ),
+                timeout=10_000,
+            ):
+                info_select.select_option("MISSING")
             page.wait_for_function(
                 "() => new URLSearchParams(location.search).get('informationStatus') === 'MISSING'",
                 timeout=5_000,
             )
-            active_filter_visible = page.get_by_text("Chưa cập nhật", exact=True).count() > 0
-            warning_visible = page.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn").count() > 0
+            page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+            warning = page.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn").first
+            warning.wait_for(state="visible", timeout=10_000)
+            active_filter_visible = info_select.input_value() == "MISSING"
+            warning_visible = warning.is_visible()
             check(
                 results,
                 "TC-1821",
-                "Bộ lọc Chưa cập nhật nằm trong URL, hiển thị chip và dòng cảnh báo trường thiếu",
+                "Bộ lọc Chưa cập nhật nằm trong URL, giữ lựa chọn và hiển thị dòng cảnh báo trường thiếu",
                 active_filter_visible and warning_visible,
                 f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
             )
@@ -548,6 +559,25 @@ def main() -> bool:
                 "Mọi ô chi tiết được phép sửa mở editor từ vùng trống của toàn ô",
                 full_coverage and all_cells_open and focus_restored,
                 f"coverage={full_coverage}, opened={all_cells_open}, focusRestored={focus_restored}",
+            )
+            page.set_viewport_size({"width": 390, "height": 844})
+            page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
+            page.wait_for_load_state("networkidle")
+            mobile_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
+            mobile_schedule = mobile_row.locator(
+                '[data-label="Lịch trình"] > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger'
+            )
+            mobile_schedule.wait_for(state="visible", timeout=10_000)
+            mobile_schedule.click(position={"x": 20, "y": 20})
+            mobile_editor = page.locator('.shipment-container-ledger__inline-editor[data-mode="schedule"]')
+            mobile_editor.wait_for(state="visible", timeout=10_000)
+            mobile_pointer_opened = mobile_schedule.get_attribute("aria-expanded") == "true"
+            check(
+                results,
+                "TC-1822",
+                "Chạm vào ô lịch trình trên mobile mở editor bằng con trỏ, không chỉ bằng bàn phím",
+                mobile_pointer_opened,
+                f"ariaExpanded={mobile_schedule.get_attribute('aria-expanded')}",
             )
             page.context.close()
 

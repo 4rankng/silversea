@@ -60,7 +60,7 @@ describe('shipment create responsive layout', () => {
   it('uses shared headers on desktop and deliberate record layouts below the wide canvas', () => {
     expect(containerEditorSource).toContain('<table className="csc-container-table">');
     expect(containerEditorSource).toContain('<th scope="col">Số container</th>');
-    expect(containerEditorSource).toContain('<th scope="col">Lịch hẹn giao cont</th>');
+    expect(containerEditorSource).toContain('<th scope="col">Ngày giờ đóng trả</th>');
     expect(source).toContain('hideLabel');
     expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(

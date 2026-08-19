@@ -46,17 +46,14 @@
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; min-width: 0; align-items: center; gap: 12px; }
-.shipments-detail-filters__date-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.shipments-detail-filters__footer { display: flex; min-width: 0; align-items: center; }
+.shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
 .shipments-detail-filters__date-actions button:hover,
 .shipments-detail-filters__date-actions button[data-hovered],
 .shipments-detail-filters__reset:hover,
 .shipments-detail-filters__reset[data-hovered] { border-color: var(--ink-4); background: var(--surface-2); color: var(--ink); }
-.shipments-detail-filters__meta { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
-.shipments-detail-filters__meta p { min-width: 0; margin: 0; color: var(--ink-2); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
-.shipments-detail-filters__meta p span { margin-right: 6px; color: var(--ink-3); font-size: 10px; font-weight: var(--fw-bold); letter-spacing: .04em; text-transform: uppercase; }
 .shipments-detail-filters__reset { flex: 0 0 auto; }
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
@@ -117,7 +114,8 @@
 /* Server-derived missing-field triage line ("Chưa cập nhật: …"). Same
    warning ink as the single-field variant, but wraps and is not clamped so
    long field lists stay readable on narrow viewports. */
-.shipment-container-ledger__missing-fields { white-space: normal; line-height: 1.5; }
+.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { display: grid; width: 100%; grid-template-columns: 13px minmax(0, 1fr); align-items: start; white-space: normal; line-height: 1.5; }
+.shipment-container-ledger__missing-fields > span { min-width: 0; overflow-wrap: anywhere; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 .shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 1px 5px; border-radius: 999px; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .shipment-container-ledger__direction--import { background: var(--info-soft); color: var(--info-text); }
@@ -125,6 +123,8 @@
 .shipment-container-ledger__direction--unknown { background: var(--surface-3); color: var(--ink-3); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 1px 5px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2) !important; font-size: 9px; font-weight: var(--fw-bold); }
 .shipment-container-ledger__dispatch-badge { max-width: 100%; white-space: normal; }
+.shipment-container-ledger__dispatch-badge--unassigned,
+.shipment-container-ledger__dispatch-badge--planned { font-size: 10px; line-height: 1.4; }
 .shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
 
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }
@@ -140,6 +140,7 @@
 .shipment-container-ledger__vehicle-state svg { width: 13px; height: 13px; }
 .shipment-container-ledger__plate--missing { border-color: color-mix(in srgb, var(--warning) 42%, var(--line)); background: var(--warning-soft); color: var(--warning-text) !important; font-weight: var(--fw-semibold); }
 .shipment-container-ledger__vehicle-guidance { color: var(--ink-2); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.35; }
+.shipment-container-ledger__read-only-reason { color: var(--ink-3); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.4; }
 
 .shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
 .shipment-container-ledger__cell-stack > .shipment-container-ledger__cell-trigger + .shipment-container-ledger__cell-trigger { padding-top: 5px; border-top: 1px solid var(--line); }
@@ -261,6 +262,7 @@
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell { height: auto; }
   .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell::before { display: none; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor {
     position: static;
@@ -324,8 +326,6 @@
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
   .shipments-detail-filter--search,
   .shipments-detail-filter:nth-child(4) { grid-column: 1 / -1; }
-  .shipments-detail-filters__footer { align-items: flex-start; flex-direction: column; }
-  .shipments-detail-filters__meta { width: 100%; align-items: flex-start; }
   .shipment-container-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-summary > div:nth-child(2) { border-right: 0; }
   .shipment-container-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }

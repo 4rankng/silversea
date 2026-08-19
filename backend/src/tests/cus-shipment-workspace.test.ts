@@ -19,7 +19,8 @@ import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
-import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace } from '../services/cus-shipment-workspace.service';
+import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
+import { ApiError } from '../errors';
 import { createShipment, updateShipment } from '../services/shipment.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -552,6 +553,32 @@ describe('CUS container-flat projection', () => {
     assert.equal(row.shipmentScheduleEditable, false);
     assert.equal(row.shipmentNotesEditable, false);
     assert.equal(row.customerAppointmentEditable, false);
+    assert.equal(row.vehicleReadOnlyReason, 'Vai trò hiện tại chỉ được xem dữ liệu container.');
+  });
+
+  test('rejects a CUS write to a same-customer shipment outside the assigned business unit', async () => {
+    const [outsideUnit] = await db.insert(s.businessUnits).values({
+      name: `CusWs outside unit ${suffix}`,
+      status: 'ACTIVE',
+    }).returning();
+    createdBusinessUnitIds.push(outsideUnit.id);
+    const hiddenShipment = await seedShipment({
+      responsibleUnitId: outsideUnit.id,
+      blNumber: `HIDDEN${suffix}`,
+    });
+    const hiddenContainer = await seedContainer(hiddenShipment.id, {
+      containerNumber: `HID${suffix}`.slice(0, 50),
+    });
+
+    await assert.rejects(
+      updateCusShipmentContainerLine({
+        shipmentId: hiddenShipment.id,
+        containerId: hiddenContainer.id,
+        input: { expectedShipmentVersion: hiddenShipment.version, containerNumber: `DENIED${suffix}`.slice(0, 50) },
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
+    );
   });
 });
 
@@ -586,6 +613,12 @@ describe('Overview operational priority ordering', () => {
     };
     const cont40 = await mk('RANK40A', 'FCL', [containerTypeId], 1);
     const cont20 = await mk('RANK20A', 'FCL', [containerType20Id], 1);
+    const [named20Type] = await db.insert(s.containerTypes).values({
+      code: `DRYSMALL${Math.random().toString(16).slice(2, 8)}`,
+      name: `20'DC ${suffix}`,
+    }).returning();
+    createdContainerTypeIds.push(named20Type.id);
+    const named20 = await mk('RANK20N', 'FCL', [named20Type.id], 1);
     const mixed = await mk('RANKMIXA', 'FCL', [containerTypeId, containerType20Id], 2);
     const lcl = await mk('RANKLCLA', 'LCL', [], 0);
     const unknown = await seedShipment({ blNumber: `RANKUNKA${suffix}`, expectedDeliveryDate: date });
@@ -595,9 +628,33 @@ describe('Overview operational priority ordering', () => {
 
     assert.ok(rank(cont20.id) >= 0 && rank(mixed.id) >= 0);
     assert.ok(rank(cont20.id) < rank(cont40.id), 'Cont 20 before Cont 40');
+    assert.ok(rank(named20.id) < rank(cont40.id), '20-foot name ranks before Cont 40 even when code has no size prefix');
     assert.ok(rank(mixed.id) < rank(cont40.id), 'mixed 20/40 lot ranks as Cont 20');
     assert.ok(rank(cont40.id) < rank(lcl.id), 'other Cont before Lẻ');
     assert.ok(rank(lcl.id) < rank(unknown.id), 'Lẻ before unknown');
+  });
+
+  test('keeps operational priority stable across overview pages', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const route = await seedRoute();
+    const base = Date.now();
+    const unscheduledNew = await seedShipment({ blNumber: `PAGE-UN-${marker}`, createdAt: new Date(base) });
+    const unscheduledOld = await seedShipment({ blNumber: `PAGE-UO-${marker}`, createdAt: new Date(base - 86400000) });
+    const cont20 = await seedShipment({ blNumber: `PAGE-20-${marker}`, expectedDeliveryDate: '2026-08-19', cargoMode: 'FCL', routeId: route.id });
+    const cont40 = await seedShipment({ blNumber: `PAGE-40-${marker}`, expectedDeliveryDate: '2026-08-19', cargoMode: 'FCL', routeId: route.id });
+    const lcl = await seedShipment({ blNumber: `PAGE-LCL-${marker}`, expectedDeliveryDate: '2026-08-19', cargoMode: 'LCL', routeId: route.id });
+    await seedContainer(cont20.id, { containerNumber: `PAGE20-${marker}`, containerTypeId: containerType20Id });
+    await seedContainer(cont40.id, { containerNumber: `PAGE40-${marker}`, containerTypeId });
+
+    const pages = await Promise.all([1, 2, 3].map((page) => listCusShipmentWorkspace({
+      page,
+      limit: 2,
+      searchSuffix: marker,
+    }, cusActor)));
+    const ids = pages.flatMap((page) => page.items.map((item) => item.id));
+
+    assert.deepEqual(ids, [unscheduledNew.id, unscheduledOld.id, cont20.id, cont40.id, lcl.id]);
+    assert.deepEqual(pages.map((page) => page.total), [5, 5, 5]);
   });
 });
 
@@ -657,6 +714,36 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(row);
     assert.equal(row.informationStatus, 'COMPLETE');
     assert.deepEqual(row.missingFields, []);
+  });
+
+  test('projects the container shipping-line fallback used by completeness filtering', async () => {
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `LINE${suffix}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: null,
+    });
+    await seedDeclaration(shipment.id);
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `LIN${suffix}1`.slice(0, 50),
+      containerTypeId,
+      shippingLineName: 'ONE',
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    await seedFulfillment(shipment.id, container.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-123.45',
+    });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    assert.equal(row.shippingLineName, 'ONE');
+    assert.equal(row.informationStatus, 'COMPLETE');
+    assert.equal(row.missingFields.some((field) => field.code === 'SHIPPING_LINE'), false);
   });
 
   test('informationStatus=MISSING returns only incomplete FCL rows with count parity', async () => {

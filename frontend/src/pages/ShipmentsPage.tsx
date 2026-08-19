@@ -1007,7 +1007,6 @@ export default function ShipmentsPage() {
                             onClick={() => startQuickEdit(item, 'schedule')}
                           >
                             <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
-                            <span>{scheduleTime(item) ? `${scheduleTime(item)} · ${item.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Chưa có giờ đóng/trả'}</span>
                             {item.appointmentGroups.map((group) => (
                               <span key={group.at}>{formatAppointmentGroupLine(group.at)} · {group.containerSummary}</span>
                             ))}

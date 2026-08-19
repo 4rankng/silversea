@@ -188,6 +188,20 @@
   }
 }
 
+/* A desktop-width browser can still leave this workspace narrower than 980px
+   after the application sidebar and page gutters are accounted for. Keep the
+   controls to two rows at those viewport widths: search + direction, followed
+   by the two dates + status. */
+@media (min-width: 1000px) and (max-width: 1279px) {
+  .cus-worksheet-toolbar__filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cus-worksheet-toolbar__filters .cus-search-field {
+    grid-column: span 2;
+  }
+}
+
 .cus-worksheet-meta {
   display: flex;
   justify-content: space-between;
@@ -866,7 +880,9 @@
 }
 .cus-create-shipment { white-space: nowrap; }
 
-@container (max-width: 1000px) {
+/* Table versus record layout follows the browser viewport contract. The
+   workspace itself is narrower because of persistent application chrome. */
+@media (max-width: 999px) {
   .cus-dashboard-table,
   .cus-dashboard-table tbody { display: block; width: 100%; }
   .cus-dashboard-table colgroup,
@@ -913,10 +929,9 @@
     position: relative;
   }
   .cus-dashboard-cell--editable > .cus-inline-trigger::before {
-    position: absolute;
-    top: 10px;
-    left: 12px;
-    width: calc(42% - 14px);
+    position: static;
+    grid-column: 1;
+    width: auto;
     min-width: 0;
     color: var(--ink-3);
     content: attr(data-cell-label);
@@ -936,7 +951,6 @@
   .cus-dashboard-table tbody > tr > th,
   .cus-dashboard-table tbody > tr > td { grid-template-columns: 98px minmax(0, 1fr); min-height: 72px; padding: 11px 12px; }
   .cus-dashboard-cell--editable > .cus-inline-trigger { grid-template-columns: 98px minmax(0, 1fr); }
-  .cus-dashboard-cell--editable > .cus-inline-trigger::before { width: 86px; }
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
   .cus-quick-edit-modal__fields input,
   .cus-quick-edit-modal__fields select { min-height: 44px; }

@@ -20,7 +20,7 @@ const container: ShipmentContainerDraft = {
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
-  expectedDeliveryDate: '',
+  customerAppointmentAt: '',
 };
 
 describe('shipment create model', () => {
@@ -62,7 +62,7 @@ describe('shipment create model', () => {
       factoryName: 'Nhà máy Long Minh',
       shippingLineName: 'MSC',
       isCombined: true,
-      driverNotes: 'Số tờ khai: TK-01',
+      driverNotes: null,
     });
     expect(buildShipmentContainerPayload(form, [container])).toEqual([{
       containerNumber: 'MSCU6639870',
@@ -103,14 +103,14 @@ describe('shipment create model', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
-      expectedDeliveryDate: '2026-08-20',
+      customerAppointmentAt: '2026-08-20T09:30',
     });
 
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
-      expectedDeliveryDate: '2026-08-20',
+      customerAppointmentAt: '2026-08-20T09:30',
     });
   });
 
@@ -201,10 +201,10 @@ describe('shipment create model', () => {
     });
   });
 
-  it('maps the per-container expected delivery date to customerAppointmentAt (ISO)', () => {
+  it('maps the per-container appointment date and time to customerAppointmentAt (ISO)', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', shippingLineName: 'MSC' };
-    expect(buildShipmentContainerPayload(form, [{ ...container, expectedDeliveryDate: '2026-08-20' }])).toMatchObject([
-      { customerAppointmentAt: '2026-08-20T12:00:00.000Z' },
+    expect(buildShipmentContainerPayload(form, [{ ...container, customerAppointmentAt: '2026-08-20T14:30' }])).toMatchObject([
+      { customerAppointmentAt: '2026-08-20T14:30:00+07:00' },
     ]);
     expect(buildShipmentContainerPayload(form, [container])).toMatchObject([
       { customerAppointmentAt: null },
@@ -220,11 +220,11 @@ describe('shipment create model', () => {
       tradeDirection: 'IMPORT' as const,
     };
     const scheduled = { ...form, expectedDeliveryDate: '2026-08-20' };
-    const readiness = getShipmentCreateReadiness(scheduled, [{ ...container, containerNumber: '', expectedDeliveryDate: '2026-08-21' }]);
+    const readiness = getShipmentCreateReadiness(scheduled, [{ ...container, containerNumber: '', customerAppointmentAt: '2026-08-21T09:00' }]);
 
     expect(readiness.initialStatus).toBe('READY_FOR_DISPATCH');
     expect(readiness.dispatchReady).toBe(true);
-    expect(buildShipmentRootPayload(scheduled, [{ ...container, expectedDeliveryDate: '2026-08-21' }], []).expectedDeliveryDate).toBe('2026-08-20');
+    expect(buildShipmentRootPayload(scheduled, [{ ...container, customerAppointmentAt: '2026-08-21T09:00' }], []).expectedDeliveryDate).toBe('2026-08-20');
   });
 
   it('formats LCL extra delivery dates into driverNotes and only for LCL', () => {

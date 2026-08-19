@@ -35,7 +35,7 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
-import { buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
+import { assertClerkCanAccessShipment, buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import {
   assertShipmentAccountingUnlocked,
   getShipmentFinanceConfirmationSummaries,
@@ -403,7 +403,7 @@ function containerIncompleteSql(): SQL {
 }
 
 // Overview priority rank: Cont 20 → Cont 40 → other Cont → Lẻ → unknown.
-// Determined from ACTIVE containers' type code prefix (any active 20-foot
+// Determined from ACTIVE containers' canonical type code/name (any active 20-foot
 // container wins before any active 40-foot one per the accepted mixed-lot
 // rule), never from the rendered summary string.
 function cargoRankSql(): SQL {
@@ -412,7 +412,10 @@ function cargoRankSql(): SQL {
     from ${s.shipmentContainers}
     left join ${s.containerTypes} on ${s.containerTypes.id} = ${s.shipmentContainers.containerTypeId}
     where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-      and ${s.containerTypes.code} ilike ${`${size}%`}
+      and (
+        ${s.containerTypes.code} ~* ${`(^|[^0-9])${size}([^0-9]|$)`}
+        or ${s.containerTypes.name} ~* ${`(^|[^0-9])${size}([^0-9]|$)`}
+      )
   )`;
   return sql`(case
     when ${activeContainer('20')} then 0
@@ -546,17 +549,10 @@ async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
   return [];
 }
 
-function assertCusShipmentScope(actor: AuthUser, shipmentCustomerId: number | null) {
+async function assertCusShipmentScope(actor: AuthUser, shipment: ShipmentRow, tx: Tx) {
   if (actor.role !== Role.CUS) return;
-  if (shipmentCustomerId == null) {
-    throw new ApiError(404, 'Không tìm thấy lô hàng CUS.');
-  }
-  if (actor.customerIds?.length) {
-    if (actor.customerIds.includes(shipmentCustomerId)) return;
-    throw new ApiError(404, 'Không tìm thấy lô hàng CUS.');
-  }
-  if (actor.customerId != null && actor.customerId === shipmentCustomerId) return;
-  throw new ApiError(404, 'Không tìm thấy lô hàng CUS.');
+  const scope = await loadClerkShipmentScope(actor.userId, tx);
+  assertClerkCanAccessShipment(scope, shipment);
 }
 
 function deriveCusBucket(status: string | null, hasActiveLock: boolean): ShipmentCusBucket {
@@ -1603,7 +1599,7 @@ export async function listCusShipmentContainers(
       routeName: row.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
-      shippingLineName: trimOrNull(row.shipment.shippingLineName),
+      shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
       isCombined: row.shipment.isCombined,
       direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,
@@ -1638,6 +1634,9 @@ export async function listCusShipmentContainers(
       shipmentNotesEditable: shipmentEditable,
       carrierEditable: line.permissions.carrierEditable,
       plateEditable: line.permissions.plateEditable,
+      vehicleReadOnlyReason: line.permissions.carrierEditable || line.permissions.plateEditable
+        ? null
+        : line.fieldAccess.carrierType.reason,
       liftSiteEditable: line.permissions.liftSiteEditable,
       dropoffSiteEditable: line.permissions.dropoffSiteEditable,
       customerAppointmentEditable: line.permissions.customerAppointmentEditable,
@@ -1934,7 +1933,7 @@ export async function updateCusShipmentContainerLine(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await assertShipmentAccountingUnlocked(tx, args.shipmentId);
-    assertCusShipmentScope(args.actor, shipment.customerId);
+    await assertCusShipmentScope(args.actor, shipment, tx);
     if (shipment.version !== args.input.expectedShipmentVersion) {
       throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi cập nhật dòng container.');
     }

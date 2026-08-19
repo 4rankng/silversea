@@ -41,6 +41,7 @@ const response: ShipmentCusContainerFlatResponse = {
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
       informationStatus: 'COMPLETE', missingFields: [],
+      vehicleReadOnlyReason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.',
       raw: { containerNumber: 'CONT-001', containerTypeId: 1, cargoWeightKg: '25000', cargoVolumeCbm: '52.5' }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
@@ -58,6 +59,7 @@ const response: ShipmentCusContainerFlatResponse = {
         { code: 'DROPOFF_SITE', label: 'Điểm trả hàng' },
         { code: 'APPOINTMENT', label: 'Lịch hẹn' },
       ],
+      vehicleReadOnlyReason: null,
       raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
@@ -122,8 +124,12 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
-    const rowWarning = screen.getByText('Chưa cập nhật: Ngày vận chuyển, Điểm nhận hàng, Điểm trả hàng, Lịch hẹn');
+    const warningText = screen.getByText('Chưa cập nhật: Ngày vận chuyển, Điểm nhận hàng, Điểm trả hàng, Lịch hẹn');
+    const rowWarning = warningText.closest<HTMLElement>('.shipment-container-ledger__row-warning');
+    expect(rowWarning).toBeTruthy();
+    if (!rowWarning) throw new Error('Expected the missing-fields warning wrapper');
     expect(rowWarning.classList.contains('shipment-container-ledger__row-warning')).toBe(true);
+    expect(warningText.classList.contains('shipment-container-ledger__missing-fields-text')).toBe(true);
     expect(missingDateIdentityCell.contains(rowWarning)).toBe(true);
     expect(missingDateIdentityCell.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
@@ -207,6 +213,17 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
     expect(pendingVehicleCell?.textContent).toContain('Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.');
+  });
+
+  it('explains why a trip-bound vehicle cell is read-only', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    const vehicleCell = (await screen.findByText('30H-123.45')).closest('td');
+    expect(vehicleCell?.getAttribute('data-label')).toBe('Phân xe');
+    expect(vehicleCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(false);
+    expect(within(vehicleCell!).queryByRole('button', { name: /Chỉnh sửa phân xe CONT-001/ })).toBeNull();
+    expect(within(vehicleCell!).getByText('Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.')).toBeTruthy();
   });
 
   it('opens value-cell editors with click, Enter, and Space without pencil controls', async () => {
@@ -345,19 +362,20 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCD&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
   });
 
-  it('makes active filters legible and clears them without requiring an empty result', async () => {
+  it('keeps filter actions together and clears active filters without a redundant summary', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-15&customerId=7&direction=IMPORT&searchSuffix=abcd']}><ShipmentsDetailPage /></MemoryRouter>);
 
-    expect(await screen.findByText('Đang lọc')).toBeTruthy();
-    expect(screen.getByText(/Mã cuối: ABCD/)).toBeTruthy();
-    expect(screen.getByText(/Từ ngày: 15\/08\/2026/)).toBeTruthy();
-    expect(screen.getByText(/Khách hàng: Công ty Silver Sea/)).toBeTruthy();
-    expect(screen.getByText(/Chiều hàng: Nhập/)).toBeTruthy();
+    await screen.findByText('CONT-001');
+    const actionGroup = document.querySelector('.shipments-detail-filters__date-actions');
+    expect(actionGroup).toBeTruthy();
+    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Tất cả ngày' })).toBeTruthy();
+    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
+    expect(screen.queryByText('Đang lọc')).toBeNull();
+    expect(screen.queryByText(/Ngày vận chuyển:/)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(screen.queryByText('Đang lọc')).toBeNull();
   });
 
   it('backs the Chưa cập nhật filter in the URL and sends it only to the container endpoint', async () => {
@@ -365,14 +383,13 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter initialEntries={['/?informationStatus=MISSING']}><ShipmentsDetailPage /></MemoryRouter>);
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&informationStatus=MISSING`));
-    expect(await screen.findByText('Đang lọc')).toBeTruthy();
+    await screen.findByText('CONT-001');
     const informationSelect = await screen.findByLabelText('Thông tin');
     expect((informationSelect as HTMLSelectElement).value).toBe('MISSING');
     expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    expect(screen.queryByText('Đang lọc')).toBeNull();
   });
 
   it('ignores a malformed informationStatus value instead of sending an invalid query', async () => {
@@ -511,6 +528,36 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       expectedShipmentVersion: 7,
       customerAppointmentAt: '2026-08-22T09:30:00+07:00',
     }, { headers: { 'Idempotency-Key': expect.any(String) } }));
+  });
+
+  it('keeps shipment transport date separate from an existing container appointment', async () => {
+    const appointmentAt = '2026-08-22T03:15:00.000Z';
+    apiGet.mockResolvedValueOnce({
+      ...response,
+      items: response.items.map((row) => row.id === 12 ? { ...row, transportDate: null, customerAppointmentAt: appointmentAt } : row),
+    }).mockResolvedValueOnce({
+      ...detail,
+      containers: [{ ...detail.containers[0], customerAppointmentAt: appointmentAt }],
+    }).mockResolvedValueOnce(response);
+    apiPut.mockResolvedValueOnce({ id: 2, version: 8, changeMode: 'DIRECT', changeRequestId: null });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
+    const shipmentDate = await screen.findByLabelText('Ngày vận chuyển');
+    const appointmentDate = screen.getByLabelText('Ngày đóng hàng');
+    expect((shipmentDate as HTMLInputElement).value).toBe('');
+    expect((appointmentDate as HTMLInputElement).value).toBe('2026-08-22');
+    fireEvent.change(shipmentDate, { target: { value: '2026-08-21' } });
+    expect((appointmentDate as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Giờ đóng hàng') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByText('Lưu nhóm đang sửa trước khi đổi nhóm lịch còn lại.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', {
+      expectedVersion: 7,
+      expectedDeliveryDate: '2026-08-21',
+    }));
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('does not render a redundant customer-appointment row in the detail ledger', async () => {

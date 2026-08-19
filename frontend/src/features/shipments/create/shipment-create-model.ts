@@ -43,8 +43,8 @@ export interface ShipmentContainerDraft {
   dropoffPortId: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
-  /** Ngày giao dự kiến của riêng container này. */
-  expectedDeliveryDate: string;
+  /** Ngày giờ đóng/trả của riêng container này, entered in Vietnam local time. */
+  customerAppointmentAt: string;
 }
 
 export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
@@ -105,7 +105,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     dropoffPortId: '',
     cargoWeightKg: '',
     cargoVolumeCbm: '',
-    expectedDeliveryDate: '',
+    customerAppointmentAt: '',
   };
 }
 
@@ -250,7 +250,6 @@ export function buildShipmentRootPayload(
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
     driverNotes: [
-      form.declarationNumber ? `Số tờ khai: ${form.declarationNumber}` : '',
       form.cargoMode === 'LCL' && form.extraDeliveryDates.length > 0
         ? `Ngày giao bổ sung: ${form.extraDeliveryDates.filter(Boolean).join(', ')}`
         : '',
@@ -274,9 +273,6 @@ export function buildShipmentContainerPayload(
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
-    customerAppointmentAt: row.expectedDeliveryDate
-      // UTC noon so the calendar date survives timezone conversion on either side.
-      ? `${row.expectedDeliveryDate}T12:00:00.000Z`
-      : null,
+    customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),
   }));
 }

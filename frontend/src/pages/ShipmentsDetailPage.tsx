@@ -34,7 +34,7 @@ import {
   type ShipmentScheduleDraft,
   type ShipmentVehicleDraft,
 } from '../features/shipments/detail/ShipmentContainerLedger';
-import { formatVietnamDateInput, localDateTimeToIso } from '../lib/shipment-operations';
+import { formatVietnamDateInput, formatVietnamDateTimeInput, localDateTimeToIso } from '../lib/shipment-operations';
 import './ShipmentsDetailPage.css';
 
 const PAGE_SIZE = 20;
@@ -67,7 +67,7 @@ function canEditMode(
   if (mode === 'container') return ['containerNumber', 'containerTypeId', 'cargoWeightKg', 'cargoVolumeCbm'].some((field) => line.fieldAccess[field as 'containerNumber'].mode !== 'READ_ONLY');
   if (mode === 'route') return line.permissions.liftSiteEditable || line.permissions.dropoffSiteEditable;
   if (mode === 'vehicle') return line.permissions.carrierEditable || line.permissions.plateEditable;
-  if (mode === 'schedule') return line.permissions.customerAppointmentEditable;
+  if (mode === 'schedule') return detail.summary.operational.transportDateEditable || line.permissions.customerAppointmentEditable;
   return ['customerNotes', 'operationalNotes'].some((field) => detail.summary.fieldAccess[field as 'customerNotes'].mode !== 'READ_ONLY');
 }
 
@@ -197,19 +197,6 @@ export default function ShipmentsDetailPage() {
   const totalContainers = data?.total ?? 0;
   const customers = data?.filterOptions.customers ?? [];
   const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || informationStatus);
-  const activeFilterSummary = [
-    informationStatus ? 'Chưa cập nhật' : null,
-    suffixParam ? `Mã cuối: ${suffixParam}` : null,
-    dateFrom && dateTo
-      ? `Ngày vận chuyển: ${dateFrom.split('-').reverse().join('/')} – ${dateTo.split('-').reverse().join('/')}`
-      : dateFrom
-        ? `Từ ngày: ${dateFrom.split('-').reverse().join('/')}`
-        : dateTo
-          ? `Đến ngày: ${dateTo.split('-').reverse().join('/')}`
-          : null,
-    customerId ? `Khách hàng: ${customers.find((customer) => customer.id === customerId)?.name ?? `#${customerId}`}` : null,
-    direction ? `Chiều hàng: ${direction === 'IMPORT' ? 'Nhập' : 'Xuất'}` : null,
-  ].filter((summary): summary is string => Boolean(summary));
 
   const resetFilters = () => {
     appliedSearchRef.current = '';
@@ -432,14 +419,30 @@ export default function ShipmentsDetailPage() {
   const saveSchedule = useCallback(async (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const appointmentAt = draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null;
-    const signature = JSON.stringify(['schedule', activeEdit.detail.summary.id, line.id, line.shipmentVersion, appointmentAt]);
+    const currentAppointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
+    const transportChanged = draft.transportDate !== row.transportDate;
+    const appointmentChanged = draft.customerAppointmentAt !== currentAppointmentInput;
+    if (transportChanged && appointmentChanged) {
+      throw new Error('Ngày vận chuyển và lịch hẹn được lưu độc lập. Hãy lưu từng nhóm một.');
+    }
+    const signature = JSON.stringify(['schedule', activeEdit.detail.summary.id, line.id, line.shipmentVersion, draft.transportDate, appointmentAt]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     editIdempotencyKeys.current[signature] = key;
     try {
-      await updateCusShipmentContainerLine(row.shipmentId, line.id, {
-        expectedShipmentVersion: line.shipmentVersion,
-        customerAppointmentAt: appointmentAt,
-      }, key);
+      let expectedShipmentVersion = line.shipmentVersion;
+      if (transportChanged) {
+        const updated = await updateShipment(row.shipmentId, {
+          expectedVersion: expectedShipmentVersion,
+          expectedDeliveryDate: draft.transportDate,
+        });
+        expectedShipmentVersion = updated.version;
+      }
+      if (appointmentChanged) {
+        await updateCusShipmentContainerLine(row.shipmentId, line.id, {
+          expectedShipmentVersion,
+          customerAppointmentAt: appointmentAt,
+        }, key);
+      }
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 409) throw error;
       delete editIdempotencyKeys.current[signature];
@@ -485,13 +488,8 @@ export default function ShipmentsDetailPage() {
             <div className="shipments-detail-filters__date-actions">
               {(dateFrom !== today || dateTo !== today) && <UUIButton size="xs" color="secondary" onPress={showToday}>Về hôm nay</UUIButton>}
               {!allDates && <UUIButton size="xs" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
+              {hasFilters && <UUIButton size="xs" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>}
             </div>
-            {hasFilters && (
-              <div className="shipments-detail-filters__meta">
-                <p role="status" aria-live="polite"><span>Đang lọc</span>{activeFilterSummary.join(' · ')}</p>
-                <UUIButton size="xs" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>
-              </div>
-            )}
           </div>
         </div>
 

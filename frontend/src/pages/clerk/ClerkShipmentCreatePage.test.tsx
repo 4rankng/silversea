@@ -304,13 +304,13 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.queryByLabelText('Thể tích (m³)')).toBeNull();
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
-    fireEvent.change(screen.getByLabelText('Lịch hẹn giao cont (nếu khác)'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '2026-08-20T09:30' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
-    expect(screen.getAllByLabelText('Lịch hẹn giao cont (nếu khác)').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20', '2026-08-20']);
+    expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30']);
   });
 
   it('adds the requested number of container rows with a default of one', async () => {
@@ -318,7 +318,7 @@ describe('ClerkShipmentCreatePage', () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
-    fireEvent.change(screen.getByLabelText('Lịch hẹn giao cont (nếu khác)'), { target: { value: '2026-08-20' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '2026-08-20T09:30' } });
 
     const addCount = screen.getByRole('spinbutton', { name: 'Số container cần thêm' });
     expect((addCount as HTMLInputElement).value).toBe('1');
@@ -327,7 +327,7 @@ describe('ClerkShipmentCreatePage', () => {
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000', '12000', '12000']);
-    expect(screen.getAllByLabelText('Lịch hẹn giao cont (nếu khác)').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20', '2026-08-20', '2026-08-20', '2026-08-20']);
+    expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30', '2026-08-20T09:30', '2026-08-20T09:30']);
 
     fireEvent.change(addCount, { target: { value: '0' } });
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
@@ -346,7 +346,7 @@ describe('ClerkShipmentCreatePage', () => {
       'Cảng nâng',
       'Cảng hạ',
       'Trọng lượng (kg)',
-      'Lịch hẹn giao cont',
+      'Ngày giờ đóng trả',
       'Thao tác',
     ]);
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
@@ -383,12 +383,12 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Cảng nâng', '21');
     await choose('Cảng hạ', '22');
     fireEvent.change(screen.getByLabelText('Ngày điều xe dự kiến'), { target: { value: '2026-08-14' } });
-    fireEvent.change(screen.getByLabelText('Lịch hẹn giao cont (nếu khác)'), { target: { value: '2026-08-15' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '2026-08-15T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
       containers: [expect.objectContaining({
         containerNumber: null,
-        customerAppointmentAt: '2026-08-15T12:00:00.000Z',
+        customerAppointmentAt: '2026-08-15T09:30:00+07:00',
       })],
     })));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
