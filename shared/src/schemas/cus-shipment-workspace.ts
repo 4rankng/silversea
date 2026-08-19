@@ -202,11 +202,11 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   dropoffSiteNames: z.array(z.string()),
   customerAppointmentAts: z.array(z.string().datetime()),
   // Per-appointment container groups for the "Lịch trình & điều xe" cell: one
-  // entry per distinct (local date, factory), with a container-type summary
-  // ("2x20HC + 1x40HC") so a multi-factory lot whose containers close/return
-  // on different days at different factories shows each group on its own
-  // line. `factoryName` is the effective factory label (container site →
-  // shipment site → factory text); null groups with the shipment default.
+  // entry per distinct (datetime, factory), with a container-type summary
+  // ("2x20HC + 1x40HC") so every container close/return time remains visible
+  // even when multiple containers share a factory and calendar date.
+  // `factoryName` is the effective factory label (container site → shipment
+  // site → factory text); null groups use the shipment default.
   appointmentGroups: z.array(z.object({
     at: z.string().datetime(),
     localDate: z.string(),

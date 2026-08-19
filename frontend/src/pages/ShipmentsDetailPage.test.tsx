@@ -394,7 +394,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&informationStatus=MISSING`));
     await screen.findByText('CONT-001');
-    const informationSelect = await screen.findByLabelText('Thông tin');
+    const informationSelect = await screen.findByLabelText('Trạng thái dữ liệu');
     expect((informationSelect as HTMLSelectElement).value).toBe('MISSING');
     expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThanOrEqual(1);
 

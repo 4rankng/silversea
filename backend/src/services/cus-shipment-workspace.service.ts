@@ -588,13 +588,13 @@ function buildContainerSummary(rows: ContainerRow[], packageCount: number | null
 }
 
 /**
- * Group a lot's containers by (Asia/Ho_Chi_Minh local date, effective
- * factory) so the "Lịch trình & điều xe" cell can show every close/return
- * group on its own line ("25/08/2026 · Sunrise · 1x40HC"). Factory resolves
- * through the SILVER L1 precedence chain (container site → shipment site →
- * shipment factory text). Containers without an appointment are skipped;
- * groups are ordered earliest-first, then factory name. Legacy noon-UTC
- * date-only encodings cast to their stored calendar date.
+ * Group a lot's containers by (appointment instant, effective factory) so the
+ * "Lịch trình & điều xe" cell can show every close/return time on its own
+ * line ("09:00 25/08/2026 · Sunrise · 1x40HC"). Factory resolves through the
+ * SILVER L1 precedence chain (container site → shipment site → shipment
+ * factory text). Containers without an appointment are skipped; groups are
+ * ordered earliest-first, then factory name. Legacy noon-UTC date-only
+ * encodings retain their stored calendar date.
  */
 function buildAppointmentGroups(
   containers: ContainerRow[],
@@ -614,20 +614,17 @@ function buildAppointmentGroups(
           ?? trimOrNull(shipment.factoryName)
           ?? null
         : trimOrNull(shipment.factoryName) ?? null;
-    // Group anchor keeps the earliest instant within the bucket so distinct
-    // times at the same (date, factory) merge into one line.
     const at = container.customerAppointmentAt.toISOString();
-    const key = `${localDate}|${factoryName ?? ''}`;
+    const key = `${at}|${factoryName ?? ''}`;
     const entry = byKey.get(key);
     if (entry) {
       entry.group.push(container);
-      if (at < entry.at) entry.at = at;
     } else {
       byKey.set(key, { at, localDate, factoryName, group: [container] });
     }
   }
   return Array.from(byKey.values())
-    .sort((a, b) => a.localDate.localeCompare(b.localDate)
+    .sort((a, b) => a.at.localeCompare(b.at)
       || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''))
     .map(({ at, localDate, factoryName, group }) => ({
       at,
@@ -1638,7 +1635,8 @@ export async function listCusShipmentContainers(
         .where(and(...conditions))
         .orderBy(
           asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
-          asc(containerTransportDateSql()),
+          sql`coalesce(${containerTransportDateSql()}, ${s.shipments.createdAt}) desc`,
+          cargoRankSql(),
           desc(s.shipments.createdAt),
           asc(s.shipmentContainers.id),
         )

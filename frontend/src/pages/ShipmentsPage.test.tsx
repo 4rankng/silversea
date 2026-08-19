@@ -65,7 +65,7 @@ const row: ShipmentCusWorkspaceListItem = {
   effectiveFactoryNames: ['Nhà máy ABC'],
   appointmentGroups: [
     { at: new Date(2026, 7, 12, 9, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', containerSummary: '1x40HC' },
-    { at: new Date(2026, 8, 1, 16, 30).toISOString(), localDate: '2026-09-01', factoryName: 'Nhà máy ABC', containerSummary: '1x20GP' },
+    { at: new Date(2026, 7, 12, 16, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', containerSummary: '1x20GP' },
   ],
   carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
   customerNotes: 'Giao buổi sáng',
@@ -315,7 +315,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Per-container appointment groups: one line per distinct close/return
     // datetime, with the container-type mix of that group.
     expect(surface.getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
-    expect(surface.getByText('16:30 1/9/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
+    expect(surface.getByText('16:30 12/8/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Xem chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
@@ -325,6 +325,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
     expect(within(dialog).getByRole('article', { name: 'MSKU1234567' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+  });
+
+  it('does not repeat the shipment-level closing or return date before container appointments', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
+    renderPage();
+
+    const scheduleButton = await screen.findByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
+    const scheduleCell = scheduleButton.closest('td');
+    expect(scheduleCell).toBeTruthy();
+    expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
+    expect(within(scheduleCell!).getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
   });
 
   it('shows the actual ready-for-dispatch status instead of the generic new bucket label', async () => {

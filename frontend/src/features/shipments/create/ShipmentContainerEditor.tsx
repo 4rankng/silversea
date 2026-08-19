@@ -23,6 +23,17 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
       <div className="csc-container-table-scroll">
         <table className="csc-container-table">
           <caption className="sr-only">Danh sách container</caption>
+          <colgroup>
+            <col className="csc-container-col__index" />
+            <col className="csc-container-col__number" />
+            <col className="csc-container-col__type" />
+            <col className="csc-container-col__pickup-port" />
+            <col className="csc-container-col__dropoff-port" />
+            <col className="csc-container-col__factory" />
+            <col className="csc-container-col__weight" />
+            <col className="csc-container-col__appointment" />
+            <col className="csc-container-col__actions" />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">STT</th>

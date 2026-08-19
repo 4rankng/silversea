@@ -1011,7 +1011,7 @@ export default function ShipmentsPage() {
                             aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
                             onClick={() => startQuickEdit(item, 'schedule')}
                           >
-                            <strong className={waitingSchedule ? 'cus-schedule-missing' : undefined}>{waitingSchedule ? 'Chưa chốt ngày' : formatDate(item.transportDate)}</strong>
+                            {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
                             {item.appointmentGroups.map((group) => (
                               <span key={group.at}>{formatAppointmentGroupLine(group.at)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
                             ))}

@@ -38,11 +38,16 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-control-boundary :where\(input, select, textarea\):focus-visible\s*\{[^}]*outline:\s*none;[^}]*outline-offset:\s*0;/);
   });
 
-  it('keeps container fields shrinkable inside the page workspace', () => {
+  it('sizes the desktop grid from expected values instead of stretching columns across the page', () => {
     expect(source).toContain('className="csc-container-row"');
     expect(containerEditorSource).toContain('className="csc-container-table"');
-    expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*table-layout:\s*fixed;/);
+    expect(containerEditorSource).toContain('<colgroup>');
+    expect(containerEditorSource.match(/<col className="csc-container-col__/g)).toHaveLength(9);
+    expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-type:\s*inline-size;[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*1152px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*104px;/);
+    expect(css).toMatch(/\.csc-container-col__appointment\s*\{[^}]*width:\s*168px;/);
+    expect(css).not.toMatch(/\.csc-container-table thead th:nth-child\([^)]*\)\s*\{[^}]*width:\s*\d+%;/);
     expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
   });
@@ -62,7 +67,7 @@ describe('shipment create responsive layout', () => {
     expect(containerEditorSource).toContain('<th scope="col">Số container</th>');
     expect(containerEditorSource).toContain('<th scope="col">Ngày giờ đóng trả</th>');
     expect(source).toContain('hideLabel');
-    expect(css).toMatch(/@media\s*\(max-width:\s*1100px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    expect(css).toMatch(/@container\s*\(max-width:\s*1179px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
     expect(css).toMatch(
       /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
     );

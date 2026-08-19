@@ -657,9 +657,32 @@ describe('Overview operational priority ordering', () => {
     assert.deepEqual(pages.map((page) => page.total), [5, 5, 5]);
   });
 
+  test('container workboard mirrors the overview priority queue per container row', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const route = await seedRoute();
+    const base = Date.now();
+    const schedOld = await seedShipment({ blNumber: `DSO-${marker}`, expectedDeliveryDate: '2026-07-01', cargoMode: 'FCL', createdAt: new Date(base - 86400000 * 2) });
+    const schedNew = await seedShipment({ blNumber: `DSN-${marker}`, expectedDeliveryDate: '2026-08-18', cargoMode: 'FCL', createdAt: new Date(base - 86400000) });
+    const cont20 = await seedShipment({ blNumber: `D20-${marker}`, expectedDeliveryDate: '2026-08-18', cargoMode: 'FCL', routeId: route.id });
+    const cont40 = await seedShipment({ blNumber: `D40-${marker}`, expectedDeliveryDate: '2026-08-18', cargoMode: 'FCL', routeId: route.id });
+    const lcl = await seedShipment({ blNumber: `DLC-${marker}`, expectedDeliveryDate: '2026-08-18', cargoMode: 'LCL' });
+    const unschedNew = await seedShipment({ blNumber: `DUN-${marker}`, cargoMode: 'FCL', createdAt: new Date(base) });
+    await seedContainer(schedOld.id, { containerNumber: `DSO-${marker}`.slice(0, 50) });
+    await seedContainer(schedNew.id, { containerNumber: `DSN-${marker}`.slice(0, 50) });
+    await seedContainer(cont20.id, { containerNumber: `D20-${marker}`.slice(0, 50), containerTypeId: containerType20Id });
+    await seedContainer(cont40.id, { containerNumber: `D40-${marker}`.slice(0, 50), containerTypeId });
+    await seedContainer(lcl.id, { containerNumber: `DLC-${marker}`.slice(0, 50), containerTypeId: null });
+    await seedContainer(unschedNew.id, { containerNumber: `DUN-${marker}`.slice(0, 50) });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const ids = response.items.map((row) => row.shipmentId);
+
+    assert.deepEqual(ids, [unschedNew.id, cont20.id, cont40.id, schedNew.id, lcl.id, schedOld.id]);
+  });
+
   // ── SILVER L1 P3: factory-aware groups, multi-factory display, edit routing ──
 
-  test('appointment groups carry factory identity and local dates (SILVER L1)', async () => {
+  test('appointment groups preserve every distinct close/return datetime and factory (SILVER L1)', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const [factoryA] = await db.insert(s.operationalSites).values({
       customerId,
@@ -686,11 +709,18 @@ describe('Overview operational priority ordering', () => {
       expectedDeliveryDate: '2026-08-24',
       status: 'PENDING_DATE',
     });
-    // Two factories, two days: 2026-08-24T04:00Z = 24/08 local; 2026-08-25T20:00Z = 26/08 local.
+    // Two appointments at one factory on the same local date must remain two
+    // separate dispatch lines; the third appointment exercises factory and
+    // date ordering too.
     await seedContainer(shipment.id, {
       containerNumber: `WSGA-${marker}`,
       operationalSiteId: factoryA.id,
       customerAppointmentAt: new Date('2026-08-24T04:00:00.000Z'),
+    });
+    await seedContainer(shipment.id, {
+      containerNumber: `WSGA2-${marker}`,
+      operationalSiteId: factoryA.id,
+      customerAppointmentAt: new Date('2026-08-24T10:00:00.000Z'),
     });
     await seedContainer(shipment.id, {
       containerNumber: `WSGB-${marker}`,
@@ -703,12 +733,14 @@ describe('Overview operational priority ordering', () => {
     assert.ok(item, 'seeded shipment should appear in the CUS workspace list');
 
     assert.deepEqual(item.appointmentGroups.map((group) => ({
+      at: group.at,
       localDate: group.localDate,
       factoryName: group.factoryName,
     })), [
-      { localDate: '2026-08-24', factoryName: `NM A ${marker}` },
-      { localDate: '2026-08-26', factoryName: `NM B ${marker}` },
-    ], 'groups must be keyed by local date + factory, earliest first');
+      { at: '2026-08-24T04:00:00.000Z', localDate: '2026-08-24', factoryName: `NM A ${marker}` },
+      { at: '2026-08-24T10:00:00.000Z', localDate: '2026-08-24', factoryName: `NM A ${marker}` },
+      { at: '2026-08-25T20:00:00.000Z', localDate: '2026-08-26', factoryName: `NM B ${marker}` },
+    ], 'groups must be keyed by appointment datetime + factory, earliest first');
 
     assert.deepEqual(item.effectiveFactoryNames, [`NM A ${marker}`, `NM B ${marker}`],
       'multi-factory lots show every distinct factory, never a false single factory');

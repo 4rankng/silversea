@@ -54,25 +54,39 @@
 .csc-mode input:checked + span::before { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 4px var(--surface); }
 .csc-mode input:focus-visible + span { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
 .csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: end; gap: 12px; min-width: 0; }
-.csc-container-editor { display: grid; width: 100%; min-width: 0; gap: 12px; }
-.csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-table-scroll { width: min(100%, 1154px); min-width: 0; overflow-x: auto; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+.csc-container-table { width: 1152px; min-width: 0; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-col__index { width: 44px; }
+.csc-container-col__number { width: 132px; }
+.csc-container-col__type { width: 144px; }
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port { width: 176px; }
+.csc-container-col__factory { width: 160px; }
+.csc-container-col__weight { width: 104px; }
+.csc-container-col__appointment { width: 168px; }
+.csc-container-col__actions { width: 48px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
 .csc-container-table tbody tr:last-child > * { border-bottom: 0; }
 .csc-container-table thead th { padding: 8px 6px; background: var(--surface-2); color: var(--fg-2); font-size: 12px; font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
 .csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
-.csc-container-table thead th:nth-child(1) { width: 48px; }
-.csc-container-table thead th:nth-child(2) { width: 14%; }
-.csc-container-table thead th:nth-child(3) { width: 16%; }
-.csc-container-table thead th:nth-child(4), .csc-container-table thead th:nth-child(5) { width: 17%; }
-.csc-container-table thead th:nth-child(6) { width: 13%; }
-.csc-container-table thead th:nth-child(7) { width: 17%; }
-.csc-container-table thead th:nth-child(8) { width: 50px; }
 .csc-container-table tbody th, .csc-container-table tbody td { padding: 8px 6px; background: var(--surface); vertical-align: top; }
 .csc-container-table tbody th { color: var(--fg-3); font-size: 12px; text-align: center; }
+.csc-container-table tbody .csc-container-cell { padding: 0; vertical-align: middle; }
 .csc-container-table td:not(.csc-container-row__actions) > * { min-width: 0; }
 .csc-container-table select { width: 100%; min-width: 0; max-width: 100%; }
+.csc-container-cell { cursor: text; }
+.csc-container-cell__value { position: relative; min-width: 0; min-height: var(--control-touch-h, 44px); }
+.csc-container-cell__display { position: absolute; z-index: 1; inset: 0; display: flex; min-width: 0; align-items: center; padding: 0 10px; overflow: hidden; color: var(--fg-1); font-size: 13px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.csc-container-cell__display--empty { color: var(--fg-3); }
+.csc-container-cell--numeric .csc-container-cell__display { justify-content: flex-end; text-align: right; }
+.csc-container-cell__editor { position: relative; z-index: 2; display: flex; min-width: 0; min-height: var(--control-touch-h, 44px); align-items: center; }
+.csc-container-cell__editor > * { width: 100%; opacity: 0; }
+.csc-container-cell:focus-within .csc-container-cell__display { opacity: 0; }
+.csc-container-cell:focus-within .csc-container-cell__editor > * { opacity: 1; }
+.csc-container-cell:not(:focus-within):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+.csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
+.csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: 12px; line-height: 1.35; }
 .csc-container-row__mobile-index { display: none; }
 .csc-container-row__actions { text-align: center; }
 .csc-combined-toggle { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 38px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
@@ -169,16 +183,10 @@
     scrollbar-gutter: stable;
   }
 }
-@media (max-width: 1100px) {
-  /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
-     form should spend its own padding inside sections, not duplicate it. */
-  .csc-page { padding-inline: 0; }
-  .csc-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .csc-identity-grid > * { grid-column: auto; }
-  .csc-identity-grid__customer { grid-column: 1 / -1; }
-  .csc-container-table-scroll { overflow: visible; border: 0; border-radius: 0; background: transparent; }
-  .csc-container-table, .csc-container-table tbody { display: block; min-width: 0; background: transparent; }
-  .csc-container-table thead { display: none; }
+@container (max-width: 1179px) {
+  .csc-container-table-scroll { width: 100%; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .csc-container-table, .csc-container-table tbody { display: block; width: 100%; min-width: 0; background: transparent; }
+  .csc-container-table thead, .csc-container-table colgroup { display: none; }
   .csc-container-table tbody { display: grid; gap: 10px; }
   .csc-container-row { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding: 12px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); }
   .csc-container-table .csc-container-row > * { display: block; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; }
@@ -188,6 +196,14 @@
   .csc-container-row td[data-label]::before { display: block; margin-bottom: 5px; color: var(--fg-2); content: attr(data-label); font-size: 12px; font-weight: 700; line-height: 1.35; }
   .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
   .csc-container-row__actions .csc-icon-button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 1100px) {
+  /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
+     form should spend its own padding inside sections, not duplicate it. */
+  .csc-page { padding-inline: 0; }
+  .csc-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .csc-identity-grid > * { grid-column: auto; }
+  .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 14px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; margin: -14px -14px 0; padding: 12px 14px; border-radius: 9px 9px 0 0; }.csc-mode legend, .csc-mode__option { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }

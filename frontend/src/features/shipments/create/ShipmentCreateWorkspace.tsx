@@ -31,6 +31,7 @@ import {
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
+import { ShipmentContainerCell } from './ShipmentContainerCell';
 import { ShippingLineAddDialog } from './ShippingLineAddDialog';
 import { RouteCreateDialog } from './RouteCreateDialog';
 import type { Route } from '@tingting/shared';
@@ -45,6 +46,20 @@ const EMPTY_FORM = EMPTY_SHIPMENT_CREATE_FORM;
 const newContainer = createEmptyContainer;
 
 const gridStyle = shipmentCreateGridStyle;
+
+function formatContainerWeight(value: string) {
+  if (!value.trim()) return '';
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return value;
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(parsed);
+}
+
+function formatContainerAppointment(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) return value;
+  const [, year, month, day, hour, minute] = match;
+  return `${day}/${month}/${year} ${hour}:${minute}`;
+}
 
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
@@ -458,22 +473,83 @@ export function ShipmentCreateWorkspace() {
                   }),
                 ];
               })}
-              rows={<>{containers.map((row, index) => (
+              rows={<>{containers.map((row, index) => {
+                const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
+                const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
+                const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
+                const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
+                return (
                 <tr key={row.key} className="csc-container-row">
                   <th scope="row" className="csc-container-row__index">
                     <span className="csc-container-row__desktop-index">{index + 1}</span>
                     <span className="csc-container-row__mobile-index">Container {index + 1}</span>
                   </th>
-                  <td data-label="Số container" data-field-id={`container-${row.key}-number`}><TextField id={`container-${row.key}-number`} label="Số container" hideLabel value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-number`)} /></td>
-                  <td data-label="Loại container *" data-field-id={`container-${row.key}-type`}><SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} /></td>
-                  <td data-label="Cảng nâng" data-field-id={`container-${row.key}-pickup-port`}><SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} /></td>
-                  <td data-label="Cảng hạ" data-field-id={`container-${row.key}-dropoff-port`}><SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} /></td>
-                  <td data-label="Nhà máy" data-field-id={`container-${row.key}-factory`}><SearchableField id={`container-${row.key}-factory`} label="Nhà máy" hideLabel value={row.operationalSiteId} onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)} options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))} placeholder="Chọn nhà máy" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-factory`)} /></td>
-                  <td data-label="Trọng lượng (kg)"><TextField label="Trọng lượng (kg)" hideLabel type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} /></td>
-                  <td data-label="Ngày giờ đóng trả"><TextField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel type="datetime-local" value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} /></td>
+                  <ShipmentContainerCell
+                    label="Số container"
+                    value={row.containerNumber}
+                    placeholder="Nhập số container"
+                    fieldId={`container-${row.key}-number`}
+                    error={issueByField.get(`container-${row.key}-number`)}
+                    onRevert={(value) => updateContainer(row.key, 'containerNumber', value)}
+                  >
+                    <TextField id={`container-${row.key}-number`} label="Số container" hideLabel value={row.containerNumber} onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-number`)} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Loại container *"
+                    value={containerType ? `${containerType.code} — ${containerType.name}` : ''}
+                    placeholder="Chọn loại"
+                    fieldId={`container-${row.key}-type`}
+                    error={issueByField.get(`container-${row.key}-type`)}
+                  >
+                    <SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Cảng nâng"
+                    value={pickupPort?.name ?? ''}
+                    placeholder="Chọn cảng nâng"
+                    fieldId={`container-${row.key}-pickup-port`}
+                    error={issueByField.get(`container-${row.key}-pickup-port`)}
+                  >
+                    <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Cảng hạ"
+                    value={dropoffPort?.name ?? ''}
+                    placeholder="Chọn cảng hạ"
+                    fieldId={`container-${row.key}-dropoff-port`}
+                    error={issueByField.get(`container-${row.key}-dropoff-port`)}
+                  >
+                    <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Nhà máy"
+                    value={factory?.shortName || factory?.name || ''}
+                    placeholder="Chọn nhà máy"
+                    fieldId={`container-${row.key}-factory`}
+                    error={issueByField.get(`container-${row.key}-factory`)}
+                  >
+                    <SearchableField id={`container-${row.key}-factory`} label="Nhà máy" hideLabel value={row.operationalSiteId} onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)} options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))} placeholder="Chọn nhà máy" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-factory`)} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Trọng lượng (kg)"
+                    value={formatContainerWeight(row.cargoWeightKg)}
+                    placeholder="Nhập kg"
+                    className="csc-container-cell--numeric"
+                    onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
+                  >
+                    <TextField label="Trọng lượng (kg)" hideLabel type="number" min="0" step="0.01" value={row.cargoWeightKg} onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)} disabled={Boolean(saving)} />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Ngày giờ đóng trả"
+                    value={formatContainerAppointment(row.customerAppointmentAt)}
+                    placeholder="Chọn ngày giờ"
+                    onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
+                  >
+                    <TextField id={`container-${row.key}-customer-appointment`} label="Ngày giờ đóng trả" hideLabel type="datetime-local" value={row.customerAppointmentAt} onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)} disabled={Boolean(saving)} />
+                  </ShipmentContainerCell>
                   <td className="csc-container-row__actions">{containers.length > 1 && <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa container ${index + 1}`} onClick={() => removeContainer(row)}><Trash2 size={18} aria-hidden="true" /></button>}</td>
                 </tr>
-              ))}</>}
+              );})}</>}
             />
           ) : (
             <div style={{ display: 'grid', gap: 12 }}>

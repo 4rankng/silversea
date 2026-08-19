@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
@@ -311,6 +311,88 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
     expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
     expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30']);
+  });
+
+  it('shows a resting container value as table text and activates its editor from the full cell', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    const input = screen.getByLabelText('Số container') as HTMLInputElement;
+    const cell = input.closest('td');
+    expect(cell).not.toBeNull();
+    expect(within(cell!).getByText('Nhập số container')).toBeTruthy();
+
+    fireEvent.click(cell!);
+    expect(input).toHaveFocus();
+
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    fireEvent.blur(input);
+    expect(within(cell!).getByText('MSCU6639870')).toBeTruthy();
+  });
+
+  it('restores the value that a container text cell had when Escape cancels editing', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    const input = screen.getByLabelText('Số container') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    fireEvent.blur(input);
+
+    act(() => input.focus());
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: 'MSCU0000000' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(input.value).toBe('MSCU6639870');
+    expect(input).not.toHaveFocus();
+  });
+
+  it('commits a container text cell and returns to display mode on Enter', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    const input = screen.getByLabelText('Số container') as HTMLInputElement;
+    const cell = input.closest('td');
+    act(() => input.focus());
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: 'MSCU6639870' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(input.value).toBe('MSCU6639870');
+    expect(input).not.toHaveFocus();
+    expect(within(cell!).getByText('MSCU6639870')).toBeTruthy();
+  });
+
+  it('renders every populated container field as a compact localized table value', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    await choose('Khách hàng', '7');
+    await choose('Loại container', '31');
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
+    const table = screen.getByRole('table', { name: 'Danh sách container' });
+    const row = within(table).getAllByRole('row')[1];
+    const factory = within(row).getByRole('combobox', { name: 'Nhà máy' });
+    fireEvent.focus(factory);
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    const factoryOption = await waitFor(() => {
+      const match = document.querySelector<HTMLElement>('[role="option"][id$="-option-41"]');
+      if (!match) throw new Error('Không tìm thấy nhà máy 41');
+      return match;
+    });
+    fireEvent.click(factoryOption);
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000.5' } });
+    fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '2026-08-20T09:30' } });
+    fireEvent.blur(screen.getByLabelText('Ngày giờ đóng trả'));
+
+    const displayedValue = (text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
+    expect(displayedValue('40HC — Container 40 feet cao')).toBeTruthy();
+    expect(displayedValue('Cảng Cát Lái')).toBeTruthy();
+    expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
+    expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
+    expect(displayedValue('12.000,5')).toBeTruthy();
+    expect(displayedValue('20/08/2026 09:30')).toBeTruthy();
   });
 
   it('adds the requested number of container rows with a default of one', async () => {

@@ -849,7 +849,6 @@
 
 .zone-presence-panel__plate {
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .zone-presence-panel__tag {
@@ -866,7 +865,6 @@
   font-size: var(--fs-xs, 12px);
   font-weight: 600;
   color: var(--text-tertiary, #667085);
-  font-variant-numeric: tabular-nums;
 }
 
 /* Mobile: chips scroll horizontally instead of wrapping tall. */
