@@ -1,29 +1,14 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot,
-  Eye,
-  EyeOff,
-  Loader2,
-  Mail,
-  MapPin,
-  Save,
-  ScanLine,
-  ShieldCheck,
-  Trash2,
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import {
-  LLM_PROVIDERS,
-  LLM_PROVIDER_LABELS,
   LLM_PROVIDER_MODELS,
   type AppSettings,
   type LlmProvider,
   type LlmSettingsUpdate,
   type OcrSettingsUpdate,
 } from '@tingting/shared';
-import { PageHeader, Panel, useConfirm } from '../../components/UI';
-import { formatCurrency } from '../../lib/format';
+import { useNavigate } from 'react-router-dom';
+import { PageHeader, useConfirm } from '../../components/UI';
 import {
   useAppSettings,
   useEmailSettings,
@@ -41,210 +26,20 @@ import { usePageAnimations } from '../../hooks/animations';
 import { userClient } from '../../api/userClient';
 import { qk } from '../../api/keys';
 import { isGovernancePendingResponse } from '../../lib/governance';
-import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { FinancePolicySection, type FinanceTab } from '../../features/app-settings/FinancePolicySection';
+import { OperationalPolicySection } from '../../features/app-settings/OperationalPolicySection';
+import { LlmSection } from '../../features/app-settings/LlmSection';
+import { OcrSection } from '../../features/app-settings/OcrSection';
+import { EmailSection } from '../../features/app-settings/EmailSection';
+import { GpsSection } from '../../features/app-settings/GpsSection';
+import {
+  formatViMonth,
+  fromThresholdPercent,
+  percentInputToNumber,
+  ratioToPercentInput,
+  toThresholdPercent,
+} from '../../features/app-settings/formatters';
 import './config-page.css';
-
-type FeatureSwitchProps = {
-  icon: ReactNode;
-  label: string;
-  description: string;
-  enabled: boolean;
-  onChange: () => void;
-  disabled: boolean;
-};
-
-function FeatureSwitch({ icon, label, description, enabled, onChange, disabled }: FeatureSwitchProps) {
-  const descriptionId = useId();
-
-  return (
-    <div className="cfg-section cfg-feature">
-      <button
-        type="button"
-        className="cfg-feature__button"
-        role="switch"
-        aria-checked={enabled}
-        aria-describedby={descriptionId}
-        disabled={disabled}
-        onClick={onChange}
-      >
-        <span className="cfg-feature__icon" aria-hidden="true">{icon}</span>
-        <span className="cfg-feature__copy">
-          <span className="cfg-feature__label">{label}</span>
-          <span id={descriptionId} className="cfg-feature__description">{description}</span>
-          <span className="cfg-feature__state">{enabled ? 'Đang bật' : 'Đang tắt'}</span>
-        </span>
-        <span className={`cfg-toggle ${enabled ? 'is-on' : ''}`} aria-hidden="true">
-          <span className="cfg-toggle-knob" />
-        </span>
-      </button>
-    </div>
-  );
-}
-
-function toThresholdPercent(value: number): string {
-  return Number.isFinite(value) ? String(Math.round(value * 10000) / 100) : '80';
-}
-
-function fromThresholdPercent(value: string): number | null {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const ratio = parsed / 100;
-  if (ratio < 0.01 || ratio > 0.99) return null;
-  return Math.round(ratio * 10000) / 10000;
-}
-
-type SecretFieldProps = {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  saved: boolean;
-  maskedPreview: string;
-  placeholder: string;
-  disabled?: boolean;
-};
-
-function SecretField({
-  id,
-  label,
-  value,
-  onChange,
-  saved,
-  maskedPreview,
-  placeholder,
-  disabled = false,
-}: SecretFieldProps) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="field cfg-secret-field">
-      <label htmlFor={id}>
-        {label}
-        {saved && <span className="cfg-section__heading-pill">Đã lưu</span>}
-      </label>
-      <div className="cfg-secret-input">
-        <input
-          id={id}
-          className="input"
-          type={visible ? 'text' : 'password'}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={saved ? `Đã lưu (${maskedPreview}) — nhập để thay đổi` : placeholder}
-          autoComplete="new-password"
-          spellCheck={false}
-          disabled={disabled}
-        />
-        <button
-          type="button"
-          className="cfg-secret-input__toggle"
-          onClick={() => setVisible((current) => !current)}
-          aria-label={visible ? `Ẩn ${label}` : `Hiện ${label}`}
-          disabled={disabled}
-        >
-          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-        </button>
-      </div>
-      <p className="cfg-field-hint">
-        {saved
-          ? 'Để trống để giữ giá trị hiện tại. Nhập giá trị mới để thay thế.'
-          : 'Chưa cấu hình. Vui lòng nhập giá trị để kết nối.'}
-      </p>
-    </div>
-  );
-}
-
-type FinanceTab = 'policy' | 'truck';
-
-function formatViDate(value: string): string {
-  const parsed = new Date(`${value}T00:00:00`);
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(parsed);
-}
-
-function formatViMonth(value: string): string {
-  return value.slice(5, 7) + '/' + value.slice(0, 4);
-}
-
-function formatFullVnd(value: string): string {
-  return new Intl.NumberFormat('vi-VN').format(Number(value || 0));
-}
-
-function ratioToPercentInput(value: number | null): string {
-  if (value == null) return '';
-  return String(Math.round(value * 10000) / 100);
-}
-
-function percentInputToNumber(value: string): number | null {
-  if (value.trim() === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function FinanceLoadingBlock() {
-  return (
-    <div className="cfg-finance-skeleton" aria-hidden="true">
-      <span />
-      <span />
-      <span />
-    </div>
-  );
-}
-
-function FinanceVersionList({
-  title,
-  emptyMessage,
-  rows,
-  renderMeta,
-}: {
-  title: string;
-  emptyMessage: string;
-  rows: Array<{
-    id: number;
-    effectiveFrom: string;
-    version: number;
-    createdAt: string;
-    createdByName: string;
-  }>;
-  renderMeta: (row: {
-    id: number;
-    effectiveFrom: string;
-    version: number;
-    createdAt: string;
-    createdByName: string;
-  }) => ReactNode;
-}) {
-  return (
-    <div className="cfg-finance-history" role="region" aria-label={title}>
-      <div className="cfg-section__heading-row">
-        <h3 className="cfg-section__heading">{title}</h3>
-      </div>
-      {rows.length === 0 ? (
-        <p className="cfg-field-hint">{emptyMessage}</p>
-      ) : (
-        <ul className="cfg-finance-history__list">
-          {rows.map((row) => (
-            <li key={row.id} className="cfg-finance-history__item">
-              <div className="cfg-finance-history__headline">
-                <strong>{formatViMonth(row.effectiveFrom)}</strong>
-                <span>Phiên bản {row.version}</span>
-              </div>
-              <div className="cfg-finance-history__meta">
-                {renderMeta(row)}
-              </div>
-              <div className="cfg-finance-history__foot">
-                <span>{row.createdByName}</span>
-                <span>{new Date(row.createdAt).toLocaleString('vi-VN')}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /** ADMIN home for global switches and external-service credentials. */
 export default function AppSettingsConfigPage() {
@@ -615,14 +410,14 @@ export default function AppSettingsConfigPage() {
   const handleTruckSelectionChange = async (nextTruckId: number) => {
     const truckDraftDirty = Boolean(
       truckProfiles.data
-      && (
-        truckEffectiveFrom !== truckProfiles.data.currentVietnamMonthStart
-        || truckAcquisitionCost !== (truckProfiles.data.currentProfile?.acquisitionCost ?? '')
-        || truckResidualValue !== (truckProfiles.data.currentProfile?.residualValue ?? '')
-        || truckInServiceDate !== (truckProfiles.data.currentProfile?.inServiceDate ?? '')
-        || truckUsefulLifeMonths !== (truckProfiles.data.currentProfile?.usefulLifeMonths != null ? String(truckProfiles.data.currentProfile.usefulLifeMonths) : '')
-        || truckMonthlyFixedCost !== (truckProfiles.data.currentProfile?.monthlyFixedCost ?? '')
-      )
+        && (
+          truckEffectiveFrom !== truckProfiles.data.currentVietnamMonthStart
+          || truckAcquisitionCost !== (truckProfiles.data.currentProfile?.acquisitionCost ?? '')
+          || truckResidualValue !== (truckProfiles.data.currentProfile?.residualValue ?? '')
+          || truckInServiceDate !== (truckProfiles.data.currentProfile?.inServiceDate ?? '')
+          || truckUsefulLifeMonths !== (truckProfiles.data.currentProfile?.usefulLifeMonths != null ? String(truckProfiles.data.currentProfile.usefulLifeMonths) : '')
+          || truckMonthlyFixedCost !== (truckProfiles.data.currentProfile?.monthlyFixedCost ?? '')
+        )
     );
     if (truckDraftDirty) {
       const confirmed = await confirm(
@@ -665,778 +460,121 @@ export default function AppSettingsConfigPage() {
       </div>
 
       <div className="cfg-app-settings-stack">
-        <Panel
-          title="Thiết lập chính sách tài chính"
-          subtitle="Tạo phiên bản mới theo tháng hiệu lực, không sửa trực tiếp bản đã duyệt"
-          action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
-        >
-          <div className="cfg-finance-tabs" role="tablist" aria-label="Nhóm chính sách tài chính">
-            <button
-              type="button"
-              className={`cfg-finance-tab ${activeFinanceTab === 'policy' ? 'is-active' : ''}`}
-              onClick={() => setActiveFinanceTab('policy')}
-              role="tab"
-              aria-selected={activeFinanceTab === 'policy'}
-            >
-              Chính sách báo cáo
-            </button>
-            <button
-              type="button"
-              className={`cfg-finance-tab ${activeFinanceTab === 'truck' ? 'is-active' : ''}`}
-              onClick={() => setActiveFinanceTab('truck')}
-              role="tab"
-              aria-selected={activeFinanceTab === 'truck'}
-            >
-              Hồ sơ tài chính xe
-            </button>
-          </div>
+        <FinancePolicySection
+          activeFinanceTab={activeFinanceTab}
+          setActiveFinanceTab={setActiveFinanceTab}
+          financialPolicy={financialPolicy}
+          requestFinancialPolicy={requestFinancialPolicy}
+          policyEffectiveFrom={policyEffectiveFrom}
+          setPolicyEffectiveFrom={setPolicyEffectiveFrom}
+          policyThresholdPercent={policyThresholdPercent}
+          setPolicyThresholdPercent={setPolicyThresholdPercent}
+          policySubmitLabel={policySubmitLabel}
+          requestPolicy={requestPolicy}
+          policyMessage={policyMessage}
+          policyError={policyError}
+          truckProfiles={truckProfiles}
+          requestTruckProfile={requestTruckProfile}
+          handleTruckSelectionChange={handleTruckSelectionChange}
+          truckEffectiveFrom={truckEffectiveFrom}
+          setTruckEffectiveFrom={setTruckEffectiveFrom}
+          truckAcquisitionCost={truckAcquisitionCost}
+          setTruckAcquisitionCost={setTruckAcquisitionCost}
+          truckResidualValue={truckResidualValue}
+          setTruckResidualValue={setTruckResidualValue}
+          truckInServiceDate={truckInServiceDate}
+          setTruckInServiceDate={setTruckInServiceDate}
+          truckUsefulLifeMonths={truckUsefulLifeMonths}
+          setTruckUsefulLifeMonths={setTruckUsefulLifeMonths}
+          truckMonthlyFixedCost={truckMonthlyFixedCost}
+          setTruckMonthlyFixedCost={setTruckMonthlyFixedCost}
+          truckSubmitLabel={truckSubmitLabel}
+          requestTruckFinancialProfileVersion={requestTruckFinancialProfileVersion}
+          truckMessage={truckMessage}
+          truckError={truckError}
+        />
 
-          {activeFinanceTab === 'policy' ? (
-            financialPolicy.isLoading ? (
-              <FinanceLoadingBlock />
-            ) : financialPolicy.error ? (
-              <div className="cfg-form-error" role="alert">
-                {financialPolicy.error instanceof Error
-                  ? financialPolicy.error.message
-                  : 'Không tải được chính sách. Kiểm tra kết nối và thử lại.'}
-              </div>
-            ) : (
-              <div className="cfg-finance-workspace">
-                <div className="cfg-finance-summary">
-                  <div className="cfg-finance-summary__section">
-                    <h3 className="cfg-section__heading">Trạng thái hiện tại</h3>
-                    {financialPolicy.data?.status === 'UNCONFIGURED' ? (
-                      <div className="cfg-finance-note cfg-finance-note--warning">
-                        <strong>Chưa có chính sách được phê duyệt</strong>
-                        <p>Báo cáo hiện giữ nguyên số liệu đã ghi sổ và hiển thị trạng thái chưa cấu hình.</p>
-                      </div>
-                    ) : (
-                      <dl className="cfg-finance-summary__grid">
-                        <div>
-                          <dt>Hiệu lực từ</dt>
-                          <dd>{financialPolicy.data?.currentPolicy ? formatViDate(financialPolicy.data.currentPolicy.effectiveFrom) : 'Chưa cấu hình'}</dd>
-                        </div>
-                        <div>
-                          <dt>Phiên bản</dt>
-                          <dd>{financialPolicy.data?.currentPolicy?.version ?? 'Chưa cấu hình'}</dd>
-                        </div>
-                        <div>
-                          <dt>Khấu hao</dt>
-                          <dd>{financialPolicy.data?.currentPolicy?.depreciationMethodLabel ?? 'Đường thẳng'}</dd>
-                        </div>
-                        <div>
-                          <dt>Phân bổ</dt>
-                          <dd>{financialPolicy.data?.currentPolicy?.allocationBasisLabel ?? 'Tỷ trọng doanh thu chuyến hoàn thành'}</dd>
-                        </div>
-                        <div>
-                          <dt>Ngưỡng cảnh báo biên lợi nhuận</dt>
-                          <dd>
-                            {financialPolicy.data?.currentPolicy?.lowMarginThresholdPercent == null
-                              ? 'Chưa cấu hình cảnh báo biên lợi nhuận'
-                              : `${financialPolicy.data.currentPolicy.lowMarginThresholdPercent}%`}
-                          </dd>
-                        </div>
-                      </dl>
-                    )}
-                  </div>
+        <OperationalPolicySection
+          appSettings={appSettings}
+          saveAppSettings={saveAppSettings}
+          features={features}
+          setFeatures={setFeatures}
+          businessUnits={businessUnits}
+          creditWarningPercent={creditWarningPercent}
+          setCreditWarningPercent={setCreditWarningPercent}
+          creditThresholdValid={creditThresholdValid}
+          creditTierOneCap={creditTierOneCap}
+          setCreditTierOneCap={setCreditTierOneCap}
+          creditTierCapValid={creditTierCapValid}
+          saveGeneralSettings={saveGeneralSettings}
+          generalMessage={generalMessage}
+        />
 
-                  <FinanceVersionList
-                    title="Lịch sử đã duyệt"
-                    emptyMessage="Chưa có lịch sử phiên bản."
-                    rows={financialPolicy.data?.history ?? []}
-                    renderMeta={(row) => {
-                      const current = financialPolicy.data?.history.find((item) => item.id === row.id);
-                      return (
-                        <>
-                          <span>{current?.depreciationMethodLabel}</span>
-                          <span>{current?.allocationBasisLabel}</span>
-                          <span>
-                            {current?.lowMarginThresholdPercent == null
-                              ? 'Chưa cấu hình cảnh báo biên lợi nhuận'
-                              : `${current.lowMarginThresholdPercent}%`}
-                          </span>
-                        </>
-                      );
-                    }}
-                  />
-                </div>
+        <LlmSection
+          appSettings={appSettings}
+          saveAppSettings={saveAppSettings}
+          features={features}
+          updateFeature={updateFeature}
+          llmSettings={llmSettings}
+          saveLlmSettings={saveLlmSettings}
+          provider={provider}
+          setProvider={setProvider}
+          models={models}
+          minimaxKey={minimaxKey}
+          setMinimaxKey={setMinimaxKey}
+          openrouterKey={openrouterKey}
+          setOpenrouterKey={setOpenrouterKey}
+          minimaxKeySet={minimaxKeySet}
+          openrouterKeySet={openrouterKeySet}
+          chosenKeyReady={chosenKeyReady}
+          chatbotCanSave={chatbotCanSave}
+          chatbotNeedsReadyProvider={chatbotNeedsReadyProvider}
+          saveChatbot={saveChatbot}
+          aiMessage={aiMessage}
+        />
 
-                <div className="cfg-finance-form">
-                  <div className="cfg-section__heading-row">
-                    <h3 className="cfg-section__heading">Tạo phiên bản mới</h3>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="financial-policy-effective-from">Tháng hiệu lực</label>
-                    <DateInput
-                      id="financial-policy-effective-from"
-                      className="input"
-                      value={policyEffectiveFrom}
-                      onChange={setPolicyEffectiveFrom}
-                      min={financialPolicy.data?.currentVietnamMonthStart}
-                      disabled={requestFinancialPolicy.isPending}
-                    />
-                    <p className="cfg-field-hint">
-                      Chọn tháng hiện tại hoặc một tháng trong tương lai. Không thể áp dụng ngược cho kỳ đã đóng.
-                    </p>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="financial-policy-threshold-percent">Ngưỡng cảnh báo biên lợi nhuận (%)</label>
-                    <input
-                      id="financial-policy-threshold-percent"
-                      className="input"
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={policyThresholdPercent}
-                      onChange={(event) => setPolicyThresholdPercent(event.target.value)}
-                      disabled={requestFinancialPolicy.isPending}
-                    />
-                    <p className="cfg-field-hint">
-                      Để trống nếu chưa cấu hình cảnh báo biên lợi nhuận.
-                    </p>
-                  </div>
-                  <div className="cfg-finance-static-list">
-                    <div>
-                      <span>Khấu hao</span>
-                      <strong>Đường thẳng</strong>
-                    </div>
-                    <div>
-                      <span>Phân bổ</span>
-                      <strong>Tỷ trọng doanh thu chuyến hoàn thành</strong>
-                    </div>
-                  </div>
-                  <div className="cfg-form-actions">
-                    <button
-                      className="btn btn--primary"
-                      disabled={requestFinancialPolicy.isPending || !financialPolicy.data}
-                      onClick={() => { void requestPolicy(); }}
-                    >
-                      {requestFinancialPolicy.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-                      {requestFinancialPolicy.isPending ? 'Đang gửi…' : policySubmitLabel}
-                    </button>
-                    {policyMessage && <span className="cfg-form-success" role="status">{policyMessage}</span>}
-                    {policyError && <span className="cfg-form-error" role="alert">{policyError}</span>}
-                    {requestFinancialPolicy.error && !policyError && (
-                      <span className="cfg-form-error" role="alert">
-                        {requestFinancialPolicy.error instanceof Error
-                          ? requestFinancialPolicy.error.message
-                          : 'Không thể gửi yêu cầu chính sách.'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          ) : truckProfiles.isLoading ? (
-            <FinanceLoadingBlock />
-          ) : truckProfiles.error ? (
-            <div className="cfg-form-error" role="alert">
-              {truckProfiles.error instanceof Error
-                ? truckProfiles.error.message
-                : 'Không tải được hồ sơ tài chính xe. Kiểm tra kết nối và thử lại.'}
-            </div>
-          ) : (
-            <div className="cfg-finance-workspace">
-              <div className="cfg-finance-summary">
-                <div className="cfg-finance-summary__section">
-                  <UuiSelectField
-                    id="truck-financial-profile-truck"
-                    label="Xe đầu kéo"
-                    value={truckProfiles.data?.selectedTruckId === null || truckProfiles.data?.selectedTruckId === undefined ? '' : String(truckProfiles.data?.selectedTruckId)}
-                    onChange={(event) => {
-                      const nextTruckId = Number(event.target.value);
-                      if (Number.isInteger(nextTruckId) && nextTruckId > 0) {
-                        void handleTruckSelectionChange(nextTruckId);
-                      }
-                    }}
-                    disabled={(truckProfiles.data?.trucks.length ?? 0) === 0}
-                    options={(truckProfiles.data?.trucks ?? []).map((truck) => ({
-                      value: String(truck.id),
-                      label: truck.label,
-                    }))}
-                  />
-                  {truckProfiles.data?.status === 'UNCONFIGURED' ? (
-                    <div className="cfg-finance-note cfg-finance-note--warning">
-                      <strong>Xe này chưa có hồ sơ tài chính được phê duyệt</strong>
-                      <p>Khấu hao và chi phí cố định theo tháng sẽ tiếp tục hiển thị chưa phân bổ.</p>
-                    </div>
-                  ) : (
-                    <dl className="cfg-finance-summary__grid">
-                      <div>
-                        <dt>Hiệu lực từ</dt>
-                        <dd>{truckProfiles.data?.currentProfile ? formatViDate(truckProfiles.data.currentProfile.effectiveFrom) : 'Chưa cấu hình'}</dd>
-                      </div>
-                      <div>
-                        <dt>Phiên bản</dt>
-                        <dd>{truckProfiles.data?.currentProfile?.version ?? 'Chưa cấu hình'}</dd>
-                      </div>
-                      <div>
-                        <dt>Nguyên giá</dt>
-                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.acquisitionCost) : '0'} VND</dd>
-                      </div>
-                      <div>
-                        <dt>Giá trị thu hồi</dt>
-                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.residualValue) : '0'} VND</dd>
-                      </div>
-                      <div>
-                        <dt>Ngày đưa vào sử dụng</dt>
-                        <dd>{truckProfiles.data?.currentProfile ? formatViDate(truckProfiles.data.currentProfile.inServiceDate) : 'Chưa cấu hình'}</dd>
-                      </div>
-                      <div>
-                        <dt>Thời gian sử dụng</dt>
-                        <dd>{truckProfiles.data?.currentProfile?.usefulLifeMonths ?? '0'} tháng</dd>
-                      </div>
-                      <div>
-                        <dt>Chi phí cố định mỗi tháng</dt>
-                        <dd>{truckProfiles.data?.currentProfile ? formatFullVnd(truckProfiles.data.currentProfile.monthlyFixedCost) : '0'} VND</dd>
-                      </div>
-                    </dl>
-                  )}
-                </div>
+        <OcrSection
+          ocrSettings={ocrSettings}
+          saveOcrSettings={saveOcrSettings}
+          ocrEnabled={ocrEnabled}
+          setOcrEnabled={setOcrEnabled}
+          ocrOpenrouterKey={ocrOpenrouterKey}
+          setOcrOpenrouterKey={setOcrOpenrouterKey}
+          ocrGeminiKey={ocrGeminiKey}
+          setOcrGeminiKey={setOcrGeminiKey}
+          ocrOpenrouterKeySet={ocrOpenrouterKeySet}
+          ocrGeminiKeySet={ocrGeminiKeySet}
+          ocrHasKey={ocrHasKey}
+          ocrChanged={ocrChanged}
+          saveOcr={saveOcr}
+          ocrMessage={ocrMessage}
+        />
 
-                <FinanceVersionList
-                  title="Lịch sử theo xe"
-                  emptyMessage="Chưa có lịch sử hồ sơ tài chính cho xe này."
-                  rows={truckProfiles.data?.history ?? []}
-                  renderMeta={(row) => {
-                    const current = truckProfiles.data?.history.find((item) => item.id === row.id);
-                    return (
-                      <>
-                        <span>Nguyên giá {current ? formatFullVnd(current.acquisitionCost) : '0'} VND</span>
-                        <span>Giá trị thu hồi {current ? formatFullVnd(current.residualValue) : '0'} VND</span>
-                        <span>Chi phí cố định {current ? formatFullVnd(current.monthlyFixedCost) : '0'} VND</span>
-                      </>
-                    );
-                  }}
-                />
-              </div>
+        <EmailSection
+          emailSettings={emailSettings}
+          saveEmailSettings={saveEmailSettings}
+          resendApiKey={resendApiKey}
+          setResendApiKey={setResendApiKey}
+          saveEmail={saveEmail}
+          clearEmail={clearEmail}
+          emailMessage={emailMessage}
+        />
 
-              <div className="cfg-finance-form">
-                <div className="cfg-section__heading-row">
-                  <h3 className="cfg-section__heading">Tạo hồ sơ theo tháng</h3>
-                </div>
-                <div className="cfg-finance-form__grid">
-                  <div className="field">
-                    <label htmlFor="truck-effective-from">Tháng hiệu lực</label>
-                    <DateInput
-                      id="truck-effective-from"
-                      className="input"
-                      value={truckEffectiveFrom}
-                      min={truckProfiles.data?.currentVietnamMonthStart}
-                      onChange={setTruckEffectiveFrom}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="truck-in-service-date">Ngày đưa vào sử dụng</label>
-                    <DateInput
-                      id="truck-in-service-date"
-                      className="input"
-                      value={truckInServiceDate}
-                      onChange={setTruckInServiceDate}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="truck-acquisition-cost">Nguyên giá (VND)</label>
-                    <input
-                      id="truck-acquisition-cost"
-                      className="input"
-                      inputMode="numeric"
-                      value={truckAcquisitionCost}
-                      onChange={(event) => setTruckAcquisitionCost(event.target.value)}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                    <p className="cfg-field-hint">{truckAcquisitionCost ? `${formatFullVnd(truckAcquisitionCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="truck-residual-value">Giá trị thu hồi (VND)</label>
-                    <input
-                      id="truck-residual-value"
-                      className="input"
-                      inputMode="numeric"
-                      value={truckResidualValue}
-                      onChange={(event) => setTruckResidualValue(event.target.value)}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                    <p className="cfg-field-hint">{truckResidualValue ? `${formatFullVnd(truckResidualValue)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="truck-useful-life-months">Thời gian sử dụng (tháng)</label>
-                    <input
-                      id="truck-useful-life-months"
-                      className="input"
-                      inputMode="numeric"
-                      value={truckUsefulLifeMonths}
-                      onChange={(event) => setTruckUsefulLifeMonths(event.target.value)}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="truck-monthly-fixed-cost">Chi phí cố định mỗi tháng (VND)</label>
-                    <input
-                      id="truck-monthly-fixed-cost"
-                      className="input"
-                      inputMode="numeric"
-                      value={truckMonthlyFixedCost}
-                      onChange={(event) => setTruckMonthlyFixedCost(event.target.value)}
-                      disabled={requestTruckProfile.isPending}
-                    />
-                    <p className="cfg-field-hint">{truckMonthlyFixedCost ? `${formatFullVnd(truckMonthlyFixedCost)} VND` : 'Nhập đầy đủ số tiền VND'}</p>
-                  </div>
-                </div>
-                <div className="cfg-form-actions">
-                  <button
-                    className="btn btn--primary"
-                    disabled={requestTruckProfile.isPending || truckProfiles.data?.selectedTruckId == null}
-                    onClick={() => { void requestTruckFinancialProfileVersion(); }}
-                  >
-                    {requestTruckProfile.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-                    {requestTruckProfile.isPending ? 'Đang gửi…' : truckSubmitLabel}
-                  </button>
-                  {truckMessage && <span className="cfg-form-success" role="status">{truckMessage}</span>}
-                  {truckError && <span className="cfg-form-error" role="alert">{truckError}</span>}
-                  {requestTruckProfile.error && !truckError && (
-                    <span className="cfg-form-error" role="alert">
-                      {requestTruckProfile.error instanceof Error
-                        ? requestTruckProfile.error.message
-                        : 'Không thể gửi hồ sơ tài chính xe.'}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </Panel>
-
-        <Panel
-          title="Chính sách vận hành"
-          subtitle="Các ngưỡng và phạm vi áp dụng dùng chung trên toàn hệ thống"
-          action={<ShieldCheck size={18} className="cfg-panel-action-icon" />}
-        >
-          <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
-            <div className="field">
-              <label htmlFor="credit-warning-threshold-default">Ngưỡng cảnh báo công nợ mặc định (%)</label>
-              <input
-                id="credit-warning-threshold-default"
-                className="input"
-                type="number"
-                min="1"
-                max="99"
-                step="0.01"
-                value={creditWarningPercent}
-                onChange={(event) => setCreditWarningPercent(event.target.value)}
-                disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
-              />
-              <p className="cfg-field-hint">
-                Dùng chung khi khách hàng chưa cấu hình riêng. Hiện tại: {creditThresholdValid
-                  ? `${creditWarningPercent}%`
-                  : 'giá trị không hợp lệ'}
-              </p>
-            </div>
-            <UuiSelectField
-              id="salary-payroll-business-unit"
-              label="Phạm vi chốt kỳ lương"
-              value={features.salaryPayrollBusinessUnitId === null || features.salaryPayrollBusinessUnitId === undefined ? '' : String(features.salaryPayrollBusinessUnitId)}
-              onChange={(event) => {
-                const value = event.target.value;
-                setFeatures((current) => ({
-                  ...current,
-                  salaryPayrollBusinessUnitId: value ? Number(value) : null,
-                }));
-              }}
-              disabled={
-                appSettings.isLoading
-                || appSettings.isError
-                || businessUnits.isLoading
-                || businessUnits.isError
-                || saveAppSettings.isPending
-              }
-              options={[
-                { value: '', label: 'Toàn công ty' },
-                ...(businessUnits.data?.items ?? [])
-                  .filter((unit) => unit.status === 'ACTIVE')
-                  .map((unit) => ({
-                    value: String(unit.id),
-                    label: unit.name,
-                  })),
-              ]}
-              hint="Khi chọn đơn vị, kiểm tra sẵn sàng và tổng lương chỉ gồm lái xe đang được gán vào đơn vị đó."
-            />
-            <div className="field">
-              <label htmlFor="credit-tier-one-amount-cap">Ngưỡng tiền duyệt cấp 1 (VND)</label>
-              <input
-                id="credit-tier-one-amount-cap"
-                className="input"
-                type="number"
-                min="0"
-                step="1"
-                value={creditTierOneCap}
-                onChange={(event) => setCreditTierOneCap(event.target.value)}
-                disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
-              />
-              <p className="cfg-field-hint">
-                Cấp 1 chỉ được duyệt phần vượt không quá {creditTierCapValid
-                  ? formatCurrency(Number(creditTierOneCap))
-                  : 'một số nguyên không âm'}.
-              </p>
-            </div>
-          </div>
-          <div className="cfg-form-actions">
-            <button
-              className="btn btn--primary"
-              disabled={
-                !appSettings.data
-                || appSettings.isError
-                || saveAppSettings.isPending
-                || !creditThresholdValid
-                || !creditTierCapValid
-              }
-              onClick={() => { void saveGeneralSettings(); }}
-            >
-              {saveAppSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-              {saveAppSettings.isPending ? 'Đang lưu…' : 'Lưu cài đặt'}
-            </button>
-            {!creditThresholdValid && (
-              <span role="alert" className="cfg-form-error">
-                Ngưỡng cảnh báo phải từ 1% đến 99%.
-              </span>
-            )}
-            {creditThresholdValid && !creditTierCapValid && (
-              <span role="alert" className="cfg-form-error">
-                Ngưỡng tiền duyệt cấp 1 phải là số nguyên VND không âm.
-              </span>
-            )}
-            {saveAppSettings.error && (
-              <span role="alert" className="cfg-form-error">
-                {saveAppSettings.error instanceof Error ? saveAppSettings.error.message : 'Không thể lưu cài đặt.'}
-              </span>
-            )}
-            {generalMessage && !saveAppSettings.error && (
-              <span role="status" className="cfg-field-hint">
-                {generalMessage}
-              </span>
-            )}
-            {appSettings.error && (
-              <span role="alert" className="cfg-form-error">
-                {appSettings.error instanceof Error ? appSettings.error.message : 'Không thể tải cài đặt.'}
-              </span>
-            )}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Trợ lý ảo"
-          subtitle="Bật hoặc tắt chatbot và quản lý nhà cung cấp AI trong cùng một nơi"
-          action={<Bot size={18} className="cfg-panel-action-icon" />}
-        >
-          <FeatureSwitch
-            icon={<Bot size={19} />}
-            label="Sử dụng trợ lý ảo"
-            description="Cho phép người dùng văn phòng mở và sử dụng chatbot trong ứng dụng. API key bên dưới được giữ lại khi tắt."
-            enabled={features.botEnabled}
-            onChange={() => updateFeature('botEnabled')}
-            disabled={
-              appSettings.isLoading
-              || appSettings.isError
-              || saveAppSettings.isPending
-              || saveLlmSettings.isPending
-            }
-          />
-          <div className="cfg-security-note">
-            <ShieldCheck size={16} aria-hidden="true" />
-            <span>API key được mã hóa khi lưu. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
-          </div>
-          <fieldset className="cfg-section cfg-provider-fieldset">
-            <legend className="cfg-section__heading">Nhà cung cấp</legend>
-            <div className="cfg-provider-grid">
-              {LLM_PROVIDERS.map((item) => (
-                <label key={item} className={`cfg-provider-option ${provider === item ? 'is-selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="llm-provider"
-                    checked={provider === item}
-                    onChange={() => setProvider(item)}
-                    disabled={llmSettings.isLoading || llmSettings.isError || saveLlmSettings.isPending}
-                  />
-                  <span>
-                    <strong>{LLM_PROVIDER_LABELS[item]}</strong>
-                    <small>Model: <code>{models[item]}</code></small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <div className="cfg-credentials-grid">
-            <SecretField
-              id="llm-minimax-key"
-              label="MiniMax API key"
-              value={minimaxKey}
-              onChange={setMinimaxKey}
-              saved={minimaxKeySet}
-              maskedPreview={llmSettings.data?.minimaxKeyMasked ?? ''}
-              placeholder="Nhập MiniMax API key"
-              disabled={llmSettings.isLoading || llmSettings.isError || saveLlmSettings.isPending}
-            />
-            <SecretField
-              id="llm-openrouter-key"
-              label="OpenRouter API key"
-              value={openrouterKey}
-              onChange={setOpenrouterKey}
-              saved={openrouterKeySet}
-              maskedPreview={llmSettings.data?.openrouterKeyMasked ?? ''}
-              placeholder="Nhập OpenRouter API key"
-              disabled={llmSettings.isLoading || llmSettings.isError || saveLlmSettings.isPending}
-            />
-          </div>
-          <div className="cfg-form-actions">
-            <button
-              className="btn btn--primary"
-              disabled={
-                !llmSettings.data
-                || !appSettings.data
-                || llmSettings.isError
-                || appSettings.isError
-                || saveLlmSettings.isPending
-                || saveAppSettings.isPending
-                || !chatbotCanSave
-                || (chatbotNeedsReadyProvider && !chosenKeyReady)
-              }
-              onClick={saveChatbot}
-            >
-              {saveLlmSettings.isPending || saveAppSettings.isPending
-                ? <Loader2 size={15} className="spin" />
-                : <Save size={15} />}
-              {saveLlmSettings.isPending || saveAppSettings.isPending
-                ? 'Đang lưu…'
-                : 'Lưu cài đặt trợ lý'}
-            </button>
-            {aiMessage && <span className="cfg-form-success" role="status">{aiMessage}</span>}
-            {saveLlmSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {saveLlmSettings.error instanceof Error ? saveLlmSettings.error.message : 'Không thể lưu cấu hình AI.'}
-              </span>
-            )}
-            {llmSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {llmSettings.error instanceof Error ? llmSettings.error.message : 'Không thể tải cấu hình AI.'}
-              </span>
-            )}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Nhận dạng OCR"
-          subtitle="Bật hoặc tắt nhận dạng hình ảnh và quản lý API key riêng cho OCR"
-          action={<ScanLine size={18} className="cfg-panel-action-icon" />}
-        >
-          <FeatureSwitch
-            icon={<ScanLine size={19} />}
-            label="Sử dụng OCR"
-            description="Cho phép nhận dạng số container, số seal và thông tin từ ảnh. API key được giữ lại khi tắt."
-            enabled={ocrEnabled}
-            onChange={() => setOcrEnabled((current) => !current)}
-            disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
-          />
-          <div className="cfg-security-note">
-            <ShieldCheck size={16} aria-hidden="true" />
-            <span>API key OCR được mã hóa riêng khi lưu và không dùng chung với chatbot. Giá trị đầy đủ không bao giờ gửi lại trình duyệt.</span>
-          </div>
-          <div className="cfg-credentials-grid">
-            <SecretField
-              id="ocr-openrouter-key"
-              label="OpenRouter API key cho OCR"
-              value={ocrOpenrouterKey}
-              onChange={setOcrOpenrouterKey}
-              saved={ocrOpenrouterKeySet}
-              maskedPreview={ocrSettings.data?.openrouterKeyMasked ?? ''}
-              placeholder="Nhập OpenRouter API key cho OCR"
-              disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
-            />
-            <SecretField
-              id="ocr-gemini-key"
-              label="Gemini API key dự phòng"
-              value={ocrGeminiKey}
-              onChange={setOcrGeminiKey}
-              saved={ocrGeminiKeySet}
-              maskedPreview={ocrSettings.data?.geminiKeyMasked ?? ''}
-              placeholder="Nhập Gemini API key cho OCR"
-              disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
-            />
-          </div>
-          <p className="cfg-field-hint cfg-ocr-provider-note">
-            OCR ưu tiên OpenRouter và tự động chuyển sang Gemini khi nhà cung cấp chính gặp lỗi.
-          </p>
-          <div className="cfg-form-actions">
-            <button
-              className="btn btn--primary"
-              disabled={
-                !ocrSettings.data
-                || ocrSettings.isError
-                || saveOcrSettings.isPending
-                || !ocrChanged
-                || (ocrEnabled && !ocrHasKey)
-              }
-              onClick={saveOcr}
-            >
-              {saveOcrSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-              {saveOcrSettings.isPending ? 'Đang lưu…' : 'Lưu cài đặt OCR'}
-            </button>
-            {ocrMessage && <span className="cfg-form-success" role="status">{ocrMessage}</span>}
-            {saveOcrSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {saveOcrSettings.error instanceof Error
-                  ? saveOcrSettings.error.message
-                  : 'Không thể lưu cài đặt OCR.'}
-              </span>
-            )}
-            {ocrSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {ocrSettings.error instanceof Error
-                  ? ocrSettings.error.message
-                  : 'Không thể tải cài đặt OCR.'}
-              </span>
-            )}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Gửi email qua Resend"
-          subtitle="API key dùng để gửi email hệ thống"
-          action={<Mail size={18} className="cfg-panel-action-icon" />}
-        >
-          <div className="cfg-security-note">
-            <ShieldCheck size={16} aria-hidden="true" />
-            <span>API key được mã hóa khi lưu. Giá trị đầy đủ không bao giờ gửi lại trình duyệt. Thay đổi có hiệu lực ngay.</span>
-          </div>
-          <div className="cfg-credentials-grid cfg-credentials-grid--single">
-            <SecretField
-              id="resend-api-key"
-              label="Resend API key"
-              value={resendApiKey}
-              onChange={setResendApiKey}
-              saved={!!emailSettings.data?.resendKeySet}
-              maskedPreview={emailSettings.data?.resendKeyMasked ?? ''}
-              placeholder="Nhập Resend API key"
-              disabled={emailSettings.isLoading || emailSettings.isError || saveEmailSettings.isPending}
-            />
-          </div>
-          <div className="cfg-form-actions cfg-email-actions">
-            <button
-              className="btn btn--primary"
-              disabled={
-                !emailSettings.data
-                || emailSettings.isError
-                || saveEmailSettings.isPending
-                || resendApiKey.trim() === ''
-              }
-              onClick={saveEmail}
-            >
-              {saveEmailSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-              {saveEmailSettings.isPending
-                ? 'Đang lưu…'
-                : emailSettings.data?.resendKeySet
-                  ? 'Thay API key'
-                  : 'Lưu API key'}
-            </button>
-            {emailSettings.data?.resendKeySet && (
-              <button
-                className="btn btn--secondary cfg-danger-action"
-                disabled={saveEmailSettings.isPending}
-                onClick={clearEmail}
-              >
-                <Trash2 size={15} />
-                {saveEmailSettings.isPending ? 'Đang xử lý…' : 'Xóa API key'}
-              </button>
-            )}
-            {emailMessage && (
-              <span className="cfg-form-success" role="status" aria-live="polite">
-                {emailMessage}
-              </span>
-            )}
-            {saveEmailSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {saveEmailSettings.error instanceof Error
-                  ? saveEmailSettings.error.message
-                  : 'Không thể lưu API key. Kiểm tra key và thử lại.'}
-              </span>
-            )}
-            {emailSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {emailSettings.error instanceof Error
-                  ? emailSettings.error.message
-                  : 'Không thể tải cấu hình gửi email.'}
-              </span>
-            )}
-          </div>
-        </Panel>
-
-        <Panel
-          title="Định vị Bách Khoa"
-          subtitle="Tài khoản dùng để đồng bộ vị trí xe và lộ trình GPS"
-          action={<MapPin size={18} className="cfg-panel-action-icon" />}
-        >
-          <FeatureSwitch
-            icon={<MapPin size={19} />}
-            label="Định vị Bách Khoa"
-            description="Bật để đồng bộ vị trí xe từ hệ thống Bách Khoa. Tắt để dừng đồng bộ — tài khoản bên dưới được giữ lại để bật lại nhanh."
-            enabled={features.gpsEnabled}
-            onChange={() => updateFeature('gpsEnabled')}
-            disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
-          />
-          <div className="cfg-security-note">
-            <ShieldCheck size={16} aria-hidden="true" />
-            <span>Tên đăng nhập và mật khẩu được mã hóa khi lưu. Thay đổi có hiệu lực ngay, không cần khởi động lại.</span>
-          </div>
-          <div className="cfg-credentials-grid">
-            <div className="field">
-              <label htmlFor="bach-khoa-username">Tên đăng nhập Bách Khoa</label>
-              <input
-                id="bach-khoa-username"
-                className="input"
-                value={gpsUsername}
-                onChange={(event) => setGpsUsername(event.target.value)}
-                placeholder="Nhập tên đăng nhập"
-                autoComplete="username"
-                spellCheck={false}
-                disabled={!features.gpsEnabled || gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
-              />
-            </div>
-            <SecretField
-              id="bach-khoa-password"
-              label="Mật khẩu Bách Khoa"
-              value={gpsPassword}
-              onChange={setGpsPassword}
-              saved={!!gpsSettings.data?.passwordSet}
-              maskedPreview={gpsSettings.data?.passwordMasked ?? ''}
-              placeholder="Nhập mật khẩu"
-              disabled={!features.gpsEnabled || gpsSettings.isLoading || gpsSettings.isError || saveGpsSettings.isPending}
-            />
-          </div>
-          <div className="cfg-form-actions">
-            <button
-              className="btn btn--primary"
-              disabled={!gpsSettings.data || gpsSettings.isError || saveGpsSettings.isPending || !gpsReady}
-              onClick={saveGps}
-            >
-              {saveGpsSettings.isPending ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
-              {saveGpsSettings.isPending ? 'Đang lưu…' : 'Lưu định vị'}
-            </button>
-            {gpsMessage && <span className="cfg-form-success" role="status">{gpsMessage}</span>}
-            {saveGpsSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {saveGpsSettings.error instanceof Error ? saveGpsSettings.error.message : 'Không thể lưu tài khoản định vị.'}
-              </span>
-            )}
-            {gpsSettings.error && (
-              <span className="cfg-form-error" role="alert">
-                {gpsSettings.error instanceof Error ? gpsSettings.error.message : 'Không thể tải tài khoản định vị.'}
-              </span>
-            )}
-          </div>
-        </Panel>
+        <GpsSection
+          appSettings={appSettings}
+          saveAppSettings={saveAppSettings}
+          features={features}
+          updateFeature={updateFeature}
+          gpsSettings={gpsSettings}
+          saveGpsSettings={saveGpsSettings}
+          gpsUsername={gpsUsername}
+          setGpsUsername={setGpsUsername}
+          gpsPassword={gpsPassword}
+          setGpsPassword={setGpsPassword}
+          gpsReady={gpsReady}
+          saveGps={saveGps}
+          gpsMessage={gpsMessage}
+        />
       </div>
       {confirmDialog}
     </div>
