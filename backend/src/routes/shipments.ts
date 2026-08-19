@@ -954,6 +954,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const zone = String(req.query.zone ?? '').trim();
     if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');
+    if (zone.length > 32) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
     res.json(await listZonePortFacets({
       actor: getUser(req),
       zone,
@@ -970,6 +971,7 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const zone = String(req.query.zone ?? '').trim();
     if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');
+    if (zone.length > 32) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
     res.json(await listZoneTruckPresence({
       actor: getUser(req),
       zone,

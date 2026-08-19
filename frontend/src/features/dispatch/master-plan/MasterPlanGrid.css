@@ -10,6 +10,12 @@
   margin-bottom: 14px;
 }
 
+.master-plan-filters__zones-error {
+  align-self: center;
+  color: var(--warning-text, #b45309);
+  font-size: 12.5px;
+}
+
 /* UUI inputs/selects carry their own borders, focus rings, and sizing;
    these rules only shape them inside the flex bar. */
 

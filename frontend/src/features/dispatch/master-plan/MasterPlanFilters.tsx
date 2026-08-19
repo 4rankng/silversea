@@ -477,11 +477,16 @@ function toggleKey(list: string[], key: string): string[] {
  *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
   const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  const [zonesError, setZonesError] = useState(false);
   useEffect(() => {
     let cancelled = false;
     configClient.getDispatchZones()
-      .then((res) => { if (!cancelled) setZones(res.items); })
-      .catch(() => { /* no zones configured → no port facet blocks */ });
+      .then((res) => { if (!cancelled) { setZones(res.items); setZonesError(false); } })
+      .catch(() => {
+        // No zone blocks on failure, but say so — a silent drop would read as
+        // "feature disappeared" instead of a load error.
+        if (!cancelled) setZonesError(true);
+      });
     return () => { cancelled = true; };
   }, []);
 
@@ -532,6 +537,11 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
           loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}
         />
       ))}
+      {zonesError && (
+        <span className="master-plan-filters__zones-error" role="status">
+          Không tải được khu vực cảng — thử lại sau.
+        </span>
+      )}
       <CarrierFacetMultiSelect
         selected={filters.carrierKeys}
         onToggle={(key) => onChange({ carrierKeys: toggleKey(filters.carrierKeys, key) })}

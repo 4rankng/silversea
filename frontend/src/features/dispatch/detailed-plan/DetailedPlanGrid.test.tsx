@@ -197,7 +197,11 @@ describe('DetailedPlanGrid', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
-    fireEvent.change(screen.getByLabelText('Phân loại'), { target: { value: 'DOUBLE' } });
+    // UUI select: open the trigger, then pick the option from the listbox —
+    // fireEvent.change on a hidden native select does not drive react-aria.
+    // The trigger's accessible name is "<current value> <label>".
+    fireEvent.click(screen.getByRole('button', { name: 'Đơn Phân loại' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Kẹp' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(

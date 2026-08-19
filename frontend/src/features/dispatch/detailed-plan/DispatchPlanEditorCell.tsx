@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
-import type { CursorPaginatedResponse, DispatchClassification } from '@tingting/shared';
+import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
   listDispatchFleetResources,
@@ -11,6 +11,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, type SearchableSelectOption } from '../../../design-system';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import './DispatchPlanEditorCell.css';
 
 const PAGE_LOAD_SIZE = 50;
@@ -393,9 +394,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
 
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
-  const classificationLabel = row.classification
-    ? DISPATCH_CLASSIFICATION_LABELS[row.classification]
-    : null;
 
   return (
     <>
@@ -479,27 +477,23 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
                 loadingMore={loadingVehicles && vehicleOptions.length > 0}
               />
             </label>
-            <label htmlFor={`dispatch-classification-${row.fulfillmentId}`}>
-              <span>Phân loại</span>
-              <select
-                id={`dispatch-classification-${row.fulfillmentId}`}
-                className="input"
-                value={draft.classification}
-                onChange={(event) => {
-                  const value = event.target.value as DispatchClassification | '';
-                  setDraft((current) => ({ ...current, classification: value }));
-                  setError(null);
-                }}
-                disabled={saving}
-                required
-                aria-required="true"
-              >
-                <option value="" disabled>Chọn phân loại…</option>
-                {DISPATCH_CLASSIFICATIONS.map((value) => (
-                  <option key={value} value={value}>{DISPATCH_CLASSIFICATION_LABELS[value]}</option>
-                ))}
-              </select>
-            </label>
+            <UuiSelectField
+              label="Phân loại"
+              value={draft.classification}
+              options={[
+                { value: '', label: 'Chọn phân loại…' },
+                ...DISPATCH_CLASSIFICATIONS.map((value) => ({
+                  value,
+                  label: DISPATCH_CLASSIFICATION_LABELS[value],
+                })),
+              ]}
+              onChange={(event) => {
+                const value = event.target.value as DispatchClassification | '';
+                setDraft((current) => ({ ...current, classification: value }));
+                setError(null);
+              }}
+              disabled={saving}
+            />
             <label htmlFor={`dispatch-combined-${row.fulfillmentId}`} className="dispatch-assignment-dialog__check">
               <input
                 id={`dispatch-combined-${row.fulfillmentId}`}
