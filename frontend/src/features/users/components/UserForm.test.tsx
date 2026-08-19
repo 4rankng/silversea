@@ -271,7 +271,7 @@ describe('customer account scope', () => {
 
     const roleTrigger = screen.getByRole('button', { name: /Vai trò/i });
     fireEvent.click(roleTrigger);
-    fireEvent.click(screen.getByRole('option', { name: /Nhân viên CSKH/i }));
+    fireEvent.click(screen.getByRole('option', { name: /Nhân viên Chứng từ/i }));
 
     const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(true);

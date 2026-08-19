@@ -73,7 +73,7 @@ def test_system_admin(ctx: NepoTestContext, results: TestResults):
         'Lái xe',
         'Nhân viên vận hành',
         'Khách hàng',
-        'Nhân viên CSKH',
+        'Nhân viên Chứng từ',
         'Điều vận',
     ]
     found = all(any(role in label for label in pill_labels) for role in expected_roles)

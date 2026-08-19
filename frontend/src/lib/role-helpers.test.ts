@@ -17,7 +17,7 @@ import {
 describe('role-helpers', () => {
   describe('getDisplayRole', () => {
     it('shows transitional label for CLERK', () => {
-      expect(getDisplayRole('CLERK')).toBe('CUS (Nhân viên CSKH)');
+      expect(getDisplayRole('CLERK')).toBe('CUS (Nhân viên Chứng từ)');
     });
 
     it('shows transitional label for FORWARDER', () => {
