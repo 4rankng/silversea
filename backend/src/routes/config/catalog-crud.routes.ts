@@ -33,6 +33,7 @@ import {
   managementFeeSchema, capTableSchema, truckCapSchema,
   supplierSchema, expenseCategorySchema,
   containerTypeSchema, sealTypeSchema, portSchema,
+  dispatchZoneSchema, dispatchZoneUpdateSchema,
   forwarderExpenseTypeSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,
@@ -99,8 +100,52 @@ catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Reque
   res.json(data);
 }));
 
-// ─── Pricing lookup ──────────────────────────────────────────────────────────
+// ─── Dispatch zones (DB-owned taxonomy; read by dispatch UIs + port config) ──
 
+// Active-only taxonomy read consumed by every dispatch UI and the port form.
+// Distinct subpath so it cannot shadow the factory list below — the admin
+// surface must see inactive rows too (deactivate → still listed → reactivate),
+// while dispatch readers only ever see active zones. Registered BEFORE the
+// factory mount so non-admin config readers are not caught by its ADMIN gate.
+router.get('/dispatch-zones/active', asyncHandler(async (_req: Request, res: Response) => {
+  const zones = await db.select({
+    code: s.dispatchZones.code,
+    label: s.dispatchZones.label,
+    sortOrder: s.dispatchZones.sortOrder,
+  }).from(s.dispatchZones)
+    .where(eq(s.dispatchZones.isActive, true))
+    .orderBy(s.dispatchZones.sortOrder, s.dispatchZones.code);
+  res.json({ items: zones });
+}));
+
+router.use(
+  '/dispatch-zones',
+  requireRoles(Role.ADMIN),
+  createCrudRouter(s.dispatchZones, dispatchZoneSchema, {
+    disableDelete: true,
+    orderByField: 'sortOrder',
+    updateSchema: dispatchZoneUpdateSchema,
+    beforeUpdate: async (id, data, req, tx) => {
+      const [current] = await tx.select({ code: s.dispatchZones.code })
+        .from(s.dispatchZones).where(eq(s.dispatchZones.id, id)).limit(1);
+      if (!current) throw new ApiError(404, 'Không tìm thấy');
+      // Codes are immutable: ports and client state key on them. The update
+      // schema strips `code`, so inspect the raw body — a differing code is a
+      // client bug worth a loud 400, not a silent ignore.
+      if ('code' in (req.body ?? {}) && req.body?.code !== current.code) {
+        throw new ApiError(400, 'Mã khu vực không thể thay đổi sau khi tạo.');
+      }
+      // Deactivating a zone that live ports still reference would dangle
+      // ports.dispatch_zone — force re-classification first.
+      if (data.isActive === false) {
+        await H.assertZoneDeactivatable(tx, current.code);
+      }
+      return data;
+    },
+  }),
+);
+
+// ─── Pricing lookup ──────────────────────────────────────────────────────────
 router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
   const customerId = parseInt(req.query.customerId as string, 10);
   const routeId = parseInt(req.query.routeId as string, 10);
@@ -300,12 +345,14 @@ router.use('/ports', createCrudRouter(s.ports, portSchema, {
   searchableField: 'name',
   beforeCreate: async (data, _req, tx) => {
     await H.assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
+    await H.assertDispatchZoneCode(tx, data.dispatchZone);
     return data;
   },
   beforeUpdate: async (id, data, _req, tx) => {
     if (data.code !== undefined) {
       await H.assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, id, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
     }
+    await H.assertDispatchZoneCode(tx, data.dispatchZone);
     return data;
   },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'port', id),

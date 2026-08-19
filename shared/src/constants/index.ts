@@ -373,7 +373,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   [Role.OPS]: 'Nhân viên vận hành', // formerly 'Giao nhận'
   [Role.CUSTOMER]: 'Khách hàng',
   [Role.DISPATCHER]: 'Điều vận',
-  [Role.CUS]: 'Nhân viên CSKH', // formerly 'Nhân viên chứng từ'
+  [Role.CUS]: 'Nhân viên Chứng từ',
 };
 
 export const FUEL_MODE_LABELS: Record<FuelMode, string> = {
@@ -660,14 +660,10 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
 
 // ─── Dispatch planning ──────────────────────────────────────────────────────────
 
-/**
- * Application-owned dispatch zone whitelist (ports.dispatch_zone). LACH_HUYEN
- * today; extend this list — never SQL or inline literals — so zone membership
- * stays one versioned application fact. Zone values must never be inferred
- * from port names at request time.
- */
-export const DISPATCH_ZONES = ['LACH_HUYEN'] as const;
-export type DispatchZone = (typeof DISPATCH_ZONES)[number];
+// Dispatch-zone taxonomy is DB-owned (dispatch_zones table, seeded) — codes
+// and labels are read from the API (GET /dispatch-zones), never listed in
+// code. Zone membership of a port is ports.dispatch_zone, validated against
+// the live taxonomy at the write boundary. Never infer zone from port names.
 
 /**
  * Fulfillment-owned operational classification: SINGLE (Đơn), DOUBLE (Kẹp),

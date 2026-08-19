@@ -106,6 +106,7 @@ export const CONFIG = {
   EXPENSE_CATEGORIES: '/expense-categories',
   EXPENSE_CATEGORY: (id: number) => `/expense-categories/${id}`,
   PORTS: '/ports',
+  DISPATCH_ZONES: '/dispatch-zones',
   TIRE_POSITIONS: '/tire-positions',
   TIRE_POSITION: (id: number) => `/tire-positions/${id}`,
   CONTAINER_TYPES: '/container-types',

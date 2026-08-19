@@ -9,7 +9,6 @@ import {
   NO_INVOICE_APPROVAL_TITLES,
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
-  DISPATCH_ZONES,
   DISPATCH_CLASSIFICATIONS,
 } from '../constants';
 
@@ -1050,8 +1049,25 @@ export const sealTypeSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+/** Dispatch-zone taxonomy row (dispatch_zones). Codes are stable identifiers
+ *  referenced by ports.dispatch_zone and stored client-side — immutable after
+ *  create; only label/sortOrder/isActive are editable. */
+export const dispatchZoneSchema = z.object({
+  code: z.string().trim()
+    .regex(/^[A-Z][A-Z0-9_]{1,31}$/, 'Mã khu vực phải là chữ hoa/snake (VD: LACH_HUYEN)'),
+  label: z.string().trim().min(1, 'Tên khu vực không được để trống').max(100),
+  sortOrder: z.number().int().min(0).max(9999).default(0),
+  isActive: z.boolean().default(true),
+});
+
+/** Update payload: `code` is stripped (immutable after create — the route
+ *  400s on an explicit differing code instead of silently ignoring it). */
+export const dispatchZoneUpdateSchema = dispatchZoneSchema.omit({ code: true });
+
 export const portSchema = z.object({
-  dispatchZone: z.enum(DISPATCH_ZONES).optional().nullable(),
+  // Zone codes are DB-owned (dispatch_zones) — shape-check only here; the
+  // route validates the value against the live taxonomy.
+  dispatchZone: z.string().max(32).optional().nullable(),
   name: z.string().min(1, 'Tên cảng/bãi không được để trống').max(255),
   code: z.string().max(20).optional().nullable(),
   address: z.string().optional().nullable(),
@@ -1747,6 +1763,7 @@ export type UpdateAdvanceSettlementInput = z.infer<typeof updateAdvanceSettlemen
 export type ContainerTypeInput = z.infer<typeof containerTypeSchema>;
 export type SealTypeInput = z.infer<typeof sealTypeSchema>;
 export type PortInput = z.infer<typeof portSchema>;
+export type DispatchZoneInput = z.infer<typeof dispatchZoneSchema>;
 export type GenerateBillingDocumentInput = z.infer<typeof generateBillingDocumentSchema>;
 export type ParsedSaveBillingDocumentInput = z.infer<typeof saveBillingDocumentSchema>;
 export type SaveBillingDocumentInput = {

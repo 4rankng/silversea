@@ -28,10 +28,10 @@ export {
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
-  DISPATCH_ZONES, DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
+  DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchZone, DispatchClassification } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchClassification } from './constants';
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
@@ -122,6 +122,7 @@ export {
   cancelShipmentFulfillmentSchema, atomicDispatchPlanEditSchema, tripPodFileMetadataSchema,
   driverProgressSchema, driverIncidentalCostSchema,
   containerTypeSchema, portSchema, sealTypeSchema,
+  dispatchZoneSchema, dispatchZoneUpdateSchema,
   debtOffsetSchema, ANCILLARY_EXPENSE_TYPES,
   commissionSchema,
   driverPayoutSchema,

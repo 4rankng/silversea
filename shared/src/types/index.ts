@@ -3,7 +3,7 @@ import type {
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, NoInvoiceApprovalTitle,
-  DispatchZone, DispatchClassification,
+  DispatchClassification,
 } from '../constants';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -751,7 +751,8 @@ export interface Port {
   address: string | null;
   city: string | null;
   notes: string | null;
-  dispatchZone: DispatchZone | null;
+  // Zone code — DB-owned taxonomy (dispatch_zones), read via /dispatch-zones.
+  dispatchZone: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -761,8 +762,8 @@ export interface Port {
 
 // Domain vocabularies live in constants (single source); re-exported here for
 // the established `import { ... } from '@tingting/shared'` surface.
-export { DISPATCH_ZONES, DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '../constants';
-export type { DispatchZone, DispatchClassification } from '../constants';
+export { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '../constants';
+export type { DispatchClassification } from '../constants';
 
 /** Carrier key for master-plan filtering: own fleet, a specific external
  *  carrier, or fulfillments still lacking any planned carrier. */

@@ -138,6 +138,33 @@ export async function assertUniqueCatalogString(args: {
   if (duplicate) throw new ApiError(409, args.message);
 }
 
+/** Zone codes are DB-owned (dispatch_zones) — reject writes carrying a code
+ *  that is not in the live taxonomy before it can reach ports.dispatch_zone. */
+export async function assertDispatchZoneCode(tx: CrudTx, code: string | null | undefined): Promise<void> {
+  if (code == null) return;
+  const [zone] = await tx.select({ id: s.dispatchZones.id })
+    .from(s.dispatchZones)
+    .where(and(eq(s.dispatchZones.code, code), eq(s.dispatchZones.isActive, true)))
+    .limit(1);
+  if (!zone) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
+}
+
+/** A zone may only be deactivated when no live port still references it —
+ *  otherwise ports.dispatch_zone would dangle with no FK to catch it. The
+ *  operator must re-classify those ports first. */
+export async function assertZoneDeactivatable(tx: CrudTx, code: string): Promise<void> {
+  const [referenced] = await tx.select({ id: s.ports.id })
+    .from(s.ports)
+    .where(and(
+      eq(s.ports.dispatchZone, code),
+      isNull(s.ports.deletedAt),
+    ))
+    .limit(1);
+  if (referenced) {
+    throw new ApiError(400, 'Còn cảng/bãi đang thuộc khu vực này. Hãy gán lại khu vực cho các cảng trước khi ngưng sử dụng.');
+  }
+}
+
 export async function lockCatalogDelete(tx: CrudTx, resource: string, id: number): Promise<void> {
   await lockCatalogRelationship(tx, resource, id);
 }

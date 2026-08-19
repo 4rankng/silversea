@@ -115,7 +115,8 @@ import {
   issueFulfillmentDispatchOrder,
   listDispatchDeliveryPointFacets,
   listDispatchPortFacets,
-  listLachHuyenPortFacets,
+  listZonePortFacets,
+  listZoneTruckPresence,
   listDispatchDetailPlanRows,
   listDispatchFleet,
   listDispatchHandoffs,
@@ -885,6 +886,13 @@ router.get(
       }
       return value;
     };
+    const zone = (() => {
+      const raw = req.query.zone;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim();
+      if (value.length > 32) throw new ApiError(400, 'Khu vực điều phối không hợp lệ.');
+      return value;
+    })();
     res.json(await listDispatchDetailPlanRows({
       actor: getUser(req),
       page: typeof req.query.page === 'string' && Number.isInteger(Number(req.query.page)) && Number(req.query.page) > 0
@@ -900,6 +908,7 @@ router.get(
       deliveryPointIds: idList('deliveryPointIds'),
       hourFrom: time('hourFrom'),
       hourTo: time('hourTo'),
+      zone,
     }));
   }),
 );
@@ -937,15 +946,34 @@ router.get(
   }),
 );
 
-// Master-plan Lạch Huyện port facet: only ports with persisted
-// dispatch_zone = 'LACH_HUYEN' referenced by active dispatch-eligible work.
+// Master-plan per-zone port facet: only ports with the persisted dispatch_zone
+// matching ?zone= referenced by active dispatch-eligible work.
 router.get(
-  '/dispatch-lach-huyen-port-facets',
+  '/dispatch-zone-port-facets',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
-    res.json(await listLachHuyenPortFacets({
+    const zone = String(req.query.zone ?? '').trim();
+    if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');
+    res.json(await listZonePortFacets({
       actor: getUser(req),
+      zone,
       q: typeof req.query.q === 'string' ? req.query.q : undefined,
+    }));
+  }),
+);
+
+// Zone truck presence: OWN trucks with dropoff D-1 / pickup D+1 evidence in
+// ?zone= around the viewing date — advisory input for pairing zone orders.
+router.get(
+  '/dispatch-zone-truck-presence',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const zone = String(req.query.zone ?? '').trim();
+    if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');
+    res.json(await listZoneTruckPresence({
+      actor: getUser(req),
+      zone,
+      date: typeof req.query.date === 'string' ? req.query.date : undefined,
     }));
   }),
 );
