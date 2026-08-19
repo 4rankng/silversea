@@ -1,11 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { PayableSummary, Supplier } from '@tingting/shared';
 import {
   classifyAgingRisk,
   filterAgingByBucket,
   summarizeAgingTotals,
   paginatePayablesSummary,
-  type AgingBucketFilter,
 } from '../../services/aging.service';
 
 const aging = (current: number, d30: number, d60: number, over90: number) => ({ current, d30, d60, over90 });
@@ -35,7 +35,7 @@ describe('filterAgingByBucket', () => {
   test('all returns every row', () => {
     assert.equal(filterAgingByBucket(rows, 'all').length, 4);
   });
-  for (const bucket of ['current', 'd30', 'd60', 'over90'] as AgingBucketFilter[]) {
+  for (const bucket of ['current', 'd30', 'd60', 'over90'] as const) {
     test(`${bucket} keeps only rows with that bucket and outstanding`, () => {
       const kept = filterAgingByBucket(rows, bucket);
       assert.equal(kept.length, 1);
@@ -69,9 +69,21 @@ describe('summarizeAgingTotals', () => {
 });
 
 describe('paginatePayablesSummary', () => {
-  const supplier = (id: number, name: string, phone?: string) =>
-    ({ id, name, phone: phone ?? null }) as never;
-  const mk = (id: number, name: string, outstanding: number) => ({
+  const supplier = (id: number, name: string, phone?: string): Supplier => ({
+    id,
+    name,
+    contactPerson: null,
+    phone: phone ?? null,
+    taxCode: null,
+    note: null,
+    status: 'ACTIVE',
+    linkedCustomerId: null,
+    isFuelSupplier: false,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    deletedAt: null,
+  });
+  const mk = (id: number, name: string, outstanding: number): PayableSummary => ({
     supplier: supplier(id, name),
     totalOutstanding: outstanding,
     aging: aging(outstanding, 0, 0, 0),

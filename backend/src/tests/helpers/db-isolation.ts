@@ -22,7 +22,7 @@ export interface TestCleanup {
   deleteAll(table: PgTable, ids: Array<number | string>): Promise<void>;
   /** Isolated delete by arbitrary predicate (non-id columns, cascades).
    * No-ops when `ids` is empty so the caller keeps the guard-free shape. */
-  deleteWhere(table: PgTable, ids: Array<number | string>, predicate: (ids: Array<number | string>) => SQL): Promise<void>;
+  deleteWhere<T extends number | string>(table: PgTable, ids: T[], predicate: (ids: T[]) => SQL): Promise<void>;
 }
 
 export function withTestCleanup(): TestCleanup {

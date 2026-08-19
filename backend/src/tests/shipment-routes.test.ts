@@ -1904,6 +1904,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       .set({ customerAppointmentAt: new Date('2026-08-25T02:00:00.000Z') })
       .where(eq(s.shipmentContainers.id, firstContainer.id));
 
+    assert.ok(firstContainer.containerTypeId);
     const [firstType] = await db.select({ code: s.containerTypes.code })
       .from(s.containerTypes)
       .where(eq(s.containerTypes.id, firstContainer.containerTypeId));
