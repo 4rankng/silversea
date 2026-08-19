@@ -49,6 +49,38 @@ export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
     .orderBy(desc(s.shipmentContainers.createdAt));
 }
 
+/**
+ * Per-container factory authority validation — the single choke point every
+ * container write passes through (direct PUT, change-request review, CUS
+ * reconcile). A container may name only an operational site that exists,
+ * belongs to the shipment's customer, is active, not soft-deleted, and is a
+ * FACTORY. No DB FK by repo convention, so this boundary owns integrity —
+ * including the cross-customer IDOR the review path previously accepted.
+ */
+async function assertContainerSitesValid(
+  tx: Tx,
+  customerId: number,
+  containers: ShipmentContainerInput[],
+): Promise<void> {
+  const siteIds = [...new Set(
+    containers.map((container) => container.operationalSiteId)
+      .filter((id): id is number => id != null),
+  )];
+  if (siteIds.length === 0) return;
+  const sites = await tx.select({ id: s.operationalSites.id })
+    .from(s.operationalSites)
+    .where(and(
+      inArray(s.operationalSites.id, siteIds),
+      eq(s.operationalSites.customerId, customerId),
+      eq(s.operationalSites.siteType, 'FACTORY'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    ));
+  if (sites.length !== siteIds.length) {
+    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+  }
+}
+
 // ─── Container snapshot into trip ───────────────────────────────────────────
 //
 // phase-01 architecture: a shipment exists before any trip; on dispatch, the
@@ -156,12 +188,14 @@ export async function reconcileShipmentContainersInTx(
     plannedReturnAt: s.shipments.plannedReturnAt,
     status: s.shipments.status,
     version: s.shipments.version,
+    customerId: s.shipments.customerId,
   })
     .from(s.shipments)
     .where(eq(s.shipments.id, shipmentId))
     .limit(1)
     .for('update');
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  await assertContainerSitesValid(tx, shipment.customerId, containers);
   const shippingLineName = resolveShipmentShippingLine(shipment.shippingLineName, containers);
   const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
   if (!shipment.shippingLineName?.trim() && shippingLineName) {
@@ -182,7 +216,18 @@ export async function reconcileShipmentContainersInTx(
   }
 
   const upserted: Array<{ id: number }> = [];
+  const currentById = new Map(current.map((row) => [row.id, row]));
   for (const container of synchronizedContainers) {
+    const isUpdate = container.id != null && existingIds.has(container.id);
+    // Per-container factory authority: an update that leaves the field
+    // unspecified (undefined — e.g. a UI payload that doesn't manage it)
+    // preserves the existing authority; only an explicit null clears it.
+    // Inserts without the field start at null (legacy behavior).
+    const resolvedSiteId = container.operationalSiteId !== undefined
+      ? container.operationalSiteId
+      : isUpdate
+        ? currentById.get(container.id as number)?.operationalSiteId ?? null
+        : null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -193,14 +238,15 @@ export async function reconcileShipmentContainersInTx(
       shippingLineName: container.shippingLineName?.trim() || null,
       pickupPortId: container.pickupPortId ?? null,
       dropoffPortId: container.dropoffPortId ?? null,
+      operationalSiteId: resolvedSiteId,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };
-    if (container.id && existingIds.has(container.id)) {
+    if (isUpdate) {
       const [updated] = await tx.update(s.shipmentContainers)
         .set(payload)
-        .where(eq(s.shipmentContainers.id, container.id))
+        .where(eq(s.shipmentContainers.id, container.id as number))
         .returning({ id: s.shipmentContainers.id });
       if (updated) upserted.push(updated);
     } else {
@@ -280,7 +326,12 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
     }).where(inArray(s.shipmentFulfillments.id, activeFulfillments.map((fulfillment) => fulfillment.id)));
   }
 
-  return reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
+  const result = await reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
+  // Snapshot refresh happens at re-decompose: ensureShipmentFulfillmentsInTx
+  // resolves per-container deliverySite overrides from current authority, so
+  // the fulfillments canceled above are rebuilt (by the next decomposition)
+  // with fresh snapshots — never the stale inherited factory.
+  return result;
 }
 
 export function parsePlanUpdateSnapshot(snapshot: unknown): UpdateShipmentInput {

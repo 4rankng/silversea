@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus } from '@tingting/shared';
 
 import { db } from '../db';
@@ -239,6 +239,12 @@ export async function ensureShipmentFulfillmentsInTx(
   }
 
   const siteSnapshot = await loadSiteSnapshot(tx, shipment);
+  // Per-container factory authority (SILVER L1): an FCL container naming its
+  // own FACTORY overrides the shipment-level deliverySite half of the shared
+  // snapshot. Cancellation + re-decompose is the refresh mechanism — whenever
+  // a container's site changes, the guarded reconcile cancels the stale
+  // fulfillments and this decomposition rebuilds snapshots from authority.
+  const containerSnapshots = await loadContainerSiteSnapshots(tx, shipment, containers);
   const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === 'FCL'
     ? containers.map((container) => ({
       shipmentId: shipment.id,
@@ -246,7 +252,7 @@ export async function ensureShipmentFulfillmentsInTx(
       cargoMode: 'FCL' as const,
       shipmentContainerId: container.id,
       sourceShipmentVersion: shipment.version,
-      siteSnapshot,
+      siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
       createdBy: input.actorId,
     }))
     : [{
@@ -259,6 +265,57 @@ export async function ensureShipmentFulfillmentsInTx(
       createdBy: input.actorId,
     }];
   return tx.insert(s.shipmentFulfillments).values(values).returning();
+}
+
+/**
+ * Resolve per-container overrides for the deliverySite snapshot half. Only
+ * containers with their own FACTORY authority participate — everything else
+ * keeps the shipment-level snapshot untouched (legacy precedence).
+ */
+async function loadContainerSiteSnapshots(
+  tx: Tx,
+  shipment: typeof s.shipments.$inferSelect,
+  containers: Array<typeof s.shipmentContainers.$inferSelect>,
+): Promise<Map<number, Record<string, unknown>>> {
+  const siteIds = [...new Set(
+    containers.map((container) => container.operationalSiteId)
+      .filter((id): id is number => id != null),
+  )];
+  if (siteIds.length === 0) return new Map();
+
+  const sites = await tx.select().from(s.operationalSites)
+    .where(and(
+      inArray(s.operationalSites.id, siteIds),
+      eq(s.operationalSites.customerId, shipment.customerId),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    ));
+  const byId = new Map(sites.map((site) => [site.id, site]));
+  const overrides = new Map<number, Record<string, unknown>>();
+  for (const container of containers) {
+    if (container.operationalSiteId == null) continue;
+    const site = byId.get(container.operationalSiteId);
+    if (!site) continue;
+    overrides.set(container.id, {
+      deliverySite: {
+        id: site.id,
+        code: site.code,
+        name: site.shortName || site.name,
+        fullName: site.name,
+        siteType: site.siteType,
+        address: site.address,
+        googleMapsUrl: site.googleMapsUrl,
+        contactName: site.contactName,
+        contactPhone: site.contactPhone,
+        liftFeeInvoiceName: site.liftFeeInvoiceName,
+        liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
+        liftFeeTaxCode: site.liftFeeTaxCode,
+        strictRules: site.strictRules,
+        sourceVersion: site.version,
+      },
+    });
+  }
+  return overrides;
 }
 
 /**
@@ -303,6 +360,22 @@ export async function assertFulfillmentBelongsToShipment(
   if (!row) throw new ApiError(404, 'Không tìm thấy tác vụ thực hiện.');
   return row;
 }
+
+/**
+ * Merge a per-container deliverySite override into an existing snapshot,
+ * preserving the pickupWarehouse half. Used by the change-request review
+ * path when it copies a canceled fulfillment's snapshot onto its
+ * replacement — the override carries the container's current factory
+ * authority instead of the stale inherited one.
+ */
+export function mergeContainerSiteSnapshotOverride(
+  base: Record<string, unknown>,
+  override: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!override) return base;
+  return { ...base, ...override };
+}
+
 
 export async function assertFulfillmentReadyForDispatch(
   fulfillmentId: number,

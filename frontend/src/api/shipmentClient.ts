@@ -337,6 +337,9 @@ export interface ShipmentContainerBatch {
     customerAppointmentAt?: string | null;
     pickupPortId?: number | null;
     dropoffPortId?: number | null;
+    /** Per-container factory authority (SILVER L1). Omitted (never nulled)
+     *  by surfaces that don't manage it, so the reconcile preserves it. */
+    operationalSiteId?: number | null;
     notes?: string | null;
   }>;
 }

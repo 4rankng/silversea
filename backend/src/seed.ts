@@ -912,7 +912,15 @@ export async function seedShipments(passwordHash: string) {
     contactPhone: string;
     closingAt?: string;
     advanceTo?: 'DISPATCHED' | 'IN_TRANSIT' | 'PENDING_EXPENSE_APPROVAL' | 'COMPLETED' | 'CANCELED';
-    containers?: Array<{ containerNumber: string; sealNumber: string; cargoWeightKg: number }>;
+    containers?: Array<{
+      containerNumber: string;
+      sealNumber: string;
+      cargoWeightKg: number;
+      /** Optional per-container factory authority (SILVER L1). */
+      factoryCode?: string;
+      /** Optional per-container appointment instant (SILVER L1). */
+      appointmentAt?: string;
+    }>;
     document?: { type: 'BOOKING' | 'BL' | 'DO' | 'DECLARATION' | 'OTHER'; storageKey: string };
     declaration?: { declarationNumber: string; scope: 'SINGLE' | 'SHARED'; note: string };
   };
@@ -1065,6 +1073,21 @@ export async function seedShipments(passwordHash: string) {
       closingAt: '2026-08-07T08:00:00.000Z',
       advanceTo: 'CANCELED',
     },
+    // ── SILVER L1 per-container factory authority ────────────────────────────
+    // One Booking, two containers at the same factory on two appointment
+    // days: the per-container scenario every Phase-2+ surface must keep
+    // whole. (Same factory because Biển Bạc seeds exactly one FACTORY site.)
+    {
+      tradeDirection: 'EXPORT', ref: 'DNKM13340', customerId: bienBac.id,
+      expectedDeliveryDate: '2026-08-24',
+      pickupLocation: 'BB Long Biên', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
+      closingAt: '2026-08-23T08:00:00.000Z',
+      containers: [
+        { containerNumber: 'BBHU2001012', sealNumber: 'SL8600101', cargoWeightKg: 18200, factoryCode: 'BB-KHO-LONG-BIEN', appointmentAt: '2026-08-24T04:00:00.000Z' },
+        { containerNumber: 'BBHU2001028', sealNumber: 'SL8600102', cargoWeightKg: 17600, factoryCode: 'BB-KHO-LONG-BIEN', appointmentAt: '2026-08-25T04:00:00.000Z' },
+      ],
+    },
   ];
 
   let createdCount = 0;
@@ -1109,6 +1132,18 @@ export async function seedShipments(passwordHash: string) {
       const [pickupPortId, dropoffPortId] = s.tradeDirection === 'IMPORT'
         ? [PORT_HAI_PHONG, PORT_DINH_VU]
         : [PORT_DINH_VU, PORT_LACH_HUYEN];
+      // Per-container factory authority resolves by code within the shipment's
+      // customer; a missing/invalid code leaves authority null (legacy row).
+      const factorySiteIds = new Map<string, number>();
+      if (s.containers.some((c) => c.factoryCode)) {
+        const siteRows = await db.select({ id: schema.operationalSites.id, code: schema.operationalSites.code })
+          .from(schema.operationalSites)
+          .where(and(
+            eq(schema.operationalSites.customerId, s.customerId),
+            eq(schema.operationalSites.siteType, 'FACTORY'),
+          ));
+        for (const row of siteRows) factorySiteIds.set(row.code, row.id);
+      }
       await batchUpsertShipmentContainers(shipment.id, null, s.containers.map((c) => ({
         containerNumber: c.containerNumber,
         sealNumber: c.sealNumber,
@@ -1119,6 +1154,8 @@ export async function seedShipments(passwordHash: string) {
         shippingLineName: s.tradeDirection === 'IMPORT' ? 'MSC' : 'ONE',
         pickupPortId,
         dropoffPortId,
+        operationalSiteId: c.factoryCode ? factorySiteIds.get(c.factoryCode) ?? null : null,
+        customerAppointmentAt: c.appointmentAt ?? null,
       })));
     }
     if (s.document) {

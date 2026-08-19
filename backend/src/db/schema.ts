@@ -2599,6 +2599,10 @@ export const shipmentContainers = pgTable('shipment_containers', {
   customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),
   dropoffPortId: integer('dropoff_port_id'),
+  // Per-container factory authority (SILVER L1): nullable, indexed, no DB FK
+  // by repo convention — customer scope + FACTORY type are enforced at the
+  // persistence choke point (reconcileShipmentContainersInTx).
+  operationalSiteId: integer('operational_site_id'),
   notes: text('notes'),
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -2607,6 +2611,7 @@ export const shipmentContainers = pgTable('shipment_containers', {
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
   index('shipment_containers_pickup_port_idx').on(table.pickupPortId),
   index('shipment_containers_dropoff_port_idx').on(table.dropoffPortId),
+  index('shipment_containers_operational_site_idx').on(table.operationalSiteId),
   uniqueIndex('shipment_containers_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
 ]);
 

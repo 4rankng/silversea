@@ -47,6 +47,8 @@ export type ShipmentContainerDraft = {
   shippingLineName?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  operationalSiteId?: number | null;
+  customerAppointmentAt?: string | null;
   notes?: string | null;
 };
 
@@ -184,6 +186,10 @@ function currentContainerSnapshot(rows: ShipmentContainerRow[]) {
       shippingLineName: row.shippingLineName ?? null,
       pickupPortId: row.pickupPortId ?? null,
       dropoffPortId: row.dropoffPortId ?? null,
+      operationalSiteId: row.operationalSiteId ?? null,
+      customerAppointmentAt: row.customerAppointmentAt
+        ? new Date(row.customerAppointmentAt).toISOString()
+        : null,
       notes: row.notes ?? null,
     }))
     .sort((a, b) => {
@@ -201,6 +207,10 @@ function requestedContainerSnapshot(rows: ShipmentContainerDraft[]) {
       containerNumber: normalizeNullableText(row.containerNumber ?? null),
       sealNumber: normalizeNullableText(row.sealNumber ?? null),
       cargoWeightKg: normalizeNumberString(row.cargoWeightKg ?? null, 2),
+      operationalSiteId: row.operationalSiteId ?? null,
+      // Normalize both sides to UTC ISO so an offset-form timestamp of the
+      // same instant classifies as unchanged, not a phantom change request.
+      customerAppointmentAt: normalizeTimestampString(row.customerAppointmentAt ?? null),
       notes: normalizeNullableText(row.notes ?? null),
     }))
     .sort((a, b) => {

@@ -19,6 +19,7 @@ export interface ShipmentContainerInput {
   shippingLineName?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  operationalSiteId?: number | null;
   customerAppointmentAt?: string | null;
   notes?: string | null;
 }

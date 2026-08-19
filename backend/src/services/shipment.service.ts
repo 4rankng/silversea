@@ -710,6 +710,9 @@ async function createShipmentStatusCustomerVisibleEvent(
 
 async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: AuthUser) {
   assertShipmentDocumentReferences(input);
+  if (input.operationalSiteId != null) {
+    await assertShipmentFactorySiteValid(tx, input.customerId, input.operationalSiteId);
+  }
   let responsibleUnitId = input.responsibleUnitId ?? null;
   if (actor && isClerkScopedUser(actor)) {
     const scope = await loadClerkShipmentScope(actor.userId, tx);
@@ -1060,6 +1063,29 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
 
 // ─── Update (optimistic-lock) ───────────────────────────────────────────────
 
+/**
+ * Shipment-level factory validation (SILVER L1 P2): the site must exist,
+ * belong to the given customer, be active, not soft-deleted, and be a
+ * FACTORY. Shared by create, update, and change-request apply so no write
+ * path can land cross-customer or wrong-type site authority.
+ */
+export async function assertShipmentFactorySiteValid(
+  tx: Tx,
+  customerId: number,
+  operationalSiteId: number,
+): Promise<void> {
+  const [factory] = await tx.select({ id: s.operationalSites.id })
+    .from(s.operationalSites)
+    .where(and(
+      eq(s.operationalSites.id, operationalSiteId),
+      eq(s.operationalSites.customerId, customerId),
+      eq(s.operationalSites.siteType, 'FACTORY'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    )).limit(1);
+  if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+}
+
 export async function updateShipment(
   id: number,
   input: UpdateShipmentInput,
@@ -1074,6 +1100,12 @@ export async function updateShipment(
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, id);
+    // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
+    // FACTORY-type validation the container choke point enforces. The
+    // resolved customer respects an in-flight customerId change.
+    if (input.operationalSiteId != null) {
+      await assertShipmentFactorySiteValid(tx, input.customerId ?? existing.customerId, input.operationalSiteId);
+    }
 
     let clerkScope = null;
     if (actor && isClerkScopedUser(actor)) {
@@ -2514,6 +2546,15 @@ export async function reviewShipmentChangeRequest(
       }
       if (request.requestKind === 'PLAN_UPDATE') {
         const patch = parsePlanUpdateSnapshot(request.afterSnapshot);
+        // Revalidate at apply time: the factory may have been deactivated or
+        // re-scoped between request submission and review (TOCTOU guard).
+        if (patch.operationalSiteId != null) {
+          await assertShipmentFactorySiteValid(
+            tx,
+            patch.customerId ?? shipment.customerId,
+            patch.operationalSiteId,
+          );
+        }
         const [updated] = await tx.update(s.shipments).set({
           ...(patch.customerId !== undefined ? { customerId: patch.customerId } : {}),
           ...(patch.cargoTypeId !== undefined ? { cargoTypeId: patch.cargoTypeId } : {}),
