@@ -13,6 +13,29 @@ export default defineConfig({
       '@tingting/shared': path.resolve(__dirname, '../shared/src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split stable vendor libraries from app code so dep-bump releases
+        // don't invalidate the whole download for returning visitors.
+        // IMPORTANT: match exact package names — a substring like 'react'
+        // would also swallow react-markdown/react-aria, and any module that
+        // shares a chunk with eager code downloads eagerly.
+        manualChunks(id) {
+          // Match the LAST node_modules segment — pnpm nests real paths as
+          // node_modules/.pnpm/<pkg>@<v>/node_modules/<pkg>/…
+          const marker = id.lastIndexOf('node_modules/');
+          if (marker === -1) return undefined;
+          const segments = id.slice(marker + 'node_modules/'.length).split('/');
+          const pkg = segments[0]?.startsWith('@') ? `${segments[0]}/${segments[1]}` : segments[0];
+          if (['react', 'react-dom', 'scheduler', 'react-router', 'react-router-dom',
+            '@tanstack/react-query', '@tanstack/query-core'].includes(pkg)) return 'vendor-react';
+          if (pkg === 'animejs') return 'vendor-anim';
+          return undefined;
+        },
+      },
+    },
+  },
   server: {
     port: 7174,
     // Fail loudly if 7174 is taken instead of silently moving to 7174/7175,

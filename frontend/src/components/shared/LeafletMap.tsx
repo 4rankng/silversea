@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
+// Leaflet's stylesheet rides the same chunks as this component (all of its
+// consumers sit on lazy routes) instead of the eager entry bundle.
+import 'leaflet/dist/leaflet.css';
 import { decodePolyline } from '../../lib/maps';
 import { LIVE_STATUS_LABEL, liveMarkerIcon } from '../../lib/liveFleet';
 import type { GpsStop, LiveFleetStatus } from '@tingting/shared';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Calendar } from 'lucide-react';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
@@ -11,7 +11,9 @@ import type { SearchItem } from '../../data/searchRegistry';
 import { SearchDropdown } from '../SearchDropdown';
 import type { TopbarProps } from './types';
 import { NotificationBell } from './NotificationBell';
-import { AgentAssistant } from '../agent/AgentAssistant';
+// The agent chat (react-markdown + chat UI, ~40KB gz) only renders when the
+// drawer opens — load it on demand instead of the eager shell bundle.
+const AgentAssistant = lazy(() => import('../agent/AgentAssistant').then((m) => ({ default: m.AgentAssistant })));
 import { useTopbarEntrance } from '../../hooks/useTopbarEntrance';
 
 const MONTHS = [
@@ -252,7 +254,9 @@ function Topbar({
       <div className="topbar__actions">
         {!isDriver && <MonthNavigator />}
         {canUseNotifications && <NotificationBell />}
-        <AgentAssistant />
+        <Suspense fallback={<span className="topbar__icon-btn agent-launcher" aria-hidden="true" />}>
+          <AgentAssistant />
+        </Suspense>
       </div>
     </header>
   );
