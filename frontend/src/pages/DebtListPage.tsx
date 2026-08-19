@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { Pagination } from '../design-system';
+import { Pagination, useDebouncedValue } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { useCustomerAging } from '../hooks/useQueries';
@@ -96,8 +96,23 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
 export default function DebtListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [search, setSearch] = useState('');
-  const { data, isLoading: loading, error: queryError } = useCustomerAging(search);
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const [page, setPage] = useState(1);
+  const [filterMode, setFilterMode] = useState<BucketFilterMode>(
+    searchParams.get('filter') === 'current' ? 'current'
+    : searchParams.get('filter') === 'd30' ? 'd30'
+    : searchParams.get('filter') === 'd60' ? 'd60'
+    : searchParams.get('filter') === 'over90' ? 'over90'
+    : 'all',
+  );
+  // Server-side pagination + bucket filter + search; totals are full-set.
+  const { data, isLoading: loading, error: queryError } = useCustomerAging({
+    search: debouncedSearch || undefined,
+    bucket: filterMode,
+    page,
+    limit: 25,
+  });
   const { toast: showToast } = useToast();
   const [exporting, setExporting] = useState(false);
 
@@ -105,7 +120,7 @@ export default function DebtListPage() {
     if (exporting) return;
     setExporting(true);
     try {
-      const q = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
+      const q = searchInput.trim() ? `?search=${encodeURIComponent(searchInput.trim())}` : '';
       const blob = await api.getBlob(`/reports/receivables-aging/export${q}`);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -122,13 +137,6 @@ export default function DebtListPage() {
   const rawCustomers = useMemo(() => data?.customers ?? [], [data?.customers]);
   const totalCustomers = data?.total ?? rawCustomers.length;
   const error = queryError ? (queryError as Error).message : null;
-  const [filterMode, setFilterMode] = useState<BucketFilterMode>(
-    searchParams.get('filter') === 'current' ? 'current'
-      : searchParams.get('filter') === 'd30' ? 'd30'
-      : searchParams.get('filter') === 'd60' ? 'd60'
-      : searchParams.get('filter') === 'over90' ? 'over90'
-      : 'all',
-  );
 
   /* ── Animation hooks ── */
   const prefersReduced = usePrefersReducedMotion();
@@ -176,67 +184,23 @@ export default function DebtListPage() {
     });
   }, [rawCustomers]);
 
-  const totals = useMemo(() => {
-    const sum = {
-      total: 0,
-      current: 0,
-      d30: 0,
-      d60: 0,
-      over90: 0,
-      currentCusts: 0,
-      d30Custs: 0,
-      d60Custs: 0,
-      over90Custs: 0,
-      overdueCount: 0,
-      highRiskCount: 0,
-    };
+  // Full-set totals arrive server-computed (page-independent), so the KPI strip
+  // stays stable while paging or narrowing to one aging bucket.
+  const totals = data?.totals ?? {
+    total: 0, current: 0, d30: 0, d60: 0, over90: 0,
+    currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
+    overdueCount: 0, highRiskCount: 0,
+  };
 
-    customerDebts.forEach(d => {
-      if (d.totalOutstanding > 0) {
-        sum.total += d.totalOutstanding;
-        if (d.aging.current > 0) { sum.current += d.aging.current; sum.currentCusts++; }
-        if (d.aging.d30 > 0) { sum.d30 += d.aging.d30; sum.d30Custs++; }
-        if (d.aging.d60 > 0) { sum.d60 += d.aging.d60; sum.d60Custs++; }
-        if (d.aging.over90 > 0) { sum.over90 += d.aging.over90; sum.over90Custs++; }
-        if (d.maxOverdueDays > 30) { sum.overdueCount++; }
-        if (d.riskClass === 'high') { sum.highRiskCount++; }
-      }
-    });
-
-    return sum;
-  }, [customerDebts]);
-
-  const filteredDebts = useMemo(() => {
-    let result = customerDebts;
-    if (filterMode === 'current') {
-      // 0–30 ngày — on-time/current balance (no overdue amount, but has outstanding).
-      result = result.filter(d => d.aging.current > 0 && d.totalOutstanding > 0);
-    } else if (filterMode === 'd30') {
-      // 31–60 ngày — has balance in the d30 aging bucket specifically.
-      result = result.filter(d => d.aging.d30 > 0 && d.totalOutstanding > 0);
-    } else if (filterMode === 'd60') {
-      // 61–90 ngày — has balance in the d60 aging bucket specifically.
-      result = result.filter(d => d.aging.d60 > 0 && d.totalOutstanding > 0);
-    } else if (filterMode === 'over90') {
-      // Trên 90 ngày — has balance in the over90 aging bucket specifically.
-      result = result.filter(d => d.aging.over90 > 0 && d.totalOutstanding > 0);
-    }
-    return result;
-  }, [customerDebts, filterMode]);
-
-  /* ── Client-side pagination (aging endpoint returns the full list) ── */
-  const [page, setPage] = useState(1);
-  const pageSize = 25;
-  const totalDebtPages = Math.max(1, Math.ceil(filteredDebts.length / pageSize));
+  // Bucket + page + search filtering happen server-side; the rows below render
+  // the current window only.
+  const debts = customerDebts;
+  const totalDebtPages = data?.totalPages ?? 1;
   const effectivePage = Math.min(page, totalDebtPages);
-  const pagedDebts = useMemo(
-    () => filteredDebts.slice((effectivePage - 1) * pageSize, effectivePage * pageSize),
-    [filteredDebts, effectivePage, pageSize],
-  );
   // Any filter/search change invalidates the current page number.
-  useEffect(() => { setPage(1); }, [filterMode, search]);
+  useEffect(() => { setPage(1); }, [filterMode, debouncedSearch]);
 
-  const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [filteredDebts] });
+  const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [debts] });
 
   /* ── Counter animation trigger ── */
   useEffect(() => {
@@ -434,8 +398,8 @@ export default function DebtListPage() {
               name="customerDebtSearch"
               aria-label="Tìm công nợ theo khách hàng"
               placeholder="Tìm khách hàng..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
             />
           </div>
         </div>
@@ -456,13 +420,13 @@ export default function DebtListPage() {
             {/* ── Mobile card list (<=640px) ── */}
             <div className="mobile-only mobile-table-wrap" ref={listRef}>
               <div className="m-card-list">
-                {pagedDebts.length === 0 ? (
+                {debts.length === 0 ? (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                     <img src={resolveEmptyIllustration('empty-debts')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     Không tìm thấy dữ liệu.
                   </div>
                 ) : (
-                  pagedDebts.map(d => {
+                  debts.map(d => {
                     return (
                       <ClickableCard key={d.customerId} to={`/debt/${d.customerId}`} className="m-card">
                         <div className="m-card__top">
@@ -521,7 +485,7 @@ export default function DebtListPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pagedDebts.map(d => {
+                      {debts.map(d => {
                         return (
                           <tr
                             key={d.customerId}
@@ -586,7 +550,7 @@ export default function DebtListPage() {
                       );
                     })}
 
-                    {pagedDebts.length === 0 && (
+                    {debts.length === 0 && (
                       <tr>
                         <td colSpan={4} style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -599,7 +563,7 @@ export default function DebtListPage() {
                   </tbody>
                 </table>
               </div>
-              <Pagination page={effectivePage} totalPages={totalDebtPages} totalItems={filteredDebts.length} pageSize={pageSize} onChange={setPage} />
+              <Pagination page={effectivePage} totalPages={totalDebtPages} totalItems={data?.total ?? 0} pageSize={data?.limit ?? 25} onChange={setPage} />
             </div>
           </>
         )}

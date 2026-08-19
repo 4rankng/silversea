@@ -30,7 +30,8 @@ import {
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
 import { cacheInvalidatePattern, invalidateReportCaches } from '../../lib/redis';
-import { getPayablesSummary } from '../../services/aging.service';
+import { getPayablesSummary, paginatePayablesSummary } from '../../services/aging.service';
+import { parsePagination } from '../utils/pagination';
 import { requestCommissionGovernance } from '../../services/commission.service';
 import {
   requestPaymentReceiptGovernance,
@@ -524,7 +525,10 @@ router.get('/reports/payables-summary', asyncHandler(async (req: Request, res: R
   const rawCategory = typeof req.query.category === 'string' ? req.query.category : undefined;
   const category: PayablesCategory | undefined =
     rawCategory && PAYABLES_CATEGORIES.has(rawCategory) ? (rawCategory as PayablesCategory) : undefined;
-  res.json(await getPayablesSummary({ asOfDate, category }));
+  const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+  const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
+  const summary = await getPayablesSummary({ asOfDate, category });
+  res.json(paginatePayablesSummary(summary, { search, page, limit }));
 }));
 
 // ─── Commission (manual posting) ────────────────────────────────────────────

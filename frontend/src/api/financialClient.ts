@@ -141,6 +141,14 @@ export interface CustomerAgingResponse {
   limit: number;
   total: number;
   totalPages: number;
+  /** Full-set aggregates for the KPI strip (server-computed, page-independent). */
+  totals: {
+    total: number;
+    current: number; d30: number; d60: number; over90: number;
+    currentCusts: number; d30Custs: number; d60Custs: number; over90Custs: number;
+    overdueCount: number;
+    highRiskCount: number;
+  };
 }
 
 export const financialClient = {
@@ -215,13 +223,26 @@ export const financialClient = {
       `${FINANCIAL.EXPENSES}${toQuery(filters)}`,
     ),
 
-  getPayablesSummary: (category?: PayablesCategory) =>
+  getPayablesSummary: (params?: {
+    category?: PayablesCategory;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) =>
     api.get<{
       items: PayableSummary[];
       totalOutstanding: string;
       totalSuppliers: number;
       overdueSuppliers: number;
-    }>(`${REPORTS.PAYABLES_SUMMARY}${toQuery({ category })}`),
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      totals: {
+        current: number; d30: number; d60: number; over90: number;
+        currentCount: number; d30Count: number; d60Count: number; over90Count: number;
+      };
+    }>(`${REPORTS.PAYABLES_SUMMARY}${toQuery(params)}`),
 
   getFuelInvoices: async (filters?: { supplierId?: number; status?: FuelInvoiceStatus }) => {
     const items: FuelInvoice[] = [];
@@ -259,10 +280,10 @@ export const financialClient = {
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),
 
-  getCustomerAging: (params?: { search?: string; page?: number; limit?: number }) => {
+  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' }) => {
     const search = params?.search?.trim() || undefined;
     return api.get<CustomerAgingResponse>(
-      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit })}`,
+      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined })}`,
     );
   },
 

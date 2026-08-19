@@ -860,6 +860,57 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
   return enriched;
 }
 
+export type AdvanceSettlementRow = Awaited<ReturnType<typeof listAdvanceSettlements>>[number];
+
+export interface PaginatedAdvanceSettlements {
+  items: AdvanceSettlementRow[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  /** Full-set status counts for the page's filter pills. */
+  statusCounts: Record<string, number>;
+  /** Full-set totals for the page's KPI strip. */
+  totals: { totalExpenseAmount: number; pendingCount: number };
+}
+
+/**
+ * Paginated + summarized wrapper over listAdvanceSettlements for the HTTP
+ * list route. Callers that need the full array (admin ops, agent tools) keep
+ * calling listAdvanceSettlements directly; page/limit here are always
+ * bounded, and statusCounts/totals describe the whole filtered set.
+ */
+export async function listAdvanceSettlementsPaginated(filters: {
+  forwarderId?: number;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedAdvanceSettlements> {
+  const enriched = await listAdvanceSettlements(filters);
+  const page = Math.max(1, Math.floor(filters.page || 1));
+  const limit = Math.min(500, Math.max(1, Math.floor(filters.limit || 25)));
+  const total = enriched.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = (page - 1) * limit;
+  const statusCounts: Record<string, number> = {};
+  let totalExpenseAmount = 0;
+  let pendingCount = 0;
+  for (const s of enriched) {
+    statusCounts[s.status] = (statusCounts[s.status] ?? 0) + 1;
+    totalExpenseAmount += Number(s.totalExpenseAmount);
+    if (s.status === 'PENDING') pendingCount++;
+  }
+  return {
+    items: enriched.slice(start, start + limit),
+    page,
+    limit,
+    total,
+    totalPages,
+    statusCounts,
+    totals: { totalExpenseAmount, pendingCount },
+  };
+}
+
 export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
   const [row] = await executor.select()
     .from(s.advanceSettlements)

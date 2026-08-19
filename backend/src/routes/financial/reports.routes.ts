@@ -107,7 +107,11 @@ router.get('/reports/receivables-aging', requireRoles(Role.ADMIN, Role.MANAGER, 
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
   const asOfDate = typeof req.query.asOfDate === 'string' ? req.query.asOfDate : undefined;
   const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
-  res.json(await getCustomerAgingList({ search, asOfDate, page, limit }));
+  const rawBucket = typeof req.query.bucket === 'string' ? req.query.bucket : undefined;
+  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90'].includes(rawBucket)
+    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90')
+    : 'all';
+  res.json(await getCustomerAgingList({ search, asOfDate, page, limit, bucket }));
 }));
 
 router.get('/reports/receivables-aging/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {

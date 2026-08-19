@@ -30,7 +30,8 @@ import { throwValidation } from '../lib/validation';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { tripContainerSchema, tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema } from '@tingting/shared';
-import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, createAdvanceSettlement, listAdvanceSettlements, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../services/advance.service';
+import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, createAdvanceSettlement, listAdvanceSettlements, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../services/advance.service';
+import { parsePagination } from './utils/pagination';
 import { createAdvanceRequestSchema, createAdvanceSettlementSchema } from '@tingting/shared';
 import { buildNoInvoicePolicySnapshot } from '../services/no-invoice-disbursement.service';
 import { storageService } from '../services/storage.service';
@@ -835,8 +836,12 @@ router.get('/advance-balance', asyncHandler(async (req: Request, res: Response) 
 
 router.get('/advance-settlements', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
-  const items = await listAdvanceSettlements({ forwarderId: forwarder.id });
-  res.json({ items });
+  const status = typeof req.query.status === 'string' && req.query.status ? req.query.status : undefined;
+  // Default limit is the max so no-param callers (e.g. the advances overview,
+  // which filters the whole set client-side) keep the legacy full-list
+  // behavior; the settlements list page passes explicit page/limit.
+  const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
+  res.json(await listAdvanceSettlementsPaginated({ forwarderId: forwarder.id, status, page, limit }));
 }));
 
 router.get('/advance-settlements/:id', asyncHandler(async (req: Request, res: Response) => {

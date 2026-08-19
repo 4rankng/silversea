@@ -123,8 +123,21 @@ export const forwarderClient = {
     return api.get<{ outstanding: string }>(FORWARDER.ADVANCE_BALANCE);
   },
 
-  getAdvanceSettlements: async () => {
-    return api.get<{ items: AdvanceSettlementWithRefs[] }>(FORWARDER.ADVANCE_SETTLEMENTS);
+  getAdvanceSettlements: async (params?: { status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    qs.set('page', String(params?.page ?? 1));
+    // No explicit limit → server default (500) keeps legacy full-list callers whole.
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return api.get<{
+      items: AdvanceSettlementWithRefs[];
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      statusCounts: Record<string, number>;
+      totals: { totalExpenseAmount: number; pendingCount: number };
+    }>(`${FORWARDER.ADVANCE_SETTLEMENTS}?${qs.toString()}`);
   },
   getAdvanceSettlementDetail: async (id: number) => {
     return api.get<AdvanceSettlementWithRefs>(FORWARDER.ADVANCE_SETTLEMENT_DETAIL(id));

@@ -73,8 +73,14 @@ interface Settlement {
 export default function ForwarderSettlementsPage() {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState<AdvanceSettlementStatus | ''>('');
+  const [page, setPage] = useState(1);
 
-  const { data: settlementsData, isLoading: loadingSettlements, error: settlementsError } = useForwarderSettlements();
+  // Server-side status filter + pagination; statusCounts/totals are full-set.
+  const { data: settlementsData, isLoading: loadingSettlements, error: settlementsError } = useForwarderSettlements({
+    status: activeFilter || undefined,
+    page,
+    limit: 25,
+  });
   const { rootRef } = usePageAnimations({
     ready: !loadingSettlements,
     selectors: ['.page-header', '.hero-kpi-row', '.fwd-filter-pills', '.fset-card'],
@@ -85,14 +91,15 @@ export default function ForwarderSettlementsPage() {
   const heroTotalRef = useRef<HTMLSpanElement>(null);
   const heroPendingRef = useRef<HTMLSpanElement>(null);
 
-  const settlements = useMemo(() => (settlementsData?.items ?? settlementsData ?? []) as Settlement[], [settlementsData]);
+  const settlements = useMemo(() => (settlementsData?.items ?? []) as Settlement[], [settlementsData]);
   const expenseTypeOptions = catalogs?.forwarderExpenseTypes ?? [];
 
   const error = settlementsError ? 'Không thể tải danh sách phiếu thanh toán' : null;
 
-  // Derived stats
-  const pending = settlements.filter(s => s.status === 'PENDING').length;
-  const totalExpenseAll = settlements.reduce((sum, s) => sum + Number(s.totalExpenseAmount), 0);
+  // Full-set stats from the server envelope (page-independent)
+  const totalCount = settlementsData?.total ?? settlements.length;
+  const pending = settlementsData?.totals?.pendingCount ?? 0;
+  const totalExpenseAll = settlementsData?.totals?.totalExpenseAmount ?? 0;
 
   const prefersReduced = usePrefersReducedMotion();
 
@@ -101,35 +108,19 @@ export default function ForwarderSettlementsPage() {
     if (loadingSettlements || settlements.length === 0 || prefersReduced) return;
     animateCounters([
       { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => Math.round(v).toLocaleString('vi-VN') },
-      { el: heroTotalRef.current, value: settlements.length, suffix: ' phiếu' },
+      { el: heroTotalRef.current, value: totalCount, suffix: ' phiếu' },
       { el: heroPendingRef.current, value: pending, suffix: ' chờ xử lý' },
     ]);
-  }, [loadingSettlements, settlements.length, totalExpenseAll, pending, animateCounters, prefersReduced]);
+  }, [loadingSettlements, settlements.length, totalExpenseAll, totalCount, pending, animateCounters, prefersReduced]);
 
-  // Status counts & filtered list
-  const statusCounts = useMemo(() => {
-    const counts: Partial<Record<AdvanceSettlementStatus, number>> = {};
-    for (const s of settlements) {
-      counts[s.status] = (counts[s.status] ?? 0) + 1;
-    }
-    return counts;
-  }, [settlements]);
-  const filteredSettlements = activeFilter
-    ? settlements.filter(s => s.status === activeFilter)
-    : settlements;
+  // Full-set status counts from the server envelope
+  const statusCounts = (settlementsData?.statusCounts ?? {}) as Partial<Record<AdvanceSettlementStatus, number>>;
 
-  /* ── Client-side pagination (settlements endpoint returns the full list) ── */
-  const [page, setPage] = useState(1);
-  const pageSize = 25;
-  const totalPages = Math.max(1, Math.ceil(filteredSettlements.length / pageSize));
+  const totalPages = settlementsData?.totalPages ?? 1;
   const effectivePage = Math.min(page, totalPages);
-  const pagedSettlements = useMemo(
-    () => filteredSettlements.slice((effectivePage - 1) * pageSize, effectivePage * pageSize),
-    [filteredSettlements, effectivePage, pageSize],
-  );
   useEffect(() => { setPage(1); }, [activeFilter]);
 
-  const { rootRef: listRef } = useListAnimations({ itemSelector: '.fset-card', mode: 'cards', deps: [filteredSettlements] });
+  const { rootRef: listRef } = useListAnimations({ itemSelector: '.fset-card', mode: 'cards', deps: [settlements] });
 
   if (loadingSettlements) return (
     <div className="fset-page">
@@ -164,7 +155,7 @@ export default function ForwarderSettlementsPage() {
       />
 
       {/* Hero KPI row */}
-      {settlements.length > 0 && (
+      {totalCount > 0 && (
         <div className="hero-kpi-row">
           <div className="hero-kpi-card">
             <span className="hero-kpi-card__eyebrow">Tổng chi phí thanh toán</span>
@@ -192,7 +183,7 @@ export default function ForwarderSettlementsPage() {
       )}
 
       {/* Status filter pills — matching ForwarderTripsPage design */}
-      {settlements.length > 0 && (
+      {totalCount > 0 && (
         <div className="fwd-filter-pills">
           <button
             className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
@@ -230,7 +221,7 @@ export default function ForwarderSettlementsPage() {
         />
       ) : (
         <div ref={listRef} className="fset-list">
-          {pagedSettlements.map((s, idx) => {
+          {settlements.map((s, idx) => {
             const hasBreakdown = s.linkedExpenses && s.linkedExpenses.length > 0;
             const containerGroups = hasBreakdown ? groupExpensesByContainer(s.linkedExpenses!, expenseTypeOptions) : [];
 
@@ -326,8 +317,8 @@ export default function ForwarderSettlementsPage() {
           })}
         </div>
       )}
-      {filteredSettlements.length > pageSize && (
-        <Pagination page={effectivePage} totalPages={totalPages} totalItems={filteredSettlements.length} pageSize={pageSize} onChange={setPage} />
+      {(settlementsData?.total ?? 0) > (settlementsData?.limit ?? 25) && (
+        <Pagination page={effectivePage} totalPages={totalPages} totalItems={settlementsData?.total ?? 0} pageSize={settlementsData?.limit ?? 25} onChange={setPage} />
       )}
     </div>
   );

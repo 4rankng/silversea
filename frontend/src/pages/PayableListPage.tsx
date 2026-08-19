@@ -22,7 +22,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { Pagination, SearchableSelect, UuiSelectField } from '../design-system';
+import { Pagination, SearchableSelect, UuiSelectField, useDebouncedValue } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -209,16 +209,21 @@ export function CommissionModal({
 
 export default function PayableListPage() {
   const [category, setCategory] = useState<PayablesCategory | undefined>(undefined);
-  const { data, isLoading: loading, error: queryError } = usePayablesSummary(category);
-  const payables = useMemo(
-    () => (data as unknown as PayablesResponse | undefined)?.items ?? [],
-    [data],
-  );
-  const apiTotal = (data as unknown as PayablesResponse | undefined)?.totalOutstanding;
-  const apiSupplierCount = (data as unknown as PayablesResponse | undefined)?.totalSuppliers ?? 0;
-  const apiOverdueCount = (data as unknown as PayablesResponse | undefined)?.overdueSuppliers ?? 0;
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebouncedValue(searchInput, 300);
+  const [page, setPage] = useState(1);
+  // Server-side search + pagination; headline numbers and totals are full-set.
+  const { data, isLoading: loading, error: queryError } = usePayablesSummary({
+    category,
+    search: debouncedSearch || undefined,
+    page,
+    limit: 25,
+  });
+  const payables = useMemo(() => data?.items ?? [], [data]);
+  const apiTotal = data?.totalOutstanding;
+  const apiSupplierCount = data?.totalSuppliers ?? 0;
+  const apiOverdueCount = data?.overdueSuppliers ?? 0;
   const error = queryError ? (queryError as Error).message : null;
-  const [search, setSearch] = useState('');
   const prefersReduced = usePrefersReducedMotion();
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
 
@@ -259,56 +264,28 @@ export default function PayableListPage() {
   const agingOver90Ref = useRef<HTMLSpanElement>(null);
 
   /* ── Derived data ── */
-  const totals = useMemo(() => {
-    const sum = {
-      total: apiTotal ? parseFloat(apiTotal) : 0,
-      current: 0,
-      d30: 0,
-      d60: 0,
-      over90: 0,
-      currentCount: 0,
-      d30Count: 0,
-      d60Count: 0,
-      over90Count: 0,
-      supplierCount: apiSupplierCount,
-      overdueCount: apiOverdueCount,
-    };
+  // Aging-bucket totals arrive server-computed over the search-scoped full
+  // set; headline numbers (totalOutstanding/totalSuppliers/overdueSuppliers)
+  // are always full-set.
+  const serverTotals = data?.totals;
+  const totals = {
+    total: apiTotal ? parseFloat(apiTotal) : 0,
+    current: serverTotals?.current ?? 0,
+    d30: serverTotals?.d30 ?? 0,
+    d60: serverTotals?.d60 ?? 0,
+    over90: serverTotals?.over90 ?? 0,
+    currentCount: serverTotals?.currentCount ?? 0,
+    d30Count: serverTotals?.d30Count ?? 0,
+    d60Count: serverTotals?.d60Count ?? 0,
+    over90Count: serverTotals?.over90Count ?? 0,
+    supplierCount: apiSupplierCount,
+    overdueCount: apiOverdueCount,
+  };
 
-    payables.forEach(d => {
-      if (d.totalOutstanding > 0) {
-        if (d.aging.current > 0) { sum.current += d.aging.current; sum.currentCount++; }
-        if (d.aging.d30 > 0) { sum.d30 += d.aging.d30; sum.d30Count++; }
-        if (d.aging.d60 > 0) { sum.d60 += d.aging.d60; sum.d60Count++; }
-        if (d.aging.over90 > 0) { sum.over90 += d.aging.over90; sum.over90Count++; }
-      }
-    });
-
-    return sum;
-  }, [payables, apiTotal, apiSupplierCount, apiOverdueCount]);
-
-  const filteredPayables = useMemo(() => {
-    let result = payables;
-    if (search.trim()) {
-      const q = search.toLowerCase().trim();
-      result = result.filter(d =>
-        d.supplier.name.toLowerCase().includes(q) ||
-        (d.supplier.phone && d.supplier.phone.toLowerCase().includes(q))
-      );
-    }
-    return result;
-  }, [payables, search]);
-
-  /* ── Client-side pagination (summary endpoint returns the full list) ── */
-  const [page, setPage] = useState(1);
-  const pageSize = 25;
-  const totalPages = Math.max(1, Math.ceil(filteredPayables.length / pageSize));
-  const effectivePage = Math.min(page, totalPages);
-  const pagedPayables = useMemo(
-    () => filteredPayables.slice((effectivePage - 1) * pageSize, effectivePage * pageSize),
-    [filteredPayables, effectivePage, pageSize],
-  );
+  // Search + pagination happen server-side; rows render the current window.
+  const effectivePage = Math.min(page, data?.totalPages ?? 1);
   // Search or category change invalidates the current page number.
-  useEffect(() => { setPage(1); }, [search, category]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, category]);
 
   /* ── Row click-through destination ── */
   // Keep carrier payables inside the outbound-payment workflow. A carrier may
@@ -347,7 +324,7 @@ export default function PayableListPage() {
   /* ── CSV export ── */
   const handleExport = async () => {
     const headers = ['Nhà cung cấp', 'Tổng nợ', '0-30 ngày', '31-60 ngày', '61-90 ngày', '>90 ngày'];
-    const rows = filteredPayables.map(d => [
+    const rows = payables.map(d => [
       d.supplier.name,
       d.totalOutstanding,
       d.aging.current,
@@ -358,7 +335,7 @@ export default function PayableListPage() {
     const filterLabel = category ? `Loại: ${category}` : 'Tất cả nhà cung cấp';
     await downloadCSV(`cong-no-phai-tra-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
       title: 'SỔ CÔNG NỢ PHẢI TRẢ',
-      subtitle: filterLabel + (search.trim() ? ` · Tìm: "${search.trim()}"` : ''),
+      subtitle: filterLabel + (searchInput.trim() ? ` · Tìm: "${searchInput.trim()}"` : ''),
       columnTypes: ['text', 'currency', 'currency', 'currency', 'currency', 'currency'],
       totalsColumns: [1, 2, 3, 4, 5],
       totalsLabel: 'TỔNG CỘNG',
@@ -532,8 +509,8 @@ export default function PayableListPage() {
               name="supplierPayableSearch"
               aria-label="Tìm công nợ theo nhà cung cấp"
               placeholder="Tìm nhà cung cấp..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
             />
           </div>
         </div>
@@ -553,13 +530,13 @@ export default function PayableListPage() {
             {/* ── Mobile card list (<=640px) ── */}
             <div className="mobile-only mobile-table-wrap">
               <div className="m-card-list">
-                {filteredPayables.length === 0 ? (
+                {payables.length === 0 ? (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                     <img src={resolveEmptyIllustration('empty-payables')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     Không tìm thấy dữ liệu.
                   </div>
                 ) : (
-                  pagedPayables.map(d => {
+                  payables.map(d => {
                     const totalAging = d.aging.current + d.aging.d30 + d.aging.d60 + d.aging.over90;
                     const pctCur = totalAging > 0 ? (d.aging.current / totalAging) * 100 : 100;
                     const pct30 = totalAging > 0 ? (d.aging.d30 / totalAging) * 100 : 0;
@@ -617,7 +594,7 @@ export default function PayableListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedPayables.map(d => (
+                    {payables.map(d => (
                       <ClickableCard
                         as="tr"
                         key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
@@ -656,7 +633,7 @@ export default function PayableListPage() {
                       </ClickableCard>
                     ))}
 
-                    {filteredPayables.length === 0 && (
+                    {payables.length === 0 && (
                       <tr>
                         <td colSpan={7} style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -669,7 +646,7 @@ export default function PayableListPage() {
                   </tbody>
                 </table>
               </div>
-              <Pagination page={effectivePage} totalPages={totalPages} totalItems={filteredPayables.length} pageSize={pageSize} onChange={setPage} />
+              <Pagination page={effectivePage} totalPages={data?.totalPages ?? 1} totalItems={data?.total ?? 0} pageSize={data?.limit ?? 25} onChange={setPage} />
             </div>
           </>
         )}

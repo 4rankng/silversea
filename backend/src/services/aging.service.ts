@@ -84,6 +84,62 @@ export interface CustomerAgingListResult {
   limit: number;
   total: number;
   totalPages: number;
+  /** Full-set aggregates (independent of page/limit), for the list page's KPI strip. */
+  totals: AgingListTotals;
+}
+
+/** Aging-bucket filter matching the /debt page's bucket pills. */
+export type AgingBucketFilter = 'all' | 'current' | 'd30' | 'd60' | 'over90';
+
+export interface AgingListTotals {
+  total: number;
+  current: number;
+  d30: number;
+  d60: number;
+  over90: number;
+  currentCusts: number;
+  d30Custs: number;
+  d60Custs: number;
+  over90Custs: number;
+  overdueCount: number;
+  highRiskCount: number;
+}
+
+/** Mirrors the /debt page's risk badge rule (over90 balance or >100M outstanding = high). */
+export function classifyAgingRisk(totalOutstanding: number, aging: { over90: number; d30: number; d60: number }): 'high' | 'med' | 'low' {
+  if (totalOutstanding <= 0) return 'low';
+  if (aging.over90 > 0 || totalOutstanding > 100_000_000) return 'high';
+  if (aging.d30 > 0 || aging.d60 > 0) return 'med';
+  return 'low';
+}
+
+/** Full-set totals block for the /debt KPI strip, computed before pagination. */
+export function summarizeAgingTotals(rows: Array<{ totalOutstanding: number; maxOverdueDays: number; aging: { current: number; d30: number; d60: number; over90: number } }>): AgingListTotals {
+  const totals: AgingListTotals = {
+    total: 0, current: 0, d30: 0, d60: 0, over90: 0,
+    currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
+    overdueCount: 0, highRiskCount: 0,
+  };
+  for (const r of rows) {
+    if (r.totalOutstanding <= 0) continue;
+    totals.total += r.totalOutstanding;
+    if (r.aging.current > 0) { totals.current += r.aging.current; totals.currentCusts++; }
+    if (r.aging.d30 > 0) { totals.d30 += r.aging.d30; totals.d30Custs++; }
+    if (r.aging.d60 > 0) { totals.d60 += r.aging.d60; totals.d60Custs++; }
+    if (r.aging.over90 > 0) { totals.over90 += r.aging.over90; totals.over90Custs++; }
+    if (r.maxOverdueDays > 30) totals.overdueCount++;
+    if (classifyAgingRisk(r.totalOutstanding, r.aging) === 'high') totals.highRiskCount++;
+  }
+  return totals;
+}
+
+/** Bucket filter matching the /debt page's pills (each bucket requires outstanding). */
+export function filterAgingByBucket<
+  T extends { totalOutstanding: number; aging: { current: number; d30: number; d60: number; over90: number } },
+>(rows: T[], bucket: AgingBucketFilter): T[] {
+  if (bucket === 'all') return rows;
+  const hasBucket = (r: T) => r.totalOutstanding > 0 && r.aging[bucket] > 0;
+  return rows.filter(hasBucket);
 }
 
 // ─── Core computation ────────────────────────────────────────────────────────
@@ -378,7 +434,7 @@ export async function getTopOverdueCustomer(): Promise<{ name: string; balance: 
   };
 }
 
-export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number } = {}): Promise<CustomerAgingListResult> {
+export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number; bucket?: AgingBucketFilter } = {}): Promise<CustomerAgingListResult> {
   // Container-number / name search: if provided, narrow customer IDs to those
   // whose customer name OR linked trips' containers (trip_containers or
   // trip_expenses.container_number) match the query. Matches the test guide's
@@ -447,13 +503,19 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
   });
 
   mapped.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
-  const page = paginateAgingRows(mapped, opts);
+  // Totals describe the whole (search-scoped) result set, independent of the
+  // bucket filter and page window, so the KPI strip stays stable while the
+  // user pages or narrows to one aging bucket.
+  const totals = summarizeAgingTotals(mapped);
+  const bucketed = filterAgingByBucket(mapped, opts.bucket ?? 'all');
+  const page = paginateAgingRows(bucketed, opts);
   const payload = {
     customers: page.rows,
     page: page.page,
     limit: page.limit,
     total: page.total,
     totalPages: page.totalPages,
+    totals,
   };
   return {
     ...payload,
@@ -580,6 +642,73 @@ export function mergePayablesSummaries(
     totalOutstanding: summaries.reduce((sum, summary) => sum + summary.totalOutstanding, 0),
     totalSuppliers: items.length,
     overdueSuppliers: summaries.reduce((sum, summary) => sum + summary.overdueSuppliers, 0),
+  };
+}
+
+// ─── Payables list pagination (route-level envelope) ─────────────────────────
+//
+// getPayablesSummary keeps its full-array contract for the agent lanes/tools
+// that consume it; the HTTP route wraps the result with this helper so the
+// /payables list page gets server-side search + pagination + full-set
+// aggregates in one response.
+
+export interface PayablesListTotals {
+  current: number;
+  d30: number;
+  d60: number;
+  over90: number;
+  currentCount: number;
+  d30Count: number;
+  d60Count: number;
+  over90Count: number;
+}
+
+export interface PaginatedPayablesSummary extends PayablesSummaryResult {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  totals: PayablesListTotals;
+}
+
+export function summarizePayablesTotals(items: PayableSummary[]): PayablesListTotals {
+  const totals: PayablesListTotals = {
+    current: 0, d30: 0, d60: 0, over90: 0,
+    currentCount: 0, d30Count: 0, d60Count: 0, over90Count: 0,
+  };
+  for (const d of items) {
+    if (d.totalOutstanding <= 0) continue;
+    if (d.aging.current > 0) { totals.current += d.aging.current; totals.currentCount++; }
+    if (d.aging.d30 > 0) { totals.d30 += d.aging.d30; totals.d30Count++; }
+    if (d.aging.d60 > 0) { totals.d60 += d.aging.d60; totals.d60Count++; }
+    if (d.aging.over90 > 0) { totals.over90 += d.aging.over90; totals.over90Count++; }
+  }
+  return totals;
+}
+
+export function paginatePayablesSummary(
+  result: PayablesSummaryResult,
+  opts: { search?: string; page?: number; limit?: number } = {},
+): PaginatedPayablesSummary {
+  const q = opts.search?.trim().toLowerCase();
+  const filtered = q
+    ? result.items.filter(d =>
+        d.supplier.name.toLowerCase().includes(q)
+        || (d.supplier.phone && d.supplier.phone.toLowerCase().includes(q)))
+    : result.items;
+  const totals = summarizePayablesTotals(filtered);
+  const page = paginateAgingRows(filtered, opts);
+  return {
+    // Full-set headline numbers stay whole (not page-scoped) for the KPI strip.
+    totalOutstanding: result.totalOutstanding,
+    totalSuppliers: result.totalSuppliers,
+    overdueSuppliers: result.overdueSuppliers,
+    totals,
+    items: page.rows,
+    page: page.page,
+    limit: page.limit,
+    total: page.total,
+    totalPages: page.totalPages,
   };
 }
 

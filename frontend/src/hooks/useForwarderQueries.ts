@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
 import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
@@ -136,10 +136,11 @@ export function useCreateAdvanceRequest() {
 
 // ── Advance Settlements (forwarder) ──────────────────────────────────────────
 
-export function useForwarderSettlements() {
+export function useForwarderSettlements(params?: { status?: string; page?: number; limit?: number }) {
   return useQuery({
-    queryKey: qk.forwarder.settlements,
-    queryFn: () => forwarderClient.getAdvanceSettlements(),
+    queryKey: [...qk.forwarder.settlements, params?.status ?? 'all', params?.page ?? 1, params?.limit ?? 'default'],
+    queryFn: () => forwarderClient.getAdvanceSettlements(params),
+    placeholderData: keepPreviousData,
   });
 }
 

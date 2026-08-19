@@ -76,11 +76,12 @@ export function useRejectGovernanceAction() {
     }));
 }
 
-export function useCustomerAging(search?: string) {
+export function useCustomerAging(params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' }) {
   return useQuery<CustomerAgingResponse>({
-    queryKey: qk.financial.customerAging(search),
-    queryFn: () => financialClient.getCustomerAging({ search }),
+    queryKey: qk.financial.customerAging(params),
+    queryFn: () => financialClient.getCustomerAging(params),
     staleTime: 2 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -104,10 +105,11 @@ export function useCustomerLedgerEntries() {
   });
 }
 
-export function usePayablesSummary(category?: PayablesCategory) {
+export function usePayablesSummary(params?: { category?: PayablesCategory; search?: string; page?: number; limit?: number }) {
   return useQuery({
-    queryKey: qk.financial.payablesSummary(category),
-    queryFn: () => financialClient.getPayablesSummary(category),
+    queryKey: qk.financial.payablesSummary(params),
+    queryFn: () => financialClient.getPayablesSummary(params),
+    placeholderData: keepPreviousData,
   });
 }
 

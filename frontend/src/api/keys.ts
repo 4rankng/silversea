@@ -244,8 +244,8 @@ export const qk = {
   /* ── Financial ──────────────────────────────────────────────────────── */
 
   financial: {
-    customerAging: (search: string | undefined) =>
-      ['customer-aging', search ?? ''] as const,
+    customerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: string }) =>
+      ['customer-aging', params?.search ?? '', params?.page ?? 1, params?.limit ?? 25, params?.bucket ?? 'all'] as const,
     /** Broad prefix — matches all customerAging queries regardless of args. */
     customerAgingAll: ['customer-aging'] as const,
     /**
@@ -264,8 +264,9 @@ export const qk = {
     /** Broad prefix — matches every customer-statement query regardless of range. */
     customerStatementAll: ['customer-statement'] as const,
     customerLedgerEntries: ['customer-ledger-entries'],
-    payablesSummary: (category: string | undefined) => ['payables-summary', category ?? 'all'] as const,
-    /** Broad prefix — matches all payablesSummary queries regardless of category. */
+    payablesSummary: (params?: { category?: string; search?: string; page?: number; limit?: number }) =>
+      ['payables-summary', params?.category ?? 'all', params?.search ?? '', params?.page ?? 1, params?.limit ?? 25] as const,
+    /** Broad prefix — matches all payablesSummary queries regardless of args. */
     payablesSummaryAll: ['payables-summary'] as const,
     /** Trip picker for the commission form — rides the trips prefix so trip
      *  invalidations refresh it, but is scoped per search. */
