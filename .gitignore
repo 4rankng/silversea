@@ -59,6 +59,7 @@ __pycache__/
 
 # QA test scripts
 frontend/qa-*.js
+frontend/scripts/qa-*.mjs
 qa/scripts/*
 
 # Playwright artifacts
