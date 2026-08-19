@@ -10,8 +10,9 @@ import {
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
-import { SearchableSelect, type SearchableSelectOption } from '../../../design-system';
+import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import './DispatchPlanEditorCell.css';
 
 const PAGE_LOAD_SIZE = 50;
@@ -424,7 +425,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
 
       <Modal
         isOpen={open}
-        title="Chỉnh sửa điều phối"
+        title={`Chỉnh sửa điều phối · ${identity}`}
         onClose={closeEditor}
         maxWidth={560}
         footer={(
@@ -438,9 +439,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
         )}
       >
         <form className="dispatch-assignment-dialog" aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
-          <p className="dispatch-assignment-dialog__context">{identity}</p>
           <div className="dispatch-assignment-dialog__fields">
-            <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`}>
+            <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`} className="dispatch-assignment-dialog__carrier">
               <span>Nhà xe</span>
               <SearchableSelect
                 id={`dispatch-carrier-${row.fulfillmentId}`}
@@ -456,9 +456,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
                 hasMore={carrierCursor != null}
                 onLoadMore={loadMoreCarriers}
                 loadingMore={loadingCarriers && carrierOptions.length > 0}
+                size="sm"
               />
             </label>
-            <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`}>
+            <label htmlFor={`dispatch-vehicle-${row.fulfillmentId}`} className="dispatch-assignment-dialog__vehicle">
               <span>Xe / biển số</span>
               <SearchableSelect
                 id={`dispatch-vehicle-${row.fulfillmentId}`}
@@ -475,10 +476,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
                 hasMore={vehicleCursor != null}
                 onLoadMore={loadMoreVehicles}
                 loadingMore={loadingVehicles && vehicleOptions.length > 0}
+                size="sm"
               />
             </label>
             <UuiSelectField
               label="Phân loại"
+              width="content"
+              wrapperClassName="dispatch-assignment-dialog__classification"
               value={draft.classification}
               options={[
                 { value: '', label: 'Chọn phân loại…' },
@@ -504,14 +508,28 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
               />
               <span>Đóng kết hợp (kẹp chuyến)</span>
             </label>
-            <label htmlFor={`dispatch-revenue-${row.fulfillmentId}`}>
-              <span>Cước thu dự kiến</span>
-              <input id={`dispatch-revenue-${row.fulfillmentId}`} inputMode="numeric" type="number" min="0" step="1" value={draft.plannedRevenue} onChange={(event) => { setDraft((current) => ({ ...current, plannedRevenue: event.target.value })); setError(null); }} disabled={saving} />
-            </label>
-            <label htmlFor={`dispatch-cost-${row.fulfillmentId}`}>
-              <span>Cước trả dự kiến</span>
-              <input id={`dispatch-cost-${row.fulfillmentId}`} inputMode="numeric" type="number" min="0" step="1" value={draft.plannedCarrierCost} onChange={(event) => { setDraft((current) => ({ ...current, plannedCarrierCost: event.target.value })); setError(null); }} disabled={saving} />
-            </label>
+            <TextField
+              id={`dispatch-revenue-${row.fulfillmentId}`}
+              className="dispatch-assignment-dialog__money dispatch-assignment-dialog__revenue"
+              label="Cước thu dự kiến"
+              inputMode="numeric"
+              autoComplete="off"
+              value={formatMoneyInput(draft.plannedRevenue)}
+              suffix="đ"
+              onChange={(event) => { setDraft((current) => ({ ...current, plannedRevenue: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              disabled={saving}
+            />
+            <TextField
+              id={`dispatch-cost-${row.fulfillmentId}`}
+              className="dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"
+              label="Cước trả dự kiến"
+              inputMode="numeric"
+              autoComplete="off"
+              value={formatMoneyInput(draft.plannedCarrierCost)}
+              suffix="đ"
+              onChange={(event) => { setDraft((current) => ({ ...current, plannedCarrierCost: normalizeMoneyInput(event.target.value) })); setError(null); }}
+              disabled={saving}
+            />
           </div>
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
         </form>

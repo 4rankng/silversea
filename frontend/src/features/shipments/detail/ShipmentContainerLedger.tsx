@@ -519,7 +519,7 @@ export function ShipmentContainerLedger({
           aria-busy={busy || undefined}
           aria-controls={expanded ? editorId : undefined}
           aria-expanded={expanded}
-          data-cell-label={mode === 'documents' ? 'Chứng từ & hãng tàu' : undefined}
+          data-cell-label={modeLabelForTrigger(mode)}
         >
           <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
           {children}

@@ -52,6 +52,18 @@ beforeEach(() => {
 });
 
 describe('DispatchAllocationPopover', () => {
+  it('shows the empty-allocation error once at row level', async () => {
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
+
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+
+    expect(screen.getAllByText('Dòng "Đội xe nội bộ SilverSea" phải có ít nhất một số lượng 20\' hoặc 40\'.')).toHaveLength(1);
+    expect(screen.queryByText('Nhập số lượng cho ít nhất một loại container.')).toBeNull();
+    expect(screen.getByLabelText("Số container 20' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText("Số container 40' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
+    expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('blocks save on over-allocation (MAX mode)', async () => {
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
@@ -61,6 +73,10 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 1"), { target: { value: '3' } });
 
     expect(await screen.findByText(/Container 20' vượt số lượng/)).toBeTruthy();
+    expect(screen.getByText("Tổng đang vượt 1 container 20'.")).toBeTruthy();
+    expect(screen.getByText("Tổng đang vượt 1 container 40'.")).toBeTruthy();
+    expect(screen.getByLabelText("Số container 20' dòng 1")).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText("Số container 40' dòng 1")).toHaveAttribute('aria-invalid', 'true');
     expect((screen.getByRole('button', { name: 'Lưu phân bổ' }) as HTMLButtonElement).disabled).toBe(true);
     expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
   });

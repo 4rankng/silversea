@@ -264,7 +264,9 @@
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell,
   .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell { height: auto; }
+  .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell::before,
   .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell::before { display: none; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor {
     position: static;
@@ -295,7 +297,7 @@
     overflow-wrap: anywhere;
     text-transform: uppercase;
   }
-  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger > .shipment-container-ledger__cell-stack { grid-column: 2; }
+  .shipment-container-ledger__cell-trigger > :not(.shipment-container-ledger__edit-purpose) { grid-column: 2; }
   .shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor { position: static; width: 100%; max-width: none; margin-top: 6px; }
   .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
   .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
@@ -354,9 +356,19 @@
 }
 
 @media (max-width: 520px) {
-  .shipments-detail-filters { grid-template-columns: 1fr; }
+  .shipments-detail-workspace__header { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  /* Keep the last status filter beside its actions instead of leaving a
+     full-width control above a separate button row. Earlier filters retain
+     their own full rows for readable labels and touch targets. */
+  .shipments-detail-filters { display: contents; }
   .shipments-detail-filter--search,
-  .shipments-detail-filter:nth-child(4) { grid-column: auto; }
+  .shipments-detail-filter:nth-child(4),
+  .shipments-detail-filter:nth-child(2),
+  .shipments-detail-filter:nth-child(3),
+  .shipments-detail-filter:nth-child(5) { grid-column: 1 / -1; }
+  .shipments-detail-filter:nth-child(6) { grid-column: 1; align-self: end; }
+  .shipments-detail-filters__footer { grid-column: 2; align-self: end; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
   .shipment-container-ledger tbody > tr { grid-template-columns: 1fr; }
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td { grid-template-columns: 88px minmax(0, 1fr); column-gap: 8px; padding: 6px 10px; }

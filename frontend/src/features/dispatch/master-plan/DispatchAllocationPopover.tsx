@@ -146,10 +146,6 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
 
       if (!validCount(row.count20)) count20 = 'Nhập số nguyên từ 0 trở lên.';
       if (!validCount(row.count40)) count40 = 'Nhập số nguyên từ 0 trở lên.';
-      if (!count20 && !count40 && numericCount(row.count20) === 0 && numericCount(row.count40) === 0) {
-        count20 = 'Nhập số lượng cho ít nhất một loại container.';
-        count40 = 'Nhập số lượng cho ít nhất một loại container.';
-      }
       if (!count20 && validation.assigned20 > demand.count20 && numericCount(row.count20) > 0) {
         count20 = `Tổng đang vượt ${validation.assigned20 - demand.count20} container 20'.`;
       }

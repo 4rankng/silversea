@@ -198,7 +198,11 @@ export function DetailedPlanGrid({
                           <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
                         ) : '—'}
                       </div>
-                      {row.isCombined && <span className="detailed-plan-grid__badge detailed-plan-grid__badge--combined">ĐÓNG KẾT HỢP</span>}
+                      {row.isCombined && (
+                        <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
+                          Kết hợp
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Container">
@@ -234,9 +238,7 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell" data-label="Phân loại">
                     {row.classification ? (
-                      <span
-                        className={`detailed-plan-grid__classification${row.classification === 'COMBINED' || row.classification === 'DOUBLE' ? ' detailed-plan-grid__classification--paired' : ''}`}
-                      >
+                      <span className="detailed-plan-grid__classification">
                         {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                       </span>
                     ) : (

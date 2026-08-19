@@ -87,20 +87,18 @@
 
 .dispatch-assignment-dialog {
   display: grid;
-  gap: 12px;
-}
-
-.dispatch-assignment-dialog__context {
-  margin: 0;
-  color: var(--text-secondary, #64748b);
-  font-family: var(--font-data, inherit);
-  font-size: 12px;
+  gap: 14px;
 }
 
 .dispatch-assignment-dialog__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    'carrier vehicle'
+    'classification combined'
+    'revenue cost';
   gap: 14px 12px;
+  align-items: end;
 }
 
 .dispatch-assignment-dialog__fields > label {
@@ -112,21 +110,54 @@
   font-weight: 600;
 }
 
-.dispatch-assignment-dialog__fields input {
-  width: 100%;
-  min-height: var(--control-h, 40px);
-  padding: 0 12px;
-  color: var(--text-primary, #101828);
-  font: inherit;
-  background: var(--surface, #fff);
-  border: 1px solid var(--border-color-secondary, #d0d5dd);
-  border-radius: 8px;
+.dispatch-assignment-dialog__carrier {
+  grid-area: carrier;
 }
 
-.dispatch-assignment-dialog__fields input:focus-visible {
-  border-color: var(--accent, #005a2d);
-  outline: 2px solid color-mix(in srgb, var(--accent) 18%, transparent);
-  outline-offset: 1px;
+.dispatch-assignment-dialog__vehicle {
+  grid-area: vehicle;
+}
+
+.dispatch-assignment-dialog__classification {
+  grid-area: classification;
+  width: min(168px, 100%);
+}
+
+.dispatch-assignment-dialog__classification > label,
+.dispatch-assignment-dialog__money .ds-field__label {
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog :is(.searchable-select__value, .searchable-select__placeholder),
+.dispatch-assignment-dialog__classification p {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.dispatch-assignment-dialog__money .ds-field__input,
+.dispatch-assignment-dialog__money .ds-field__affix {
+  min-height: var(--control-compact-h, 34px);
+  font-size: 12px;
+}
+
+.dispatch-assignment-dialog__money .ds-field__input {
+  font-family: var(--font-data, inherit);
+}
+
+.dispatch-assignment-dialog__money .ds-field__affix {
+  padding-inline: 10px;
+  color: var(--text-secondary, #475467);
+  background: var(--surface-2, #f8fafc);
+}
+
+.dispatch-assignment-dialog__revenue {
+  grid-area: revenue;
+}
+
+.dispatch-assignment-dialog__cost {
+  grid-area: cost;
 }
 
 .dispatch-assignment-dialog__error {
@@ -175,23 +206,52 @@
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'carrier'
+      'vehicle'
+      'classification'
+      'combined'
+      'revenue'
+      'cost';
   }
 
-  .dispatch-assignment-dialog__fields input,
+  .dispatch-assignment-dialog__money .ds-field__input,
+  .dispatch-assignment-dialog__money .ds-field__affix,
   .dispatch-assignment-dialog .searchable-select__trigger {
     min-height: var(--control-touch-h, 44px);
+    font-size: 14px;
+  }
+
+  .dispatch-assignment-dialog__classification {
+    width: min(180px, 100%);
   }
 }
 
 /* Atomic editor additions: classification select + Đóng kết hợp toggle. */
-.dispatch-assignment-dialog__check {
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
+  grid-area: combined;
   display: flex;
   align-items: center;
+  align-self: end;
+  min-height: var(--control-compact-h, 34px);
   gap: 8px;
+  padding-bottom: 1px;
+  color: var(--text-primary, #101828);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.dispatch-assignment-dialog__check input[type='checkbox'] {
+.dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check input[type='checkbox'] {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent, #005a2d);
+}
+
+@media (max-width: 640px) {
+  .dispatch-assignment-dialog__fields > .dispatch-assignment-dialog__check {
+    min-height: var(--control-touch-h, 44px);
+    white-space: normal;
+  }
 }

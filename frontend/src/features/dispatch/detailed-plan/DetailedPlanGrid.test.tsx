@@ -100,10 +100,13 @@ describe('DetailedPlanGrid', () => {
     ]);
   });
 
-  it('anchors the direction pill at the lower-right of the document cell', () => {
+  it('anchors the direction pill and quiet combined note on one document footer line', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
-    expect(css).toContain('". direction"');
+    expect(css).toContain('"combined direction"');
+    expect(css).toContain('.detailed-plan-grid__combined-note');
+    expect(css).toContain('font-weight: 400;');
+    expect(css).toContain('white-space: nowrap;');
   });
 
   it('gives every fixed-layout desktop column an explicit share of exactly 100%', () => {
@@ -177,10 +180,13 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Nhà xe Việt')).toBeTruthy();
   });
 
-  it('shows a combined-lot tag when the shipment was marked for combined transport', () => {
+  it('shows a quiet combined-lot note in the documents cell', () => {
     renderGrid([row({ isCombined: true })]);
 
-    expect(screen.getByText('ĐÓNG KẾT HỢP')).toBeTruthy();
+    const note = screen.getByText('Kết hợp');
+    expect(note).toHaveClass('detailed-plan-grid__combined-note');
+    expect(note).toHaveAttribute('title', 'Đóng kết hợp');
+    expect(screen.queryByText('ĐÓNG KẾT HỢP')).toBeNull();
   });
 
   it('saves the whole editor atomically: estimates plus required classification and Đóng kết hợp', async () => {
@@ -196,7 +202,8 @@ describe('DetailedPlanGrid', () => {
     renderGrid([row({ classification: 'SINGLE' })], { onAtomicSave });
 
     fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
-    fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2500000' } });
+    fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2.500.000' } });
+    expect(screen.getByLabelText<HTMLInputElement>('Cước thu dự kiến').value).toBe('2.500.000');
     // UUI select: open the trigger, then pick the option from the listbox —
     // fireEvent.change on a hidden native select does not drive react-aria.
     // The trigger's accessible name is "<current value> <label>".
@@ -235,6 +242,25 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Chưa phân loại')).toBeTruthy();
   });
 
+  it('uses one regular-weight neutral tag treatment for every saved classification', () => {
+    const { container } = renderGrid([
+      row({ fulfillmentId: 101, classification: 'SINGLE' }),
+      row({ fulfillmentId: 102, classification: 'DOUBLE' }),
+      row({ fulfillmentId: 103, classification: 'COMBINED' }),
+      row({ fulfillmentId: 104, classification: 'LCL' }),
+    ]);
+
+    for (const label of ['Đơn', 'Kẹp', 'Kết hợp', 'Lẻ']) {
+      expect(screen.getByText(label).className).toBe('detailed-plan-grid__classification');
+    }
+
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    expect(css).toContain('font-size: var(--ops-table-supporting-size);');
+    expect(css).toContain('font-weight: 400;');
+    expect(css).not.toContain('.detailed-plan-grid__classification--paired');
+    expect(container.querySelectorAll('.detailed-plan-grid__classification')).toHaveLength(4);
+  });
+
   it('opens one atomic edit dialog from the full Điều phối cell', async () => {
     const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
@@ -247,13 +273,15 @@ describe('DetailedPlanGrid', () => {
     expect(trigger).toHaveClass('dispatch-assignment-cell__trigger');
     fireEvent.click(trigger);
 
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối' });
+    const dialog = await screen.findByRole('dialog', { name: /Chỉnh sửa điều phối.*MSCU1234567/ });
     expect(within(dialog).getByLabelText('Nhà xe')).toBeTruthy();
     expect(within(dialog).getByLabelText('Xe / biển số')).toBeTruthy();
     expect(within(dialog).getByLabelText('Phân loại')).toBeTruthy();
     expect(within(dialog).getByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước thu dự kiến')).toBeTruthy();
     expect(within(dialog).getByLabelText('Cước trả dự kiến')).toBeTruthy();
+    expect(within(dialog).getAllByText('đ')).toHaveLength(2);
+    expect(within(dialog).getByText('Phân loại').closest('.ds-uui-select')).toHaveClass('dispatch-assignment-dialog__classification');
   });
 
   it('keeps the dispatcher column read-like until its one full-cell trigger is clicked', () => {
@@ -268,6 +296,7 @@ describe('DetailedPlanGrid', () => {
     expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__plate\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
     expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]*?td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*display:\s*none;/);
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
+    expect(editorCss).toMatch(/\.dispatch-assignment-dialog__fields > \.dispatch-assignment-dialog__check\s*\{[^}]*display:\s*flex;/);
     // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
     // equal class specificity; the editable cell must win on `td` so its
     // trigger covers the whole cell — not just below a stray label strip.
