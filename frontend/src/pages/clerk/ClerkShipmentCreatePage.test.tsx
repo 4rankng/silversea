@@ -395,6 +395,23 @@ describe('ClerkShipmentCreatePage', () => {
     expect(displayedValue('20/08/2026 09:30')).toBeTruthy();
   });
 
+  it('shows each container type code once in the selector', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    const selectButton = screen.getByRole('button', { name: /Loại container/ });
+    fireEvent.click(selectButton);
+    const option = await waitFor(() => {
+      const match = document.querySelector<HTMLElement>('[role="option"][id$="-option-31"]');
+      if (!match) throw new Error('Không tìm thấy loại container 31');
+      return match;
+    });
+
+    expect(option).toHaveTextContent('40HC');
+    expect(option).not.toHaveTextContent('Container 40 feet cao');
+    expect(option.textContent?.match(/40HC/g)).toHaveLength(1);
+  });
+
   it('adds the requested number of container rows with a default of one', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });

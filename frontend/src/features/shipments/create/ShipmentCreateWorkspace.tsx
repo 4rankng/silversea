@@ -502,7 +502,7 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-type`}
                     error={issueByField.get(`container-${row.key}-type`)}
                   >
-                    <SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: `${item.code} — ${item.name}` }))]} />
+                    <SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: item.code }))]} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Cảng nâng"

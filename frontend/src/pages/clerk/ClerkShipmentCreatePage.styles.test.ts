@@ -38,15 +38,18 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-control-boundary :where\(input, select, textarea\):focus-visible\s*\{[^}]*outline:\s*none;[^}]*outline-offset:\s*0;/);
   });
 
-  it('sizes the desktop grid from expected values instead of stretching columns across the page', () => {
+  it('fills the desktop workspace while keeping short-value columns compact', () => {
     expect(source).toContain('className="csc-container-row"');
     expect(containerEditorSource).toContain('className="csc-container-table"');
     expect(containerEditorSource).toContain('<colgroup>');
     expect(containerEditorSource.match(/<col className="csc-container-col__/g)).toHaveLength(9);
     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-type:\s*inline-size;[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*1036px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1036px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*96px;/);
-    expect(css).toMatch(/\.csc-container-col__appointment\s*\{[^}]*width:\s*160px;/);
+    expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
+    expect(css).toMatch(/\.csc-container-col__pickup-port,[^}]*\.csc-container-col__appointment\s*\{[^}]*width:\s*auto;/);
     expect(css).not.toMatch(/\.csc-container-table thead th:nth-child\([^)]*\)\s*\{[^}]*width:\s*\d+%;/);
     expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);
