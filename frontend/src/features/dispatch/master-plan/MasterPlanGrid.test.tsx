@@ -333,7 +333,7 @@ describe('MasterPlanFilters', () => {
     expect(css).toContain('flex: 0 0 132px');
     expect(css).toContain('flex: 0 0 180px');
     expect(css).toContain('flex: 0 0 auto');
-    expect(css).toContain('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)');
+    expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
     expect(css).toContain('.master-plan-filters__actions');
