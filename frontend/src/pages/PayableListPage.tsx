@@ -22,7 +22,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { SearchableSelect, UuiSelectField } from '../design-system';
+import { Pagination, SearchableSelect, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -298,6 +298,18 @@ export default function PayableListPage() {
     return result;
   }, [payables, search]);
 
+  /* ── Client-side pagination (summary endpoint returns the full list) ── */
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const totalPages = Math.max(1, Math.ceil(filteredPayables.length / pageSize));
+  const effectivePage = Math.min(page, totalPages);
+  const pagedPayables = useMemo(
+    () => filteredPayables.slice((effectivePage - 1) * pageSize, effectivePage * pageSize),
+    [filteredPayables, effectivePage, pageSize],
+  );
+  // Search or category change invalidates the current page number.
+  useEffect(() => { setPage(1); }, [search, category]);
+
   /* ── Row click-through destination ── */
   // Keep carrier payables inside the outbound-payment workflow. A carrier may
   // also be a customer, but its receivable ledger is a different account.
@@ -547,7 +559,7 @@ export default function PayableListPage() {
                     Không tìm thấy dữ liệu.
                   </div>
                 ) : (
-                  filteredPayables.map(d => {
+                  pagedPayables.map(d => {
                     const totalAging = d.aging.current + d.aging.d30 + d.aging.d60 + d.aging.over90;
                     const pctCur = totalAging > 0 ? (d.aging.current / totalAging) * 100 : 100;
                     const pct30 = totalAging > 0 ? (d.aging.d30 / totalAging) * 100 : 0;
@@ -605,7 +617,7 @@ export default function PayableListPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPayables.map(d => (
+                    {pagedPayables.map(d => (
                       <ClickableCard
                         as="tr"
                         key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
@@ -657,6 +669,7 @@ export default function PayableListPage() {
                   </tbody>
                 </table>
               </div>
+              <Pagination page={effectivePage} totalPages={totalPages} totalItems={filteredPayables.length} pageSize={pageSize} onChange={setPage} />
             </div>
           </>
         )}

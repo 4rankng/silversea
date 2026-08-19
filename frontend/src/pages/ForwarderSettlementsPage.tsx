@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Loader2, Plus, ArrowRight, Clock } from 'lucide-react';
-import { EmptyState } from '../design-system';
+import { EmptyState, Pagination } from '../design-system';
 import { formatCurrency, formatDate } from '../lib/format';
 import { groupExpensesByContainer } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
@@ -117,6 +117,18 @@ export default function ForwarderSettlementsPage() {
   const filteredSettlements = activeFilter
     ? settlements.filter(s => s.status === activeFilter)
     : settlements;
+
+  /* ── Client-side pagination (settlements endpoint returns the full list) ── */
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const totalPages = Math.max(1, Math.ceil(filteredSettlements.length / pageSize));
+  const effectivePage = Math.min(page, totalPages);
+  const pagedSettlements = useMemo(
+    () => filteredSettlements.slice((effectivePage - 1) * pageSize, effectivePage * pageSize),
+    [filteredSettlements, effectivePage, pageSize],
+  );
+  useEffect(() => { setPage(1); }, [activeFilter]);
+
   const { rootRef: listRef } = useListAnimations({ itemSelector: '.fset-card', mode: 'cards', deps: [filteredSettlements] });
 
   if (loadingSettlements) return (
@@ -218,7 +230,7 @@ export default function ForwarderSettlementsPage() {
         />
       ) : (
         <div ref={listRef} className="fset-list">
-          {filteredSettlements.map((s, idx) => {
+          {pagedSettlements.map((s, idx) => {
             const hasBreakdown = s.linkedExpenses && s.linkedExpenses.length > 0;
             const containerGroups = hasBreakdown ? groupExpensesByContainer(s.linkedExpenses!, expenseTypeOptions) : [];
 
@@ -313,6 +325,9 @@ export default function ForwarderSettlementsPage() {
             );
           })}
         </div>
+      )}
+      {filteredSettlements.length > pageSize && (
+        <Pagination page={effectivePage} totalPages={totalPages} totalItems={filteredSettlements.length} pageSize={pageSize} onChange={setPage} />
       )}
     </div>
   );
