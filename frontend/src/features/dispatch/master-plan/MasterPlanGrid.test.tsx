@@ -337,6 +337,8 @@ describe('MasterPlanFilters', () => {
     expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
     expect(css).toContain('.master-plan-filters__actions');
+    expect(css).toContain('.drawer.master-plan-filters__drawer');
+    expect(css).toContain('max-width: 100%');
   });
 
   it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {

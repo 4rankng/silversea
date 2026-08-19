@@ -391,6 +391,26 @@
     width: 100%;
   }
 
+  .master-plan-filters__facet-picker {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    animation: slideUp 200ms var(--ease);
+  }
+}
+
+@media (max-width: 767px) {
+  .drawer.master-plan-filters__drawer {
+    max-width: 100%;
+  }
+
   .master-plan-filters__drawer .drawer__head {
     padding: 18px 20px 14px;
   }
@@ -405,20 +425,6 @@
 
   .master-plan-filters__drawer-fields {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .master-plan-filters__facet-picker {
-    position: fixed;
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-    max-height: 60vh;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    animation: slideUp 200ms var(--ease);
   }
 }
 
