@@ -518,6 +518,9 @@ export interface ShipmentCarrierAllocationSummaryEntry {
 
 export interface ShipmentListItem extends Shipment {
   customerName: string | null;
+  /** Route operational name (short-name authority) for the master-plan
+   *  primary line; null when the shipment has no route. */
+  routeName?: string | null;
   containerCount20: number;
   containerCount40: number;
   /** e.g. "2 x 40HC + 1 x 20DC" */

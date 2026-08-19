@@ -118,6 +118,7 @@ import {
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 // ─── Status machine ─────────────────────────────────────────────────────────
 //
@@ -971,9 +972,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // Operational site preferred via short-name authority; stored shipment
     // factoryName remains the fallback when no site is linked.
     operationalSiteName: SITE_OPERATIONAL_NAME,
+    routeName: ROUTE_OPERATIONAL_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+    .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
     .where(and(...conditions))
     .orderBy(desc(s.shipments.createdAt));
 
@@ -985,6 +988,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     shipment: typeof s.shipments.$inferSelect;
     customerName: string | null;
     operationalSiteName: string | null;
+    routeName: string | null;
   }> = [];
   let total = 0;
   if (options.includeDispatchSummary) {
@@ -995,9 +999,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
         shipment: s.shipments,
         customerName: CUSTOMER_OPERATIONAL_NAME,
         operationalSiteName: SITE_OPERATIONAL_NAME,
+        routeName: ROUTE_OPERATIONAL_NAME,
       }).from(s.shipments)
         .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
         .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+        .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
         .where(and(...conditions))
         .orderBy(desc(s.shipments.createdAt));
       const [pageRows, totalRows, filteredIdRows] = await Promise.all([
@@ -1043,6 +1049,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // Operational-site short-name authority with stored factory text fallback
     // (master-plan "Xưởng/Điểm" projection, plan phase-02).
     factoryName: row.operationalSiteName ?? row.shipment.factoryName,
+    // Route operational name for the master-plan primary line (P8); null when
+    // the shipment has no route assigned.
+    routeName: row.routeName,
     cargoSummary: summariesByShipmentId.get(row.shipment.id)?.cargoSummary ?? null,
     shippingLineSummary: summariesByShipmentId.get(row.shipment.id)?.shippingLineSummary ?? null,
     carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,

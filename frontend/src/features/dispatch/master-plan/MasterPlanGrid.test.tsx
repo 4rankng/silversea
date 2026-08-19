@@ -11,6 +11,7 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   id: 1,
   shipmentCode: 'SS-000100',
   customerName: 'Công ty ABC',
+  routeName: 'LH — Biên Hòa',
   factoryName: 'Nhà máy XYZ',
   blNumber: 'BL-2026-001',
   bookingRef: null,
@@ -49,6 +50,9 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Giao: 20\/08\/2026/)).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
+    // P8: route and shipping line are the primary (strong) identity lines.
+    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
     expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toBeTruthy();

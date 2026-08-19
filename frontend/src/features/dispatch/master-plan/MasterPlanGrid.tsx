@@ -101,9 +101,9 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">Lộ trình: {item.routeName ?? '—'}</div>
                   <div className="master-plan-grid__line">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.factoryName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--muted">{item.deliveryLocation ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
                   <div className="master-plan-grid__documents">
