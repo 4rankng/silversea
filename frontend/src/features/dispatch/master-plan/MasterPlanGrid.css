@@ -81,6 +81,57 @@
   white-space: nowrap;
 }
 
+.master-plan-filters__advanced-fields {
+  display: contents;
+}
+
+.master-plan-filters__advanced-trigger {
+  display: none;
+}
+
+.master-plan-filters__count {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  place-items: center;
+  background: var(--accent);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.master-plan-filters__drawer-content {
+  display: grid;
+  gap: 24px;
+}
+
+.master-plan-filters__drawer-group + .master-plan-filters__drawer-group {
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.master-plan-filters__drawer-title {
+  margin: 0 0 12px;
+  color: var(--fg-1);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.master-plan-filters__drawer-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+.master-plan-filters__drawer-fields .master-plan-filters__facet,
+.master-plan-filters__drawer-fields .master-plan-filters__allocation,
+.master-plan-filters__drawer-fields .master-plan-filters__date-range {
+  width: 100%;
+}
+
 /* Multi-select facet controls for ports and carriers */
 .master-plan-filters__facet {
   flex: 0 0 200px;
@@ -317,23 +368,43 @@
 
 @container (max-width: 640px) {
   .master-plan-filters__search,
-  .master-plan-filters__direction,
-  .master-plan-filters__allocation,
-  .master-plan-filters__facet,
-  .master-plan-filters__date-range {
+  .master-plan-filters__actions {
     flex-basis: 100%;
   }
 
-  .master-plan-filters__actions {
-    flex-basis: 100%;
+  .master-plan-filters__direction,
+  .master-plan-filters__advanced-trigger {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .master-plan-filters__advanced-fields {
+    display: none;
+  }
+
+  .master-plan-filters__advanced-trigger {
+    display: inline-flex;
+    justify-content: center;
   }
 
   .master-plan-filters__actions > .btn {
     width: 100%;
   }
 
-  .master-plan-filters__date-inputs {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  .master-plan-filters__drawer .drawer__head {
+    padding: 18px 20px 14px;
+  }
+
+  .master-plan-filters__drawer .drawer__body {
+    padding: 18px 20px 24px;
+  }
+
+  .master-plan-filters__drawer .drawer__foot {
+    padding: 12px 20px;
+  }
+
+  .master-plan-filters__drawer-fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .master-plan-filters__facet-picker {
