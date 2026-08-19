@@ -1,12 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../lib/api';
 import type { Customer } from '@tingting/shared';
 
 const { toastSpy, apiMock } = vi.hoisted(() => ({
   toastSpy: vi.fn(),
-  apiMock: { put: vi.fn(), post: vi.fn(), delete: vi.fn() },
+  apiMock: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },
 }));
 
 vi.mock('../components/shared/Toast', () => ({
@@ -19,12 +20,6 @@ vi.mock('../lib/api', async (importOriginal) => {
 });
 
 vi.mock('../hooks/useQueries', () => ({
-  useCustomers: () => ({
-    data: { items: [customerFixture], total: 1 },
-    isLoading: false,
-    error: null,
-    refetch: vi.fn(),
-  }),
   useCustomerLedgerEntries: () => ({ data: [] }),
   useSuppliers: () => ({ data: { items: [], total: 0 } }),
 }));
@@ -53,18 +48,25 @@ const customerFixture: Customer = {
 } as unknown as Customer;
 
 function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
-    <MemoryRouter>
-      <CustomersPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <CustomersPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 async function openEditModal() {
-  // Mobile card exposes a direct "Sửa" button; the desktop row hides its
-  // "Sửa" behind a dropdown until menuOpenId matches, so the first match is
-  // the mobile one in jsdom (both trees render).
-  fireEvent.click(screen.getByText('Sửa'));
+  // The list renders asynchronously (useTableQueryState → useQuery); wait for
+  // the fixture row before interacting. The mobile card exposes a direct
+  // "Sửa" button; the desktop row hides its "Sửa" behind a dropdown until
+  // menuOpenId matches, so the first match is the mobile one in jsdom.
+  expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
+  fireEvent.click(await screen.findByText('Sửa'));
   expect(await screen.findByText(/Sửa khách hàng — Biển Bạc/)).toBeTruthy();
 }
 
@@ -78,6 +80,10 @@ describe('CustomersPage mutation error surfacing', () => {
     apiMock.put.mockReset();
     apiMock.post.mockReset();
     apiMock.delete.mockReset();
+    // The list now flows through the real useTableQueryState → configClient
+    // → api.get; feed the fixture so the rows (and their "Sửa" actions) render.
+    apiMock.get.mockReset();
+    apiMock.get.mockResolvedValue({ items: [customerFixture], total: 1 });
   });
 
   it('toasts the pending-governance 409 with an approval-center hint and keeps the modal open', async () => {

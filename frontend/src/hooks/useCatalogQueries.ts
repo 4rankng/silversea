@@ -84,13 +84,6 @@ export function useExpenseCategories(page?: number, search?: string) {
   });
 }
 
-export function useCustomers(page: number, search: string) {
-  return useQuery({
-    queryKey: qk.catalogs.customers(page, search),
-    queryFn: () => configClient.getCustomers(page, search),
-  });
-}
-
 export function useUsers() {
   return useQuery({
     queryKey: qk.catalogs.users,

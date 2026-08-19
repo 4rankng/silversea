@@ -10,10 +10,11 @@ import { labelStyle } from '../utils/formStyles';
 import { downloadCSV } from '../lib/csv';
 import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
 import type { Supplier, Customer } from '@tingting/shared';
 import { CONFIG, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS } from '@tingting/shared';
-import { useSuppliers } from '../hooks/useQueries';
+import { configClient } from '../api/configClient';
+import { qk } from '../api/keys';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { usePayablesSummary } from '../hooks/useFinancialQueries';
 import { ClickableCard } from '../components/shared/ClickableCard';
@@ -243,8 +244,6 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
 
 export default function SupplierListPage() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -253,12 +252,16 @@ export default function SupplierListPage() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
 
-  const pageSize = 10;
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const { data: suppliersData, isLoading: loading, error: queryError, refetch: refetchSuppliers } = useSuppliers(page, search);
-  const suppliers = useMemo(() => suppliersData?.items ?? [], [suppliersData]);
-  const total = suppliersData?.total ?? 0;
+  const table = useTableQueryState<Supplier, Record<string, never>>({
+    endpoint: (params) => configClient.getSuppliers(params.page ?? 1, params.search ?? ''),
+    queryKey: qk.catalogs.suppliersTable,
+    defaultPageSize: 10,
+    debounceMs: 300,
+  });
+  const { page, setPage, pageSize, search, setSearch, rows: suppliers, total, isLoading: loading, error: queryError } = table;
+  const refetchSuppliers = table.query.refetch;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   // AP outstanding per supplier — fetched once from the payables summary.
@@ -282,12 +285,6 @@ export default function SupplierListPage() {
   }, [allCustomers]);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const error = queryError ? 'Không thể tải dữ liệu' : mutationError;
-
-  useEffect(() => {
-    if (search === '') { setPage(1); return; }
-    const t = setTimeout(() => setPage(1), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const { activeCount, inactiveCount, filtered } = useMemo(() => {
     const activeCount = suppliers.filter(s => s.status === 'ACTIVE').length;

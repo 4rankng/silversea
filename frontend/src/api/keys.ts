@@ -52,10 +52,14 @@ export const qk = {
       ['salary-period', month, year] as const,
     suppliers: (page?: number, search?: string) =>
       ['suppliers', page, search] as const,
+    /** Base key for useTableQueryState-driven supplier list pages. */
+    suppliersTable: ['suppliers'],
     expenseCategories: (page?: number, search?: string) =>
       ['expense-categories', page, search] as const,
     customers: (page: number, search: string) =>
       ['customers', page, search] as const,
+    /** Base key for useTableQueryState-driven customer list pages. */
+    customersTable: ['customers'],
     allCustomers: ['all-customers'],
     users: ['users'],
     ports: ['ports'],

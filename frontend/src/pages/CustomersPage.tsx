@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react'; // useEffect remains for the form modal's reset-on-open
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, BarChart3, Lock, Plus, Download, Search,
@@ -9,7 +9,7 @@ import { downloadCSV } from '../lib/csv';
 import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, Pagination, UuiSelectField } from '../design-system';
+import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
 import { useToast } from '../components/shared/Toast';
 import { formatCurrency, formatNumber } from '../lib/format';
 import {
@@ -19,7 +19,9 @@ import {
 } from '../lib/customerDebitNoteMode';
 import type { Customer, LedgerEntry, Supplier } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
-import { useCustomers, useCustomerLedgerEntries, useSuppliers } from '../hooks/useQueries';
+import { useCustomerLedgerEntries, useSuppliers } from '../hooks/useQueries';
+import { configClient } from '../api/configClient';
+import { qk } from '../api/keys';
 import { usePageAnimations } from '../hooks/animations';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
@@ -284,8 +286,6 @@ export function CustomerFormModal({ item, saving, onsave, oncancel, isOpen, supp
 
 export default function CustomersPage() {
   const { toast } = useToast();
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -295,16 +295,20 @@ export default function CustomersPage() {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  const pageSize = 10;
+  const table = useTableQueryState<Customer, Record<string, never>>({
+    endpoint: (params) => configClient.getCustomers(params.page ?? 1, params.search ?? ''),
+    queryKey: qk.catalogs.customersTable,
+    defaultPageSize: 10,
+    debounceMs: 300,
+  });
+  const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError } = table;
+  const error = queryError ? 'Không thể tải dữ liệu' : null;
+  const refetchCustomers = table.query.refetch;
 
-  const { data: customersData, isLoading: loading, error: queryError, refetch: refetchCustomers } = useCustomers(page, search);
   const { rootRef } = usePageAnimations({ ready: !loading });
   const { data: ledgerEntries } = useCustomerLedgerEntries();
   const { data: suppliersData } = useSuppliers(1, '');
   const allSuppliers = suppliersData?.items ?? [];
-  const customers = useMemo(() => customersData?.items ?? [], [customersData]);
-  const total = customersData?.total ?? 0;
-  const error = queryError ? 'Không thể tải dữ liệu' : null;
 
   /**
    * Mutation failures must surface as a toast: the edit modal stays open and
@@ -347,12 +351,6 @@ export default function CustomersPage() {
     const totalRevenue = customerRevenues.reduce((s, c) => s + c.revenue, 0);
     return { customers: customerRevenues, total: totalRevenue };
   }, [customers, revenueMap]);
-
-  useEffect(() => {
-    if (search === '') { setPage(1); return; }
-    const t = setTimeout(() => setPage(1), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   const { activeCount, lockedCount, filtered } = useMemo(() => {
     const activeCount = customers.filter(c => c.status === CustomerStatus.ACTIVE).length;
