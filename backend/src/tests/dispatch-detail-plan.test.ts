@@ -1482,3 +1482,85 @@ describe('dispatch fleet LH truck suggestions', () => {
     assert.deepEqual(stale.data.suggestedItems ?? [], []);
   });
 });
+
+describe('review fixes: carrier switch + explicit plate clear', () => {
+  test('carrier switch without a vehicle block clears the previous carrier plate', async () => {
+    const carrier = await createCustomer(`Fix ext carrier ${suffix}-${createdCustomerIds.length}`, true);
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+
+    // Plate the OWN row first.
+    const plated = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+
+    // Now switch to EXTERNAL with NO vehicle fields — the stored own-truck
+    // plate must be cleared, not silently retained.
+    const [fresh] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    const switched = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fresh.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'EXTERNAL',
+        externalCarrierId: carrier.id,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.equal(switched.status, 200, JSON.stringify(switched.data));
+    const [after] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after.plannedVehiclePlateNumber, null, 'foreign plate must not survive a carrier switch');
+    assert.equal(after.plannedExternalCarrierVehicleId, null, 'vehicle link must not survive a carrier switch');
+    assert.equal(after.plannedCarrierType, 'EXTERNAL');
+  });
+
+  test('clearVehicle=true explicitly unassigns the plate through the atomic save', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const [shipment] = await db.select().from(s.shipments)
+      .where(eq(s.shipments.id, fulfillment.shipmentId));
+
+    const plated = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200);
+
+    const [fresh] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    const cleared = await apiFetch(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fresh.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        clearVehicle: true,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.equal(cleared.status, 200, JSON.stringify(cleared.data));
+    const [after] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    assert.equal(after.plannedVehiclePlateNumber, null, 'clearVehicle must unassign the plate');
+  });
+});

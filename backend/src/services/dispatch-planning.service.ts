@@ -1029,8 +1029,12 @@ async function buildLachHuyenTruckSuggestions(tx: Tx, args: {
   // shipment's expected delivery date. Canceled/deleted trips never count.
   const workDateSql = sql<string>`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`;
 
-  // One row per (truck, evidence fulfillment). The pickup/dropoff port must
-  // sit in the Lạch Huyện zone; OWN-planned only (own trucks are suggestable).
+  const targetDate = String(target.deliveryDate).slice(0, 10);
+  const dayBefore = addCalendarDays(targetDate, -1);
+  const dayAfter = addCalendarDays(targetDate, 1);
+
+  // Date-bound evidence in SQL, not just JS: the LIMIT below must never act
+  // as a biased sample that silently swallows one side's D-1/D+1 rows.
   const evidence = await tx.select({
     truckId: s.trucks.id,
     plateNumber: s.trucks.licensePlate,
@@ -1041,9 +1045,13 @@ async function buildLachHuyenTruckSuggestions(tx: Tx, args: {
   }).from(s.shipmentFulfillments)
     .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
     .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
-    .innerJoin(s.ports, or(
-      eq(s.shipmentContainers.dropoffPortId, s.ports.id),
-      eq(s.shipmentContainers.pickupPortId, s.ports.id),
+    .innerJoin(s.ports, and(
+      or(
+        eq(s.shipmentContainers.dropoffPortId, s.ports.id),
+        eq(s.shipmentContainers.pickupPortId, s.ports.id),
+      ),
+      // Soft-deleted ports stop generating suggestions (facet parity).
+      isNull(s.ports.deletedAt),
     ))
     // Canonical plate normalizer on BOTH sides (strip every non-alphanumeric,
     // uppercase) — identical to the write-path `normalizePlate` semantics, so
@@ -1063,13 +1071,10 @@ async function buildLachHuyenTruckSuggestions(tx: Tx, args: {
       eq(s.shipmentFulfillments.plannedCarrierType, 'OWN'),
       sql`${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null`,
       eq(s.ports.dispatchZone, 'LACH_HUYEN'),
-      sql`${workDateSql} is not null`,
+      // Only D-1 / D+1 work dates can ever produce a reason.
+      sql`${workDateSql} in (${dayBefore}, ${dayAfter})`,
     ))
     .limit(500);
-
-  const targetDate = String(target.deliveryDate).slice(0, 10);
-  const dayBefore = addCalendarDays(targetDate, -1);
-  const dayAfter = addCalendarDays(targetDate, 1);
 
   const reasonByTruck = new Map<number, { plateNumber: string; reasons: Set<'D-1_DROP' | 'D+1_PICKUP'> }>();
   for (const row of evidence) {
@@ -2953,11 +2958,16 @@ async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatchDetailP
   // Vehicle resolution validates ownership against the incoming carrier. In
   // the atomic save the vehicle block is optional for both carrier types: an
   // editor save that changes only estimates/classification sends no vehicle
-  // fields and leaves the plate untouched (null → keep stored columns).
+  // fields and leaves the plate untouched (null → keep stored columns) —
+  // EXCEPT on a carrier switch, where an unspecified vehicle means "none for
+  // the new carrier" and the previous carrier's vehicle/plate columns are
+  // cleared, mirroring the legacy carrier endpoint.
+  const carrierSwitched = fulfillment.plannedCarrierType !== input.carrierType;
   const vehicleSelected = input.truckId != null
     || input.externalCarrierVehicleId != null
     || input.plateNumber != null
-    || input.clearVehicle === true;
+    || input.clearVehicle === true
+    || carrierSwitched;
   let vehicle: DispatchVehicleResolution | null = null;
   if (vehicleSelected) {
     vehicle = await resolveDispatchVehicleAssignment(tx, {
@@ -2966,7 +2976,7 @@ async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatchDetailP
       truckId: input.truckId ?? null,
       externalCarrierVehicleId: input.externalCarrierVehicleId ?? null,
       plateNumber: input.plateNumber ?? null,
-      clear: input.clearVehicle === true,
+      clear: input.clearVehicle === true || (carrierSwitched && input.truckId == null && input.externalCarrierVehicleId == null && input.plateNumber == null),
     });
   }
 

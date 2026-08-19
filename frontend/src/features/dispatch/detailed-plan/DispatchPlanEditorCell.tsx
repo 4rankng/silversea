@@ -132,10 +132,10 @@ interface VehicleBody {
   clearVehicle?: boolean;
 }
 
-/** Vehicle body for the atomic save. '' → keep stored columns (send nothing);
- *  CURRENT_PLATE → also keep (the snapshot is already the stored value). */
+/** Vehicle body for the atomic save. '' → explicit clear (Bỏ gán biển số);
+ *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value). */
 function vehicleBody(value: string): VehicleBody | null {
-  if (!value) return {};
+  if (!value) return { clearVehicle: true };
   if (value.startsWith(OWN_TRUCK_PREFIX)) return { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) };
   if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) return { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) };
   if (value.startsWith(FREE_TEXT_PREFIX)) return { plateNumber: value.slice(FREE_TEXT_PREFIX.length) };
