@@ -29,6 +29,7 @@ import {
   type ShipmentCusWorkspaceListResponse,
 } from '@tingting/shared';
 import { ApiError } from '../lib/api';
+import { formatMoney, formatDateTimeShort } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
@@ -64,14 +65,6 @@ const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
   [ShipmentCusBucket.LOCKED]: 'var(--slate-4)',
 };
 
-function formatMoney(value: string | null): string {
-  if (value == null) return '—';
-  const amount = Number(value);
-  return Number.isFinite(amount)
-    ? new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(amount)
-    : '—';
-}
-
 function formatQuantity(value: string | null, maximumFractionDigits = 2): string {
   if (value == null || value === '') return '—';
   const amount = Number(value);
@@ -86,13 +79,9 @@ function formatDate(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('vi-VN');
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
-}
+// Date/datetime rendering kept local: these intentionally differ from
+// lib/format helpers (midnight-normalized dates; raw echo on invalid input)
+// to keep the CUS workspace's visible output stable.
 
 function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): string {
   if (direction === 'IMPORT') return 'Nhập';
@@ -303,7 +292,7 @@ function accountingConfirmationLabel(
   confirmation: ShipmentCusWorkspaceListItem['accountingConfirmation'],
 ): string {
   if (confirmation.status === 'CONFIRMED') {
-    return `Đã xác nhận: ${formatDateTime(confirmation.confirmedAt)}`;
+    return `Đã xác nhận: ${formatDateTimeShort(confirmation.confirmedAt)}`;
   }
   if (confirmation.status === 'STALE') return 'Cần xác nhận lại';
   if (confirmation.status === 'UNAVAILABLE') return 'Chưa đủ dữ liệu xác nhận';
@@ -531,7 +520,7 @@ function ContainerLineRow({
             {dropoffSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Điểm hạ của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm hạ" /></> : <strong>{line.dropoffSite || '—'}</strong>}
           </dd></div>
           <div className="cus-container-fact"><dt>Giờ hẹn đóng/trả</dt><dd>
-            {customerAppointmentEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} /></> : <strong>{formatDateTime(line.customerAppointmentAt)}</strong>}
+            {customerAppointmentEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} /></> : <strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong>}
           </dd></div>
           {editing && <div className="cus-container-fact cus-container-fact--save"><dt className="sr-only">Lưu</dt><dd>
             {operationalEditable && <UUIButton

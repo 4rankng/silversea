@@ -1,18 +1,13 @@
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { formatISODate } from '../../../lib/format';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
 interface MasterPlanGridProps {
   items: ShipmentListItem[];
   onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const [year, month, day] = iso.slice(0, 10).split('-');
-  return year && month && day ? `${day}/${month}/${year}` : iso;
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -96,7 +91,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
-                    Giao: {formatDate(item.expectedDeliveryDate)}
+                    Giao: {formatISODate(item.expectedDeliveryDate)}
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">
                     Giờ: {formatHour(item.plannedReturnAt ?? item.closingAt)}

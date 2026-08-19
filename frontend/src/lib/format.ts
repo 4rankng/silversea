@@ -56,6 +56,42 @@ export function formatDate(d: string | null): string {
   return new Date(d).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+/**
+ * Compact date-time for table cells: short date + short time, e.g. "19/8/26, 22:51".
+ * Unlike formatDateTimeVN, the timezone is NOT pinned — call sites historically
+ * render in the host's local zone. Invalid input renders as "—" (the raw string
+ * is never echoed back).
+ */
+export function formatDateTimeShort(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+/**
+ * Zero-padded dd/mm/yyyy read straight off the ISO string, no Date parsing —
+ * immune to timezone shifts and valid for date-only columns ("19/08/2026").
+ * Use where the source is a calendar date, not a wall-clock timestamp.
+ */
+export function formatISODate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const [year, month, day] = iso.slice(0, 10).split('-');
+  return year && month && day ? `${day}/${month}/${year}` : iso;
+}
+
+/**
+ * Vietnamese-formatted amount with no currency symbol and no decimals — for
+ * cells that render the "₫" unit in a separate element. Companion to
+ * formatCurrency which always appends " ₫".
+ */
+export function formatMoney(n: number | string | null): string {
+  if (n == null) return '—';
+  const num = typeof n === 'string' ? Number(n) : n;
+  if (!Number.isFinite(num)) return '—';
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(num);
+}
+
 /** Calendar date in the platform's Vietnam business timezone for date inputs. */
 export function businessDateISO(value: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, ClipboardList, Droplets, Eye, FilePenLine, Plus, ShieldCheck, Truck, XCircle } from 'lucide-react';
-import { SupplierType, type TripExpense } from '@tingting/shared';
+import { SupplierType, round2dp, type TripExpense } from '@tingting/shared';
 
 import { qk } from '../api/keys';
 import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
-import { round2dp } from '../lib/round';
 import { Panel, Modal } from '../components/UI';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
 import { useAuth } from '../hooks/useAuth';

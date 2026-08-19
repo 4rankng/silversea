@@ -10,14 +10,9 @@ import {
 } from './PlateAssignmentCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
+import { formatISODate } from '../../../lib/format';
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const [year, month, day] = iso.slice(0, 10).split('-');
-  return year && month && day ? `${day}/${month}/${year}` : iso;
-}
 
 function formatWeight(kg: string | null | undefined): string {
   if (kg == null || kg === '') return '—';
@@ -159,7 +154,7 @@ export function DetailedPlanGrid({
                 <tr key={row.fulfillmentId} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatDate(row.time.deliveryDate)}
+                      {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate)}
                     </div>
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                       Giờ: {row.time.runHour != null ? `${row.time.runHour}H` : '—'}

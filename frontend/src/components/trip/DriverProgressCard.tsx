@@ -25,6 +25,7 @@ import {
 import { driverClient } from '../../api/driverClient';
 import { offlineQueue, type QueuedOp } from '../../lib/offline-queue';
 import { ApiError } from '../../lib/api/errors';
+import { formatDateTimeShort } from '../../lib/format';
 
 interface ProgressEvent {
   id: number;
@@ -42,8 +43,7 @@ function toLocalDatetimeInputValue(iso: string): string {
 }
 
 function formatEventTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+  return formatDateTimeShort(iso);
 }
 
 const EVENT_OPTIONS = Object.values(DriverProgressEventType);

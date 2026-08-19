@@ -12,6 +12,7 @@ import {
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueue';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
+import { formatDateTimeShort } from '../../lib/format';
 import './TripPodSubmission.css';
 
 type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
@@ -67,12 +68,7 @@ function statusClass(status: TripPodStatus): string {
   }
 }
 
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
-}
+const formatDateTime = formatDateTimeShort;
 
 function groupFilesByType(submission: DriverTaskPodSubmission | null): Record<TripPodFileType, DriverTaskPodFile[]> {
   const empty: Record<TripPodFileType, DriverTaskPodFile[]> = {

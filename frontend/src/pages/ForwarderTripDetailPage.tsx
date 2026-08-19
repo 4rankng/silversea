@@ -169,7 +169,10 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       }));
       const urls = items.map((item) => item.url);
       setExpensePhotos(prev => ({ ...prev, [expenseId]: urls }));
-    } catch { /* ignore */ }
+    } catch {
+      // Photo list is supplementary UI: failures leave the section empty
+      // rather than blocking the expense detail view.
+    }
   }
 
   async function handleUploadPhoto(expenseId: number, file: File) {

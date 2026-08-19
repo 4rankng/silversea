@@ -28,7 +28,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { ApiError } from '../lib/api';
-import { formatCurrency } from '../lib/format';
+import { formatCurrency, formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
@@ -130,12 +130,7 @@ function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 's
   }
 }
 
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
-}
+const formatDateTime = formatDateTimeShort;
 
 function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';

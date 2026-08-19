@@ -19,6 +19,7 @@ import {
 } from '../../api/shipmentClient';
 import { Modal } from '../UI';
 import { UuiSelectField } from '../../design-system';
+import { formatDateTimeShort } from '../../lib/format';
 
 export interface TripPodReviewPanelProps {
   shipmentId: number;
@@ -38,12 +39,7 @@ const STATUS_LABELS: Record<TripPodStatus, string> = {
   [TripPodStatus.REJECTED]: 'Bị từ chối',
 };
 
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
-}
+const formatDateTime = formatDateTimeShort;
 
 function formatFileSize(sizeBytes: number): string {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
