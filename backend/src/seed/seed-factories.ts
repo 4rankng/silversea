@@ -2,11 +2,11 @@
  * Seed operational sites (factories/warehouses) from customer Excel data
  * Extracted from "29.7 - DATA PM.xlsx" - NHÀ MÁY sheet
  */
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { factories } from './data/index.js';
-import { normalizedTextEquals } from './seed-identity.js';
+import { normalizedTextEquals, normalizeSeedText } from './seed-identity.js';
 
 /**
  * Seed factories/warehouses as operational sites
@@ -34,6 +34,7 @@ export async function seedFactories(): Promise<void> {
 
   let createdCount = 0;
   let updatedCount = 0;
+  let skippedOpsOwned = 0;
 
   for (const factory of factories) {
     // Generate code from factory name (uppercase, no spaces)
@@ -42,14 +43,25 @@ export async function seedFactories(): Promise<void> {
       .replace(/[^A-Z0-9]/g, '_')
       .substring(0, 80);
 
-    // Check if factory already exists by name and customer
-    const [existing] = await db.select({ id: s.operationalSites.id })
+    // Resolve by name OR code: the DB uniqueness is (customer_id, code), so an
+    // ops-created row sharing the generated code but a different name must
+    // still count as existing — matching by name alone would insert a duplicate
+    // code and crash on the unique index. A code-only match means ops owns the
+    // row (seed never renames an ops-created site) → skip, don't update.
+    const [existing] = await db.select({ id: s.operationalSites.id, name: s.operationalSites.name })
       .from(s.operationalSites)
       .where(and(
         eq(s.operationalSites.customerId, longMinhCustomer.id),
-        normalizedTextEquals(s.operationalSites.name, factory.name)
+        or(
+          normalizedTextEquals(s.operationalSites.name, factory.name),
+          eq(s.operationalSites.code, code),
+        ),
       ))
       .limit(1);
+    if (existing && normalizeSeedText(existing.name) !== normalizeSeedText(factory.name)) {
+      skippedOpsOwned++;
+      continue;
+    }
 
     const values = {
       customerId: longMinhCustomer.id,
@@ -73,7 +85,7 @@ export async function seedFactories(): Promise<void> {
     }
   }
 
-  console.log(`✅ Factories seeded! (${createdCount} new, ${updatedCount} updated)`);
+  console.log(`✅ Factories seeded! (${createdCount} new, ${updatedCount} updated, ${skippedOpsOwned} ops-owned skipped)`);
   for (const f of factories) {
     console.log(`   • ${f.name}`);
   }
