@@ -1,4 +1,4 @@
-/* "Kế hoạch Chi tiết" container-level grid — 6 multi-line columns per spec.
+/* "Kế hoạch Chi tiết" container-level grid — 7 multi-line columns per spec.
    Unbounded worksheet like /shipments: sticky thead pins against the app-body
    scrollport and cells wrap instead of owning a horizontal rail. Follows the
    dispatch-plan-page__* BEM conventions. */
@@ -455,12 +455,16 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-.detailed-plan-grid__col--schedule { width: 13%; }
-.detailed-plan-grid__col--route { width: 22%; }
-.detailed-plan-grid__col--documents { width: 15%; }
-.detailed-plan-grid__col--container { width: 14%; }
-.detailed-plan-grid__col--notes { width: 18%; }
-.detailed-plan-grid__col--assignment { width: 18%; }
+/* Keep every fixed-layout column explicit and the complete set at 100%.
+   Otherwise a newly added column collapses to zero width and its wrapped
+   header label dictates the height of the entire header row. */
+.detailed-plan-grid__col--schedule { width: 12%; }
+.detailed-plan-grid__col--route { width: 21%; }
+.detailed-plan-grid__col--documents { width: 13%; }
+.detailed-plan-grid__col--container { width: 12%; }
+.detailed-plan-grid__col--assignment { width: 20%; }
+.detailed-plan-grid__col--classification { width: 10%; }
+.detailed-plan-grid__col--notes { width: 12%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -478,6 +482,7 @@
   color: var(--text-secondary, #64748b);
   background: var(--background-color-secondary, var(--surface, #fff));
   border-bottom: 2px solid var(--border-color, #e2e8f0);
+  line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -651,7 +656,12 @@
     min-height: 44px;
     font-size: 14px;
   }
+}
 
+/* Seven operational columns no longer have a usable decision width below
+   this measure. Match the master-plan workspace and switch to labelled
+   records before badges and notes can collide. */
+@container (max-width: 900px) {
   .detailed-plan-grid__wrapper {
     overflow: visible;
     border-top: 0;
@@ -744,4 +754,136 @@
   font-weight: 500;
   color: var(--text-tertiary, #667085);
   border-style: dashed;
+}
+
+/* ─── Lạch Huyện zone toggle (filter drawer) ───────────────────────────── */
+
+.detailed-plan-filters__field--zone {
+  min-width: 0;
+}
+
+.detailed-plan-filters__zone-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--text-secondary, #475467);
+  background: var(--surface-white, #fff);
+  border: 1px solid var(--border-medium, #d0d5dd);
+  border-radius: var(--radius-sm, 8px);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.detailed-plan-filters__zone-toggle:hover {
+  border-color: var(--border-strong, #98a2b3);
+}
+
+.detailed-plan-filters__zone-toggle.is-active {
+  color: var(--text-primary, #101828);
+  border-color: var(--border-strong, #d0d5dd);
+  box-shadow: inset 0 0 0 1px var(--border-strong, #d0d5dd);
+}
+
+.detailed-plan-filters__zone-toggle-state {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--text-tertiary, #667085);
+}
+
+.detailed-plan-filters__zone-toggle.is-active .detailed-plan-filters__zone-toggle-state {
+  color: var(--text-primary, #101828);
+}
+
+/* ─── Xe tại Lạch Huyện presence panel (advisory strip) ────────────────── */
+
+.zone-presence-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-white, #fff);
+}
+
+.zone-presence-panel__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.zone-presence-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #101828);
+}
+
+.zone-presence-panel__date {
+  font-size: var(--fs-xs, 12px);
+  color: var(--text-tertiary, #667085);
+}
+
+.zone-presence-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zone-presence-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-primary, #101828);
+  background: var(--surface-white, #fff);
+  border: 1px solid var(--border-medium, #d0d5dd);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.zone-presence-panel__chip:hover {
+  border-color: var(--border-strong, #98a2b3);
+}
+
+.zone-presence-panel__plate {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-presence-panel__tag {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 500;
+  color: var(--text-secondary, #475467);
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: 9999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.zone-presence-panel__count {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--text-tertiary, #667085);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile: chips scroll horizontally instead of wrapping tall. */
+@media (max-width: 640px) {
+  .zone-presence-panel__chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .zone-presence-panel__chip {
+    flex: 0 0 auto;
+  }
 }

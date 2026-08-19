@@ -1,20 +1,32 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
-import type { Port } from '@tingting/shared';
-import { DISPATCH_ZONES } from '@tingting/shared';
+import { Role, type Port } from '@tingting/shared';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { configClient } from '../../api/configClient';
+import { useAuth } from '../../hooks/useAuth';
 
-function PortForm({ saving, item, onsave, oncancel }: {
-  saving: boolean; item?: Port; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+export type DispatchZoneOption = { code: string; label: string; sortOrder: number };
+
+/** Full taxonomy row as returned by the factory list (includes inactive). */
+interface DispatchZoneRow extends DispatchZoneOption {
+  id: number;
+  isActive: boolean;
+}
+
+type ZoneChoice = string; // zone code | 'NONE'
+
+function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
+  saving: boolean; item?: Port; zoneOptions: Array<{ value: ZoneChoice; label: string }>; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState(item?.name || '');
   const [code, setCode] = useState(item?.code || '');
   const [city, setCity] = useState(item?.city || '');
   const [address, setAddress] = useState(item?.address || '');
-  const [isLachHuyen, setIsLachHuyen] = useState(item?.dispatchZone === 'LACH_HUYEN');
+  const [zone, setZone] = useState<ZoneChoice>(item?.dispatchZone ?? 'NONE');
 
   return (
     <InlineForm colSpan={4}>
@@ -59,16 +71,13 @@ function PortForm({ saving, item, onsave, oncancel }: {
           />
         </Field>
       </div>
-      <div style={{ flex: 0, minWidth: 'auto', display: 'flex', alignItems: 'flex-end', paddingBottom: '8px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-          <input
-            type="checkbox"
-            checked={isLachHuyen}
-            onChange={e => setIsLachHuyen(e.target.checked)}
-            style={{ cursor: 'pointer' }}
-          />
-          <span>Cảng khu vực Lạch Huyện</span>
-        </label>
+      <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
+        <UuiSelectField
+          label="Khu vực điều phối"
+          value={zone}
+          options={zoneOptions}
+          onChange={(e) => setZone(e.target.value as ZoneChoice)}
+        />
       </div>
       <FormActions
         saving={saving}
@@ -81,7 +90,7 @@ function PortForm({ saving, item, onsave, oncancel }: {
             code: code.trim() || null,
             city: city.trim() || null,
             address: address.trim() || null,
-            dispatchZone: isLachHuyen ? DISPATCH_ZONES[0] : null,
+            dispatchZone: zone === 'NONE' ? null : zone,
           });
         }}
       />
@@ -89,8 +98,98 @@ function PortForm({ saving, item, onsave, oncancel }: {
   );
 }
 
+function ZoneForm({ saving, item, onsave, oncancel }: {
+  saving: boolean; item?: DispatchZoneRow; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
+}) {
+  const [code, setCode] = useState(item?.code ?? '');
+  const [label, setLabel] = useState(item?.label ?? '');
+  const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 0);
+  const [isActive, setIsActive] = useState(item?.isActive ?? true);
+
+  return (
+    <InlineForm colSpan={4}>
+      <div style={{ flex: 1, minWidth: 140 }}>
+        <Field label="Mã khu vực">
+          <input
+            className="input"
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="LACH_HUYEN"
+            disabled={!!item}
+            autoFocus={!item}
+          />
+        </Field>
+      </div>
+      <div style={{ flex: 2, minWidth: 200 }}>
+        <Field label="Tên khu vực">
+          <input
+            className="input"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="Lạch Huyện"
+            autoFocus={!!item}
+          />
+        </Field>
+      </div>
+      <div style={{ flex: 1, minWidth: 100 }}>
+        <Field label="Thứ tự">
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={9999}
+            value={sortOrder}
+            onChange={e => setSortOrder(Number(e.target.value))}
+          />
+        </Field>
+      </div>
+      <div style={{ flex: 1, minWidth: 140, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
+        <UuiSelectField
+          label="Trạng thái"
+          value={isActive ? 'ACTIVE' : 'INACTIVE'}
+          options={[
+            { value: 'ACTIVE', label: 'Đang dùng' },
+            { value: 'INACTIVE', label: 'Đã ngưng' },
+          ]}
+          onChange={(e) => setIsActive(e.target.value === 'ACTIVE')}
+        />
+      </div>
+      <FormActions
+        saving={saving}
+        isedit={!!item}
+        oncancel={oncancel}
+        onsave={() => {
+          if (!label.trim()) return;
+          onsave(item
+            ? { label: label.trim(), sortOrder, isActive }
+            : { code: code.trim(), label: label.trim(), sortOrder, isActive });
+        }}
+      />
+    </InlineForm>
+  );
+}
+
 export default function PortsConfigPage() {
+  const { user } = useAuth();
   const { rootRef: pageRef } = usePageAnimations({ ready: true, selectors: ['.cfg-row'] });
+  const [zones, setZones] = useState<DispatchZoneOption[]>([]);
+  const zoneByCode = new Map(zones.map((z) => [z.code, z]));
+  const zoneOptions = [
+    { value: 'NONE', label: '— Không thuộc khu vực điều phối —' },
+    ...zones.map((z) => ({ value: z.code as ZoneChoice, label: z.label })),
+  ];
+
+  const loadZones = () => {
+    configClient.getDispatchZones()
+      .then((res) => setZones(res.items))
+      .catch(() => { /* zone select falls back to "none" only */ });
+  };
+  useEffect(loadZones, []);
+  // Zone taxonomy is not part of the react-query catalog key set, so a zone
+  // write must explicitly re-pull the active list — otherwise a zone created
+  // below stays unclassifiable in the port form above until a page remount.
+  const refreshZones = useCallback(() => { loadZones(); }, []);
+
   return (
     <div ref={pageRef}>
     <CrudTable<Port>
@@ -110,8 +209,8 @@ export default function PortsConfigPage() {
         {
           header: 'Khu vực điều phối',
           render: (p) => (
-            p.dispatchZone === 'LACH_HUYEN'
-              ? <span className="badge badge--success">Lạch Huyện</span>
+            p.dispatchZone
+              ? <span className="badge badge--success">{zoneByCode.get(p.dispatchZone)?.label ?? p.dispatchZone}</span>
               : <span style={{ color: 'var(--fg-3)' }}>—</span>
           ),
         },
@@ -120,8 +219,43 @@ export default function PortsConfigPage() {
           render: (p) => <span style={{ color: 'var(--fg-2)', fontSize: 13 }}>{p.city ? `${p.city}${p.address ? ', ' : ''}${p.address || ''}` : (p.address || '—')}</span>,
         },
       ]}
-      renderForm={(p) => <PortForm saving={p.saving} item={p.item} onsave={p.onSave} oncancel={p.onCancel} />}
+      renderForm={(p) => <PortForm saving={p.saving} item={p.item} zoneOptions={zoneOptions} onsave={p.onSave} oncancel={p.onCancel} />}
     />
+
+    {/* Zone taxonomy management is ADMIN-only server-side (factory mount is
+        requireRoles(ADMIN), whose list also returns inactive rows) — hide the
+        block for other roles instead of rendering a table that would 403. */}
+    {user?.role === Role.ADMIN && (
+    <CrudTable<DispatchZoneRow>
+      title="Khu vực điều phối"
+      description="Taxonomy cụm cảng — thêm cụm mới (VD: Ninh Bình) tại đây, cảng được gán vào khu vực ở bảng trên"
+      endpoint="/dispatch-zones" colSpan={4}
+      pageSlug="dispatch-zones"
+      showDelete={false}
+      sortFn={(a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label, 'vi')}
+      emptyTitle="Chưa có khu vực nào"
+      emptyHint="Thêm khu vực điều phối đầu tiên (VD: Lạch Huyện)."
+      columns={[
+        { header: 'Mã', render: (z) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{z.code}</span> },
+        { header: 'Tên khu vực', render: (z) => <span>{z.label}</span> },
+        { header: 'Thứ tự', render: (z) => <span style={{ color: 'var(--fg-2)' }}>{z.sortOrder}</span> },
+        {
+          header: 'Trạng thái',
+          render: (z) => z.isActive
+            ? <span className="cfg-pill cfg-pill--success">Đang dùng</span>
+            : <span className="cfg-pill cfg-pill--neutral">Đã ngưng</span>,
+        },
+      ]}
+      renderForm={(p) => (
+        <ZoneForm
+          saving={p.saving}
+          item={p.item}
+          onsave={(d) => { p.onSave(d); refreshZones(); }}
+          oncancel={p.onCancel}
+        />
+      )}
+    />
+    )}
     </div>
   );
 }

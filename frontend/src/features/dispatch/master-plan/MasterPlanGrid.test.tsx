@@ -58,6 +58,14 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
+    expect(screen.getByText('Công ty ABC')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('BL-2026-001')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText(/Giao: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText(/Hạ: Kho Bình Dương/)).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);
     expect(allocationTrigger.closest('td')?.classList.contains('master-plan-grid__cell--action')).toBe(true);

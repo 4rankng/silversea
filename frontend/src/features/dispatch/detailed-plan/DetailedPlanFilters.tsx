@@ -21,6 +21,8 @@ interface DetailedPlanFiltersProps {
   loadDeliveryPointFacets: FacetLoader;
   loadPickupPortFacets: FacetLoader;
   loadDropoffPortFacets: FacetLoader;
+  /** Active zone taxonomy (code + label) from GET /dispatch-zones. */
+  zones: Array<{ code: string; label: string }>;
 }
 
 const DIRECTION_OPTIONS = [
@@ -242,12 +244,14 @@ export function DetailedPlanFilters({
   loadDeliveryPointFacets,
   loadPickupPortFacets,
   loadDropoffPortFacets,
+  zones,
 }: DetailedPlanFiltersProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const today = businessDateISO();
   const activeDrawerFilterCount = [
     filters.direction,
     filters.assignmentStatus,
+    filters.zone !== '',
     filters.pickupIds.length > 0,
     filters.dropoffIds.length > 0,
     filters.deliveryPointIds.length > 0,
@@ -395,6 +399,22 @@ export function DetailedPlanFilters({
                   <span aria-hidden="true">→</span>
                   <UUIInput type="time" className="detailed-plan-filters__hour-control" value={filters.hourTo} onChange={(value) => onChange({ hourTo: value })} size="sm" aria-label="Giờ đến" inputProps={{ step: 60 }} />
                 </div>
+              </div>
+              <div className="detailed-plan-filters__field detailed-plan-filters__field--zone">
+                <span className="detailed-plan-filters__label">Khu vực</span>
+                <UUISelect
+                  className="detailed-plan-filters__select"
+                  size="sm"
+                  aria-label="Khu vực"
+                  selectedKey={filters.zone || 'ALL_ZONES'}
+                  onSelectionChange={(key) => onChange({ zone: key === 'ALL_ZONES' ? '' : String(key) })}
+                  items={[
+                    { id: 'ALL_ZONES', label: 'Tất cả khu vực' },
+                    ...zones.map((zone) => ({ id: zone.code, label: zone.label })),
+                  ]}
+                >
+                  {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+                </UUISelect>
               </div>
             </div>
           </section>

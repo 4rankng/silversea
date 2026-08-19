@@ -2099,7 +2099,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
       token: clerkToken,
       body: {
         expectedShipmentVersion: line.shipmentVersion,
-        carrierType: 'OWN',
+        plateNumber: '51H-999.99',
       },
     });
     assert.equal(denied.status, 409);
@@ -4164,18 +4164,21 @@ describe('GET / — dispatch port/carrier facets and filtered-set summary', () =
     assert.equal(badCarrier.status, 400);
   });
 
-  test('dispatch-lach-huyen-port-facets returns only LH-zoned ports on active work', async () => {
-    const lhPort = await mkPort(`Cảng LH facet ${suffix}`, 'LACH_HUYEN');
-    const nonLhPort = await mkPort(`Cảng thường facet ${suffix}`);
+  test('dispatch-zone-port-facets returns only ports of the requested zone on active work', async () => {
+    const zonedPort = await mkPort(`Cảng LH facet ${suffix}`, 'LACH_HUYEN');
+    const nonZonedPort = await mkPort(`Cảng thường facet ${suffix}`);
     const target = await mkShipmentViaService();
     await testFetch(`/${target.id}/containers`, {
       method: 'PUT',
       token: adminToken,
-      body: { version: target.version, containers: [{ containerTypeId, pickupPortId: lhPort.id, dropoffPortId: nonLhPort.id }] },
+      body: { version: target.version, containers: [{ containerTypeId, pickupPortId: zonedPort.id, dropoffPortId: nonZonedPort.id }] },
     });
-    const r = await testFetch('/dispatch-lach-huyen-port-facets', { token: adminToken });
+    const r = await testFetch('/dispatch-zone-port-facets?zone=LACH_HUYEN', { token: adminToken });
     assert.equal(r.status, 200);
-    assert.ok(r.data.items.some((p: { id: number }) => p.id === lhPort.id), 'LH-zoned port is offered');
-    assert.ok(!r.data.items.some((p: { id: number }) => p.id === nonLhPort.id), 'non-zoned port is not offered');
+    assert.ok(r.data.items.some((p: { id: number }) => p.id === zonedPort.id), 'zoned port is offered');
+    assert.ok(!r.data.items.some((p: { id: number }) => p.id === nonZonedPort.id), 'non-zoned port is not offered');
+
+    const missingZone = await testFetch('/dispatch-zone-port-facets', { token: adminToken });
+    assert.equal(missingZone.status, 400);
   });
 });

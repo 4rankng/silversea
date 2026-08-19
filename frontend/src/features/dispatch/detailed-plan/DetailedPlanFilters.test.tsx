@@ -5,6 +5,8 @@ import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
 import { businessDateISO } from '../../../lib/format';
 
+const TEST_ZONES = [{ code: 'LACH_HUYEN', label: 'Lạch Huyện' }, { code: 'HAI_PHONG', label: 'Cảng Hải Phòng' }];
+
 /** Open the multi-select popover for the given visible label (Điểm nâng / hạ / trả). */
 function openFacet(label: string) {
   // The trigger shows either "Chọn <label>…" (nothing selected) or
@@ -48,6 +50,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([{ id: 7, name: 'Cảng Hải Phòng' }])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([{ id: 9, name: 'ICD Mỹ Đình' }])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -132,6 +135,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -154,6 +158,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -178,6 +183,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={loadDeliveryPointFacets}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -204,6 +210,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -220,6 +227,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -238,6 +246,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -261,6 +270,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
@@ -287,15 +297,17 @@ describe('DetailedPlanFilters', () => {
           deliveryPointIds: [3],
           hourFrom: '07:30',
           hourTo: '09:45',
+          zone: 'LACH_HUYEN',
         }}
         onChange={onChange}
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 
-    expect(screen.getByText('Đang lọc 9 điều kiện')).toBeTruthy();
+    expect(screen.getByText('Đang lọc 10 điều kiện')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tất cả' }));
     expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
 
@@ -306,6 +318,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
     expect(screen.queryByText('Mặc định: mọi ngày vận chuyển')).toBeNull();
@@ -321,6 +334,7 @@ describe('DetailedPlanFilters', () => {
         loadDeliveryPointFacets={vi.fn().mockResolvedValue([{ id: 42, name: 'KCN Vân Trung' }])}
         loadPickupPortFacets={vi.fn().mockResolvedValue([])}
         loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
       />,
     );
 

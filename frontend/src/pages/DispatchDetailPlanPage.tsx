@@ -35,6 +35,8 @@ export default function DispatchDetailPlanPage() {
           assignmentError={detailPlan.assignmentError}
           lotBanner={detailPlan.lotBanner}
           onClearLotBanner={detailPlan.clearLotBanner}
+          presence={detailPlan.presence}
+          zones={detailPlan.zones}
           sortKey={detailPlan.sortKey}
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}

@@ -90,7 +90,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">
+                  <div className="master-plan-grid__line">
                     Giao: {formatISODate(item.expectedDeliveryDate)}
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">
@@ -101,7 +101,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">{item.deliveryLocation ?? '—'}</div>
                 </td>
@@ -121,13 +121,13 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
-                  <div className="master-plan-grid__line">Nâng: {item.pickupLocation ?? '—'}</div>
-                  <div className="master-plan-grid__line">Hạ: {item.deliveryLocation ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">Nâng: {item.pickupLocation ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">Hạ: {item.deliveryLocation ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
                   <div className="master-plan-grid__cargo-summary">
                     {formatContainerSummaryLines(item.containerTypeSummary).map((summaryLine) => (
-                      <div key={summaryLine} className="master-plan-grid__line master-plan-grid__line--strong">
+                      <div key={summaryLine} className="master-plan-grid__line">
                         {summaryLine}
                       </div>
                     ))}

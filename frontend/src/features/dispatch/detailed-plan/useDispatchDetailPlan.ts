@@ -7,11 +7,14 @@ import {
   listDispatchDetailPlanRows,
   listDispatchDropoffPortFacets,
   listDispatchPickupPortFacets,
+  listZoneTruckPresence,
   updateDispatchDetailEstimates,
   updateDispatchDetailPlan,
   type DispatchDetailPlanFilters,
   type DispatchDetailPlanRow,
+  type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
+import { configClient } from '../../../api/configClient';
 
 const PAGE_SIZE = 50;
 
@@ -25,6 +28,8 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   deliveryPointIds: number[];
   hourFrom: string;
   hourTo: string;
+  /** Zone code from the DB taxonomy; '' = no zone filter. */
+  zone: string;
 }
 
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
@@ -37,6 +42,7 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   deliveryPointIds: [],
   hourFrom: '',
   hourTo: '',
+  zone: '',
 };
 
 export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
@@ -59,6 +65,7 @@ function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
     ...(filters.deliveryPointIds.length > 0 ? { deliveryPointIds: filters.deliveryPointIds } : {}),
     ...(filters.hourFrom ? { hourFrom: filters.hourFrom } : {}),
     ...(filters.hourTo ? { hourTo: filters.hourTo } : {}),
+    ...(filters.zone ? { zone: filters.zone } : {}),
   };
 }
 
@@ -80,6 +87,39 @@ export function useDispatchDetailPlan() {
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const requestIdRef = useRef(0);
+
+  // Zone truck presence for the viewing date: advisory panel input, one
+  // bounded query refetched only when the selected zone or date changes. The
+  // active-zone list is the DB taxonomy; the panel follows the filter's zone
+  // (or the first active zone when unfiltered).
+  const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  const [presence, setPresence] = useState<{ zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null>(null);
+  const presenceRequestIdRef = useRef(0);
+  useEffect(() => {
+    let cancelled = false;
+    configClient.getDispatchZones()
+      .then((res) => { if (!cancelled) setZones(res.items); })
+      .catch(() => { /* no taxonomy → no presence panel */ });
+    return () => { cancelled = true; };
+  }, []);
+  const presenceZone = filters.zone || zones[0]?.code || '';
+  useEffect(() => {
+    if (!presenceZone) {
+      setPresence(null);
+      return;
+    }
+    const requestId = ++presenceRequestIdRef.current;
+    listZoneTruckPresence({ zone: presenceZone, date: filters.date || undefined })
+      .then((response) => {
+        if (presenceRequestIdRef.current !== requestId) return;
+        setPresence(response);
+      })
+      .catch(() => {
+        if (presenceRequestIdRef.current !== requestId) return;
+        // Advisory only — a failed presence fetch never blocks the grid.
+        setPresence(null);
+      });
+  }, [presenceZone, filters.date, refreshKey]);
 
   const [debouncedQ, setDebouncedQ] = useState(filters.q);
   useEffect(() => {
@@ -107,7 +147,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, refreshKey]);
+  }, [page, debouncedQ, filters.date, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -357,5 +397,7 @@ export function useDispatchDetailPlan() {
     loadDeliveryPointFacets,
     loadPickupPortFacets,
     loadDropoffPortFacets,
+    zones,
+    presence,
   };
 }

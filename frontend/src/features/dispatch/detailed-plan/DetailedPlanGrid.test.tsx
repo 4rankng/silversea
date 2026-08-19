@@ -44,6 +44,8 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       assignmentError={null}
       lotBanner={null}
       onClearLotBanner={vi.fn()}
+      presence={null}
+      zones={[]}
       sortKey={null}
       onToggleSort={vi.fn()}
       onAtomicSave={vi.fn()}
@@ -62,9 +64,9 @@ describe('DetailedPlanGrid', () => {
       'Khách hàng & lộ trình ↕',
       'Chứng từ',
       'Container',
+      'Ghi chú',
       'Điều phối',
       'Phân loại',
-      'Ghi chú',
     ]);
 
     // Column 1: bold date line + muted hour line
@@ -84,7 +86,7 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
     expect(screen.getByText(/21\.500 kg/)).toBeTruthy();
-    // Column 5: notes
+    // Column 5: notes, followed by atomic dispatch and classification.
     expect(screen.getByText('Xe: Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Khách: Gặp anh Hùng')).toBeTruthy();
     expect(Array.from(container.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
@@ -92,9 +94,9 @@ describe('DetailedPlanGrid', () => {
       'Khách hàng & lộ trình',
       'Chứng từ',
       'Container',
+      'Ghi chú',
       'Điều phối',
       'Phân loại',
-      'Ghi chú',
     ]);
   });
 
@@ -102,6 +104,29 @@ describe('DetailedPlanGrid', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
     expect(css).toContain('". direction"');
+  });
+
+  it('gives every fixed-layout desktop column an explicit share of exactly 100%', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const columnNames = [
+      'schedule',
+      'route',
+      'documents',
+      'container',
+      'assignment',
+      'classification',
+      'notes',
+    ];
+
+    const widths = columnNames.map((columnName) => {
+      const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${columnName}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;\\s*\\}`));
+      expect(match, `${columnName} column must own an explicit percentage width`).toBeTruthy();
+      return Number(match?.[1] ?? 0);
+    });
+
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+    expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
+    expect(css).toContain('@container (max-width: 900px)');
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {
@@ -234,6 +259,10 @@ describe('DetailedPlanGrid', () => {
     expect(editorCss).toContain('.dispatch-assignment-cell__trigger {');
     expect(editorCss).toContain('height: 100%;');
     expect(editorCss).toContain('cursor: pointer;');
+    expect(editorCss).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(editorCss).toMatch(/\.detailed-plan-grid td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*min-height:\s*72px;/);
+    expect(editorCss).toMatch(/\.dispatch-assignment-cell__carrier,[\s\S]*?\.dispatch-assignment-cell__plate\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(editorCss).toMatch(/@container \(max-width:\s*900px\)[\s\S]*?td\.detailed-plan-grid__cell--editable::after\s*\{[^}]*display:\s*none;/);
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     // The grid's mobile `.detailed-plan-grid__cell::before` label rule has
     // equal class specificity; the editable cell must win on `td` so its

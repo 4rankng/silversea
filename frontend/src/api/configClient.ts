@@ -36,6 +36,12 @@ export const configClient = {
     return api.get<{ items: Customer[]; total: number }>(`${CONFIG.CUSTOMERS}${qs}`);
   },
 
+  // DB-owned zone taxonomy (dispatch_zones) — drives port classification and
+  // every zone-scoped dispatch surface; no zone constants exist client-side.
+  // /active = active-only rows for dispatch readers (any config-read role);
+  // the bare /dispatch-zones factory list (all statuses) is ADMIN-managed.
+  getDispatchZones: () => api.get<{ items: Array<{ code: string; label: string; sortOrder: number }> }>(`${CONFIG.DISPATCH_ZONES}/active`),
+
   getTrucks: () => fetchAllPaginated<Truck>(CONFIG.TRUCKS),
 
   getDrivers: () => fetchAllPaginated<Driver>(CONFIG.DRIVERS),

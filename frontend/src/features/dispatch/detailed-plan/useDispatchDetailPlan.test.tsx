@@ -12,9 +12,21 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     listDispatchDeliveryPointFacets: vi.fn(),
     listDispatchPickupPortFacets: vi.fn(),
     listDispatchDropoffPortFacets: vi.fn(),
+    listZoneTruckPresence: vi.fn(),
     assignDispatchDetailPlate: vi.fn(),
     assignDispatchDetailCarrier: vi.fn(),
     updateDispatchDetailEstimates: vi.fn(),
+  };
+});
+
+vi.mock('../../../api/configClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../api/configClient')>();
+  return {
+    ...actual,
+    configClient: {
+      ...actual.configClient,
+      getDispatchZones: vi.fn(),
+    },
   };
 });
 
@@ -22,8 +34,10 @@ import {
   assignDispatchDetailCarrier,
   assignDispatchDetailPlate,
   listDispatchDetailPlanRows,
+  listZoneTruckPresence,
   updateDispatchDetailEstimates,
 } from '../../../api/dispatchPlanningClient';
+import { configClient } from '../../../api/configClient';
 
 const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedResponse<DispatchDetailPlanRow> => ({
   items,
@@ -33,6 +47,8 @@ const page = (items: DispatchDetailPlanRow[], total = items.length): PaginatedRe
 });
 
 const listDispatchDetailPlanRowsMock = vi.mocked(listDispatchDetailPlanRows);
+const listZoneTruckPresenceMock = vi.mocked(listZoneTruckPresence);
+const getDispatchZonesMock = vi.mocked(configClient.getDispatchZones);
 const assignDispatchDetailPlateMock = vi.mocked(assignDispatchDetailPlate);
 const assignDispatchDetailCarrierMock = vi.mocked(assignDispatchDetailCarrier);
 const updateDispatchDetailEstimatesMock = vi.mocked(updateDispatchDetailEstimates);
@@ -73,6 +89,18 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   beforeEach(() => {
     vi.clearAllMocks();
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row(), row({ fulfillmentId: 102 })]));
+    getDispatchZonesMock.mockResolvedValue({
+      items: [
+        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
+        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
+      ],
+    });
+    listZoneTruckPresenceMock.mockResolvedValue({
+      date: '2026-08-20',
+      zone: 'LACH_HUYEN',
+      zoneLabel: 'Lạch Huyện',
+      items: [],
+    });
   });
 
   it('loads unfiltered by date by default (/dispatch parity)', async () => {
@@ -233,5 +261,44 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
 
     expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, limit: 50 }));
     expect(result.current.items.map((item) => item.fulfillmentId)).toEqual([101]);
+  });
+
+  it('forwards the zone filter to the rows query and the presence fetch', async () => {
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.updateFilters({ zone: 'HAI_PHONG' }));
+
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      zone: 'HAI_PHONG',
+    })));
+    await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      zone: 'HAI_PHONG',
+    })));
+  });
+
+  it('loads zone presence from the taxonomy and follows the viewing date', async () => {
+    listZoneTruckPresenceMock.mockResolvedValue({
+      date: '2026-08-21',
+      zone: 'LACH_HUYEN',
+      zoneLabel: 'Lạch Huyện',
+      items: [{
+        truckId: 7,
+        plateNumber: '51C-123.45',
+        evidence: [{ reason: 'D-1_DROP', date: '2026-08-20', containerNumber: 'MSCU1234567', portName: 'Cảng Lạch Huyện - HICT' }],
+      }],
+    });
+
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // No zone filter set → presence follows the first active zone.
+    await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalledWith({ zone: 'LACH_HUYEN', date: undefined }));
+    expect(result.current.presence?.zoneLabel).toBe('Lạch Huyện');
+    expect(result.current.presence?.items[0]?.plateNumber).toBe('51C-123.45');
+
+    // Presence refetches when the viewing date changes.
+    act(() => result.current.updateFilters({ date: '2026-08-21' }));
+    await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenLastCalledWith({ zone: 'LACH_HUYEN', date: '2026-08-21' }));
   });
 });

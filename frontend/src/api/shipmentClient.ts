@@ -540,16 +540,17 @@ export interface ShipmentListResponse {
   };
 }
 
-/** Lạch Huyện port option for the master-plan port facet. */
+/** Port option for a master-plan zone facet. */
 export interface DispatchPortFacetItem {
   id: number;
   name: string;
   code: string | null;
 }
 
-export async function listLachHuyenPortFacets(q?: string): Promise<{ items: DispatchPortFacetItem[] }> {
-  const suffix = q ? `?q=${encodeURIComponent(q)}` : '';
-  return api.get<{ items: DispatchPortFacetItem[] }>(`/shipments/dispatch-lach-huyen-port-facets${suffix}`);
+export async function listZonePortFacets(zone: string, q?: string): Promise<{ items: DispatchPortFacetItem[] }> {
+  const params = new URLSearchParams({ zone });
+  if (q) params.set('q', q);
+  return api.get<{ items: DispatchPortFacetItem[] }>(`/shipments/dispatch-zone-port-facets?${params.toString()}`);
 }
 
 /** Body for `POST /api/shipments/:id/dispatch`. */

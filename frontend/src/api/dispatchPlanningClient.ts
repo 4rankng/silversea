@@ -92,7 +92,7 @@ export interface DispatchHandoffItem {
   summary: { containerNumbers: string[]; lclLabel: string | null };
 }
 
-function queryString(values: Record<string, string | number | Array<string> | null | undefined>) {
+function queryString(values: Record<string, string | number | boolean | Array<string> | null | undefined>) {
   const params = new URLSearchParams();
   Object.entries(values).forEach(([key, value]) => {
     if (Array.isArray(value)) {
@@ -227,11 +227,35 @@ export interface DispatchDetailPlanFilters {
   deliveryPointIds?: number[];
   hourFrom?: string;
   hourTo?: string;
+  /** Only rows whose container picks up or drops off at a port in this zone
+   *  (code from the DB taxonomy via GET /dispatch-zones). */
+  zone?: string;
 }
 
 export function listDispatchDetailPlanRows(filters: { page?: number; limit?: number } & DispatchDetailPlanFilters = {}) {
   return api.get<PaginatedResponse<DispatchDetailPlanRow>>(
-    `/shipments/dispatch-detail-plan-rows?${queryString(filters as Record<string, string | number | Array<string> | null | undefined>)}`,
+    `/shipments/dispatch-detail-plan-rows?${queryString(filters as Record<string, string | number | Array<string> | boolean | null | undefined>)}`,
+  );
+}
+
+// ─── Zone truck presence (detail plan advisory panel) ────────────────────────
+
+export interface ZoneTruckPresenceEvidence {
+  reason: 'D-1_DROP' | 'D+1_PICKUP';
+  date: string;
+  containerNumber: string | null;
+  portName: string;
+}
+
+export interface ZoneTruckPresenceItem {
+  truckId: number;
+  plateNumber: string;
+  evidence: ZoneTruckPresenceEvidence[];
+}
+
+export function listZoneTruckPresence(filters: { zone: string; date?: string }) {
+  return api.get<{ date: string; zone: string; zoneLabel: string; items: ZoneTruckPresenceItem[] }>(
+    `/shipments/dispatch-zone-truck-presence?${queryString(filters)}`,
   );
 }
 

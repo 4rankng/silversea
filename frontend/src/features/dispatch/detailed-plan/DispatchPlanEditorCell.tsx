@@ -21,9 +21,11 @@ const OWN_CARRIER_VALUE = 'carrier:own';
 const FREE_TEXT_PREFIX = 'free:';
 const CURRENT_PLATE_PREFIX = 'current:';
 
+// Zone-agnostic wording: suggestions derive from whichever zone the order's
+// own ports sit in (not just Lạch Huyện), so the tag must not hard-code "LH".
 const SUGGESTION_LABELS: Record<'D-1_DROP' | 'D+1_PICKUP', string> = {
-  'D-1_DROP': 'Hạ LH D-1',
-  'D+1_PICKUP': 'Lấy LH D+1',
+  'D-1_DROP': 'Hạ tại khu vực D-1',
+  'D+1_PICKUP': 'Lấy tại khu vực D+1',
 };
 
 export interface AtomicPlanSaveResult {

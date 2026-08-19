@@ -3,15 +3,23 @@
   padding: 0;
 }
 
+.detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
+  display: block;
+  min-height: 72px;
+  content: '';
+}
+
 .dispatch-assignment-cell__trigger {
   position: absolute;
   inset: 0;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
   width: 100%;
   height: 100%;
   min-height: 100%;
-  gap: 3px;
-  padding: 12px;
+  gap: 2px 8px;
+  padding: 8px 12px;
   color: var(--text-primary, #101828);
   font: inherit;
   text-align: left;
@@ -43,6 +51,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dispatch-assignment-cell__carrier,
+.dispatch-assignment-cell__plate {
+  grid-column: 1 / -1;
 }
 
 .dispatch-assignment-cell__carrier {
@@ -123,14 +136,20 @@
   line-height: 1.45;
 }
 
-@container (max-width: 640px) {
+@container (max-width: 900px) {
   .detailed-plan-grid td.detailed-plan-grid__cell--editable {
     position: static;
+  }
+
+  .detailed-plan-grid td.detailed-plan-grid__cell--editable::after {
+    display: none;
   }
 
   .dispatch-assignment-cell__trigger {
     position: relative;
     inset: auto;
+    height: auto;
+    min-height: 0;
   }
 
   /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
@@ -141,6 +160,7 @@
 
   .dispatch-assignment-cell__trigger::before {
     display: block;
+    grid-column: 1 / -1;
     margin-bottom: 3px;
     color: var(--text-secondary, #64748b);
     content: attr(data-cell-label);

@@ -4,7 +4,8 @@ import type { ShipmentAllocationStatus } from '../../../api/shipmentClient';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { BufferedUuiDateInput } from '../../../design-system/forms/BufferedUuiDateInput';
-import { listLachHuyenPortFacets } from '../../../api/shipmentClient';
+import { listZonePortFacets } from '../../../api/shipmentClient';
+import { configClient } from '../../../api/configClient';
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
@@ -41,7 +42,7 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
 ];
 
 /**
- * Searchable multi-select facet block for ports (Lạch Huyện).
+ * Searchable multi-select facet block for a zone's ports.
  *
  * Renders a dropdown trigger button. The popover holds a search input, a
  * scrollable checkbox list of options fetched lazily from `loadFacets`, and
@@ -472,8 +473,18 @@ function toggleKey(list: string[], key: string): string[] {
   return list.includes(key) ? list.filter((value) => value !== key) : [...list, key];
 }
 
-/** Filter bar for the dispatch master-plan grid (docx §2). */
+/** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
+ *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
+  const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    configClient.getDispatchZones()
+      .then((res) => { if (!cancelled) setZones(res.items); })
+      .catch(() => { /* no zones configured → no port facet blocks */ });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="master-plan-filters">
       <UUIInput
@@ -512,12 +523,15 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       >
         {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
       </UUISelect>
-      <FacetMultiSelect
-        label="Cảng Lạch Huyện"
-        selected={filters.portIds}
-        onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })}
-        loadFacets={(q) => listLachHuyenPortFacets(q).then((r) => r.items)}
-      />
+      {zones.map((zone) => (
+        <FacetMultiSelect
+          key={zone.code}
+          label={`Cảng ${zone.label}`}
+          selected={filters.portIds}
+          onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })}
+          loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}
+        />
+      ))}
       <CarrierFacetMultiSelect
         selected={filters.carrierKeys}
         onToggle={(key) => onChange({ carrierKeys: toggleKey(filters.carrierKeys, key) })}

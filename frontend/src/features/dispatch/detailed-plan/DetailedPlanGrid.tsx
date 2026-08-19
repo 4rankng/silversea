@@ -2,13 +2,14 @@ import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
-import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import {
   DispatchPlanEditorCell,
   type AtomicPlanSaveResult,
 } from './DispatchPlanEditorCell';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
+import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
 import '../../../styles/operational-table-typography.css';
@@ -34,6 +35,8 @@ interface DetailedPlanGridProps {
   assignmentError: string | null;
   lotBanner: string | null;
   onClearLotBanner: () => void;
+  presence: { zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null;
+  zones: Array<{ code: string; label: string }>;
   sortKey: DetailPlanSortKey;
   onToggleSort: (key: 'runHour' | 'deliveryPoint') => void;
   onAtomicSave: (
@@ -71,6 +74,8 @@ export function DetailedPlanGrid({
   assignmentError,
   lotBanner,
   onClearLotBanner,
+  presence,
+  zones,
   sortKey,
   onToggleSort,
   onAtomicSave,
@@ -78,7 +83,7 @@ export function DetailedPlanGrid({
   if (error) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           <button type="button" className="btn btn--secondary btn--sm" onClick={onRetry} disabled={loading}>Thử lại</button>
@@ -89,7 +94,14 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} />
+
+      <ZoneTruckPresencePanel
+        items={presence?.items ?? []}
+        zoneLabel={presence?.zoneLabel ?? ''}
+        date={presence?.date ?? null}
+        onSelectPlate={(plate) => onFilterChange({ q: plate })}
+      />
 
       {assignmentError && (
         <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
@@ -119,9 +131,9 @@ export function DetailedPlanGrid({
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
-              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
             </colgroup>
             <thead>
               <tr>
@@ -147,9 +159,9 @@ export function DetailedPlanGrid({
                 </th>
                 <th scope="col">Chứng từ</th>
                 <th scope="col">Container</th>
+                <th scope="col">Ghi chú</th>
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
-                <th scope="col">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -209,6 +221,14 @@ export function DetailedPlanGrid({
                       </>
                     )}
                   </td>
+                  <td className="detailed-plan-grid__cell" data-label="Ghi chú">
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
+                      Xe: {row.notes.vehicleNote ?? '—'}
+                    </div>
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                      Khách: {row.notes.customerNote ?? '—'}
+                    </div>
+                  </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
                     <DispatchPlanEditorCell row={row} onAtomicSave={onAtomicSave} />
                   </td>
@@ -222,14 +242,6 @@ export function DetailedPlanGrid({
                     ) : (
                       <span className="detailed-plan-grid__classification detailed-plan-grid__classification--unclassified">Chưa phân loại</span>
                     )}
-                  </td>
-                  <td className="detailed-plan-grid__cell" data-label="Ghi chú">
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
-                      Xe: {row.notes.vehicleNote ?? '—'}
-                    </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                      Khách: {row.notes.customerNote ?? '—'}
-                    </div>
                   </td>
                 </tr>
               ))}

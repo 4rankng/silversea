@@ -571,6 +571,80 @@ describe('dispatch detail plan rows', () => {
     assert.equal(dropoffExcluded.status, 200);
     assert.ok(!dropoffExcluded.data.items.some((item) => item.shipmentId === shipment.id));
   });
+
+  test('zone filter narrows rows to a zone\'s ports (either side)', async () => {
+    // LH lot: dropoff port zoned LACH_HUYEN.
+    const lhCustomer = await createCustomer(`LH detail ${suffix}-${createdCustomerIds.length}`);
+    const lhRoute = await createRoute();
+    const lhSite = await createOperationalSite(lhCustomer.id);
+    const [lhShipment] = await db.insert(s.shipments).values({
+      customerId: lhCustomer.id,
+      routeId: lhRoute.id,
+      cargoMode: 'FCL',
+      shipmentCode: `LHD-${suffix}-${createdShipmentIds.length}`,
+      bookingRef: `LHD-BOOK-${suffix}-${createdShipmentIds.length}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-20T08:00:00.000Z'),
+      tradeDirection: 'EXPORT',
+      operationalSiteId: lhSite.id,
+      createdBy: adminUserId,
+    }).returning();
+    createdShipmentIds.push(lhShipment.id);
+    const lhContainerType = await createContainerType('20G');
+    const [lhPort] = await db.insert(s.ports).values({
+      name: `LH filter port ${suffix}-${createdPortIds.length}`,
+      dispatchZone: 'LACH_HUYEN',
+    }).returning();
+    createdPortIds.push(lhPort.id);
+    const [plainPort] = await db.insert(s.ports).values({ name: `LH filter plain port ${suffix}-${createdPortIds.length}` }).returning();
+    createdPortIds.push(plainPort.id);
+    const [lhContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: lhShipment.id,
+      containerTypeId: lhContainerType.id,
+      containerNumber: `LHD${String(700000 + lhShipment.id).slice(-6)}`,
+      pickupPortId: plainPort.id,
+      dropoffPortId: lhPort.id,
+      createdBy: adminUserId,
+    }).returning();
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: lhShipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: lhContainer.id,
+      sourceShipmentVersion: lhShipment.version,
+      siteSnapshot: { deliverySite: { id: lhSite.id, name: lhSite.name, address: lhSite.address } },
+      plannedCarrierType: 'OWN',
+      createdBy: adminUserId,
+    });
+    // Plain lot: no zoned ports at all.
+    const { shipment: plainShipment } = await createAllocatedLot({ carrierType: 'OWN' });
+
+    const unfiltered = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows', { token: dispatcherToken });
+    assert.equal(unfiltered.status, 200);
+    assert.ok(unfiltered.data.items.some((item) => item.shipmentId === lhShipment.id));
+    assert.ok(unfiltered.data.items.some((item) => item.shipmentId === plainShipment.id));
+
+    const lhOnly = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    assert.equal(lhOnly.status, 200, JSON.stringify(lhOnly.data));
+    assert.ok(lhOnly.data.items.some((item) => item.shipmentId === lhShipment.id), 'LH lot must be present');
+    assert.ok(!lhOnly.data.items.some((item) => item.shipmentId === plainShipment.id), 'plain lot must be excluded');
+
+    // Pickup side counts too: a lot whose pickup port is LH also matches.
+    const [plainContainer] = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentFulfillments)
+      .innerJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .where(eq(s.shipmentFulfillments.shipmentId, plainShipment.id));
+    await db.update(s.shipmentContainers)
+      .set({ pickupPortId: lhPort.id })
+      .where(eq(s.shipmentContainers.id, plainContainer.id));
+    const lhPickupSide = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows?zone=LACH_HUYEN', { token: dispatcherToken });
+    assert.equal(lhPickupSide.status, 200);
+    assert.ok(lhPickupSide.data.items.some((item) => item.shipmentId === plainShipment.id), 'pickup-side LH port must match');
+
+    // Unknown zone code → 400 (taxonomy is DB-owned; stale clients fail loud).
+    const unknown = await apiFetch('/dispatch-detail-plan-rows?zone=CAT_HAI', { token: dispatcherToken });
+    assert.equal(unknown.status, 400);
+  });
 });
 
 describe('dispatch detail plan plate assignment', () => {
@@ -1481,6 +1555,98 @@ describe('dispatch fleet LH truck suggestions', () => {
     assert.equal(stale.status, 200);
     assert.deepEqual(stale.data.suggestedItems ?? [], []);
   });
+
+  describe('presence endpoint (all trucks with zone evidence for a viewing date)', () => {
+    type PresenceResponse = {
+      date: string;
+      zone: string;
+      zoneLabel: string;
+      items: Array<{
+        truckId: number;
+        plateNumber: string;
+        evidence: Array<{ reason: 'D-1_DROP' | 'D+1_PICKUP'; date: string; containerNumber: string | null; portName: string }>;
+      }>;
+    };
+
+    function createLhPort(nameSeed: string) {
+      return db.insert(s.ports).values({
+        name: `Presence LH port ${suffix}-${nameSeed}-${createdPortIds.length}`,
+        dispatchZone: 'LACH_HUYEN',
+      }).returning();
+    }
+
+    test('returns trucks with D-1 drop and D+1 pickup evidence; canceled lots excluded', async () => {
+      const [lhPortA] = await createLhPort('a');
+      createdPortIds.push(lhPortA.id);
+      const [lhPortB] = await createLhPort('b');
+      createdPortIds.push(lhPortB.id);
+      const { truck: truckA } = await createOwnedTruckWithDriver();
+      const { truck: truckB } = await createOwnedTruckWithDriver();
+      const { truck: truckC } = await createOwnedTruckWithDriver();
+
+      // truckA: dropoff at LH on D-1 → ready for an LH order on D.
+      await createEvidenceLot({ plate: truckA.licensePlate, workDate: '2026-08-19', lhPortId: lhPortA.id, atLhDropoff: true });
+      // truckB: pickup from LH on D+1 → committed to LH.
+      await createEvidenceLot({ plate: truckB.licensePlate, workDate: '2026-08-21', lhPortId: lhPortB.id, atLhDropoff: false });
+      // truckC: canceled evidence — must not surface.
+      await createEvidenceLot({ plate: truckC.licensePlate, workDate: '2026-08-19', lhPortId: lhPortA.id, atLhDropoff: true, canceled: true });
+      // Noise: same truck on a date too far away to matter.
+      await createEvidenceLot({ plate: truckA.licensePlate, workDate: '2026-08-17', lhPortId: lhPortA.id, atLhDropoff: true });
+
+      const response = await apiFetch<PresenceResponse>('/dispatch-zone-truck-presence?zone=LACH_HUYEN&date=2026-08-20', {
+        token: dispatcherToken,
+      });
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      assert.equal(response.data.date, '2026-08-20');
+      const items = response.data.items;
+
+      const truckAItem = items.find((item) => item.truckId === truckA.id);
+      assert.ok(truckAItem, `truckA expected in presence: ${JSON.stringify(items)}`);
+      assert.equal(truckAItem.plateNumber, truckA.licensePlate);
+      assert.equal(truckAItem.evidence.length, 1);
+      assert.equal(truckAItem.evidence[0]!.reason, 'D-1_DROP');
+      assert.equal(truckAItem.evidence[0]!.date, '2026-08-19');
+      assert.equal(truckAItem.evidence[0]!.portName, lhPortA.name);
+
+      const truckBItem = items.find((item) => item.truckId === truckB.id);
+      assert.ok(truckBItem);
+      assert.equal(truckBItem.evidence[0]!.reason, 'D+1_PICKUP');
+      assert.equal(truckBItem.evidence[0]!.date, '2026-08-21');
+
+      assert.ok(!items.some((item) => item.truckId === truckC.id), 'canceled evidence must not surface');
+
+      // Evidence shape: containerNumber + portName only — no shipment/customer.
+      for (const item of items) {
+        for (const ev of item.evidence) {
+          assert.deepEqual(Object.keys(ev).sort(), ['containerNumber', 'date', 'portName', 'reason']);
+        }
+      }
+    });
+
+    test('missing date defaults to today (Asia/Ho_Chi_Minh)', async () => {
+      const [lhPort] = await createLhPort('today');
+      createdPortIds.push(lhPort.id);
+      const { truck } = await createOwnedTruckWithDriver();
+      const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      // Evidence dated today is neither D-1 nor D+1 of today → empty result.
+      await createEvidenceLot({ plate: truck.licensePlate, workDate: today, lhPortId: lhPort.id, atLhDropoff: true });
+
+      const response = await apiFetch<PresenceResponse>('/dispatch-zone-truck-presence?zone=LACH_HUYEN', { token: dispatcherToken });
+      assert.equal(response.status, 200, JSON.stringify(response.data));
+      assert.match(response.data.date, /^\d{4}-\d{2}-\d{2}$/);
+      if (response.data.date === today) {
+        assert.deepEqual(response.data.items, []);
+      }
+    });
+
+    test('non-dispatch role forbidden; garbage date rejected', async () => {
+      const denied = await apiFetch('/dispatch-zone-truck-presence?zone=LACH_HUYEN&date=2026-08-20', { token: driverToken });
+      assert.equal(denied.status, 403);
+
+      const garbage = await apiFetch('/dispatch-zone-truck-presence?zone=LACH_HUYEN&date=20-08-2026', { token: dispatcherToken });
+      assert.equal(garbage.status, 400);
+    });
+  });
 });
 
 describe('review fixes: carrier switch + explicit plate clear', () => {
@@ -1564,3 +1730,4 @@ describe('review fixes: carrier switch + explicit plate clear', () => {
     assert.equal(after.plannedVehiclePlateNumber, null, 'clearVehicle must unassign the plate');
   });
 });
+
