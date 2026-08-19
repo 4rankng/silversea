@@ -31,9 +31,12 @@ const createdContainerTypeIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
+const createdDeclarationIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
+let containerType20Id: number;
 let responsibleUnitId: number;
 let adminActor: AuthUser;
 let cusActor: AuthUser;
@@ -45,6 +48,45 @@ async function seedContainerType() {
     name: `CusWs ct ${suffix}`,
   }).returning();
   createdContainerTypeIds.push(row.id);
+  return row;
+}
+
+async function seedContainerType20() {
+  const [row] = await db.insert(s.containerTypes).values({
+    code: `20DC${Math.random().toString(16).slice(2, 10)}`,
+    name: `CusWs ct20 ${suffix}`,
+  }).returning();
+  createdContainerTypeIds.push(row.id);
+  return row;
+}
+
+async function seedDeclaration(shipmentId: number) {
+  const [row] = await db.insert(s.shipmentDeclarations).values({
+    shipmentId,
+    declarationNumber: `DECL${Math.random().toString(16).slice(2, 8)}`,
+  }).returning();
+  createdDeclarationIds.push(row.id);
+  return row;
+}
+
+async function seedFulfillment(
+  shipmentId: number,
+  shipmentContainerId: number | null,
+  overrides: Partial<typeof s.shipmentFulfillments.$inferInsert> = {},
+) {
+  const [row] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId,
+    shipmentContainerId,
+    fulfillmentType: 'FCL_CONTAINER',
+    cargoMode: 'FCL',
+    sourceShipmentVersion: 1,
+    siteSnapshot: {
+      pickupWarehouse: { id: 1, name: 'Kho A' },
+      deliverySite: { id: 2, name: 'Cảng B' },
+    },
+    ...overrides,
+  }).returning();
+  createdFulfillmentIds.push(row.id);
   return row;
 }
 
@@ -91,6 +133,7 @@ async function seedContainer(
 before(async () => {
   customerId = (await seedCustomer()).id;
   containerTypeId = (await seedContainerType()).id;
+  containerType20Id = (await seedContainerType20()).id;
   // Provision the CUS actor like production: a real user row with unit +
   // customer links, and shipments seeded under that unit, so list scope
   // (unit + customer) matches the write scope the service enforces.
@@ -128,7 +171,16 @@ before(async () => {
 });
 
 after(async () => {
-  // Reverse-FK order: containers → shipments → catalog → customer.
+  // Reverse-FK order: fulfillments/declarations → containers → shipments →
+  // catalog → customer.
+  if (createdFulfillmentIds.length) {
+    await db.delete(s.shipmentFulfillments)
+      .where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
+  }
+  if (createdDeclarationIds.length) {
+    await db.delete(s.shipmentDeclarations)
+      .where(inArray(s.shipmentDeclarations.id, createdDeclarationIds));
+  }
   if (createdContainerIds.length) {
     await db.delete(s.shipmentContainers)
       .where(inArray(s.shipmentContainers.id, createdContainerIds));
@@ -500,5 +552,207 @@ describe('CUS container-flat projection', () => {
     assert.equal(row.shipmentScheduleEditable, false);
     assert.equal(row.shipmentNotesEditable, false);
     assert.equal(row.customerAppointmentEditable, false);
+  });
+});
+
+describe('Overview operational priority ordering', () => {
+  test('unscheduled lots sort first, newest first; scheduled follow by delivery date', async () => {
+    const base = Date.now();
+    const schedOld = await seedShipment({ blNumber: `ORDSO${suffix}`, expectedDeliveryDate: '2026-07-01', createdAt: new Date(base - 86400000 * 2) });
+    const schedNew = await seedShipment({ blNumber: `ORDSN${suffix}`, expectedDeliveryDate: '2026-08-18', createdAt: new Date(base - 86400000) });
+    const unschedNew = await seedShipment({ blNumber: `ORDUN${suffix}`, createdAt: new Date(base) });
+    const unschedOld = await seedShipment({ blNumber: `ORDUO${suffix}`, createdAt: new Date(base - 86400000 * 3) });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const pos = (id: number) => response.items.findIndex((item) => item.id === id);
+
+    assert.ok(pos(unschedNew.id) < pos(unschedOld.id), 'newest unscheduled first within queue');
+    assert.ok(pos(unschedOld.id) < pos(schedNew.id), 'unscheduled queue before scheduled');
+    assert.ok(pos(schedNew.id) < pos(schedOld.id), 'scheduled by delivery date newest-to-oldest');
+  });
+
+  test('same-date ties rank Cont 20 before Cont 40 before Lẻ/unknown', async () => {
+    const date = '2026-08-19';
+    const route = await seedRoute();
+    const mk = async (bl: string, mode: 'FCL' | 'LCL', typeIds: number[], n: number) => {
+      const shipment = await seedShipment({ blNumber: `${bl}${suffix}`, expectedDeliveryDate: date, cargoMode: mode, routeId: route.id });
+      for (let i = 0; i < n; i += 1) {
+        await seedContainer(shipment.id, {
+          containerNumber: `${bl}-${i}-${suffix}`.slice(0, 50),
+          containerTypeId: typeIds[i % typeIds.length],
+        });
+      }
+      return shipment;
+    };
+    const cont40 = await mk('RANK40A', 'FCL', [containerTypeId], 1);
+    const cont20 = await mk('RANK20A', 'FCL', [containerType20Id], 1);
+    const mixed = await mk('RANKMIXA', 'FCL', [containerTypeId, containerType20Id], 2);
+    const lcl = await mk('RANKLCLA', 'LCL', [], 0);
+    const unknown = await seedShipment({ blNumber: `RANKUNKA${suffix}`, expectedDeliveryDate: date });
+
+    const response = await listCusShipmentWorkspace({ page: 1, limit: 100 }, cusActor);
+    const rank = (id: number) => response.items.findIndex((item) => item.id === id);
+
+    assert.ok(rank(cont20.id) >= 0 && rank(mixed.id) >= 0);
+    assert.ok(rank(cont20.id) < rank(cont40.id), 'Cont 20 before Cont 40');
+    assert.ok(rank(mixed.id) < rank(cont40.id), 'mixed 20/40 lot ranks as Cont 20');
+    assert.ok(rank(cont40.id) < rank(lcl.id), 'other Cont before Lẻ');
+    assert.ok(rank(lcl.id) < rank(unknown.id), 'Lẻ before unknown');
+  });
+});
+
+describe('Container workboard "Chưa cập nhật" completeness', () => {
+  test('projects informationStatus and the exact applicable missing fields on a real FCL row', async () => {
+    const shipment = await seedShipment({ blNumber: `MISSY${suffix}`, expectedDeliveryDate: '2026-08-20', cargoMode: 'FCL' });
+    await seedContainer(shipment.id, { containerNumber: `MSY${suffix}1`.slice(0, 50) });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    assert.equal(row.informationStatus, 'MISSING');
+    const codes = row.missingFields.map((field) => field.code);
+    // Applicable and absent: direction, declaration, route, shipping line,
+    // sites, appointment, carrier (date exists, none assigned).
+    assert.ok(codes.includes('DIRECTION'));
+    assert.ok(codes.includes('DECLARATION'));
+    assert.ok(codes.includes('ROUTE'));
+    assert.ok(codes.includes('SHIPPING_LINE'));
+    assert.ok(codes.includes('LIFT_SITE'));
+    assert.ok(codes.includes('DROPOFF_SITE'));
+    assert.ok(codes.includes('APPOINTMENT'));
+    assert.ok(codes.includes('CARRIER'));
+    // Present, so not flagged: bill number, transport date, container number,
+    // container type (seedContainer defaults it);
+    // BKS not applicable because no external carrier is selected yet.
+    assert.equal(codes.includes('BILL_BOOKING'), false);
+    assert.equal(codes.includes('TRANSPORT_DATE'), false);
+    assert.equal(codes.includes('CONTAINER_NUMBER'), false);
+    assert.equal(codes.includes('CONTAINER_TYPE'), false);
+    assert.equal(codes.includes('BKS'), false);
+  });
+
+  test('a fully-filled FCL row projects COMPLETE with empty missingFields', async () => {
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `DONE${suffix}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    await seedDeclaration(shipment.id);
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `DON${suffix}1`.slice(0, 50),
+      containerTypeId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    await seedFulfillment(shipment.id, container.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-123.45',
+    });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    assert.equal(row.informationStatus, 'COMPLETE');
+    assert.deepEqual(row.missingFields, []);
+  });
+
+  test('informationStatus=MISSING returns only incomplete FCL rows with count parity', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const incomplete = await seedShipment({ blNumber: `MI-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    await seedContainer(incomplete.id, { containerNumber: `MI-${marker}`.slice(0, 50) });
+
+    const completeRoute = await seedRoute();
+    const complete = await seedShipment({
+      blNumber: `MC-${marker}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: completeRoute.id,
+      shippingLineName: 'Maersk',
+    });
+    await seedDeclaration(complete.id);
+    const completeContainer = await seedContainer(complete.id, {
+      containerNumber: `MC-${marker}`.slice(0, 50),
+      containerTypeId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    await seedFulfillment(complete.id, completeContainer.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-123.45',
+    });
+
+    // LCL lot with a physical container row: outside the FCL filter by design.
+    const lcl = await seedShipment({ blNumber: `ML-${marker}`, cargoMode: 'LCL', expectedDeliveryDate: '2026-08-20' });
+    await seedContainer(lcl.id, { containerNumber: `ML-${marker}`.slice(0, 50) });
+
+    const response = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      informationStatus: 'MISSING',
+    }, cusActor);
+
+    assert.ok(response.items.some((row) => row.shipmentId === incomplete.id));
+    assert.equal(response.items.some((row) => row.shipmentId === complete.id), false);
+    assert.equal(response.items.some((row) => row.shipmentId === lcl.id), false);
+    assert.equal(response.total, response.items.length, 'count query agrees with item query');
+    assert.ok(response.items.every((row) => row.informationStatus === 'MISSING'));
+  });
+
+  test('carrier is not a missing field before a transport date exists', async () => {
+    // Everything present except the transport date and the carrier: the
+    // vehicle stage is staged behind the date, so only TRANSPORT_DATE flags.
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `NODATE${suffix}`,
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    await seedDeclaration(shipment.id);
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `NOD${suffix}1`.slice(0, 50),
+      containerTypeId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    await seedFulfillment(shipment.id, container.id, {});
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    const codes = row.missingFields.map((field) => field.code);
+    assert.deepEqual(codes, ['TRANSPORT_DATE']);
+  });
+
+  test('BKS stays inapplicable for an own-fleet carrier', async () => {
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `OWNBKS${suffix}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    await seedDeclaration(shipment.id);
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `OWN${suffix}1`.slice(0, 50),
+      containerTypeId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    // OWN planned carrier with no plate: the plate comes from the dispatch
+    // trip, so BKS must not flag.
+    await seedFulfillment(shipment.id, container.id, { plannedCarrierType: 'OWN' });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    const codes = row.missingFields.map((field) => field.code);
+    assert.equal(codes.includes('BKS'), false);
+    assert.equal(codes.includes('CARRIER'), false);
   });
 });

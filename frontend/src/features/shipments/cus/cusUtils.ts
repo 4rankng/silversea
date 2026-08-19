@@ -37,6 +37,14 @@ export function directionLabel(direction: ShipmentCusWorkspaceListItem['directio
   return '—';
 }
 
+// Customer-facing cargo-mode terminology. Wire values stay FCL/LCL; only the
+// visible label uses the approved Vietnamese short form.
+export function cargoModeLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMode']): string {
+  if (cargoMode === 'FCL') return 'Cont';
+  if (cargoMode === 'LCL') return 'Lẻ';
+  return '—';
+}
+
 export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
   if (item.operational.totalContainers > 0) {
     return `${item.operational.totalContainers.toLocaleString('vi-VN')} cont`;

@@ -99,6 +99,8 @@ export default function ShipmentsDetailPage() {
   const customerId = readPositiveInteger(searchParams.get('customerId'));
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
+  // Detail-only server-derived triage filter; the overview endpoint rejects it.
+  const informationStatus = searchParams.get('informationStatus') === 'MISSING' ? 'MISSING' : '';
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export default function ShipmentsDetailPage() {
     setEditLoadingRowId(null);
     setEditError(null);
     setEditNotice(null);
-  }, [customerId, dateFrom, dateTo, direction, page, suffixParam]);
+  }, [customerId, dateFrom, dateTo, direction, informationStatus, page, suffixParam]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -167,6 +169,7 @@ export default function ShipmentsDetailPage() {
         transportDateTo: dateTo || undefined,
         customerId: customerId || undefined,
         direction: direction || undefined,
+        informationStatus: informationStatus || undefined,
       });
       if (requestId === requestSequence.current) setData(response);
     } catch (loadError) {
@@ -174,7 +177,7 @@ export default function ShipmentsDetailPage() {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, dateFrom, dateTo, direction, page, suffixParam]);
+  }, [customerId, dateFrom, dateTo, direction, informationStatus, page, suffixParam]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 
@@ -193,8 +196,9 @@ export default function ShipmentsDetailPage() {
   const totalPages = data?.totalPages ?? 0;
   const totalContainers = data?.total ?? 0;
   const customers = data?.filterOptions.customers ?? [];
-  const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo);
+  const hasFilters = Boolean(suffixParam || customerId || direction || dateFrom || dateTo || informationStatus);
   const activeFilterSummary = [
+    informationStatus ? 'Chưa cập nhật' : null,
     suffixParam ? `Mã cuối: ${suffixParam}` : null,
     dateFrom && dateTo
       ? `Ngày vận chuyển: ${dateFrom.split('-').reverse().join('/')} – ${dateTo.split('-').reverse().join('/')}`
@@ -216,6 +220,7 @@ export default function ShipmentsDetailPage() {
       next.delete('searchSuffix');
       next.delete('customerId');
       next.delete('direction');
+      next.delete('informationStatus');
       next.delete('transportDateFrom');
       next.delete('transportDateTo');
       next.set('dateScope', 'all');
@@ -474,6 +479,7 @@ export default function ShipmentsDetailPage() {
             <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
             <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
+            <UUINativeSelect label="Thông tin" size="sm" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả dòng' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} className="shipments-detail-filter" />
           </div>
           <div className="shipments-detail-filters__footer">
             <div className="shipments-detail-filters__date-actions">

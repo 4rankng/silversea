@@ -342,6 +342,27 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/52,5 CBM/)).toBeTruthy();
   });
 
+  it('tags every overview row with the approved Cont/Lẻ cargo label in the table and XLSX export', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'FCL' }, { ...row, id: 2, cargoMode: 'LCL', containerSummary: '4 Pallet' }]));
+    renderPage();
+    const table = await screen.findByRole('table');
+    const cargoCell = within(table).getAllByRole('button', { name: /Sửa ô tổng quan hàng hóa/ })[0]!;
+    const fclTag = within(cargoCell).getByText('Cont');
+    const lclTag = within(table).getByText('Lẻ');
+    expect(fclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
+    expect(lclTag.classList.contains('cus-cargo-mode-tag')).toBe(true);
+    // Neutral structural styling: never an accent fill (selection-state rule).
+    expect(css).toContain('.cus-cargo-mode-tag {');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
+    await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));
+    const exportArgs = downloadCSV.mock.calls[0];
+    const rows = exportArgs?.[2] as Array<Array<string | number>>;
+    // Column index 3 = "Tổng quan hàng hóa" — opens with the approved Cont/Lẻ label.
+    expect(rows[0]?.[3]).toContain('Cont');
+    expect(rows[1]?.[3]).toContain('Lẻ');
+  });
+
   it('keeps the detail action visually attached to its shipment status evidence', async () => {
     renderPage();
     await screen.findByRole('table');

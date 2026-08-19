@@ -130,6 +130,21 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.queryByRole('button', { name: /Lưu bản nháp|Gửi sang điều phối/ })).toBeNull();
   });
 
+  it('uses the approved Vietnamese cargo-mode copy while payloads keep FCL/LCL wire values', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    expect(screen.getByText('Hàng nguyên container (Cont)')).toBeTruthy();
+    expect(screen.getByText('Hàng lẻ (Lẻ)')).toBeTruthy();
+    // No customer-facing FCL/LCL jargon anywhere on the create form.
+    expect(screen.queryByText(/FCL|LCL/)).toBeNull();
+
+    await choose('Khách hàng', '7');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalled());
+    expect(mocks.quickCreate.mock.calls[0][0].cargoMode).toBe('FCL');
+  });
+
   it('labels notes by recipient and sends driver notes through the canonical API field', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Lịch & ghi chú' });

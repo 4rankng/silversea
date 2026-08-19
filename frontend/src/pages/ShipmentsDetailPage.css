@@ -113,6 +113,11 @@
 .shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; }
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; align-items: center; gap: 4px; margin-top: 3px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); white-space: nowrap; }
 .shipment-container-ledger__row-warning svg { width: 13px; height: 13px; flex: 0 0 13px; }
+
+/* Server-derived missing-field triage line ("Chưa cập nhật: …"). Same
+   warning ink as the single-field variant, but wraps and is not clamped so
+   long field lists stay readable on narrow viewports. */
+.shipment-container-ledger__missing-fields { white-space: normal; line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 .shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 1px 5px; border-radius: 999px; font-size: 9px; letter-spacing: .04em; text-transform: uppercase; }
 .shipment-container-ledger__direction--import { background: var(--info-soft); color: var(--info-text); }

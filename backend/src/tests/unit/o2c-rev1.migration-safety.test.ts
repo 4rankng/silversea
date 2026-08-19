@@ -32,6 +32,8 @@ describe('O2C clean-baseline safety', () => {
       { idx: 18, tag: '0018_add-supplier-short-name' },
       { idx: 19, tag: '0019_backfill-supplier-short-name' },
       { idx: 20, tag: '0020_require-supplier-short-name' },
+      { idx: 21, tag: '0021_add-dispatch-zone-classification' },
+      { idx: 22, tag: '0022_backfill-dispatch-zone-classification' },
     ]);
   });
 

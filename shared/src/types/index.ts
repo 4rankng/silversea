@@ -750,9 +750,60 @@ export interface Port {
   address: string | null;
   city: string | null;
   notes: string | null;
+  dispatchZone: DispatchZone | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+}
+
+// ─── Dispatch planning ────────────────────────────────────────────────────────────
+
+/** Application-owned dispatch zone whitelist. LACH_HUYEN today; extend here,
+ *  never in SQL, so zone membership stays a versioned application fact. */
+export const DISPATCH_ZONES = ['LACH_HUYEN'] as const;
+export type DispatchZone = (typeof DISPATCH_ZONES)[number];
+
+/** Fulfillment-owned operational classification. SINGLE (Đơn), DOUBLE (Kẹp),
+ *  COMBINED (Kết hợp), LCL (Lẻ). A label only — never infers trip pairing,
+ *  vehicle sharing, or shipment-level `Đóng kết hợp`. */
+export const DISPATCH_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED', 'LCL'] as const;
+export type DispatchClassification = (typeof DISPATCH_CLASSIFICATIONS)[number];
+
+/** Carrier key for master-plan filtering: own fleet, a specific external
+ *  carrier, or fulfillments still lacking any planned carrier. */
+export type DispatchCarrierKey = 'OWN' | 'UNASSIGNED' | `EXTERNAL:${number}`;
+
+/** Full-filtered-set cargo totals shown in the master-plan header. Sản lượng
+ *  counts active FCL containers; LCL fulfillments are labeled separately and
+ *  never counted as containers. */
+export interface DispatchSummary {
+  totalFclContainers: number;
+  size20ft: number;
+  size40ft: number;
+  sizeOther: number;
+  lclFulfillments: number;
+}
+
+/** One Lạch Huyện port option for the master-plan port facet. */
+export interface DispatchPortOption {
+  id: number;
+  name: string;
+  code: string | null;
+}
+
+/** Advisory own-truck suggestion evidence for Lạch Huyện work. Ranking only —
+ *  never eligibility or automatic assignment. */
+export interface TruckSuggestion {
+  truckId: number;
+  plateNumber: string;
+  /** 'D-1_DROP' = LH dropoff yesterday-relative, 'D+1_PICKUP' = LH pickup
+   *  tomorrow-relative. */
+  reasons: Array<'D-1_DROP' | 'D+1_PICKUP'>;
+}
+
+/** `GET /api/shipments/dispatch-detail-plan-rows/:id/plan` row extension. */
+export interface DispatchDetailPlanRowClassification {
+  classification: DispatchClassification | null;
 }
 
 // ─── Forwarder ────────────────────────────────────────────────────────────────────

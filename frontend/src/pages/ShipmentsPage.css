@@ -710,6 +710,10 @@
 .cus-direction-badge--unknown { background: var(--surface-3); color: var(--ink-3) !important; }
 .cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
 
+/* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
+   structural edge like the direction badge — never an accent fill. */
+.cus-cargo-mode-tag { margin-right: 6px; background: var(--surface-3); color: var(--ink-2) !important; }
+
 .cus-inline-trigger {
   display: grid;
   gap: 3px;

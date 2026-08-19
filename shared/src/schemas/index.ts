@@ -1054,6 +1054,51 @@ export const portSchema = z.object({
   address: z.string().optional().nullable(),
   city: z.string().max(100).optional().nullable(),
   notes: z.string().optional().nullable(),
+  dispatchZone: z.enum(['LACH_HUYEN']).optional().nullable(),
+});
+
+// ─── Dispatch planning ─────────────────────────────────────────────────────────
+
+export const dispatchClassificationSchema = z.enum(['SINGLE', 'DOUBLE', 'COMBINED', 'LCL']);
+
+/** Carrier facet key for the master plan: own fleet, one external carrier,
+ *  or fulfillments with no planned carrier yet. */
+export const dispatchCarrierKeySchema = z.string().regex(
+  /^(OWN|UNASSIGNED|EXTERNAL:[1-9]\d*)$/,
+  'Giá trị lọc nhà xe không hợp lệ',
+);
+
+/** One atomic detailed-plan save: carrier, vehicle, estimates, classification
+ *  and `Đóng kết hợp` change together or not at all. Both versions are
+ *  required so omitted stale values cannot erase concurrent work. */
+export const atomicDispatchPlanEditSchema = z.object({
+  expectedFulfillmentVersion: z.number().int().positive(),
+  expectedShipmentVersion: z.number().int().positive(),
+  carrierType: z.enum(['OWN', 'EXTERNAL']),
+  externalCarrierId: z.number().int().positive().nullish(),
+  truckId: z.number().int().positive().nullish(),
+  externalCarrierVehicleId: z.number().int().positive().nullish(),
+  plateNumber: z.string().trim().min(1).max(20).nullish(),
+  clearVehicle: z.boolean().optional(),
+  plannedRevenue: z.number().int().nonnegative().nullable(),
+  plannedCarrierCost: z.number().int().nonnegative().nullable(),
+  classification: dispatchClassificationSchema,
+  isCombined: z.boolean(),
+}).strict().superRefine((value, ctx) => {
+  if (value.carrierType === 'OWN' && value.externalCarrierId != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Xe nội bộ không dùng mã nhà xe ngoài.' });
+  }
+  if (value.carrierType === 'EXTERNAL' && value.externalCarrierId == null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Nhà xe ngoài là bắt buộc.' });
+  }
+  const vehicleFields = [value.truckId, value.externalCarrierVehicleId, value.plateNumber]
+    .filter((field) => field != null && field !== '');
+  if (value.clearVehicle === true && vehicleFields.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['clearVehicle'], message: 'Không vừa xóa xe vừa chọn xe mới.' });
+  }
+  if (vehicleFields.length > 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['plateNumber'], message: 'Chỉ chọn một nguồn biển số.' });
+  }
 });
 
 // ─── Forwarder ──────────────────────────────────────────────────────────────

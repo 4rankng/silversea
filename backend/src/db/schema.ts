@@ -34,6 +34,10 @@ export const roleEnum = applicationEnum(['ADMIN', 'MANAGER', 'ACCOUNTANT', 'DRIV
 export const customerAccountTypeEnum = applicationEnum(['SINGLE_ENTITY', 'CORPORATE_GROUP', 'AGENCY']);
 export const txnTypeEnum = applicationEnum(['TRIP_REVENUE', 'PAYMENT_RECEIVED', 'PENALTY', 'MANAGEMENT_FEE', 'ADJUSTMENT', 'DRIVER_SALARY', 'VENDOR_EXPENSE', 'VENDOR_PAYMENT', 'OPS_ADVANCE', 'OPS_SETTLEMENT', 'EXTERNAL_CARRIER_COST', 'FUEL_EXPENSE', 'UNLOCK_REVERSAL', 'COMMISSION', 'DRIVER_PAYOUT', 'SERVICE_FEE']);
 export const trailerTypeEnum = applicationEnum(['20FT', '40FT']);
+// Dispatch classification of a fulfillment — an operational label only. It
+// never infers trip pairing or `Đóng kết hợp`; historical rows stay null
+// until an operator classifies them in a detailed-plan save.
+export const dispatchClassificationEnum = applicationEnum(['SINGLE', 'DOUBLE', 'COMBINED', 'LCL']);
 export const truckStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
 export const driverStatusEnum = applicationEnum(['ACTIVE', 'INACTIVE']);
 export const customerStatusEnum = applicationEnum(['ACTIVE', 'LOCKED']);
@@ -1486,6 +1490,9 @@ export const ports = pgTable('ports', {
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),
   notes: text('notes'),
+  // Operational dispatch zone for Lạch Huyện-area terminals. Application-
+  // owned whitelist (LACH_HUYEN today); new zones extend this enum, not SQL.
+  dispatchZone: varchar('dispatch_zone', { length: 32 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
@@ -2612,6 +2619,7 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   // closes them through the existing governed workflows.
   plannedRevenue: numeric('planned_revenue', { precision: 15, scale: 0 }),
   plannedCarrierCost: numeric('planned_carrier_cost', { precision: 15, scale: 0 }),
+  dispatchClassification: dispatchClassificationEnum('dispatch_classification'),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
   canceledBy: integer('canceled_by'),

@@ -770,6 +770,12 @@ export interface ShipmentCusWorkspaceFilters {
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
 }
 
+// Container-workboard-only filters. informationStatus is a detail-only
+// parameter the overview endpoint rejects; never add it to overview calls.
+export interface ShipmentCusContainerFilters extends ShipmentCusWorkspaceFilters {
+  informationStatus?: 'MISSING';
+}
+
 export async function listCusShipmentWorkspace(
   filters: ShipmentCusWorkspaceFilters = {},
 ): Promise<ShipmentCusWorkspaceListResponse> {
@@ -787,7 +793,7 @@ export async function listCusShipmentWorkspace(
 }
 
 export async function listCusShipmentContainers(
-  filters: ShipmentCusWorkspaceFilters = {},
+  filters: ShipmentCusContainerFilters = {},
 ): Promise<ShipmentCusContainerFlatResponse> {
   const query = new URLSearchParams();
   if (filters.page != null) query.set('page', String(filters.page));
@@ -798,6 +804,7 @@ export async function listCusShipmentContainers(
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
+  if (filters.informationStatus) query.set('informationStatus', filters.informationStatus);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentCusContainerFlatResponse>(`${SHIPMENTS.CUS_WORKSPACE_CONTAINERS}${suffix}`);
 }

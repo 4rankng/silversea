@@ -148,6 +148,20 @@
       "when": 1786980104884,
       "tag": "0020_require-supplier-short-name",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787108514055,
+      "tag": "0021_add-dispatch-zone-classification",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1787108514056,
+      "tag": "0022_backfill-dispatch-zone-classification",
+      "breakpoints": true
     }
   ]
 }

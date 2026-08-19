@@ -405,6 +405,7 @@ function InlineEditor({
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
           {carrierId && carrierId !== 'OWN' && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length > 0 && <label><span>Biển số đã lưu</span><SearchableSelect id={`shipment-detail-vehicle-${line.id}`} value={matchedVehicle ? String(matchedVehicle.id) : ''} onChange={(value) => { const vehicle = detail.selectors.carrierVehicles.find((item) => item.id === Number(value)); setPlateNumber(vehicle?.licensePlate ?? ''); }} options={vehicleOptions} placeholder="Chọn biển số" searchPlaceholder="Tìm biển số" disabled={saving || !line.permissions.plateEditable} /></label>}
           {carrierId !== 'OWN' && <label><span>Biển số xe</span><input value={plateNumber} onChange={(event) => setPlateNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || !line.permissions.plateEditable} /></label>}
+          {carrierId !== 'OWN' && carrierId && <small>Biển số nhập ở đây là kế hoạch (dự kiến) cho nhà xe thuê; lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.</small>}
           {carrierId === 'OWN' && <small>Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.</small>}
         </div>
       )}
@@ -571,7 +572,11 @@ export function ShipmentContainerLedger({
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
-                      {missingDate && <span className="shipment-container-ledger__row-warning"><AlertTriangle aria-hidden="true" /> Thiếu ngày vận chuyển</span>}
+                      {row.informationStatus === 'MISSING' && (
+                        <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
+                          <AlertTriangle aria-hidden="true" /> Chưa cập nhật: {row.missingFields.map((field) => field.label).join(', ')}
+                        </span>
+                      )}
                     </div>)}
                   </th>
                   <td data-label="Chứng từ & hãng tàu" className={cellClassName(documentsEditable, 'documents')}>

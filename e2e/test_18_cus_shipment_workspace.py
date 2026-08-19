@@ -292,6 +292,102 @@ def main() -> bool:
             str(denied_response),
         )
 
+        # ── Cargo terminology, server-derived completeness, and endpoint strictness ──
+        containers_all = cus_api.get(
+            f"/api/shipments/cus-workspace/containers?searchSuffix={BOOK_SUFFIX_QUERY}&page=1&limit=20"
+        )
+        containers_all_data = containers_all.get("data", {})
+        fixture_rows = [row for row in containers_all_data.get("items", []) if row.get("shipmentId") == shipment_id]
+        information_status_present = bool(fixture_rows) and all(
+            row.get("informationStatus") in ("COMPLETE", "MISSING") and isinstance(row.get("missingFields"), list)
+            for row in fixture_rows
+        )
+        check(
+            results,
+            "TC-1816",
+            "Dòng container mang trạng thái thông tin và danh sách trường thiếu do server suy ra",
+            containers_all.get("status") == 200 and information_status_present,
+            str(containers_all),
+        )
+
+        containers_missing = cus_api.get(
+            f"/api/shipments/cus-workspace/containers?informationStatus=MISSING&searchSuffix={BOOK_SUFFIX_QUERY}&page=1&limit=20"
+        )
+        missing_data = containers_missing.get("data", {})
+        missing_rows = [row for row in missing_data.get("items", []) if row.get("shipmentId") == shipment_id]
+        # The fixture fills every operational field except the customer
+        # appointment (never set by this suite), so it must appear under the
+        # MISSING filter with exactly that one applicable field.
+        fixture_missing_ok = len(missing_rows) == 1 and [
+            field.get("code") for field in missing_rows[0].get("missingFields", [])
+        ] == ["APPOINTMENT"]
+        check(
+            results,
+            "TC-1817",
+            "Bộ lọc Chưa cập nhật trả đúng dòng FCL còn thiếu với đúng trường áp dụng",
+            containers_missing.get("status") == 200
+            and fixture_missing_ok
+            and missing_data.get("total") == len(missing_data.get("items", [])),
+            str(containers_missing),
+        )
+
+        strictness_response = cus_api.get(
+            f"/api/shipments/cus-workspace?informationStatus=MISSING&searchSuffix={BOOK_SUFFIX_QUERY}&page=1&limit=20"
+        )
+        check(
+            results,
+            "TC-1818",
+            "Endpoint tổng quan từ chối tham số chỉ dành cho trang chi tiết",
+            strictness_response.get("status") == 400,
+            str(strictness_response),
+        )
+
+        lcl_create_response = cus_api.post("/api/shipments/quick", {
+            "customerId": customer_id,
+            "routeId": route_rows[0]["id"],
+            "cargoTypeId": cargo_types[0]["id"],
+            "operationalSiteId": factory["id"],
+            "pickupWarehouseSiteId": warehouse["id"],
+            "cargoMode": "LCL",
+            "tradeDirection": "EXPORT",
+            "bookingRef": f"LCLQ{BOOK_SUFFIX_STORED}",
+            "expectedDeliveryDate": datetime.now().strftime("%Y-%m-%d"),
+            "operationalNotes": f"CUS workspace E2E LCL {RUN_ID}",
+        })
+        lcl_shipment = lcl_create_response.get("data", {})
+        lcl_ok = lcl_create_response.get("status") in (200, 201) and isinstance(lcl_shipment.get("id"), int)
+        if lcl_ok:
+            lcl_containers = cus_api.get(
+                f"/api/shipments/cus-workspace/containers?informationStatus=MISSING&searchSuffix={BOOK_SUFFIX_QUERY}&page=1&limit=20"
+            )
+            lcl_absent = all(
+                row.get("shipmentId") != lcl_shipment["id"]
+                for row in lcl_containers.get("data", {}).get("items", [])
+            )
+            check(
+                results,
+                "TC-1819",
+                "Lô Lẻ không bao giờ xuất hiện trên bảng container hay bộ lọc Chưa cập nhật",
+                lcl_containers.get("status") == 200 and lcl_absent,
+                str(lcl_containers),
+            )
+
+        own_fleet_response = cus_api.post(
+            f"/api/shipments/cus-workspace/{shipment_id}/containers/{line['id']}",
+            {
+                "expectedShipmentVersion": updated_line.get("shipmentVersion", shipment["version"]),
+                "carrierType": "OWN",
+                "truckId": 1,
+            },
+        )
+        check(
+            results,
+            "TC-1820",
+            "CUS không thể tự gán xe nội bộ: authority từ chối carrierType OWN",
+            own_fleet_response.get("status") in (400, 403, 422),
+            str(own_fleet_response),
+        )
+
         with NepoTestContext() as ctx:
             for width, height, label in ((1440, 1000, "desktop"), (1024, 900, "laptop"), (768, 1024, "tablet"), (640, 800, "zoom-200-equivalent"), (390, 844, "mobile"), (320, 720, "narrow")):
                 page = ctx.new_page({"width": width, "height": height})
@@ -377,6 +473,30 @@ def main() -> bool:
 
             page = ctx.new_page({"width": 1440, "height": 1000})
             ctx.login_as("clerk", page)
+            page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
+            page.wait_for_load_state("networkidle")
+            # URL-backed Chưa cập nhật filter: applying it updates the URL
+            # (replaceState) and shows the active-filter chip. The fixture's
+            # warning line is asserted via the API in TC-1816/1817; here the
+            # fixture row (still missing its appointment) must render the
+            # server-derived warning after the filter is applied.
+            fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
+            fixture_warning.first.wait_for(timeout=10_000)
+            info_select = page.locator("select", has=page.locator("option[value='MISSING']")).first
+            info_select.select_option("MISSING")
+            page.wait_for_function(
+                "() => new URLSearchParams(location.search).get('informationStatus') === 'MISSING'",
+                timeout=5_000,
+            )
+            active_filter_visible = page.get_by_text("Chưa cập nhật", exact=True).count() > 0
+            warning_visible = page.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn").count() > 0
+            check(
+                results,
+                "TC-1821",
+                "Bộ lọc Chưa cập nhật nằm trong URL, hiển thị chip và dòng cảnh báo trường thiếu",
+                active_filter_visible and warning_visible,
+                f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
+            )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             page.wait_for_load_state("networkidle")
             # The responsive ledger keeps a second semantic table in the DOM;

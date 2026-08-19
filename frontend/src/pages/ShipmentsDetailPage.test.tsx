@@ -40,6 +40,7 @@ const response: ShipmentCusContainerFlatResponse = {
       containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
+      informationStatus: 'COMPLETE', missingFields: [],
       raw: { containerNumber: 'CONT-001', containerTypeId: 1, cargoWeightKg: '25000', cargoVolumeCbm: '52.5' }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
@@ -51,6 +52,12 @@ const response: ShipmentCusContainerFlatResponse = {
       containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,
       liftSite: null, dropoffSite: null, transportDate: null, closingAt: null, plannedReturnAt: null, customerAppointmentAt: null,
       customerNotes: null, operationalNotes: null, shipmentScheduleEditable: true, shipmentNotesEditable: true,
+      informationStatus: 'MISSING', missingFields: [
+        { code: 'TRANSPORT_DATE', label: 'Ngày vận chuyển' },
+        { code: 'LIFT_SITE', label: 'Điểm nhận hàng' },
+        { code: 'DROPOFF_SITE', label: 'Điểm trả hàng' },
+        { code: 'APPOINTMENT', label: 'Lịch hẹn' },
+      ],
       raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
       carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
@@ -111,13 +118,13 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(within(documentsTableCell!).getAllByRole('button')).toEqual([documentsCell]);
     expect(screen.getByText('Đóng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
-    expect(screen.getAllByText('Thiếu ngày vận chuyển')).toHaveLength(2);
+    expect(screen.getByText('Thiếu ngày vận chuyển')).toBeTruthy();
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
-    const rowWarning = screen.getAllByText('Thiếu ngày vận chuyển').find((element) => element.classList.contains('shipment-container-ledger__row-warning'));
-    expect(rowWarning).toBeTruthy();
-    expect(missingDateIdentityCell.contains(rowWarning ?? null)).toBe(true);
+    const rowWarning = screen.getByText('Chưa cập nhật: Ngày vận chuyển, Điểm nhận hàng, Điểm trả hàng, Lịch hẹn');
+    expect(rowWarning.classList.contains('shipment-container-ledger__row-warning')).toBe(true);
+    expect(missingDateIdentityCell.contains(rowWarning)).toBe(true);
     expect(missingDateIdentityCell.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
     expect(screen.queryByText('Sửa')).toBeNull();
@@ -351,6 +358,28 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
     expect(screen.queryByText('Đang lọc')).toBeNull();
+  });
+
+  it('backs the Chưa cập nhật filter in the URL and sends it only to the container endpoint', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/?informationStatus=MISSING']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&informationStatus=MISSING`));
+    expect(await screen.findByText('Đang lọc')).toBeTruthy();
+    const informationSelect = await screen.findByLabelText('Thông tin');
+    expect((informationSelect as HTMLSelectElement).value).toBe('MISSING');
+    expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    expect(screen.queryByText('Đang lọc')).toBeNull();
+  });
+
+  it('ignores a malformed informationStatus value instead of sending an invalid query', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/?informationStatus=COMPLETE']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
   it('rejects an invalid suffix without issuing a filtered request', async () => {

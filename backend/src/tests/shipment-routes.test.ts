@@ -1391,6 +1391,18 @@ describe('GET /cus-workspace', () => {
     }
   });
 
+  test('informationStatus is accepted only on the container endpoint', async () => {
+    // Detail endpoint accepts the completeness filter…
+    const containerList = await testFetch('/cus-workspace/containers?informationStatus=MISSING&page=1&limit=20', { token: adminToken });
+    assert.equal(containerList.status, 200);
+    // …while the overview endpoint strictly rejects it.
+    const overview = await testFetch('/cus-workspace?informationStatus=MISSING&page=1&limit=20', { token: adminToken });
+    assert.equal(overview.status, 400);
+    // Unknown values are rejected on the container endpoint too.
+    const unknownValue = await testFetch('/cus-workspace/containers?informationStatus=COMPLETE', { token: adminToken });
+    assert.equal(unknownValue.status, 400);
+  });
+
   test('returns the CUS workspace detail envelope', async () => {
     const shipment = await mkShipmentViaService({
       expectedDeliveryDate: '2026-08-11',

@@ -469,7 +469,7 @@ export async function seed() {
   const portSeeds = [
     { name: 'Cảng Hải Phòng',                    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng' },
     { name: 'Cảng Đình Vũ',                      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
-    { name: 'Cảng Lạch Huyện (HICT)',            code: 'HICT', city: 'Hải Phòng', address: 'Cát Hải, Hải Phòng' },
+    { name: 'Cảng Lạch Huyện (HICT)',            code: 'HICT', city: 'Hải Phòng', address: 'Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     { name: 'Cảng Tân Cảng 128 Hải Phòng',       code: 'TC128', city: 'Hải Phòng', address: 'Hùng Vương, Hồng Bàng, Hải Phòng' },
     { name: 'Cảng Tân Vũ',                       code: 'TVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
     { name: 'Cảng Nam Hải Đình Vũ',              code: 'NHDV', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },

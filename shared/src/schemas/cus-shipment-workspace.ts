@@ -14,7 +14,10 @@ const suffixSchema = z.string()
   .trim()
   .regex(/^[A-Za-z0-9]{4,5}$/, 'Chỉ được tìm theo đúng 4-5 ký tự chữ hoặc số cuối của Bill/Book hoặc tờ khai.');
 
-export const shipmentCusWorkspaceQuerySchema = z.object({
+// Shared filter shape for both CUS workspace GET surfaces. The overview and
+// container endpoints deliberately expose distinct strict contracts: only the
+// container workboard accepts the server-derived completeness filter.
+const shipmentCusWorkspaceQueryShape = {
   searchSuffix: suffixSchema.optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
@@ -23,14 +26,64 @@ export const shipmentCusWorkspaceQuerySchema = z.object({
   bucket: z.nativeEnum(ShipmentCusBucket).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-}).strict().refine((input) => (
-  !input.transportDateFrom
-  || !input.transportDateTo
-  || input.transportDateFrom <= input.transportDateTo
-), {
+};
+
+function refineTransportDateOrder(input: { transportDateFrom?: string; transportDateTo?: string }) {
+  return !input.transportDateFrom
+    || !input.transportDateTo
+    || input.transportDateFrom <= input.transportDateTo;
+}
+
+const transportDateOrderIssue = {
   message: 'Ngày vận chuyển bắt đầu phải trước hoặc bằng ngày kết thúc.',
-  path: ['transportDateTo'],
-});
+  path: ['transportDateTo'] as (string | number)[],
+};
+
+export const shipmentCusWorkspaceQuerySchema = z.object(shipmentCusWorkspaceQueryShape)
+  .strict()
+  .refine(refineTransportDateOrder, transportDateOrderIssue);
+
+// Container-workboard-only query. `informationStatus=MISSING` selects the
+// server-derived "Chưa cập nhật" triage queue; the overview schema above
+// rejects this parameter by design so a detail-only filter can never silently
+// no-op on the overview endpoint.
+export const shipmentCusContainerQuerySchema = z.object({
+  ...shipmentCusWorkspaceQueryShape,
+  informationStatus: z.enum(['MISSING']).optional(),
+})
+  .strict()
+  .refine(refineTransportDateOrder, transportDateOrderIssue);
+
+// Server-derived completeness vocabulary for real FCL container rows on the
+// /shipments-detail workboard. Array order is the canonical missing-field
+// order: shipment context, container row, then vehicle stage.
+export const SHIPMENT_CUS_MISSING_FIELD_CODES = [
+  'DIRECTION', 'BILL_BOOKING', 'DECLARATION', 'ROUTE', 'SHIPPING_LINE', 'TRANSPORT_DATE',
+  'CONTAINER_NUMBER', 'CONTAINER_TYPE', 'LIFT_SITE', 'DROPOFF_SITE', 'APPOINTMENT',
+  'CARRIER', 'BKS',
+] as const;
+export type ShipmentCusMissingFieldCode = typeof SHIPMENT_CUS_MISSING_FIELD_CODES[number];
+
+export const SHIPMENT_CUS_MISSING_FIELD_LABELS: Record<ShipmentCusMissingFieldCode, string> = {
+  DIRECTION: 'Chiều hàng',
+  BILL_BOOKING: 'Số Bill/Booking',
+  DECLARATION: 'Số tờ khai',
+  ROUTE: 'Cung đường',
+  SHIPPING_LINE: 'Hãng tàu',
+  TRANSPORT_DATE: 'Ngày vận chuyển',
+  CONTAINER_NUMBER: 'Số container',
+  CONTAINER_TYPE: 'Loại container',
+  LIFT_SITE: 'Điểm nhận hàng',
+  DROPOFF_SITE: 'Điểm trả hàng',
+  APPOINTMENT: 'Lịch hẹn',
+  CARRIER: 'Nhà xe',
+  BKS: 'BKS',
+};
+
+export const shipmentCusMissingFieldSchema = z.object({
+  code: z.enum(SHIPMENT_CUS_MISSING_FIELD_CODES),
+  label: z.string().min(1),
+}).strict();
 
 export const shipmentCusWorkspaceFinanceSummarySchema = z.object({
   customerInvoiceTotal: moneyStringSchema.nullable(),
@@ -488,6 +541,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
     cargoVolumeCbm: fieldAccessSchema,
   }).strict(),
   shipmentFieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
+  // Server-derived triage state for this real FCL container row. COMPLETE
+  // means every applicable field has a value; the ordered missingFields list
+  // names exactly what is absent and applies only when the row is incomplete.
+  informationStatus: z.enum(['COMPLETE', 'MISSING']),
+  missingFields: z.array(shipmentCusMissingFieldSchema),
   shipmentScheduleEditable: z.boolean(),
   shipmentNotesEditable: z.boolean(),
   carrierEditable: z.boolean(),
@@ -528,6 +586,8 @@ export const shipmentCusWorkspaceListResponseSchema = z.object({
 }).strict();
 
 export type ShipmentCusWorkspaceQuery = z.infer<typeof shipmentCusWorkspaceQuerySchema>;
+export type ShipmentCusContainerQuery = z.infer<typeof shipmentCusContainerQuerySchema>;
+export type ShipmentCusMissingField = z.infer<typeof shipmentCusMissingFieldSchema>;
 export type ShipmentCusWorkspaceFinanceSummary = z.infer<typeof shipmentCusWorkspaceFinanceSummarySchema>;
 export type ShipmentCusWorkspaceOperationalSummary = z.infer<typeof shipmentCusWorkspaceOperationalSummarySchema>;
 export type ShipmentCusWorkspaceDocumentCustody = z.infer<typeof shipmentCusWorkspaceDocumentCustodySchema>;

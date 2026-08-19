@@ -3,8 +3,10 @@ import { test } from 'node:test';
 
 import {
   shipmentCusContainerLineUpdateSchema,
+  shipmentCusContainerQuerySchema,
   shipmentCusWorkspaceListItemSchema,
   shipmentCusWorkspaceQuerySchema,
+  SHIPMENT_CUS_MISSING_FIELD_LABELS,
 } from './cus-shipment-workspace';
 import {
   ShipmentCusBucket,
@@ -49,6 +51,42 @@ test('CUS workspace query rejects invalid suffix search', () => {
   }
 });
 
+test('overview query rejects the detail-only informationStatus parameter', () => {
+  const result = shipmentCusWorkspaceQuerySchema.safeParse({ informationStatus: 'MISSING' });
+  assert.equal(result.success, false);
+});
+
+test('container query accepts informationStatus=MISSING and defaults are shared', () => {
+  const result = shipmentCusContainerQuerySchema.safeParse({ informationStatus: 'MISSING' });
+  assert.equal(result.success, true);
+  assert.equal(result.data?.page, 1);
+  assert.equal(result.data?.limit, 20);
+});
+
+test('container query rejects unknown informationStatus values', () => {
+  for (const value of ['COMPLETE', 'missing', 'ALL', '']) {
+    const result = shipmentCusContainerQuerySchema.safeParse({ informationStatus: value });
+    assert.equal(result.success, false, `${value} must fail`);
+  }
+});
+
+test('container query keeps the shared transport-date order refinement', () => {
+  const result = shipmentCusContainerQuerySchema.safeParse({
+    informationStatus: 'MISSING',
+    transportDateFrom: '2026-08-10',
+    transportDateTo: '2026-08-01',
+  });
+  assert.equal(result.success, false);
+  assert.equal(result.error?.issues[0]?.path[0], 'transportDateTo');
+});
+
+test('every missing-field code has a non-empty Vietnamese label', () => {
+  for (const label of Object.values(SHIPMENT_CUS_MISSING_FIELD_LABELS)) {
+    assert.equal(typeof label, 'string');
+    assert.ok(label.length > 0);
+  }
+});
+
 test('CUS workspace list item supports explicit unavailable custody state', () => {
   assert.equal(shipmentCusWorkspaceListItemSchema.safeParse({
     id: 1,
@@ -78,6 +116,7 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     liftSiteNames: ['Cảng Đình Vũ'],
     dropoffSiteNames: ['Bãi Tân Vũ'],
     customerAppointmentAts: ['2026-08-11T02:00:00.000Z'],
+    appointmentGroups: [{ at: '2026-08-11T02:00:00.000Z', containerSummary: '1x40HC' }],
     carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
     customerNotes: null,
     operationalNotes: null,
@@ -165,6 +204,7 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
     liftSiteNames: [],
     dropoffSiteNames: [],
     customerAppointmentAts: [],
+    appointmentGroups: [],
     carrierAssignments: [],
     customerNotes: null,
     operationalNotes: null,

@@ -5,9 +5,13 @@ import {
   ShipmentStatus,
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
+  SHIPMENT_CUS_MISSING_FIELD_LABELS,
   canonicalShipmentStatus,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
+  type ShipmentCusContainerQuery,
+  type ShipmentCusMissingField,
+  type ShipmentCusMissingFieldCode,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceFieldAccess,
   type ShipmentCusWorkspaceDetail,
@@ -19,7 +23,7 @@ import {
   normalizeContainerNumber,
   validateContainerNumber,
 } from '@tingting/shared';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type Column, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
@@ -62,6 +66,7 @@ type ContainerRow = {
   containerTypeId: number | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
+  shippingLineName: string | null;
 };
 
 type DeclarationRow = {
@@ -293,6 +298,129 @@ function containerTransportDateSql() {
   // per-container appointment remains visible as detail, but must not split
   // one Bill/Booking across different dispatch days.
   return sql<string>`${s.shipments.expectedDeliveryDate}`;
+}
+
+// ─── "Chưa cập nhật" completeness (real FCL container rows only) ─────────────
+//
+// Mirrors the JS projection exactly so the SQL filter, the item query, and the
+// count query always agree on which rows are incomplete. Vehicle fields are
+// staged: carrier counts only after a transport date exists, and BKS only for
+// an external carrier (own-fleet plates come from the dispatch trip and are
+// never a CUS-entered completeness gap).
+//
+// Fulfillment/trip lookups are correlated scalar subqueries rather than joins:
+// the container page queries only join shipments/customers/routes, and a join
+// could fan out container rows and corrupt pagination counts. Precedence is
+// trip value ?? planned value with canceled fulfillments ignored — identical
+// to the in-memory assignmentsByContainer projection.
+
+function activeTripCarrierTypeSql(): SQL {
+  return sql`(select ${s.trips.carrierType}
+    from ${s.shipmentFulfillments}
+    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
+      and ${s.trips.deletedAt} is null
+      and ${s.trips.status} <> 'CANCELED'
+    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+      and ${s.shipmentFulfillments.canceledAt} is null
+    limit 1)`;
+}
+
+function activePlannedCarrierTypeSql(): SQL {
+  return sql`(select ${s.shipmentFulfillments.plannedCarrierType}
+    from ${s.shipmentFulfillments}
+    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+      and ${s.shipmentFulfillments.canceledAt} is null
+    limit 1)`;
+}
+
+function activeCarrierTypeSql(): SQL {
+  return sql`coalesce(${activeTripCarrierTypeSql()}, ${activePlannedCarrierTypeSql()})`;
+}
+
+function activeTripPlateSql(): SQL {
+  return sql`(select ${s.trips.externalPlateNumber}
+    from ${s.shipmentFulfillments}
+    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
+      and ${s.trips.deletedAt} is null
+      and ${s.trips.status} <> 'CANCELED'
+    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+      and ${s.shipmentFulfillments.canceledAt} is null
+    limit 1)`;
+}
+
+function activePlannedPlateSql(): SQL {
+  return sql`(select ${s.shipmentFulfillments.plannedVehiclePlateNumber}
+    from ${s.shipmentFulfillments}
+    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+      and ${s.shipmentFulfillments.canceledAt} is null
+    limit 1)`;
+}
+
+function activeSiteSnapshotKeySql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
+  return sql`(select ${s.shipmentFulfillments.siteSnapshot} ->> ${key}
+    from ${s.shipmentFulfillments}
+    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+      and ${s.shipmentFulfillments.canceledAt} is null
+    limit 1)`;
+}
+
+// nullif(btrim(x), '') mirrors the JS trimOrNull: null-or-whitespace is absent.
+function trimmedPresentSql(value: SQL | Column): SQL {
+  return sql`nullif(btrim(${value}), '') is not null`;
+}
+
+function containerMissingBitsSql(): SQL[] {
+  const transportDate = s.shipments.expectedDeliveryDate;
+  const carrierType = activeCarrierTypeSql();
+  return [
+    // Shipment context (direction gates Bill/Booking via the DB CHECK).
+    sql`${s.shipments.tradeDirection} is null`,
+    sql`not (${trimmedPresentSql(s.shipments.blNumber)} or ${trimmedPresentSql(s.shipments.bookingRef)})`,
+    sql`not exists (
+      select 1 from ${s.shipmentDeclarations}
+      where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
+        and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
+    )`,
+    sql`${s.shipments.routeId} is null`,
+    sql`not (${trimmedPresentSql(s.shipments.shippingLineName)} or ${trimmedPresentSql(s.shipmentContainers.shippingLineName)})`,
+    sql`${transportDate} is null`,
+    // Container row identity.
+    sql`${s.shipmentContainers.containerNumber} is null`,
+    sql`${s.shipmentContainers.containerTypeId} is null`,
+    sql`${activeSiteSnapshotKeySql('pickupWarehouse')} is null`,
+    sql`${activeSiteSnapshotKeySql('deliverySite')} is null`,
+    sql`${s.shipmentContainers.customerAppointmentAt} is null`,
+    // Vehicle stage (date-gated carrier; external-only BKS).
+    sql`${transportDate} is not null and ${carrierType} is null`,
+    sql`${transportDate} is not null and ${carrierType} = 'EXTERNAL'
+      and coalesce(${activeTripPlateSql()}, ${activePlannedPlateSql()}) is null`,
+  ];
+}
+
+function containerIncompleteSql(): SQL {
+  const presentBits = containerMissingBitsSql().map((bit) => sql`case when ${bit} then 1 else 0 end`);
+  return sql`(${sql.join(presentBits, sql` + `)}) > 0`;
+}
+
+// Overview priority rank: Cont 20 → Cont 40 → other Cont → Lẻ → unknown.
+// Determined from ACTIVE containers' type code prefix (any active 20-foot
+// container wins before any active 40-foot one per the accepted mixed-lot
+// rule), never from the rendered summary string.
+function cargoRankSql(): SQL {
+  const activeContainer = (size: string) => sql`exists (
+    select 1
+    from ${s.shipmentContainers}
+    left join ${s.containerTypes} on ${s.containerTypes.id} = ${s.shipmentContainers.containerTypeId}
+    where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+      and ${s.containerTypes.code} ilike ${`${size}%`}
+  )`;
+  return sql`(case
+    when ${activeContainer('20')} then 0
+    when ${activeContainer('40')} then 1
+    when ${s.shipments.cargoMode} = 'FCL' then 2
+    when ${s.shipments.cargoMode} = 'LCL' then 3
+    else 4
+  end)`;
 }
 
 const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
@@ -544,6 +672,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
+      shippingLineName: s.shipmentContainers.shippingLineName,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
@@ -1138,6 +1267,43 @@ function buildContainerLine(
   };
 }
 
+// JS twin of containerMissingBitsSql(): identical field set, applicability
+// gating, and precedence so the projected missingFields list can never
+// disagree with the SQL informationStatus=MISSING filter.
+function containerMissingFields(
+  row: ShipmentListRow,
+  support: WorkspaceSupport,
+  container: ContainerRow,
+  assignment: AssignmentRow | null,
+): ShipmentCusMissingField[] {
+  const missing: ShipmentCusMissingFieldCode[] = [];
+  const transportDate = row.shipment.expectedDeliveryDate;
+  const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+  const push = (code: ShipmentCusMissingFieldCode, absent: boolean) => {
+    if (absent) missing.push(code);
+  };
+  // Shipment context.
+  push('DIRECTION', row.shipment.tradeDirection == null);
+  push('BILL_BOOKING', !(trimOrNull(row.shipment.blNumber) || trimOrNull(row.shipment.bookingRef)));
+  push('DECLARATION', !support.declarationByShipment.has(row.shipment.id));
+  push('ROUTE', row.shipment.routeId == null);
+  push('SHIPPING_LINE', !(trimOrNull(row.shipment.shippingLineName) || trimOrNull(container.shippingLineName)));
+  push('TRANSPORT_DATE', transportDate == null);
+  // Container row.
+  push('CONTAINER_NUMBER', container.containerNumber == null);
+  push('CONTAINER_TYPE', container.containerTypeId == null);
+  push('LIFT_SITE', readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse') == null);
+  push('DROPOFF_SITE', readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite') == null);
+  push('APPOINTMENT', container.customerAppointmentAt == null);
+  // Vehicle stage: carrier only after a transport date exists; BKS only for
+  // an external carrier (own-fleet plates come from the dispatch trip).
+  push('CARRIER', transportDate != null && carrierType == null);
+  push('BKS', transportDate != null
+    && carrierType === 'EXTERNAL'
+    && (assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber) == null);
+  return missing.map((code) => ({ code, label: SHIPMENT_CUS_MISSING_FIELD_LABELS[code] }));
+}
+
 async function loadShipmentRow(
   shipmentId: number,
   actor: AuthUser,
@@ -1183,7 +1349,7 @@ async function buildWorkspaceDetail(
 }
 
 async function buildShipmentPageConditions(
-  query: ShipmentCusWorkspaceQuery,
+  query: ShipmentCusWorkspaceQuery | ShipmentCusContainerQuery,
   actor: AuthUser,
   searchMode: 'shipment' | 'container',
 ) {
@@ -1252,6 +1418,13 @@ async function buildShipmentPageConditions(
     conditions.push(sql`not ${activeLockExists}`);
     conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.PENDING_EXPENSE_APPROVAL}, ${ShipmentStatus.COMPLETED})`);
   }
+  // Detail-only completeness triage: real FCL container rows whose applicable
+  // operational fields are not yet filled. LCL lots are explicitly excluded —
+  // they never appear on this container workboard.
+  if (searchMode === 'container' && 'informationStatus' in query && query.informationStatus === 'MISSING') {
+    conditions.push(eq(s.shipments.cargoMode, 'FCL'));
+    conditions.push(containerIncompleteSql());
+  }
 
   return conditions;
 }
@@ -1269,7 +1442,17 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
       .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
       .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
       .where(and(...conditions))
-      .orderBy(desc(s.shipments.createdAt), desc(s.shipments.id))
+      // Operational priority queue before pagination: unscheduled first, then
+      // queue-date descending (intake date for unscheduled, expected delivery
+      // date otherwise), then cargo rank (Cont 20 → Cont 40 → other Cont →
+      // Lẻ → unknown), with createdAt/id as stable final tie-breakers.
+      .orderBy(
+        sql`case when ${s.shipments.expectedDeliveryDate} is null then 0 else 1 end`,
+        sql`coalesce(${s.shipments.expectedDeliveryDate}, ${s.shipments.createdAt}) desc`,
+        cargoRankSql(),
+        desc(s.shipments.createdAt),
+        desc(s.shipments.id),
+      )
       .limit(query.limit)
       .offset(offset),
     db.select({ value: count() }).from(s.shipments)
@@ -1361,7 +1544,7 @@ export async function getCusShipmentWorkspaceDetail(
  * in the lazily-loaded workspace detail.
  */
 export async function listCusShipmentContainers(
-  query: ShipmentCusWorkspaceQuery,
+  query: ShipmentCusContainerQuery,
   actor: AuthUser,
 ): Promise<ShipmentCusContainerFlatResponse> {
   const conditions = await buildShipmentPageConditions(query, actor, 'container');
@@ -1403,6 +1586,12 @@ export async function listCusShipmentContainers(
     const line = buildContainerLine(row, actor, support, container, containerIndex + 1);
     const shipmentEditable = actor.role === Role.CUS
       && support.locksByShipment.get(row.shipment.id) == null;
+    const missingFields = containerMissingFields(
+      row,
+      support,
+      container,
+      support.assignmentsByContainer.get(container.id) ?? null,
+    );
     flatRows.push({
       id: line.id,
       shipmentId: row.shipment.id,
@@ -1443,6 +1632,8 @@ export async function listCusShipmentContainers(
         support.locksByShipment.get(row.shipment.id) != null,
         containers.length > 0,
       ),
+      informationStatus: missingFields.length > 0 ? 'MISSING' : 'COMPLETE',
+      missingFields,
       shipmentScheduleEditable: shipmentEditable,
       shipmentNotesEditable: shipmentEditable,
       carrierEditable: line.permissions.carrierEditable,
