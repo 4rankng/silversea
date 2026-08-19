@@ -368,3 +368,15 @@ export type {
   AuthorityPhase,
   SourceAuthorityPolicy,
 } from './governance/source-authority';
+
+export {
+  SHIPMENT_BUSINESS_TIME_ZONE,
+  resolveEffectiveFactory,
+  resolveEffectiveFulfillmentDate,
+  localDateInBusinessZone,
+} from './shipment-effective';
+export type {
+  EffectiveFactory,
+  EffectiveFactoryInput,
+  EffectiveDateInput,
+} from './shipment-effective';
