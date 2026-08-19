@@ -12,6 +12,7 @@ interface ShipmentContainerCellProps {
   label: string;
   value: string;
   placeholder: string;
+  displayTitle?: string;
   children: ReactNode;
   fieldId?: string;
   error?: string;
@@ -29,6 +30,7 @@ export function ShipmentContainerCell({
   label,
   value,
   placeholder,
+  displayTitle,
   children,
   fieldId,
   error,
@@ -87,6 +89,7 @@ export function ShipmentContainerCell({
         <span
           className={`csc-container-cell__display${value ? '' : ' csc-container-cell__display--empty'}`}
           aria-hidden="true"
+          title={(displayTitle ?? value) || undefined}
         >
           {value || placeholder}
         </span>

@@ -496,8 +496,9 @@ export function ShipmentCreateWorkspace() {
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Loại container *"
-                    value={containerType ? `${containerType.code} — ${containerType.name}` : ''}
+                    value={containerType?.code ?? ''}
                     placeholder="Chọn loại"
+                    displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
                     fieldId={`container-${row.key}-type`}
                     error={issueByField.get(`container-${row.key}-type`)}
                   >

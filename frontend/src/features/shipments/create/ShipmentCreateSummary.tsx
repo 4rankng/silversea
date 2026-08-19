@@ -58,6 +58,7 @@ export function ShipmentCreateSummary({
           type="button"
           size="md"
           color="primary"
+          className="min-h-11"
           iconLeading={Check}
           onClick={onCreate}
           isDisabled={Boolean(saving)}
