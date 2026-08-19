@@ -464,17 +464,56 @@ export async function seed() {
     console.log(`✅ Container types already exist, refreshed ${containerTypeUpdates} canonical rows.`);
   }
 
+  // ─── Dispatch zones (taxonomy authority, DB-owned) ────────────────────────
+  // Codes are stable cross-environment keys; the taxonomy lives in data so a
+  // new cluster is a seed row, not a deploy. Insert-missing only: once a zone
+  // exists, ADMIN owns its label/order/status — a re-run must never revert
+  // operator edits.
+  const dispatchZoneSeeds = [
+    { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
+    { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
+  ];
+  let zoneInsertCount = 0;
+  for (const zone of dispatchZoneSeeds) {
+    const [existing] = await db.select({ id: schema.dispatchZones.id })
+      .from(schema.dispatchZones)
+      .where(eq(schema.dispatchZones.code, zone.code))
+      .limit(1);
+    if (!existing) {
+      await db.insert(schema.dispatchZones).values(zone);
+      zoneInsertCount += 1;
+    }
+  }
+  console.log(`✅ Dispatch zones verified! (${zoneInsertCount} new, ${dispatchZoneSeeds.length} ensured)`);
+
   // ─── Hai Phong ports/yards (Pete's request) ────────────────────────────────
-  // Starter set of common ICDs and terminals in the Hai Phong area.
+  // Two clusters: Lạch Huyện deep-water terminals (Cát Hải, far) and the main
+  // Cấm river-mouth cluster (near). Names mirror the live ops rows exactly —
+  // seed never renames an ops-created port; a matching row only gets a NULL
+  // dispatch_zone filled in below. Zone is the dispatch taxonomy authority.
   const portSeeds = [
-    { name: 'Cảng Hải Phòng',                    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng' },
-    { name: 'Cảng Đình Vũ',                      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
-    { name: 'Cảng Lạch Huyện (HICT)',            code: 'HICT', city: 'Hải Phòng', address: 'Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
-    { name: 'Cảng Tân Cảng 128 Hải Phòng',       code: 'TC128', city: 'Hải Phòng', address: 'Hùng Vương, Hồng Bàng, Hải Phòng' },
-    { name: 'Cảng Tân Vũ',                       code: 'TVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
-    { name: 'Cảng Nam Hải Đình Vũ',              code: 'NHDV', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
-    { name: 'Cảng VIP Greenport',                code: 'VIPG', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng' },
-    { name: 'ICD Hoàng Thành',                   code: 'HTHA', city: 'Hải Phòng', address: 'An Dương, Hải Phòng' },
+    // Lạch Huyện cluster (LACH_HUYEN)
+    { name: 'Cảng Lạch Huyện - HICT',            code: 'HICT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'Cảng TIL - HTIT',                   code: 'HTIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'Cảng Hateco',                       code: 'HHIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    // Hải Phòng cluster — Cấm river mouth, ICDs and yards (HAI_PHONG)
+    { name: 'Cảng Hải Phòng',                    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Đình Vũ',                      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Tân Vũ',                       code: 'TVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Nam Hải Đình Vũ',              code: 'NHDV', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Nam Đình Vũ',                  code: 'NDVU', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Tân Cảng 128 Hải Phòng',       code: 'TC128', city: 'Hải Phòng', address: 'Hùng Vương, Hồng Bàng, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng VIP Greenport',                code: 'VIPG', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Xanh - Green port',            code: 'GPH',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Xanh Vip - Vip Green Port',    code: 'XVIP', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'ICD Hoàng Thành',                   code: 'HTHA', city: 'Hải Phòng', address: 'An Dương, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Hải An',                       code: 'HAAN', city: 'Hải Phòng', address: 'Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Cảng Hoàng Diệu',                   code: 'HDU',  city: 'Hải Phòng', address: 'Ngô Quyền, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Bãi SITC',                          code: 'SITC', city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Bãi GFT',                           code: 'GFT',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Bãi Minh Phương',                   code: 'MPH',  city: 'Hải Phòng', address: 'An Dương, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Bãi Liên Việt',                     code: 'LV',   city: 'Hải Phòng', address: 'An Dương, Hải Phòng', dispatchZone: 'HAI_PHONG' },
+    { name: 'Bãi Chân Thật - THT',               code: 'CT',   city: 'Hải Phòng', address: 'An Dương, Hải Phòng', dispatchZone: 'HAI_PHONG' },
   ];
   const existingPorts = await db.select({
     id: schema.ports.id,
@@ -502,26 +541,33 @@ export async function seed() {
     }
   }
   let newPorts = 0;
-  let refreshedPorts = 0;
+  let zoneFilled = 0;
   for (const port of portSeeds) {
     const existingPort = portByCodeKey.get(normalizeSeedText(port.code))
       ?? portByNameKey.get(normalizeSeedText(port.name));
     if (existingPort) {
-      await db.update(schema.ports).set({
-        ...port,
-        deletedAt: null,
-        updatedAt: new Date(),
-      }).where(eq(schema.ports.id, existingPort.id));
-      refreshedPorts += 1;
+      // Ops may have edited address/city/zone on live rows (and soft-deleted
+      // dupes must stay deleted): only backfill a NULL dispatch_zone, never
+      // overwrite other fields.
+      if (port.dispatchZone && existingPort.deletedAt == null) {
+        const filled = await db.update(schema.ports).set({
+          dispatchZone: port.dispatchZone,
+          updatedAt: new Date(),
+        }).where(and(
+          eq(schema.ports.id, existingPort.id),
+          isNull(schema.ports.dispatchZone),
+        )).returning({ id: schema.ports.id });
+        zoneFilled += filled.length;
+      }
       continue;
     }
     await db.insert(schema.ports).values(port);
     newPorts += 1;
   }
   if (newPorts > 0) {
-    console.log(`✅ Hai Phong ports/yards seeded! (${newPorts} new, ${refreshedPorts} refreshed)`);
+    console.log(`✅ Hai Phong ports/yards seeded! (${newPorts} new, ${zoneFilled} zone backfilled)`);
   } else {
-    console.log(`✅ Ports already exist, refreshed ${refreshedPorts} canonical rows.`);
+    console.log(`✅ Ports already exist, ${zoneFilled} zone backfilled.`);
   }
 
   // ─── Forwarder expense types (user-configurable) ─────────────────────────

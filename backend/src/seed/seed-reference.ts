@@ -32,8 +32,12 @@ export async function seedReference(): Promise<ReferenceSeedResult> {
 
   // --- Ports (name is not a database unique key; resolve before insert) ---
   for (const p of ports) {
+    // Match across live AND soft-deleted rows, preferring live: a soft-deleted
+    // duplicate (e.g. a merged terminal) resolves to its id instead of seeding
+    // a second row under the same name.
     const [existing] = await tx.select({ id: s.ports.id }).from(s.ports)
-      .where(sql`${s.ports.deletedAt} is null and lower(btrim(${s.ports.name})) = lower(btrim(${p.name}))`)
+      .where(sql`lower(btrim(${s.ports.name})) = lower(btrim(${p.name}))`)
+      .orderBy(sql`${s.ports.deletedAt} asc nulls first`)
       .limit(1);
     if (existing) {
       portByName.set(p.name.toLowerCase(), existing.id);

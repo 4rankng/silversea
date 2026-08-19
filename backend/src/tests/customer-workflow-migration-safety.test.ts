@@ -167,6 +167,8 @@ describe('customer workflow migration safety', () => {
       { idx: 20, tag: '0020_require-supplier-short-name' },
       { idx: 21, tag: '0021_add-dispatch-zone-classification' },
       { idx: 22, tag: '0022_backfill-dispatch-zone-classification' },
+      { idx: 23, tag: '0023_merge-duplicate-lach-huyen-hict-port' },
+      { idx: 24, tag: '0024_create-dispatch-zones' },
     ]);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);

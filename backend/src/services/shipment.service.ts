@@ -45,7 +45,6 @@ import {
   TripPodStatus,
   TRIP_POD_REQUIRED_FILE_TYPES,
   updateShipmentSchema,
-  DISPATCH_ZONES,
 } from '@tingting/shared';
 import type { DispatchSummary } from '@tingting/shared';
 import { resolveFreightPrice, resolveShipmentPricingProjection } from './pricing.service';

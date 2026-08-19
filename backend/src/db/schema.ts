@@ -1483,6 +1483,19 @@ export const sealTypes = pgTable('seal_types', {
   deletedAt: timestamp('deleted_at'),
 });
 
+// Port-cluster taxonomy lives in the DB (not code constants): adding a
+// cluster is a seed row + port classification, no deploy. Codes are stable
+// cross-environment keys; labels are operator-facing.
+export const dispatchZones = pgTable('dispatch_zones', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 32 }).notNull().unique(),
+  label: varchar('label', { length: 100 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"
@@ -1490,8 +1503,8 @@ export const ports = pgTable('ports', {
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),
   notes: text('notes'),
-  // Operational dispatch zone for Lạch Huyện-area terminals. Application-
-  // owned whitelist (LACH_HUYEN today); new zones extend this enum, not SQL.
+  // Dispatch zone code — validated against dispatch_zones at the boundary;
+  // plain varchar, no FK (repo rule).
   dispatchZone: varchar('dispatch_zone', { length: 32 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

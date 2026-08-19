@@ -2,7 +2,7 @@
  * Seed ports/terminals from customer Excel data
  * Extracted from "29.7 - DATA PM.xlsx" - THÔNG TIN CẢNG BÃI sheet
  */
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { ports as portsFromExcel } from './data/ports-from-excel.js';
@@ -22,12 +22,16 @@ export async function seedPorts(): Promise<void> {
 
   let createdCount = 0;
   let updatedCount = 0;
+  let skippedDeleted = 0;
 
   for (const port of ports) {
-    // Check if port already exists by name
-    const [existing] = await db.select({ id: s.ports.id })
+    // Match by name across live AND soft-deleted rows (prefer live): a
+    // soft-deleted duplicate must stay dead — never resurrect it with
+    // deletedAt: null, and never insert a second row under the same name.
+    const [existing] = await db.select({ id: s.ports.id, deletedAt: s.ports.deletedAt })
       .from(s.ports)
       .where(normalizedTextEquals(s.ports.name, port.name))
+      .orderBy(sql`${s.ports.deletedAt} asc nulls first`)
       .limit(1);
 
     // Generate code from port name (uppercase, no spaces)
@@ -44,14 +48,22 @@ export async function seedPorts(): Promise<void> {
     };
 
     if (existing) {
+      if (existing.deletedAt != null) {
+        skippedDeleted++;
+        continue;
+      }
       await db.update(s.ports)
         .set({ ...values, deletedAt: null, updatedAt: new Date() })
-        .where(eq(s.ports.id, existing.id));
+        .where(and(eq(s.ports.id, existing.id), isNull(s.ports.deletedAt)));
       updatedCount++;
     } else {
       await db.insert(s.ports).values(values);
       createdCount++;
     }
+  }
+
+  if (skippedDeleted > 0) {
+    console.log(`✅ ${skippedDeleted} soft-deleted port name(s) left untouched`);
   }
 
   console.log(`✅ Ports seeded! (${createdCount} new, ${updatedCount} updated)`);

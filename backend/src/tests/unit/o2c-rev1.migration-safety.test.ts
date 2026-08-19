@@ -34,6 +34,8 @@ describe('O2C clean-baseline safety', () => {
       { idx: 20, tag: '0020_require-supplier-short-name' },
       { idx: 21, tag: '0021_add-dispatch-zone-classification' },
       { idx: 22, tag: '0022_backfill-dispatch-zone-classification' },
+      { idx: 23, tag: '0023_merge-duplicate-lach-huyen-hict-port' },
+      { idx: 24, tag: '0024_create-dispatch-zones' },
     ]);
   });
 
