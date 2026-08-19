@@ -78,6 +78,30 @@ describe('shipment create model', () => {
     }]);
   });
 
+  it('keeps lift and drop ports on each FCL container instead of collapsing them into the lot', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      blNumber: 'BL-TWO-CONTAINERS',
+      tradeDirection: 'IMPORT' as const,
+      expectedDeliveryDate: '2026-08-14',
+    };
+    const secondContainer: ShipmentContainerDraft = {
+      ...container,
+      key: 'row-2',
+      containerNumber: 'MSCU6639871',
+      pickupPortId: '23',
+      dropoffPortId: '24',
+    };
+
+    expect(getShipmentCreateReadiness(form, [container, secondContainer]).dispatchReady).toBe(true);
+    expect(buildShipmentContainerPayload(form, [container, secondContainer])).toEqual([
+      expect.objectContaining({ pickupPortId: 21, dropoffPortId: 22 }),
+      expect.objectContaining({ pickupPortId: 23, dropoffPortId: 24 }),
+    ]);
+  });
+
   it('emits per-container cargoVolumeCbm and allows it to be blank (nullable)', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,

@@ -285,7 +285,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
       items: [{
         truckId: 7,
         plateNumber: '51C-123.45',
-        evidence: [{ reason: 'D-1_DROP', date: '2026-08-20', containerNumber: 'MSCU1234567', portName: 'Cảng Lạch Huyện - HICT' }],
+        evidence: [{ reason: 'D-1_DROP', date: '2026-08-20', containerNumber: 'MSCU1234567', portName: 'TC - HICT' }],
       }],
     });
 

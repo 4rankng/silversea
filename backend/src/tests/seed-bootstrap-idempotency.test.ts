@@ -17,7 +17,7 @@ const ROOT_CONTAINER_CODES = ['20DC', '20OT', '20RF', '40DC', '40HC', '40RF', '4
 const ROOT_PORT_NAMES = [
   'Cảng Hải Phòng',
   'Cảng Đình Vũ',
-  'Cảng Lạch Huyện (HICT)',
+  'TC - HICT',
   'Cảng Tân Cảng 128 Hải Phòng',
   'Cảng Tân Vũ',
   'Cảng Nam Hải Đình Vũ',

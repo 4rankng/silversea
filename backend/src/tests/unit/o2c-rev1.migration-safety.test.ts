@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const baselineUrl = new URL('../../../drizzle/0000_flexible-baseline.sql', import.meta.url);
 const journalUrl = new URL('../../../drizzle/meta/_journal.json', import.meta.url);
+const terminalLabelsUrl = new URL('../../../drizzle/0026_rename-lach-huyen-terminal-labels.sql', import.meta.url);
 
 describe('O2C clean-baseline safety', () => {
   test('preserves the consolidated baseline before ordered additive migrations', async () => {
@@ -37,7 +38,18 @@ describe('O2C clean-baseline safety', () => {
       { idx: 23, tag: '0023_merge-duplicate-lach-huyen-hict-port' },
       { idx: 24, tag: '0024_create-dispatch-zones' },
       { idx: 25, tag: '0025_add-container-operational-site' },
+      { idx: 26, tag: '0026_rename-lach-huyen-terminal-labels' },
     ]);
+  });
+
+  test('renames only active Lạch Huyện terminal labels without moving port rows', async () => {
+    const terminalLabels = await readFile(terminalLabelsUrl, 'utf8');
+    assert.match(terminalLabels, /UPDATE "ports"/);
+    assert.match(terminalLabels, /"deleted_at" IS NULL/);
+    assert.match(terminalLabels, /'HICT'[\s\S]*'TC - HICT'/);
+    assert.match(terminalLabels, /'HTIT'[\s\S]*'TIL - HTIT'/);
+    assert.match(terminalLabels, /'HHIT'[\s\S]*'Hateco - HHIT'/);
+    assert.doesNotMatch(terminalLabels, /\b(?:DELETE|INSERT|ALTER TABLE)\b/i);
   });
 
   test('retains O2C identity fences as unique indexes', async () => {

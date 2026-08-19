@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
@@ -38,14 +39,16 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.cus-container-record__facts--operation\s*\{\s*grid-template-columns:\s*1\.3fr repeat\(4, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/\.cus-container-fact input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
+    expect(css).toMatch(/\.cus-container-record\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
     expect(css).not.toMatch(/\.cus-container__facts\s*\{/);
   });
 
   it('reflows the ledger while retaining touch-sized controls in the mobile drawer', () => {
-    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__tier\s*\{\s*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__tier\s*\{\s*grid-template-columns:\s*76px minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__facts--identity,[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?font-size:\s*16px;/);
-    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?min-height:\s*44px;/);
+    expect(ledgerSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-shipment-drawer \.cus-container-record__tier\s*\{\s*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?\.cus-shipment-drawer \.cus-container-fact--save \.cus-container-save\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*16px;/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 });

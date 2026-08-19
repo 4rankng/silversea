@@ -567,10 +567,11 @@ export default function ShipmentsPage() {
     return (
       <UUIButton
         size="sm"
-        color="primary"
+        color={item.action.enabled ? 'primary' : 'secondary'}
         className="cus-drawer-primary-action"
         isDisabled={!item.action.enabled}
         aria-label={item.action.label}
+        aria-describedby={!item.action.enabled && item.action.disabledReason ? `cus-drawer-action-reason-${item.id}` : undefined}
         onPress={() => openAction(item, mode)}
         iconLeading={item.action.kind === 'LOCK' ? <FileLock2 size={16} aria-hidden="true" /> : undefined}
       >
@@ -1013,7 +1014,7 @@ export default function ShipmentsPage() {
                           >
                             {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
                             {item.appointmentGroups.map((group) => (
-                              <span key={group.at}>{formatAppointmentGroupLine(group.at)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
+                              <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
                             ))}
                             <span>{vehicleReadinessLabel(item)}</span>
                           </button>
@@ -1125,7 +1126,7 @@ export default function ShipmentsPage() {
                 <div className="cus-drawer-workflow__heading">
                   <div>
                     <span className="cus-drawer-eyebrow">Điều hành lô hàng</span>
-                    <h3 id="cus-drawer-workflow-title">Sẵn sàng cho bước tiếp theo</h3>
+                    <h3 id="cus-drawer-workflow-title">Trạng thái &amp; bước tiếp theo</h3>
                     <p>{drawerItem.factoryName || drawerItem.deliveryLocation || 'Chưa xác định điểm giao'}</p>
                   </div>
                   <WorkflowBadge item={drawerItem} />
@@ -1134,7 +1135,6 @@ export default function ShipmentsPage() {
 
                 <div className="cus-drawer-decision-grid" aria-label="Điều kiện xử lý lô hàng">
                   <div className="cus-drawer-decision cus-drawer-decision--schedule">
-                    <span className="cus-drawer-field-label">Ngày giao hàng</span>
                     <div className="cus-drawer-inline-control">
                       <BufferedUuiDateInput
                         label="Ngày giao hàng"
@@ -1180,11 +1180,11 @@ export default function ShipmentsPage() {
                   <div className="cus-drawer-decision cus-drawer-decision--finance"><FinanceEvidence item={drawerItem} /></div>
                 </div>
 
-                <div className="cus-drawer-workflow__action">
+                <div className={`cus-drawer-workflow__action cus-drawer-workflow__action--${drawerItem.action.kind === 'NONE' ? 'idle' : drawerItem.action.enabled ? 'ready' : 'blocked'}`}>
                   <div>
                     <span className="cus-drawer-eyebrow">Hành động tiếp theo</span>
                     <strong>{drawerItem.action.kind === 'NONE' ? 'Theo dõi tiến độ lô hàng' : drawerItem.action.label}</strong>
-                    {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p>{drawerItem.action.disabledReason}</p>}
+                    {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p id={`cus-drawer-action-reason-${drawerItem.id}`}>{drawerItem.action.disabledReason}</p>}
                   </div>
                   {shipmentActionButton(drawerItem)}
                 </div>

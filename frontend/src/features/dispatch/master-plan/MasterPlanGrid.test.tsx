@@ -29,10 +29,47 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   allocationStatus: 'NOT_ALLOCATED',
   carrierAllocationSummary: [],
   appointmentGroups: [],
+  containerPortGroups: [
+    { pickupPortName: 'Cảng Cát Lái', dropoffPortName: 'Kho Bình Dương', containerSummary: '2 x 40HC + 1 x 20DC' },
+  ],
   ...overrides,
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
+    const fixture = {
+      ...item({ pickupLocation: null, deliveryLocation: null }),
+      containerPortGroups: [
+        { pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerSummary: '1 x 40DC' },
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Kho Long Biên', containerSummary: '1 x 20DC' },
+      ],
+    } as ShipmentListItem;
+
+    render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
+
+    expect(screen.getByText('Nâng: TC - HICT · 1 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Hạ: Nhà máy Bắc Giang · 1 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Nâng: Cảng Hải Phòng · 1 x 20DC')).toBeTruthy();
+    expect(screen.getByText('Hạ: Kho Long Biên · 1 x 20DC')).toBeTruthy();
+    expect(screen.queryByText('Nâng: —')).toBeNull();
+  });
+
+  it('does not project legacy lot locations when no container-port data is available', () => {
+    const fixture = item({
+      pickupLocation: 'Địa điểm nâng cũ theo lô',
+      deliveryLocation: 'Địa điểm hạ cũ theo lô',
+      // Keep rolling deploys safe when an older API response lacks the additive field.
+      containerPortGroups: undefined as unknown as ShipmentListItem['containerPortGroups'],
+    });
+
+    render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
+
+    expect(screen.getByText('Nâng: —')).toBeTruthy();
+    expect(screen.getByText('Hạ: —')).toBeTruthy();
+    expect(screen.queryByText('Nâng: Địa điểm nâng cũ theo lô')).toBeNull();
+    expect(screen.queryByText('Hạ: Địa điểm hạ cũ theo lô')).toBeNull();
+  });
+
   it('renders one "Giờ:" line per per-container appointment group (EPIC 2.4 mapping)', () => {
     const onAllocate = vi.fn();
     const fixture = item({
@@ -45,15 +82,12 @@ describe('MasterPlanGrid', () => {
     });
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
 
-    // Per CUS contract: "HH:mm dd/mm/yyyy · factory · 1x40DC" — the exact
-    // hour depends on the host TZ (CI runs UTC, local dev runs ICT), so
-    // assert on the date + factory + container-summary segments that don't
-    // shift with TZ. The two distinct dates prove the lot has 2 lines,
-    // not the collapsed single shipment-level value.
-    // Note: vi-VN locale formats day/month without leading zero ("24/8/2026").
-    const renderedText = screen.getByText(/24\/8\/2026 · Sunrise · 1 x 40DC/);
+    // The API carries a Vietnam business date and the formatter fixes the
+    // time to ICT, so this remains stable in a UTC CI runner and in a browser
+    // opened from another timezone.
+    const renderedText = screen.getByText(/11:00 24\/8\/2026 · Sunrise · 1 x 40DC/);
     expect(renderedText).toBeTruthy();
-    expect(screen.getByText(/25\/8\/2026 · Sunrise · 1 x 40DC/)).toBeTruthy();
+    expect(screen.getByText(/11:00 25\/8\/2026 · Sunrise · 1 x 40DC/)).toBeTruthy();
     // Both lines start with the "Giờ:" prefix.
     const scheduleCell = renderedText.closest('td');
     expect(scheduleCell).toBeTruthy();

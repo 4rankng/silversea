@@ -43,7 +43,7 @@ function formatHour(iso: string | null | undefined): string {
 function formatAppointmentGroupLines(item: ShipmentListItem): string[] {
   if (item.appointmentGroups && item.appointmentGroups.length > 0) {
     return item.appointmentGroups.map((group) => (
-      `${formatAppointmentGroupLine(group.at)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`
+      `${formatAppointmentGroupLine(group.at, group.localDate)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`
     ));
   }
   const fallback = formatHour(item.plannedReturnAt ?? item.closingAt);
@@ -78,6 +78,20 @@ function formatContainerSummaryLines(summary: string | null): string[] {
     .split(/\s*\+\s*/)
     .map((part) => part.trim().replace(/^(\d+)\s*(?:\*|×|x)\s*/i, '$1 x '))
     .filter(Boolean);
+}
+
+function formatContainerPortGroupLines(item: ShipmentListItem): string[] {
+  const containerPortGroups = item.containerPortGroups ?? [];
+  if (containerPortGroups.length > 0) {
+    return containerPortGroups.flatMap((group) => [
+      `Nâng: ${group.pickupPortName ?? '—'} · ${group.containerSummary}`,
+      `Hạ: ${group.dropoffPortName ?? '—'} · ${group.containerSummary}`,
+    ]);
+  }
+  return [
+    'Nâng: —',
+    'Hạ: —',
+  ];
 }
 
 /**
@@ -151,8 +165,9 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">Nâng: {item.pickupLocation ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">Hạ: {item.deliveryLocation ?? '—'}</div>
+                  {formatContainerPortGroupLines(item).map((line, index) => (
+                    <div key={`${index}-${line}`} className="master-plan-grid__line master-plan-grid__line--strong">{line}</div>
+                  ))}
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
                   <div className="master-plan-grid__cargo-summary">

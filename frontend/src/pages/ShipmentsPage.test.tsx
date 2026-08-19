@@ -935,7 +935,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
-    expect(within(dialog).getByRole('heading', { name: 'Sẵn sàng cho bước tiếp theo' })).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Trạng thái & bước tiếp theo' })).toBeTruthy();
     expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
     expect(within(dialog).getByText('Hành động tiếp theo')).toBeTruthy();
     expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
@@ -984,8 +984,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Xác nhận Kế toán đã hết hiệu lực.')).toBeTruthy();
-    expect((within(dialog).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement).disabled).toBe(true);
+    const reason = within(dialog).getByText('Xác nhận Kế toán đã hết hiệu lực.');
+    const action = within(dialog).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement;
+    expect(reason).toBeTruthy();
+    expect(action.disabled).toBe(true);
+    expect(action.getAttribute('aria-describedby')).toBe(reason.id);
   });
 
   it('loads operational container detail lazily and keeps finance entry outside the expansion', async () => {
@@ -1382,6 +1385,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[\s\S]*?container-name:\s*shipment-drawer;[\s\S]*?container-type:\s*inline-size;/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 700px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr 1fr;/);
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr;/);
+  });
+
+  it('keeps the shipment drawer flat, compact, and honest about blocked actions', () => {
+    expect(css).toMatch(/\.cus-shipment-drawer\s*\{[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.cus-container-record\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+    expect(css).toMatch(/\.cus-drawer-workflow__action--blocked::before\s*\{[^}]*background:\s*var\(--warning\);/);
+    expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
   it('uses distinct semantic colors for running and locked shipments', () => {

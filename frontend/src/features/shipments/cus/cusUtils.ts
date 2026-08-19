@@ -73,12 +73,21 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
  * (SILVER L1), and container-type mix of every container sharing that
  * (local date, factory) group in the lot.
  */
-export function formatAppointmentGroupLine(at: string): string {
+export function formatAppointmentGroupLine(at: string, localDate?: string): string {
   const date = new Date(at);
   if (Number.isNaN(date.getTime())) return at;
-  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
-  const day = date.toLocaleDateString('vi-VN');
-  return `${time} ${day}`;
+  const vietnamParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const time = `${vietnamParts.find((part) => part.type === 'hour')?.value ?? '—'}:${vietnamParts.find((part) => part.type === 'minute')?.value ?? '—'}`;
+  const [year, month, day] = (localDate ?? '').split('-');
+  const formattedLocalDate = year && month && day
+    ? `${Number(day)}/${Number(month)}/${year}`
+    : new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date);
+  return `${time} ${formattedLocalDate}`;
 }
 
 /** Factory segment of a group line; empty string when the factory is unknown. */

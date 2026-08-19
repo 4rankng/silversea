@@ -43,6 +43,7 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdContainerTypeIds: number[] = [];
+const createdPortIds: number[] = [];
 const createdTripContainerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdUserIds: number[] = [];
@@ -202,6 +203,9 @@ after(async () => {
   }
   if (createdContainerTypeIds.length > 0) {
     await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
+  }
+  if (createdPortIds.length > 0) {
+    await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
   }
   if (createdTruckIds.length > 0) {
     await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
@@ -662,14 +666,26 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     return ct;
   }
 
-  async function mkContainer(shipmentId: number, containerTypeId: number, cargoWeightKg?: string) {
+  async function mkContainer(
+    shipmentId: number,
+    containerTypeId: number,
+    cargoWeightKg?: string,
+    ports?: { pickupPortId: number; dropoffPortId: number },
+  ) {
     const [row] = await db.insert(s.shipmentContainers).values({
       shipmentId,
       containerTypeId,
       containerNumber: `MPL-${Math.random().toString(36).slice(2, 9)}`,
       ...(cargoWeightKg != null ? { cargoWeightKg } : {}),
+      ...(ports ?? {}),
     }).returning();
     return row;
+  }
+
+  async function mkPort(name: string) {
+    const [port] = await db.insert(s.ports).values({ name }).returning();
+    createdPortIds.push(port.id);
+    return port;
   }
 
   async function mkCarrierFulfillment(
@@ -727,6 +743,61 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     assert.equal(row.totalCargoWeightKg, 41000.75);
     assert.equal(row.allocationStatus, 'NOT_ALLOCATED');
     assert.deepEqual(row.carrierAllocationSummary, []);
+  });
+
+  test('filters by a container port while returning every distinct per-container port pair', async () => {
+    const customer = await mkCustomer();
+    const tag = Math.random().toString(36).slice(2, 8);
+    const type = await mkContainerType(`40DC${tag}`, "40'DC");
+    const lachHuyen = await mkPort(`Cảng Lạch Huyện ${tag}`);
+    const dinhVu = await mkPort(`Cảng Đình Vũ ${tag}`);
+    const factory = await mkPort(`Nhà máy Bắc Giang ${tag}`);
+
+    const matching = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+      // A legacy lot field must not influence either filter or projection.
+      pickupLocation: 'Legacy location must not be displayed',
+    });
+    const legacyOnly = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-15',
+      pickupLocation: lachHuyen.name,
+    });
+    createdShipmentIds.push(matching.id, legacyOnly.id);
+
+    await mkContainer(matching.id, type.id, undefined, {
+      pickupPortId: dinhVu.id,
+      dropoffPortId: lachHuyen.id,
+    });
+    await mkContainer(matching.id, type.id, undefined, {
+      pickupPortId: dinhVu.id,
+      dropoffPortId: factory.id,
+    });
+
+    const result = await listShipmentsPaginated({
+      customerId: customer.id,
+      portIds: [lachHuyen.id],
+      includeDispatchSummary: true,
+      page: 1,
+      limit: 20,
+    });
+
+    assert.deepEqual(result.items.map((row) => row.id), [matching.id]);
+    assert.deepEqual(result.items[0]!.containerPortGroups, [
+      {
+        pickupPortName: dinhVu.name,
+        dropoffPortName: lachHuyen.name,
+        containerSummary: `1 x 40DC${tag}`,
+      },
+      {
+        pickupPortName: dinhVu.name,
+        dropoffPortName: factory.name,
+        containerSummary: `1 x 40DC${tag}`,
+      },
+    ]);
   });
 
   test('derives allocationStatus for zero-container, partial, and full allocation', async () => {

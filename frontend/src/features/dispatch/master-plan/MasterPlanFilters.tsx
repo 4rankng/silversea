@@ -473,6 +473,10 @@ function toggleKey(list: string[], key: string): string[] {
   return list.includes(key) ? list.filter((value) => value !== key) : [...list, key];
 }
 
+function portZoneFacetLabel(zoneLabel: string): string {
+  return /^cảng/iu.test(zoneLabel.normalize('NFC')) ? zoneLabel : `Cảng ${zoneLabel}`;
+}
+
 /** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
  *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
@@ -531,7 +535,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       {zones.map((zone) => (
         <FacetMultiSelect
           key={zone.code}
-          label={`Cảng ${zone.label}`}
+          label={portZoneFacetLabel(zone.label)}
           selected={filters.portIds}
           onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })}
           loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)}

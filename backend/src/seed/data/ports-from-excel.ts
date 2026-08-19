@@ -64,19 +64,19 @@ export const ports: PortFromExcelSeed[] = [
     "liftingFee": ""
   },
   {
-    "name": "Cảng Lạch Huyện - HICT",
+    "name": "TC - HICT",
     "address": "Khu Đôn Lương, thị trấn Cát Hải, huyện Cát Hải, thành phố Hải Phòng, Việt Nam",
     "operationUrl": "https://eport.hict.net.vn/",
     "liftingFee": ""
   },
   {
-    "name": "Cảng TIL - HTIT",
+    "name": "TIL - HTIT",
     "address": "Bến số 3 & 4 Cảng nước sâu Lạch Huyện, Khu phố Đôn Lương, Đặc khu Cát Hải, Thành Phố Hải Phòng, Việt Nam",
     "operationUrl": "https://eport.htit.com.vn/",
     "liftingFee": ""
   },
   {
-    "name": "Cảng Hateco",
+    "name": "Hateco - HHIT",
     "address": "Bến container số 5&6 Khu cảng Lạch Huyện, Đặc khu Cát Hải, TP. Hải Phòng, Việt Nam",
     "operationUrl": "https://hhit.com.vn/",
     "liftingFee": ""

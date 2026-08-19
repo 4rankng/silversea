@@ -97,6 +97,102 @@ export interface ShipmentCarrierAllocationSummaryEntry {
   count40: number;
 }
 
+/** A distinct per-container lift/drop pair in a shipment list row. */
+export interface ShipmentContainerPortGroup {
+  pickupPortName: string | null;
+  dropoffPortName: string | null;
+  /** Compact type count for only the containers using this exact port pair. */
+  containerSummary: string;
+}
+
+type ShipmentContainerPortGroupSource = {
+  shipmentId: number;
+  pickupPortName: string | null;
+  dropoffPortName: string | null;
+  containerTypeCode: string | null;
+  containerTypeName: string | null;
+};
+
+/**
+ * Keep lift/drop authority at the container boundary. A master-plan shipment
+ * row may contain several pairs, so grouping happens by the pair, never by
+ * the legacy shipment-level free-text locations.
+ */
+export function groupShipmentContainerPortGroups(
+  rows: readonly ShipmentContainerPortGroupSource[],
+): Map<number, ShipmentContainerPortGroup[]> {
+  type Bucket = ShipmentContainerPortGroup & { typeCounts: Map<string, number> };
+  const bucketsByShipment = new Map<number, Map<string, Bucket>>();
+
+  for (const row of rows) {
+    const key = `${row.pickupPortName ?? ''}\u0000${row.dropoffPortName ?? ''}`;
+    let shipmentBuckets = bucketsByShipment.get(row.shipmentId);
+    if (!shipmentBuckets) {
+      shipmentBuckets = new Map();
+      bucketsByShipment.set(row.shipmentId, shipmentBuckets);
+    }
+    let bucket = shipmentBuckets.get(key);
+    if (!bucket) {
+      bucket = {
+        pickupPortName: row.pickupPortName,
+        dropoffPortName: row.dropoffPortName,
+        containerSummary: '',
+        typeCounts: new Map(),
+      };
+      shipmentBuckets.set(key, bucket);
+    }
+    const typeLabel = row.containerTypeCode ?? row.containerTypeName ?? 'Container';
+    bucket.typeCounts.set(typeLabel, (bucket.typeCounts.get(typeLabel) ?? 0) + 1);
+  }
+
+  const result = new Map<number, ShipmentContainerPortGroup[]>();
+  for (const [shipmentId, buckets] of bucketsByShipment) {
+    result.set(shipmentId, [...buckets.values()].map(({ typeCounts, ...group }) => ({
+      ...group,
+      containerSummary: [...typeCounts.entries()]
+        .map(([type, count]) => `${count} x ${type}`)
+        .join(' + '),
+    })));
+  }
+  return result;
+}
+
+/** Batched port-name resolution for the shipment/master-plan read model. */
+export async function loadShipmentListContainerPortGroups(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+  query: Pick<typeof db, 'select'> = db,
+): Promise<Map<number, ShipmentContainerPortGroup[]>> {
+  const shipmentIds = [...new Set(shipments.map((shipment) => shipment.id))];
+  if (shipmentIds.length === 0) return new Map();
+
+  const containerRows = await query.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    pickupPortId: s.shipmentContainers.pickupPortId,
+    dropoffPortId: s.shipmentContainers.dropoffPortId,
+    containerTypeCode: s.containerTypes.code,
+    containerTypeName: s.containerTypes.name,
+  }).from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
+    .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
+  const portIds = [...new Set(containerRows.flatMap((row) => [row.pickupPortId, row.dropoffPortId])
+    .filter((id): id is number => id != null))];
+  const portNamesById = portIds.length === 0
+    ? new Map<number, string>()
+    : new Map((await query.select({ id: s.ports.id, name: s.ports.name })
+      .from(s.ports)
+      .where(inArray(s.ports.id, portIds)))
+      .map((port) => [port.id, port.name]));
+
+  return groupShipmentContainerPortGroups(containerRows.map((row) => ({
+    shipmentId: row.shipmentId,
+    pickupPortName: row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null,
+    dropoffPortName: row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null,
+    containerTypeCode: row.containerTypeCode,
+    containerTypeName: row.containerTypeName,
+  })));
+}
+
 /**
  * Dispatch master-plan enrichment: container aggregates + allocation status per
  * shipment, plus per-carrier 20'/40' counts for chip rendering. Batched (3
@@ -620,12 +716,65 @@ export interface ShipmentAppointmentGroup {
   containerSummary: string;
 }
 
+type ShipmentAppointmentGroupSource = {
+  shipmentId: number;
+  at: Date;
+  factoryName: string | null;
+  containerTypeCode: string | null;
+  containerTypeName: string | null;
+};
+
+/** Groups fully-resolved appointment authority for one paginated list read. */
+export function groupShipmentAppointmentGroups(
+  rows: readonly ShipmentAppointmentGroupSource[],
+): Map<number, ShipmentAppointmentGroup[]> {
+  type Bucket = ShipmentAppointmentGroup & { typeCounts: Map<string, number> };
+  const byShipment = new Map<number, Map<string, Bucket>>();
+
+  for (const row of rows) {
+    const at = row.at.toISOString();
+    const key = `${at}|${row.factoryName ?? ''}`;
+    let buckets = byShipment.get(row.shipmentId);
+    if (!buckets) {
+      buckets = new Map();
+      byShipment.set(row.shipmentId, buckets);
+    }
+    const typeLabel = row.containerTypeCode ?? row.containerTypeName ?? 'container';
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.typeCounts.set(typeLabel, (existing.typeCounts.get(typeLabel) ?? 0) + 1);
+      continue;
+    }
+    buckets.set(key, {
+      at,
+      localDate: localDateInBusinessZone(row.at) ?? '0000-00-00',
+      factoryName: row.factoryName,
+      containerSummary: '',
+      typeCounts: new Map([[typeLabel, 1]]),
+    });
+  }
+
+  const result = new Map<number, ShipmentAppointmentGroup[]>();
+  for (const [shipmentId, buckets] of byShipment) {
+    result.set(shipmentId, [...buckets.values()]
+      .map(({ typeCounts, ...group }) => ({
+        ...group,
+        containerSummary: [...typeCounts.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([code, count]) => `${count} x ${code}`)
+          .join(' + ') || '—',
+      }))
+      .sort((a, b) => a.at.localeCompare(b.at)
+        || (a.factoryName ?? '').localeCompare(b.factoryName ?? '')));
+  }
+  return result;
+}
+
 export async function loadShipmentListAppointmentGroups(
   shipments: Array<typeof s.shipments.$inferSelect>,
 ): Promise<Map<number, ShipmentAppointmentGroup[]>> {
-  const result = new Map<number, ShipmentAppointmentGroup[]>();
   const ids = [...new Set(shipments.map((shipment) => shipment.id))];
-  if (ids.length === 0) return result;
+  if (ids.length === 0) return new Map();
 
   // Pull every container for the page with its appointment instant,
   // factory-site link, and resolved type code+name for the per-group summary.
@@ -643,11 +792,13 @@ export async function loadShipmentListAppointmentGroups(
     .where(inArray(s.shipmentContainers.shipmentId, ids))
     .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
 
-  // Resolve every distinct operational site id in one query — avoids N+1
-  // and is bounded by the page size (≤200 shipments × 1-3 sites per lot).
-  const siteIds = [...new Set(containerRows
-    .map((row) => row.operationalSiteId)
-    .filter((id): id is number => id != null))];
+  // Resolve every distinct site referenced at either authority level in one
+  // query. The effective factory is container site → shipment site → factory
+  // text, so shipment-level site ids must be available before grouping.
+  const siteIds = [...new Set([
+    ...containerRows.map((row) => row.operationalSiteId),
+    ...shipments.map((shipment) => shipment.operationalSiteId),
+  ].filter((id): id is number => id != null))];
   const sitesById = siteIds.length === 0
     ? new Map<number, string | null>()
     : new Map((await db.select({ id: s.operationalSites.id, name: s.operationalSites.name })
@@ -655,72 +806,24 @@ export async function loadShipmentListAppointmentGroups(
       .where(inArray(s.operationalSites.id, siteIds)))
       .map((row) => [row.id, row.name]));
 
-  // Group by shipment, then by (instant, factoryName) so two containers with
-  // the same appointment instant and factory collapse into one cell line.
-  type Bucket = { at: string; localDate: string; factoryName: string | null; typeCounts: Map<string, number> };
-  const byShipment = new Map<number, Map<string, Bucket>>();
-  for (const row of containerRows) {
-    const at = row.customerAppointmentAt;
-    if (at == null) continue;
-    // SILVER L1 precedence: container site → shipment site → shipment factory text.
-    const factoryName = row.operationalSiteId != null
-      ? sitesById.get(row.operationalSiteId) ?? null
-      : null;
-    const atIso = at.toISOString();
-    const key = `${atIso}|${factoryName ?? ''}`;
-    let shipmentBuckets = byShipment.get(row.shipmentId);
-    if (!shipmentBuckets) {
-      shipmentBuckets = new Map();
-      byShipment.set(row.shipmentId, shipmentBuckets);
-    }
-    const existing = shipmentBuckets.get(key);
-    const typeLabel = row.containerTypeCode ?? row.containerTypeName ?? 'container';
-    if (existing) {
-      existing.typeCounts.set(typeLabel, (existing.typeCounts.get(typeLabel) ?? 0) + 1);
-    } else {
-      const localDate = localDateInBusinessZone(at) ?? '0000-00-00';
-      shipmentBuckets.set(key, {
-        at: atIso,
-        localDate,
-        factoryName,
-        typeCounts: new Map([[typeLabel, 1]]),
-      });
-    }
-  }
+  const shipmentsById = new Map(shipments.map((shipment) => [shipment.id, shipment]));
 
-  // Augment groups with the shipment-level factory fallback (SILVER L1 last
-  // tier) for lots where the container row had no site link.
-  const shipmentsById = new Map(shipments.map((ship) => [ship.id, ship]));
-  for (const [shipmentId, buckets] of byShipment) {
-    const ship = shipmentsById.get(shipmentId);
-    const shipFactoryName = ship?.factoryName?.trim() || null;
-    const shipSiteId = ship?.operationalSiteId ?? null;
-    const resolvedGroups: ShipmentAppointmentGroup[] = [];
-    for (const bucket of buckets.values()) {
-      let factoryName = bucket.factoryName;
-      if (factoryName == null) {
-        if (shipSiteId != null) {
-          factoryName = sitesById.get(shipSiteId)
-            ?? (shipFactoryName ?? null);
-        } else {
-          factoryName = shipFactoryName ?? null;
-        }
-      }
-      const containerSummary = [...bucket.typeCounts.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([code, count]) => `${count} x ${code}`)
-        .join(' + ') || '—';
-      resolvedGroups.push({
-        at: bucket.at,
-        localDate: bucket.localDate,
-        factoryName,
-        containerSummary,
-      });
-    }
-    // Earliest-first, then factory name (mirrors the CUS workspace contract).
-    resolvedGroups.sort((a, b) => a.at.localeCompare(b.at)
-      || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''));
-    result.set(shipmentId, resolvedGroups);
-  }
-  return result;
+  // Resolve the full precedence chain before making the grouping key. Grouping
+  // first and filling shipment-level fallbacks later splits containers which
+  // share one effective factory into duplicate display lines.
+  return groupShipmentAppointmentGroups(containerRows.flatMap((row) => {
+    if (row.customerAppointmentAt == null) return [];
+    const shipment = shipmentsById.get(row.shipmentId);
+    const factoryName = (row.operationalSiteId != null ? sitesById.get(row.operationalSiteId) : null)
+      ?? (shipment?.operationalSiteId != null ? sitesById.get(shipment.operationalSiteId) : null)
+      ?? shipment?.factoryName?.trim()
+      ?? null;
+    return [{
+      shipmentId: row.shipmentId,
+      at: row.customerAppointmentAt,
+      factoryName,
+      containerTypeCode: row.containerTypeCode,
+      containerTypeName: row.containerTypeName,
+    }];
+  }));
 }

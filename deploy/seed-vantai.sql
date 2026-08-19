@@ -249,7 +249,7 @@ INSERT INTO container_types (code, name, notes) VALUES
 INSERT INTO ports (name, code, city, address) VALUES
   ('Cảng Hải Phòng',              'HPH',  'Hải Phòng', 'Quận Hồng Bàng, Hải Phòng'),
   ('Cảng Đình Vũ',                'DVU',  'Hải Phòng', 'Đông Hải 2, Hải An, Hải Phòng'),
-  ('Cảng Lạch Huyện (HICT)',      'HICT', 'Hải Phòng', 'Cát Hải, Hải Phòng'),
+  ('TC - HICT',                    'HICT', 'Hải Phòng', 'Cát Hải, Hải Phòng'),
   ('Cảng Tân Cảng 128 HP',        'TC128','Hải Phòng', 'Hùng Vương, Hồng Bàng, Hải Phòng'),
   ('Cảng Tân Vũ',                 'TVU',  'Hải Phòng', 'Đông Hải 2, Hải An, Hải Phòng'),
   ('Cảng Nam Hải Đình Vũ',        'NHDV', 'Hải Phòng', 'Đông Hải 2, Hải An, Hải Phòng'),

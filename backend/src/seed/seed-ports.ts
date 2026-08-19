@@ -6,7 +6,18 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { ports as portsFromExcel } from './data/ports-from-excel.js';
-import { normalizedTextEquals } from './seed-identity.js';
+import { normalizeSeedText, normalizedTextEquals } from './seed-identity.js';
+
+const terminalCodeByName = new Map([
+  ['TC - HICT', 'HICT'],
+  ['TIL - HTIT', 'HTIT'],
+  ['Hateco - HHIT', 'HHIT'],
+].map(([name, code]) => [normalizeSeedText(name), code]));
+
+export function portSeedCode(name: string): string {
+  return terminalCodeByName.get(normalizeSeedText(name))
+    ?? name.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 20);
+}
 
 /**
  * Seed ports/terminals for shipment operations
@@ -25,20 +36,25 @@ export async function seedPorts(): Promise<void> {
   let skippedDeleted = 0;
 
   for (const port of ports) {
+    const code = portSeedCode(port.name);
     // Match by name across live AND soft-deleted rows (prefer live): a
     // soft-deleted duplicate must stay dead — never resurrect it with
     // deletedAt: null, and never insert a second row under the same name.
-    const [existing] = await db.select({ id: s.ports.id, deletedAt: s.ports.deletedAt })
+    // A terminal display-label rename retains its code, so code identity must
+    // be checked first or an existing HICT row collides on its unique code.
+    const [existingByCode] = await db.select({ id: s.ports.id, deletedAt: s.ports.deletedAt })
       .from(s.ports)
-      .where(normalizedTextEquals(s.ports.name, port.name))
+      .where(eq(s.ports.code, code))
       .orderBy(sql`${s.ports.deletedAt} asc nulls first`)
       .limit(1);
-
-    // Generate code from port name (uppercase, no spaces)
-    const code = port.name
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, '_')
-      .substring(0, 20);
+    const [existingByName] = existingByCode
+      ? [existingByCode]
+      : await db.select({ id: s.ports.id, deletedAt: s.ports.deletedAt })
+        .from(s.ports)
+        .where(normalizedTextEquals(s.ports.name, port.name))
+        .orderBy(sql`${s.ports.deletedAt} asc nulls first`)
+        .limit(1);
+    const existing = existingByName;
 
     const values = {
       code,

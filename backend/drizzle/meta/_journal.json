@@ -183,6 +183,13 @@
       "when": 1787143961933,
       "tag": "0025_add-container-operational-site",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1787153793942,
+      "tag": "0026_rename-lach-huyen-terminal-labels",
+      "breakpoints": true
     }
   ]
 }

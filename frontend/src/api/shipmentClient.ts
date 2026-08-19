@@ -534,6 +534,15 @@ export interface ShipmentListItem extends Shipment {
    *  whose containers have different close/return times. Mirrors the
    *  `appointmentGroups` shape from the CUS workspace list response. */
   appointmentGroups: ShipmentAppointmentGroup[];
+  /** Per-container lift/drop pairs for the dispatch master-plan. Optional so
+   *  a frontend can tolerate an older API during a rolling deployment. */
+  containerPortGroups?: ShipmentContainerPortGroup[];
+}
+
+export interface ShipmentContainerPortGroup {
+  pickupPortName: string | null;
+  dropoffPortName: string | null;
+  containerSummary: string;
 }
 
 export interface ShipmentAppointmentGroup {

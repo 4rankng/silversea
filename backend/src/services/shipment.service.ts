@@ -93,7 +93,9 @@ import {
   loadShipmentListSummaries,
   loadShipmentListDeclarationNumbers,
   loadShipmentListAppointmentGroups,
+  loadShipmentListContainerPortGroups,
   type AllocationStatus,
+  type ShipmentContainerPortGroup,
 } from './shipment-queries.service';
 import {
   DEFAULT_SHIPMENT_DECLARATION_SCOPE,
@@ -992,6 +994,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     routeName: string | null;
   }> = [];
   let total = 0;
+  let containerPortGroupsByShipmentId = new Map<number, ShipmentContainerPortGroup[]>();
   if (options.includeDispatchSummary) {
     await db.transaction(async (tx) => {
       // All three reads share this transaction's snapshot: page rows, total
@@ -1018,6 +1021,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       ]);
       items = pageRows;
       total = Number(totalRows[0]?.value ?? 0);
+      containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
+        items.map((row) => row.shipment),
+        tx as unknown as Pick<typeof db, 'select'>,
+      );
       dispatchSummary = await computeDispatchSummaryForSet(
         filteredIdRows.map((row) => row.id),
         tx as unknown as Pick<typeof db, 'select'>,
@@ -1050,6 +1057,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const appointmentGroupsByShipmentId = await loadShipmentListAppointmentGroups(
     items.map((row) => row.shipment),
   );
+  if (!options.includeDispatchSummary) {
+    containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
+      items.map((row) => row.shipment),
+    );
+  }
   const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),
     customerName: row.customerName,
@@ -1074,6 +1086,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // the lot has no per-container appointment set — callers can fall back
     // to shipment-level closingAt/plannedReturnAt in that case.
     appointmentGroups: appointmentGroupsByShipmentId.get(row.shipment.id) ?? [],
+    // One row may include containers with different lift/drop ports. Do not
+    // project the shipment's legacy pickupLocation/deliveryLocation as if
+    // they applied to every container.
+    containerPortGroups: containerPortGroupsByShipmentId.get(row.shipment.id) ?? [],
   });
   const flatItems = items.map(enrichRow);
   return dispatchSummary !== undefined

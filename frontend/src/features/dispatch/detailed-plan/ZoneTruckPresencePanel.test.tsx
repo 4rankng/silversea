@@ -8,8 +8,8 @@ const item = (overrides: Partial<ZoneTruckPresenceItem> = {}): ZoneTruckPresence
   truckId: 7,
   plateNumber: '51C-123.45',
   evidence: [
-    { reason: 'D-1_DROP', date: '2026-08-19', containerNumber: 'MSCU1234567', portName: 'Cảng Lạch Huyện - HICT' },
-    { reason: 'D+1_PICKUP', date: '2026-08-21', containerNumber: null, portName: 'Cảng TIL - HTIT' },
+    { reason: 'D-1_DROP', date: '2026-08-19', containerNumber: 'MSCU1234567', portName: 'TC - HICT' },
+    { reason: 'D+1_PICKUP', date: '2026-08-21', containerNumber: null, portName: 'TIL - HTIT' },
   ],
   ...overrides,
 });
@@ -35,7 +35,7 @@ describe('ZoneTruckPresencePanel', () => {
     expect(screen.getByText('2')).toBeTruthy(); // evidence count
 
     const chip = screen.getByRole('listitem');
-    expect(chip.getAttribute('title')).toContain('Cảng Lạch Huyện - HICT');
+    expect(chip.getAttribute('title')).toContain('TC - HICT');
     expect(chip.getAttribute('title')).toContain('MSCU1234567');
   });
 

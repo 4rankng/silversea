@@ -493,9 +493,9 @@ export async function seed() {
   // dispatch_zone filled in below. Zone is the dispatch taxonomy authority.
   const portSeeds = [
     // Lạch Huyện cluster (LACH_HUYEN)
-    { name: 'Cảng Lạch Huyện - HICT',            code: 'HICT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
-    { name: 'Cảng TIL - HTIT',                   code: 'HTIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
-    { name: 'Cảng Hateco',                       code: 'HHIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'TC - HICT',                          code: 'HICT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'TIL - HTIT',                         code: 'HTIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
+    { name: 'Hateco - HHIT',                      code: 'HHIT', city: 'Hải Phòng', address: 'Lạch Huyện, Cát Hải, Hải Phòng', dispatchZone: 'LACH_HUYEN' },
     // Hải Phòng cluster — Cấm river mouth, ICDs and yards (HAI_PHONG)
     { name: 'Cảng Hải Phòng',                    code: 'HPH',  city: 'Hải Phòng', address: 'Quận Hồng Bàng, Hải Phòng', dispatchZone: 'HAI_PHONG' },
     { name: 'Cảng Đình Vũ',                      code: 'DVU',  city: 'Hải Phòng', address: 'Đông Hải 2, Hải An, Hải Phòng', dispatchZone: 'HAI_PHONG' },
@@ -810,13 +810,13 @@ let ROUTE_ASKEY = 0;
 let ROUTE_SUNRISE = 0;
 
 async function resolveSeedReferenceIds() {
-  const portByName = await db.select({ id: schema.ports.id, name: schema.ports.name })
+  const portByName = await db.select({ id: schema.ports.id, name: schema.ports.name, code: schema.ports.code })
     .from(schema.ports)
     .where(isNull(schema.ports.deletedAt));
   for (const p of portByName) {
     if (p.name === 'Cảng Hải Phòng') PORT_HAI_PHONG = p.id;
     if (p.name === 'Cảng Đình Vũ') PORT_DINH_VU = p.id;
-    if (p.name === 'Cảng Lạch Huyện (HICT)') PORT_LACH_HUYEN = p.id;
+    if (p.code === 'HICT') PORT_LACH_HUYEN = p.id;
   }
   const ctByCode = await db.select({ id: schema.containerTypes.id, code: schema.containerTypes.code })
     .from(schema.containerTypes)
@@ -943,7 +943,7 @@ export async function seedShipments(passwordHash: string) {
     {
       tradeDirection: 'IMPORT', ref: '137465191612', routeName: 'SUNRISE', customerId: vanTrung.id,
       expectedDeliveryDate: '2026-08-18',
-      pickupLocation: 'Cảng Lạch Huyện (HICT)', deliveryLocation: 'KCN Vân Trung, Bắc Giang',
+      pickupLocation: 'TC - HICT', deliveryLocation: 'KCN Vân Trung, Bắc Giang',
       contactName: 'Vũ Thị Vân', contactPhone: '02213654321',
             containers: [
         { containerNumber: 'CMAU3145620', sealNumber: 'SL8437216', cargoWeightKg: 21600 },
@@ -984,7 +984,7 @@ export async function seedShipments(passwordHash: string) {
     {
       tradeDirection: 'IMPORT', ref: '137465192255', routeName: 'SUNRISE', customerId: askey.id,
       expectedDeliveryDate: '2026-07-28',
-      pickupLocation: 'Cảng Lạch Huyện (HICT)', deliveryLocation: 'Kho ASKEY, Bắc Giang',
+      pickupLocation: 'TC - HICT', deliveryLocation: 'Kho ASKEY, Bắc Giang',
       contactName: 'Lý Thị Kiều', contactPhone: '0203333444',
             containers: [
         { containerNumber: 'FCIU9034568', sealNumber: 'SL6822940', cargoWeightKg: 17400 },
@@ -1011,14 +1011,14 @@ export async function seedShipments(passwordHash: string) {
     {
       tradeDirection: 'EXPORT', ref: 'DNKM13333', customerId: vanTrung.id,
       expectedDeliveryDate: '2026-08-21',
-      pickupLocation: 'NEWEB-Kho 1', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      pickupLocation: 'NEWEB-Kho 1', deliveryLocation: 'TC - HICT',
       contactName: 'Vũ Thị Vân', contactPhone: '02213654321',
       closingAt: '2026-08-20T08:00:00.000Z',
     },
     {
       tradeDirection: 'EXPORT', ref: 'DNKM13334', customerId: dongVan.id,
       // No dates → PENDING_DATE (booking awaiting closing schedule).
-      pickupLocation: 'Xưởng SUNRISE', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      pickupLocation: 'Xưởng SUNRISE', deliveryLocation: 'TC - HICT',
       contactName: 'Trần Văn Đồng', contactPhone: '02213876543',
     },
     {
@@ -1045,7 +1045,7 @@ export async function seedShipments(passwordHash: string) {
     {
       tradeDirection: 'EXPORT', ref: 'DNKM13337', customerId: haNoi.id,
       expectedDeliveryDate: '2026-08-12',
-      pickupLocation: 'Kho Biển Bạc', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      pickupLocation: 'Kho Biển Bạc', deliveryLocation: 'TC - HICT',
       contactName: 'Trịnh Văn Hà', contactPhone: '02438888888',
       closingAt: '2026-08-11T08:00:00.000Z',
       advanceTo: 'PENDING_EXPENSE_APPROVAL',
@@ -1080,7 +1080,7 @@ export async function seedShipments(passwordHash: string) {
     {
       tradeDirection: 'EXPORT', ref: 'DNKM13340', customerId: bienBac.id,
       expectedDeliveryDate: '2026-08-24',
-      pickupLocation: 'BB Long Biên', deliveryLocation: 'Cảng Lạch Huyện (HICT)',
+      pickupLocation: 'BB Long Biên', deliveryLocation: 'TC - HICT',
       contactName: 'Phạm Thị Biển', contactPhone: '02253555555',
       closingAt: '2026-08-23T08:00:00.000Z',
       containers: [

@@ -163,7 +163,7 @@ describe('ports.dispatchZone contract', () => {
 
   test('seeded HICT terminal carries the LACH_HUYEN zone', async () => {
     const [hict] = await db.select().from(s.ports)
-      .where(eq(s.ports.name, 'Cảng Lạch Huyện (HICT)'));
+      .where(eq(s.ports.code, 'HICT'));
     if (hict) {
       assert.equal(hict.dispatchZone, 'LACH_HUYEN');
     }
