@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
@@ -28,10 +28,54 @@ const item = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
   carrierAllocationSummary: [],
+  appointmentGroups: [],
   ...overrides,
 } as ShipmentListItem);
 
 describe('MasterPlanGrid', () => {
+  it('renders one "Giờ:" line per per-container appointment group (EPIC 2.4 mapping)', () => {
+    const onAllocate = vi.fn();
+    const fixture = item({
+      // 2 containers with 2 different close/return instants — the master plan
+      // must surface BOTH, not collapse to a single shipment-level hour.
+      appointmentGroups: [
+        { at: '2026-08-24T04:00:00.000Z', localDate: '2026-08-24', factoryName: 'Sunrise', containerSummary: '1 x 40DC' },
+        { at: '2026-08-25T04:00:00.000Z', localDate: '2026-08-25', factoryName: 'Sunrise', containerSummary: '1 x 40DC' },
+      ],
+    });
+    render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
+
+    // Per CUS contract: "HH:mm dd/mm/yyyy · factory · 1x40DC" — the exact
+    // hour depends on the host TZ (CI runs UTC, local dev runs ICT), so
+    // assert on the date + factory + container-summary segments that don't
+    // shift with TZ. The two distinct dates prove the lot has 2 lines,
+    // not the collapsed single shipment-level value.
+    // Note: vi-VN locale formats day/month without leading zero ("24/8/2026").
+    const renderedText = screen.getByText(/24\/8\/2026 · Sunrise · 1 x 40DC/);
+    expect(renderedText).toBeTruthy();
+    expect(screen.getByText(/25\/8\/2026 · Sunrise · 1 x 40DC/)).toBeTruthy();
+    // Both lines start with the "Giờ:" prefix.
+    const scheduleCell = renderedText.closest('td');
+    expect(scheduleCell).toBeTruthy();
+    const gioLines = within(scheduleCell!).getAllByText(/Giờ:/);
+    expect(gioLines.length).toBe(2);
+  });
+
+  it('falls back to the shipment-level closingAt when no per-container appointments exist', () => {
+    const onAllocate = vi.fn();
+    const fixture = item({
+      appointmentGroups: [],
+      closingAt: '2026-08-23T08:00:00.000Z', // 15:00 ICT, 08:00 UTC
+      plannedReturnAt: null,
+    });
+    render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
+    // Host-TZ-independent: the seed 08:00 UTC maps to either 8H or 15H
+    // depending on the runner's TZ; assert the value is one of those two.
+    const cell = screen.getByText(/Giao: 20\/08\/2026/).closest('td');
+    const gioLine = within(cell!).getByText(/Giờ: \d{1,2}H/);
+    expect(gioLine.textContent).toMatch(/Giờ: (8H|15H)/);
+  });
+
   it('renders all 7 docx columns for a READY_FOR_DISPATCH row', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);

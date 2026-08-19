@@ -92,6 +92,7 @@ import {
   computeDispatchSummaryForSet,
   loadShipmentListSummaries,
   loadShipmentListDeclarationNumbers,
+  loadShipmentListAppointmentGroups,
   type AllocationStatus,
 } from './shipment-queries.service';
 import {
@@ -1043,6 +1044,12 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const dispatchAggregatesByShipmentId = await loadShipmentDispatchAggregates(
     items.map((row) => row.shipment.id),
   );
+  // Per-instant container appointment groups so the dispatch master-plan
+  // "Giờ:" line can render N rows (one per distinct appointment time) —
+  // mirrors the CUS workspace contract from cus-shipment-workspace.service.
+  const appointmentGroupsByShipmentId = await loadShipmentListAppointmentGroups(
+    items.map((row) => row.shipment),
+  );
   const enrichRow = (row: (typeof items)[number]) => ({
     ...normalizeShipmentRow(row.shipment),
     customerName: row.customerName,
@@ -1063,6 +1070,10 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     totalCargoWeightKg: dispatchAggregatesByShipmentId.get(row.shipment.id)?.totalCargoWeightKg ?? null,
     allocationStatus: dispatchAggregatesByShipmentId.get(row.shipment.id)?.allocationStatus ?? 'NOT_ALLOCATED',
     carrierAllocationSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.carrierAllocationSummary ?? [],
+    // Per-container appointment groups (P9 2.4 mapping). Empty array when
+    // the lot has no per-container appointment set — callers can fall back
+    // to shipment-level closingAt/plannedReturnAt in that case.
+    appointmentGroups: appointmentGroupsByShipmentId.get(row.shipment.id) ?? [],
   });
   const flatItems = items.map(enrichRow);
   return dispatchSummary !== undefined

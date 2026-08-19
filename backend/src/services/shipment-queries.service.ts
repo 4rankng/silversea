@@ -11,7 +11,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { round2dp, TripStatus } from '@tingting/shared';
+import { localDateInBusinessZone, round2dp, TripStatus } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { operationalName } from '../db/master-data-name';
@@ -597,4 +597,130 @@ export async function computeDispatchSummaryForSet(
     sizeOther,
     lclFulfillments: lclShipments.size,
   };
+}
+
+/**
+ * One display line per per-container appointment instant so the dispatch
+ * master-plan "Giờ:" cell can mirror the CUS workspace contract
+ * (`HH:mm dd/mm/yyyy · factory · 1x40HC`). Mirrors the
+ * `buildAppointmentGroups` shape from cus-shipment-workspace.service so the
+ * two list surfaces stay in sync — the only difference is that here the
+ * site name is resolved in a single batched lookup (no per-row trip back to
+ * the DB) because the master-plan list view may span dozens of shipments.
+ */
+export interface ShipmentAppointmentGroup {
+  /** ISO 8601 timestamp of the appointment instant (per-container). */
+  at: string;
+  /** Local-date in the business zone (Asia/Ho_Chi_Minh) — YYYY-MM-DD. */
+  localDate: string;
+  /** Effective factory name resolved through the SILVER L1 precedence chain;
+   *  null when the lot has no factory information at any level. */
+  factoryName: string | null;
+  /** Compact per-type container summary, e.g. "1 x 40DC + 1 x 20DC". */
+  containerSummary: string;
+}
+
+export async function loadShipmentListAppointmentGroups(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+): Promise<Map<number, ShipmentAppointmentGroup[]>> {
+  const result = new Map<number, ShipmentAppointmentGroup[]>();
+  const ids = [...new Set(shipments.map((shipment) => shipment.id))];
+  if (ids.length === 0) return result;
+
+  // Pull every container for the page with its appointment instant,
+  // factory-site link, and resolved type code+name for the per-group summary.
+  // shipment_containers has no deletedAt column (deletion is hard-delete at
+  // the service layer, see reconcileShipmentContainersInTx) so no soft-delete
+  // filter is needed here.
+  const containerRows = await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    operationalSiteId: s.shipmentContainers.operationalSiteId,
+    containerTypeCode: s.containerTypes.code,
+    containerTypeName: s.containerTypes.name,
+  }).from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .where(inArray(s.shipmentContainers.shipmentId, ids))
+    .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
+
+  // Resolve every distinct operational site id in one query — avoids N+1
+  // and is bounded by the page size (≤200 shipments × 1-3 sites per lot).
+  const siteIds = [...new Set(containerRows
+    .map((row) => row.operationalSiteId)
+    .filter((id): id is number => id != null))];
+  const sitesById = siteIds.length === 0
+    ? new Map<number, string | null>()
+    : new Map((await db.select({ id: s.operationalSites.id, name: s.operationalSites.name })
+      .from(s.operationalSites)
+      .where(inArray(s.operationalSites.id, siteIds)))
+      .map((row) => [row.id, row.name]));
+
+  // Group by shipment, then by (instant, factoryName) so two containers with
+  // the same appointment instant and factory collapse into one cell line.
+  type Bucket = { at: string; localDate: string; factoryName: string | null; typeCounts: Map<string, number> };
+  const byShipment = new Map<number, Map<string, Bucket>>();
+  for (const row of containerRows) {
+    const at = row.customerAppointmentAt;
+    if (at == null) continue;
+    // SILVER L1 precedence: container site → shipment site → shipment factory text.
+    const factoryName = row.operationalSiteId != null
+      ? sitesById.get(row.operationalSiteId) ?? null
+      : null;
+    const atIso = at.toISOString();
+    const key = `${atIso}|${factoryName ?? ''}`;
+    let shipmentBuckets = byShipment.get(row.shipmentId);
+    if (!shipmentBuckets) {
+      shipmentBuckets = new Map();
+      byShipment.set(row.shipmentId, shipmentBuckets);
+    }
+    const existing = shipmentBuckets.get(key);
+    const typeLabel = row.containerTypeCode ?? row.containerTypeName ?? 'container';
+    if (existing) {
+      existing.typeCounts.set(typeLabel, (existing.typeCounts.get(typeLabel) ?? 0) + 1);
+    } else {
+      const localDate = localDateInBusinessZone(at) ?? '0000-00-00';
+      shipmentBuckets.set(key, {
+        at: atIso,
+        localDate,
+        factoryName,
+        typeCounts: new Map([[typeLabel, 1]]),
+      });
+    }
+  }
+
+  // Augment groups with the shipment-level factory fallback (SILVER L1 last
+  // tier) for lots where the container row had no site link.
+  const shipmentsById = new Map(shipments.map((ship) => [ship.id, ship]));
+  for (const [shipmentId, buckets] of byShipment) {
+    const ship = shipmentsById.get(shipmentId);
+    const shipFactoryName = ship?.factoryName?.trim() || null;
+    const shipSiteId = ship?.operationalSiteId ?? null;
+    const resolvedGroups: ShipmentAppointmentGroup[] = [];
+    for (const bucket of buckets.values()) {
+      let factoryName = bucket.factoryName;
+      if (factoryName == null) {
+        if (shipSiteId != null) {
+          factoryName = sitesById.get(shipSiteId)
+            ?? (shipFactoryName ?? null);
+        } else {
+          factoryName = shipFactoryName ?? null;
+        }
+      }
+      const containerSummary = [...bucket.typeCounts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([code, count]) => `${count} x ${code}`)
+        .join(' + ') || '—';
+      resolvedGroups.push({
+        at: bucket.at,
+        localDate: bucket.localDate,
+        factoryName,
+        containerSummary,
+      });
+    }
+    // Earliest-first, then factory name (mirrors the CUS workspace contract).
+    resolvedGroups.sort((a, b) => a.at.localeCompare(b.at)
+      || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''));
+    result.set(shipmentId, resolvedGroups);
+  }
+  return result;
 }

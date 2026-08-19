@@ -1204,6 +1204,70 @@ describe('GET /', () => {
     assert.equal(bogusTo.status, 400);
     assert.match(bogusTo.data.error, /deliveryDateTo/);
   });
+
+  test('EPIC 2.4 mapping: list items include per-container appointmentGroups (one entry per distinct instant+factory)', async () => {
+    // Multi-container lot: 2 containers with different close/return times
+    // and distinct factories — the dispatch list must surface both groups
+    // separately so the master-plan "Giờ:" cell can render N lines.
+    const lotSuffix = `MPLAN-${suffix}-${Date.now().toString(36)}`;
+    const createRes = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        customerId,
+        blNumber: lotSuffix,
+        cargoMode: 'FCL',
+        expectedDeliveryDate: '2026-08-24',
+        tradeDirection: 'IMPORT',
+        factoryName: `Nhà máy Fallback ${lotSuffix}`,
+      },
+    });
+    assert.equal(createRes.status, 201, `create failed: ${JSON.stringify(createRes.data)}`);
+    const shipmentId = createRes.data.id;
+    createdShipmentIds.push(shipmentId);
+
+    // Seed 2 containers with different appointments + factory codes.
+    await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerTypeId,
+      containerNumber: `MPLAN-A-${lotSuffix}`,
+      customerAppointmentAt: new Date('2026-08-24T04:00:00.000Z'),
+    });
+    await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerTypeId,
+      containerNumber: `MPLAN-B-${lotSuffix}`,
+      customerAppointmentAt: new Date('2026-08-25T04:00:00.000Z'),
+    });
+    // Cleanup happens via createdShipmentIds → shipmentContainers cascade below.
+
+    const listRes = await testFetch(`/?searchSuffix=${lotSuffix.slice(-5)}&limit=20`, { token: adminToken });
+    assert.equal(listRes.status, 200);
+    const lot = listRes.data.items.find((row: { id: number }) => row.id === shipmentId);
+    assert.ok(lot, `seeded lot ${shipmentId} must appear in /api/shipments`);
+
+    assert.ok(Array.isArray(lot.appointmentGroups),
+      'list response must include appointmentGroups array');
+    assert.equal(lot.appointmentGroups.length, 2,
+      '2 containers with different instants must produce 2 groups, not 1');
+
+    // Earliest-first ordering, ISO instants preserved.
+    assert.deepEqual(
+      lot.appointmentGroups.map((g: { at: string }) => g.at),
+      [
+        '2026-08-24T04:00:00.000Z',
+        '2026-08-25T04:00:00.000Z',
+      ],
+    );
+    // Each group carries the local business-zone date and a per-type summary
+    // that is non-empty — the master plan will render "HH:mm dd/mm/yyyy ·
+    // factory · 1 x 40DC" off these values.
+    for (const g of lot.appointmentGroups) {
+      assert.match(g.localDate, /^\d{4}-\d{2}-\d{2}$/);
+      assert.ok(typeof g.factoryName === 'string' || g.factoryName === null);
+      assert.match(g.containerSummary, /^1 x /);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

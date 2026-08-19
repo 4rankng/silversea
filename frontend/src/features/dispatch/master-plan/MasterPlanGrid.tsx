@@ -1,6 +1,10 @@
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import {
+  appointmentGroupFactorySegment,
+  formatAppointmentGroupLine,
+} from '../../shipments/cus/cusUtils';
 import { formatISODate } from '../../../lib/format';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
@@ -23,6 +27,27 @@ function formatHour(iso: string | null | undefined): string {
   const date = new Date(iso);
   if (isNaN(date.getTime())) return '—';
   return `${date.getHours()}H`;
+}
+
+/**
+ * Per-container appointment line projection for the master-plan "Giờ:" cell.
+ *
+ * EPIC 2.4 mapping: the create form's "Ngày giờ đóng trả" field is per
+ * container, so the lot's close/return time is N values, not one. Render one
+ * display line per group ("09:00 25/08/2026 · Sunrise · 1x40HC"), matching
+ * the CUS workspace contract. When no per-container appointment is set we
+ * fall back to the shipment-level `plannedReturnAt ?? closingAt` so the
+ * master plan never silently drops a schedule that is genuinely only
+ * stored at the shipment level (legacy data).
+ */
+function formatAppointmentGroupLines(item: ShipmentListItem): string[] {
+  if (item.appointmentGroups && item.appointmentGroups.length > 0) {
+    return item.appointmentGroups.map((group) => (
+      `${formatAppointmentGroupLine(group.at)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`
+    ));
+  }
+  const fallback = formatHour(item.plannedReturnAt ?? item.closingAt);
+  return fallback === '—' ? [] : [fallback];
 }
 
 /** Cutoff proximity: orange within 3 days, red when overdue/today. */
@@ -93,9 +118,14 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <div className="master-plan-grid__line">
                     Giao: {formatISODate(item.expectedDeliveryDate)}
                   </div>
-                  <div className="master-plan-grid__line master-plan-grid__line--muted">
-                    Giờ: {formatHour(item.plannedReturnAt ?? item.closingAt)}
-                  </div>
+                  {formatAppointmentGroupLines(item).map((line, lineIdx) => (
+                    <div
+                      key={`${item.id}-${lineIdx}-${line}`}
+                      className="master-plan-grid__line master-plan-grid__line--muted"
+                    >
+                      Giờ: {line}
+                    </div>
+                  ))}
                   <div className={`master-plan-grid__line${urgency === 'none' ? ' master-plan-grid__line--muted' : urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
                     Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
                   </div>

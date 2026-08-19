@@ -528,6 +528,24 @@ export interface ShipmentListItem extends Shipment {
   totalCargoWeightKg: number | null;
   allocationStatus: ShipmentAllocationStatus;
   carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
+  /** Per-instant container appointment groups (EPIC 2.4 mapping). One entry
+   *  per distinct (appointment instant, effective factory) so the dispatch
+   *  master-plan "Giờ:" cell can render N rows for multi-container lots
+   *  whose containers have different close/return times. Mirrors the
+   *  `appointmentGroups` shape from the CUS workspace list response. */
+  appointmentGroups: ShipmentAppointmentGroup[];
+}
+
+export interface ShipmentAppointmentGroup {
+  /** ISO 8601 timestamp of the appointment instant (per-container). */
+  at: string;
+  /** Local-date in the business zone (Asia/Ho_Chi_Minh) — YYYY-MM-DD. */
+  localDate: string;
+  /** Effective factory name resolved through the SILVER L1 precedence
+   *  chain; null when the lot has no factory info at any level. */
+  factoryName: string | null;
+  /** Compact per-type container summary, e.g. "1 x 40DC + 1 x 20DC". */
+  containerSummary: string;
 }
 
 export interface ShipmentListResponse {
