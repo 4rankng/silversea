@@ -254,22 +254,27 @@ describe('SearchableSelect', () => {
 
   it('supports arrow-key and Enter selection', () => {
     const onChange = vi.fn();
+    const onParentKeyDown = vi.fn();
     render(
-      <SearchableSelect
-        id="routeId"
-        value=""
-        onChange={onChange}
-        options={ROUTES}
-        searchPlaceholder="Tìm tuyến đường…"
-      />,
+      <div onKeyDown={onParentKeyDown}>
+        <SearchableSelect
+          id="routeId"
+          value=""
+          onChange={onChange}
+          options={ROUTES}
+          searchPlaceholder="Tìm tuyến đường…"
+        />
+      </div>,
     );
 
     fireEvent.click(screen.getByRole('button'));
     const search = screen.getByRole('combobox');
     fireEvent.keyDown(search, { key: 'ArrowDown' });
+    onParentKeyDown.mockClear();
     fireEvent.keyDown(search, { key: 'Enter' });
 
     expect(onChange).toHaveBeenCalledWith('2');
+    expect(onParentKeyDown).not.toHaveBeenCalled();
   });
 
   it('debounces remote search callbacks for bounded server-side selectors', () => {

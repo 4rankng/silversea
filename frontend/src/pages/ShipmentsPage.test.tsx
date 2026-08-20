@@ -322,7 +322,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
+    expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy();
     expect(within(dialog).getByRole('row', { name: 'MSKU1234567' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
@@ -943,10 +943,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
-    expect(within(dialog).getByRole('heading', { name: 'Trạng thái & bước tiếp theo' })).toBeTruthy();
+    expect(within(dialog).queryByText('Điều hành lô hàng')).toBeNull();
+    expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy();
     expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
-    expect(within(dialog).getByText('Hành động tiếp theo')).toBeTruthy();
+    expect(within(dialog).queryByText('Hành động tiếp theo')).toBeNull();
     expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
     const custodySelect = within(dialog).getByRole('combobox', { name: 'Phơi phiếu' });
     expect(custodySelect).toBeTruthy();
@@ -1018,7 +1018,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(ledger).getByText('Đã tạo chuyến')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hoàn tất' })).toBeTruthy();
     expect(screen.getByLabelText(/Biển số xe của container MSKU1234567/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Lưu container MSKU1234567' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
     expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();
     expect(screen.queryByText('Cước đầu vào')).toBeNull();
@@ -1038,17 +1038,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
-  it('actually discards drafts before leaving edit mode', async () => {
+  it('cancels an individual container draft with Escape', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-555.55' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và hoàn tất' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa' }));
+    const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
+    fireEvent.change(plate, { target: { value: '15C-555.55' } });
+    fireEvent.keyDown(plate, { key: 'Escape' });
 
     expect((screen.getByLabelText(/Biển số xe của container MSKU1234567/) as HTMLInputElement).value).toBe('15C-123.45');
-    expect((screen.getByRole('button', { name: 'Lưu container MSKU1234567' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('asks before closing the mobile container drawer with unsaved changes', async () => {
@@ -1094,7 +1094,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-666.66' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu container MSKU1234567' }));
+    fireEvent.keyDown(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
 
@@ -1139,7 +1139,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).queryByLabelText('Ngày giao hàng')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'Chốt lịch' })).toBeNull();
-    expect(within(dialog).getByText('Lịch giao theo container')).toBeTruthy();
+    expect(within(dialog).getByText('Lịch cont')).toBeTruthy();
     expect(apiPut).not.toHaveBeenCalled();
   });
 
@@ -1160,7 +1160,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const customerAppointment = screen.getByLabelText(/Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/) as HTMLInputElement;
     fireEvent.change(plate, { target: { value: '15C-999.99' } });
     fireEvent.change(customerAppointment, { target: { value: '2026-08-14T10:30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu container MSKU1234567' }));
+    fireEvent.keyDown(customerAppointment, { key: 'Enter' });
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/10',
@@ -1193,12 +1193,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-999.99' } });
     fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { target: { value: '15C-888.88' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu container MSKU1234567' }));
+    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
     expect((screen.getByLabelText(/Biển số xe của container MSKU7654321/) as HTMLInputElement).value).toBe('15C-888.88');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu container MSKU7654321' }));
+    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { key: 'Enter' });
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/11',
       expect.objectContaining({ expectedShipmentVersion: 4, plateNumber: '15C-888.88' }),
@@ -1222,7 +1222,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhà xe' }));
     fireEvent.change(screen.getByLabelText('Tên nhà xe mới'), { target: { value: 'Nhà xe Tân Cảng' } });
     fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '51D-888.99' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu container MSKU1234567' }));
+    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/10',

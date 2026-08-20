@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -42,6 +42,7 @@ function ContainerLineRow({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [selectOpen, setSelectOpen] = useState(false);
   const operationalSignatureRef = useRef(lineOperationalSignature(line));
   const permissions = line.permissions;
   const carrierEditable = editing && permissions.carrierEditable;
@@ -73,6 +74,12 @@ function ContainerLineRow({
   const updateDraft = (patch: Partial<ContainerLineDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
     setDirty(true);
+    setSaveError(null);
+  };
+
+  const discardDraft = () => {
+    setDraft(lineDraft(line));
+    setDirty(false);
     setSaveError(null);
   };
 
@@ -137,7 +144,21 @@ function ContainerLineRow({
   ];
 
   return (
-    <tr className="cus-container-row" aria-labelledby={`${idPrefix}-container-${line.id}`}>
+    <tr
+      className="cus-container-row"
+      aria-labelledby={`${idPrefix}-container-${line.id}`}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing || selectOpen || saving || !dirty || !operationalEditable) return;
+        if (event.key === 'Enter') {
+          if (event.target instanceof HTMLButtonElement) return;
+          event.preventDefault();
+          void save();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          discardDraft();
+        }
+      }}
+    >
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
         <span className="cus-container-row__ordinal">{line.ordinal}</span>
         <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
@@ -145,7 +166,7 @@ function ContainerLineRow({
       <td data-label="Loại cont" className="cus-container-cell">
         {containerTypeEditable ? <>
           <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => updateDraft({ containerTypeId: value })} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
+          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => updateDraft({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
         </> : <strong>{line.containerTypeLabel || '—'}</strong>}
       </td>
       <td data-label="Điều vận" className="cus-container-cell">
@@ -163,7 +184,7 @@ function ContainerLineRow({
             ) : (
               <>
                 <label className="sr-only" htmlFor={`${idPrefix}-carrier-${line.id}`}>Nhà xe của container {line.containerNumber || line.ordinal}</label>
-                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => updateDraft({ carrierKey: value, newCarrierName: '' })} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
+                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => updateDraft({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
                 {plateEditable && <button type="button" className="cus-carrier-editor__switch" onClick={() => updateDraft({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>}
               </>
             )}
@@ -175,28 +196,15 @@ function ContainerLineRow({
         {plateEditable && <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>}
       </td>
       <td data-label="Nâng" className="cus-container-cell">
-        {liftSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Điểm nâng của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => updateDraft({ liftSiteId: value })} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm nâng" /></> : <strong>{line.liftSite || '—'}</strong>}
+        {liftSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Điểm nâng của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => updateDraft({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm nâng" /></> : <strong>{line.liftSite || '—'}</strong>}
       </td>
       <td data-label="Hạ" className="cus-container-cell">
-        {dropoffSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Điểm hạ của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm hạ" /></> : <strong>{line.dropoffSite || '—'}</strong>}
+        {dropoffSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Điểm hạ của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm hạ" /></> : <strong>{line.dropoffSite || '—'}</strong>}
       </td>
       <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell">
         {customerAppointmentEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} /></> : <strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong>}
-      </td>
-      {editing && <td data-label="Lưu" className="cus-container-cell cus-container-cell--save">
-        {operationalEditable && <UUIButton
-          size="sm"
-          color={dirty ? 'primary' : 'secondary'}
-          className="cus-container-save"
-          isDisabled={!dirty || saving}
-          isLoading={saving}
-          showTextWhileLoading
-          onPress={() => void save()}
-          aria-label={`Lưu container ${line.containerNumber || line.ordinal}`}
-          iconLeading={!saving ? <Save size={16} aria-hidden="true" /> : undefined}
-        >Lưu</UUIButton>}
         {saveError && <span className="cus-container-row__error" role="alert">{saveError}</span>}
-      </td>}
+      </td>
     </tr>
   );
 }
@@ -303,7 +311,6 @@ export function ContainerLedger({
               <col className="cus-container-col__site" />
               <col className="cus-container-col__site" />
               <col className="cus-container-col__appointment" />
-              {editing && <col className="cus-container-col__save" />}
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
@@ -314,7 +321,6 @@ export function ContainerLedger({
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
-              {editing && <th scope="col"><span className="sr-only">Lưu container</span></th>}
             </tr></thead>
             <tbody>{detail.containers.map((line) => <ContainerLineRow key={`${line.id}:${resetRevision}`} detail={detail} line={line} onSaved={onLineSaved} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix={idPrefix} onDirtyChange={setLineDirty} onSavingChange={setLineSaving} editing={editing} />)}</tbody>
           </table>

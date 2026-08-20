@@ -331,6 +331,7 @@ export function SearchableSelect({
     }
     if (event.key === 'Enter') {
       event.preventDefault();
+      event.stopPropagation();
       const option = filteredOptions[activeIndex];
       if (option) selectOption(option);
       return;

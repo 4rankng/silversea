@@ -37,11 +37,13 @@ describe('shipment container editor density', () => {
     expect(ledgerSource).toContain('<table className="cus-container-table">');
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1042px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*974px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
     expect(css).not.toMatch(/\.cus-container-record__tier\s*\{/);
+    expect(ledgerSource).not.toContain('cus-container-cell--save');
+    expect(ledgerSource).not.toContain('Lưu container');
   });
 
   it('switches the worksheet into two-column task cards while retaining touch-sized controls', () => {
@@ -49,7 +51,7 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(ledgerSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell--save \.cus-container-save\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*16px;/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*16px;/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 });
