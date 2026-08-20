@@ -109,6 +109,9 @@
   line-height: 1.35;
   text-align: left;
   vertical-align: middle;
+  /* The legacy global table rule makes body cells nowrap. Reset it here so
+     long carrier and location names remain within their own fixed columns. */
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
