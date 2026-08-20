@@ -1096,18 +1096,14 @@ export default function ShipmentsPage() {
             <>
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
-                  <div>
-                    <span className="cus-drawer-eyebrow">Điều hành lô hàng</span>
-                    <h3 id="cus-drawer-workflow-title">Trạng thái &amp; bước tiếp theo</h3>
-                    <p>{drawerItem.factoryName || drawerItem.deliveryLocation || 'Chưa xác định điểm giao'}</p>
-                  </div>
+                  <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>
                   <WorkflowBadge item={drawerItem} />
                 </div>
                 <ShipmentSignals item={drawerItem} />
 
                 <div className="cus-drawer-decision-grid" aria-label="Điều kiện xử lý lô hàng">
                   <div className="cus-drawer-decision cus-drawer-decision--schedule">
-                    <span className="cus-drawer-decision__label">Lịch giao theo container</span>
+                    <span className="cus-drawer-decision__label">Lịch cont</span>
                     {drawerItem.appointmentGroups.length > 0 ? (
                       <div className="cus-drawer-decision__appointments">
                         {drawerItem.appointmentGroups.map((group) => (
@@ -1116,7 +1112,7 @@ export default function ShipmentsPage() {
                           </span>
                         ))}
                       </div>
-                    ) : <strong>Chưa cập nhật lịch cho container</strong>}
+                    ) : <strong>Chưa có lịch</strong>}
                   </div>
                   <div className="cus-drawer-decision cus-drawer-decision--custody">
                     <UUINativeSelect
@@ -1138,8 +1134,7 @@ export default function ShipmentsPage() {
 
                 <div className={`cus-drawer-workflow__action cus-drawer-workflow__action--${drawerItem.action.kind === 'NONE' ? 'idle' : drawerItem.action.enabled ? 'ready' : 'blocked'}`}>
                   <div>
-                    <span className="cus-drawer-eyebrow">Hành động tiếp theo</span>
-                    <strong>{drawerItem.action.kind === 'NONE' ? 'Theo dõi tiến độ lô hàng' : drawerItem.action.label}</strong>
+                    <strong>{drawerItem.action.kind === 'NONE' ? 'Theo dõi' : drawerItem.action.label}</strong>
                     {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p id={`cus-drawer-action-reason-${drawerItem.id}`}>{drawerItem.action.disabledReason}</p>}
                   </div>
                   {shipmentActionButton(drawerItem)}
