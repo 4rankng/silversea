@@ -619,7 +619,9 @@ describe('dispatch detail plan rows', () => {
     // Plain lot: no zoned ports at all.
     const { shipment: plainShipment } = await createAllocatedLot({ carrierType: 'OWN' });
 
-    const unfiltered = await apiFetch<{ items: DetailPlanRow[] }>('/dispatch-detail-plan-rows', { token: dispatcherToken });
+    // q narrows to this run's two lots — an unscoped page-1 fetch depends on
+    // how many READY rows an accumulated local DB happens to hold.
+    const unfiltered = await apiFetch<{ items: DetailPlanRow[] }>(`/dispatch-detail-plan-rows?q=${suffix}`, { token: dispatcherToken });
     assert.equal(unfiltered.status, 200);
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === lhShipment.id));
     assert.ok(unfiltered.data.items.some((item) => item.shipmentId === plainShipment.id));
