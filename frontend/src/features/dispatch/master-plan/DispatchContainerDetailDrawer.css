@@ -117,10 +117,8 @@
   font-weight: var(--fw-semibold);
 }
 
-.dispatch-container-detail__ordinal {
-  display: inline-block;
-  min-width: 20px;
-  margin-right: 6px;
+.dispatch-container-detail__ordinal-column {
+  width: 44px;
   color: var(--ink-3);
   font-size: 11px;
   text-align: center;
@@ -193,6 +191,7 @@
     padding-bottom: 6px;
     border-bottom: 1px solid var(--line);
   }
+  .dispatch-container-detail__ordinal-column { width: auto; }
 }
 
 @media (max-width: 560px) {

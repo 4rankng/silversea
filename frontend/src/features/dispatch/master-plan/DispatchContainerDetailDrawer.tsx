@@ -39,6 +39,7 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
         <caption className="sr-only">Danh sách container và điều vận</caption>
         <thead>
           <tr>
+            <th scope="col" className="dispatch-container-detail__ordinal-column">STT</th>
             <th scope="col">Container</th>
             <th scope="col">Loại cont</th>
             <th scope="col">Điều vận</th>
@@ -52,8 +53,8 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
         <tbody>
           {detail.containers.map((line) => (
             <tr key={line.id} className="dispatch-container-detail__row">
+              <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
               <th scope="row" data-label="Container">
-                <span className="dispatch-container-detail__ordinal">{line.ordinal}</span>
                 <strong>{line.containerNumber || 'Chưa có số container'}</strong>
               </th>
               <td data-label="Loại cont">{line.containerTypeLabel || '—'}</td>

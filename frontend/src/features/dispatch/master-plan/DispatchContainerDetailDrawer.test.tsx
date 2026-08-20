@@ -46,6 +46,9 @@ describe('DispatchContainerDetailDrawer', () => {
 
     expect(await screen.findByRole('dialog', { name: 'Chi tiết cont' })).toBeTruthy();
     await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledWith(1));
+    expect(screen.getByRole('columnheader', { name: 'STT' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: '1' })).toBeTruthy();
+    expect(screen.getByRole('rowheader', { name: 'MSKU1234567' })).toBeTruthy();
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
     expect(screen.getByText(/09:00.*20\/8\/26/)).toBeTruthy();
     expect(screen.getByText('Đã phân xe')).toBeTruthy();
