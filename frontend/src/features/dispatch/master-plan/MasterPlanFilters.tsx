@@ -43,6 +43,37 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
 ];
 
+function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'filters' | 'onChange'>) {
+  const today = new Date().toLocaleDateString('en-CA');
+  const isAllDates = !filters.deliveryDateFrom && !filters.deliveryDateTo;
+  const isToday = filters.deliveryDateFrom === today && filters.deliveryDateTo === today;
+
+  return (
+    <div className="master-plan-filters__date-actions">
+      <UUIButton
+        className={`master-plan-filters__date-action${isAllDates ? ' is-active' : ''}`}
+        size="sm"
+        color="secondary"
+        onPress={() => onChange({ deliveryDateFrom: '', deliveryDateTo: '' })}
+        aria-pressed={isAllDates}
+      >
+        Tất cả các ngày
+      </UUIButton>
+      <UUIButton
+        className={`master-plan-filters__date-action${isToday ? ' is-active' : ''}`}
+        size="sm"
+        color="secondary"
+        onPress={() => {
+          onChange({ deliveryDateFrom: today, deliveryDateTo: today });
+        }}
+        aria-pressed={isToday}
+      >
+        Về hôm nay
+      </UUIButton>
+    </div>
+  );
+}
+
 /**
  * Searchable multi-select facet block for a zone's ports.
  *
@@ -606,26 +637,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 inputProps={{ 'aria-label': 'Đến ngày giao' }}
               />
             </div>
-            {/* Quick date views, same contract as the shipment-detail toolbar. */}
-            <div className="master-plan-filters__date-actions">
-              <UUIButton
-                size="xs"
-                color="secondary"
-                onPress={() => onChange({ deliveryDateFrom: '', deliveryDateTo: '' })}
-              >
-                Tất cả các ngày
-              </UUIButton>
-              <UUIButton
-                size="xs"
-                color="secondary"
-                onPress={() => {
-                  const today = new Date().toLocaleDateString('en-CA');
-                  onChange({ deliveryDateFrom: today, deliveryDateTo: today });
-                }}
-              >
-                Về hôm nay
-              </UUIButton>
-            </div>
+            <QuickDateActions filters={filters} onChange={onChange} />
           </div>
         </div>
         <UUIButton
@@ -678,6 +690,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                   <span className="master-plan-filters__date-sep" aria-hidden="true">→</span>
                   <BufferedUuiDateInput className="master-plan-filters__date-input" inputClassName="master-plan-filters__control" size="sm" value={filters.deliveryDateTo} onChange={(value) => onChange({ deliveryDateTo: value })} inputProps={{ 'aria-label': 'Đến ngày giao' }} />
                 </div>
+                <QuickDateActions filters={filters} onChange={onChange} />
               </div>
             </div>
           </section>

@@ -22,10 +22,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    expect(source).toMatch(/<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
+    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UUINativeSelect label="Trạng thái dữ liệu"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
-    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*center;/);
+    expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*2\s*\/\s*-1;[^}]*align-items:\s*end;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
@@ -43,8 +43,8 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-workspace__header\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*display:\s*contents;/);
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filter:nth-child\(5\)\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filter:nth-child\(6\)\s*\{[^}]*grid-column:\s*1;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*2;[^}]*align-self:\s*end;/);
   });

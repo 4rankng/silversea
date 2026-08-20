@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -40,6 +42,8 @@ describe('MasterPlanFilters', () => {
     const drawer = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
     expect(within(drawer).getByRole('heading', { name: 'Phân xe và ngày giao' })).toBeTruthy();
     expect(within(drawer).getByRole('heading', { name: 'Cảng và nhà xe' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Tất cả các ngày' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Về hôm nay' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Xem kết quả' })).toBeTruthy();
 
@@ -51,6 +55,27 @@ describe('MasterPlanFilters', () => {
       portIds: [],
       carrierKeys: [],
     });
+  });
+
+  it('renders date shortcuts as explicit pressed buttons', () => {
+    render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Tất cả các ngày' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Về hôm nay' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('uses the compact control tokens for the bespoke desktop carrier facet', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const triggerRule = css.match(/\.master-plan-filters__facet-trigger\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const selectRule = css.match(/\.master-plan-filters__select > button\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(triggerRule).toContain('min-height: var(--control-compact-h)');
+    expect(triggerRule).toContain('height: var(--control-compact-h)');
+    expect(triggerRule).toContain('font-size: var(--control-compact-font-size)');
+    expect(triggerRule).toContain('line-height: var(--control-compact-line-height)');
+    expect(selectRule).toContain('height: var(--control-compact-h)');
+    expect(selectRule).toContain('min-height: var(--control-compact-h)');
+    expect(css).toMatch(/@media \(max-width: 767px\)[\s\S]*?\.master-plan-filters__facet-trigger\s*\{[\s\S]*?height:\s*var\(--control-touch-h\);/);
   });
 
   it('temporarily hides the Lạch Huyện and Hải Phòng port facets while preserving other zones', async () => {

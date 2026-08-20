@@ -375,13 +375,15 @@ describe('MasterPlanFilters', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('display: flex');
     expect(css).toContain('flex-wrap: wrap');
-    expect(css).toContain('flex: 0 1 360px');
+    expect(css).toContain('flex: 0 1 608px');
     expect(css).toContain('flex: 0 0 132px');
     expect(css).toContain('flex: 0 0 180px');
     expect(css).toContain('flex: 0 0 auto');
     expect(css).toContain('grid-template-columns: minmax(132px, 1fr) auto minmax(132px, 1fr)');
     expect(css).toContain('.master-plan-filters__date-inputs');
     expect(css).toContain('.master-plan-filters__date-range');
+    expect(css).toContain('grid-template-columns: minmax(280px, 360px) max-content');
+    expect(css).toContain('.master-plan-filters__date-action');
     expect(css).toContain('.master-plan-filters__actions');
     expect(css).toContain('.drawer.master-plan-filters__drawer');
     expect(css).toContain('max-width: 100%');

@@ -46,7 +46,7 @@
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; min-width: 0; align-items: center; }
+.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
@@ -329,7 +329,8 @@
   .shipments-detail-workspace__header { padding: 14px 0; }
   .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
   .shipments-detail-filter--search,
-  .shipments-detail-filter:nth-child(4) { grid-column: 1 / -1; }
+  .shipments-detail-filter:nth-child(4),
+  .shipments-detail-filter:nth-child(5) { grid-column: 1 / -1; }
   .shipment-container-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-summary > div:nth-child(2) { border-right: 0; }
   .shipment-container-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
@@ -356,11 +357,9 @@
 }
 
 @media (max-width: 520px) {
-  .shipments-detail-workspace__header { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
-  /* Keep the last status filter beside its actions instead of leaving a
-     full-width control above a separate button row. Earlier filters retain
-     their own full rows for readable labels and touch targets. */
-  .shipments-detail-filters { display: contents; }
+  /* Keep the status filter and date/reset actions in the same grid row. Earlier
+     filters retain their own full rows for readable labels and touch targets. */
+  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr) auto; }
   .shipments-detail-filter--search,
   .shipments-detail-filter:nth-child(4),
   .shipments-detail-filter:nth-child(2),

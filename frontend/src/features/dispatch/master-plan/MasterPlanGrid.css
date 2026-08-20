@@ -38,6 +38,15 @@
   width: auto;
 }
 
+/* This toolbar combines UUI controls with the port/carrier facet trigger.
+   Keep every desktop surface on the same compact operational rhythm. */
+@media (min-width: 768px) {
+  .master-plan-filters__select > button {
+    height: var(--control-compact-h);
+    min-height: var(--control-compact-h);
+  }
+}
+
 .master-plan-filters__direction {
   /* The field label needs a little more room than the selected "Tất cả"
      value; anything wider is unused toolbar space. */
@@ -51,9 +60,18 @@
 }
 
 .master-plan-filters__date-range {
-  flex: 0 1 360px;
+  /* Keep the date inputs and their related actions in one operational row.
+     The date field intentionally takes a complete flex line when needed so
+     its shortcuts and the create action never become an orphaned button row. */
+  flex: 0 1 608px;
   display: grid;
-  gap: 5px;
+  grid-template-columns: minmax(280px, 360px) max-content;
+  gap: 5px 8px;
+  align-items: end;
+}
+
+.master-plan-filters__date-range > .master-plan-filters__label {
+  grid-column: 1 / -1;
 }
 
 .master-plan-filters__date-inputs {
@@ -78,7 +96,29 @@
 .master-plan-filters__date-actions {
   display: flex;
   gap: 6px;
-  margin-top: 2px;
+  grid-column: 2;
+  grid-row: 2;
+  align-items: stretch;
+  white-space: nowrap;
+}
+
+.master-plan-filters__date-action {
+  min-height: var(--control-compact-h);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg-2);
+}
+
+.master-plan-filters__date-action:hover {
+  border-color: var(--fg-3);
+  background: var(--surface-2);
+  color: var(--fg-1);
+}
+
+.master-plan-filters__date-action.is-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-ink);
 }
 
 .master-plan-filters__actions {
@@ -138,6 +178,16 @@
   width: 100%;
 }
 
+.master-plan-filters__drawer-fields .master-plan-filters__date-range {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.master-plan-filters__drawer-fields .master-plan-filters__date-actions {
+  grid-column: 1;
+  grid-row: auto;
+  flex-wrap: wrap;
+}
+
 /* Multi-select facet controls for ports and carriers */
 .master-plan-filters__facet {
   flex: 0 0 200px;
@@ -149,19 +199,32 @@
 }
 
 .master-plan-filters__facet-trigger {
+  box-sizing: border-box;
   display: flex;
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 0 10px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--fg-2);
-  font-size: 13px;
+  font-size: var(--control-compact-font-size);
   font-weight: 400;
+  line-height: var(--control-compact-line-height);
   cursor: pointer;
   transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+@media (max-width: 767px) {
+  .master-plan-filters__facet-trigger {
+    min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
+    font-size: var(--control-compact-touch-font-size);
+    line-height: var(--control-compact-touch-line-height);
+  }
 }
 
 .master-plan-filters__facet-trigger:hover {
