@@ -610,37 +610,41 @@ function buildContainerSummary(rows: ContainerRow[], packageCount: number | null
 function buildAppointmentGroups(
   containers: ContainerRow[],
   shipment: ShipmentRow,
-  factoryNameBySiteId: Map<number, string>,
-): Array<{ at: string; localDate: string; factoryName: string | null; containerSummary: string }> {
-  const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; group: ContainerRow[] }>();
+  factoryNameBySiteId: Map<number, { shortName: string; fullName: string }>,
+): Array<{ at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; containerSummary: string }> {
+  const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; group: ContainerRow[] }>();
   for (const container of containers) {
     if (container.customerAppointmentAt == null) continue;
     const localDate = localDateInBusinessZone(container.customerAppointmentAt) ?? '0000-00-00';
-    const factoryName = container.operationalSiteId != null
-      ? factoryNameBySiteId.get(container.operationalSiteId)
-        ?? trimOrNull(shipment.factoryName)
-        ?? null
-      : shipment.operationalSiteId != null
-        ? factoryNameBySiteId.get(shipment.operationalSiteId)
-          ?? trimOrNull(shipment.factoryName)
-          ?? null
-        : trimOrNull(shipment.factoryName) ?? null;
+    const factorySiteId = container.operationalSiteId ?? shipment.operationalSiteId ?? null;
+    const factorySite = factorySiteId != null
+      ? factoryNameBySiteId.get(factorySiteId)
+      : null;
+    const legacyFactoryName = trimOrNull(shipment.factoryName);
+    const factoryShortName = factorySite?.shortName ?? legacyFactoryName ?? null;
+    const factoryFullName = factorySite?.fullName ?? legacyFactoryName ?? null;
+    const factoryName = factoryShortName;
+    const factoryKey = factorySite != null && factorySiteId != null
+      ? `site:${factorySiteId}`
+      : `legacy:${factoryFullName ?? ''}`;
     const at = container.customerAppointmentAt.toISOString();
-    const key = `${at}|${factoryName ?? ''}`;
+    const key = `${at}|${factoryKey}`;
     const entry = byKey.get(key);
     if (entry) {
       entry.group.push(container);
     } else {
-      byKey.set(key, { at, localDate, factoryName, group: [container] });
+      byKey.set(key, { at, localDate, factoryName, factoryShortName, factoryFullName, group: [container] });
     }
   }
   return Array.from(byKey.values())
     .sort((a, b) => a.at.localeCompare(b.at)
       || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''))
-    .map(({ at, localDate, factoryName, group }) => ({
+    .map(({ at, localDate, factoryName, factoryShortName, factoryFullName, group }) => ({
       at,
       localDate,
       factoryName,
+      factoryShortName,
+      factoryFullName,
       containerSummary: countContainerTypes(group),
     }));
 }
@@ -685,12 +689,13 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
-      factoryNameBySiteId: new Map<number, string>(),
+      factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
     };
   }
 
   const [
     containerRows,
+    shipmentSiteRows,
     declarationRows,
     lockRows,
     debitNoteRows,
@@ -716,6 +721,9 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
+    executor.select({ operationalSiteId: s.shipments.operationalSiteId })
+      .from(s.shipments)
+      .where(inArray(s.shipments.id, shipmentIds)),
     executor.select({
       id: s.shipmentDeclarations.id,
       shipmentId: s.shipmentDeclarations.shipmentId,
@@ -943,19 +951,25 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
 
   // Effective-factory labels for per-container authority + shipment fallback:
   // short name preferred, unique by site id (one lookup for the whole page).
-  const factoryNameBySiteId = new Map<number, string>();
+  const factoryNameBySiteId = new Map<number, { shortName: string; fullName: string }>();
   {
     const siteIds = new Set<number>();
     for (const container of containerRows) {
       if (container.operationalSiteId != null) siteIds.add(container.operationalSiteId);
     }
+    for (const shipment of shipmentSiteRows) {
+      if (shipment.operationalSiteId != null) siteIds.add(shipment.operationalSiteId);
+    }
     if (siteIds.size > 0) {
       const siteRows = await executor.select({
         id: s.operationalSites.id,
-        label: sql<string>`coalesce(nullif(btrim(${s.operationalSites.shortName}), ''), ${s.operationalSites.name})`,
+        shortName: sql<string>`coalesce(nullif(btrim(${s.operationalSites.shortName}), ''), ${s.operationalSites.name})`,
+        fullName: s.operationalSites.name,
       }).from(s.operationalSites)
         .where(inArray(s.operationalSites.id, [...siteIds]));
-      for (const siteRow of siteRows) factoryNameBySiteId.set(siteRow.id, siteRow.label);
+      for (const siteRow of siteRows) {
+        factoryNameBySiteId.set(siteRow.id, { shortName: siteRow.shortName, fullName: siteRow.fullName });
+      }
     }
   }
 
@@ -1118,14 +1132,14 @@ function buildListItem(
   // shipment-level factory text when no container names a site.
   const containerFactoryNames = uniqueNonEmpty(containers.map((container) => (
     container.operationalSiteId != null
-      ? support.factoryNameBySiteId.get(container.operationalSiteId) ?? null
+      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
       : null
   )));
   const effectiveFactoryNames = containerFactoryNames.length > 0
     ? containerFactoryNames
     : uniqueNonEmpty([
         row.shipment.operationalSiteId != null
-          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId) ?? null
+          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
           : null,
         trimOrNull(row.shipment.factoryName),
       ]);

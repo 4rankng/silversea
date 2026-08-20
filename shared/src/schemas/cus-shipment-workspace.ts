@@ -205,12 +205,15 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   // entry per distinct (datetime, factory), with a container-type summary
   // ("2x20HC + 1x40HC") so every container close/return time remains visible
   // even when multiple containers share a factory and calendar date.
-  // `factoryName` is the effective factory label (container site → shipment
-  // site → factory text); null groups use the shipment default.
+  // `factoryName` remains the short operational label for compatibility. Both
+  // master-data names are also returned so legal-document preparation never
+  // needs to infer a full name from the operational display value.
   appointmentGroups: z.array(z.object({
     at: z.string().datetime(),
     localDate: z.string(),
     factoryName: z.string().nullable(),
+    factoryShortName: z.string().nullable(),
+    factoryFullName: z.string().nullable(),
     containerSummary: z.string(),
   }).strict()),
   carrierAssignments: z.array(z.object({

@@ -64,8 +64,8 @@ const row: ShipmentCusWorkspaceListItem = {
   customerAppointmentAts: ['2026-08-12T02:30:00.000Z'],
   effectiveFactoryNames: ['Nhà máy ABC'],
   appointmentGroups: [
-    { at: new Date(2026, 7, 12, 9, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', containerSummary: '1x40HC' },
-    { at: new Date(2026, 7, 12, 16, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', containerSummary: '1x20GP' },
+    { at: new Date(2026, 7, 12, 9, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', factoryShortName: 'Nhà máy ABC', factoryFullName: 'Nhà máy ABC', containerSummary: '1x40HC' },
+    { at: new Date(2026, 7, 12, 16, 30).toISOString(), localDate: '2026-08-12', factoryName: 'Nhà máy ABC', factoryShortName: 'Nhà máy ABC', factoryFullName: 'Nhà máy ABC', containerSummary: '1x20GP' },
   ],
   carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
   customerNotes: 'Giao buổi sáng',

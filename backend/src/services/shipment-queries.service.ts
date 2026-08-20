@@ -20,6 +20,7 @@ import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';
 // Codebase convention: each query service defines its own operational-name
 // expression (see driver/gps/dispatch-planning/trip-queries services).
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
 export type AllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 export const ALLOCATION_STATUSES: AllocationStatus[] = [
@@ -709,9 +710,12 @@ export interface ShipmentAppointmentGroup {
   at: string;
   /** Local-date in the business zone (Asia/Ho_Chi_Minh) — YYYY-MM-DD. */
   localDate: string;
-  /** Effective factory name resolved through the SILVER L1 precedence chain;
-   *  null when the lot has no factory information at any level. */
+  /** Backward-compatible operational label: the factory short name. */
   factoryName: string | null;
+  /** Effective factory short name for operational surfaces. */
+  factoryShortName: string | null;
+  /** Effective factory full name, retained for legal-document preparation. */
+  factoryFullName: string | null;
   /** Compact per-type container summary, e.g. "1 x 40DC + 1 x 20DC". */
   containerSummary: string;
 }
@@ -719,7 +723,9 @@ export interface ShipmentAppointmentGroup {
 type ShipmentAppointmentGroupSource = {
   shipmentId: number;
   at: Date;
-  factoryName: string | null;
+  factorySiteId: number | null;
+  factoryShortName: string | null;
+  factoryFullName: string | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
 };
@@ -733,7 +739,10 @@ export function groupShipmentAppointmentGroups(
 
   for (const row of rows) {
     const at = row.at.toISOString();
-    const key = `${at}|${row.factoryName ?? ''}`;
+    const factoryKey = row.factorySiteId != null
+      ? `site:${row.factorySiteId}`
+      : `legacy:${row.factoryFullName ?? row.factoryShortName ?? ''}`;
+    const key = `${at}|${factoryKey}`;
     let buckets = byShipment.get(row.shipmentId);
     if (!buckets) {
       buckets = new Map();
@@ -748,7 +757,9 @@ export function groupShipmentAppointmentGroups(
     buckets.set(key, {
       at,
       localDate: localDateInBusinessZone(row.at) ?? '0000-00-00',
-      factoryName: row.factoryName,
+      factoryName: row.factoryShortName,
+      factoryShortName: row.factoryShortName,
+      factoryFullName: row.factoryFullName,
       containerSummary: '',
       typeCounts: new Map([[typeLabel, 1]]),
     });
@@ -800,11 +811,15 @@ export async function loadShipmentListAppointmentGroups(
     ...shipments.map((shipment) => shipment.operationalSiteId),
   ].filter((id): id is number => id != null))];
   const sitesById = siteIds.length === 0
-    ? new Map<number, string | null>()
-    : new Map((await db.select({ id: s.operationalSites.id, name: s.operationalSites.name })
+    ? new Map<number, { shortName: string; fullName: string }>()
+    : new Map((await db.select({
+      id: s.operationalSites.id,
+      shortName: SITE_OPERATIONAL_NAME,
+      fullName: s.operationalSites.name,
+    })
       .from(s.operationalSites)
       .where(inArray(s.operationalSites.id, siteIds)))
-      .map((row) => [row.id, row.name]));
+      .map((row) => [row.id, { shortName: row.shortName, fullName: row.fullName }]));
 
   const shipmentsById = new Map(shipments.map((shipment) => [shipment.id, shipment]));
 
@@ -814,14 +829,15 @@ export async function loadShipmentListAppointmentGroups(
   return groupShipmentAppointmentGroups(containerRows.flatMap((row) => {
     if (row.customerAppointmentAt == null) return [];
     const shipment = shipmentsById.get(row.shipmentId);
-    const factoryName = (row.operationalSiteId != null ? sitesById.get(row.operationalSiteId) : null)
-      ?? (shipment?.operationalSiteId != null ? sitesById.get(shipment.operationalSiteId) : null)
-      ?? shipment?.factoryName?.trim()
-      ?? null;
+    const factorySiteId = row.operationalSiteId ?? shipment?.operationalSiteId ?? null;
+    const factorySite = factorySiteId != null ? sitesById.get(factorySiteId) : null;
+    const legacyFactoryName = shipment?.factoryName?.trim() ?? null;
     return [{
       shipmentId: row.shipmentId,
       at: row.customerAppointmentAt,
-      factoryName,
+      factorySiteId,
+      factoryShortName: factorySite?.shortName ?? legacyFactoryName,
+      factoryFullName: factorySite?.fullName ?? legacyFactoryName,
       containerTypeCode: row.containerTypeCode,
       containerTypeName: row.containerTypeName,
     }];

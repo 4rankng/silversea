@@ -550,9 +550,12 @@ export interface ShipmentAppointmentGroup {
   at: string;
   /** Local-date in the business zone (Asia/Ho_Chi_Minh) — YYYY-MM-DD. */
   localDate: string;
-  /** Effective factory name resolved through the SILVER L1 precedence
-   *  chain; null when the lot has no factory info at any level. */
+  /** Backward-compatible operational label: the factory short name. */
   factoryName: string | null;
+  /** Effective factory short name for operational surfaces. */
+  factoryShortName: string | null;
+  /** Effective factory full name for legal-document preparation. */
+  factoryFullName: string | null;
   /** Compact per-type container summary, e.g. "1 x 40DC + 1 x 20DC". */
   containerSummary: string;
 }

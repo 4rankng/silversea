@@ -56,6 +56,7 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 // ── Scaffolding id buckets (cleaned up in reverse-FK order in `after`) ──────
 const createdShipmentIds: number[] = [];
 const createdPortIds: number[] = [];
+const createdOperationalSiteIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
@@ -422,6 +423,9 @@ after(async () => {
         await tx.delete(s.shipmentDocuments)
           .where(inArray(s.shipmentDocuments.shipmentId, createdShipmentIds));
         await tx.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      }
+      if (createdOperationalSiteIds.length > 0) {
+        await tx.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdOperationalSiteIds));
       }
       if (createdCustomerIds.length > 0) {
         await tx.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds));
@@ -1268,6 +1272,60 @@ describe('GET /', () => {
       assert.match(g.containerSummary, /^1 x /);
     }
   });
+
+  test('appointment groups use a factory short name for operational lists', async () => {
+    const lotSuffix = `MPLAN-SHORT-${suffix}-${Date.now().toString(36)}`;
+    const fullFactoryName = `Nhà máy Biển Bạc tại Khu công nghiệp Yên Phong, Bắc Ninh ${lotSuffix}`;
+    const shortFactoryName = `Biển Bạc Yên Phong ${lotSuffix}`;
+    const [site] = await db.insert(s.operationalSites).values({
+      customerId,
+      code: `MPLAN-SHORT-${Math.random().toString(36).slice(2, 8)}`,
+      name: fullFactoryName,
+      shortName: shortFactoryName,
+      siteType: 'FACTORY',
+      address: 'Bắc Ninh',
+    }).returning();
+    createdOperationalSiteIds.push(site.id);
+
+    const createRes = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        customerId,
+        blNumber: lotSuffix,
+        cargoMode: 'FCL',
+        expectedDeliveryDate: '2026-08-24',
+        tradeDirection: 'IMPORT',
+      },
+    });
+    assert.equal(createRes.status, 201, `create failed: ${JSON.stringify(createRes.data)}`);
+    createdShipmentIds.push(createRes.data.id);
+
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: createRes.data.id,
+      containerTypeId,
+      containerNumber: `MPLAN-SHORT-${Math.random().toString(36).slice(2, 10)}`,
+      operationalSiteId: site.id,
+      customerAppointmentAt: new Date('2026-08-24T04:00:00.000Z'),
+    });
+
+    const listRes = await testFetch(`/?searchSuffix=${lotSuffix.slice(-5)}&limit=20`, { token: adminToken });
+    assert.equal(listRes.status, 200);
+    const lot = listRes.data.items.find((row: { id: number }) => row.id === createRes.data.id);
+    assert.ok(lot, `seeded lot ${createRes.data.id} must appear in /api/shipments`);
+    assert.equal(lot.appointmentGroups.length, 1);
+    assert.equal(lot.appointmentGroups[0]?.factoryName, shortFactoryName);
+    assert.equal(lot.appointmentGroups[0]?.factoryShortName, shortFactoryName);
+    assert.equal(lot.appointmentGroups[0]?.factoryFullName, fullFactoryName);
+
+    const cusListRes = await testFetch(`/cus-workspace?searchSuffix=${lotSuffix.slice(-5)}&limit=20`, { token: adminToken });
+    assert.equal(cusListRes.status, 200);
+    const cusLot = cusListRes.data.items.find((row: { id: number }) => row.id === createRes.data.id);
+    assert.ok(cusLot, `seeded lot ${createRes.data.id} must appear in /api/shipments/cus-workspace`);
+    assert.equal(cusLot.appointmentGroups[0]?.factoryName, shortFactoryName);
+    assert.equal(cusLot.appointmentGroups[0]?.factoryShortName, shortFactoryName);
+    assert.equal(cusLot.appointmentGroups[0]?.factoryFullName, fullFactoryName);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1999,10 +2057,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     const row = list.data.items.find((item: { id: number }) => item.id === fixture.shipment.id);
     assert.ok(row, 'CUS list includes the grouped shipment');
     // Groups carry (local date, factory) identity since SILVER L1; this
-    // fixture has no factory → null factoryName on both groups.
+    // Fixture has no factory, so each name projection is null on both groups.
     assert.deepEqual(row.appointmentGroups, [
-      { at: '2026-08-25T02:00:00.000Z', localDate: '2026-08-25', factoryName: null, containerSummary: `2x${firstType.code}` },
-      { at: '2026-09-01T09:30:00.000Z', localDate: '2026-09-01', factoryName: null, containerSummary: `1x${secondType.code}` },
+      { at: '2026-08-25T02:00:00.000Z', localDate: '2026-08-25', factoryName: null, factoryShortName: null, factoryFullName: null, containerSummary: `2x${firstType.code}` },
+      { at: '2026-09-01T09:30:00.000Z', localDate: '2026-09-01', factoryName: null, factoryShortName: null, factoryFullName: null, containerSummary: `1x${secondType.code}` },
     ]);
   });
 

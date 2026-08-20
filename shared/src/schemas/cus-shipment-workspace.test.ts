@@ -117,7 +117,7 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     liftSiteNames: ['Cảng Đình Vũ'],
     dropoffSiteNames: ['Bãi Tân Vũ'],
     customerAppointmentAts: ['2026-08-11T02:00:00.000Z'],
-    appointmentGroups: [{ at: '2026-08-11T02:00:00.000Z', localDate: '2026-08-11', factoryName: 'Nhà máy A', containerSummary: '1x40HC' }],
+    appointmentGroups: [{ at: '2026-08-11T02:00:00.000Z', localDate: '2026-08-11', factoryName: 'Nhà máy A', factoryShortName: 'Nhà máy A', factoryFullName: 'Nhà máy A', containerSummary: '1x40HC' }],
     carrierAssignments: [{ carrierName: 'Nhà xe An Phát', plateNumber: '15C-123.45' }],
     customerNotes: null,
     operationalNotes: null,
