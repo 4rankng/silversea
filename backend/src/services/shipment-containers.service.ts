@@ -15,6 +15,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import {
   canonicalShipmentStatus,
+  localDateInBusinessZone,
   shipmentContainerBatchSchema,
   updateShipmentSchema,
   validateContainerNumber,
@@ -23,7 +24,6 @@ import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
   ensureReadyShipmentHandoff,
-  hasDispatchDate,
   isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
 import {
@@ -168,8 +168,11 @@ function deriveExpectedDeliveryDateFromContainers(
   let earliest: string | null = null;
   for (const container of containers) {
     if (!container.customerAppointmentAt) continue;
-    // Date part only — appointment timestamps arrive as ISO strings.
-    const day = container.customerAppointmentAt.slice(0, 10);
+    // Every schedule projection uses the Vietnam business day. Slicing an ISO
+    // string would derive a UTC date for a late-evening appointment, while the
+    // single-container save path correctly uses Asia/Ho_Chi_Minh.
+    const day = localDateInBusinessZone(new Date(container.customerAppointmentAt));
+    if (!day) continue;
     if (!earliest || day < earliest) earliest = day;
   }
   return earliest;
@@ -184,6 +187,7 @@ export async function reconcileShipmentContainersInTx(
   const [shipment] = await tx.select({
     shippingLineName: s.shipments.shippingLineName,
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    cargoMode: s.shipments.cargoMode,
     closingAt: s.shipments.closingAt,
     plannedReturnAt: s.shipments.plannedReturnAt,
     status: s.shipments.status,
@@ -257,15 +261,25 @@ export async function reconcileShipmentContainersInTx(
     }
   }
 
-  // Per-container delivery dates drive the shipment-level expected delivery
-  // date when the caller never set one: earliest container Ngày đóng/trả wins
-  // and may flip PENDING_DATE → READY_FOR_DISPATCH (+ handoff), mirroring the
-  // updateShipment date-gate. An explicit shipment-level date is never
-  // overwritten by a later reconcile.
+  // The shipment-level date is an internal projection of the earliest
+  // per-container appointment, never an independently edited delivery date.
+  // It remains available to dispatch readiness and pricing while every UI
+  // schedule renders the individual container times.
   const derivedDate = deriveExpectedDeliveryDateFromContainers(synchronizedContainers);
-  if (derivedDate && shipment.expectedDeliveryDate == null) {
-    const becomesReady = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE') === 'PENDING_DATE'
-      && !hasDispatchDate(shipment);
+  const canonicalStatus = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE');
+  if (
+    shipment.cargoMode === 'FCL'
+    && derivedDate == null
+    && canonicalStatus === 'READY_FOR_DISPATCH'
+    && current.some((container) => container.customerAppointmentAt != null)
+  ) {
+    throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+  }
+  if (derivedDate !== shipment.expectedDeliveryDate) {
+    const becomesReady = shipment.cargoMode === 'FCL'
+      && canonicalStatus === 'PENDING_DATE'
+      && derivedDate != null
+      ;
     const [updatedShipment] = await tx.update(s.shipments).set({
       expectedDeliveryDate: derivedDate,
       ...(becomesReady ? { status: 'READY_FOR_DISPATCH' as const } : {}),
@@ -563,4 +577,3 @@ export async function batchUpsertShipmentContainers(
   }
   return result;
 }
-

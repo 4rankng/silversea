@@ -34,7 +34,7 @@ describe('shipment create model', () => {
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-trade-direction',
       'shipment-route',
-      'shipment-expected-delivery',
+      'container-row-1-customer-appointment',
     ]);
     expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
   });
@@ -78,14 +78,13 @@ describe('shipment create model', () => {
     }]);
   });
 
-  it('keeps lift and drop ports on each FCL container instead of collapsing them into the lot', () => {
+  it('keeps lift, drop, and appointment times on each FCL container instead of collapsing them into the lot', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
       routeId: '11',
       blNumber: 'BL-TWO-CONTAINERS',
       tradeDirection: 'IMPORT' as const,
-      expectedDeliveryDate: '2026-08-14',
     };
     const secondContainer: ShipmentContainerDraft = {
       ...container,
@@ -93,9 +92,10 @@ describe('shipment create model', () => {
       containerNumber: 'MSCU6639871',
       pickupPortId: '23',
       dropoffPortId: '24',
+      customerAppointmentAt: '2026-08-15T09:00',
     };
 
-    expect(getShipmentCreateReadiness(form, [container, secondContainer]).dispatchReady).toBe(true);
+    expect(getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00' }, secondContainer]).dispatchReady).toBe(true);
     expect(buildShipmentContainerPayload(form, [container, secondContainer])).toEqual([
       expect.objectContaining({ pickupPortId: 21, dropoffPortId: 22 }),
       expect.objectContaining({ pickupPortId: 23, dropoffPortId: 24 }),
@@ -171,12 +171,12 @@ describe('shipment create model', () => {
       blNumber: 'BL-FCL',
       tradeDirection: 'IMPORT' as const,
     };
-    const readiness = getShipmentCreateReadiness({ ...form, expectedDeliveryDate: '2026-08-14' }, [container]);
+    const readiness = getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00' }]);
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
   });
 
-  it('requires an FCL dispatch schedule date that can make intake ready', () => {
+  it('requires an appointment for every FCL container before the lot can be dispatched', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -189,11 +189,11 @@ describe('shipment create model', () => {
 
     const missingSchedule = getShipmentCreateReadiness(form, [container]);
     expect(missingSchedule.issues).toContainEqual(expect.objectContaining({
-      fieldId: 'shipment-expected-delivery',
+      fieldId: 'container-row-1-customer-appointment',
       sectionId: 'schedule',
     }));
 
-    expect(getShipmentCreateReadiness({ ...form, expectedDeliveryDate: '2026-08-14' }, [container]).dispatchReady).toBe(true);
+    expect(getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00' }]).dispatchReady).toBe(true);
   });
 
   it('rejects zero-valued LCL quantities and preserves the common factory detail', () => {
@@ -237,7 +237,7 @@ describe('shipment create model', () => {
     ]);
   });
 
-  it('uses one shipment dispatch date for FCL readiness and preserves a separate container appointment', () => {
+  it('keeps FCL root delivery dates empty because the first container appointment is authoritative', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -248,9 +248,9 @@ describe('shipment create model', () => {
     const scheduled = { ...form, expectedDeliveryDate: '2026-08-20' };
     const readiness = getShipmentCreateReadiness(scheduled, [{ ...container, containerNumber: '', customerAppointmentAt: '2026-08-21T09:00' }]);
 
-    expect(readiness.initialStatus).toBe('READY_FOR_DISPATCH');
+    expect(readiness.initialStatus).toBe('PENDING_DATE');
     expect(readiness.dispatchReady).toBe(true);
-    expect(buildShipmentRootPayload(scheduled, [{ ...container, customerAppointmentAt: '2026-08-21T09:00' }], []).expectedDeliveryDate).toBe('2026-08-20');
+    expect(buildShipmentRootPayload(scheduled, [{ ...container, customerAppointmentAt: '2026-08-21T09:00' }], []).expectedDeliveryDate).toBeUndefined();
   });
 
   it('formats LCL extra delivery dates into driverNotes and only for LCL', () => {

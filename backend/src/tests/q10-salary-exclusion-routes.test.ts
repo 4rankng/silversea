@@ -61,10 +61,11 @@ async function mkCatalogs() {
   const [customer] = await db.select({ id: s.customers.id }).from(s.customers).limit(1);
   const [route] = await db.select({ id: s.routes.id }).from(s.routes).limit(1);
   const [cargoType] = await db.select({ id: s.cargoTypes.id }).from(s.cargoTypes).limit(1);
-  if (!customer || !route || !cargoType) {
-    throw new Error('Missing seeded catalogs for q10 salary exclusion route test');
-  }
-  return { customer, route, cargoType };
+  return {
+    customer: customer ?? (await db.insert(s.customers).values({ name: `Q10 catalog ${suffix}` }).returning())[0]!,
+    route: route ?? (await db.insert(s.routes).values({ name: `Q10 route ${suffix}` }).returning())[0]!,
+    cargoType: cargoType ?? (await db.insert(s.cargoTypes).values({ name: `Q10 cargo ${suffix}` }).returning())[0]!,
+  };
 }
 
 async function mkPendingDriver(tag: string, actorId: number) {

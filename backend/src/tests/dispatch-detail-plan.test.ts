@@ -1635,7 +1635,10 @@ describe('dispatch fleet LH truck suggestions', () => {
       assert.equal(response.status, 200, JSON.stringify(response.data));
       assert.match(response.data.date, /^\d{4}-\d{2}-\d{2}$/);
       if (response.data.date === today) {
-        assert.deepEqual(response.data.items, []);
+        // Other cases in this suite intentionally create D-1/D+1 evidence
+        // for the real business date. Verify this case's own truck is absent
+        // instead of assuming a globally empty shared test database.
+        assert.ok(!response.data.items.some((item) => item.truckId === truck.id));
       }
     });
 
@@ -1730,4 +1733,3 @@ describe('review fixes: carrier switch + explicit plate clear', () => {
     assert.equal(after.plannedVehiclePlateNumber, null, 'clearVehicle must unassign the plate');
   });
 });
-

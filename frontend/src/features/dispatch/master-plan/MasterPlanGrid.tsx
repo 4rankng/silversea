@@ -12,6 +12,7 @@ import './MasterPlanGrid.css';
 interface MasterPlanGridProps {
   items: ShipmentListItem[];
   onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
+  onViewContainers?: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -99,7 +100,7 @@ function formatContainerPortGroupLines(item: ShipmentListItem): string[] {
  * per cell, no horizontal scroll. Col 7 exposes its allocation values as the
  * edit trigger, matching the full-cell editing contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} }: MasterPlanGridProps) {
   return (
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
@@ -130,7 +131,7 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
                   <div className="master-plan-grid__line">
-                    Giao: {formatISODate(item.expectedDeliveryDate)}
+                    Lịch cont sớm nhất: {formatISODate(item.expectedDeliveryDate)}
                   </div>
                   {formatAppointmentGroupLines(item).map((line, lineIdx) => (
                     <div
@@ -180,6 +181,15 @@ export function MasterPlanGrid({ items, onAllocate }: MasterPlanGridProps) {
                   <div className="master-plan-grid__line master-plan-grid__line--muted">
                     {formatWeight(item.totalCargoWeightKg)}
                   </div>
+                  <UUIButton
+                    size="xs"
+                    color="tertiary"
+                    className="master-plan-grid__container-detail-trigger"
+                    aria-label={`Xem chi tiết container của ${item.shipmentCode ?? item.blNumber ?? item.bookingRef ?? 'lô hàng'}`}
+                    onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
+                  >
+                    Xem chi tiết cont
+                  </UUIButton>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú">
                   <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes ?? undefined}>

@@ -540,7 +540,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     }, { headers: { 'Idempotency-Key': expect.any(String) } }));
   });
 
-  it('keeps shipment transport date separate from an existing container appointment', async () => {
+  it('edits the selected container appointment without exposing a shipment-level delivery date', async () => {
     const appointmentAt = '2026-08-22T03:15:00.000Z';
     apiGet.mockResolvedValueOnce({
       ...response,
@@ -549,25 +549,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       ...detail,
       containers: [{ ...detail.containers[0], customerAppointmentAt: appointmentAt }],
     }).mockResolvedValueOnce(response);
-    apiPut.mockResolvedValueOnce({ id: 2, version: 8, changeMode: 'DIRECT', changeRequestId: null });
+    apiPost.mockResolvedValueOnce({ line: { ...detail.containers[0], customerAppointmentAt: '2026-08-23T03:15:00.000Z' } });
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa lịch trình CONT-002/ }));
-    const shipmentDate = await screen.findByLabelText('Ngày vận chuyển');
-    const appointmentDate = screen.getByLabelText('Ngày đóng hàng');
-    expect((shipmentDate as HTMLInputElement).value).toBe('');
+    const appointmentDate = await screen.findByLabelText(/Ngày (đóng|trả) hàng/);
     expect((appointmentDate as HTMLInputElement).value).toBe('2026-08-22');
-    fireEvent.change(shipmentDate, { target: { value: '2026-08-21' } });
-    expect((appointmentDate as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText('Giờ đóng hàng') as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByText('Lưu nhóm đang sửa trước khi đổi nhóm lịch còn lại.')).toBeTruthy();
+    expect(screen.queryByLabelText('Ngày vận chuyển')).toBeNull();
+    fireEvent.change(appointmentDate, { target: { value: '2026-08-23' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch trình CONT-002' }));
 
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', {
-      expectedVersion: 7,
-      expectedDeliveryDate: '2026-08-21',
-    }));
-    expect(apiPost).not.toHaveBeenCalled();
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/cus-workspace/2/containers/12', {
+      expectedShipmentVersion: 7,
+      customerAppointmentAt: '2026-08-23T10:15:00+07:00',
+    }, { headers: { 'Idempotency-Key': expect.any(String) } }));
+    expect(apiPut).not.toHaveBeenCalled();
   });
 
   it('does not render a redundant customer-appointment row in the detail ledger', async () => {

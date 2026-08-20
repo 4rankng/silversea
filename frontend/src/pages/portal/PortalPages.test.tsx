@@ -69,7 +69,7 @@ describe('customer portal pages', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&limit=10'));
     expect(screen.getByText('BL-42')).toBeTruthy();
     expect(screen.queryByText('SHP-2607-00042')).toBeNull();
-    expect(screen.getByText('Giao dự kiến')).toBeTruthy();
+    expect(screen.getByText('Lịch cont sớm nhất')).toBeTruthy();
     expect(screen.getByText('31/7/2026')).toBeTruthy();
     expect(screen.getByLabelText('Tổng số lô hàng').textContent).toContain('1');
   });

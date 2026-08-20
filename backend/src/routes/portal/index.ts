@@ -83,7 +83,6 @@ function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentD
       status: shipment.status,
       bookingRef: shipment.bookingRef,
       blNumber: shipment.blNumber,
-      expectedDeliveryDate: shipment.expectedDeliveryDate,
       pickupLocation: shipment.pickupLocation,
       deliveryLocation: shipment.deliveryLocation,
     },
@@ -92,6 +91,7 @@ function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentD
       containerNumber: container.containerNumber,
       sealNumber: container.sealNumber,
       cargoWeightKg: container.cargoWeightKg,
+      customerAppointmentAt: container.customerAppointmentAt,
     })),
     documents: detail.documents.map((document) => ({
       id: document.id,

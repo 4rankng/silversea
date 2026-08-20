@@ -111,8 +111,6 @@ export default function ShipmentsPage() {
   const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [transportDateDrafts, setTransportDateDrafts] = useState<Record<number, string>>({});
-  const [savingTransportDateIds, setSavingTransportDateIds] = useState<Set<number>>(() => new Set());
   const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
   const [savingQuickEdit, setSavingQuickEdit] = useState(false);
   const [quickEditError, setQuickEditError] = useState<string | null>(null);
@@ -322,40 +320,11 @@ export default function ShipmentsPage() {
     }
   };
 
-  const saveTransportDate = async (item: ShipmentCusWorkspaceListItem) => {
-    if (dirtyDetailIds.has(item.id)) {
-      setError('Hãy lưu hoặc bỏ thay đổi container trước khi chốt ngày vận chuyển.');
+  const startQuickEdit = (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => {
+    if (field === 'schedule' && item.cargoMode === 'FCL') {
+      setError('Lịch FCL được cập nhật theo từng container.');
       return;
     }
-    const transportDateDraft = transportDateDrafts[item.id] ?? item.transportDate ?? '';
-    if (!transportDateDraft || transportDateDraft === item.transportDate) return;
-    setSavingTransportDateIds((current) => new Set(current).add(item.id));
-    setError(null);
-    try {
-      await updateShipment(item.id, {
-        expectedVersion: item.version,
-        expectedDeliveryDate: transportDateDraft,
-      });
-      setNotice('Đã chốt ngày vận chuyển và cập nhật trạng thái sẵn sàng điều xe.');
-      setDetails((current) => {
-        const next = { ...current };
-        delete next[item.id];
-        return next;
-      });
-      if (drawerId === item.id) void loadDetail(item.id, true);
-      await loadList();
-    } catch (transportDateError) {
-      setError(safeError(transportDateError, 'Không thể cập nhật ngày vận chuyển.'));
-    } finally {
-      setSavingTransportDateIds((current) => {
-        const next = new Set(current);
-        next.delete(item.id);
-        return next;
-      });
-    }
-  };
-
-  const startQuickEdit = (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => {
     if (quickEditSaveRef.current || quickEditDraft) return;
     const accessKeys = field === 'identity' ? ['factoryName'] as const
       : field === 'documents' ? ['blNumber', 'bookingRef', 'declarationNumber'] as const
@@ -961,6 +930,13 @@ export default function ShipmentsPage() {
                     const editing = quickEditDraft?.shipmentId === item.id;
                     const customerNoteLines = noteLines(item.customerNotes);
                     const operationalNoteLines = noteLines(item.operationalNotes);
+                    const scheduleContent = <>
+                      {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
+                      {item.appointmentGroups.map((group) => (
+                        <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
+                      ))}
+                      <span>{vehicleReadinessLabel(item)}</span>
+                    </>;
                     return (
                       <tr
                         key={item.id}
@@ -1001,23 +977,19 @@ export default function ShipmentsPage() {
                             </span>
                           </span></button>
                         </td>
-                        <td data-label="Lịch trình & điều xe" className="cus-dashboard-cell--editable">
-                          <button
-                            id={`cus-inline-schedule-${item.id}`}
-                            type="button"
-                            className="cus-inline-trigger"
-                            data-cell-label="Lịch trình & điều xe"
-                            disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
-                            aria-haspopup="dialog"
-                            aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
-                            onClick={() => startQuickEdit(item, 'schedule')}
-                          >
-                            {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-                            {item.appointmentGroups.map((group) => (
-                              <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
-                            ))}
-                            <span>{vehicleReadinessLabel(item)}</span>
-                          </button>
+                        <td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>
+                          {item.cargoMode === 'LCL' ? (
+                            <button
+                              id={`cus-inline-schedule-${item.id}`}
+                              type="button"
+                              className="cus-inline-trigger"
+                              data-cell-label="Lịch trình & điều xe"
+                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
+                              aria-haspopup="dialog"
+                              aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
+                              onClick={() => startQuickEdit(item, 'schedule')}
+                            >{scheduleContent}</button>
+                          ) : <div className="cus-inline-trigger cus-inline-trigger--readonly">{scheduleContent}</div>}
                         </td>
                         <td data-label="Ghi chú" className="cus-dashboard-cell--editable">
                           <button
@@ -1135,32 +1107,16 @@ export default function ShipmentsPage() {
 
                 <div className="cus-drawer-decision-grid" aria-label="Điều kiện xử lý lô hàng">
                   <div className="cus-drawer-decision cus-drawer-decision--schedule">
-                    <div className="cus-drawer-inline-control">
-                      <BufferedUuiDateInput
-                        label="Ngày giao hàng"
-                        size="sm"
-                        value={transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? ''}
-                        isDisabled={!drawerItem.operational.transportDateEditable || savingTransportDateIds.has(drawerItem.id)}
-                        onChange={(value) => setTransportDateDrafts((current) => ({ ...current, [drawerItem.id]: value }))}
-                        className="cus-drawer-uui-field"
-                        wrapperClassName="cus-drawer-uui-control"
-                        inputClassName="cus-drawer-uui-input"
-                      />
-                      {drawerItem.operational.transportDateEditable && (
-                        <UUIButton
-                          size="sm"
-                          color="secondary"
-                          className="cus-drawer-save-date"
-                          isDisabled={!(transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') || (transportDateDrafts[drawerItem.id] ?? drawerItem.transportDate ?? '') === drawerItem.transportDate || savingTransportDateIds.has(drawerItem.id)}
-                          isLoading={savingTransportDateIds.has(drawerItem.id)}
-                          showTextWhileLoading
-                          onPress={() => void saveTransportDate(drawerItem)}
-                          iconLeading={!savingTransportDateIds.has(drawerItem.id) ? <Save size={15} aria-hidden="true" /> : undefined}
-                        >
-                          Chốt lịch
-                        </UUIButton>
-                      )}
-                    </div>
+                    <span className="cus-drawer-decision__label">Lịch giao theo container</span>
+                    {drawerItem.appointmentGroups.length > 0 ? (
+                      <div className="cus-drawer-decision__appointments">
+                        {drawerItem.appointmentGroups.map((group) => (
+                          <span key={`${group.at}-${group.factoryName ?? ''}`}>
+                            {formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <strong>Chưa cập nhật lịch cho container</strong>}
                   </div>
                   <div className="cus-drawer-decision cus-drawer-decision--custody">
                     <UUINativeSelect

@@ -33,22 +33,23 @@ describe('shipment container editor density', () => {
     expect(pageSource).toContain("startQuickEdit(item, 'notes')");
   });
 
-  it('uses two compact operational tiers instead of form cards', () => {
-    expect(css).toMatch(/\.cus-container-record__tier\s*\{[\s\S]*?grid-template-columns:\s*78px minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.cus-container-record__facts--identity\s*\{\s*grid-template-columns:\s*1\.25fr repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cus-container-record__facts--operation\s*\{\s*grid-template-columns:\s*1\.3fr repeat\(4, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cus-container-fact input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
+  it('uses the create-form spreadsheet pattern instead of two tall operational bands', () => {
+    expect(ledgerSource).toContain('<table className="cus-container-table">');
+    expect(ledgerSource).toContain('<th scope="col">Container</th>');
+    expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1042px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
+    expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
-    expect(css).toMatch(/\.cus-container-record\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
-    expect(css).not.toMatch(/\.cus-container__facts\s*\{/);
+    expect(css).not.toMatch(/\.cus-container-record__tier\s*\{/);
   });
 
-  it('reflows the ledger while retaining touch-sized controls in the mobile drawer', () => {
-    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__tier\s*\{\s*grid-template-columns:\s*76px minmax\(0, 1fr\);/);
-    expect(css).toMatch(/\.cus-shipment-drawer \.cus-container-record__facts--identity,[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  it('switches the worksheet into two-column task cards while retaining touch-sized controls', () => {
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(ledgerSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-shipment-drawer \.cus-container-record__tier\s*\{\s*grid-template-columns:\s*1fr;/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-shipment-drawer \.cus-container-fact input,[\s\S]*?\.cus-shipment-drawer \.cus-container-fact--save \.cus-container-save\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*16px;/);
+    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell--save \.cus-container-save\s*\{[^}]*min-height:\s*44px;[^}]*font-size:\s*16px;/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 });

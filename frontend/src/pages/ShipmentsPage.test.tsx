@@ -323,7 +323,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Điều hành lô hàng')).toBeTruthy();
-    expect(within(dialog).getByRole('article', { name: 'MSKU1234567' })).toBeTruthy();
+    expect(within(dialog).getByRole('row', { name: 'MSKU1234567' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
@@ -331,11 +331,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
     renderPage();
 
-    const scheduleButton = await screen.findByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
-    const scheduleCell = scheduleButton.closest('td');
+    const scheduleCell = (await screen.findByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
     expect(within(scheduleCell!).getByText('09:30 12/8/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
+    expect(within(scheduleCell!).queryByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).toBeNull();
   });
 
   it('shows the actual ready-for-dispatch status instead of the generic new bucket label', async () => {
@@ -573,7 +573,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL', version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
     ));
     renderPage();
     await screen.findByRole('table');
@@ -696,6 +696,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
+    ));
     renderPage();
     const table = await screen.findByRole('table');
     const rowElement = masterRow();
@@ -738,6 +743,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('uses exactly one full-cell button to open the matching edit dialog', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     await screen.findByRole('table');
     const rowElement = masterRow();
@@ -801,6 +807,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ])) as typeof row.fieldAccess;
     const lockedRow: ShipmentCusWorkspaceListItem = {
       ...row,
+      cargoMode: 'LCL',
       bucket: ShipmentCusBucket.LOCKED,
       bucketLabel: 'Đã khóa',
       fieldAccess: lockedFieldAccess,
@@ -831,6 +838,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('cancels a cell dialog with Escape without persisting', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     await screen.findByRole('table');
 
@@ -844,6 +852,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('requires explicit save instead of saving when focus leaves the edit dialog', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     await screen.findByRole('table');
 
@@ -885,7 +894,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiPut.mockImplementation(() => new Promise((resolve) => { resolveUpdate = resolve; }));
     apiGet.mockResolvedValue(listResponse([
       row,
-      { ...row, id: 2, billOrBookNumber: 'BILL-22222' },
+      { ...row, id: 2, cargoMode: 'LCL', billOrBookNumber: 'BILL-22222' },
     ]));
     renderPage();
     await screen.findByRole('table');
@@ -1001,9 +1010,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     const ledger = await screen.findByLabelText('Chi tiết container');
     expect(within(ledger).getByText('MSKU1234567')).toBeTruthy();
-    expect(within(ledger).getByText('Nhận diện')).toBeTruthy();
-    expect(within(ledger).getByText('Vận hành')).toBeTruthy();
-    expect(within(ledger).getByText('STT')).toBeTruthy();
+    expect(within(ledger).getByRole('columnheader', { name: 'Container' })).toBeTruthy();
+    expect(within(ledger).getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
     expect(within(ledger).getByText('Giờ hẹn đóng/trả')).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
     expect(within(ledger).queryByText('Maersk')).toBeNull();
@@ -1114,7 +1122,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
   });
 
-  it('lets CUS chốt lịch from the master schedule cell through the versioned shipment update', async () => {
+  it('shows the drawer schedule only from its container appointments', async () => {
     const waitingRow = {
       ...row,
       transportDate: null,
@@ -1129,14 +1137,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText('Ngày giao hàng'), { target: { value: '2026-08-14' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Chốt lịch' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', {
-      expectedVersion: 3,
-      expectedDeliveryDate: '2026-08-14',
-    }));
-    expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace/1').length).toBeGreaterThan(0);
+    expect(within(dialog).queryByLabelText('Ngày giao hàng')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Chốt lịch' })).toBeNull();
+    expect(within(dialog).getByText('Lịch giao theo container')).toBeTruthy();
+    expect(apiPut).not.toHaveBeenCalled();
   });
 
   it('saves only the server-permitted container fields with optimistic versions', async () => {
@@ -1389,7 +1393,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('keeps the shipment drawer flat, compact, and honest about blocked actions', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/\.cus-container-record\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-drawer-workflow__action--blocked::before\s*\{[^}]*background:\s*var\(--warning\);/);
     expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });

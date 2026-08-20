@@ -105,7 +105,7 @@ describe('MasterPlanGrid', () => {
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
     // Host-TZ-independent: the seed 08:00 UTC maps to either 8H or 15H
     // depending on the runner's TZ; assert the value is one of those two.
-    const cell = screen.getByText(/Giao: 20\/08\/2026/).closest('td');
+    const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).closest('td');
     const gioLine = within(cell!).getByText(/Giờ: \d{1,2}H/);
     expect(gioLine.textContent).toMatch(/Giờ: (8H|15H)/);
   });
@@ -125,7 +125,7 @@ describe('MasterPlanGrid', () => {
       'Phân bổ nhà xe',
     ]);
 
-    expect(screen.getByText(/Giao: 20\/08\/2026/)).toBeTruthy();
+    expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     // P8: route and shipping line are the primary (strong) identity lines.
@@ -142,7 +142,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText(/Giao: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toHaveClass('master-plan-grid__line--strong');
@@ -209,6 +209,16 @@ describe('MasterPlanGrid', () => {
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
   });
 
+  it('opens the in-place container detail action with the shipment row and its trigger', () => {
+    const onViewContainers = vi.fn();
+    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onViewContainers={onViewContainers} />);
+
+    const trigger = screen.getByRole('button', { name: 'Xem chi tiết container của SS-000100' });
+    fireEvent.click(trigger);
+
+    expect(onViewContainers).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
+  });
+
   it('opens the allocation editor when the blank cell surface is clicked', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
@@ -230,6 +240,13 @@ describe('MasterPlanGrid', () => {
     expect(triggerRule).toContain('text-align: left');
     expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
     expect(css).toContain('min-height: 44px');
+  });
+
+  it('keeps the per-row container detail action compact on desktop and touch-safe on narrow screens', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).toContain('.master-plan-grid__container-detail-trigger');
+    expect(css).toContain('min-height: 28px');
+    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger\s*\{[\s\S]*?min-height:\s*44px;/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {

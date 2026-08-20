@@ -190,13 +190,13 @@ describe('ClerkShipmentCreatePage', () => {
 
     fireEvent.click(screen.getByRole('option', { name: 'Nhập khẩu' }));
     await waitFor(() => expect(tradeDirection).toHaveAttribute('aria-expanded', 'false'));
-    expect(tradeDirection).toHaveFocus();
+    await waitFor(() => expect(tradeDirection).toHaveFocus());
 
     tradeDirection.focus();
     fireEvent.click(tradeDirection);
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
     await waitFor(() => expect(tradeDirection).toHaveAttribute('aria-expanded', 'false'));
-    expect(tradeDirection).toHaveFocus();
+    await waitFor(() => expect(tradeDirection).toHaveFocus());
   });
 
   it('adds a custom shipping line through the visible add action', async () => {
@@ -472,7 +472,7 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
   });
 
-  it('persists an FCL appointment separately from its shipment dispatch date', async () => {
+  it('persists an FCL appointment as the shipment dispatch-date authority', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -482,7 +482,6 @@ describe('ClerkShipmentCreatePage', () => {
     await choose('Loại container', '31');
     await choose('Cảng nâng', '21');
     await choose('Cảng hạ', '22');
-    fireEvent.change(screen.getByLabelText('Ngày điều xe dự kiến'), { target: { value: '2026-08-14' } });
     fireEvent.change(screen.getByLabelText('Ngày giờ đóng trả'), { target: { value: '2026-08-15T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
@@ -492,7 +491,7 @@ describe('ClerkShipmentCreatePage', () => {
       })],
     })));
     expect(mocks.quickCreate.mock.calls[0][0]).toMatchObject({ tradeDirection: 'IMPORT' });
-    expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBe('2026-08-14');
+    expect(mocks.quickCreate.mock.calls[0][0].expectedDeliveryDate).toBeUndefined();
     expect(await screen.findByTestId('shipment-list')).toBeTruthy();
   });
 

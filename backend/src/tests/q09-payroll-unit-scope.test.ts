@@ -83,13 +83,15 @@ async function createCompletedSalaryTrip(
   const [customer] = await db.select({ id: s.customers.id }).from(s.customers).limit(1);
   const [route] = await db.select({ id: s.routes.id }).from(s.routes).limit(1);
   const [cargoType] = await db.select({ id: s.cargoTypes.id }).from(s.cargoTypes).limit(1);
-  if (!customer || !route || !cargoType) throw new Error('Thiếu dữ liệu danh mục kiểm thử Q09');
+  const resolvedCustomer = customer ?? (await db.insert(s.customers).values({ name: `Q09 catalog ${suffix}` }).returning())[0]!;
+  const resolvedRoute = route ?? (await db.insert(s.routes).values({ name: `Q09 route ${suffix}` }).returning())[0]!;
+  const resolvedCargoType = cargoType ?? (await db.insert(s.cargoTypes).values({ name: `Q09 cargo ${suffix}` }).returning())[0]!;
 
   const [trip] = await db.insert(s.trips).values({
     tripCode: `Q09-${tag}-${suffix}`.slice(0, 50),
-    customerId: customer.id,
-    routeId: route.id,
-    cargoTypeId: cargoType.id,
+    customerId: resolvedCustomer.id,
+    routeId: resolvedRoute.id,
+    cargoTypeId: resolvedCargoType.id,
     driverId,
     status: 'COMPLETED',
     departureDate: workDate,

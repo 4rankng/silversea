@@ -574,6 +574,20 @@
   line-height: var(--ops-table-note-line-height);
 }
 
+.master-plan-grid__container-detail-trigger {
+  min-height: 28px;
+  margin-top: 6px;
+  padding: 2px 0;
+  color: var(--accent);
+  font-size: var(--ops-table-meta-size);
+  font-weight: var(--fw-semibold);
+}
+
+.master-plan-grid__container-detail-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .master-plan-grid__cell--action {
   min-width: 0;
   padding: 0;
@@ -696,6 +710,12 @@
   .master-plan-grid__line {
     white-space: normal;
     overflow-wrap: anywhere;
+  }
+
+  .master-plan-grid__container-detail-trigger {
+    min-height: 44px;
+    margin-top: 4px;
+    padding-block: 8px;
   }
 
   .master-plan-grid__documents {

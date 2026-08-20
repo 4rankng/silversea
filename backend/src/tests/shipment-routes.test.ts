@@ -1933,7 +1933,10 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     assert.equal(secondUpdate.status, 200);
     assert.equal(secondUpdate.data.line.customerAppointmentAt, secondAppointment);
 
-    const [persistedShipment] = await db.select({ closingAt: s.shipments.closingAt })
+    const [persistedShipment] = await db.select({
+      closingAt: s.shipments.closingAt,
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    })
       .from(s.shipments)
       .where(eq(s.shipments.id, fixture.shipment.id));
     const persistedContainers = await db.select({
@@ -1942,6 +1945,7 @@ describe('POST /cus-workspace/:id/containers/:containerId', () => {
     }).from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, fixture.shipment.id));
     assert.equal(persistedShipment?.closingAt?.toISOString(), '2026-08-04T08:00:00.000Z');
+    assert.equal(persistedShipment?.expectedDeliveryDate, '2026-08-15');
     assert.equal(persistedContainers.find((row) => row.id === firstLine.id)?.customerAppointmentAt?.toISOString(), firstAppointment);
     assert.equal(persistedContainers.find((row) => row.id === secondContainer.id)?.customerAppointmentAt?.toISOString(), secondAppointment);
   });

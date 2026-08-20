@@ -125,7 +125,7 @@ export default function PortalShipmentsPage() {
                     </div>
                   </div>
                   <div className="portal-list__datum">
-                    <span><CalendarClock size={15} aria-hidden="true" /> Giao dự kiến</span>
+                    <span><CalendarClock size={15} aria-hidden="true" /> Lịch cont sớm nhất</span>
                     <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
                   </div>
                   <div className="portal-list__aside">

@@ -35,7 +35,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
-import { isDirectlyEditableIntakeStatus } from './shipment-intake.service';
+import { ensureReadyShipmentHandoff, isDirectlyEditableIntakeStatus } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertClerkCanAccessShipment, buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import {
@@ -205,6 +205,17 @@ function businessDateNow(): string {
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function deriveTransportDateFromContainerAppointments(appointments: ReadonlyArray<Date | null>): string | null {
+  let earliest: string | null = null;
+  for (const appointment of appointments) {
+    if (appointment == null) continue;
+    const localDate = localDateInBusinessZone(appointment);
+    if (localDate == null) continue;
+    if (earliest == null || localDate < earliest) earliest = localDate;
+  }
+  return earliest;
 }
 
 function buildOperationalSummary(
@@ -2241,8 +2252,30 @@ export async function updateCusShipmentContainerLine(args: {
       touched = true;
     }
 
+    const derivedTransportDate = args.input.customerAppointmentAt === undefined
+      ? undefined
+      : deriveTransportDateFromContainerAppointments((await tx.select({
+        customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+      }).from(s.shipmentContainers)
+        .where(eq(s.shipmentContainers.shipmentId, args.shipmentId)))
+        .map((row) => row.customerAppointmentAt));
+    const canonicalStatus = canonicalShipmentStatus(shipment.status);
+    if (
+      shipment.cargoMode === 'FCL'
+      && derivedTransportDate == null
+      && canonicalStatus === ShipmentStatus.READY_FOR_DISPATCH
+      && container.customerAppointmentAt != null
+    ) {
+      throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+    }
+    const becomesReady = shipment.cargoMode === 'FCL'
+      && derivedTransportDate != null
+      && canonicalStatus === ShipmentStatus.PENDING_DATE;
+
     if (touched) {
       const [updatedShipment] = await tx.update(s.shipments).set({
+        ...(derivedTransportDate !== undefined ? { expectedDeliveryDate: derivedTransportDate } : {}),
+        ...(becomesReady ? { status: ShipmentStatus.READY_FOR_DISPATCH } : {}),
         version: shipment.version + 1,
         updatedAt: now,
         updatedBy: args.actor.userId,
@@ -2252,6 +2285,16 @@ export async function updateCusShipmentContainerLine(args: {
       )).returning();
       if (!updatedShipment) {
         throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.');
+      }
+      if (becomesReady) {
+        await tx.insert(s.shipmentStatusHistory).values({
+          shipmentId: shipment.id,
+          fromStatus: ShipmentStatus.PENDING_DATE,
+          toStatus: ShipmentStatus.READY_FOR_DISPATCH,
+          reason: 'Đã cập nhật lịch theo container và sẵn sàng điều xe.',
+          changedBy: args.actor.userId,
+        });
+        await ensureReadyShipmentHandoff(tx, updatedShipment, args.actor.userId);
       }
     }
 

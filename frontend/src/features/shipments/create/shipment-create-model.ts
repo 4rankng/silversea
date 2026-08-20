@@ -164,14 +164,8 @@ export function getShipmentCreateReadiness(
       if (!row.containerTypeId) issues.push(issue(`${prefix}-type`, `${label}: chọn loại container.`, 'cargo'));
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
+      if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
     });
-    if (!form.expectedDeliveryDate && !form.closingAt && !form.plannedReturnAt) {
-      issues.push(issue(
-        'shipment-expected-delivery',
-        'Chọn ngày điều xe dự kiến, hạn hạ container hoặc thời điểm trả container.',
-        'schedule',
-      ));
-    }
   } else {
     if (!form.pickupWarehouseSiteId) issues.push(issue('shipment-pickup-warehouse', 'Chọn kho lấy hàng.', 'route'));
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
@@ -195,7 +189,7 @@ export function getShipmentCreateReadiness(
   return {
     draftReady: Boolean(form.customerId),
     dispatchReady: issues.length === 0,
-    initialStatus: form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt
+    initialStatus: form.cargoMode === 'LCL' && (form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt)
       ? ShipmentStatus.READY_FOR_DISPATCH
       : ShipmentStatus.PENDING_DATE,
     issues,
@@ -246,9 +240,9 @@ export function buildShipmentRootPayload(
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),
     plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
-    // One promised date drives both dispatch workspaces. Container appointment
-    // dates below remain detailed scheduling information only.
-    expectedDeliveryDate: form.expectedDeliveryDate || null,
+    // FCL's lot date is derived by the container reconcile in the backend;
+    // only LCL retains a shipment-level delivery date.
+    expectedDeliveryDate: form.cargoMode === 'LCL' ? form.expectedDeliveryDate || null : undefined,
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,

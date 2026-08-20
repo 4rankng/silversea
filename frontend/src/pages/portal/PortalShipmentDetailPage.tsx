@@ -21,7 +21,6 @@ interface PortalShipmentDetail {
     status: ShipmentStatus;
     bookingRef: string | null;
     blNumber: string | null;
-    expectedDeliveryDate: string | null;
     pickupLocation: string | null;
     deliveryLocation: string | null;
   };
@@ -30,6 +29,7 @@ interface PortalShipmentDetail {
     containerNumber: string | null;
     sealNumber: string | null;
     cargoWeightKg: string | number | null;
+    customerAppointmentAt: string | null;
   }>;
   documents: Array<{
     id: number;
@@ -138,7 +138,6 @@ export default function PortalShipmentDetailPage() {
           <dl className="portal-detail-grid">
             <div><dt>Mã đặt chỗ</dt><dd>{bookingNumber ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{billNumber ?? '—'}</dd></div>
-            <div><dt>Giao dự kiến</dt><dd>{fmt(shipment.expectedDeliveryDate)}</dd></div>
             <div><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
           </dl>
@@ -158,10 +157,10 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Containers ({containers.length})</h2>
           <div className="portal-table-wrap"><table className="portal-table">
-            <thead><tr><th>Số container</th><th>Seal</th><th>Trọng lượng (kg)</th></tr></thead>
+            <thead><tr><th>Số container</th><th>Seal</th><th>Lịch giao</th><th>Trọng lượng (kg)</th></tr></thead>
             <tbody>
               {containers.map((c) => (
-                <tr key={c.id}><td>{c.containerNumber ?? '—'}</td><td>{c.sealNumber ?? '—'}</td><td>{c.cargoWeightKg ?? '—'}</td></tr>
+                <tr key={c.id}><td>{c.containerNumber ?? '—'}</td><td>{c.sealNumber ?? '—'}</td><td>{fmt(c.customerAppointmentAt)}</td><td>{c.cargoWeightKg ?? '—'}</td></tr>
               ))}
             </tbody>
           </table></div>

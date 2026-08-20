@@ -195,7 +195,6 @@ export default function ShipmentDetailPage() {
             <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
-            <div><dt>Giao dự kiến</dt><dd>{formatDate(shipment.expectedDeliveryDate)}</dd></div>
             <div><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
             <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
@@ -286,6 +285,7 @@ export default function ShipmentDetailPage() {
                   <th>Nhà xe đã gán</th>
                   <th>Xe đã gán</th>
                   <th>Số seal</th>
+                  <th>Lịch giao</th>
                   <th>Trọng lượng (kg)</th>
                   <th>Ghi chú</th>
                 </tr>
@@ -304,6 +304,7 @@ export default function ShipmentDetailPage() {
                     })()}</td>
                     <td>{c.plannedVehiclePlate ?? '—'}</td>
                     <td>{c.sealNumber ?? '—'}</td>
+                    <td>{formatDateTime(c.customerAppointmentAt)}</td>
                     <td>{c.cargoWeightKg ?? '—'}</td>
                     <td>{c.notes ?? '—'}</td>
                   </tr>

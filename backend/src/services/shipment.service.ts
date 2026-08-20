@@ -726,6 +726,9 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
 
   const closingAt = toNullableTimestamp(input.closingAt, 'Giờ closing');
   const plannedReturnAt = toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch');
+  // Legacy API callers can still create a dated FCL root before its container
+  // rows are supplied. As soon as a container write occurs, reconciliation
+  // replaces this compatibility value with the earliest container appointment.
   const initialStatus: ShipmentStatus = input.expectedDeliveryDate != null || closingAt != null || plannedReturnAt != null
     ? 'READY_FOR_DISPATCH'
     : 'PENDING_DATE';

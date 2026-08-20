@@ -49,7 +49,7 @@ describe('shipment container schedule', () => {
     assert.equal(handoff.status, 'UNSEEN');
   });
 
-  test('an explicit shipment-level delivery date is never clobbered by container dates', async () => {
+  test('a container appointment replaces the legacy lot date with the earliest container date', async () => {
     const [customer] = await db.insert(s.customers)
       .values({ name: `Container schedule explicit ${suffix}` })
       .returning();
@@ -75,7 +75,7 @@ describe('shipment container schedule', () => {
     const [savedShipment] = await db.select({ expectedDeliveryDate: s.shipments.expectedDeliveryDate })
       .from(s.shipments)
       .where(eq(s.shipments.id, shipment.id));
-    assert.equal(savedShipment.expectedDeliveryDate, '2026-09-01');
+    assert.equal(savedShipment.expectedDeliveryDate, '2026-08-20');
   });
 
   test('a second reconcile does not duplicate the handoff or status history', async () => {
@@ -107,6 +107,41 @@ describe('shipment container schedule', () => {
       .where(and(eq(s.shipmentStatusHistory.shipmentId, shipment.id), eq(s.shipmentStatusHistory.toStatus, 'READY_FOR_DISPATCH')));
     assert.equal(handoffs.length, 1);
     assert.equal(readyHistory.length, 1);
+  });
+
+  test('does not allow the last FCL appointment to be removed after readiness', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `Container schedule guard ${suffix}` })
+      .returning();
+    customerIds.push(customer.id);
+    const [containerType] = await db.insert(s.containerTypes)
+      .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Guard ${suffix}` })
+      .returning();
+    containerTypeIds.push(containerType.id);
+
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+    const scheduled = [{
+      containerTypeId: containerType.id,
+      containerNumber: null,
+      customerAppointmentAt: '2026-08-20T12:00:00.000Z',
+    }];
+    await batchUpsertShipmentContainers(shipment.id, null, scheduled);
+
+    await assert.rejects(
+      batchUpsertShipmentContainers(shipment.id, null, []),
+      /Không thể xóa lịch hẹn cuối cùng/,
+    );
+    const [savedShipment] = await db.select({
+      status: s.shipments.status,
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    }).from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const savedContainers = await db.select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    assert.equal(savedShipment.status, 'READY_FOR_DISPATCH');
+    assert.equal(savedShipment.expectedDeliveryDate, '2026-08-20');
+    assert.equal(savedContainers.length, 1);
   });
 });
 

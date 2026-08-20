@@ -7,6 +7,7 @@ import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispa
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
 import { DispatchAllocationPopover } from '../features/dispatch/master-plan/DispatchAllocationPopover';
+import { DispatchContainerDetailDrawer } from '../features/dispatch/master-plan/DispatchContainerDetailDrawer';
 import './DispatchPlanPage.css';
 
 /**
@@ -19,11 +20,18 @@ export default function MasterPlanPage() {
   const navigate = useNavigate();
   const masterPlan = useDispatchMasterPlan();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
+  const [containerDetailShipment, setContainerDetailShipment] = useState<ShipmentListItem | null>(null);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const containerDetailTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const handleAllocate = (shipment: ShipmentListItem, trigger: HTMLButtonElement) => {
     allocationTriggerRef.current = trigger;
     setAllocating(shipment);
+  };
+
+  const handleViewContainers = (shipment: ShipmentListItem, trigger: HTMLButtonElement) => {
+    containerDetailTriggerRef.current = trigger;
+    setContainerDetailShipment(shipment);
   };
 
   return (
@@ -110,7 +118,11 @@ export default function MasterPlanPage() {
           />
         ) : (
           <>
-            <MasterPlanGrid items={masterPlan.items} onAllocate={handleAllocate} />
+            <MasterPlanGrid
+              items={masterPlan.items}
+              onAllocate={handleAllocate}
+              onViewContainers={handleViewContainers}
+            />
             {masterPlan.total > masterPlan.pageSize && (
               <Pagination
                 page={masterPlan.page}
@@ -132,6 +144,11 @@ export default function MasterPlanPage() {
           returnFocusTarget={allocationTriggerRef.current}
         />
       )}
+      <DispatchContainerDetailDrawer
+        shipment={containerDetailShipment}
+        onClose={() => setContainerDetailShipment(null)}
+        returnFocusTarget={containerDetailTriggerRef.current}
+      />
     </div>
   );
 }
