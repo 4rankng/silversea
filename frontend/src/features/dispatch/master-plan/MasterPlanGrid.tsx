@@ -81,24 +81,42 @@ function formatContainerSummaryLines(summary: string | null): string[] {
     .filter(Boolean);
 }
 
-function formatContainerPortGroupLines(item: ShipmentListItem): string[] {
+type ContainerPortGroupLine = {
+  direction: 'lift' | 'drop';
+  label: 'Nâng' | 'Hạ';
+  portName: string;
+  containerSummary: string | null;
+};
+
+function formatContainerPortGroupLines(item: ShipmentListItem): ContainerPortGroupLine[] {
   const containerPortGroups = item.containerPortGroups ?? [];
   if (containerPortGroups.length > 0) {
     return containerPortGroups.flatMap((group) => [
-      `Nâng: ${group.pickupPortName ?? '—'} · ${group.containerSummary}`,
-      `Hạ: ${group.dropoffPortName ?? '—'} · ${group.containerSummary}`,
+      {
+        direction: 'lift',
+        label: 'Nâng',
+        portName: group.pickupPortName ?? '—',
+        containerSummary: group.containerSummary,
+      },
+      {
+        direction: 'drop',
+        label: 'Hạ',
+        portName: group.dropoffPortName ?? '—',
+        containerSummary: group.containerSummary,
+      },
     ]);
   }
   return [
-    'Nâng: —',
-    'Hạ: —',
+    { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
+    { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
   ];
 }
 
 /**
- * Multi-line dispatch master-plan grid (docx §3): 7 grouped columns, ≤3 lines
- * per cell, no horizontal scroll. Col 7 exposes its allocation values as the
- * edit trigger, matching the full-cell editing contract used by data grids.
+ * Multi-line dispatch master-plan grid (docx §3): 7 grouped columns with
+ * grouped lift/drop pairs and no horizontal scroll. Col 7 exposes its
+ * allocation values as the edit trigger, matching the full-cell editing
+ * contract used by data grids.
  */
 export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} }: MasterPlanGridProps) {
   return (
@@ -167,7 +185,14 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
                   {formatContainerPortGroupLines(item).map((line, index) => (
-                    <div key={`${index}-${line}`} className="master-plan-grid__line master-plan-grid__line--strong">{line}</div>
+                    <div key={`${index}-${line.direction}-${line.portName}`} className="master-plan-grid__location-block">
+                      <div className={`master-plan-grid__line master-plan-grid__location-label master-plan-grid__location-label--${line.direction}`}>
+                        {line.label}:
+                      </div>
+                      <div className="master-plan-grid__line master-plan-grid__location-value">
+                        {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
+                      </div>
+                    </div>
                   ))}
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">

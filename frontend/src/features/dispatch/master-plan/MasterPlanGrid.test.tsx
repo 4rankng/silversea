@@ -47,10 +47,12 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    expect(screen.getByText('Nâng: TC - HICT · 1 x 40DC')).toBeTruthy();
-    expect(screen.getByText('Hạ: Nhà máy Bắc Giang · 1 x 40DC')).toBeTruthy();
-    expect(screen.getByText('Nâng: Cảng Hải Phòng · 1 x 20DC')).toBeTruthy();
-    expect(screen.getByText('Hạ: Kho Long Biên · 1 x 20DC')).toBeTruthy();
+    expect(screen.getAllByText('Nâng:')).toHaveLength(2);
+    expect(screen.getAllByText('Hạ:')).toHaveLength(2);
+    expect(screen.getByText('TC - HICT · 1 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Nhà máy Bắc Giang · 1 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Cảng Hải Phòng · 1 x 20DC')).toBeTruthy();
+    expect(screen.getByText('Kho Long Biên · 1 x 20DC')).toBeTruthy();
     expect(screen.queryByText('Nâng: —')).toBeNull();
   });
 
@@ -64,8 +66,9 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    expect(screen.getByText('Nâng: —')).toBeTruthy();
-    expect(screen.getByText('Hạ: —')).toBeTruthy();
+    expect(screen.getByText('Nâng:')).toBeTruthy();
+    expect(screen.getByText('Hạ:')).toBeTruthy();
+    expect(screen.getAllByText('—')).toHaveLength(2);
     expect(screen.queryByText('Nâng: Địa điểm nâng cũ theo lô')).toBeNull();
     expect(screen.queryByText('Hạ: Địa điểm hạ cũ theo lô')).toBeNull();
   });
@@ -76,8 +79,8 @@ describe('MasterPlanGrid', () => {
       // 2 containers with 2 different close/return instants — the master plan
       // must surface BOTH, not collapse to a single shipment-level hour.
       appointmentGroups: [
-        { at: '2026-08-24T04:00:00.000Z', localDate: '2026-08-24', factoryName: 'Sunrise', containerSummary: '1 x 40DC' },
-        { at: '2026-08-25T04:00:00.000Z', localDate: '2026-08-25', factoryName: 'Sunrise', containerSummary: '1 x 40DC' },
+        { at: '2026-08-24T04:00:00.000Z', localDate: '2026-08-24', factoryName: 'Sunrise', factoryShortName: 'Sunrise', factoryFullName: 'Nhà máy Sunrise', containerSummary: '1 x 40DC' },
+        { at: '2026-08-25T04:00:00.000Z', localDate: '2026-08-25', factoryName: 'Sunrise', factoryShortName: 'Sunrise', factoryFullName: 'Nhà máy Sunrise', containerSummary: '1 x 40DC' },
       ],
     });
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
@@ -133,8 +136,10 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
-    expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toBeTruthy();
-    expect(screen.getByText(/Hạ: Kho Bình Dương/)).toBeTruthy();
+    expect(screen.getByText('Nâng:')).toBeTruthy();
+    expect(screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).toBeTruthy();
+    expect(screen.getByText('Hạ:')).toBeTruthy();
+    expect(screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC')).toBeTruthy();
     const cargoCell = screen.getByText('2 x 40HC').closest('td');
     expect(cargoCell).toBeTruthy();
     expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
@@ -145,8 +150,19 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText(/Nâng: Cảng Cát Lái/)).toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText(/Hạ: Kho Bình Dương/)).toHaveClass('master-plan-grid__line--strong');
+    const liftLocationBlock = screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').closest('.master-plan-grid__location-block') as HTMLElement | null;
+    const dropLocationBlock = screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC').closest('.master-plan-grid__location-block') as HTMLElement | null;
+    expect(liftLocationBlock).toBeTruthy();
+    expect(dropLocationBlock).toBeTruthy();
+    expect(within(liftLocationBlock!).getByText('Nâng:')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(within(liftLocationBlock!).getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(within(dropLocationBlock!).getByText('Hạ:')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(within(liftLocationBlock!).getByText('Nâng:')).toHaveClass('master-plan-grid__location-label--lift');
+    expect(within(dropLocationBlock!).getByText('Hạ:')).toHaveClass('master-plan-grid__location-label--drop');
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    expect(css).toContain('.master-plan-grid__location-label--lift {\n  color: var(--accent-ink);\n}');
+    expect(css).toContain('.master-plan-grid__location-label--drop {\n  color: var(--info-text);\n}');
+    expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);

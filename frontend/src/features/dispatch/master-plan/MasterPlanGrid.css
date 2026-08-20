@@ -537,6 +537,29 @@
   color: var(--fg-1);
 }
 
+/* Lift/drop pairs are operational directions, not primary identities. Keep
+   their values compact and regular; color only the label to speed scanning. */
+.master-plan-grid__location-block + .master-plan-grid__location-block {
+  margin-top: 6px;
+}
+
+.master-plan-grid__location-label {
+  font-weight: 400;
+}
+
+.master-plan-grid__location-label--lift {
+  color: var(--accent-ink);
+}
+
+.master-plan-grid__location-label--drop {
+  color: var(--info-text);
+}
+
+.master-plan-grid__location-value {
+  color: var(--fg-1);
+  font-weight: 400;
+}
+
 .master-plan-grid__line--muted {
   color: var(--fg-3);
   font-size: var(--ops-table-meta-size);
