@@ -1018,6 +1018,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(ledger).getByText('Đã tạo chuyến')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hoàn tất' })).toBeTruthy();
     expect(screen.getByLabelText(/Biển số xe của container MSKU1234567/)).toBeTruthy();
+    const containerType = within(ledger).getByRole('button', { name: 'Loại container MSKU1234567' });
+    expect(containerType.textContent).toBe('40HC');
+    expect(containerType.textContent).not.toContain('Container 40HC');
     expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
     expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();

@@ -1415,7 +1415,7 @@
 
 .cus-container-table {
   width: 100%;
-  min-width: 974px;
+  min-width: 1036px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -1426,7 +1426,7 @@
 .cus-container-col__dispatch { width: 100px; }
 .cus-container-col__carrier { width: 158px; }
 .cus-container-col__plate { width: 100px; }
-.cus-container-col__site { width: 112px; }
+.cus-container-col__site { width: 144px; }
 .cus-container-col__appointment { width: 160px; }
 
 .cus-container-table th,
@@ -1512,6 +1512,12 @@
   border-radius: var(--radius-sm);
   font-size: 11px;
   line-height: 1.35;
+}
+
+.cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cus-container-cell input:focus-visible {

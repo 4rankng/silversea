@@ -37,7 +37,12 @@ describe('shipment container editor density', () => {
     expect(ledgerSource).toContain('<table className="cus-container-table">');
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*974px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1036px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*144px;/);
+    expect(css).toMatch(
+      /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
+    );
+    expect(ledgerSource).toContain('label: option.code');
     expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*34px;/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
