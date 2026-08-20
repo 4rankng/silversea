@@ -54,6 +54,7 @@ describe('shared control density', () => {
     const nativeSelect = read('src/components/untitled-ui/base/select/select-native.tsx');
     const select = read('src/components/untitled-ui/base/select/select-shared.tsx');
     const textarea = read('src/components/untitled-ui/base/textarea/textarea.tsx');
+    const bufferedDate = read('src/design-system/forms/BufferedUuiDateInput.tsx');
     const overview = read('src/pages/ShipmentsPage.css');
     const detail = read('src/pages/ShipmentsDetailPage.css');
     const shipmentCreate = read('src/pages/clerk/ClerkShipmentCreatePage.css');
@@ -65,6 +66,10 @@ describe('shared control density', () => {
     expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*font\s*:/);
     expect(detail).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(shipmentCreate).not.toMatch(/\.csc-section textarea\s*\{[^}]*font\s*:/);
+    expect(input).toContain('max-md:min-h-11');
+    expect(select).toContain('max-md:min-h-11');
+    expect(nativeSelect).toContain('max-md:min-h-11');
+    expect(bufferedDate).toContain('size={size}');
   });
 
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {

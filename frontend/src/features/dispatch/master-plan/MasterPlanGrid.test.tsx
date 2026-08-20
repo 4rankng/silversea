@@ -339,6 +339,8 @@ describe('MasterPlanFilters', () => {
     expect(css).toContain('.master-plan-filters__actions');
     expect(css).toContain('.drawer.master-plan-filters__drawer');
     expect(css).toContain('max-width: 100%');
+    expect(css).toContain('padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 14px;');
+    expect(css).toContain('padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));');
   });
 
   it('keeps filters as a flat toolbar instead of nesting them in another surface', () => {

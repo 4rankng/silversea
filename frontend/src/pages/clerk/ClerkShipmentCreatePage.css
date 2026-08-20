@@ -207,6 +207,15 @@
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 14px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; margin: -14px -14px 0; padding: 12px 14px; border-radius: 9px 9px 0 0; }.csc-mode legend, .csc-mode__option { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+
+/* Keep the normal-flow action row above the iPhone home indicator at the end
+   of the long create form. It is deliberately not sticky. */
+@media (max-width: 640px) {
+  .csc-page {
+    padding-bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-section, .csc-validation-summary, .csc-submit-error { padding: 13px !important; }.csc-section__heading { margin: -13px -13px 0; padding-inline: 13px; }.csc-section__heading > span { display: none; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

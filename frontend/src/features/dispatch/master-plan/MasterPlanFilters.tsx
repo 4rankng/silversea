@@ -479,6 +479,15 @@ function portZoneFacetLabel(zoneLabel: string): string {
   return /^cảng/iu.test(zoneLabel.normalize('NFC')) ? zoneLabel : `Cảng ${zoneLabel}`;
 }
 
+// Awaiting customer confirmation: these two broad zone facets belong on the
+// detail screen instead of the master-plan filter toolbar. Match the rendered
+// label so equivalent Unicode forms from the database stay hidden together.
+const TEMPORARILY_HIDDEN_PORT_ZONE_FACETS = new Set(['Cảng Lạch Huyện', 'Cảng Hải Phòng']);
+
+function isTemporarilyHiddenPortZoneFacet(zoneLabel: string): boolean {
+  return TEMPORARILY_HIDDEN_PORT_ZONE_FACETS.has(portZoneFacetLabel(zoneLabel).normalize('NFC'));
+}
+
 /** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
  *  zone-scoped: one block per active zone in the DB taxonomy (label included). */
 export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFiltersProps) {
@@ -514,6 +523,8 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       });
     return () => { cancelled = true; };
   }, []);
+
+  const visibleZones = zones.filter((zone) => !isTemporarilyHiddenPortZoneFacet(zone.label));
 
   return (
     <>
@@ -555,7 +566,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
           >
             {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
           </UUISelect>
-          {zones.map((zone) => (
+          {visibleZones.map((zone) => (
             <FacetMultiSelect
               key={zone.code}
               label={portZoneFacetLabel(zone.label)}
@@ -653,7 +664,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
           <section className="master-plan-filters__drawer-group" aria-labelledby="master-plan-filter-location">
             <h3 id="master-plan-filter-location" className="master-plan-filters__drawer-title">Cảng và nhà xe</h3>
             <div className="master-plan-filters__drawer-fields">
-              {zones.map((zone) => (
+              {visibleZones.map((zone) => (
                 <FacetMultiSelect key={zone.code} label={portZoneFacetLabel(zone.label)} selected={filters.portIds} onToggle={(id) => onChange({ portIds: toggleId(filters.portIds, id) })} loadFacets={(q) => listZonePortFacets(zone.code, q).then((r) => r.items)} />
               ))}
               <CarrierFacetMultiSelect selected={filters.carrierKeys} onToggle={(key) => onChange({ carrierKeys: toggleKey(filters.carrierKeys, key) })} loadExternalCarriers={() => listDispatchFleetResources('EXTERNAL_CARRIER', { limit: 100 }).then((r) => r.items)} />

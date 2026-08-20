@@ -53,26 +53,33 @@ describe('MasterPlanFilters', () => {
     });
   });
 
-  it('uses each database-owned zone label exactly once in the port facet', async () => {
+  it('temporarily hides the Lạch Huyện and Hải Phòng port facets while preserving other zones', async () => {
     vi.mocked(configClient.getDispatchZones).mockResolvedValue({
       items: [
         { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 10 },
         { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 },
         { code: 'HAI_PHONG_NFD', label: NFD_PORT_LABEL, sortOrder: 30 },
+        { code: 'QUANG_NINH', label: 'Quảng Ninh', sortOrder: 40 },
       ],
     });
 
     render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: 'Cảng Hải Phòng' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: NFD_PORT_LABEL })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Cảng Quảng Ninh' })).toBeTruthy();
     });
 
-    expect(screen.getByText('Chọn cảng lạch huyện…')).toBeTruthy();
-    expect(screen.getByText('Chọn cảng hải phòng…')).toBeTruthy();
-    expect(screen.queryByText('Cảng Cảng Hải Phòng')).toBeNull();
-    expect(screen.queryByText('Chọn cảng cảng hải phòng…')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cảng Lạch Huyện' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cảng Hải Phòng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: NFD_PORT_LABEL })).toBeNull();
+    expect(screen.queryByText('Chọn cảng lạch huyện…')).toBeNull();
+    expect(screen.queryByText('Chọn cảng hải phòng…')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
+    const drawer = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
+    expect(within(drawer).getByRole('button', { name: 'Cảng Quảng Ninh' })).toBeTruthy();
+    expect(within(drawer).queryByRole('button', { name: 'Cảng Lạch Huyện' })).toBeNull();
+    expect(within(drawer).queryByRole('button', { name: 'Cảng Hải Phòng' })).toBeNull();
+    expect(within(drawer).queryByRole('button', { name: NFD_PORT_LABEL })).toBeNull();
   });
 });

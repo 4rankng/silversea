@@ -412,7 +412,7 @@
   }
 
   .master-plan-filters__drawer .drawer__head {
-    padding: 18px 20px 14px;
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 14px;
   }
 
   .master-plan-filters__drawer .drawer__body {
@@ -420,7 +420,7 @@
   }
 
   .master-plan-filters__drawer .drawer__foot {
-    padding: 12px 20px;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
   .master-plan-filters__drawer-fields {
