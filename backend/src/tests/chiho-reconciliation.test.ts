@@ -253,6 +253,7 @@ async function createCompletedTripWithFees(spec: TripSpec) {
     shipmentId: shipment.id,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
   }).returning();
@@ -926,6 +927,7 @@ async function createBillableTrip(ctx: BillableSeedCtx, spec: BillableTripSpec) 
     shipmentId: shipment.id,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
   }).returning();

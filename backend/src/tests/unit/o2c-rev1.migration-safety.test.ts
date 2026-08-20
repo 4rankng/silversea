@@ -39,6 +39,9 @@ describe('O2C clean-baseline safety', () => {
       { idx: 24, tag: '0024_create-dispatch-zones' },
       { idx: 25, tag: '0025_add-container-operational-site' },
       { idx: 26, tag: '0026_rename-lach-huyen-terminal-labels' },
+      { idx: 27, tag: '0027_backfill-fulfillment-classification-single' },
+      { idx: 28, tag: '0028_require-fulfillment-classification' },
+      { idx: 29, tag: '0029_correct-lcl-fulfillment-classification' },
     ]);
   });
 

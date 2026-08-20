@@ -171,37 +171,29 @@ describe('ports.dispatchZone contract', () => {
 });
 
 describe('shipment_fulfillments.dispatch_classification contract', () => {
-  test('column is nullable so legacy rows stay unclassified', async () => {
-    const probe = await db.execute<{ is_nullable: string }>(sql`
-      select is_nullable from information_schema.columns
+  test('column defaults to SINGLE and disallows an unclassified fulfillment', async () => {
+    const probe = await db.execute<{ is_nullable: string; column_default: string | null }>(sql`
+      select is_nullable, column_default from information_schema.columns
       where table_name = 'shipment_fulfillments'
         and column_name = 'dispatch_classification'
     `);
-    const rows = (probe as unknown as { rows: Array<{ is_nullable: string }> }).rows
-      ?? (probe as unknown as Array<{ is_nullable: string }>);
+    const rows = (probe as unknown as { rows: Array<{ is_nullable: string; column_default: string | null }> }).rows
+      ?? (probe as unknown as Array<{ is_nullable: string; column_default: string | null }>);
     assert.equal(rows.length, 1);
-    assert.equal(rows[0].is_nullable, 'YES');
+    assert.equal(rows[0].is_nullable, 'NO');
+    assert.match(rows[0].column_default ?? '', /SINGLE/);
   });
 
-  test('classification is never runtime-inferred for new LCL rows', async () => {
-    // Migration 0022 is a one-time deterministic backfill. Rows created after
-    // it (including by other concurrent work) must stay NULL until an operator
-    // classifies them in a detailed-plan save — the application never infers.
-    const unclassified = await db.select({
+  test('LCL fulfillments retain their LCL classification', async () => {
+    const rows = await db.select({
       id: s.shipmentFulfillments.id,
       c: s.shipmentFulfillments.dispatchClassification,
     })
       .from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'))
       .limit(50);
-    // Any row the backfill touched is 'LCL'; anything newer is NULL. No LCL
-    // row may carry a container-style label (SINGLE/DOUBLE/COMBINED) — that
-    // would mean the backfill guessed.
-    for (const row of unclassified) {
-      assert.ok(
-        row.c === 'LCL' || row.c === null,
-        `LCL fulfillment ${row.id} has unexpected classification ${row.c}`,
-      );
+    for (const row of rows) {
+      assert.equal(row.c, 'LCL', `LCL fulfillment ${row.id} must stay LCL`);
     }
   });
 });

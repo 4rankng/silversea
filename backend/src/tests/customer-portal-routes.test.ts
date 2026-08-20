@@ -266,6 +266,7 @@ before(async () => {
     shipmentId: multiShipmentId,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: 1,
     siteSnapshot: {},
   }).returning();

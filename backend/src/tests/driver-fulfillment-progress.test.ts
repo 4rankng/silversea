@@ -131,6 +131,7 @@ async function createOwnedFulfillmentTrip(
     shipmentId: shipment.id,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {
       deliverySite: {

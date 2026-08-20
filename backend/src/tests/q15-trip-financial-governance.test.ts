@@ -114,6 +114,7 @@ async function createInTransitTrip() {
     shipmentId: shipment.id,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
   }).returning();

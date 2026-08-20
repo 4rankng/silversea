@@ -420,6 +420,7 @@ describe('database cardinality and scope constraints', () => {
       shipmentId: 10,
       fulfillmentType: 'LCL_SHIPMENT',
       cargoMode: 'LCL',
+      dispatchClassification: 'LCL',
       shipmentContainerId: null,
       canceledAt: new Date(),
       cancellationDisposition: null,
@@ -489,6 +490,7 @@ describe('database cardinality and scope constraints', () => {
     const [replacement] = await db.select().from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.id, canceled.replacementFulfillmentId!));
     assert.equal(replacement?.shipmentId, first.shipment.id);
+    assert.equal(replacement?.dispatchClassification, 'LCL');
   });
 });
 

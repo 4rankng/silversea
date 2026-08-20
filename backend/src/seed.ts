@@ -32,6 +32,7 @@ import { resolveSeedActors, seedTrips } from './seed/seed-trips';
 import { seedVendorFinancials } from './seed/seed-vendor-financials';
 import { seedForwarderMoney } from './seed/seed-forwarder-money';
 import { seedCustomerAr } from './seed/seed-customer-ar';
+import { seedBulkData } from './seed/seed-bulk-data';
 
 export async function seed() {
   const passwordHash = await bcrypt.hash('Abc123', 10);
@@ -689,6 +690,15 @@ export async function seed() {
     accountant: seedActors.accountant as never,
     manager: seedActors.manager as never,
   });
+
+  // Bulk synthetic dataset (≈250 shipments, ≈200 trips, ≈30 customers,
+  // ≈60 expenses). Idempotent: a single `BULK-MARKER-DO-NOT-DELETE` row
+  // marks the bulk seed and is probed on every run. Runs after the
+  // canonical O2C chain so the canonical rows still pass their existing
+  // shape assertions; the bulk rows are additive and use the `BULK-`
+  // prefix on every ref so existing tests continue to assert on the
+  // small canonical set.
+  await seedBulkData();
 }
 
 export async function seedClerkScope(): Promise<void> {

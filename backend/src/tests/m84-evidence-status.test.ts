@@ -61,6 +61,7 @@ async function setup() {
     shipmentId: shipment.id,
     fulfillmentType: 'LCL_SHIPMENT',
     cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
   }).returning();

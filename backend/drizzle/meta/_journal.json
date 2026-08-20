@@ -190,6 +190,34 @@
       "when": 1787153793942,
       "tag": "0026_rename-lach-huyen-terminal-labels",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1787242049681,
+      "tag": "0027_backfill-fulfillment-classification-single",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1787242127726,
+      "tag": "0028_require-fulfillment-classification",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787242408815,
+      "tag": "0029_correct-lcl-fulfillment-classification",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787244127467,
+      "tag": "0030_enforce-lcl-fulfillment-classification",
+      "breakpoints": true
     }
   ]
 }

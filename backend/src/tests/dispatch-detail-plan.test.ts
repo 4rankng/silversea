@@ -1165,7 +1165,7 @@ describe('atomic dispatch detail plan save', () => {
     const after = await fetchShipmentAndFulfillment(fulfillment.id);
     assert.equal(after.fulfillment.plannedCarrierType, 'OWN');
     assert.equal(after.fulfillment.plannedRevenue, null);
-    assert.equal(after.fulfillment.dispatchClassification, null);
+    assert.equal(after.fulfillment.dispatchClassification, 'SINGLE');
     assert.equal(after.shipment.version, shipment.version);
   });
 
@@ -1330,6 +1330,7 @@ describe('dispatch detail plan server ordering', () => {
       shipmentId: shipment.id,
       fulfillmentType: 'LCL_SHIPMENT',
       cargoMode: 'LCL',
+      dispatchClassification: 'LCL',
       sourceShipmentVersion: shipment.version,
       siteSnapshot: { deliverySite: { id: site.id, name: site.name, address: site.address } },
       plannedCarrierType: 'OWN',

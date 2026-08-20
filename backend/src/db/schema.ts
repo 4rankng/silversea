@@ -2637,7 +2637,7 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   // closes them through the existing governed workflows.
   plannedRevenue: numeric('planned_revenue', { precision: 15, scale: 0 }),
   plannedCarrierCost: numeric('planned_carrier_cost', { precision: 15, scale: 0 }),
-  dispatchClassification: dispatchClassificationEnum('dispatch_classification'),
+  dispatchClassification: dispatchClassificationEnum('dispatch_classification').notNull().default('SINGLE'),
   version: integer('version').notNull().default(1),
   canceledAt: timestamp('canceled_at', { withTimezone: true }),
   canceledBy: integer('canceled_by'),

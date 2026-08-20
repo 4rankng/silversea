@@ -2322,6 +2322,7 @@ export async function cancelShipmentFulfillment(args: {
           shipmentContainerId: fulfillment.shipmentContainerId,
           sourceShipmentVersion: shipment.version,
           siteSnapshot: fulfillment.siteSnapshot,
+          dispatchClassification: fulfillment.cargoMode === 'LCL' ? 'LCL' : 'SINGLE',
           createdBy: args.actor.userId,
         }).returning();
         if (!replacement) {

@@ -121,6 +121,7 @@ async function createTripFixture(input: {
       shipmentId: shipment.id,
       fulfillmentType: 'LCL_SHIPMENT',
       cargoMode: 'LCL',
+      dispatchClassification: 'LCL',
       sourceShipmentVersion: shipment.version,
       siteSnapshot: {},
       createdBy: actorId,
