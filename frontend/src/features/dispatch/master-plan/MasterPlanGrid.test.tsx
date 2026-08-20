@@ -160,6 +160,19 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('". direction"');
   });
 
+  it('prioritizes schedule space over the compact document and allocation columns on desktop', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
+
+    const scheduleWidth = widthFor('schedule');
+    const widths = ['schedule', 'customer', 'documents', 'locations', 'cargo', 'notes', 'allocation'].map(widthFor);
+
+    expect(scheduleWidth).toBe(22);
+    expect(scheduleWidth).toBeGreaterThan(widthFor('documents'));
+    expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+  });
+
   it('wraps operational values instead of truncating them in compact table columns', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const lineRule = css.match(/\.master-plan-grid__line \{([\s\S]*?)\n\}/)?.[1] ?? '';

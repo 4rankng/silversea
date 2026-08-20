@@ -457,13 +457,16 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-.master-plan-grid__col--schedule { width: 13%; }
+/* Schedule carries the variable-length appointment groups and cutoff. Give it
+   the primary desktop budget, reclaiming space from the compact document and
+   allocation summaries without changing the narrow-screen record layout. */
+.master-plan-grid__col--schedule { width: 22%; }
 .master-plan-grid__col--customer { width: 16%; }
-.master-plan-grid__col--documents { width: 14%; }
+.master-plan-grid__col--documents { width: 10%; }
 .master-plan-grid__col--locations { width: 15%; }
-.master-plan-grid__col--cargo { width: 11%; }
-.master-plan-grid__col--notes { width: 15%; }
-.master-plan-grid__col--allocation { width: 16%; }
+.master-plan-grid__col--cargo { width: 12%; }
+.master-plan-grid__col--notes { width: 14%; }
+.master-plan-grid__col--allocation { width: 11%; }
 
 .master-plan-grid thead th {
   position: sticky;
