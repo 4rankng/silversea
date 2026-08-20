@@ -195,7 +195,7 @@ export interface DispatchDetailPlanRow {
   cargoMode: 'FCL' | 'LCL';
   taskStatus: 'READY' | 'DISPATCHED';
   time: { deliveryDate: string | null; runHour: number | null };
-  customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null };
+  customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
   notes: { vehicleNote: string | null; customerNote: string | null };

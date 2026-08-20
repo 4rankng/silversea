@@ -606,6 +606,26 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 inputProps={{ 'aria-label': 'Đến ngày giao' }}
               />
             </div>
+            {/* Quick date views, same contract as the shipment-detail toolbar. */}
+            <div className="master-plan-filters__date-actions">
+              <UUIButton
+                size="xs"
+                color="secondary"
+                onPress={() => onChange({ deliveryDateFrom: '', deliveryDateTo: '' })}
+              >
+                Tất cả các ngày
+              </UUIButton>
+              <UUIButton
+                size="xs"
+                color="secondary"
+                onPress={() => {
+                  const today = new Date().toLocaleDateString('en-CA');
+                  onChange({ deliveryDateFrom: today, deliveryDateTo: today });
+                }}
+              >
+                Về hôm nay
+              </UUIButton>
+            </div>
           </div>
         </div>
         <UUIButton

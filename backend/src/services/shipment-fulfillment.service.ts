@@ -253,6 +253,9 @@ export async function ensureShipmentFulfillmentsInTx(
       shipmentContainerId: container.id,
       sourceShipmentVersion: shipment.version,
       siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
+      // Operational default per customer request: a fresh container is "Đơn"
+      // until dispatch explicitly reclassifies it.
+      dispatchClassification: 'SINGLE' as const,
       createdBy: input.actorId,
     }))
     : [{
@@ -262,6 +265,7 @@ export async function ensureShipmentFulfillmentsInTx(
       shipmentContainerId: null,
       sourceShipmentVersion: shipment.version,
       siteSnapshot,
+      dispatchClassification: 'LCL' as const,
       createdBy: input.actorId,
     }];
   return tx.insert(s.shipmentFulfillments).values(values).returning();

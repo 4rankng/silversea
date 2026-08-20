@@ -70,6 +70,8 @@ type ContainerRow = {
   containerTypeName: string | null;
   shippingLineName: string | null;
   operationalSiteId: number | null;
+  pickupPortId: number | null;
+  dropoffPortId: number | null;
 };
 
 type DeclarationRow = {
@@ -234,8 +236,11 @@ function buildOperationalSummary(
   for (const container of containers) {
     const assignment = support.assignmentsByContainer.get(container.id) ?? null;
     const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+    // Own-fleet plates: the dispatch plan already snapshots the truck plate
+    // into plannedVehiclePlateNumber at allocation time, so mirror the
+    // EXTERNAL fallback chain instead of waiting for the executed trip.
     const plateNumber = carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? null
+      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
       : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
     if (carrierType == null) {
       missingCarrierContainers += 1;
@@ -690,6 +695,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       assignmentsByContainer: new Map<number, AssignmentRow>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
       factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
+      portsById: new Map<number, { id: number; code: string | null; name: string }>(),
     };
   }
 
@@ -717,6 +723,8 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerTypeName: s.containerTypes.name,
       shippingLineName: s.shipmentContainers.shippingLineName,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
+      pickupPortId: s.shipmentContainers.pickupPortId,
+      dropoffPortId: s.shipmentContainers.dropoffPortId,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
@@ -981,6 +989,27 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     recoveryFactsByShipment.set(row.shipmentId, byShipment);
   }
 
+  // Port labels for per-container lift/drop display (single lookup per page).
+  const portsById = new Map<number, { id: number; code: string | null; name: string }>();
+  {
+    const portIds = new Set<number>();
+    for (const container of containerRows) {
+      if (container.pickupPortId != null) portIds.add(container.pickupPortId);
+      if (container.dropoffPortId != null) portIds.add(container.dropoffPortId);
+    }
+    if (portIds.size > 0) {
+      const portRows = await executor.select({
+        id: s.ports.id,
+        code: s.ports.code,
+        name: s.ports.name,
+      }).from(s.ports)
+        .where(inArray(s.ports.id, [...portIds]));
+      for (const portRow of portRows) {
+        portsById.set(portRow.id, portRow);
+      }
+    }
+  }
+
   return {
     containersByShipment,
     declarationByShipment,
@@ -992,11 +1021,12 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     assignmentsByContainer,
     recoveryFactsByShipment,
     factoryNameBySiteId,
+    portsById,
   };
 }
 
 async function loadSelectors(customerId: number, executor: Executor = db) {
-  const [routes, containerTypes, operationalSites, externalCarriers, carrierVehicles] = await Promise.all([
+  const [routes, containerTypes, operationalSites, externalCarriers, carrierVehicles, ports] = await Promise.all([
     executor.select({
       id: s.routes.id,
       name: ROUTE_OPERATIONAL_NAME,
@@ -1043,6 +1073,15 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
         isNull(s.carrierFleetVehicles.deletedAt),
       ))
       .orderBy(asc(s.carrierFleetVehicles.licensePlate), asc(s.carrierFleetVehicles.id)),
+    // Master-data Cảng/Bãi for the lift/drop editors — the create form picks
+    // these same rows for its per-container port fields.
+    executor.select({
+      id: s.ports.id,
+      code: s.ports.code,
+      name: s.ports.name,
+    }).from(s.ports)
+      .where(isNull(s.ports.deletedAt))
+      .orderBy(asc(s.ports.name), asc(s.ports.id)),
   ]);
 
   return {
@@ -1063,6 +1102,10 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
     carrierVehicles: carrierVehicles.map((row) => ({
       ...row,
       label: row.licensePlate,
+    })),
+    ports: ports.map((row) => ({
+      ...row,
+      label: row.name,
     })),
   };
 }
@@ -1150,7 +1193,7 @@ function buildListItem(
       ? 'SilverSea'
       : trimOrNull(assignment.tripExternalCarrierName ?? assignment.plannedCarrierName);
     const plateNumber = trimOrNull(carrierType === 'OWN'
-      ? assignment.tripTruckPlate
+      ? assignment.tripTruckPlate ?? assignment.plannedVehiclePlateNumber
       : assignment.tripExternalPlateNumber ?? assignment.plannedVehiclePlateNumber);
     if (carrierName == null && plateNumber == null) return result;
     if (!result.some((item) => item.carrierName === carrierName && item.plateNumber === plateNumber)) {
@@ -1303,8 +1346,15 @@ function buildContainerLine(
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
   const canEditOperational = editableBase && assignment?.tripId == null;
-  const liftSite = readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
-  const dropoffSite = readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
+  // Lift/drop authority is the per-container port columns (same columns the
+  // create form writes). The fulfillment site-snapshot remains the fallback
+  // for legacy rows decomposed before ports existed.
+  const liftSite = container.pickupPortId != null
+    ? support.portsById.get(container.pickupPortId) ?? null
+    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
+  const dropoffSite = container.dropoffPortId != null
+    ? support.portsById.get(container.dropoffPortId) ?? null
+    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
   const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
   const externalCarrierId = assignment?.tripExternalCarrierId ?? assignment?.plannedExternalCarrierId ?? null;
   const carrierName = carrierType === 'OWN'
@@ -1333,11 +1383,11 @@ function buildContainerLine(
     externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,
     carrierName,
     plateNumber: carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? null
+      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
       : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null,
-    liftSiteId: liftSite?.id ?? null,
+    liftSiteId: container.pickupPortId ?? liftSite?.id ?? null,
     liftSite: liftSite?.name ?? null,
-    dropoffSiteId: dropoffSite?.id ?? null,
+    dropoffSiteId: container.dropoffPortId ?? dropoffSite?.id ?? null,
     dropoffSite: dropoffSite?.name ?? null,
     customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
     raw: {
@@ -2179,15 +2229,46 @@ export async function updateCusShipmentContainerLine(args: {
     }
 
     if (args.input.liftSiteId !== undefined || args.input.dropoffSiteId !== undefined) {
-      const siteIds = [args.input.liftSiteId, args.input.dropoffSiteId]
+      // Lift/drop editors pick from the Master-Data port catalog: validate the
+      // ids against active ports and persist them on the per-container port
+      // columns — the same authority the create form writes.
+      const portIds = [args.input.liftSiteId, args.input.dropoffSiteId]
         .filter((value): value is number => value != null);
-      const byId = await loadOperationalSiteRecords(shipment.customerId, siteIds, tx);
+      const portsByIdIn = portIds.length === 0
+        ? new Map<number, { id: number; code: string; name: string }>()
+        : new Map((await tx.select({
+          id: s.ports.id,
+          code: s.ports.code,
+          name: s.ports.name,
+        }).from(s.ports)
+          .where(and(inArray(s.ports.id, portIds), isNull(s.ports.deletedAt))))
+          .map((port) => [port.id, port]));
+      if (portsByIdIn.size !== portIds.length) {
+        throw new ApiError(409, 'Cảng nâng/hạ không còn hiệu lực trong danh mục cảng, bãi.');
+      }
+      const nextContainerPortUpdate: Record<string, unknown> = {};
+      if (args.input.liftSiteId !== undefined) nextContainerPortUpdate.pickupPortId = args.input.liftSiteId;
+      if (args.input.dropoffSiteId !== undefined) nextContainerPortUpdate.dropoffPortId = args.input.dropoffSiteId;
+      if (Object.keys(nextContainerPortUpdate).length > 0) {
+        await tx.update(s.shipmentContainers).set({
+          ...nextContainerPortUpdate,
+          updatedAt: now,
+        }).where(eq(s.shipmentContainers.id, container.id));
+      }
+      // Keep the fulfillment site-snapshot aligned for legacy projections
+      // (dispatch drawer, driver app) that still read the snapshot halves.
+      const snapshotPort = (portId: number | null) => portId == null ? null : ({
+        id: portsByIdIn.get(portId)!.id,
+        code: portsByIdIn.get(portId)!.code,
+        name: portsByIdIn.get(portId)!.name,
+        siteType: 'PORT',
+      });
       const nextSnapshot = { ...((fulfillment.siteSnapshot ?? {}) as Record<string, unknown>) };
       if (args.input.liftSiteId !== undefined) {
-        nextSnapshot.pickupWarehouse = args.input.liftSiteId == null ? null : byId.get(args.input.liftSiteId) ?? null;
+        nextSnapshot.pickupWarehouse = snapshotPort(args.input.liftSiteId);
       }
       if (args.input.dropoffSiteId !== undefined) {
-        nextSnapshot.deliverySite = args.input.dropoffSiteId == null ? null : byId.get(args.input.dropoffSiteId) ?? null;
+        nextSnapshot.deliverySite = snapshotPort(args.input.dropoffSiteId);
       }
       await tx.update(s.shipmentFulfillments).set({
         siteSnapshot: nextSnapshot,

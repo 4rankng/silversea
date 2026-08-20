@@ -521,6 +521,15 @@ export interface ShipmentListItem extends Shipment {
   /** Route operational name (short-name authority) for the master-plan
    *  primary line; null when the shipment has no route. */
   routeName?: string | null;
+  /** All effective factory labels of the lot (container-site authority first,
+   *  shipment-site fallback) — master plan lists every factory. */
+  factoryNames?: string[];
+  /** Factory operating notes ("Ghi chú nhà máy") for the notes column. */
+  factoryNotes?: string | null;
+  /** Containers without a đóng/trả appointment; badge shows "Còn X/Y cont
+   *  chưa chốt ngày đóng trả" when X > 0. */
+  containersMissingAppointment?: number;
+  containerTotal?: number;
   containerCount20: number;
   containerCount40: number;
   /** e.g. "2 x 40HC + 1 x 20DC" */

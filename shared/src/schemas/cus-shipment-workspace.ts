@@ -363,12 +363,21 @@ const shipmentCusWorkspaceRouteOptionSchema = z.object({
   label: z.string(),
 }).strict();
 
+/** Master-data Cảng/Bãi option for the lift/drop port editors. */
+const shipmentCusWorkspacePortOptionSchema = z.object({
+  id: z.number().int().positive(),
+  code: z.string().nullable(),
+  name: z.string(),
+  label: z.string(),
+}).strict();
+
 const shipmentCusWorkspaceSelectorsSchema = z.object({
   routes: z.array(shipmentCusWorkspaceRouteOptionSchema),
   containerTypes: z.array(shipmentCusWorkspaceContainerTypeOptionSchema),
   operationalSites: z.array(shipmentCusWorkspaceOperationalSiteOptionSchema),
   externalCarriers: z.array(shipmentCusWorkspaceExternalCarrierOptionSchema),
   carrierVehicles: z.array(shipmentCusWorkspaceCarrierVehicleOptionSchema),
+  ports: z.array(shipmentCusWorkspacePortOptionSchema),
 }).strict();
 
 export const shipmentCusWorkspaceDetailSchema = z.object({

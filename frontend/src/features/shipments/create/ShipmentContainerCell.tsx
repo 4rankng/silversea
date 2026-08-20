@@ -5,6 +5,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import './ShipmentContainerCell.css';
 
 const CELL_CONTROL_SELECTOR = 'input, button, select, textarea, [role="combobox"]';
 

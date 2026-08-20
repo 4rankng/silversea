@@ -75,6 +75,12 @@
   color: var(--text-secondary, #94a3b8);
 }
 
+.master-plan-filters__date-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
 .master-plan-filters__actions {
   flex: 0 0 auto;
   align-self: end;
@@ -460,12 +466,13 @@
 /* Schedule carries the variable-length appointment groups and cutoff. Give it
    the primary desktop budget, reclaiming space from the compact document and
    allocation summaries without changing the narrow-screen record layout. */
-.master-plan-grid__col--schedule { width: 22%; }
-.master-plan-grid__col--customer { width: 16%; }
-.master-plan-grid__col--documents { width: 10%; }
+.master-plan-grid__col--schedule { width: 26%; }
+/* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
+.master-plan-grid__col--customer { width: 15%; }
+.master-plan-grid__col--documents { width: 9%; }
 .master-plan-grid__col--locations { width: 15%; }
 .master-plan-grid__col--cargo { width: 12%; }
-.master-plan-grid__col--notes { width: 14%; }
+.master-plan-grid__col--notes { width: 12%; }
 .master-plan-grid__col--allocation { width: 11%; }
 
 .master-plan-grid thead th {

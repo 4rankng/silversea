@@ -947,9 +947,7 @@ export default function ShipmentsPage() {
                           <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
                             <strong className="cus-customer-name">{item.customerName || '—'}</strong>
                             <span>{item.effectiveFactoryNames.length > 0
-                              ? (item.effectiveFactoryNames.length <= 2
-                                ? item.effectiveFactoryNames.join(' + ')
-                                : `${item.effectiveFactoryNames[0]} + ${item.effectiveFactoryNames.length - 1} NM`)
+                              ? item.effectiveFactoryNames.join(' + ')
                               : item.factoryName || 'Chưa có nhà máy'}</span>
                             <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
                           </span></button>
@@ -1003,8 +1001,9 @@ export default function ShipmentsPage() {
                             aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
                             onClick={() => startQuickEdit(item, 'notes')}
                           >
-                            <span className={`cus-note-preview__customer${customerNoteLines.length ? '' : ' cus-note-preview__customer--empty'}`}>{customerNoteLines.join(' ') || 'Chưa có ghi chú cho khách hàng'}</span>
+                            {customerNoteLines.length > 0 && <span className="cus-note-preview__customer">{customerNoteLines.join(' ')}</span>}
                             {operationalNoteLines.length > 0 && <span className="cus-note-internal">{operationalNoteLines.join(' ')}</span>}
+                            {customerNoteLines.length === 0 && operationalNoteLines.length === 0 && <span className="cus-note-preview__customer cus-note-preview__customer--empty">—</span>}
                           </button>
                         </td>
                         <td data-label="Trạng thái">

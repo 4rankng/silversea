@@ -122,6 +122,12 @@ export default function MasterPlanPage() {
               items={masterPlan.items}
               onAllocate={handleAllocate}
               onViewContainers={handleViewContainers}
+              scheduleDate={
+                masterPlan.filters.deliveryDateFrom
+                && masterPlan.filters.deliveryDateFrom === masterPlan.filters.deliveryDateTo
+                  ? masterPlan.filters.deliveryDateFrom
+                  : null
+              }
             />
             {masterPlan.total > masterPlan.pageSize && (
               <Pagination

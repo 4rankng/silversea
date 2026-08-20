@@ -979,6 +979,8 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // factoryName remains the fallback when no site is linked.
     operationalSiteName: SITE_OPERATIONAL_NAME,
     routeName: ROUTE_OPERATIONAL_NAME,
+    // "Ghi chú nhà máy": the factory's operating notes (strict rules).
+    factoryNotes: s.operationalSites.strictRules,
   }).from(s.shipments)
     .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
@@ -995,6 +997,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     customerName: string | null;
     operationalSiteName: string | null;
     routeName: string | null;
+    factoryNotes: string | null;
   }> = [];
   let total = 0;
   let containerPortGroupsByShipmentId = new Map<number, ShipmentContainerPortGroup[]>();
@@ -1007,6 +1010,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
         customerName: CUSTOMER_OPERATIONAL_NAME,
         operationalSiteName: SITE_OPERATIONAL_NAME,
         routeName: ROUTE_OPERATIONAL_NAME,
+        factoryNotes: s.operationalSites.strictRules,
       }).from(s.shipments)
         .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
         .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
@@ -1060,6 +1064,22 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const appointmentGroupsByShipmentId = await loadShipmentListAppointmentGroups(
     items.map((row) => row.shipment),
   );
+  // Distinct effective factory labels per shipment: appointment groups already
+  // resolve container-site → shipment-site → legacy-text precedence, so their
+  // factory labels are the authoritative multi-factory view. Shipments whose
+  // containers carry no appointment fall back to their single projected label.
+  const factoryNamesByShipmentId = new Map<number, string[]>();
+  for (const row of items) {
+    const labels = new Set<string>();
+    for (const group of appointmentGroupsByShipmentId.get(row.shipment.id) ?? []) {
+      if (group.factoryShortName ?? group.factoryName) labels.add((group.factoryShortName ?? group.factoryName)!);
+    }
+    if (labels.size === 0) {
+      const fallback = row.operationalSiteName ?? row.shipment.factoryName ?? null;
+      if (fallback) labels.add(fallback);
+    }
+    factoryNamesByShipmentId.set(row.shipment.id, [...labels]);
+  }
   if (!options.includeDispatchSummary) {
     containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
       items.map((row) => row.shipment),
@@ -1071,6 +1091,17 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // Operational-site short-name authority with stored factory text fallback
     // (master-plan "Xưởng/Điểm" projection, plan phase-02).
     factoryName: row.operationalSiteName ?? row.shipment.factoryName,
+    // Factory operating notes for the master-plan notes column.
+    factoryNotes: row.factoryNotes,
+    // Partial-missing-date warning (docx T2.2): how many containers of the
+    // lot still lack a đóng/trả appointment. Zero when all are scheduled.
+    containersMissingAppointment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containersMissingAppointment ?? 0,
+    containerTotal: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTotal ?? 0,
+    // All effective factories of the lot (container-site authority first,
+    // shipment-site fallback) so the master plan lists every factory instead
+    // of one label. Derived from the appointment-group factory resolution,
+    // plus the shipment-level factory for lots without appointments.
+    factoryNames: factoryNamesByShipmentId.get(row.shipment.id) ?? [],
     // Route operational name for the master-plan primary line (P8); null when
     // the shipment has no route assigned.
     routeName: row.routeName,

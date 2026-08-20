@@ -8,6 +8,7 @@ import { formatDateTimeShort } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { SearchableSelect } from '../../../design-system';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import {
   dispatchStatusLabel,
   idempotencySignature,
@@ -142,6 +143,10 @@ function ContainerLineRow({
       searchText: carrier.shortName ?? undefined,
     })),
   ];
+  const selectedContainerType = detail.selectors.containerTypes.find((option) => String(option.id) === draft.containerTypeId);
+  const selectedCarrier = carrierOptions.find((option) => option.value === draft.carrierKey);
+  const selectedLiftPort = detail.selectors.ports.find((option) => String(option.id) === draft.liftSiteId);
+  const selectedDropoffPort = detail.selectors.ports.find((option) => String(option.id) === draft.dropoffSiteId);
 
   return (
     <tr
@@ -163,17 +168,28 @@ function ContainerLineRow({
         <span className="cus-container-row__ordinal">{line.ordinal}</span>
         <strong id={`${idPrefix}-container-${line.id}`}>{line.containerNumber || 'Chưa có số container'}</strong>
       </th>
-      <td data-label="Loại cont" className="cus-container-cell">
-        {containerTypeEditable ? <>
+      {containerTypeEditable ? (
+        <ShipmentContainerCell
+          label="Loại cont"
+          value={selectedContainerType?.code ?? ''}
+          placeholder="Chọn loại cont"
+          displayTitle={selectedContainerType ? `${selectedContainerType.code} — ${selectedContainerType.name}` : undefined}
+          className="cus-container-cell"
+        >
           <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {line.containerNumber || line.ordinal}</label>
           <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => updateDraft({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
-        </> : <strong>{line.containerTypeLabel || '—'}</strong>}
-      </td>
+        </ShipmentContainerCell>
+      ) : <td data-label="Loại cont" className="cus-container-cell"><strong>{line.containerTypeLabel || '—'}</strong></td>}
       <td data-label="Điều vận" className="cus-container-cell">
         <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
       </td>
-      <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier">
-        {carrierEditable ? (
+      {carrierEditable ? (
+        <ShipmentContainerCell
+          label="Nhà xe"
+          value={draft.carrierKey === 'NEW_EXTERNAL' ? draft.newCarrierName : selectedCarrier?.label ?? ''}
+          placeholder={draft.carrierKey === 'NEW_EXTERNAL' ? 'Nhập nhà xe mới' : 'Chọn nhà xe'}
+          className="cus-container-cell cus-container-cell--carrier"
+        >
           <div className="cus-carrier-editor">
             {draft.carrierKey === 'NEW_EXTERNAL' ? (
               <>
@@ -189,22 +205,33 @@ function ContainerLineRow({
               </>
             )}
           </div>
-        ) : <strong>{line.carrierName || '—'}</strong>}
-      </td>
-      <td data-label="Biển số" className="cus-container-cell">
-        {plateEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => updateDraft({ plateNumber: event.target.value })} /></> : <strong>{line.plateNumber || '—'}</strong>}
-        {plateEditable && <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>}
-      </td>
-      <td data-label="Nâng" className="cus-container-cell">
-        {liftSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Điểm nâng của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => updateDraft({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm nâng" /></> : <strong>{line.liftSite || '—'}</strong>}
-      </td>
-      <td data-label="Hạ" className="cus-container-cell">
-        {dropoffSiteEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Điểm hạ của container {line.containerNumber || line.ordinal}</label><SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.operationalSites.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn điểm hạ" /></> : <strong>{line.dropoffSite || '—'}</strong>}
-      </td>
-      <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell">
-        {customerAppointmentEditable ? <><label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label><input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} /></> : <strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong>}
-        {saveError && <span className="cus-container-row__error" role="alert">{saveError}</span>}
-      </td>
+        </ShipmentContainerCell>
+      ) : <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier"><strong>{line.carrierName || '—'}</strong></td>}
+      {plateEditable ? (
+        <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
+          <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
+          <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => updateDraft({ plateNumber: event.target.value })} />
+          <datalist id={`${idPrefix}-plates-${line.id}`}>{detail.selectors.carrierVehicles.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+        </ShipmentContainerCell>
+      ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
+      {liftSiteEditable ? (
+        <ShipmentContainerCell label="Nâng" value={selectedLiftPort?.name ?? ''} displayTitle={selectedLiftPort ? `${selectedLiftPort.code ?? ''} — ${selectedLiftPort.name}` : undefined} placeholder="Chọn cảng nâng" className="cus-container-cell">
+          <label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
+          <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => updateDraft({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng nâng" />
+        </ShipmentContainerCell>
+      ) : <td data-label="Nâng" className="cus-container-cell"><strong>{line.liftSite || '—'}</strong></td>}
+      {dropoffSiteEditable ? (
+        <ShipmentContainerCell label="Hạ" value={selectedDropoffPort?.name ?? ''} displayTitle={selectedDropoffPort ? `${selectedDropoffPort.code ?? ''} — ${selectedDropoffPort.name}` : undefined} placeholder="Chọn cảng hạ" className="cus-container-cell">
+          <label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>
+          <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => updateDraft({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
+        </ShipmentContainerCell>
+      ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
+      {customerAppointmentEditable ? (
+        <ShipmentContainerCell label="Giờ hẹn đóng/trả" value={formatDateTimeShort(draft.customerAppointmentAt ? new Date(draft.customerAppointmentAt).toISOString() : null)} placeholder="Chọn ngày giờ" className="cus-container-cell" error={saveError ?? undefined}>
+          <label className="sr-only" htmlFor={`${idPrefix}-customer-appointment-${line.id}`}>Giờ hẹn đóng hoặc trả tại nhà máy của container {line.containerNumber || line.ordinal}</label>
+          <input id={`${idPrefix}-customer-appointment-${line.id}`} type="datetime-local" value={draft.customerAppointmentAt} onChange={(event) => updateDraft({ customerAppointmentAt: event.target.value })} />
+        </ShipmentContainerCell>
+      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTimeShort(line.customerAppointmentAt)}</strong></td>}
     </tr>
   );
 }

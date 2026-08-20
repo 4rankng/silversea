@@ -35,10 +35,13 @@ describe('shipment container editor density', () => {
 
   it('uses the create-form spreadsheet pattern instead of two tall operational bands', () => {
     expect(ledgerSource).toContain('<table className="cus-container-table">');
+    expect(ledgerSource).toContain('<ShipmentContainerCell');
+    expect(ledgerSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
     expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1036px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*144px;/);
+    expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
     expect(css).toMatch(
       /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/,
     );

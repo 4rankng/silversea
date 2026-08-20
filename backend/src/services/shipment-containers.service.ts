@@ -232,6 +232,20 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.operationalSiteId ?? null
         : null;
+    // Ports follow the same undefined-preservation contract as the factory
+    // site above: surfaces that don't manage lift/drop ports (e.g. a payload
+    // editing only cargo figures) keep the saved ports; only an explicit
+    // null clears them.
+    const resolvedPickupPortId = container.pickupPortId !== undefined
+      ? container.pickupPortId
+      : isUpdate
+        ? currentById.get(container.id as number)?.pickupPortId ?? null
+        : null;
+    const resolvedDropoffPortId = container.dropoffPortId !== undefined
+      ? container.dropoffPortId
+      : isUpdate
+        ? currentById.get(container.id as number)?.dropoffPortId ?? null
+        : null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -240,8 +254,8 @@ export async function reconcileShipmentContainersInTx(
       cargoWeightKg: container.cargoWeightKg != null ? String(container.cargoWeightKg) : null,
       cargoVolumeCbm: container.cargoVolumeCbm != null ? String(container.cargoVolumeCbm) : null,
       shippingLineName: container.shippingLineName?.trim() || null,
-      pickupPortId: container.pickupPortId ?? null,
-      dropoffPortId: container.dropoffPortId ?? null,
+      pickupPortId: resolvedPickupPortId,
+      dropoffPortId: resolvedDropoffPortId,
       operationalSiteId: resolvedSiteId,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       notes: container.notes ?? null,

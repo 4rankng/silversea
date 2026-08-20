@@ -91,6 +91,11 @@ const detail = {
     externalCarriers: [{ id: 41, name: 'Nhà xe Bắc', shortName: null, label: 'Nhà xe Bắc' }],
     carrierVehicles: [{ id: 51, carrierId: 41, licensePlate: '15C-123.45', label: '15C-123.45' }],
     containerTypes: [],
+    ports: [
+      { id: 31, code: 'CY', name: 'Bãi CY', label: 'CY · Bãi CY' },
+      { id: 32, code: 'HY', name: 'Cảng Hưng Yên', label: 'HY · Cảng Hưng Yên' },
+      { id: 33, code: 'DV', name: 'Cảng Đình Vũ', label: 'DV · Cảng Đình Vũ' },
+    ],
   },
 } as unknown as ShipmentCusWorkspaceDetail;
 
@@ -435,7 +440,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await screen.findByText('CONT-002');
     const routeTrigger = screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ });
     fireEvent.click(routeTrigger);
-    const liftField = await screen.findByLabelText('Điểm nâng');
+    const liftField = await screen.findByLabelText('Cảng nâng');
     expect(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }).getAttribute('aria-expanded')).toBe('true');
     const editor = liftField.closest('.shipment-container-ledger__inline-editor');
     expect(editor?.id).toBe('shipment-detail-edit-route-12-editor');
@@ -507,7 +512,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
-    fireEvent.click(await screen.findByLabelText('Điểm nâng'));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
     expect(await screen.findByText('Mạng tạm thời gián đoạn')).toBeTruthy();
@@ -517,7 +522,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     apiGet.mockResolvedValueOnce(detail);
     fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
-    const editor = (await screen.findByLabelText('Điểm nâng')).closest('.shipment-container-ledger__inline-editor')!;
+    const editor = (await screen.findByLabelText('Cảng nâng')).closest('.shipment-container-ledger__inline-editor')!;
     fireEvent.keyDown(editor, { key: 'Escape' });
     expect(screen.queryByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ })));
@@ -606,14 +611,14 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
-    fireEvent.click(await screen.findByLabelText('Điểm nâng'));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
 
     await waitFor(() => expect(screen.getAllByRole('status').some((element) => element.textContent?.includes('Đã tải bản mới nhất'))).toBe(true));
     expect(screen.getByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeTruthy();
-    expect(screen.getByLabelText('Điểm hạ').textContent).toContain('DV · Cảng Đình Vũ');
-    fireEvent.click(screen.getByLabelText('Điểm nâng'));
+    expect(screen.getByLabelText('Cảng hạ').textContent).toContain('DV · Cảng Đình Vũ');
+    fireEvent.click(screen.getByLabelText('Cảng nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
     await waitFor(() => expect(apiPost).toHaveBeenLastCalledWith('/shipments/cus-workspace/2/containers/12', {
@@ -639,7 +644,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
-    fireEvent.click(await screen.findByLabelText('Điểm nâng'));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
     fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
 

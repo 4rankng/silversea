@@ -49,10 +49,14 @@ interface ShipmentContainerAggregates {
   containerTypeSummary: string | null;
   totalCargoWeightKg: number | null;
   allocationStatus: AllocationStatus;
+  /** Containers with no đóng/trả appointment yet (0 when every container
+   *  has a date) — drives the partial-missing-date warning badge. */
+  containersMissingAppointment: number;
+  containerTotal: number;
 }
 
 function computeContainerAggregates(
-  containers: Array<{ containerTypeCode: string | null; containerTypeName: string | null; cargoWeightKg: string | null }>,
+  containers: Array<{ containerTypeCode: string | null; containerTypeName: string | null; cargoWeightKg: string | null; customerAppointmentAt?: Date | null }>,
   allocatedCount20: number,
   allocatedCount40: number,
 ): ShipmentContainerAggregates {
@@ -87,6 +91,8 @@ function computeContainerAggregates(
     containerTypeSummary: typeParts.length > 0 ? typeParts.join(' + ') : null,
     totalCargoWeightKg: hasWeight ? round2dp(totalWeight) : null,
     allocationStatus,
+    containersMissingAppointment: containers.filter((container) => container.customerAppointmentAt == null).length,
+    containerTotal: containers.length,
   };
 }
 
@@ -214,6 +220,7 @@ export async function loadShipmentDispatchAggregates(
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
       cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, ids))

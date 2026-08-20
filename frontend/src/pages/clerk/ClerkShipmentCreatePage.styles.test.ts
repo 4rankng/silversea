@@ -3,6 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/clerk/ClerkShipmentCreatePage.css'), 'utf8');
+const spreadsheetCellCss = readFileSync(
+  resolve(process.cwd(), 'src/features/shipments/create/ShipmentContainerCell.css'),
+  'utf8',
+);
 const source = readFileSync(
   resolve(process.cwd(), 'src/features/shipments/create/ShipmentCreateWorkspace.tsx'),
   'utf8',
@@ -77,8 +81,8 @@ describe('shipment create responsive layout', () => {
   });
 
   it('keeps the active editor visible while a cell popover owns focus', () => {
-    expect(css).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__display\s*\{[^}]*opacity:\s*0;/);
-    expect(css).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
+    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__display\s*\{[^}]*opacity:\s*0;/);
+    expect(spreadsheetCellCss).toMatch(/\.csc-container-cell:has\(\[aria-expanded='true'\]\) \.csc-container-cell__editor > \*\s*\{[^}]*opacity:\s*1;/);
   });
 
   it('styles only cargo option labels as radio cards, not the required marker', () => {

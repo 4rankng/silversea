@@ -13,6 +13,9 @@ interface MasterPlanGridProps {
   items: ShipmentListItem[];
   onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
   onViewContainers?: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
+  /** Active single-day view (YYYY-MM-DD) — when set, each row's schedule
+   *  lines show only that day's đóng/trả appointments. */
+  scheduleDate?: string | null;
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -41,9 +44,12 @@ function formatHour(iso: string | null | undefined): string {
  * master plan never silently drops a schedule that is genuinely only
  * stored at the shipment level (legacy data).
  */
-function formatAppointmentGroupLines(item: ShipmentListItem): string[] {
+function formatAppointmentGroupLines(item: ShipmentListItem, scheduleDate?: string | null): string[] {
   if (item.appointmentGroups && item.appointmentGroups.length > 0) {
-    return item.appointmentGroups.map((group) => (
+    const groups = scheduleDate
+      ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
+      : item.appointmentGroups;
+    return groups.map((group) => (
       `${formatAppointmentGroupLine(group.at, group.localDate)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`
     ));
   }
@@ -118,7 +124,7 @@ function formatContainerPortGroupLines(item: ShipmentListItem): ContainerPortGro
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate }: MasterPlanGridProps) {
   return (
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
@@ -128,8 +134,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
           <col className="master-plan-grid__col master-plan-grid__col--documents" />
           <col className="master-plan-grid__col master-plan-grid__col--locations" />
           <col className="master-plan-grid__col master-plan-grid__col--cargo" />
-          <col className="master-plan-grid__col master-plan-grid__col--notes" />
           <col className="master-plan-grid__col master-plan-grid__col--allocation" />
+          <col className="master-plan-grid__col master-plan-grid__col--notes" />
         </colgroup>
         <thead>
           <tr>
@@ -138,8 +144,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
             <th scope="col">Chứng từ &amp; hãng tàu</th>
             <th scope="col">Địa điểm nâng/hạ</th>
             <th scope="col">Tổng quan hàng hóa</th>
-            <th scope="col">Ghi chú</th>
             <th scope="col">Phân bổ nhà xe</th>
+            <th scope="col">Ghi chú</th>
           </tr>
         </thead>
         <tbody>
@@ -151,22 +157,32 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
                   <div className="master-plan-grid__line">
                     Lịch cont sớm nhất: {formatISODate(item.expectedDeliveryDate)}
                   </div>
-                  {formatAppointmentGroupLines(item).map((line, lineIdx) => (
+                  {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
+                    <div
+                      className="master-plan-grid__line master-plan-grid__line--urgent"
+                      role="status"
+                    >
+                      Cảnh báo: Còn {item.containersMissingAppointment}/{item.containerTotal} cont chưa chốt ngày đóng trả
+                    </div>
+                  )}
+                  {formatAppointmentGroupLines(item, scheduleDate).map((line, lineIdx) => (
                     <div
                       key={`${item.id}-${lineIdx}-${line}`}
                       className="master-plan-grid__line master-plan-grid__line--muted"
                     >
-                      Giờ: {line}
+                      {line}
                     </div>
                   ))}
-                  <div className={`master-plan-grid__line${urgency === 'none' ? ' master-plan-grid__line--muted' : urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
-                    Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
-                  </div>
+                  {item.customsCutoffAt && (
+                    <div className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
+                      Hạn hoàn tất hải quan: {formatDateTime(item.customsCutoffAt)}
+                    </div>
+                  )}
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">Lộ trình: {item.routeName ?? '—'}</div>
-                  <div className="master-plan-grid__line">{item.customerName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--muted">{item.factoryName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.routeName ?? '—'}</div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
                   <div className="master-plan-grid__documents">
@@ -216,11 +232,6 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
                     Xem chi tiết cont
                   </UUIButton>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Ghi chú">
-                  <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes ?? undefined}>
-                    {item.operationalNotes ?? '—'}
-                  </div>
-                </td>
                 <td
                   className="master-plan-grid__cell master-plan-grid__cell--action"
                   data-label="Phân bổ nhà xe"
@@ -238,7 +249,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
                     noTextPadding
                     aria-label="Chỉnh sửa phân bổ nhà xe"
                     className="master-plan-grid__allocation-trigger"
-                    // The press target may be the button's inner text span — resolve
+                    // The press target may be button's inner text span — resolve
                     // back to the button itself for focus restoration.
                     onPress={(event) => onAllocate(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                   >
@@ -267,6 +278,16 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {} 
                       <span className="master-plan-grid__allocation-empty">Chưa phân bổ</span>
                     )}
                   </UUIButton>
+                </td>
+                <td className="master-plan-grid__cell" data-label="Ghi chú">
+                  <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes ?? undefined}>
+                    {item.operationalNotes ?? '—'}
+                  </div>
+                  {item.factoryNotes && (
+                    <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
+                      NM: {item.factoryNotes}
+                    </div>
+                  )}
                 </td>
               </tr>
             );

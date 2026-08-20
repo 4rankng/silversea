@@ -2188,6 +2188,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       cargoWeightKg: s.shipments.cargoWeightKg,
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
+      routeName: ROUTE_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
       containerNumber: s.shipmentContainers.containerNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
@@ -2204,6 +2205,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+      .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         ne(s.trips.status, TripStatus.CANCELED),
@@ -2269,6 +2271,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             customerName: row.customerName,
             factoryName: deliverySite.name,
             deliveryPoint: deliverySite.address,
+            routeName: row.routeName,
           },
           docs: {
             billNumber: row.blNumber || row.bookingRef,

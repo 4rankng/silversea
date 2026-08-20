@@ -199,9 +199,9 @@ function InlineEditor({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const siteOptions = useMemo(() => detail.selectors.operationalSites.map((site) => ({
-    value: String(site.id), label: site.label, searchText: `${site.code} ${site.name}`,
-  })), [detail.selectors.operationalSites]);
+  const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
+    value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
+  })), [detail.selectors.ports]);
   const carrierOptions = useMemo(() => [
     { value: 'OWN', label: 'Đội xe SilverSea', searchText: 'đội xe nội bộ silversea' },
     ...detail.selectors.externalCarriers.map((carrier) => ({
@@ -398,8 +398,8 @@ function InlineEditor({
       )}
       {mode === 'route' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Điểm nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn điểm nâng" searchPlaceholder="Tìm điểm nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
-          <label><span>Điểm hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn điểm hạ" searchPlaceholder="Tìm điểm hạ" disabled={saving || !line.permissions.dropoffSiteEditable} /></label>
+          <label><span>Cảng nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn cảng nâng" searchPlaceholder="Tìm cảng nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
+          <label><span>Cảng hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn cảng hạ" searchPlaceholder="Tìm cảng hạ" disabled={saving || !line.permissions.dropoffSiteEditable} /></label>
         </div>
       )}
       {mode === 'vehicle' && (

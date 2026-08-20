@@ -178,6 +178,10 @@ const detail = {
     ],
     externalCarriers: [{ id: 8, name: 'Nhà xe An Phát', shortName: 'An Phát', label: 'Nhà xe An Phát' }],
     carrierVehicles: [{ id: 18, carrierId: 8, licensePlate: '15C-123.45', label: '15C-123.45' }],
+    ports: [
+      { id: 51, code: 'DV', name: 'Cảng Đình Vũ', label: 'Cảng Đình Vũ' },
+      { id: 52, code: 'TV', name: 'Bãi Tân Vũ', label: 'Bãi Tân Vũ' },
+    ],
   },
   dataState: {
     hasExplicitDocumentCustody: true,
@@ -1021,6 +1025,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const containerType = within(ledger).getByRole('button', { name: 'Loại container MSKU1234567' });
     expect(containerType.textContent).toBe('40HC');
     expect(containerType.textContent).not.toContain('Container 40HC');
+    expect(within(ledger).getByText('40HC', { selector: '.csc-container-cell__display' })).toBeTruthy();
+    expect(within(ledger).getByText('Nhà xe An Phát', { selector: '.csc-container-cell__display' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
     expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();

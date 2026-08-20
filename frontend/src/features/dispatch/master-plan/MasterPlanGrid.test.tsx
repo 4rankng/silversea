@@ -91,11 +91,11 @@ describe('MasterPlanGrid', () => {
     const renderedText = screen.getByText(/11:00 24\/8\/2026 · Sunrise · 1 x 40DC/);
     expect(renderedText).toBeTruthy();
     expect(screen.getByText(/11:00 25\/8\/2026 · Sunrise · 1 x 40DC/)).toBeTruthy();
-    // Both lines start with the "Giờ:" prefix.
+    // The "Giờ:" label is gone; only the HH:mm value leads each line.
     const scheduleCell = renderedText.closest('td');
     expect(scheduleCell).toBeTruthy();
-    const gioLines = within(scheduleCell!).getAllByText(/Giờ:/);
-    expect(gioLines.length).toBe(2);
+    expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
+    expect(within(scheduleCell!).getAllByText(/11:00/).length).toBe(2);
   });
 
   it('falls back to the shipment-level closingAt when no per-container appointments exist', () => {
@@ -109,8 +109,8 @@ describe('MasterPlanGrid', () => {
     // Host-TZ-independent: the seed 08:00 UTC maps to either 8H or 15H
     // depending on the runner's TZ; assert the value is one of those two.
     const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).closest('td');
-    const gioLine = within(cell!).getByText(/Giờ: \d{1,2}H/);
-    expect(gioLine.textContent).toMatch(/Giờ: (8H|15H)/);
+    const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
+    expect(hourLine.textContent).toMatch(/^(8H|15H)$/);
   });
 
   it('renders all 7 docx columns for a READY_FOR_DISPATCH row', () => {
@@ -124,15 +124,16 @@ describe('MasterPlanGrid', () => {
       'Chứng từ & hãng tàu',
       'Địa điểm nâng/hạ',
       'Tổng quan hàng hóa',
-      'Ghi chú',
       'Phân bổ nhà xe',
+      'Ghi chú',
     ]);
 
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
-    // P8: route and shipping line are the primary (strong) identity lines.
-    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    // T2.1: customer → factories → route, all three with route bold.
+    expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
@@ -145,7 +146,6 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
-    expect(screen.getByText('Công ty ABC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
@@ -183,7 +183,7 @@ describe('MasterPlanGrid', () => {
     const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'documents', 'locations', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    expect(scheduleWidth).toBe(22);
+    expect(scheduleWidth).toBe(26);
     expect(scheduleWidth).toBeGreaterThan(widthFor('documents'));
     expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
@@ -287,8 +287,8 @@ describe('MasterPlanGrid', () => {
       'Chứng từ & hãng tàu',
       'Địa điểm nâng/hạ',
       'Tổng quan hàng hóa',
-      'Ghi chú',
       'Phân bổ nhà xe',
+      'Ghi chú',
     ]);
   });
 

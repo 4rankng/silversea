@@ -73,9 +73,9 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Giao: 20/08/2026')).toBeTruthy();
     expect(screen.getByText('Giờ: 8H')).toBeTruthy();
     // Column 2: KH/factory/delivery point
-    expect(screen.getByText('KH: Công ty ABC')).toBeTruthy();
-    expect(screen.getByText('Nhà máy: Nhà máy XYZ')).toBeTruthy();
-    expect(screen.getByText('Điểm trả: Kho Bình Dương')).toBeTruthy();
+    // T2.3: label-free lines, customer and route emphasized.
+    expect(screen.getByText('Công ty ABC')).toBeTruthy();
+    expect(screen.getByText('Nhà máy XYZ')).toBeTruthy();
     // Column 3: bill + badge
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
     const directionBadge = screen.getByText('Xuất');
@@ -234,12 +234,13 @@ describe('DetailedPlanGrid', () => {
     expect(onAtomicSave).not.toHaveBeenCalled();
   });
 
-  it('renders the classification column with the unclassified placeholder', () => {
-    renderGrid([row({ classification: 'SINGLE' })]);
+  it('renders the classification column with the operational default for legacy null rows', () => {
+    const first = renderGrid([row({ classification: 'SINGLE' })]);
     expect(screen.getByText('Đơn')).toBeTruthy();
+    first.unmount();
 
     renderGrid([row({ classification: null })]);
-    expect(screen.getByText('Chưa phân loại')).toBeTruthy();
+    expect(screen.getByText('Đơn')).toBeTruthy();
   });
 
   it('uses one regular-weight neutral tag treatment for every saved classification', () => {

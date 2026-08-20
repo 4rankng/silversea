@@ -412,12 +412,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
           {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
         </span>
-        <span className={`dispatch-assignment-cell__estimate${row.estimates.plannedRevenue == null ? ' is-placeholder' : ''}`}>
-          Thu: {formatVnd(row.estimates.plannedRevenue)}
-        </span>
-        <span className={`dispatch-assignment-cell__estimate${row.estimates.plannedCarrierCost == null ? ' is-placeholder' : ''}`}>
-          Trả: {formatVnd(row.estimates.plannedCarrierCost)}
-        </span>
+        {/* Cước thu/trả temporarily hidden from the grid cell per customer
+            request (docx T2.3); the editor dialog still shows and saves both. */}
         {row.lotFullyPlated && !currentPlate && (
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
