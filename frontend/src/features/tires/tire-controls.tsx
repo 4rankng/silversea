@@ -61,7 +61,7 @@ export function AddTireForm({
     <div className="ttp-add">
       <div className="ttp-field ttp-field--serial">
         <label htmlFor="tire-serial">Serial lốp *</label>
-        <input id="tire-serial" name="serial" className="input" value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="VD: 12345678" />
+        <input id="tire-serial" name="serial" className="input" value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="Ví dụ: 12345678" />
       </div>
       <div className="ttp-field">
         <span className="ttp-field__label">Vị trí</span>
@@ -69,7 +69,7 @@ export function AddTireForm({
       </div>
       <div className="ttp-field">
         <label htmlFor="tire-size">Kích cỡ</label>
-        <input id="tire-size" name="size" className="input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="VD: 11R22.5" />
+        <input id="tire-size" name="size" className="input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="Ví dụ: 11R22.5" />
       </div>
       <div className="ttp-field">
         <span className="ttp-field__label">Nhà cung cấp</span>
@@ -421,7 +421,7 @@ export function TirePositionsManagerDialog({
             </div>
             <label className="ttp-position-control ttp-position-control--name">
               <span>Tên vị trí</span>
-              <input className="input" value={newDraft.name} onChange={(e) => updateNewDraft("name", e.target.value)} onBlur={(e) => updateNewDraft("name", cleanText(e.target.value))} placeholder="VD: Trục nâng trái" />
+              <input className="input" value={newDraft.name} onChange={(e) => updateNewDraft("name", e.target.value)} onBlur={(e) => updateNewDraft("name", cleanText(e.target.value))} placeholder="Ví dụ: Trục nâng trái" />
             </label>
             <button
               type="button"

@@ -422,7 +422,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
                 <TextField
                   label="Số container"
                   required
-                  placeholder="VD: TCKU1234567"
+                  placeholder="Ví dụ: TCKU1234567"
                   value={draft.containerNumber}
                   onChange={e => setDraft(prev => ({ ...prev, containerNumber: e.target.value.toUpperCase() }))}
                 />
@@ -445,7 +445,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
 
               <TextField
                 label="Số seal"
-                placeholder="VD: AB123456"
+                placeholder="Ví dụ: AB123456"
                 value={draft.sealNumber}
                 onChange={e => setDraft(prev => ({ ...prev, sealNumber: e.target.value.toUpperCase() }))}
               />

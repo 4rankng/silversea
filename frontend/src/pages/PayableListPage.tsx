@@ -160,7 +160,7 @@ export function CommissionModal({
             min="0"
             max="1000000000"
             step="1000"
-            placeholder="VD: 500000"
+            placeholder="Ví dụ: 500000"
             value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
           />
@@ -188,7 +188,7 @@ export function CommissionModal({
             className="input"
             type="text"
             maxLength={500}
-            placeholder="VD: Hoa hồng giới thiệu khách"
+            placeholder="Ví dụ: Hoa hồng giới thiệu khách"
             value={form.note}
             onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
           />

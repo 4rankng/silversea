@@ -39,7 +39,7 @@ export function CancelPenaltyDialog({
           <div><strong>Lý do:</strong> {penalty.reasonText || penalty.customReason || '—'}</div>
         </div>
         <FormGroup label="Lý do hủy (tùy chọn)">
-          <input className="input" placeholder="VD: Hủy do sai sót..." value={reason} onChange={e => setReason(e.target.value)} />
+          <input className="input" placeholder="Ví dụ: Hủy do sai sót..." value={reason} onChange={e => setReason(e.target.value)} />
         </FormGroup>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <Btn variant="ghost" onClick={onClose}>Đóng</Btn>

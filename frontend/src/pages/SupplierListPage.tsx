@@ -120,7 +120,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
           <label htmlFor="supp-name" style={labelStyle}>
             Tên nhà cung cấp <span style={{ color: 'var(--danger)' }}>*</span>
           </label>
-          <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Garage Auto 123" autoFocus />
+          <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Garage Auto 123" autoFocus />
         </div>
         <div className="field">
           <label htmlFor="supp-short-name" style={labelStyle}>

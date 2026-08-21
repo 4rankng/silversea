@@ -333,7 +333,7 @@ export function ShipmentCreateWorkspace() {
       <h1 className="sr-only">Tạo lô hàng</h1>
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
-        <ShipmentCreateSection id="identity" number="01" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
+        <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
             <div className="csc-identity-grid__customer" data-field="shipment-customer" data-field-id="shipment-customer">
@@ -378,7 +378,7 @@ export function ShipmentCreateWorkspace() {
           </div>
         </ShipmentCreateSection>
 
-        {form.cargoMode === 'LCL' && <ShipmentCreateSection id="route" number="02" title="Điểm vận hành & tuyến" description="Chọn tuyến và điểm giao hoặc lấy hàng theo hình thức lô.">
+        {form.cargoMode === 'LCL' && <ShipmentCreateSection id="route" title="Điểm vận hành & tuyến" description="Chọn tuyến và điểm giao hoặc lấy hàng theo hình thức lô.">
           <div style={gridStyle}>
             <div className="csc-route-picker" data-field-id="shipment-route">
               <SearchableField
@@ -446,7 +446,7 @@ export function ShipmentCreateWorkspace() {
           )}
         </ShipmentCreateSection>}
 
-        <ShipmentCreateSection id="cargo" number="03" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
+        <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
           <div className="csc-cargo-choice-grid">
             <fieldset className="csc-mode" aria-required="true"><legend>Loại hàng <span aria-hidden="true">*</span></legend><div>
               {(['FCL', 'LCL'] as CargoMode[]).map((mode) => <label key={mode}><input type="radio" name="cargo-mode" value={mode} checked={form.cargoMode === mode} onChange={() => changeMode(mode)} disabled={Boolean(saving)} /><span className="csc-mode__option">{mode === 'FCL' ? 'Hàng nguyên container (Cont)' : 'Hàng lẻ (Lẻ)'}</span></label>)}
@@ -652,7 +652,7 @@ export function ShipmentCreateWorkspace() {
           )}
         </ShipmentCreateSection>
 
-        <ShipmentCreateSection id="schedule" number="04" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? 'Ngày giờ đóng/trả đã được nhập trên từng container.' : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
+        <ShipmentCreateSection id="schedule" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? 'Ngày giờ đóng/trả đã được nhập trên từng container.' : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
           {form.cargoMode === 'LCL' && <div style={gridStyle}>
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />

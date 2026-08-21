@@ -34,7 +34,7 @@ export function FuelTollsRevenueCard({ collapsible, defaultCollapsed }: FuelToll
       {form.fuelMode === 'FLAT_RATE' && (
         <div className="field">
           <label>Số lít dầu khoán</label>
-          <InputWithPrefix value={form.fuelLitersOverride} onChange={form.setFuelLitersOverride} placeholder="VD: 55" prefix="L" type="number" />
+          <InputWithPrefix value={form.fuelLitersOverride} onChange={form.setFuelLitersOverride} placeholder="Ví dụ: 55" prefix="L" type="number" />
         </div>
       )}
 
@@ -45,7 +45,7 @@ export function FuelTollsRevenueCard({ collapsible, defaultCollapsed }: FuelToll
         </div>
         <div className="field">
           <label>Lý do bổ sung</label>
-          <input className="input" type="text" placeholder="VD: Chạy máy lạnh kéo dài" value={form.fuelSupplementReason} onChange={(e) => form.setFuelSupplementReason(e.target.value)} />
+          <input className="input" type="text" placeholder="Ví dụ: Chạy máy lạnh kéo dài" value={form.fuelSupplementReason} onChange={(e) => form.setFuelSupplementReason(e.target.value)} />
         </div>
       </div>
 

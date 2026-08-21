@@ -345,7 +345,7 @@ export default function TripEditPage() {
                           id="externalFreightCost"
                           value={form.externalFreightCost}
                           onChange={form.setExternalFreightCost}
-                          placeholder="VD: 5.000.000"
+                          placeholder="Ví dụ: 5.000.000"
                           prefix="đ"
                           type="money"
                           mono
@@ -359,7 +359,7 @@ export default function TripEditPage() {
                           id="externalPlateNumber"
                           className="input mono"
                           type="text"
-                          placeholder="VD: 29A-12345"
+                          placeholder="Ví dụ: 29A-12345"
                           value={form.externalPlateNumber}
                           onChange={(e) => form.setExternalPlateNumber(e.target.value)}
                         />
@@ -381,7 +381,7 @@ export default function TripEditPage() {
                           id="externalDriverPhone"
                           className="input mono"
                           type="tel"
-                          placeholder="VD: 0912345678"
+                          placeholder="Ví dụ: 0912345678"
                           value={form.externalDriverPhone}
                           onChange={(e) => form.setExternalDriverPhone(e.target.value)}
                         />
@@ -394,7 +394,7 @@ export default function TripEditPage() {
                       <div className="tc-field">
                         <label className="tc-field-label">Doanh thu đóng/ trả hàng (đ)</label>
                         <InputWithPrefix
-                          placeholder="VD: 4.200.000"
+                          placeholder="Ví dụ: 4.200.000"
                           value={form.revenueEmptyReturn}
                           onChange={form.setRevenueEmptyReturn}
                           prefix="đ"
@@ -405,7 +405,7 @@ export default function TripEditPage() {
                       <div className="tc-field">
                         <label className="tc-field-label">Doanh thu kết hợp (đ)</label>
                         <InputWithPrefix
-                          placeholder="VD: 2.000.000"
+                          placeholder="Ví dụ: 2.000.000"
                           value={form.revenueCombine}
                           onChange={form.setRevenueCombine}
                           prefix="đ"

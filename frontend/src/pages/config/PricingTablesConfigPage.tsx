@@ -48,7 +48,7 @@ function PricingForm({ saving, item, onsave, oncancel, customers, routes, contai
         <Field label="Giá (đ)"><input className="input" type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Lớp giá"><input className="input" value={rateKey} onChange={e => { setRateKey(e.target.value.toUpperCase()); if (e.target.value) setContainerTypeId(''); }} placeholder="CONT20, 5T…" maxLength={32} /></Field>
+        <Field label="Lớp giá"><input className="input" value={rateKey} onChange={e => { setRateKey(e.target.value.toUpperCase()); if (e.target.value) setContainerTypeId(''); }} placeholder="Ví dụ: CONT20, 5T…" maxLength={32} /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 160 }}>
         <UuiSelectField

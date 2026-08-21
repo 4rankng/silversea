@@ -47,7 +47,7 @@ export function TemplatePreview({
               <textarea
                 className={`debit-editor-preview__title debit-editor-canvas-input ${selectedTarget.type === 'general' && selectedTarget.field === 'titleText' ? 'is-selected' : ''}`}
                 value={form.titleText || ''}
-                placeholder="GIẤY BÁO NỢ"
+                placeholder="Giấy báo nợ"
                 aria-label="Tiêu đề mẫu giấy báo nợ"
                 rows={1}
                 onFocus={() => onSelect({ type: 'general', field: 'titleText' })}
@@ -98,7 +98,7 @@ export function TemplatePreview({
                     className="debit-editor-canvas-input"
                     aria-label="Mã số thuế công ty phát hành"
                     value={form.issuerTaxCode ?? ''}
-                    placeholder="MST"
+                    placeholder="Mã số thuế"
                     onFocus={() => onSelect({ type: 'company', field: 'issuerTaxCode' })}
                     onChange={event => onSet('issuerTaxCode', event.target.value || null)}
                     disabled={canvasLocked}

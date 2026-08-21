@@ -532,7 +532,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                       <label className="ci-label" htmlFor={`containerNumber-${row._key}`}>
                         Số container <span>(tuỳ chọn)</span>
                       </label>
-                      <input id={`containerNumber-${row._key}`} className="input ci-input-sm" placeholder="VD: TCKU1234567" value={row.containerNumber} onChange={(e) => updateRow(row._key, "containerNumber", e.target.value.toUpperCase())} />
+                      <input id={`containerNumber-${row._key}`} className="input ci-input-sm" placeholder="Ví dụ: TCKU1234567" value={row.containerNumber} onChange={(e) => updateRow(row._key, "containerNumber", e.target.value.toUpperCase())} />
                       {(() => {
                         const st = checkContainerNumber(row.containerNumber);
                         if (!st.warning) return null;
@@ -551,7 +551,7 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
                     </div>
                     <div className="ci-field-group">
                       <label className="ci-label" htmlFor={`containerWeight-${row._key}`}>Trọng lượng (kg)</label>
-                      <input id={`containerWeight-${row._key}`} type="number" className="input ci-input-sm" placeholder="VD: 24500" value={row.cargoWeightKg} onChange={(e) => updateRow(row._key, "cargoWeightKg", e.target.value)} min={0} max={99999999.99} />
+                      <input id={`containerWeight-${row._key}`} type="number" className="input ci-input-sm" placeholder="Ví dụ: 24500" value={row.cargoWeightKg} onChange={(e) => updateRow(row._key, "cargoWeightKg", e.target.value)} min={0} max={99999999.99} />
                     </div>
                     <div className="ci-field-group">
                       <label className="ci-label" htmlFor={`containerNotes-${row._key}`}>Ghi chú container</label>

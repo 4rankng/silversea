@@ -18,7 +18,7 @@ function TrailerForm({ saving, item, onsave, oncancel }: {
   return (
     <InlineForm colSpan={5}>
       <div style={{ flex: 2, minWidth: 160 }}>
-        <Field label="Biển số rơ-moóc"><input className="input" value={plate} onChange={e => setPlate(e.target.value)} placeholder="VD: 60C-123.456" /></Field>
+        <Field label="Biển số rơ-moóc"><input className="input" value={plate} onChange={e => setPlate(e.target.value)} placeholder="Ví dụ: 60C-123.456" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <UuiSelectField

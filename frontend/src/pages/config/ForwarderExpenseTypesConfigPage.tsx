@@ -110,7 +110,7 @@ function ExpenseTypeForm({
               className="input"
               value={code}
               onChange={(event) => setCode(event.target.value.toUpperCase())}
-              placeholder="LIFTING"
+              placeholder="Ví dụ: LIFTING"
               style={{
                 fontFamily: 'var(--font-data)',
                 fontSize: 13,

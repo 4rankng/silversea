@@ -718,7 +718,7 @@ export function DriverPayoutModal({
             min="0"
             max="1000000000"
             step="1000"
-            placeholder="VD: 5000000"
+            placeholder="Ví dụ: 5000000"
             value={form.amount}
             onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
           />
@@ -751,7 +751,7 @@ export function DriverPayoutModal({
             className="input"
             type="text"
             maxLength={500}
-            placeholder="VD: Tạm ứng tháng lương"
+            placeholder="Ví dụ: Tạm ứng tháng lương"
             value={form.note}
             onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
           />

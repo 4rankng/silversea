@@ -821,7 +821,7 @@ export default function DebtDetailPage() {
               onChange={e => {
                 updatePaymentDraft({ amount: e.target.value });
               }}
-              placeholder="VD: 5000000"
+              placeholder="Ví dụ: 5000000"
               autoFocus
             />
             <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
@@ -839,7 +839,7 @@ export default function DebtDetailPage() {
               onChange={e => {
                 updatePaymentDraft({ receiptId: e.target.value });
               }}
-              placeholder="VD: PT-20260601-01"
+              placeholder="Ví dụ: PT-20260601-01"
             />
             <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
               Bắt buộc để đối chiếu với sao kê ngân hàng / sổ quỹ. Giữ nguyên mã và nội dung nếu bạn chỉ đang gửi lại cùng một phiếu thu.

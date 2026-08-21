@@ -92,7 +92,7 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
             value={name}
             onChange={(event) => { setName(event.target.value); setError(null); }}
             maxLength={255}
-            placeholder="VD: Cảng Cát Lái — KCN Sóng Thần"
+            placeholder="Ví dụ: Cảng Cát Lái — KCN Sóng Thần"
             disabled={saving}
           />
           <UTextField
@@ -100,7 +100,7 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
             value={shortName}
             onChange={(event) => { setShortName(event.target.value); setError(null); }}
             maxLength={255}
-            placeholder="VD: Cát Lái — Sóng Thần"
+            placeholder="Ví dụ: Cát Lái — Sóng Thần"
             disabled={saving}
           />
         </div>

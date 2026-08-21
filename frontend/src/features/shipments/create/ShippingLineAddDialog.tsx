@@ -54,7 +54,7 @@ export function ShippingLineAddDialog({ isOpen, currentName, onClose, onApply }:
             setError(null);
           }}
           maxLength={255}
-          placeholder="VD: MSC, Maersk, ONE"
+          placeholder="Ví dụ: MSC, Maersk, ONE"
           error={error ?? undefined}
         />
       </div>

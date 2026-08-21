@@ -76,7 +76,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     className="input"
                     value={containerForm.containerNumber}
                     onChange={e => setContainerForm(f => ({ ...f, containerNumber: e.target.value }))}
-                    placeholder="MSKU 123456 7"
+                    placeholder="Ví dụ: MSKU 123456 7"
                     style={{ fontFamily: 'var(--font-data)' }}
                   />
                 </FormGroup>
@@ -85,7 +85,7 @@ export function ForwarderContainersSection({ containers, show: showContainerForm
                     className="input"
                     value={containerForm.sealNumber}
                     onChange={e => setContainerForm(f => ({ ...f, sealNumber: e.target.value }))}
-                    placeholder="SEAL-001"
+                    placeholder="Ví dụ: SEAL-001"
                     style={{ fontFamily: 'var(--font-data)' }}
                   />
                 </FormGroup>

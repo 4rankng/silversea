@@ -202,7 +202,7 @@ export default function ForwarderAdvancesPage() {
                   min={1}
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="VD: 2.000.000"
+                  placeholder="Ví dụ: 2.000.000"
                   required
                 />
               </FormGroup>

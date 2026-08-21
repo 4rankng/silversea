@@ -410,7 +410,7 @@ function FuelInvoiceEditor({
             className="input"
             value={form.invoiceNumber}
             onChange={(event) => setForm((current) => ({ ...current, invoiceNumber: event.target.value }))}
-            placeholder="VD: HD-PTX-0726-001"
+            placeholder="Ví dụ: HD-PTX-0726-001"
           />
         </div>
         <div className="field">
@@ -436,7 +436,7 @@ function FuelInvoiceEditor({
             step="0.01"
             value={form.totalLiters}
             onChange={(event) => setForm((current) => ({ ...current, totalLiters: event.target.value }))}
-            placeholder="VD: 100"
+            placeholder="Ví dụ: 100"
           />
         </div>
         <div className="field">
@@ -449,7 +449,7 @@ function FuelInvoiceEditor({
             step="0.01"
             value={form.unitPrice}
             onChange={(event) => setForm((current) => ({ ...current, unitPrice: event.target.value }))}
-            placeholder="VD: 22000"
+            placeholder="Ví dụ: 22000"
           />
         </div>
         <div className="field fuel-invoice-editor__note-field">
@@ -551,7 +551,7 @@ function FuelInvoiceEditor({
                       ...current,
                       voucherReference: event.target.value,
                     }))}
-                    placeholder="VD: PXD-0726-18"
+                    placeholder="Ví dụ: PXD-0726-18"
                   />
                 </div>
                 <div className="field">
@@ -579,7 +579,7 @@ function FuelInvoiceEditor({
                       ...current,
                       liters: event.target.value,
                     }))}
-                    placeholder="VD: 40"
+                    placeholder="Ví dụ: 40"
                   />
                 </div>
                 <div className="field">

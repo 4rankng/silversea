@@ -559,7 +559,7 @@ export default function PayableDetailPage() {
             className="input"
             value={paymentReceiptId}
             onChange={e => setPaymentReceiptId(e.target.value)}
-            placeholder="VD: PT-20260531-01"
+            placeholder="Ví dụ: PT-20260531-01"
           />
           <p style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
             Bắt buộc để đối chiếu sao kê ngân hàng / phiếu chi.

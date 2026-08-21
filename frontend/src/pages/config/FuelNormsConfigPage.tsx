@@ -110,7 +110,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
             step="0.01"
             value={loaded}
             onChange={e => setLoaded(e.target.value)}
-            placeholder="VD: 30"
+            placeholder="Ví dụ: 30"
           />
         </Field>
         {fieldError('loaded') && (
@@ -126,7 +126,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
             step="0.01"
             value={empty}
             onChange={e => setEmpty(e.target.value)}
-            placeholder="VD: 25"
+            placeholder="Ví dụ: 25"
           />
         </Field>
         {fieldError('empty') && (
@@ -142,7 +142,7 @@ function FuelNormForm({ saving, item, onsave, oncancel, routes }: {
             step="0.01"
             value={flatRate}
             onChange={e => setFlatRate(e.target.value)}
-            placeholder="VD: 40"
+            placeholder="Ví dụ: 40"
           />
         </Field>
       </div>

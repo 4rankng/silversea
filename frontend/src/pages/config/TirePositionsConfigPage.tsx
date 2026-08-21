@@ -18,7 +18,7 @@ function TirePositionForm({ saving, item, onsave, oncancel }: {
     <InlineForm colSpan={2}>
       <div style={{ flex: 2, minWidth: 180 }}>
         <Field label="Tên vị trí">
-          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Trục nâng trái" />
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Trục nâng trái" />
         </Field>
       </div>
       <FormActions

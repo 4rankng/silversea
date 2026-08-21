@@ -1,6 +1,10 @@
 /* ============================================================================
  * Typography utilities
  * ========================================================================== */
+:where(input, textarea)::placeholder {
+  text-transform: none;
+}
+
 .typo-display {
   font-family: var(--font-display);
   font-size: var(--fs-3xl);

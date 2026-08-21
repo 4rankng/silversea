@@ -134,7 +134,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
             {sel(form.cargoTypeId, form.setCargoTypeId, props.cargoTypes, 'Chọn loại hàng', 'cargoTypeId', true, 'Loại hàng')}
           </Field>
           <Field label="Mã tham chiếu khách hàng" controlId="customerReference">
-            <input id="customerReference" name="customerReference" className="input mono" type="text" placeholder="VD: PO-12345" value={form.customerReference} onChange={(e) => form.setCustomerReference(e.target.value)} maxLength={50} />
+            <input id="customerReference" name="customerReference" className="input mono" type="text" placeholder="Ví dụ: PO-12345" value={form.customerReference} onChange={(e) => form.setCustomerReference(e.target.value)} maxLength={50} />
             <span className="tc-field-hint">(không bắt buộc)</span>
           </Field>
         </div>
@@ -197,7 +197,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   id="externalFreightCost"
                   value={form.externalFreightCost}
                   onChange={form.setExternalFreightCost}
-                  placeholder="VD: 5.000.000"
+                  placeholder="Ví dụ: 5.000.000"
                   prefix="đ"
                   type="money"
                   mono
@@ -209,7 +209,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   name="externalPlateNumber"
                   className="input mono"
                   type="text"
-                  placeholder="VD: 29A-12345"
+                  placeholder="Ví dụ: 29A-12345"
                   value={form.externalPlateNumber}
                   onChange={(e) => form.setExternalPlateNumber(e.target.value)}
                 />
@@ -231,7 +231,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   name="externalDriverPhone"
                   className="input mono"
                   type="tel"
-                  placeholder="VD: 0912345678"
+                  placeholder="Ví dụ: 0912345678"
                   value={form.externalDriverPhone}
                   onChange={(e) => form.setExternalDriverPhone(e.target.value)}
                 />

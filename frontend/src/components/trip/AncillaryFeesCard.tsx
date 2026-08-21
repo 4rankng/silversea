@@ -546,7 +546,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                     <input
                       className="input mono"
                       type="text"
-                      placeholder="VD: HD-001"
+                      placeholder="Ví dụ: HD-001"
                       value={form.invoiceNumber}
                       onChange={(e) => setForm(f => ({ ...f, invoiceNumber: e.target.value }))}
                     />
@@ -566,7 +566,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                     <input
                       className="input mono"
                       type="text"
-                      placeholder="VD: HDMU1234567"
+                      placeholder="Ví dụ: HDMU1234567"
                       value={form.containerNumber}
                       onChange={(e) => setForm(f => ({ ...f, containerNumber: e.target.value.toUpperCase() }))}
                     />
@@ -578,7 +578,7 @@ export function AncillaryFeesCard({ tripId, readOnly = false, hideAddButton = fa
                       <input
                         className="input mono"
                         type="text"
-                        placeholder="VD: TK-2024-001"
+                        placeholder="Ví dụ: TK-2024-001"
                         value={form.declarationNumber}
                         onChange={(e) => setForm(f => ({ ...f, declarationNumber: e.target.value }))}
                       />

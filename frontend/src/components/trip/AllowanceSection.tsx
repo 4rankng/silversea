@@ -54,7 +54,7 @@ export function AllowanceSection() {
           <InputWithPrefix
             value={tollsAddition}
             onChange={setTollsAddition}
-            placeholder="VD: 2.700.000"
+            placeholder="Ví dụ: 2.700.000"
             prefix="đ"
             mono
             type="money"
@@ -66,7 +66,7 @@ export function AllowanceSection() {
           <InputWithPrefix
             value={tollsDiscount}
             onChange={setTollsDiscount}
-            placeholder="VD: 400.000"
+            placeholder="Ví dụ: 400.000"
             prefix="đ"
             mono
             type="money"
@@ -100,7 +100,7 @@ export function AllowanceSection() {
           <input
             className="input"
             type="number"
-            placeholder="VD: 4"
+            placeholder="Ví dụ: 4"
             value={tollsStations}
             onChange={(e) => setTollsStations(e.target.value)}
             style={{ width: "100%" }}
@@ -149,7 +149,7 @@ export function AllowanceSection() {
           <InputWithPrefix
             value={driverSalary}
             onChange={setDriverSalary}
-            placeholder="VD: 850.000"
+            placeholder="Ví dụ: 850.000"
             prefix="đ"
             mono
             type="money"
@@ -165,7 +165,7 @@ export function AllowanceSection() {
             <InputWithPrefix
               value={twoPointDeliveryBonus}
               onChange={setTwoPointDeliveryBonus}
-              placeholder={twoPointDeliveryDefault ? twoPointDeliveryDefault.toLocaleString("vi-VN") : "VD: 200.000"}
+              placeholder={twoPointDeliveryDefault ? twoPointDeliveryDefault.toLocaleString("vi-VN") : "Ví dụ: 200.000"}
               prefix="đ"
               mono
               type="money"
@@ -180,7 +180,7 @@ export function AllowanceSection() {
             <InputWithPrefix
               value={vehicleShiftAllowance}
               onChange={setVehicleShiftAllowance}
-              placeholder={vehicleShiftDefault ? vehicleShiftDefault.toLocaleString("vi-VN") : "VD: 200.000"}
+              placeholder={vehicleShiftDefault ? vehicleShiftDefault.toLocaleString("vi-VN") : "Ví dụ: 200.000"}
               prefix="đ"
               mono
               type="money"
@@ -198,7 +198,7 @@ export function AllowanceSection() {
             <InputWithPrefix
               value={revenueEmptyReturn}
               onChange={setRevenueEmptyReturn}
-              placeholder="VD: 4.200.000"
+              placeholder="Ví dụ: 4.200.000"
               prefix="đ"
               mono
               type="money"
@@ -221,7 +221,7 @@ export function AllowanceSection() {
           <InputWithPrefix
             value={revenueCombine}
             onChange={setRevenueCombine}
-            placeholder="VD: 2.000.000"
+            placeholder="Ví dụ: 2.000.000"
             prefix="đ"
             mono
             type="money"
@@ -253,7 +253,7 @@ export function AllowanceSection() {
                 max="31"
                 className="input"
                 value={tripWageDays}
-                placeholder="VD: 2"
+                placeholder="Ví dụ: 2"
                 onChange={(e) => {
                   const days = e.target.value;
                   setTripWageDays(days);

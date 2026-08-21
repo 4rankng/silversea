@@ -74,7 +74,7 @@ export function FuelSection() {
             <input
               className="input"
               type="number"
-              placeholder="VD: 55"
+              placeholder="Ví dụ: 55"
               value={fuelLitersOverride}
               onChange={(e) => setFuelLitersOverride(e.target.value)}
               required
@@ -147,7 +147,7 @@ export function FuelSection() {
           <input
             className="input"
             type="number"
-            placeholder="VD: 3"
+            placeholder="Ví dụ: 3"
             value={fuelSupplementLiters}
             onChange={(e) => setFuelSupplementLiters(e.target.value)}
             style={{ width: "100%" }}
@@ -159,7 +159,7 @@ export function FuelSection() {
           </label>
           <input
             className="input"
-            placeholder="VD: Chạy máy lạnh kéo dài"
+            placeholder="Ví dụ: Chạy máy lạnh kéo dài"
             value={fuelSupplementReason}
             onChange={(e) => setFuelSupplementReason(e.target.value)}
             required={isSupplementActive}

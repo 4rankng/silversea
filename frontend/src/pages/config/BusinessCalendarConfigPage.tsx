@@ -46,7 +46,7 @@ function BusinessCalendarForm({
             className="input"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="VD: Quốc khánh"
+            placeholder="Ví dụ: Quốc khánh"
           />
         </Field>
       </div>

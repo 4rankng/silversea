@@ -352,7 +352,7 @@ export default function TripDetailPage() {
             />
             <div className="field">
               <label htmlFor="reassignExternalPlateNumber">Biển số xe</label>
-              <input id="reassignExternalPlateNumber" name="reassignExternalPlateNumber" type="text" className="input" placeholder="VD: 15C-12345" value={ui.reassignExternalPlateNumber} onChange={e => page.setReassignExternalPlateNumber(e.target.value)} />
+              <input id="reassignExternalPlateNumber" name="reassignExternalPlateNumber" type="text" className="input" placeholder="Ví dụ: 15C-12345" value={ui.reassignExternalPlateNumber} onChange={e => page.setReassignExternalPlateNumber(e.target.value)} />
             </div>
             <div className="field">
               <label htmlFor="reassignExternalDriverName">Tên lái xe</label>
@@ -378,7 +378,7 @@ export default function TripDetailPage() {
         )}
         <div className="field">
           <label htmlFor="adjustAmount">Số tiền điều chỉnh (đ) *</label>
-          <input id="adjustAmount" name="adjustAmount" className="input" type="number" placeholder="VD: -500000 hoặc 300000"
+          <input id="adjustAmount" name="adjustAmount" className="input" type="number" placeholder="Ví dụ: -500000 hoặc 300000"
             value={ui.adjustAmount} onChange={e => page.setAdjustAmount(e.target.value)} />
         </div>
         <div className="field">
@@ -388,7 +388,7 @@ export default function TripDetailPage() {
         </div>
         <div className="field">
           <label htmlFor="adjustRef">Mã biên bản thỏa thuận *</label>
-          <input id="adjustRef" name="adjustRef" className="input" placeholder="VD: BB-2026-001"
+          <input id="adjustRef" name="adjustRef" className="input" placeholder="Ví dụ: BB-2026-001"
             value={ui.adjustRef} onChange={e => page.setAdjustRef(e.target.value)} />
         </div>
         <button

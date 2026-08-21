@@ -114,7 +114,7 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                 className="input"
                 value={plate}
                 onChange={e => setPlate(e.target.value)}
-                placeholder="VD: 60C-12345"
+                placeholder="Ví dụ: 60C-12345"
                 autoFocus
               />
             </div>

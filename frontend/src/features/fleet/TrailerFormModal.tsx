@@ -74,7 +74,7 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
                 className="input"
                 value={plate}
                 onChange={e => setPlate(e.target.value)}
-                placeholder="VD: 70C-12345"
+                placeholder="Ví dụ: 70C-12345"
                 autoFocus
               />
             </div>

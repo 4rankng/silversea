@@ -242,7 +242,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
                 type="number"
                 value={driverSalary}
                 onChange={e => setDriverSalary(e.target.value)}
-                placeholder="VD: 500000"
+                placeholder="Ví dụ: 500000"
               />
               <p style={hintStyle}>Tiền kết hợp mặc định cho tuyến này. Để trống nếu dùng giá trị chung.</p>
             </div>
