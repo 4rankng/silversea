@@ -111,9 +111,29 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     expect(await screen.findByText('CONT-001')).toBeTruthy();
-    for (const label of ['Khách hàng & lộ trình', 'Chứng từ & hãng tàu', 'Thông số container', 'Địa điểm nâng / hạ', 'Lịch trình', 'Phân xe', 'Ghi chú']) {
-      expect(screen.getByRole('columnheader', { name: label })).toBeTruthy();
-    }
+    // Trạng thái is now the LAST column (Task 1.2 — tách trạng thái lô ra cuối grid)
+    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
+    expect(headers).toEqual([
+      'Khách hàng & lộ trình',
+      'Chứng từ & hãng tàu',
+      'Thông số container',
+      'Địa điểm nâng / hạ',
+      'Lịch trình',
+      'Phân xe',
+      'Ghi chú',
+      'Trạng thái',
+    ]);
+    expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
+    // Dispatch status badge now lives in the Trạng thái column, not the container cell
+    const plannedRow = screen.getByText('CONT-001').closest('tr');
+    expect(plannedRow).toBeTruthy();
+    if (!plannedRow) throw new Error('Expected CONT-001 row to be present');
+    const statusCell = plannedRow.querySelector('td[data-label="Trạng thái"]');
+    expect(statusCell).toBeTruthy();
+    expect(statusCell?.textContent).toContain('Đã phân xe');
+    // The container cell no longer carries the dispatch status badge
+    const containerCell = plannedRow.querySelector('td[data-label="Thông số container"]');
+    expect(containerCell?.querySelector('.shipment-container-ledger__dispatch-badge')).toBeNull();
     expect(screen.getByText('TK-001')).toBeTruthy();
     const documentsCell = screen.getByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
     expect(documentsCell.textContent).toContain('Nhập');

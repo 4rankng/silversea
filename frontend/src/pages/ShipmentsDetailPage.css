@@ -79,13 +79,14 @@
 }
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.shipment-container-ledger__col--customer { width: 15%; }
-.shipment-container-ledger__col--documents { width: 15%; }
-.shipment-container-ledger__col--container { width: 13%; }
-.shipment-container-ledger__col--route { width: 16%; }
-.shipment-container-ledger__col--schedule { width: 12%; }
-.shipment-container-ledger__col--vehicle { width: 14%; }
-.shipment-container-ledger__col--notes { width: 15%; }
+.shipment-container-ledger__col--customer { width: 14%; }
+.shipment-container-ledger__col--documents { width: 14%; }
+.shipment-container-ledger__col--container { width: 12%; }
+.shipment-container-ledger__col--route { width: 14%; }
+.shipment-container-ledger__col--schedule { width: 11%; }
+.shipment-container-ledger__col--vehicle { width: 13%; }
+.shipment-container-ledger__col--notes { width: 13%; }
+.shipment-container-ledger__col--status { width: 9%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -127,6 +128,12 @@
 .shipment-container-ledger__dispatch-badge { max-width: 100%; white-space: normal; }
 .shipment-container-ledger__dispatch-badge--unassigned,
 .shipment-container-ledger__dispatch-badge--planned { font-size: 10px; line-height: 1.4; }
+
+/* Last-column status cell: read-only badge surface; keep the badge left-aligned
+   so it sits at the natural reading start and doesn't visually drift when rows
+   differ in length. */
+.shipment-container-ledger__cell--status { display: table-cell; vertical-align: middle; }
+.shipment-container-ledger__cell--status .shipment-container-ledger__dispatch-badge { justify-content: flex-start; }
 .shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
 
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }

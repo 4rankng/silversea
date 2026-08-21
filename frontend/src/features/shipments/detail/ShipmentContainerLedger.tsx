@@ -532,7 +532,7 @@ export function ShipmentContainerLedger({
       </dl>
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
         <table>
-          <caption>Chi tiết container theo bảy nhóm thông tin nghiệp vụ</caption>
+          <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
             <col className="shipment-container-ledger__col--customer" />
             <col className="shipment-container-ledger__col--documents" />
@@ -541,6 +541,7 @@ export function ShipmentContainerLedger({
             <col className="shipment-container-ledger__col--schedule" />
             <col className="shipment-container-ledger__col--vehicle" />
             <col className="shipment-container-ledger__col--notes" />
+            <col className="shipment-container-ledger__col--status" />
           </colgroup>
           <thead><tr>
             <th scope="col">Khách hàng &amp; lộ trình</th>
@@ -550,6 +551,7 @@ export function ShipmentContainerLedger({
             <th scope="col">Lịch trình</th>
             <th scope="col">Phân xe</th>
             <th scope="col">Ghi chú</th>
+            <th scope="col">Trạng thái</th>
           </tr></thead>
           <tbody>
             {rows.map((row) => {
@@ -604,7 +606,6 @@ export function ShipmentContainerLedger({
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
-                      <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                     </div>)}
                   </td>
                   <td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
@@ -629,6 +630,9 @@ export function ShipmentContainerLedger({
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú cho khách hàng')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú cho lái xe')}</span></div>)}
+                  </td>
+                  <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
+                    <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                   </td>
                 </tr>
               );
