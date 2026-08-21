@@ -260,11 +260,20 @@
    exactly two rows, each row at the same baseline:
      row 1: search (span 2) | Từ ngày | Đến ngày
      row 2: Khách hàng     | Nhập/Xuất | Trạng thái | Footer
+   The columns use the same proportions as the 6-up desktop layout
+   (search 1.4fr, dates 0.7fr, status 0.8fr, footer 0.7fr) so each control
+   keeps its natural size instead of stretching to fill an equal 1fr.
+   The whole toolbar is also clamped to a bounded width with a soft max
+   so it stops eating the entire workspace on wide desktop canvases.
    The footer is locally re-anchored to its own column (4) and pinned to
    the bottom of the row so the action buttons line up with the selects
    (which sit below their labels), instead of with the labels at the top. */
 @container shipments-detail (max-width: 1300px) {
-  .shipments-detail-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; }
+  .shipments-detail-filters {
+    grid-template-columns: minmax(220px, 1.4fr) minmax(130px, 0.7fr) minmax(150px, 0.8fr) minmax(150px, 0.7fr);
+    align-items: end;
+    max-width: 1040px;
+  }
   .shipments-detail-filter--search { grid-column: span 2; }
   .shipments-detail-filters__footer { grid-column: 4; justify-content: flex-end; align-self: end; }
 }
