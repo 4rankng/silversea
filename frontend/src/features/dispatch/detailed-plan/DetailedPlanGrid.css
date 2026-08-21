@@ -721,6 +721,80 @@
   }
 }
 
+/* Phone records favor the next dispatch decision over a vertical re-statement
+   of every desktop column. The touch-sized allocation trigger remains intact. */
+@container (max-width: 640px) {
+  .detailed-plan-grid tbody {
+    gap: 8px;
+  }
+
+  .detailed-plan-grid__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    box-shadow: none;
+  }
+
+  .detailed-plan-grid__cell {
+    min-width: 0;
+    padding: 8px 12px;
+  }
+
+  .detailed-plan-grid__cell + .detailed-plan-grid__cell {
+    border-top: 0;
+  }
+
+  .detailed-plan-grid__cell::before {
+    margin-bottom: 3px;
+    font-size: 10px;
+  }
+
+  .detailed-plan-grid__cell--schedule,
+  .detailed-plan-grid__cell--route,
+  .detailed-plan-grid__cell--notes,
+  .detailed-plan-grid__cell--editable {
+    grid-column: 1 / -1;
+  }
+
+  .detailed-plan-grid__cell--schedule {
+    padding-right: 76px;
+    border-bottom: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__cell--route {
+    border-bottom: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__cell--documents,
+  .detailed-plan-grid__cell--container {
+    padding-block: 10px;
+  }
+
+  .detailed-plan-grid__cell--documents {
+    border-right: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__documents {
+    min-height: 0;
+  }
+
+  .detailed-plan-grid__cell--notes,
+  .detailed-plan-grid__cell--editable {
+    border-top: 1px solid var(--border-color, #eef2f7);
+  }
+
+  .detailed-plan-grid__cell--classification {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    padding: 0;
+  }
+
+  .detailed-plan-grid__cell--classification::before {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
   .drawer.detailed-plan-filter-drawer { max-width: 100%; }
 

@@ -167,7 +167,7 @@ export function DetailedPlanGrid({
             <tbody>
               {items.map((row) => (
                 <tr key={row.fulfillmentId} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
-                  <td className="detailed-plan-grid__cell" data-label="Thời gian & lịch trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.docs.tradeDirection === 'IMPORT' ? 'Nhận:' : 'Giao:'} {formatISODate(row.time.deliveryDate)}
                     </div>
@@ -175,7 +175,7 @@ export function DetailedPlanGrid({
                       Giờ: {row.time.runHour != null ? `${row.time.runHour}H` : '—'}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Khách hàng & lộ trình">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                       {row.customerRoute.customerName}
                     </div>
@@ -188,7 +188,7 @@ export function DetailedPlanGrid({
                       </div>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Chứng từ">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Chứng từ">
                     <div className="detailed-plan-grid__documents">
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__documents-bill">
                         Bill: {row.docs.billNumber ?? '—'}
@@ -207,7 +207,7 @@ export function DetailedPlanGrid({
                       )}
                     </div>
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Container">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container">
                     {row.cargoMode === 'FCL' ? (
                       <>
                         <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
@@ -227,7 +227,7 @@ export function DetailedPlanGrid({
                       </>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Ghi chú">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
                       Xe: {row.notes.vehicleNote ?? '—'}
                     </div>
@@ -238,7 +238,7 @@ export function DetailedPlanGrid({
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
                     <DispatchPlanEditorCell row={row} onAtomicSave={onAtomicSave} />
                   </td>
-                  <td className="detailed-plan-grid__cell" data-label="Phân loại">
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">
                     {/* Legacy null rows read as the operational default "Đơn". */}
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification ?? 'SINGLE']}

@@ -359,6 +359,16 @@ describe('DetailedPlanGrid', () => {
     expect(css).toContain('content: attr(data-label)');
   });
 
+  it('condenses phone records into a two-column decision layout without shrinking the dispatch target', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+
+    expect(css).toContain('@container (max-width: 640px)');
+    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toContain('.detailed-plan-grid__cell--schedule,\n  .detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
+    expect(css).toContain('.detailed-plan-grid__cell--classification {\n    position: absolute;');
+    expect(css).toContain('.detailed-plan-grid__cell--documents,\n  .detailed-plan-grid__cell--container {\n    padding-block: 10px;');
+  });
+
   it('keeps the detailed filters flat instead of nesting another card surface', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const toolbar = css.match(/\.detailed-plan-filters \{([\s\S]*?)\n\}/)?.[1] ?? '';
