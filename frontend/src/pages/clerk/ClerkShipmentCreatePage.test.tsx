@@ -207,6 +207,9 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(addButton);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
+    const nameAction = dialog.querySelector('.csc-shipping-line-dialog__name-action');
+    expect(nameAction).toContainElement(within(dialog).getByLabelText('Tên hãng tàu'));
+    expect(nameAction).toContainElement(within(dialog).getByRole('button', { name: 'Áp dụng' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Áp dụng' }));
     expect(within(dialog).getByRole('alert').textContent).toContain('Vui lòng nhập tên hãng tàu');
 
@@ -229,7 +232,7 @@ describe('ClerkShipmentCreatePage', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
     fireEvent.change(within(dialog).getByLabelText('Tên hãng tàu'), { target: { value: 'ONE' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm hãng tàu' })).toBeNull());
     expect((shippingLine as HTMLInputElement).value).toBe('MSC');
@@ -245,6 +248,9 @@ describe('ClerkShipmentCreatePage', () => {
     const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
+    const distanceAction = dialog.querySelector('.csc-route-dialog__distance-action');
+    expect(distanceAction).toContainElement(within(dialog).getByLabelText('Khoảng cách (km)'));
+    expect(distanceAction).toContainElement(within(dialog).getByRole('button', { name: 'Thêm tuyến đường' }));
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm tuyến đường' }));
     expect(within(dialog).getByRole('alert').textContent).toContain('Vui lòng nhập tên đầy đủ');
@@ -276,7 +282,7 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(addButton);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
     fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: 'Không lưu' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm tuyến đường' })).toBeNull());
     expect((screen.getByRole('combobox', { name: /^Tuyến đường/ }) as HTMLInputElement).value).toBe('Cát Lái — Sóng Thần');

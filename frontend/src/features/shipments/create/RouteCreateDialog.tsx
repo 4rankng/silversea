@@ -74,14 +74,6 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
       onClose={close}
       onConfirm={() => void submit()}
       maxWidth={560}
-      footer={(
-        <>
-          <button type="button" className="btn btn--ghost" onClick={close} disabled={saving}>Hủy</button>
-          <button type="button" className="btn btn--primary" onClick={() => void submit()} disabled={saving}>
-            {saving ? 'Đang lưu…' : 'Thêm tuyến đường'}
-          </button>
-        </>
-      )}
     >
       <div className="csc-route-dialog">
         <p>Tuyến mới sẽ được thêm vào danh mục và chọn ngay cho lô hàng này.</p>
@@ -104,16 +96,23 @@ export function RouteCreateDialog({ isOpen, onClose, onCreated }: RouteCreateDia
             disabled={saving}
           />
         </div>
-        <UTextField
-          label="Khoảng cách (km)"
-          type="number"
-          min="1"
-          step="1"
-          value={distanceKm}
-          onChange={(event) => { setDistanceKm(event.target.value); setError(null); }}
-          placeholder="Có thể bổ sung sau"
-          disabled={saving}
-        />
+        <div className="csc-route-dialog__distance-action">
+          <div className="csc-route-dialog__distance-field">
+            <UTextField
+              label="Khoảng cách (km)"
+              type="number"
+              min="1"
+              step="1"
+              value={distanceKm}
+              onChange={(event) => { setDistanceKm(event.target.value); setError(null); }}
+              placeholder="Có thể bổ sung sau"
+              disabled={saving}
+            />
+          </div>
+          <button type="button" className="btn btn--primary csc-route-dialog__submit" onClick={() => void submit()} disabled={saving}>
+            {saving ? 'Đang lưu…' : 'Thêm tuyến đường'}
+          </button>
+        </div>
       </div>
     </Modal>
   );

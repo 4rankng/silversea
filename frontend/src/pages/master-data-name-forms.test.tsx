@@ -117,7 +117,7 @@ describe('master-data full and short name forms', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }));
     fireEvent.click(within(factoryDialog).getByRole('button', { name: 'Thêm tuyến đường' }));
     const routeDialog = await screen.findByRole('dialog', { name: 'Thêm tuyến đường' });
-    fireEvent.click(within(routeDialog).getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(within(routeDialog).getByRole('button', { name: 'Đóng' }));
 
     const reopenedFactoryDialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     expect(within(reopenedFactoryDialog).getByLabelText('Mã điểm vận hành')).toHaveValue('BB-BN');
@@ -139,7 +139,7 @@ describe('master-data full and short name forms', () => {
 
     expect(await within(routeDialog).findByRole('alert')).toHaveTextContent('Không thể kết nối danh mục tuyến.');
     expect(screen.queryByRole('dialog', { name: 'Thêm nhà máy' })).toBeNull();
-    fireEvent.click(within(routeDialog).getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(within(routeDialog).getByRole('button', { name: 'Đóng' }));
 
     const reopenedFactoryDialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     expect(within(reopenedFactoryDialog).getByLabelText('Mã điểm vận hành')).toHaveValue('BB-BN');

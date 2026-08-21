@@ -36,27 +36,26 @@ export function ShippingLineAddDialog({ isOpen, currentName, onClose, onApply }:
       onClose={onClose}
       onConfirm={apply}
       maxWidth={480}
-      footer={(
-        <>
-          <button type="button" className="btn btn--ghost" onClick={onClose}>Hủy</button>
-          <button type="button" className="btn btn--primary" onClick={apply}>Áp dụng</button>
-        </>
-      )}
     >
       <div className="csc-shipping-line-dialog">
         <p>Tên hãng tàu sẽ được lưu cùng lô hàng hiện tại.</p>
         {error && <div role="alert" className="csc-shipping-line-dialog__error">{error}</div>}
-        <UTextField
-          label="Tên hãng tàu"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            setError(null);
-          }}
-          maxLength={255}
-          placeholder="Ví dụ: MSC, Maersk, ONE"
-          error={error ?? undefined}
-        />
+        <div className="csc-shipping-line-dialog__name-action">
+          <div className="csc-shipping-line-dialog__name-field">
+            <UTextField
+              label="Tên hãng tàu"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setError(null);
+              }}
+              maxLength={255}
+              placeholder="Ví dụ: MSC, Maersk, ONE"
+              error={error ?? undefined}
+            />
+          </div>
+          <button type="button" className="btn btn--primary csc-shipping-line-dialog__submit" onClick={apply}>Áp dụng</button>
+        </div>
       </div>
     </Modal>
   );
