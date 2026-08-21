@@ -44,7 +44,7 @@ const response: ShipmentCusContainerFlatResponse = {
       vehicleReadOnlyReason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.',
       raw: { containerNumber: 'CONT-001', containerTypeId: 1, cargoWeightKg: '25000', cargoVolumeCbm: '52.5' }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
-      carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
+      carrierEditable: false, plateEditable: false, liftSiteEditable: false, dropoffSiteEditable: false, routeEditable: false, customerAppointmentEditable: false, scheduleEditable: false,
     },
     {
       id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7,
@@ -62,7 +62,7 @@ const response: ShipmentCusContainerFlatResponse = {
       vehicleReadOnlyReason: null,
       raw: { containerNumber: 'CONT-002', containerTypeId: 2, cargoWeightKg: null, cargoVolumeCbm: null }, fieldAccess: directContainerAccess,
       shipmentFieldAccess: directShipmentAccess,
-      carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
+      carrierEditable: true, plateEditable: true, liftSiteEditable: true, dropoffSiteEditable: true, routeEditable: true, customerAppointmentEditable: true, scheduleEditable: true,
     },
   ],
 };

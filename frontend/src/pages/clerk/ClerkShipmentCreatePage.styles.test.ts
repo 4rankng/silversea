@@ -46,10 +46,11 @@ describe('shipment create responsive layout', () => {
     expect(source).toContain('className="csc-container-row"');
     expect(containerEditorSource).toContain('className="csc-container-table"');
     expect(containerEditorSource).toContain('<colgroup>');
-    expect(containerEditorSource.match(/<col className="csc-container-col__/g)).toHaveLength(9);
+    expect(containerEditorSource.match(/<col className="csc-container-col__/g)).toHaveLength(10);
     expect(css).toMatch(/\.csc-container-editor\s*\{[^}]*container-type:\s*inline-size;[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*width:\s*100%;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1036px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1176px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*96px;/);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
@@ -134,6 +135,13 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
   });
 
+  it('renders section titles without sequential number badges', () => {
+    expect(sectionSource).not.toContain('number: string');
+    expect(sectionSource).not.toContain('<span>{number}</span>');
+    expect(source).not.toMatch(/<ShipmentCreateSection[^>]*\snumber=/);
+    expect(css).not.toContain('.csc-section__heading > span');
+  });
+
   it('uses compact desktop density while retaining mobile touch targets', () => {
     // Counts: USearchableField, UTextField, UTextAreaField, UDateField in the
     // page adapters, plus USelectField via the shared UuiSelectField adapter —
@@ -150,7 +158,9 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(sectionSource).toMatch(/gridTemplateColumns:[^\n]+gap:\s*12/);
     expect(sectionSource).toMatch(/display:\s*'grid',\s*gap:\s*12/);
-    expect(css).toMatch(/\.csc-page\s*\{[^}]*padding:\s*12px 20px 28px;/);
+    expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
+    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 28px;/);
     expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{\s*\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
     expect(css).toMatch(/\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);

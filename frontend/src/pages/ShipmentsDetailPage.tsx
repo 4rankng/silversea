@@ -316,6 +316,7 @@ export default function ShipmentsDetailPage() {
     try {
       await updateCusShipmentContainerLine(activeEdit.detail.summary.id, line.id, {
         expectedShipmentVersion: line.shipmentVersion,
+        ...(line.permissions.routeEditable ? { routeId: draft.routeId } : {}),
         ...(line.permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId } : {}),
         ...(line.permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId } : {}),
       }, key);
@@ -335,7 +336,7 @@ export default function ShipmentsDetailPage() {
       const response = await updateShipment(row.shipmentId, {
         expectedVersion: activeEdit.detail.summary.version,
         factoryName: draft.factoryName,
-        routeId: draft.routeId,
+        ...(activeEdit.detail.summary.cargoMode !== 'FCL' ? { routeId: draft.routeId } : {}),
         deliveryLocation: draft.deliveryLocation,
       });
       if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
@@ -420,7 +421,10 @@ export default function ShipmentsDetailPage() {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const appointmentAt = draft.customerAppointmentAt ? localDateTimeToIso(draft.customerAppointmentAt) : null;
     const currentAppointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
-    const transportChanged = draft.transportDate !== row.transportDate;
+    // FCL transportDate is a derived earliest-container projection. Its only
+    // editable scheduling authority is customerAppointmentAt on this line.
+    const transportChanged = activeEdit.detail.summary.cargoMode !== 'FCL'
+      && draft.transportDate !== row.transportDate;
     const appointmentChanged = draft.customerAppointmentAt !== currentAppointmentInput;
     if (transportChanged && appointmentChanged) {
       throw new Error('Ngày vận chuyển và lịch hẹn được lưu độc lập. Hãy lưu từng nhóm một.');

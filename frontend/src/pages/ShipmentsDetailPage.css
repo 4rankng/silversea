@@ -260,25 +260,27 @@
    exactly two rows, each row at the same baseline:
      row 1: search (span 2) | Từ ngày | Đến ngày
      row 2: Khách hàng     | Nhập/Xuất | Trạng thái | Footer
-   The columns use the same proportions as the 6-up desktop layout
-   (search 1.4fr, dates 0.7fr, status 0.8fr, footer 0.7fr) so each control
-   keeps its natural size instead of stretching to fill an equal 1fr.
-   The whole toolbar is also clamped to a bounded width with a soft max
-   so it stops eating the entire workspace on wide desktop canvases.
-   The footer is locally re-anchored to its own column (4) and pinned to
-   the bottom of the row so the action buttons line up with the selects
-   (which sit below their labels), instead of with the labels at the top. */
+   Keep the status column compact, but reserve a 350px action column: wrapping
+   the date/reset actions turns a compact toolbar into an uneven button stack.
+   The footer is bottom-aligned with the selects, not their labels. */
 @container shipments-detail (max-width: 1300px) {
   .shipments-detail-filters {
-    grid-template-columns: minmax(220px, 1.4fr) minmax(130px, 0.7fr) minmax(150px, 0.8fr) minmax(150px, 0.7fr);
+    grid-template-columns: minmax(220px, 1.25fr) minmax(120px, 0.6fr) minmax(135px, 0.7fr) minmax(350px, 1fr);
     align-items: end;
-    max-width: 1040px;
+    max-width: 1120px;
   }
   .shipments-detail-filter--search { grid-column: span 2; }
   .shipments-detail-filters__footer { grid-column: 4; justify-content: flex-end; align-self: end; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
 }
 
 @container shipments-detail (max-width: 900px) {
+  .shipments-detail-filters { grid-template-columns: 1fr 1fr; max-width: none; }
+  .shipments-detail-filter--search,
+  .shipments-detail-filter:nth-child(4),
+  .shipments-detail-filter:nth-child(5) { grid-column: 1 / -1; }
+  .shipments-detail-filters__footer { grid-column: 1 / -1; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
   .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
@@ -358,10 +360,6 @@
   /* The shell already owns the phone gutter. Keep filters aligned with the
      workspace edge so this operational screen does not lose another 24px. */
   .shipments-detail-workspace__header { padding: 14px 0; }
-  .shipments-detail-filters { grid-template-columns: 1fr 1fr; }
-  .shipments-detail-filter--search,
-  .shipments-detail-filter:nth-child(4),
-  .shipments-detail-filter:nth-child(5) { grid-column: 1 / -1; }
   .shipment-container-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-summary > div:nth-child(2) { border-right: 0; }
   .shipment-container-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }

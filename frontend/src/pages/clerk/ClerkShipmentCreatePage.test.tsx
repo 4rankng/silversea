@@ -51,8 +51,8 @@ const bootstrap = {
 };
 
 const sites = [
-  { id: 41, customerId: 7, code: 'NM01', name: 'Nhà máy Long Minh', siteType: 'FACTORY', address: 'Bình Dương', googleMapsUrl: 'https://maps.google.com/example', contactName: 'Anh Nam', contactPhone: '0901000000', liftFeeInvoiceName: 'Long Minh', liftFeeInvoiceAddress: 'Bình Dương', liftFeeTaxCode: '3700000000', strictRules: 'Gọi điện trước khi vào', version: 1 },
-  { id: 42, customerId: 7, code: 'KHO01', name: 'Kho Long Minh', siteType: 'WAREHOUSE', address: 'Bình Dương', googleMapsUrl: null, contactName: null, contactPhone: null, liftFeeInvoiceName: null, liftFeeInvoiceAddress: null, liftFeeTaxCode: null, strictRules: null, version: 1 },
+  { id: 41, customerId: 7, code: 'NM01', name: 'Nhà máy Long Minh', siteType: 'FACTORY', routeId: 11, address: 'Bình Dương', googleMapsUrl: 'https://maps.google.com/example', contactName: 'Anh Nam', contactPhone: '0901000000', liftFeeInvoiceName: 'Long Minh', liftFeeInvoiceAddress: 'Bình Dương', liftFeeTaxCode: '3700000000', strictRules: 'Gọi điện trước khi vào', version: 1 },
+  { id: 42, customerId: 7, code: 'KHO01', name: 'Kho Long Minh', siteType: 'WAREHOUSE', routeId: null, address: 'Bình Dương', googleMapsUrl: null, contactName: null, contactPhone: null, liftFeeInvoiceName: null, liftFeeInvoiceAddress: null, liftFeeTaxCode: null, strictRules: null, version: 1 },
 ];
 
 function renderPage() {
@@ -238,6 +238,8 @@ describe('ClerkShipmentCreatePage', () => {
 
   it('creates and selects a route from the visible shipment-intake action', async () => {
     renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ (Lẻ)' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
     const addButton = screen.getByRole('button', { name: 'Thêm tuyến đường' });
@@ -265,6 +267,8 @@ describe('ClerkShipmentCreatePage', () => {
 
   it('keeps the selected route when route creation is cancelled', async () => {
     renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ (Lẻ)' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
     await choose('Tuyến đường', '11');
 
@@ -313,25 +317,23 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30']);
   });
 
-  it('lets clerks choose the FCL lot route directly in the cargo step', async () => {
+  it('removes the FCL shipment-level factory/route section and derives each route from its factory', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    const cargoRoute = screen.getByRole('combobox', { name: 'Chọn tuyến của lô hàng trong thông tin hàng' });
-    fireEvent.focus(cargoRoute);
-    fireEvent.keyDown(cargoRoute, { key: 'ArrowDown' });
-    const routeOption = await screen.findByRole('option', { name: 'Cát Lái — Sóng Thần' });
-    fireEvent.click(routeOption);
-
-    expect(cargoRoute).toHaveValue('Cát Lái — Sóng Thần');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
-
+    expect(screen.queryByRole('heading', { name: 'Điểm vận hành & tuyến' })).toBeNull();
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toContain('Tuyến đường');
     await choose('Khách hàng', '7');
+    await choose('Nhà máy', '41');
+    expect(screen.getByText('Cát Lái — Sóng Thần')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ routeId: 11 }),
+      expect.objectContaining({ routeId: null, operationalSiteId: null }),
       expect.any(String),
     ));
+    await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
+      containers: [expect.objectContaining({ routeId: 11 })],
+    })));
   });
 
   it('shows a resting container value as table text and activates its editor from the full cell', async () => {
@@ -463,9 +465,10 @@ describe('ClerkShipmentCreatePage', () => {
       'STT',
       'Số container',
       'Loại container',
+      'Nhà máy',
+      'Tuyến đường',
       'Cảng nâng',
       'Cảng hạ',
-      'Nhà máy',
       'Trọng lượng (kg)',
       'Ngày giờ đóng trả',
       'Thao tác',
@@ -498,7 +501,7 @@ describe('ClerkShipmentCreatePage', () => {
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
     await choose('Hình thức xuất nhập khẩu', 'IMPORT');
-    await choose('Tuyến đường', '11');
+    await choose('Nhà máy', '41');
     fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-FCL' } });
     await choose('Loại container', '31');
     await choose('Cảng nâng', '21');

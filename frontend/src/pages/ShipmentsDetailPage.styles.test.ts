@@ -42,11 +42,14 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;/);
-    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipments-detail-filter:nth-child\(5\)\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;[^}]*max-width:\s*none;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filter:nth-child\(5\)\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filter:nth-child\(6\)\s*\{[^}]*grid-column:\s*1;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*2;[^}]*align-self:\s*end;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(220px, 1\.25fr\) minmax\(120px, 0\.6fr\) minmax\(135px, 0\.7fr\) minmax\(350px, 1fr\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters__date-actions\s*\{[^}]*flex-wrap:\s*nowrap;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   });
 
   it('uses a divider-led workband rather than an outer card around the filters and ledger', () => {
