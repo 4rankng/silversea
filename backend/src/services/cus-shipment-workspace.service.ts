@@ -8,6 +8,7 @@ import {
   SHIPMENT_CUS_MISSING_FIELD_LABELS,
   canonicalShipmentStatus,
   localDateInBusinessZone,
+  type DispatchClassification,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
   type ShipmentCusContainerQuery,
@@ -151,6 +152,7 @@ type AssignmentRow = {
   shipmentContainerId: number | null;
   fulfillmentId: number;
   fulfillmentVersion: number;
+  dispatchClassification: DispatchClassification;
   siteSnapshot: Record<string, unknown> | null;
   plannedCarrierType: string | null;
   plannedExternalCarrierId: number | null;
@@ -863,6 +865,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
       fulfillmentId: s.shipmentFulfillments.id,
       fulfillmentVersion: s.shipmentFulfillments.version,
+      dispatchClassification: s.shipmentFulfillments.dispatchClassification,
       siteSnapshot: s.shipmentFulfillments.siteSnapshot,
       plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
@@ -1785,6 +1788,8 @@ export async function listCusShipmentContainers(
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
       shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
       isCombined: row.shipment.isCombined,
+      classification: support.assignmentsByContainer.get(container.id)?.dispatchClassification
+        ?? (row.shipment.cargoMode === 'LCL' ? 'LCL' : 'SINGLE'),
       direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,
       containerTypeLabel: line.containerTypeLabel,

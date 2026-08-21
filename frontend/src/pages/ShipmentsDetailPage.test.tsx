@@ -36,7 +36,7 @@ const response: ShipmentCusContainerFlatResponse = {
     {
       id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
-      billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, direction: 'IMPORT',
+      billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, classification: 'COMBINED', direction: 'IMPORT',
       containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'PLANNED', carrierName: 'SilverSea', plateNumber: '30H-123.45',
       liftSite: 'Bãi CY', dropoffSite: 'Nhà máy Hải Phòng', transportDate: today, closingAt: null, plannedReturnAt: `${today}T08:00:00.000Z`, customerAppointmentAt: null,
       customerNotes: 'Lưu ca sáng', operationalNotes: 'Ưu tiên cổng 2', shipmentScheduleEditable: false, shipmentNotesEditable: false,
@@ -49,7 +49,7 @@ const response: ShipmentCusContainerFlatResponse = {
     {
       id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7,
       customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
-      billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, direction: 'EXPORT',
+      billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, classification: 'DOUBLE', direction: 'EXPORT',
       containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'UNASSIGNED', carrierName: null, plateNumber: null,
       liftSite: null, dropoffSite: null, transportDate: null, closingAt: null, plannedReturnAt: null, customerAppointmentAt: null,
       customerNotes: null, operationalNotes: null, shipmentScheduleEditable: true, shipmentNotesEditable: true,
@@ -134,6 +134,10 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     // The container cell no longer carries the dispatch status badge
     const containerCell = plannedRow.querySelector('td[data-label="Thông số container"]');
     expect(containerCell?.querySelector('.shipment-container-ledger__dispatch-badge')).toBeNull();
+    expect(containerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kết hợp');
+    const unassignedRow = screen.getByText('CONT-002').closest('tr');
+    const unassignedContainerCell = unassignedRow?.querySelector('td[data-label="Thông số container"]');
+    expect(unassignedContainerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kẹp');
     expect(screen.getByText('TK-001')).toBeTruthy();
     const documentsCell = screen.getByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
     expect(documentsCell.textContent).toContain('Nhập');
@@ -187,6 +191,26 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
     fireEvent.click(screen.getByRole('button', { name: 'Về hôm nay' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
+  });
+
+  it('renders every fulfillment classification with its canonical Vietnamese label', async () => {
+    apiGet.mockResolvedValueOnce({
+      ...response,
+      total: 4,
+      totalPages: 1,
+      items: [
+        { ...response.items[0], containerNumber: 'CLASS-SINGLE', isCombined: false, classification: 'SINGLE' as const },
+        { ...response.items[1], containerNumber: 'CLASS-DOUBLE', classification: 'DOUBLE' as const },
+        { ...response.items[0], id: 13, containerNumber: 'CLASS-COMBINED', classification: 'COMBINED' as const },
+        { ...response.items[1], id: 14, containerNumber: 'CLASS-LCL', classification: 'LCL' as const },
+      ],
+    });
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CLASS-LCL');
+    expect([...document.querySelectorAll('.shipment-container-ledger__container-classification')].map((element) => element.textContent)).toEqual([
+      'Đơn', 'Kẹp', 'Kết hợp', 'Lẻ',
+    ]);
   });
 
   it('renders the container-search illustration for a filtered empty result', async () => {

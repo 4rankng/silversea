@@ -127,6 +127,7 @@
 .shipment-container-ledger__direction--import { background: var(--info-soft); color: var(--info-text); }
 .shipment-container-ledger__direction--export { background: var(--brand-soft); color: var(--brand); }
 .shipment-container-ledger__direction--unknown { background: var(--surface-3); color: var(--ink-3); }
+.shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: 10px; font-weight: var(--fw-medium); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 1px 5px; border: 1px solid var(--line-2); border-radius: 999px; color: var(--ink-2) !important; font-size: 9px; font-weight: var(--fw-bold); }
 .shipment-container-ledger__dispatch-badge { max-width: 100%; font-size: 10px; line-height: 1.4; white-space: normal; }
 

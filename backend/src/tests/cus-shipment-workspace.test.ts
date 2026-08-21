@@ -414,6 +414,27 @@ describe('CUS shipment workspace projection — own-fleet plate sync', () => {
   });
 });
 
+describe('CUS shipment workspace projection — container classification', () => {
+  test('projects the fulfillment-owned classification and preserves canonical unplanned fallbacks', async () => {
+    const marker = Math.random().toString(16).slice(2, 7).toUpperCase();
+    const shipment = await seedShipment({ cargoMode: 'FCL', blNumber: `CLASS-${marker}` });
+    const container = await seedContainer(shipment.id, { containerNumber: `CLASS-${marker}` });
+    await seedFulfillment(shipment.id, container.id, { dispatchClassification: 'DOUBLE' });
+    const unplannedFcl = await seedShipment({ cargoMode: 'FCL', blNumber: `SINGLE-${marker}` });
+    const unplannedFclContainer = await seedContainer(unplannedFcl.id, { containerNumber: `SINGLE-${marker}` });
+    const unplannedLcl = await seedShipment({ cargoMode: 'LCL', blNumber: `LCL-${marker}` });
+    const unplannedLclContainer = await seedContainer(unplannedLcl.id, { containerNumber: `LCL-${marker}` });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: marker }, cusActor);
+    const row = response.items.find((item) => item.id === container.id);
+
+    assert.ok(row);
+    assert.equal(row.classification, 'DOUBLE');
+    assert.equal(response.items.find((item) => item.id === unplannedFclContainer.id)?.classification, 'SINGLE');
+    assert.equal(response.items.find((item) => item.id === unplannedLclContainer.id)?.classification, 'LCL');
+  });
+});
+
 describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
     const shipment = await seedShipment({

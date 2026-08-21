@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
 import { AlertTriangle, Clock3 } from 'lucide-react';
+import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -610,6 +611,7 @@ export function ShipmentContainerLedger({
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
                       <strong className="shipment-container-ledger__code">{fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>
+                      <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
                   </td>

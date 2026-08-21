@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  DISPATCH_CLASSIFICATIONS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   ShipmentStatus,
@@ -540,6 +541,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   declarationNumber: z.string().nullable(),
   shippingLineName: z.string().nullable(),
   isCombined: z.boolean(),
+  classification: z.enum(DISPATCH_CLASSIFICATIONS),
   direction: z.enum(['IMPORT', 'EXPORT']).nullable(),
   containerNumber: z.string().nullable(),
   containerTypeLabel: z.string().nullable(),
