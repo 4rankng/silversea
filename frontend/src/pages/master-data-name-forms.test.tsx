@@ -11,6 +11,15 @@ vi.mock('../api/shipmentClient', async (importOriginal) => {
   return { ...original, createOperationalSite };
 });
 
+vi.mock('../features/shipments/create/RouteCreateDialog', () => ({
+  RouteCreateDialog: ({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: (route: { id: number; name: string; shortName: string }) => void }) => isOpen ? (
+    <div role="dialog" aria-label="Thêm tuyến đường">
+      <button type="button" onClick={() => onCreated({ id: 12, name: 'Cảng Cát Lái — KCN Sóng Thần', shortName: 'Cát Lái — Sóng Thần' })}>Lưu tuyến mẫu</button>
+      <button type="button" onClick={onClose}>Hủy tạo tuyến</button>
+    </div>
+  ) : null,
+}));
+
 describe('master-data full and short name forms', () => {
   beforeEach(() => {
     createOperationalSite.mockReset();
@@ -79,5 +88,38 @@ describe('master-data full and short name forms', () => {
       shortName: 'Biển Bạc BN',
       routeId: 11,
     })));
+  });
+
+  it('creates a route below the factory route selector and selects it', async () => {
+    const onRouteCreated = vi.fn();
+    render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[]} onClose={vi.fn()} onCreated={vi.fn()} onRouteCreated={onRouteCreated} />);
+    const factoryDialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });
+    const addRouteButton = within(factoryDialog).getByRole('button', { name: 'Thêm tuyến đường' });
+
+    fireEvent.click(addRouteButton);
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu tuyến mẫu' }));
+
+    expect(onRouteCreated).toHaveBeenCalledWith(expect.objectContaining({
+      id: 12,
+      shortName: 'Cát Lái — Sóng Thần',
+    }));
+    const reopenedFactoryDialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
+    expect(within(reopenedFactoryDialog).getByRole('button', { name: /Tuyến đường/ }).textContent).toContain('Cát Lái — Sóng Thần');
+    await waitFor(() => expect(within(reopenedFactoryDialog).getByRole('button', { name: 'Thêm tuyến đường' })).toHaveFocus());
+  });
+
+  it('restores the factory draft when route creation is cancelled', async () => {
+    render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[{ id: 11, name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }]} onClose={vi.fn()} onCreated={vi.fn()} />);
+    const factoryDialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });
+    fireEvent.change(within(factoryDialog).getByLabelText('Mã điểm vận hành'), { target: { value: 'BB-BN' } });
+    fireEvent.click(within(factoryDialog).getByRole('button', { name: /Tuyến đường/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }));
+    fireEvent.click(within(factoryDialog).getByRole('button', { name: 'Thêm tuyến đường' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy tạo tuyến' }));
+
+    const reopenedFactoryDialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
+    expect(within(reopenedFactoryDialog).getByLabelText('Mã điểm vận hành')).toHaveValue('BB-BN');
+    expect(within(reopenedFactoryDialog).getByRole('button', { name: /Tuyến đường/ }).textContent).toContain('Cảng Hải Phòng - Biển Bạc Bắc Ninh');
+    await waitFor(() => expect(within(reopenedFactoryDialog).getByRole('button', { name: 'Thêm tuyến đường' })).toHaveFocus());
   });
 });

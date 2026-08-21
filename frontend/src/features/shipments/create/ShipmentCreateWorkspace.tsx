@@ -180,6 +180,12 @@ export function ShipmentCreateWorkspace() {
   }
 
   function handleRouteCreated(route: Route) {
+    addRouteToCatalog(route);
+    update('routeId', String(route.id));
+    closeRouteDialog();
+  }
+
+  function addRouteToCatalog(route: Route) {
     setCatalogs((current) => current ? {
       ...current,
       routes: [
@@ -187,8 +193,6 @@ export function ShipmentCreateWorkspace() {
         { ...route, fullName: route.name, name: route.shortName || route.name },
       ],
     } : current);
-    update('routeId', String(route.id));
-    closeRouteDialog();
   }
 
   /**
@@ -692,6 +696,7 @@ export function ShipmentCreateWorkspace() {
         routes={catalogs?.routes ?? []}
         onClose={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}
         onCreated={handleSiteCreated}
+        onRouteCreated={addRouteToCatalog}
       />
       <ShippingLineAddDialog
         isOpen={shippingLineDialogOpen}

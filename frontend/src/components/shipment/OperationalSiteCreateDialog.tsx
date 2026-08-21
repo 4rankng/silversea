@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
+import type { Route } from '@tingting/shared';
 import { Modal } from '../UI';
 import { SelectField, TextField } from '../../design-system';
 import { createOperationalSite, type OperationalSite } from '../../api/shipmentClient';
+import { RouteCreateDialog } from '../../features/shipments/create/RouteCreateDialog';
 
 interface OperationalSiteCreateDialogProps {
   isOpen: boolean;
@@ -12,6 +15,8 @@ interface OperationalSiteCreateDialogProps {
   onClose: () => void;
   /** Called with the newly-created site so the parent can refresh + auto-select it. */
   onCreated: (site: OperationalSite) => void;
+  /** Keeps the parent route catalog current after inline route creation. */
+  onRouteCreated?: (route: Route) => void;
 }
 
 type SiteType = 'FACTORY' | 'WAREHOUSE';
@@ -55,19 +60,35 @@ export function OperationalSiteCreateDialog({
   routes,
   onClose,
   onCreated,
+  onRouteCreated,
 }: OperationalSiteCreateDialogProps) {
   const [form, setForm] = useState<SiteFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [routeDialogState, setRouteDialogState] = useState<'closed' | 'opening' | 'open' | 'returning'>('closed');
+  const [createdRoutes, setCreatedRoutes] = useState<Array<{ id: number; name: string }>>([]);
+  const addRouteButtonRef = useRef<HTMLButtonElement>(null);
+  const routeDialogTimerRef = useRef<number | null>(null);
+  const restoreRouteButtonFocusRef = useRef(false);
 
   // Reset the form whenever the dialog opens, preselecting the requested
   // site type. Keeps the component mountable in place while still starting
   // each session clean.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      if (routeDialogTimerRef.current !== null) window.clearTimeout(routeDialogTimerRef.current);
+      routeDialogTimerRef.current = null;
+      setRouteDialogState('closed');
+      return;
+    }
     setForm({ ...EMPTY_FORM, siteType: defaultSiteType });
     setError(null);
+    setCreatedRoutes([]);
   }, [isOpen, defaultSiteType]);
+
+  useEffect(() => () => {
+    if (routeDialogTimerRef.current !== null) window.clearTimeout(routeDialogTimerRef.current);
+  }, []);
 
   function update<K extends keyof SiteFormState>(key: K, value: SiteFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -76,10 +97,52 @@ export function OperationalSiteCreateDialog({
 
   function close() {
     if (saving) return;
+    if (routeDialogTimerRef.current !== null) window.clearTimeout(routeDialogTimerRef.current);
+    routeDialogTimerRef.current = null;
+    restoreRouteButtonFocusRef.current = false;
+    setRouteDialogState('closed');
     setForm(EMPTY_FORM);
     setError(null);
     onClose();
   }
+
+  function closeRouteDialog() {
+    restoreRouteButtonFocusRef.current = true;
+    setRouteDialogState('returning');
+    routeDialogTimerRef.current = window.setTimeout(() => {
+      routeDialogTimerRef.current = null;
+      setRouteDialogState('closed');
+      window.setTimeout(() => {
+        if (restoreRouteButtonFocusRef.current && addRouteButtonRef.current) {
+          restoreRouteButtonFocusRef.current = false;
+          addRouteButtonRef.current.focus();
+        }
+      }, 50);
+    }, 240);
+  }
+
+  function openRouteDialog() {
+    setRouteDialogState('opening');
+    routeDialogTimerRef.current = window.setTimeout(() => {
+      routeDialogTimerRef.current = null;
+      setRouteDialogState('open');
+    }, 240);
+  }
+
+  function handleRouteCreated(route: Route) {
+    setCreatedRoutes((current) => [
+      ...current.filter((item) => item.id !== route.id),
+      { id: route.id, name: route.shortName || route.name },
+    ]);
+    update('routeId', String(route.id));
+    onRouteCreated?.(route);
+    closeRouteDialog();
+  }
+
+  const routeOptions = [
+    ...routes,
+    ...createdRoutes.filter((createdRoute) => !routes.some((route) => route.id === createdRoute.id)),
+  ];
 
   function validate(): string | null {
     if (!form.code.trim()) return 'Vui lòng nhập mã điểm vận hành';
@@ -144,8 +207,9 @@ export function OperationalSiteCreateDialog({
   );
 
   return (
+    <>
     <Modal
-      isOpen={isOpen}
+      isOpen={isOpen && routeDialogState === 'closed'}
       title={defaultSiteType === 'WAREHOUSE' ? 'Thêm kho lấy hàng' : 'Thêm nhà máy'}
       onClose={close}
       onConfirm={() => void submit()}
@@ -178,15 +242,26 @@ export function OperationalSiteCreateDialog({
           </SelectField>
         </div>
         {form.siteType === 'FACTORY' && (
-          <SelectField
-            label="Tuyến đường"
-            value={form.routeId}
-            onChange={(event) => update('routeId', event.target.value)}
-            disabled={saving}
-          >
-            <option value="">— Chọn tuyến đường —</option>
-            {routes.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
-          </SelectField>
+          <div className="csc-route-picker">
+            <SelectField
+              label="Tuyến đường"
+              value={form.routeId}
+              onChange={(event) => update('routeId', event.target.value)}
+              disabled={saving}
+            >
+              <option value="">— Chọn tuyến đường —</option>
+              {routeOptions.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
+            </SelectField>
+            <button
+              ref={addRouteButtonRef}
+              type="button"
+              className="csc-utility-button csc-utility-button--dashed csc-route-picker__add"
+              onClick={openRouteDialog}
+              disabled={saving}
+            >
+              <Plus size={15} aria-hidden="true" />Thêm tuyến đường
+            </button>
+          </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
           <TextField
@@ -240,5 +315,11 @@ export function OperationalSiteCreateDialog({
         />
       </div>
     </Modal>
+    <RouteCreateDialog
+      isOpen={isOpen && routeDialogState === 'open'}
+      onClose={closeRouteDialog}
+      onCreated={handleRouteCreated}
+    />
+    </>
   );
 }
