@@ -457,14 +457,17 @@
 
 /* Keep every fixed-layout column explicit and the complete set at 100%.
    Otherwise a newly added column collapses to zero width and its wrapped
-   header label dictates the height of the entire header row. */
-.detailed-plan-grid__col--schedule { width: 12%; }
-.detailed-plan-grid__col--route { width: 21%; }
-.detailed-plan-grid__col--documents { width: 13%; }
-.detailed-plan-grid__col--container { width: 12%; }
-.detailed-plan-grid__col--assignment { width: 20%; }
-.detailed-plan-grid__col--classification { width: 10%; }
-.detailed-plan-grid__col--notes { width: 12%; }
+   header label dictates the height of the entire header row. The Phân loại
+   column only renders the one-word pills "Đơn" / "Lẻ", so it can stay at the
+   minimum width that still fits its pill; the freed width flows into the
+   other columns so the wider route/notes stacks keep their wrap budget. */
+.detailed-plan-grid__col--schedule { width: 14%; }
+.detailed-plan-grid__col--route { width: 24%; }
+.detailed-plan-grid__col--documents { width: 14%; }
+.detailed-plan-grid__col--container { width: 14%; }
+.detailed-plan-grid__col--assignment { width: 15%; }
+.detailed-plan-grid__col--classification { width: 5%; }
+.detailed-plan-grid__col--notes { width: 14%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
