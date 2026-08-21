@@ -608,16 +608,15 @@
   color: var(--fg-1);
 }
 
-/* Lift/drop pairs are operational directions, not primary identities. Keep
-   their values compact and regular; color the label to speed scanning while
-   the port + total container count is bold so dispatch can read the demand
-   per site at a glance. */
+/* Lift/drop pairs are operational directions, not primary identities. The
+   DOCX explicitly removes bold text here; color the direction label and keep
+   the full port + total count readable without competing with the shipment. */
 .master-plan-grid__location-block + .master-plan-grid__location-block {
   margin-top: 6px;
 }
 
 .master-plan-grid__location-label {
-  font-weight: var(--ops-table-primary-weight);
+  font-weight: 400;
 }
 
 .master-plan-grid__location-label--lift {
@@ -630,7 +629,7 @@
 
 .master-plan-grid__location-value {
   color: var(--fg-1);
-  font-weight: var(--ops-table-primary-weight);
+  font-weight: 400;
 }
 
 .master-plan-grid__line--muted {

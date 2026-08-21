@@ -102,7 +102,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Bãi SITC · 2 x 40DC')).toBeTruthy();
   });
 
-  it('renders the lift/drop label and the port value with the bold location weight', () => {
+  it('renders lift/drop labels and values at the regular location weight', () => {
     const fixture = item({
       containerPortGroups: [
         { pickupPortName: 'Cảng Cát Lái', dropoffPortName: 'Kho Bình Dương', containerSummary: '1 x 40DC' },
@@ -113,15 +113,15 @@ describe('MasterPlanGrid', () => {
 
     const label = screen.getByText('Nâng:');
     const value = screen.getByText('Cảng Cát Lái · 1 x 40DC');
-    // jsdom does not resolve CSS variables, so check the rule applies the
-    // bold weight directly on the class hooks.
+    // jsdom does not resolve CSS variables, so assert the explicit regular
+    // weight required by the DOCX rather than relying on inherited styles.
     expect(label.className).toContain('master-plan-grid__location-label');
     expect(value.className).toContain('master-plan-grid__location-value');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const labelRule = css.match(/\.master-plan-grid__location-label \{([\s\S]*?)\n\}/)?.[1] ?? '';
     const valueRule = css.match(/\.master-plan-grid__location-value \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(labelRule).toContain('font-weight: var(--ops-table-primary-weight)');
-    expect(valueRule).toContain('font-weight: var(--ops-table-primary-weight)');
+    expect(labelRule).toContain('font-weight: 400');
+    expect(valueRule).toContain('font-weight: 400');
   });
 
   it('does not project legacy lot locations when no container-port data is available', () => {
@@ -227,15 +227,16 @@ describe('MasterPlanGrid', () => {
     expect(within(dropLocationBlock!).getByText('Hạ:')).not.toHaveClass('master-plan-grid__line--strong');
     expect(within(liftLocationBlock!).getByText('Nâng:')).toHaveClass('master-plan-grid__location-label--lift');
     expect(within(dropLocationBlock!).getByText('Hạ:')).toHaveClass('master-plan-grid__location-label--drop');
-    // Both the lift/drop label and the port · total value are bold so dispatch
-    // can read the per-site demand at a glance (user request: "Bold đen text").
+    // DOCX Task 2.1 says to remove the bold treatment; the colored direction
+    // label and complete port/count text preserve scanability without turning
+    // this supporting cell into a primary identity.
     expect(within(liftLocationBlock!).getByText('Nâng:').className).toContain('master-plan-grid__location-label');
     expect(within(liftLocationBlock!).getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').className).toContain('master-plan-grid__location-value');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__location-label--lift {\n  color: var(--accent-ink);\n}');
     expect(css).toContain('.master-plan-grid__location-label--drop {\n  color: var(--info-text);\n}');
-    expect(css).toContain('.master-plan-grid__location-label {\n  font-weight: var(--ops-table-primary-weight);\n}');
-    expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: var(--ops-table-primary-weight);\n}');
+    expect(css).toContain('.master-plan-grid__location-label {\n  font-weight: 400;\n}');
+    expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);
