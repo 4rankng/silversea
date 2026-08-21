@@ -253,9 +253,17 @@
   .shipments-detail-workspace__header { padding-inline: 0; }
 }
 
-@container shipments-detail (max-width: 900px) {
+/* The 6-up filter row (min total ~1030px) overflows the workspace between
+   ~900px and ~1300px of container width, clipping the last "Trạng thái dữ
+   liệu" select and pushing the date-actions footer onto a stranded row.
+   Drop to 3-up so the wrapped filter and the footer land on the same row
+   (footer keeps `grid-column: 2 / -1`, which becomes 2/3 in 3-up mode). */
+@container shipments-detail (max-width: 1300px) {
   .shipments-detail-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .shipments-detail-filter--search { grid-column: span 2; }
+}
+
+@container shipments-detail (max-width: 900px) {
   .shipment-container-ledger table,
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
