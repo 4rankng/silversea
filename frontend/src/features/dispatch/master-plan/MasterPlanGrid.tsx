@@ -251,7 +251,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
-                    Lộ trình: {item.routeName ?? '—'}
+                    {item.routeName ?? '—'}
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">

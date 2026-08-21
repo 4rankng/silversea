@@ -915,6 +915,30 @@ describe('dispatch fulfillment workflow routes', () => {
 
   });
 
+  test('dispatch queue excludes a legacy accepted fulfillment without a route', async () => {
+    const customer = await createCustomer(`Route-less queue ${suffix}-${createdCustomerIds.length}`);
+    const route = await createRoute();
+    const legacy = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
+    await db.update(s.shipments)
+      .set({ routeId: null })
+      .where(eq(s.shipments.id, legacy.shipmentId));
+
+    const response = await apiFetch<{
+      items: Array<{ fulfillmentId: number; route: { id: number; name: string } }>;
+      total: number;
+      readyCount: number;
+      dispatchedCount: number;
+    }>(`/dispatch-queue?limit=10&q=${encodeURIComponent(customer.name)}`, {
+      token: managerToken,
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.data.total, 0);
+    assert.equal(response.data.readyCount, 0);
+    assert.equal(response.data.dispatchedCount, 0);
+    assert.equal(response.data.items.length, 0);
+  });
+
   test('dispatch fleet resources use flat cursor pagination with resource-bound cursors and unaccented search', async () => {
     const countToken = `CNT${suffix.replace(/[^a-z0-9]/gi, '').slice(-8).toUpperCase()}`;
     const trailers = await db.insert(s.trailers).values(Array.from({ length: 3 }, (_, index) => ({

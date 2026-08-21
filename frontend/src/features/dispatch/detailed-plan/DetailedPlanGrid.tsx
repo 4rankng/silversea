@@ -184,7 +184,7 @@ export function DetailedPlanGrid({
                     </div>
                     {row.customerRoute.routeName && (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                        Lộ trình: {row.customerRoute.routeName}
+                        {row.customerRoute.routeName}
                       </div>
                     )}
                   </td>

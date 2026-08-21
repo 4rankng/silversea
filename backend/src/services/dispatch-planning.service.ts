@@ -802,7 +802,9 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
+      // Queue rows must be dispatchable. A route-less legacy fulfillment cannot
+      // create a trip, so it belongs in remediation/master planning—not here.
+      .innerJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
       .leftJoin(s.dispatchHandoffs, and(
         eq(s.dispatchHandoffs.shipmentId, s.shipments.id),
         eq(s.dispatchHandoffs.status, 'ACCEPTED'),
@@ -865,6 +867,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
+      .innerJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
       .leftJoin(s.dispatchHandoffs, and(
         eq(s.dispatchHandoffs.shipmentId, s.shipments.id),
         eq(s.dispatchHandoffs.status, 'ACCEPTED'),

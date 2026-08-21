@@ -660,6 +660,12 @@
      every text-based query/label) keeps the customer's real casing. */
   text-transform: uppercase;
 }
+.cus-dashboard-cell--identity .cus-multiline-cell span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .cus-multiline-cell--mono { font-family: var(--font-data); }
 .cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { }

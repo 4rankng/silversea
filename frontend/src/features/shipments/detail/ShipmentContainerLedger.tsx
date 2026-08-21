@@ -68,11 +68,11 @@ export interface ShipmentNotesDraft {
 }
 
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
-const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'success' }> = {
+const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   UNASSIGNED: { label: 'Chưa điều xe', color: 'warning' },
-  PLANNED: { label: 'Đã phân xe', color: 'brand' },
-  CREATED: { label: 'Đã tạo chuyến', color: 'blue' },
-  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'blue' },
+  PLANNED: { label: 'Đã phân xe', color: 'blue' },
+  CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
+  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
 };
 

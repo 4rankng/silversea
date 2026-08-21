@@ -199,9 +199,10 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
-    // T2.1: customer → factories → route, all three with route bold.
+    // T2.1: customer → factories → route, with the route bold and no redundant label.
     expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();

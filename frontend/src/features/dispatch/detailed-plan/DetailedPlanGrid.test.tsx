@@ -74,10 +74,11 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Giờ: 8H')).toBeTruthy();
     // Column 2: KH/factory/delivery point
     // T2.3 follows the master-plan order: customer, factory, then the
-    // explicitly labelled, emphasized route.
+    // emphasized route without a redundant label.
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     expect(screen.getByText('Nhà máy XYZ')).toBeTruthy();
-    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toBeTruthy();
+    expect(screen.getByText('LH — Biên Hòa')).toBeTruthy();
+    expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
     // Column 3: bill + badge
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
     const directionBadge = screen.getByText('Xuất');

@@ -329,6 +329,7 @@ def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
                 if not (
                     isinstance(shipment.get("declarationNumbers"), list)
                     and isinstance(first_queue_item["customer"].get("name"), str)
+                    and isinstance(first_queue_item["route"].get("id"), int)
                     and isinstance(first_queue_item["route"].get("name"), str)
                     and isinstance(unit_summary.get("label"), str)
                 ):
