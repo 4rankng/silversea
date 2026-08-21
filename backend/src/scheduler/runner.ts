@@ -24,7 +24,6 @@
  * will register jobs against this runner.
  */
 import cron from 'node-cron';
-import { client as dbClient } from '../db';
 import logger from '../lib/logger';
 import {
   advisoryLockKey,
@@ -118,6 +117,10 @@ export async function runJobTick(job: SchedulerJob): Promise<void> {
   // postgres.js dispatches each query to an arbitrary idle connection, and the
   // unlock would return `false` against a different session — leaking the lock
   // until the original connection is recycled.
+  // Keep the database client lazy: the pure retry helpers in this module are
+  // unit-tested without a database, and importing the client eagerly keeps a
+  // postgres.js handle open after those tests finish.
+  const { client: dbClient } = await import('../db/index.js');
   const conn = await dbClient.reserve();
 
   // pg_try_advisory_lock returns a Postgres boolean, which postgres.js parses

@@ -4,7 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
-def test_dashboard(ctx: NepoTestContext, results: TestResults):
+def test_dashboard(ctx: SilverseaTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'Abc123')
 

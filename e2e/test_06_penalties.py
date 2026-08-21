@@ -4,7 +4,7 @@ import sys, os, time
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
-def test_penalties(ctx: NepoTestContext, results: TestResults):
+def test_penalties(ctx: SilverseaTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'Abc123')
 

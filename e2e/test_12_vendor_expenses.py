@@ -5,7 +5,7 @@ from uuid import uuid4
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
-def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
+def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     run_suffix = uuid4().hex[:10]
     supplier_name = f'E2E Supplier TC1201 {run_suffix}'
     api = ApiClient()

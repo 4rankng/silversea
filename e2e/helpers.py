@@ -1,5 +1,5 @@
 """
-Shared E2E test helpers for NEPO logistics system.
+Shared E2E test helpers for the Silversea logistics system.
 Provides login, API client, screenshot capture, and result tracking.
 """
 import json
@@ -11,9 +11,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
-BASE_URL = os.environ.get('NEPO_URL', 'http://localhost:7173')
-API_URL = os.environ.get('NEPO_API', 'http://localhost:3090')
-SCREENSHOT_DIR = Path(os.environ.get('NEPO_SCREENSHOTS', '/tmp/nepo-e2e'))
+BASE_URL = os.environ.get('SILVERSEA_URL', 'http://localhost:7174')
+API_URL = os.environ.get('SILVERSEA_API', 'http://localhost:3001')
+SCREENSHOT_DIR = Path(os.environ.get('SILVERSEA_SCREENSHOTS', '/tmp/silversea-e2e'))
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEMO_ACCOUNTS = {
@@ -28,8 +28,8 @@ DEMO_ACCOUNTS = {
         # preserves old user rows but clears their discarded customer links,
         # so reusing a historical E2E username can authenticate successfully
         # while no longer owning a customer scope.
-        'identifier': os.environ.get('NEPO_CUSTOMER_USERNAME', f'e2e-customer-{os.getpid()}'),
-        'password': os.environ.get('NEPO_CUSTOMER_PASSWORD', 'Abc123'),
+        'identifier': os.environ.get('SILVERSEA_CUSTOMER_USERNAME', f'e2e-customer-{os.getpid()}'),
+        'password': os.environ.get('SILVERSEA_CUSTOMER_PASSWORD', 'Abc123'),
         'role': 'CUSTOMER',
         'home': '/portal/shipments',
     },
@@ -48,7 +48,7 @@ def ensure_customer_test_account() -> dict:
     if api_host not in {'localhost', '127.0.0.1', '::1'}:
         return {
             'error': 'Automatic CUSTOMER fixture creation is disabled outside localhost; '
-                     'set NEPO_CUSTOMER_USERNAME and NEPO_CUSTOMER_PASSWORD to a dedicated account.',
+                     'set SILVERSEA_CUSTOMER_USERNAME and SILVERSEA_CUSTOMER_PASSWORD to a dedicated account.',
             'status': login.get('status', 403),
         }
 
@@ -205,7 +205,7 @@ class ApiClient:
         return self._request('DELETE', path, body, headers)
 
 
-class NepoTestContext:
+class SilverseaTestContext:
     def __init__(self, headless: bool = True):
         self.headless = headless
         self.playwright = None
@@ -317,7 +317,7 @@ def run_suite(suite_name: str, test_fn, headless: bool = True):
     print(f'{"─"*60}')
     results = TestResults(suite_name)
 
-    with NepoTestContext(headless=headless) as ctx:
+    with SilverseaTestContext(headless=headless) as ctx:
         try:
             test_fn(ctx, results)
         except Exception as e:

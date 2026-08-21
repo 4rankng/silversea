@@ -29,13 +29,13 @@ SEARCH_SUFFIX = f"{int(RUN_SUFFIX, 16) % 100_000:05d}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 _ACTIVE_FLEET_FIXTURE: dict[str, int | None] | None = None
-E2E_DATABASE_URL = os.environ.get("NEPO_DATABASE_URL")
+E2E_DATABASE_URL = os.environ.get("SILVERSEA_DATABASE_URL")
 
 
 def e2e_database_url() -> str:
     if not E2E_DATABASE_URL:
         raise RuntimeError(
-            "NEPO_DATABASE_URL is required for the persisted dispatch E2E fixture; "
+            "SILVERSEA_DATABASE_URL is required for the persisted dispatch E2E fixture; "
             "refusing to mutate an implicit shared local database."
         )
     return E2E_DATABASE_URL
@@ -604,7 +604,7 @@ def workbook_has_expected_template(blob: bytes, template_name: str, bill_number:
     return ok, detail
 
 
-def test_dispatch_persisted_chain(ctx: NepoTestContext, results: TestResults):
+def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResults):
     admin_api = login_api("admin")
     clerk_api = login_api("clerk")
     manager_api = login_api("manager")

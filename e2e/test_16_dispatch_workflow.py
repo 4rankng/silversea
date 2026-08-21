@@ -126,7 +126,7 @@ def prepare_dispatch_issue(page: Page):
     return page.get_by_role("button", name="Phát hành lệnh điều xe")
 
 
-def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
+def responsive_role_matrix(ctx: SilverseaTestContext, results: TestResults):
     for role, path in ROLE_SURFACES.items():
         page = ctx.new_page({"width": 1440, "height": 1000})
         ctx.login_as(role, page)
@@ -286,7 +286,7 @@ def responsive_role_matrix(ctx: NepoTestContext, results: TestResults):
         page.close()
 
 
-def test_dispatch_workflow(ctx: NepoTestContext, results: TestResults):
+def test_dispatch_workflow(ctx: SilverseaTestContext, results: TestResults):
     manager_api = ApiClient()
     manager_account = DEMO_ACCOUNTS["manager"]
     manager_login = manager_api.login(manager_account["identifier"], manager_account["password"])

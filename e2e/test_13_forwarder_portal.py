@@ -16,7 +16,7 @@ def _check_no_financial_keys(data, prefix=''):
     return True
 
 
-def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
+def test_forwarder_portal(ctx: SilverseaTestContext, results: TestResults):
     api_fwd = ApiClient()
     api_fwd.login('giaonhan', 'Abc123')
     secondary_forwarder = None
@@ -262,7 +262,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     cards = page.locator('.ftrip-card:visible').count()
     if len(fwd_trips) > 0 and cards > 0:
         results.pass_('TC-1310', f'Trip list displays ({cards} visible cards, {len(fwd_trips)} API trips)')
-    elif len(fwd_trips) == 0 and page.get_by_text('Chưa có chuyến đi').count() > 0:
+    elif len(fwd_trips) == 0 and page.get_by_text('Chưa có lệnh phù hợp').count() > 0:
         results.pass_('TC-1310', 'Trip list displays the authoritative empty state')
     else:
         results.fail(
@@ -281,7 +281,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/my-forwarder-trips')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        empty_state = page.get_by_text('Chưa có chuyến đi nào')
+        empty_state = page.get_by_text('Chưa có lệnh phù hợp')
         if empty_state.count() > 0 and empty_state.first.is_visible():
             results.pass_('TC-1311', 'Empty state message visible')
         else:
@@ -1049,7 +1049,7 @@ def test_forwarder_portal(ctx: NepoTestContext, results: TestResults):
     no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     has_mobile_content = (
         page.locator('.ftrip-card:visible').count() > 0
-        or page.get_by_text('Chưa có chuyến đi nào').count() > 0
+        or page.get_by_text('Chưa có lệnh phù hợp').count() > 0
     )
     if '/my-forwarder-trips' in page.url and no_overflow and has_mobile_content:
         results.pass_('TC-1370', 'Mobile trip list renders without horizontal overflow')

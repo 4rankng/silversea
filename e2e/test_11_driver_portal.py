@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
 
-def test_driver_portal(ctx: NepoTestContext, results: TestResults):
+def test_driver_portal(ctx: SilverseaTestContext, results: TestResults):
     today = datetime.date.today()
     earnings_path = f'/api/driver/me/earnings?month={today.month}&year={today.year}'
 

@@ -16,7 +16,7 @@ def version_headers(user: dict) -> dict:
     """Send the exact version returned by the API for optimistic locking."""
     return {'If-Unmodified-Since': user['updatedAt']}
 
-def test_system_admin(ctx: NepoTestContext, results: TestResults):
+def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'Abc123')
 

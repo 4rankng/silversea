@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
 
-def test_closed_loop(ctx: NepoTestContext, results: TestResults):
+def test_closed_loop(ctx: SilverseaTestContext, results: TestResults):
     page = ctx.new_page()
     _, token, user = ctx.login_as('admin', page)
     ctx.api.token = token

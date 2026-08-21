@@ -17,8 +17,8 @@ TITLE = "19-cus-workspace-accessibility-matrix"
 RUN_ID = uuid.uuid4().hex[:8].upper()
 SEARCH_SUFFIX = f"{uuid.uuid4().int % 10_000:04d}"
 CONTROL_MIN_SIZE = 24
-DISPATCHER_USERNAME = os.environ.get("NEPO_DISPATCHER_USERNAME", f"e2e-dispatcher-{os.getpid()}")
-DISPATCHER_PASSWORD = os.environ.get("NEPO_DISPATCHER_PASSWORD", "Abc123")
+DISPATCHER_USERNAME = os.environ.get("SILVERSEA_DISPATCHER_USERNAME", f"e2e-dispatcher-{os.getpid()}")
+DISPATCHER_PASSWORD = os.environ.get("SILVERSEA_DISPATCHER_PASSWORD", "Abc123")
 
 ROLE_EXPECTATIONS = {
     "clerk": {
@@ -132,7 +132,7 @@ def check(results: TestResults, tc_id: str, title: str, condition: bool, detail:
     return False
 
 
-def login_page(ctx: NepoTestContext, role_key: str, page: Page):
+def login_page(ctx: SilverseaTestContext, role_key: str, page: Page):
     if role_key != "dispatcher":
         return ctx.login_as(role_key, page)
 
@@ -331,7 +331,7 @@ def verify_api_role_matrix(results: TestResults):
         )
 
 
-def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
+def verify_role_viewport_matrix(ctx: SilverseaTestContext, results: TestResults):
     viewports = [
         ("desktop", 1440, 1000),
         ("laptop", 1024, 900),
@@ -446,7 +446,7 @@ def active_has_class(page: Page, class_name: str) -> bool:
     )
 
 
-def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
+def verify_responsive_cus_surface(ctx: SilverseaTestContext, results: TestResults):
     for label, width, height, reduced_motion in RESPONSIVE_VIEWPORTS:
         page = ctx.new_page({"width": width, "height": height})
         console_errors, page_errors = collect_page_issues(page)
@@ -572,7 +572,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
             page.context.close()
 
 
-def suite(ctx: NepoTestContext, results: TestResults):
+def suite(ctx: SilverseaTestContext, results: TestResults):
     ensure_fixture(results)
     verify_api_role_matrix(results)
     verify_role_viewport_matrix(ctx, results)

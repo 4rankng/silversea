@@ -101,7 +101,7 @@ python3 visual/run_section.py s00_cross_cutting
 
 Repeat the same environment prefix for each required `visual/run_section.py`
 command. For API suites that need the customer fixture on staging, set
-`NEPO_CUSTOMER_USERNAME=khachhang` and the approved password; do not rely on
+`SILVERSEA_CUSTOMER_USERNAME=khachhang` and the approved password; do not rely on
 localhost auto-provisioning.
 
 ### Mandatory broad gates once implementation claims affect shared contracts

@@ -10,7 +10,7 @@ def get_first_trip_id(api: ApiClient) -> int:
     items = resp.get('data', {}).get('items', [])
     return items[0]['id'] if items else None
 
-def test_trips(ctx: NepoTestContext, results: TestResults):
+def test_trips(ctx: SilverseaTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'Abc123')
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run all NEPO E2E test suites
+# Run all Silversea E2E test suites.
 # Usage:
 #   ./e2e/run_all.sh           # Run all
 #   ./e2e/run_all.sh 00 13     # Run specific suites
@@ -39,12 +39,10 @@ exit(1)
 }
 
 echo "🔍 Checking servers..."
-# Default to the silversea stack ports (7174 frontend, 3001 backend) but allow
-# override via NEPO_FRONTEND_PORT / NEPO_BACKEND_PORT for the legacy
-# nepocorp stack (7173 / 3090). helpers.py reads BASE_URL/API_URL from
-# NEPO_URL / NEPO_API env vars.
-FRONTEND_PORT="${NEPO_FRONTEND_PORT:-7174}"
-BACKEND_PORT="${NEPO_BACKEND_PORT:-3001}"
+# The runner targets the local Silversea stack only. Every override remains in
+# the SILVERSEA namespace so an adjacent checkout cannot redirect this suite.
+FRONTEND_PORT="${SILVERSEA_FRONTEND_PORT:-7174}"
+BACKEND_PORT="${SILVERSEA_BACKEND_PORT:-3001}"
 if ! check_port "$FRONTEND_PORT"; then
     echo "❌ Frontend not running on :$FRONTEND_PORT. Run 'make dev' first."
     exit 1
@@ -53,11 +51,14 @@ if ! check_port "$BACKEND_PORT"; then
     echo "❌ Backend not running on :$BACKEND_PORT. Run 'make dev' first."
     exit 1
 fi
-export NEPO_URL="${NEPO_URL:-http://localhost:$FRONTEND_PORT}"
-export NEPO_API="${NEPO_API:-http://localhost:$BACKEND_PORT}"
-E2E_ARTIFACT_ROOT="${NEPO_SCREENSHOTS:-/tmp/tingting-e2e}"
-export NEPO_SCREENSHOTS="$E2E_ARTIFACT_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
-mkdir -p "$NEPO_SCREENSHOTS"
+export SILVERSEA_URL="${SILVERSEA_URL:-http://localhost:$FRONTEND_PORT}"
+export SILVERSEA_API="${SILVERSEA_API:-http://localhost:$BACKEND_PORT}"
+# The persisted dispatch suite uses a deliberately explicit local database URL
+# for its bootstrap/cleanup subprocesses; it never falls back to another app.
+export SILVERSEA_DATABASE_URL="${SILVERSEA_DATABASE_URL:-postgres://postgres:postgres@localhost:5441/silversea}"
+E2E_ARTIFACT_ROOT="${SILVERSEA_SCREENSHOTS:-/tmp/silversea-e2e}"
+export SILVERSEA_SCREENSHOTS="$E2E_ARTIFACT_ROOT/$(date +%Y%m%d-%H%M%S)-$$"
+mkdir -p "$SILVERSEA_SCREENSHOTS"
 echo "✅ Servers ready (frontend :$FRONTEND_PORT, backend :$BACKEND_PORT)"
 
 # Determine which suites to run
@@ -68,7 +69,7 @@ if [ $# -eq 0 ]; then
     done
 else
     for arg in "$@"; do
-        SUITES+=("$(printf '%02d' $arg)")
+        SUITES+=("$(printf '%02d' "$((10#$arg))")")
     done
 fi
 
@@ -77,7 +78,7 @@ TOTAL_PASS=0
 TOTAL_FAIL=0
 TOTAL_SKIP=0
 FAILED_SUITES=()
-SUITE_TIMEOUT_SECONDS="${NEPO_SUITE_TIMEOUT_SECONDS:-300}"
+SUITE_TIMEOUT_SECONDS="${SILVERSEA_SUITE_TIMEOUT_SECONDS:-300}"
 
 for suite in "${SUITES[@]}"; do
     SCRIPT="$DIR/test_${suite}_*.py"
@@ -121,7 +122,7 @@ echo "============================================================"
 # Aggregate from JSON results
 python3 -c "
 import json, glob, os
-files = sorted(glob.glob(os.path.join(os.environ['NEPO_SCREENSHOTS'], '*_results.json')))
+files = sorted(glob.glob(os.path.join(os.environ['SILVERSEA_SCREENSHOTS'], '*_results.json')))
 total = passed = failed = skipped = 0
 for f in files:
     d = json.load(open(f))
@@ -143,7 +144,7 @@ if failed > 0:
 
 echo "============================================================"
 echo ""
-echo "📁 Screenshots & results: $NEPO_SCREENSHOTS"
+echo "📁 Screenshots & results: $SILVERSEA_SCREENSHOTS"
 
 if [ ${#FAILED_SUITES[@]} -ne 0 ]; then
     exit 1

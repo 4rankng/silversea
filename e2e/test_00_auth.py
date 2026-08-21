@@ -4,7 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
-def test_auth(ctx: NepoTestContext, results: TestResults):
+def test_auth(ctx: SilverseaTestContext, results: TestResults):
     # ── 5.1 Happy Path ──
     # TC-0001: Login by username
     page = ctx.new_page()

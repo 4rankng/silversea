@@ -24,7 +24,7 @@ def _no_horizontal_overflow(page):
     )
 
 
-def test_customer_portal(ctx: NepoTestContext, results: TestResults):
+def test_customer_portal(ctx: SilverseaTestContext, results: TestResults):
     customer_api = ApiClient()
     login = ensure_customer_test_account()
     customer_api.token = login.get('token')

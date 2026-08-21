@@ -388,7 +388,7 @@ def main() -> bool:
             str(own_fleet_response),
         )
 
-        with NepoTestContext() as ctx:
+        with SilverseaTestContext() as ctx:
             for width, height, label in ((1440, 1000, "desktop"), (1024, 900, "laptop"), (768, 1024, "tablet"), (640, 800, "zoom-200-equivalent"), (390, 844, "mobile"), (320, 720, "narrow")):
                 page = ctx.new_page({"width": width, "height": height})
                 if width == 640:

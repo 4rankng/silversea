@@ -4,7 +4,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 from helpers import *
 
-def test_customers(ctx: NepoTestContext, results: TestResults):
+def test_customers(ctx: SilverseaTestContext, results: TestResults):
     api = ApiClient()
     api.login('admin', 'Abc123')
 
