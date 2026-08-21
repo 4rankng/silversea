@@ -25,6 +25,7 @@ export interface ActiveShipmentDetailEdit {
 }
 
 export interface ShipmentRouteDraft {
+  routeId: number | null;
   liftSiteId: number | null;
   dropoffSiteId: number | null;
 }
@@ -174,6 +175,7 @@ function InlineEditor({
   const { detail, line, mode, row } = edit;
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
   const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
+  const [containerRouteId, setContainerRouteId] = useState(line.routeId ? String(line.routeId) : '');
   const initialCarrier = line.carrierType === 'OWN'
     ? 'OWN'
     : line.externalCarrierId ? String(line.externalCarrierId) : '';
@@ -221,7 +223,7 @@ function InlineEditor({
     || scheduleTime !== (formatScheduleTime(row) ?? '');
   const dirty = mode === 'identity'
     ? factoryName.trim() !== (detail.summary.raw.factoryName ?? '')
-      || routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : '')
+      || (detail.summary.cargoMode !== 'FCL' && routeId !== (detail.summary.raw.routeId ? String(detail.summary.raw.routeId) : ''))
       || deliveryLocation.trim() !== (detail.summary.raw.deliveryLocation ?? '')
     : mode === 'documents'
       ? blNumber.trim() !== (detail.summary.raw.blNumber ?? '')
@@ -234,7 +236,8 @@ function InlineEditor({
         || cargoWeightKg.trim() !== (line.raw.cargoWeightKg ?? '')
         || cargoVolumeCbm.trim() !== (line.raw.cargoVolumeCbm ?? '')
     : mode === 'route'
-    ? liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
+    ? containerRouteId !== (line.routeId ? String(line.routeId) : '')
+      || liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
       || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
     : mode === 'vehicle'
       ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
@@ -281,6 +284,7 @@ function InlineEditor({
         });
       } else if (mode === 'route') {
         await onSaveRoute(line, {
+          routeId: containerRouteId ? Number(containerRouteId) : null,
           liftSiteId: liftSiteId ? Number(liftSiteId) : null,
           dropoffSiteId: dropoffSiteId ? Number(dropoffSiteId) : null,
         });
@@ -358,7 +362,7 @@ function InlineEditor({
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Khách hàng</span><input value={row.customerName ?? ''} disabled title={detail.summary.fieldAccess.customerId.reason} /></label>
           <label><span>Nhà máy</span><input autoFocus value={factoryName} onChange={(event) => setFactoryName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.factoryName.mode === 'READ_ONLY'} /></label>
-          <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>
+          {detail.summary.cargoMode !== 'FCL' && <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-route-${line.id}`} value={routeId} onChange={setRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || detail.summary.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>}
           <label><span>Điểm giao</span><input value={deliveryLocation} onChange={(event) => setDeliveryLocation(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.deliveryLocation.mode === 'READ_ONLY'} /></label>
         </div>
       )}
@@ -398,6 +402,7 @@ function InlineEditor({
       )}
       {mode === 'route' && (
         <div className="shipment-container-ledger__editor-grid">
+          <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-container-route-${line.id}`} value={containerRouteId} onChange={setContainerRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || !line.permissions.routeEditable} /></label>
           <label><span>Cảng nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn cảng nâng" searchPlaceholder="Tìm cảng nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
           <label><span>Cảng hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn cảng hạ" searchPlaceholder="Tìm cảng hạ" disabled={saving || !line.permissions.dropoffSiteEditable} /></label>
         </div>
@@ -563,7 +568,7 @@ export function ShipmentContainerLedger({
               const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
-              const routeEditable = row.liftSiteEditable || row.dropoffSiteEditable;
+              const routeEditable = row.routeEditable || row.liftSiteEditable || row.dropoffSiteEditable;
               const vehicleEditable = row.carrierEditable || row.plateEditable;
               const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
                 extraClassName,

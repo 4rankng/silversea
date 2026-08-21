@@ -122,7 +122,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
     const addButtons = screen.getAllByRole('button', { name: /thêm mới/i });
     fireEvent.click(addButtons[addButtons.length - 1]);
 
-    fireEvent.change(screen.getByPlaceholderText('LACH_HUYEN'), { target: { value: 'hai_duong' } });
+    fireEvent.change(screen.getByPlaceholderText('Ví dụ: LACH_HUYEN'), { target: { value: 'hai_duong' } });
     fireEvent.change(screen.getByPlaceholderText('Lạch Huyện'), { target: { value: 'Hải Dương' } });
     const orderInput = document.querySelector('input[type="number"]') as HTMLInputElement;
     fireEvent.change(orderInput, { target: { value: '40' } });

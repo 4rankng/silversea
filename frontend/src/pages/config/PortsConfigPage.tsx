@@ -36,7 +36,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
             className="input"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="VD: Cảng Lạch Huyện"
+            placeholder="Ví dụ: Cảng Lạch Huyện"
             autoFocus
           />
         </Field>
@@ -47,7 +47,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
             className="input"
             value={code}
             onChange={e => setCode(e.target.value)}
-            placeholder="VNLCH"
+            placeholder="Ví dụ: VNLCH"
           />
         </Field>
       </div>
@@ -114,7 +114,7 @@ function ZoneForm({ saving, item, onsave, oncancel }: {
             className="input"
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="LACH_HUYEN"
+            placeholder="Ví dụ: LACH_HUYEN"
             disabled={!!item}
             autoFocus={!item}
           />

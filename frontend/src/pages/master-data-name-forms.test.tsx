@@ -52,6 +52,7 @@ describe('master-data full and short name forms', () => {
       name: 'Nhà máy Công ty Cổ phần Biển Bạc tại Bắc Ninh',
       shortName: 'Biển Bạc BN',
       siteType: 'FACTORY',
+      routeId: 11,
       address: 'Bắc Ninh',
       googleMapsUrl: null,
       contactName: null,
@@ -62,18 +63,21 @@ describe('master-data full and short name forms', () => {
       strictRules: null,
       version: 1,
     });
-    render(<OperationalSiteCreateDialog isOpen customerId={7} onClose={vi.fn()} onCreated={vi.fn()} />);
+    render(<OperationalSiteCreateDialog isOpen customerId={7} routes={[{ id: 11, name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }]} onClose={vi.fn()} onCreated={vi.fn()} />);
     const dialog = screen.getByRole('dialog', { name: 'Thêm nhà máy' });
 
     fireEvent.change(within(dialog).getByLabelText('Mã điểm vận hành'), { target: { value: 'BB-BN' } });
     fireEvent.change(within(dialog).getByLabelText('Tên đầy đủ'), { target: { value: 'Nhà máy Công ty Cổ phần Biển Bạc tại Bắc Ninh' } });
     fireEvent.change(within(dialog).getByLabelText('Tên ngắn'), { target: { value: 'Biển Bạc BN' } });
     fireEvent.change(within(dialog).getByLabelText('Địa chỉ'), { target: { value: 'Bắc Ninh' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Tuyến đường/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Cảng Hải Phòng - Biển Bạc Bắc Ninh' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm nhà máy' }));
 
     await waitFor(() => expect(createOperationalSite).toHaveBeenCalledWith(expect.objectContaining({
       name: 'Nhà máy Công ty Cổ phần Biển Bạc tại Bắc Ninh',
       shortName: 'Biển Bạc BN',
+      routeId: 11,
     })));
   });
 });
