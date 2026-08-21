@@ -485,9 +485,9 @@ export default function ShipmentsDetailPage() {
             <UUINativeSelect label="Trạng thái dữ liệu" size="sm" value={informationStatus} onChange={(event) => updateParam('informationStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'MISSING', label: 'Chưa cập nhật' }]} className="shipments-detail-filter" />
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
-                {(dateFrom !== today || dateTo !== today) && <UUIButton size="xs" color="secondary" onPress={showToday}>Về hôm nay</UUIButton>}
-                {!allDates && <UUIButton size="xs" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
-                {hasFilters && <UUIButton size="xs" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>}
+                {(dateFrom !== today || dateTo !== today) && <UUIButton size="sm" color="secondary" onPress={showToday}>Về hôm nay</UUIButton>}
+                {!allDates && <UUIButton size="sm" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
+                {hasFilters && <UUIButton size="sm" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>}
               </div>
             </div>
           </div>
