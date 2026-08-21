@@ -87,6 +87,42 @@ function formatContainerSummaryLines(summary: string | null): string[] {
     .filter(Boolean);
 }
 
+/** Parsed container-type demand bucket: type label → count.
+ *  Insertion order is preserved so the formatted output stays deterministic. */
+type ContainerTypeCounts = Map<string, number>;
+
+/**
+ * Parse a `containerSummary` string ("1 x 40DC + 1 x 20DC") into a type→count
+ * map. Accepts `*` / `×` / `x` separators (rolling-deployment tolerance).
+ * Returns null for empty/invalid input so callers can keep the original
+ * `null` semantics instead of forcing a fake zero.
+ */
+function parseContainerTypeCounts(summary: string | null | undefined): ContainerTypeCounts | null {
+  if (!summary) return null;
+  const counts: ContainerTypeCounts = new Map();
+  const parts = summary.split(/\s*\+\s*/);
+  for (const raw of parts) {
+    const part = raw.trim();
+    if (!part) continue;
+    const match = part.match(/^(\d+)\s*(?:\*|×|x)\s*([A-Za-z0-9]+)\s*$/);
+    if (!match) continue;
+    const qty = Number.parseInt(match[1], 10);
+    const type = match[2];
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    counts.set(type, (counts.get(type) ?? 0) + qty);
+  }
+  return counts.size > 0 ? counts : null;
+}
+
+/** Render a type→count map back to the operational "1 x 40DC + 1 x 20DC"
+ *  shape. Insertion order is preserved so the first appearance order drives
+ *  the line order (matches the CUS workspace contract). */
+function formatContainerTypeCounts(counts: ContainerTypeCounts): string {
+  return Array.from(counts.entries())
+    .map(([type, qty]) => `${qty} x ${type}`)
+    .join(' + ');
+}
+
 type ContainerPortGroupLine = {
   direction: 'lift' | 'drop';
   label: 'Nâng' | 'Hạ';
@@ -94,28 +130,60 @@ type ContainerPortGroupLine = {
   containerSummary: string | null;
 };
 
-function formatContainerPortGroupLines(item: ShipmentListItem): ContainerPortGroupLine[] {
+type ContainerPortGroupKey = string;
+
+/**
+ * The backend exposes one `containerPortGroup` per appointment instant (per-day
+ * when a lot splits across close/return dates), so a single shipment can carry
+ * N groups for the SAME (pickup → dropoff) pair — each with a partial
+ * container count. Dispatch needs the TOTAL demand per lift/drop pair, not
+ * the per-day split. We aggregate groups by (pickup, dropoff) and sum the
+ * container-type counts so the row reads "Nâng: Cảng HP · 3 x 40DC" instead of
+ * three "1 x 40DC" lines.
+ */
+function aggregateContainerPortGroupLines(item: ShipmentListItem): ContainerPortGroupLine[] {
   const containerPortGroups = item.containerPortGroups ?? [];
-  if (containerPortGroups.length > 0) {
-    return containerPortGroups.flatMap((group) => [
-      {
-        direction: 'lift',
-        label: 'Nâng',
-        portName: group.pickupPortName ?? '—',
-        containerSummary: group.containerSummary,
-      },
-      {
-        direction: 'drop',
-        label: 'Hạ',
-        portName: group.dropoffPortName ?? '—',
-        containerSummary: group.containerSummary,
-      },
-    ]);
+  if (containerPortGroups.length === 0) {
+    return [
+      { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+    ];
   }
-  return [
-    { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
-    { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
-  ];
+
+  const aggregated = new Map<ContainerPortGroupKey, {
+    pickup: string | null;
+    dropoff: string | null;
+    counts: ContainerTypeCounts;
+  }>();
+
+  for (const group of containerPortGroups) {
+    const key = `${group.pickupPortName ?? ''}__${group.dropoffPortName ?? ''}`;
+    const existing = aggregated.get(key);
+    if (existing) {
+      const parsed = parseContainerTypeCounts(group.containerSummary);
+      if (parsed) {
+        for (const [type, qty] of parsed.entries()) {
+          existing.counts.set(type, (existing.counts.get(type) ?? 0) + qty);
+        }
+      }
+    } else {
+      aggregated.set(key, {
+        pickup: group.pickupPortName,
+        dropoff: group.dropoffPortName,
+        counts: parseContainerTypeCounts(group.containerSummary) ?? new Map(),
+      });
+    }
+  }
+
+  return Array.from(aggregated.values()).flatMap((entry) => {
+    const liftName = entry.pickup ?? '—';
+    const dropName = entry.dropoff ?? '—';
+    const summary = entry.counts.size > 0 ? formatContainerTypeCounts(entry.counts) : null;
+    return [
+      { direction: 'lift' as const, label: 'Nâng' as const, portName: liftName, containerSummary: summary },
+      { direction: 'drop' as const, label: 'Hạ' as const, portName: dropName, containerSummary: summary },
+    ];
+  });
 }
 
 /**
@@ -182,7 +250,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy">
                   <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--strong">{item.routeName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong">
+                    Lộ trình: {item.routeName ?? '—'}
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
                   <div className="master-plan-grid__documents">
@@ -200,7 +270,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
-                  {formatContainerPortGroupLines(item).map((line, index) => (
+                  {aggregateContainerPortGroupLines(item).map((line, index) => (
                     <div key={`${index}-${line.direction}-${line.portName}`} className="master-plan-grid__location-block">
                       <div className={`master-plan-grid__line master-plan-grid__location-label master-plan-grid__location-label--${line.direction}`}>
                         {line.label}:
@@ -280,9 +350,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   </UUIButton>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú">
-                  <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes ?? undefined}>
-                    {item.operationalNotes ?? '—'}
-                  </div>
+                  {item.operationalNotes && (
+                    <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes}>
+                      {item.operationalNotes}
+                    </div>
+                  )}
                   {item.factoryNotes && (
                     <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
                       NM: {item.factoryNotes}

@@ -56,6 +56,74 @@ describe('MasterPlanGrid', () => {
     expect(screen.queryByText('Nâng: —')).toBeNull();
   });
 
+  it('aggregates container counts across per-day groups for the same (pickup → dropoff) pair', () => {
+    // Same (pickup, dropoff) across 3 days, each day carrying 1 x 40DC; the
+    // dispatch row must show the TOTAL (3 x 40DC), not three "1 x 40DC" lines.
+    const fixture = item({
+      containerPortGroups: [
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Cảng Tân Cảng 128 Hải Phòng', containerSummary: '1 x 40DC' },
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Cảng Tân Cảng 128 Hải Phòng', containerSummary: '1 x 40DC' },
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Cảng Tân Cảng 128 Hải Phòng', containerSummary: '1 x 40DC' },
+      ],
+    });
+
+    render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
+
+    // Aggregated to a single (lift, drop) pair — one Nâng, one Hạ.
+    expect(screen.getAllByText('Nâng:')).toHaveLength(1);
+    expect(screen.getAllByText('Hạ:')).toHaveLength(1);
+    expect(screen.getByText('Cảng Hải Phòng · 3 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Cảng Tân Cảng 128 Hải Phòng · 3 x 40DC')).toBeTruthy();
+    // The per-day "1 x 40DC" duplicates must not appear.
+    expect(screen.queryByText('Cảng Hải Phòng · 1 x 40DC')).toBeNull();
+  });
+
+  it('sums heterogeneous container-type counts across groups and keeps each unique (pickup → dropoff) pair separate', () => {
+    // First pair splits across 2 days with two different container types.
+    // Second pair is a different (pickup, dropoff) and must remain a separate
+    // pair (it does NOT merge with the first pair's pickup even though the
+    // pickup name is identical).
+    const fixture = item({
+      containerPortGroups: [
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Cảng Tân Cảng 128 Hải Phòng', containerSummary: '2 x 40DC' },
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Cảng Tân Cảng 128 Hải Phòng', containerSummary: '1 x 20DC' },
+        { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Bãi SITC', containerSummary: '2 x 40DC' },
+      ],
+    });
+
+    render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
+
+    // Two unique pairs → two Nâng/Hạ blocks.
+    expect(screen.getAllByText('Nâng:')).toHaveLength(2);
+    expect(screen.getAllByText('Hạ:')).toHaveLength(2);
+    expect(screen.getByText('Cảng Hải Phòng · 2 x 40DC + 1 x 20DC')).toBeTruthy();
+    expect(screen.getByText('Cảng Tân Cảng 128 Hải Phòng · 2 x 40DC + 1 x 20DC')).toBeTruthy();
+    expect(screen.getByText('Cảng Hải Phòng · 2 x 40DC')).toBeTruthy();
+    expect(screen.getByText('Bãi SITC · 2 x 40DC')).toBeTruthy();
+  });
+
+  it('renders the lift/drop label and the port value with the bold location weight', () => {
+    const fixture = item({
+      containerPortGroups: [
+        { pickupPortName: 'Cảng Cát Lái', dropoffPortName: 'Kho Bình Dương', containerSummary: '1 x 40DC' },
+      ],
+    });
+
+    render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
+
+    const label = screen.getByText('Nâng:');
+    const value = screen.getByText('Cảng Cát Lái · 1 x 40DC');
+    // jsdom does not resolve CSS variables, so check the rule applies the
+    // bold weight directly on the class hooks.
+    expect(label.className).toContain('master-plan-grid__location-label');
+    expect(value.className).toContain('master-plan-grid__location-value');
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const labelRule = css.match(/\.master-plan-grid__location-label \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const valueRule = css.match(/\.master-plan-grid__location-value \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(labelRule).toContain('font-weight: var(--ops-table-primary-weight)');
+    expect(valueRule).toContain('font-weight: var(--ops-table-primary-weight)');
+  });
+
   it('does not project legacy lot locations when no container-port data is available', () => {
     const fixture = item({
       pickupLocation: 'Địa điểm nâng cũ theo lô',
@@ -133,7 +201,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     // T2.1: customer → factories → route, all three with route bold.
     expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
@@ -159,10 +227,15 @@ describe('MasterPlanGrid', () => {
     expect(within(dropLocationBlock!).getByText('Hạ:')).not.toHaveClass('master-plan-grid__line--strong');
     expect(within(liftLocationBlock!).getByText('Nâng:')).toHaveClass('master-plan-grid__location-label--lift');
     expect(within(dropLocationBlock!).getByText('Hạ:')).toHaveClass('master-plan-grid__location-label--drop');
+    // Both the lift/drop label and the port · total value are bold so dispatch
+    // can read the per-site demand at a glance (user request: "Bold đen text").
+    expect(within(liftLocationBlock!).getByText('Nâng:').className).toContain('master-plan-grid__location-label');
+    expect(within(liftLocationBlock!).getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').className).toContain('master-plan-grid__location-value');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__location-label--lift {\n  color: var(--accent-ink);\n}');
     expect(css).toContain('.master-plan-grid__location-label--drop {\n  color: var(--info-text);\n}');
-    expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
+    expect(css).toContain('.master-plan-grid__location-label {\n  font-weight: var(--ops-table-primary-weight);\n}');
+    expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: var(--ops-table-primary-weight);\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);
@@ -236,6 +309,36 @@ describe('MasterPlanGrid', () => {
     const trigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
     fireEvent.click(trigger);
     expect(onAllocate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }), trigger);
+  });
+
+  it('hides the "Ghi chú" column when both operationalNotes and factoryNotes are empty', () => {
+    render(
+      <MasterPlanGrid
+        items={[item({ operationalNotes: null, factoryNotes: null })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+
+    const notesCell = document.querySelector('td.master-plan-grid__cell[data-label="Ghi chú"]');
+    expect(notesCell).toBeTruthy();
+    // The cell is rendered but contains no "—" placeholder text and no note lines.
+    expect(notesCell!.querySelectorAll('.master-plan-grid__line--notes')).toHaveLength(0);
+    expect(notesCell!.textContent?.trim()).toBe('');
+  });
+
+  it('hides the "Ghi chú" cell placeholder when only one of the note fields is present', () => {
+    render(
+      <MasterPlanGrid
+        items={[item({ operationalNotes: 'Giao giờ HC', factoryNotes: null })]}
+        onAllocate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Giao giờ HC')).toBeTruthy();
+    // The "—" placeholder for the missing factoryNotes line must not appear.
+    const notesCell = document.querySelector('td.master-plan-grid__cell[data-label="Ghi chú"]');
+    expect(notesCell).toBeTruthy();
+    expect(notesCell!.textContent).not.toContain('—');
   });
 
   it('opens the in-place container detail action with the shipment row and its trigger', () => {
