@@ -1,0 +1,13 @@
+2026-08-21 shipments-detail filter row realignment
+Command: pnpm lint
+Exit: 0 (0 errors, 94 warnings — all pre-existing, none introduced by this change)
+
+Pre-existing unrelated errors that this change does not touch:
+- frontend/src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx:124
+  'formatVnd' is defined but never used
+
+This change touches only frontend/src/pages/ShipmentsDetailPage.css (one
+container query at the 1300px breakpoint); lint reports 0 errors for the
+modified CSS.
+
+✖ 94 problems (0 errors, 94 warnings)
