@@ -47,13 +47,13 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    expect(screen.getAllByText('Nâng:')).toHaveLength(2);
-    expect(screen.getAllByText('Hạ:')).toHaveLength(2);
+    expect(screen.getByRole('columnheader', { name: 'Cảng nâng' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Cảng hạ' })).toBeTruthy();
     expect(screen.getByText('TC - HICT · 1 x 40DC')).toBeTruthy();
     expect(screen.getByText('Nhà máy Bắc Giang · 1 x 40DC')).toBeTruthy();
     expect(screen.getByText('Cảng Hải Phòng · 1 x 20DC')).toBeTruthy();
     expect(screen.getByText('Kho Long Biên · 1 x 20DC')).toBeTruthy();
-    expect(screen.queryByText('Nâng: —')).toBeNull();
+    expect(screen.queryByText('Nâng:')).toBeNull();
   });
 
   it('aggregates container counts across per-day groups for the same (pickup → dropoff) pair', () => {
@@ -69,9 +69,7 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    // Aggregated to a single (lift, drop) pair — one Nâng, one Hạ.
-    expect(screen.getAllByText('Nâng:')).toHaveLength(1);
-    expect(screen.getAllByText('Hạ:')).toHaveLength(1);
+    // Aggregated to a single (lift, drop) pair — one line in each port column.
     expect(screen.getByText('Cảng Hải Phòng · 3 x 40DC')).toBeTruthy();
     expect(screen.getByText('Cảng Tân Cảng 128 Hải Phòng · 3 x 40DC')).toBeTruthy();
     // The per-day "1 x 40DC" duplicates must not appear.
@@ -93,16 +91,14 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    // Two unique pairs → two Nâng/Hạ blocks.
-    expect(screen.getAllByText('Nâng:')).toHaveLength(2);
-    expect(screen.getAllByText('Hạ:')).toHaveLength(2);
+    // Two unique pairs → two port values in each distinct column.
     expect(screen.getByText('Cảng Hải Phòng · 2 x 40DC + 1 x 20DC')).toBeTruthy();
     expect(screen.getByText('Cảng Tân Cảng 128 Hải Phòng · 2 x 40DC + 1 x 20DC')).toBeTruthy();
     expect(screen.getByText('Cảng Hải Phòng · 2 x 40DC')).toBeTruthy();
     expect(screen.getByText('Bãi SITC · 2 x 40DC')).toBeTruthy();
   });
 
-  it('renders lift/drop labels and values at the regular location weight', () => {
+  it('renders separated port values at the regular location weight', () => {
     const fixture = item({
       containerPortGroups: [
         { pickupPortName: 'Cảng Cát Lái', dropoffPortName: 'Kho Bình Dương', containerSummary: '1 x 40DC' },
@@ -111,16 +107,12 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    const label = screen.getByText('Nâng:');
     const value = screen.getByText('Cảng Cát Lái · 1 x 40DC');
     // jsdom does not resolve CSS variables, so assert the explicit regular
-    // weight required by the DOCX rather than relying on inherited styles.
-    expect(label.className).toContain('master-plan-grid__location-label');
+    // weight rather than relying on inherited styles.
     expect(value.className).toContain('master-plan-grid__location-value');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const labelRule = css.match(/\.master-plan-grid__location-label \{([\s\S]*?)\n\}/)?.[1] ?? '';
     const valueRule = css.match(/\.master-plan-grid__location-value \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(labelRule).toContain('font-weight: 400');
     expect(valueRule).toContain('font-weight: 400');
   });
 
@@ -134,11 +126,11 @@ describe('MasterPlanGrid', () => {
 
     render(<MasterPlanGrid items={[fixture]} onAllocate={vi.fn()} />);
 
-    expect(screen.getByText('Nâng:')).toBeTruthy();
-    expect(screen.getByText('Hạ:')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Cảng nâng' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Cảng hạ' })).toBeTruthy();
     expect(screen.getAllByText('—')).toHaveLength(2);
-    expect(screen.queryByText('Nâng: Địa điểm nâng cũ theo lô')).toBeNull();
-    expect(screen.queryByText('Hạ: Địa điểm hạ cũ theo lô')).toBeNull();
+    expect(screen.queryByText('Địa điểm nâng cũ theo lô')).toBeNull();
+    expect(screen.queryByText('Địa điểm hạ cũ theo lô')).toBeNull();
   });
 
   it('renders one "Giờ:" line per per-container appointment group (EPIC 2.4 mapping)', () => {
@@ -181,7 +173,7 @@ describe('MasterPlanGrid', () => {
     expect(hourLine.textContent).toMatch(/^(8H|15H)$/);
   });
 
-  it('renders all 7 docx columns for a READY_FOR_DISPATCH row', () => {
+  it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
 
@@ -190,7 +182,8 @@ describe('MasterPlanGrid', () => {
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Chứng từ & hãng tàu',
-      'Địa điểm nâng/hạ',
+      'Cảng nâng',
+      'Cảng hạ',
       'Tổng quan hàng hóa',
       'Phân bổ nhà xe',
       'Ghi chú',
@@ -206,9 +199,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
-    expect(screen.getByText('Nâng:')).toBeTruthy();
     expect(screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).toBeTruthy();
-    expect(screen.getByText('Hạ:')).toBeTruthy();
     expect(screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC')).toBeTruthy();
     const cargoCell = screen.getByText('2 x 40HC').closest('td');
     expect(cargoCell).toBeTruthy();
@@ -219,24 +210,13 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
-    const liftLocationBlock = screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').closest('.master-plan-grid__location-block') as HTMLElement | null;
-    const dropLocationBlock = screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC').closest('.master-plan-grid__location-block') as HTMLElement | null;
-    expect(liftLocationBlock).toBeTruthy();
-    expect(dropLocationBlock).toBeTruthy();
-    expect(within(liftLocationBlock!).getByText('Nâng:')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(within(liftLocationBlock!).getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(within(dropLocationBlock!).getByText('Hạ:')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(within(liftLocationBlock!).getByText('Nâng:')).toHaveClass('master-plan-grid__location-label--lift');
-    expect(within(dropLocationBlock!).getByText('Hạ:')).toHaveClass('master-plan-grid__location-label--drop');
-    // DOCX Task 2.1 says to remove the bold treatment; the colored direction
-    // label and complete port/count text preserve scanability without turning
-    // this supporting cell into a primary identity.
-    expect(within(liftLocationBlock!).getByText('Nâng:').className).toContain('master-plan-grid__location-label');
-    expect(within(liftLocationBlock!).getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').className).toContain('master-plan-grid__location-value');
+    const liftPortCell = screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC').closest('td');
+    const dropPortCell = screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC').closest('td');
+    expect(liftPortCell).toHaveAttribute('data-label', 'Cảng nâng');
+    expect(dropPortCell).toHaveAttribute('data-label', 'Cảng hạ');
+    expect(screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('.master-plan-grid__location-label--lift {\n  color: var(--accent-ink);\n}');
-    expect(css).toContain('.master-plan-grid__location-label--drop {\n  color: var(--info-text);\n}');
-    expect(css).toContain('.master-plan-grid__location-label {\n  font-weight: 400;\n}');
     expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
@@ -256,9 +236,9 @@ describe('MasterPlanGrid', () => {
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
     const scheduleWidth = widthFor('schedule');
-    const widths = ['schedule', 'customer', 'documents', 'locations', 'cargo', 'notes', 'allocation'].map(widthFor);
+    const widths = ['schedule', 'customer', 'documents', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    expect(scheduleWidth).toBe(24);
+    expect(scheduleWidth).toBe(22);
     expect(scheduleWidth).toBeGreaterThan(widthFor('documents'));
     expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
@@ -390,7 +370,8 @@ describe('MasterPlanGrid', () => {
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Chứng từ & hãng tàu',
-      'Địa điểm nâng/hạ',
+      'Cảng nâng',
+      'Cảng hạ',
       'Tổng quan hàng hóa',
       'Phân bổ nhà xe',
       'Ghi chú',
@@ -436,7 +417,7 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('background: color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
     expect(css).toContain('@media (prefers-reduced-motion: no-preference)');
     expect(css).toContain('@container (max-width: 599px)');
-    expect(css).toContain('.master-plan-grid__cell:nth-child(4),\n  .master-plan-grid__cell:nth-child(5)');
+    expect(css).toContain('.master-plan-grid__cell--lift-port,\n  .master-plan-grid__cell--drop-port');
     expect(css).toContain('color: var(--fg-1)');
     expect(css).toContain('color: var(--fg-2)');
     expect(css).toContain('color: var(--fg-3)');

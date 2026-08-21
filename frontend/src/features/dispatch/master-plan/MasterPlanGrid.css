@@ -1,4 +1,4 @@
-/* Dispatch master-plan grid (Kế hoạch Tổng quát) — 7 multi-line columns,
+/* Dispatch master-plan grid (Kế hoạch Tổng quát) — 8 multi-line columns,
    ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
    dispatch-plan-page__* BEM conventions. */
 
@@ -526,17 +526,17 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Schedule carries the variable-length appointment groups and cutoff. Trimmed
-   the primary desktop budget and handed the small headroom to allocation +
-   notes so the row still sums to 100% without horizontal gap; the narrow-screen
-   record layout is unchanged. */
-.master-plan-grid__col--schedule { width: 24%; }
+/* Schedule carries the variable-length appointment groups and cutoff. Two
+   independent port columns make lift/drop scanning explicit without changing
+   the authoritative per-container projection. */
+.master-plan-grid__col--schedule { width: 22%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
-.master-plan-grid__col--customer { width: 15%; }
+.master-plan-grid__col--customer { width: 14%; }
 .master-plan-grid__col--documents { width: 9%; }
-.master-plan-grid__col--locations { width: 15%; }
-.master-plan-grid__col--cargo { width: 12%; }
-.master-plan-grid__col--notes { width: 13%; }
+.master-plan-grid__col--lift-port { width: 11%; }
+.master-plan-grid__col--drop-port { width: 11%; }
+.master-plan-grid__col--cargo { width: 10%; }
+.master-plan-grid__col--notes { width: 11%; }
 .master-plan-grid__col--allocation { width: 12%; }
 
 .master-plan-grid thead th {
@@ -608,23 +608,11 @@
   color: var(--fg-1);
 }
 
-/* Lift/drop pairs are operational directions, not primary identities. The
-   DOCX explicitly removes bold text here; color the direction label and keep
-   the full port + total count readable without competing with the shipment. */
+/* The two port columns are supporting operational facts, not primary
+   identities. Keep port + total count readable without competing with the
+   shipment identity. */
 .master-plan-grid__location-block + .master-plan-grid__location-block {
   margin-top: 6px;
-}
-
-.master-plan-grid__location-label {
-  font-weight: 400;
-}
-
-.master-plan-grid__location-label--lift {
-  color: var(--accent-ink);
-}
-
-.master-plan-grid__location-label--drop {
-  color: var(--info-text);
 }
 
 .master-plan-grid__location-value {
@@ -847,7 +835,7 @@
 }
 
 /* Phone records keep their primary identity in a single vertical story, then
-   pair the two short factual groups. It removes a full record section without
+   pair the two short port facts. It removes redundant direction labels without
    compressing meaningful text or making the allocation action harder to use. */
 @container (max-width: 599px) {
   .master-plan-grid__row {
@@ -857,16 +845,17 @@
 
   .master-plan-grid__cell:nth-child(-n + 3),
   .master-plan-grid__cell:nth-child(6),
+  .master-plan-grid__cell:nth-child(8),
   .master-plan-grid__cell--action {
     grid-column: 1 / -1;
   }
 
-  .master-plan-grid__cell:nth-child(4),
-  .master-plan-grid__cell:nth-child(5) {
+  .master-plan-grid__cell--lift-port,
+  .master-plan-grid__cell--drop-port {
     padding-inline: 12px;
   }
 
-  .master-plan-grid__cell:nth-child(5) {
+  .master-plan-grid__cell--drop-port {
     border-inline-start: 1px solid var(--line);
     border-top: 0;
   }
@@ -878,7 +867,7 @@
     display: block;
   }
 
-  .master-plan-grid__cell:nth-child(5) {
+  .master-plan-grid__cell--drop-port {
     border-inline-start: 0;
     border-top: 1px solid var(--line);
   }

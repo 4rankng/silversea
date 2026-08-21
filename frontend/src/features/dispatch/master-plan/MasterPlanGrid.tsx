@@ -138,8 +138,8 @@ type ContainerPortGroupKey = string;
  * N groups for the SAME (pickup → dropoff) pair — each with a partial
  * container count. Dispatch needs the TOTAL demand per lift/drop pair, not
  * the per-day split. We aggregate groups by (pickup, dropoff) and sum the
- * container-type counts so the row reads "Nâng: Cảng HP · 3 x 40DC" instead of
- * three "1 x 40DC" lines.
+ * container-type counts so each port column reads "Cảng HP · 3 x 40DC"
+ * instead of three "1 x 40DC" lines.
  */
 function aggregateContainerPortGroupLines(item: ShipmentListItem): ContainerPortGroupLine[] {
   const containerPortGroups = item.containerPortGroups ?? [];
@@ -187,8 +187,8 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem): ContainerPort
 }
 
 /**
- * Multi-line dispatch master-plan grid (docx §3): 7 grouped columns with
- * grouped lift/drop pairs and no horizontal scroll. Col 7 exposes its
+ * Multi-line dispatch master-plan grid (docx §3): 8 grouped columns with
+ * distinct lift/drop port columns and no horizontal scroll. The allocation column exposes its
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
@@ -200,7 +200,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />
           <col className="master-plan-grid__col master-plan-grid__col--documents" />
-          <col className="master-plan-grid__col master-plan-grid__col--locations" />
+          <col className="master-plan-grid__col master-plan-grid__col--lift-port" />
+          <col className="master-plan-grid__col master-plan-grid__col--drop-port" />
           <col className="master-plan-grid__col master-plan-grid__col--cargo" />
           <col className="master-plan-grid__col master-plan-grid__col--allocation" />
           <col className="master-plan-grid__col master-plan-grid__col--notes" />
@@ -210,7 +211,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
             <th scope="col">Chứng từ &amp; hãng tàu</th>
-            <th scope="col">Địa điểm nâng/hạ</th>
+            <th scope="col">Cảng nâng</th>
+            <th scope="col">Cảng hạ</th>
             <th scope="col">Tổng quan hàng hóa</th>
             <th scope="col">Phân bổ nhà xe</th>
             <th scope="col">Ghi chú</th>
@@ -219,6 +221,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         <tbody>
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
+            const portGroupLines = aggregateContainerPortGroupLines(item);
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">
@@ -269,17 +272,27 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
                   </div>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Địa điểm nâng/hạ">
-                  {aggregateContainerPortGroupLines(item).map((line, index) => (
-                    <div key={`${index}-${line.direction}-${line.portName}`} className="master-plan-grid__location-block">
-                      <div className={`master-plan-grid__line master-plan-grid__location-label master-plan-grid__location-label--${line.direction}`}>
-                        {line.label}:
+                <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng">
+                  {portGroupLines
+                    .filter((line) => line.direction === 'lift')
+                    .map((line, index) => (
+                      <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
+                        <div className="master-plan-grid__line master-plan-grid__location-value">
+                          {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
+                        </div>
                       </div>
-                      <div className="master-plan-grid__line master-plan-grid__location-value">
-                        {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
+                    ))}
+                </td>
+                <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ">
+                  {portGroupLines
+                    .filter((line) => line.direction === 'drop')
+                    .map((line, index) => (
+                      <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
+                        <div className="master-plan-grid__line master-plan-grid__location-value">
+                          {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
                   <div className="master-plan-grid__cargo-summary">
