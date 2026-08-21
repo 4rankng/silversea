@@ -456,15 +456,22 @@ export function ShipmentCreateWorkspace() {
           </div>
           {form.cargoMode === 'FCL' ? (
             <>
-            {/* Lot-level route echoed beside the container table (docx T1.3):
-                clerks fill the cargo step without scrolling back to 02. Edit
-                authority stays with the section-02 picker; this is a display. */}
-            <div className="csc-cargo-route-echo">
-              <span className="csc-cargo-route-echo__label">Tuyến đường</span>
-              <span className="csc-cargo-route-echo__value">
-                {(catalogs.routes ?? []).find((item) => String(item.id) === form.routeId)?.name
-                  ?? (form.routeId ? 'Tuyến đã chọn không còn hiệu lực' : 'Chưa chọn — chọn ở mục 02')}
+            <div className="csc-cargo-route-picker" data-field-id="shipment-cargo-route">
+              <span className="csc-cargo-route-picker__label" aria-hidden="true">
+                Tuyến đường <span>*</span>
               </span>
+              <SearchableField
+                id="shipment-cargo-route"
+                label="Chọn tuyến của lô hàng trong thông tin hàng"
+                hideLabel
+                required
+                value={form.routeId}
+                onChange={(value) => update('routeId', value)}
+                options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                placeholder="Gõ chọn"
+                disabled={Boolean(saving)}
+                error={issueByField.get('shipment-route')}
+              />
             </div>
             <ShipmentContainerEditor
               saving={Boolean(saving)}

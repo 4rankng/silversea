@@ -315,12 +315,12 @@ def main() -> bool:
         )
         missing_data = containers_missing.get("data", {})
         missing_rows = [row for row in missing_data.get("items", []) if row.get("shipmentId") == shipment_id]
-        # The fixture fills every operational field except the customer
-        # appointment (never set by this suite), so it must appear under the
-        # MISSING filter with exactly that one applicable field.
+        # The fixture deliberately leaves its shipment transport date and
+        # per-container appointment unset, so both applicable fields must be
+        # reported by the server-derived completeness filter.
         fixture_missing_ok = len(missing_rows) == 1 and [
             field.get("code") for field in missing_rows[0].get("missingFields", [])
-        ] == ["APPOINTMENT"]
+        ] == ["TRANSPORT_DATE", "APPOINTMENT"]
         check(
             results,
             "TC-1817",
@@ -399,7 +399,7 @@ def main() -> bool:
                     page.emulate_media(reduced_motion="reduce")
                 ctx.login_as("clerk", page)
                 page.goto(f"{BASE_URL}/shipments?searchSuffix={BOOK_SUFFIX_QUERY}")
-                page.wait_for_load_state("networkidle")
+                wait_for_page_ready(page)
                 page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
                 page.wait_for_timeout(300)
                 overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
@@ -413,7 +413,7 @@ def main() -> bool:
                     page.keyboard.press("Enter")
                     dialog = page.get_by_role("dialog")
                     dialog.wait_for(timeout=10_000)
-                    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
+                    dialog.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
                     controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
                     # The drawer is still completing its entrance transform at
                     # this point. Escape is the tested keyboard dismissal path
@@ -437,7 +437,7 @@ def main() -> bool:
                     dialog = page.get_by_role("dialog")
                     dialog.wait_for(timeout=10_000)
                     focus_moved_inside = page.evaluate("document.activeElement?.getAttribute('aria-label') === 'Đóng'")
-                    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
+                    dialog.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
                     page.wait_for_function(
                         """() => {
                             const rect = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
@@ -474,7 +474,7 @@ def main() -> bool:
             page = ctx.new_page({"width": 1440, "height": 1000})
             ctx.login_as("clerk", page)
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
-            page.wait_for_load_state("networkidle")
+            wait_for_page_ready(page)
             # URL-backed Chưa cập nhật filter: applying it updates the URL
             # (replaceState) and keeps the select visibly active. The fixture's
             # warning line is asserted via the API in TC-1816/1817; here the
@@ -509,7 +509,7 @@ def main() -> bool:
                 f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
             )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
-            page.wait_for_load_state("networkidle")
+            wait_for_page_ready(page)
             # The responsive ledger keeps a second semantic table in the DOM;
             # interact with the rendered row instead of its hidden counterpart.
             container_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
@@ -562,7 +562,7 @@ def main() -> bool:
             )
             page.set_viewport_size({"width": 390, "height": 844})
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
-            page.wait_for_load_state("networkidle")
+            wait_for_page_ready(page)
             mobile_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
             mobile_schedule = mobile_row.locator(
                 '[data-label="Lịch trình"] > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger'

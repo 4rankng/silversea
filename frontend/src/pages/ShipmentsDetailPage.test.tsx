@@ -452,6 +452,18 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Chưa có container')).toBeNull();
   });
 
+  it('uses the master-data port catalog instead of customer operational sites for lift and drop', async () => {
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
+
+    expect(await screen.findByRole('option', { name: 'HY · Cảng Hưng Yên' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'HY · Nhà máy Hưng Yên' })).toBeNull();
+  });
+
   it('saves lift/drop through the existing idempotent optimistic container mutation', async () => {
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
     apiPost.mockResolvedValueOnce({ line: detail.containers[0] });
@@ -670,6 +682,35 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     expect(await screen.findByText('Quyền chỉnh sửa vừa thay đổi. Dòng này đã chuyển sang chỉ đọc.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeNull();
+  });
+
+  it('hides the "Chưa có ghi chú cho..." placeholders when both notes are empty', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    // CONT-002 has customerNotes=null and operationalNotes=null
+    // The "Chưa có ghi chú cho khách hàng" and "Chưa có ghi chú cho lái xe"
+    // placeholders must NOT appear to avoid UI clutter.
+    expect(screen.queryByText('Chưa có ghi chú cho khách hàng')).toBeNull();
+    expect(screen.queryByText('Chưa có ghi chú cho lái xe')).toBeNull();
+  });
+
+  it('keeps the "Ghi chú" cell compact: only the present note lines render when one of the notes is empty', async () => {
+    const partialNotesResponse: ShipmentCusContainerFlatResponse = {
+      ...response,
+      items: response.items.map((item) => item.id === 11
+        ? { ...item, customerNotes: 'Lưu ca sáng', operationalNotes: null }
+        : item),
+    };
+    apiGet.mockResolvedValueOnce(partialNotesResponse);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-001');
+    // Customer note is set; only that line is shown. The empty operational
+    // note must not show its "Chưa có ghi chú cho lái xe" placeholder.
+    expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
+    expect(screen.queryByText('Chưa có ghi chú cho lái xe')).toBeNull();
   });
 
 });

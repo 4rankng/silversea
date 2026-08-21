@@ -206,23 +206,28 @@
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-section, .csc-validation-summary, .csc-submit-error { padding: 13px !important; }.csc-section__heading { margin: -13px -13px 0; padding-inline: 13px; }.csc-section__heading > span { display: none; } }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
-/* Lot-level route echo beside the FCL container table (docx T1.3). Read-only:
-   edit authority stays with the section-02 picker. */
-.csc-cargo-route-echo {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+/* The FCL cargo step owns an editable view of the lot route. It shares the
+   same routeId as section 02, so the choice is immediate and never forks
+   shipment route authority. */
+.csc-cargo-route-picker {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 420px);
   margin-bottom: 8px;
 }
 
-.csc-cargo-route-echo__label {
-  color: var(--ink-3, var(--text-secondary, #64748b));
-  font-size: 12px;
+.csc-cargo-route-picker__label {
+  color: var(--fg-1);
+  font-size: 14px;
   font-weight: 600;
 }
 
-.csc-cargo-route-echo__value {
-  color: var(--ink, var(--text-primary, #0f172a));
-  font-size: 13px;
-  font-weight: 600;
+.csc-cargo-route-picker__label span {
+  color: var(--danger, #dc2626);
+}
+
+@media (max-width: 640px) {
+  .csc-cargo-route-picker {
+    width: 100%;
+  }
 }

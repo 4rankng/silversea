@@ -1477,9 +1477,9 @@
 
 .cus-container-cell--identity {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-data);
   font-weight: var(--fw-semibold) !important;
 }
@@ -1487,7 +1487,9 @@
 .cus-container-row__ordinal {
   color: var(--ink-3);
   font-size: 11px;
-  text-align: center;
+  line-height: 1;
+  text-align: right;
+  min-width: 14px;
 }
 
 /* Dispatch modifier emitted dynamically:

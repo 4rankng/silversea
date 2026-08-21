@@ -210,9 +210,9 @@ export interface DispatchDetailPlanRow {
     plannedRevenue: string | null;
     plannedCarrierCost: string | null;
   };
-  // Legacy rows created before classification existed stay null; the editor
-  // requires an explicit choice before saving.
-  classification: DispatchClassification | null;
+  // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
+  // containers start as "Đơn" until dispatch reclassifies them.
+  classification: DispatchClassification;
   ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
   lotFullyPlated: boolean;
 }

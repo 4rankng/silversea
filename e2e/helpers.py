@@ -231,6 +231,18 @@ class NepoTestContext:
         vp = viewport or {'width': 1280, 'height': 900}
         context = self.browser.new_context(viewport=vp)
         page = context.new_page()
+        original_close = page.close
+
+        def close_page_and_context(*args, **kwargs):
+            try:
+                return original_close(*args, **kwargs)
+            finally:
+                context.close()
+
+        # Suites deliberately create an isolated context per role/page. Most
+        # callers close only the page, so bind context cleanup to that same
+        # lifecycle and avoid accumulating Chromium targets during a full run.
+        page.close = close_page_and_context
         return page
 
     def login_as(self, role_key: str, page: Page = None) -> tuple:
@@ -245,11 +257,13 @@ class NepoTestContext:
 
         if page:
             page.goto(f'{BASE_URL}/login')
-            page.wait_for_load_state('networkidle')
-            page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', account['identifier'])
+            wait_for_page_ready(page)
+            identifier = page.locator('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]')
+            identifier.wait_for(state='visible', timeout=5000)
+            identifier.fill(account['identifier'])
             page.fill('input[type="password"]', account['password'])
             page.click('button[type="submit"], button:has-text("Đăng nhập")')
-            page.wait_for_load_state('networkidle')
+            page.wait_for_load_state('domcontentloaded')
             page.wait_for_timeout(500)
             if token:
                 page.evaluate(f'localStorage.setItem("token", "{token}")')
@@ -258,7 +272,7 @@ class NepoTestContext:
                 # re-enter the app so it observes the token we just installed.
                 if '/login' in page.url:
                     page.goto(BASE_URL)
-                    page.wait_for_load_state('networkidle')
+                    wait_for_page_ready(page)
         return page, token, user
 
     def screenshot(self, page: Page, name: str):
@@ -269,6 +283,12 @@ class NepoTestContext:
 
 def assert_url_contains(page: Page, fragment: str) -> bool:
     return fragment in page.url
+
+
+def wait_for_page_ready(page: Page, timeout: int = 5000):
+    """Wait for a routed SPA surface without blocking on background polling."""
+    page.wait_for_load_state('domcontentloaded')
+    page.locator('body').wait_for(state='visible', timeout=timeout)
 
 def assert_element_visible(page: Page, selector: str, timeout: int = 5000) -> bool:
     try:

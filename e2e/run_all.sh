@@ -77,6 +77,7 @@ TOTAL_PASS=0
 TOTAL_FAIL=0
 TOTAL_SKIP=0
 FAILED_SUITES=()
+SUITE_TIMEOUT_SECONDS="${NEPO_SUITE_TIMEOUT_SECONDS:-300}"
 
 for suite in "${SUITES[@]}"; do
     SCRIPT="$DIR/test_${suite}_*.py"
@@ -86,7 +87,27 @@ for suite in "${SUITES[@]}"; do
         continue
     fi
     echo ""
-    if ! python3 "$MATCH"; then
+    if ! python3 - "$MATCH" "$SUITE_TIMEOUT_SECONDS" <<'PY'
+import subprocess
+import sys
+import os
+import signal
+
+script, timeout_seconds = sys.argv[1], int(sys.argv[2])
+process = subprocess.Popen([sys.executable, script], start_new_session=True)
+try:
+    sys.exit(process.wait(timeout=timeout_seconds))
+except subprocess.TimeoutExpired:
+    os.killpg(process.pid, signal.SIGTERM)
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+    print(f'❌ Suite exceeded {timeout_seconds}s and was terminated: {script}', file=sys.stderr)
+    sys.exit(124)
+PY
+    then
         FAILED_SUITES+=("$suite")
     fi
 done

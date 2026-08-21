@@ -788,6 +788,69 @@ export function groupShipmentAppointmentGroups(
   return result;
 }
 
+/**
+ * Distinct effective factory labels per shipment for the master-plan
+ * "Khách hàng & nhà máy" column. Unlike the appointment groups, this view is
+ * NOT gated on `customerAppointmentAt`: a lot whose containers have not
+ * locked a đóng/trả date still lists every factory. Precedence mirrors the
+ * appointment-group resolution — container site → shipment site → legacy
+ * factory text — so both views can never disagree on the label for a site.
+ */
+export async function loadShipmentListFactoryNames(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+): Promise<Map<number, string[]>> {
+  const ids = [...new Set(shipments.map((shipment) => shipment.id))];
+  if (ids.length === 0) return new Map();
+
+  const containerRows = await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    operationalSiteId: s.shipmentContainers.operationalSiteId,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.shipmentId, ids));
+
+  const siteIds = [...new Set([
+    ...containerRows.map((row) => row.operationalSiteId),
+    ...shipments.map((shipment) => shipment.operationalSiteId),
+  ].filter((id): id is number => id != null))];
+  const sitesById = siteIds.length === 0
+    ? new Map<number, string>()
+    : new Map((await db.select({
+      id: s.operationalSites.id,
+      shortName: SITE_OPERATIONAL_NAME,
+    })
+      .from(s.operationalSites)
+      .where(inArray(s.operationalSites.id, siteIds)))
+      .map((row) => [row.id, row.shortName]));
+
+  const byShipment = new Map<number, Set<string>>();
+  for (const shipment of shipments) {
+    byShipment.set(shipment.id, new Set<string>());
+  }
+  for (const row of containerRows) {
+    // Containers without a site fall back to the shipment site in the
+    // appointment-group view; here they must not inject a duplicate label.
+    if (row.operationalSiteId == null) continue;
+    const label = sitesById.get(row.operationalSiteId);
+    if (label) byShipment.get(row.shipmentId)?.add(label);
+  }
+  for (const shipment of shipments) {
+    const labels = byShipment.get(shipment.id);
+    if (!labels) continue;
+    if (labels.size === 0 && shipment.operationalSiteId != null) {
+      const label = sitesById.get(shipment.operationalSiteId);
+      if (label) labels.add(label);
+    }
+    const legacy = shipment.factoryName?.trim();
+    if (labels.size === 0 && legacy) labels.add(legacy);
+  }
+  return new Map(
+    [...byShipment.entries()].map(([shipmentId, labels]) => [
+      shipmentId,
+      [...labels].sort((left, right) => left.localeCompare(right, 'vi')),
+    ]),
+  );
+}
+
 export async function loadShipmentListAppointmentGroups(
   shipments: Array<typeof s.shipments.$inferSelect>,
 ): Promise<Map<number, ShipmentAppointmentGroup[]>> {

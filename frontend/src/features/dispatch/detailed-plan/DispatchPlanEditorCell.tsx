@@ -71,7 +71,7 @@ interface PlanEditorDraft {
   vehicleValue: string;
   plannedRevenue: string;
   plannedCarrierCost: string;
-  classification: DispatchClassification | '';
+  classification: DispatchClassification;
   isCombined: boolean;
 }
 
@@ -98,9 +98,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: row.estimates.plannedRevenue ?? '',
     plannedCarrierCost: row.estimates.plannedCarrierCost ?? '',
-    // Legacy rows created before classification existed carry null — the
-    // editor forces an explicit choice before the first save.
-    classification: row.classification ?? '',
+    classification: row.classification,
     isCombined: row.isCombined,
   };
 }
@@ -355,10 +353,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
       setError('Cước dự kiến phải là số nguyên không âm.');
       return;
     }
-    if (!draft.classification) {
-      setError('Chọn phân loại trước khi lưu.');
-      return;
-    }
     const body = vehicleBody(draft.vehicleValue);
     if (body == null) {
       setError('Biển số đã chọn không hợp lệ.');
@@ -480,16 +474,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
               width="content"
               wrapperClassName="dispatch-assignment-dialog__classification"
               value={draft.classification}
-              options={[
-                { value: '', label: 'Chọn phân loại…' },
-                ...DISPATCH_CLASSIFICATIONS.map((value) => ({
-                  value,
-                  label: DISPATCH_CLASSIFICATION_LABELS[value],
-                })),
-              ]}
+              options={DISPATCH_CLASSIFICATIONS.map((value) => ({
+                value,
+                label: DISPATCH_CLASSIFICATION_LABELS[value],
+              }))}
               onChange={(event) => {
-                const value = event.target.value as DispatchClassification | '';
-                setDraft((current) => ({ ...current, classification: value }));
+                setDraft((current) => ({ ...current, classification: event.target.value as DispatchClassification }));
                 setError(null);
               }}
               disabled={saving}

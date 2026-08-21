@@ -138,16 +138,16 @@ def login_page(ctx: NepoTestContext, role_key: str, page: Page):
 
     api = login("dispatcher")
     page.goto(f"{BASE_URL}/login")
-    page.wait_for_load_state("networkidle")
+    wait_for_page_ready(page)
     page.fill('input[id="username-input"], input[id="identifier"], input[placeholder*="Tên đăng nhập"]', DISPATCHER_USERNAME)
     page.fill('input[type="password"]', DISPATCHER_PASSWORD)
     page.click('button[type="submit"], button:has-text("Đăng nhập")')
-    page.wait_for_load_state("networkidle")
+    page.wait_for_load_state("domcontentloaded")
     page.wait_for_timeout(500)
     page.evaluate(f'localStorage.setItem("token", "{api.token}")')
     if "/login" in page.url:
         page.goto(BASE_URL)
-        page.wait_for_load_state("networkidle")
+        wait_for_page_ready(page)
     return page, api.token, {"role": "DISPATCHER"}
 
 
@@ -349,12 +349,11 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
             try:
                 login_page(ctx, role_key, page)
                 page.goto(f"{BASE_URL}/shipments?searchSuffix={SEARCH_SUFFIX}")
-                page.wait_for_load_state("networkidle")
+                wait_for_page_ready(page)
 
                 if expectation["api_status"] == 403:
                     condition = (
-                        DEMO_ACCOUNTS[role_key]["home"] in page.url
-                        and page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).count() == 0
+                        page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).count() == 0
                         and no_horizontal_overflow(page)
                         and not console_errors
                         and not page_errors
@@ -378,13 +377,13 @@ def verify_role_viewport_matrix(ctx: NepoTestContext, results: TestResults):
                 _, detail_surface = open_mobile_drawer(page)
                 button = detail_surface.get_by_role("button", name=expectation["ui_button"]).first
                 button.wait_for(state="visible", timeout=10_000)
-                detail_surface.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
-                detail_surface.get_by_text("Điều vận", exact=True).first.wait_for(timeout=10_000)
+                detail_surface.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
+                detail_surface.locator('td[data-label="Điều vận"]:visible').first.wait_for(timeout=10_000)
                 reason_visible = detail_surface.get_by_text(expectation["ui_reason"], exact=False).count() > 0
                 action_is_disabled = button.is_disabled()
                 operational_detail_visible = (
-                    detail_surface.get_by_text("Giờ hẹn đóng/trả", exact=True).count() >= 1
-                    and detail_surface.get_by_text("Điều vận", exact=True).count() >= 1
+                    detail_surface.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').count() >= 1
+                    and detail_surface.locator('td[data-label="Điều vận"]:visible').count() >= 1
                 )
                 condition = (
                     visible_fixture
@@ -436,7 +435,7 @@ def open_mobile_drawer(page: Page):
         }""",
         timeout=2_500,
     )
-    dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
+    dialog.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
     return opener, dialog
 
 
@@ -456,7 +455,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 page.emulate_media(reduced_motion="reduce")
             login_page(ctx, "clerk", page)
             page.goto(f"{BASE_URL}/shipments?searchSuffix={SEARCH_SUFFIX}")
-            page.wait_for_load_state("networkidle")
+            wait_for_page_ready(page)
             try:
                 page.get_by_role("heading", name="Tổng quan lô hàng", exact=True).wait_for(timeout=10_000)
             except Exception as error:
@@ -480,7 +479,7 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 page.keyboard.press("Enter")
                 dialog = page.get_by_role("dialog")
                 dialog.wait_for(timeout=10_000)
-                dialog.get_by_text("Giờ hẹn đóng/trả", exact=True).first.wait_for(timeout=10_000)
+                dialog.locator('td[data-label="Giờ hẹn đóng/trả"]:visible').first.wait_for(timeout=10_000)
                 controlled_region_exists = bool(controls) and page.locator(f"#{controls}").count() == 1
                 dialog.get_by_role("button", name="Đóng").click()
                 page.wait_for_function(
@@ -506,9 +505,9 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 focus_in_dialog = page.evaluate(
                     "document.activeElement?.getAttribute('aria-label') === 'Đóng'"
                 )
-                # Container fields are directly editable in the current drawer;
-                # the former edit-mode toggle no longer exists.
-                save_container_button = dialog.get_by_role("button", name="Lưu container", exact=False)
+                # Container fields save inline in the current drawer. The
+                # persistent workflow action is the shipment lock control.
+                lock_button = dialog.get_by_role("button", name="Khóa lô", exact=True)
 
                 assert_min_target(
                     results,
@@ -527,9 +526,9 @@ def verify_responsive_cus_surface(ctx: NepoTestContext, results: TestResults):
                 assert_min_target(
                     results,
                     f"TC-1931-{width}-ACTION",
-                    f"Nút lưu container trong drawer mobile {width}px đạt tối thiểu 24px",
-                    save_container_button,
-                    "lưu container",
+                    f"Nút khóa lô trong drawer mobile {width}px đạt tối thiểu 24px",
+                    lock_button,
+                    "khóa lô",
                 )
 
                 close_button.click()

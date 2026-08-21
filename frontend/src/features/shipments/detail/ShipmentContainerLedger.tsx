@@ -629,7 +629,11 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
-                    {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline"><strong>{fallback(row.customerNotes, 'Chưa có ghi chú cho khách hàng')}</strong><span>{fallback(row.operationalNotes, 'Chưa có ghi chú cho lái xe')}</span></div>)}
+                    {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
+                      {row.customerNotes && <strong>{row.customerNotes}</strong>}
+                      {row.operationalNotes && <span>{row.operationalNotes}</span>}
+                      {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
+                    </div>)}
                   </td>
                   <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
                     <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>

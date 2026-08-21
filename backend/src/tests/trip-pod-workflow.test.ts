@@ -172,6 +172,7 @@ async function createShipmentFixture(args: {
       shipmentContainerId: args.cargoMode === 'FCL' ? containers[index]?.id ?? null : null,
       sourceShipmentVersion: shipment.version,
       siteSnapshot: {},
+      dispatchClassification: args.cargoMode === 'LCL' ? 'LCL' : 'SINGLE',
       canceledAt: canceledSet.has(index) ? new Date() : null,
       canceledBy: canceledSet.has(index) ? args.canceledByUserId ?? null : null,
       cancellationReason: canceledSet.has(index) ? 'Khách đổi phương án giao hàng' : null,

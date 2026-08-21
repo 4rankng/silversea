@@ -225,6 +225,7 @@ async function createExpenseScopeRecomputeFixture(args: {
     shipmentContainerId,
     sourceShipmentVersion: shipment.version,
     siteSnapshot: {},
+    dispatchClassification: args.cargoMode === 'LCL' ? 'LCL' : 'SINGLE',
     createdBy: userIds[1],
   }).returning();
   const [trip] = await db.insert(s.trips).values({

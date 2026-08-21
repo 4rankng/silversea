@@ -1327,6 +1327,72 @@ describe('GET /', () => {
     assert.equal(cusLot.appointmentGroups[0]?.factoryShortName, shortFactoryName);
     assert.equal(cusLot.appointmentGroups[0]?.factoryFullName, fullFactoryName);
   });
+
+  test('factoryNames lists every factory even when containers have no đóng/trả appointment', async () => {
+    // Task 2.1 "hiển thị đầy đủ tất cả Nhà máy": a multi-factory lot whose
+    // containers have NOT locked an appointment date must still surface both
+    // factory labels — the label view is not appointment-gated.
+    const lotSuffix = `MPLAN-FAC-${suffix}-${Date.now().toString(36)}`;
+    const sites = await db.insert(s.operationalSites).values([
+      {
+        customerId,
+        code: `MPLAN-FAC-A-${Math.random().toString(36).slice(2, 8)}`,
+        name: `Nhà máy Nguyên Phúc ${lotSuffix}`,
+        shortName: `Nguyên Phúc ${lotSuffix}`,
+        siteType: 'FACTORY',
+        address: 'Bắc Ninh',
+      },
+      {
+        customerId,
+        code: `MPLAN-FAC-B-${Math.random().toString(36).slice(2, 8)}`,
+        name: `Nhà máy Đông Á ${lotSuffix}`,
+        shortName: `Đông Á ${lotSuffix}`,
+        siteType: 'FACTORY',
+        address: 'Hải Dương',
+      },
+    ]).returning();
+    createdOperationalSiteIds.push(...sites.map((site) => site.id));
+
+    const createRes = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        customerId,
+        blNumber: lotSuffix,
+        cargoMode: 'FCL',
+        expectedDeliveryDate: '2026-08-24',
+        tradeDirection: 'IMPORT',
+      },
+    });
+    assert.equal(createRes.status, 201, `create failed: ${JSON.stringify(createRes.data)}`);
+    createdShipmentIds.push(createRes.data.id);
+
+    // 2 containers at 2 different factories, deliberately appointment-less.
+    for (const [index, site] of sites.entries()) {
+      await db.insert(s.shipmentContainers).values({
+        shipmentId: createRes.data.id,
+        containerTypeId,
+        containerNumber: `MPLAN-FAC-${index}-${Math.random().toString(36).slice(2, 10)}`,
+        operationalSiteId: site.id,
+        customerAppointmentAt: null,
+      });
+    }
+
+    // Route-level blNumber filter (exact match) keeps the fetch hermetic —
+    // searchSuffix is not parsed by GET / and relies on first-page ordering.
+    const listRes = await testFetch(`/?blNumber=${encodeURIComponent(lotSuffix)}&limit=20`, { token: adminToken });
+    assert.equal(listRes.status, 200);
+    const lot = listRes.data.items.find((row: { id: number }) => row.id === createRes.data.id);
+    assert.ok(lot, `seeded lot ${createRes.data.id} must appear in /api/shipments`);
+
+    assert.ok(Array.isArray(lot.factoryNames), 'list response must include factoryNames array');
+    assert.equal(lot.factoryNames.length, 2,
+      'both factories must be listed although no container has an appointment');
+    assert.deepEqual(
+      [...lot.factoryNames].sort(),
+      [`Đông Á ${lotSuffix}`, `Nguyên Phúc ${lotSuffix}`].sort(),
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

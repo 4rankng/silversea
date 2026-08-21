@@ -184,7 +184,7 @@ export function DetailedPlanGrid({
                     </div>
                     {row.customerRoute.routeName && (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                        {row.customerRoute.routeName}
+                        Lộ trình: {row.customerRoute.routeName}
                       </div>
                     )}
                   </td>
@@ -228,20 +228,23 @@ export function DetailedPlanGrid({
                     )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
-                      Xe: {row.notes.vehicleNote ?? '—'}
-                    </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                      Khách: {row.notes.customerNote ?? '—'}
-                    </div>
+                    {row.notes.vehicleNote && (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
+                        Xe: {row.notes.vehicleNote}
+                      </div>
+                    )}
+                    {row.notes.customerNote && (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        Khách: {row.notes.customerNote}
+                      </div>
+                    )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
                     <DispatchPlanEditorCell row={row} onAtomicSave={onAtomicSave} />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">
-                    {/* Legacy null rows read as the operational default "Đơn". */}
                     <span className="detailed-plan-grid__classification">
-                      {DISPATCH_CLASSIFICATION_LABELS[row.classification ?? 'SINGLE']}
+                      {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
                   </td>
                 </tr>

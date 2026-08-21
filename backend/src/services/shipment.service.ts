@@ -93,6 +93,7 @@ import {
   loadShipmentListSummaries,
   loadShipmentListDeclarationNumbers,
   loadShipmentListAppointmentGroups,
+  loadShipmentListFactoryNames,
   loadShipmentListContainerPortGroups,
   type AllocationStatus,
   type ShipmentContainerPortGroup,
@@ -1068,18 +1069,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   // resolve container-site → shipment-site → legacy-text precedence, so their
   // factory labels are the authoritative multi-factory view. Shipments whose
   // containers carry no appointment fall back to their single projected label.
-  const factoryNamesByShipmentId = new Map<number, string[]>();
-  for (const row of items) {
-    const labels = new Set<string>();
-    for (const group of appointmentGroupsByShipmentId.get(row.shipment.id) ?? []) {
-      if (group.factoryShortName ?? group.factoryName) labels.add((group.factoryShortName ?? group.factoryName)!);
-    }
-    if (labels.size === 0) {
-      const fallback = row.operationalSiteName ?? row.shipment.factoryName ?? null;
-      if (fallback) labels.add(fallback);
-    }
-    factoryNamesByShipmentId.set(row.shipment.id, [...labels]);
-  }
+  // (Task 2.1: the label set must come from ALL containers, not only those
+  // with a locked đóng/trả appointment — delegated to the query service.)
+  const factoryNamesByShipmentId = await loadShipmentListFactoryNames(
+    items.map((row) => row.shipment),
+  );
   if (!options.includeDispatchSummary) {
     containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
       items.map((row) => row.shipment),

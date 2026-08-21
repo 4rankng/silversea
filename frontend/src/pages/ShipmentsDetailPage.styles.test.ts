@@ -70,9 +70,11 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
   });
 
-  it('uses compact type for pending and planned dispatch tags in the container column', () => {
+  it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge--unassigned,\s*\.shipment-container-ledger__dispatch-badge--planned\s*\{[^}]*font-size:\s*10px;[^}]*line-height:\s*1\.4;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*14%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*8%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*10px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {

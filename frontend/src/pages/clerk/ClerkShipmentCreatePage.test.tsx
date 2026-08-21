@@ -313,6 +313,27 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30']);
   });
 
+  it('lets clerks choose the FCL lot route directly in the cargo step', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    const cargoRoute = screen.getByRole('combobox', { name: 'Chọn tuyến của lô hàng trong thông tin hàng' });
+    fireEvent.focus(cargoRoute);
+    fireEvent.keyDown(cargoRoute, { key: 'ArrowDown' });
+    const routeOption = await screen.findByRole('option', { name: 'Cát Lái — Sóng Thần' });
+    fireEvent.click(routeOption);
+
+    expect(cargoRoute).toHaveValue('Cát Lái — Sóng Thần');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
+
+    await choose('Khách hàng', '7');
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ routeId: 11 }),
+      expect.any(String),
+    ));
+  });
+
   it('shows a resting container value as table text and activates its editor from the full cell', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });

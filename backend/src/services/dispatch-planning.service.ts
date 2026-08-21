@@ -2302,8 +2302,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             plannedRevenue: row.plannedRevenue,
             plannedCarrierCost: row.plannedCarrierCost,
           },
-          // Legacy rows created before classification existed stay null until
-          // an operator classifies them; the editor blocks save on null.
+          // NOT NULL DEFAULT 'SINGLE': fresh containers surface as "Đơn"
+          // until dispatch reclassifies them.
           classification: row.classification,
           ports: {
             pickupPortId: row.pickupPortId,
@@ -3072,7 +3072,7 @@ async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatchDetailP
     fulfillmentVersion: updatedFulfillment.version,
     shipmentId: shipment.id,
     shipmentVersion,
-    classification: updatedFulfillment.dispatchClassification ?? input.classification,
+    classification: updatedFulfillment.dispatchClassification,
     isCombined: input.isCombined,
     dispatch: {
       carrierType: input.carrierType,

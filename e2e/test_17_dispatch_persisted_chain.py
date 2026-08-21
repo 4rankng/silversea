@@ -29,6 +29,16 @@ SEARCH_SUFFIX = f"{int(RUN_SUFFIX, 16) % 100_000:05d}"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
 _ACTIVE_FLEET_FIXTURE: dict[str, int | None] | None = None
+E2E_DATABASE_URL = os.environ.get("NEPO_DATABASE_URL")
+
+
+def e2e_database_url() -> str:
+    if not E2E_DATABASE_URL:
+        raise RuntimeError(
+            "NEPO_DATABASE_URL is required for the persisted dispatch E2E fixture; "
+            "refusing to mutate an implicit shared local database."
+        )
+    return E2E_DATABASE_URL
 
 
 def sample_png_bytes() -> bytes:
@@ -382,7 +392,7 @@ main().then(() => {
         cwd=REPO_ROOT / "backend",
         env={
             **os.environ,
-            "DATABASE_URL": "postgres://postgres:postgres@localhost:5441/silversea",
+            "DATABASE_URL": e2e_database_url(),
         },
         capture_output=True,
         text=True,
@@ -480,7 +490,7 @@ main().then(() => process.exit(0)).catch((error) => {
         cwd=REPO_ROOT / "backend",
         env={
             **os.environ,
-            "DATABASE_URL": "postgres://postgres:postgres@localhost:5441/silversea",
+            "DATABASE_URL": e2e_database_url(),
         },
         capture_output=True,
         text=True,

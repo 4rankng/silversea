@@ -67,8 +67,9 @@ def test_vendor_expenses(ctx: NepoTestContext, results: TestResults):
     # ── Pre-fetch a truck and trailer for later tests ──
     trucks_resp = api.get('/api/trucks')
     truck_items = trucks_resp.get('data', {}).get('items', [])
-    if truck_items:
-        truck_id = truck_items[0]['id']
+    active_truck = next((truck for truck in truck_items if truck.get('status') == 'ACTIVE'), None)
+    if active_truck:
+        truck_id = active_truck['id']
 
     trailers_resp = api.get('/api/trailers')
     trailer_items = trailers_resp.get('data', {}).get('items', [])

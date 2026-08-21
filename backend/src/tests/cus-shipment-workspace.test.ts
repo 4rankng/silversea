@@ -380,6 +380,40 @@ describe('CUS shipment workspace projection — OQ3 vehicle-assigned numerator',
   });
 });
 
+describe('CUS shipment workspace projection — own-fleet plate sync', () => {
+  test('projects the dispatch allocation plate before an OWN trip exists', async () => {
+    const marker = Math.random().toString(16).slice(2, 8).toUpperCase();
+    const shipment = await seedShipment({
+      blNumber: `OWN-PLATE-${marker}`,
+      expectedDeliveryDate: '2026-08-20',
+      cargoMode: 'FCL',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `OWN-${marker}`,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    // The dispatch allocation is authoritative before a real trip is created.
+    // OWN must read the same fulfillment snapshot fallback that EXTERNAL uses.
+    await seedFulfillment(shipment.id, container.id, {
+      plannedCarrierType: 'OWN',
+      plannedVehiclePlateNumber: '15C-491.72',
+    });
+
+    const overview = await listCusShipmentWorkspace({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const overviewItem = overview.items.find((item) => item.id === shipment.id);
+    assert.ok(overviewItem);
+    assert.deepEqual(overviewItem.carrierAssignments, [{ carrierName: 'SilverSea', plateNumber: '15C-491.72' }]);
+    assert.equal(overviewItem.operational.vehicleReadiness, 'READY');
+
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    assert.deepEqual(detail.summary.carrierAssignments, [{ carrierName: 'SilverSea', plateNumber: '15C-491.72' }]);
+    assert.equal(detail.containers.find((line) => line.id === container.id)?.plateNumber, '15C-491.72');
+
+    const flat = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    assert.equal(flat.items.find((line) => line.id === container.id)?.plateNumber, '15C-491.72');
+  });
+});
+
 describe('CUS shipment workspace projection — inline edit authority', () => {
   test('keeps schedule and notes inline-editable after dispatch while the shipment is unlocked', async () => {
     const shipment = await seedShipment({

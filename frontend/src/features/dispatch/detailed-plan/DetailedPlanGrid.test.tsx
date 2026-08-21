@@ -17,7 +17,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   cargoMode: 'FCL',
   taskStatus: 'READY',
   time: { deliveryDate: '2026-08-20', runHour: 8 },
-  customerRoute: { customerName: 'Công ty ABC', factoryName: 'Nhà máy XYZ', deliveryPoint: 'Kho Bình Dương' },
+  customerRoute: { customerName: 'Công ty ABC', factoryName: 'Nhà máy XYZ', deliveryPoint: 'Kho Bình Dương', routeName: 'LH — Biên Hòa' },
   docs: { billNumber: 'BL-2026-010', tradeDirection: 'EXPORT', declarationNumbers: [] },
   container: { containerNumber: 'MSCU1234567', containerTypeLabel: '40HC', cargoWeightKg: '21500.00' },
   notes: { vehicleNote: 'Giao giờ hành chính', customerNote: 'Gặp anh Hùng' },
@@ -73,9 +73,11 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('Giao: 20/08/2026')).toBeTruthy();
     expect(screen.getByText('Giờ: 8H')).toBeTruthy();
     // Column 2: KH/factory/delivery point
-    // T2.3: label-free lines, customer and route emphasized.
+    // T2.3 follows the master-plan order: customer, factory, then the
+    // explicitly labelled, emphasized route.
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     expect(screen.getByText('Nhà máy XYZ')).toBeTruthy();
+    expect(screen.getByText('Lộ trình: LH — Biên Hòa')).toBeTruthy();
     // Column 3: bill + badge
     expect(screen.getByText('Bill: BL-2026-010')).toBeTruthy();
     const directionBadge = screen.getByText('Xuất');
@@ -223,23 +225,29 @@ describe('DetailedPlanGrid', () => {
     ));
   });
 
-  it('blocks the atomic save until classification is chosen', async () => {
-    const onAtomicSave = vi.fn();
-    renderGrid([row({ classification: null })], { onAtomicSave });
+  it('saves without blocking on classification — the default Đơn is always present', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 5,
+      classification: 'SINGLE',
+      isCombined: false,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderGrid([row({ classification: 'SINGLE' })], { onAtomicSave });
 
     fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Chọn phân loại'));
-    expect(onAtomicSave).not.toHaveBeenCalled();
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ classification: 'SINGLE' }),
+    ));
   });
 
-  it('renders the classification column with the operational default for legacy null rows', () => {
-    const first = renderGrid([row({ classification: 'SINGLE' })]);
-    expect(screen.getByText('Đơn')).toBeTruthy();
-    first.unmount();
-
-    renderGrid([row({ classification: null })]);
+  it('renders the classification column with the fresh-container default Đơn', () => {
+    renderGrid([row({ classification: 'SINGLE' })]);
     expect(screen.getByText('Đơn')).toBeTruthy();
   });
 
@@ -319,6 +327,27 @@ describe('DetailedPlanGrid', () => {
   it('renders an empty state when there are no rows', () => {
     renderGrid([]);
     expect(screen.getByText('Không có dòng kế hoạch nào')).toBeTruthy();
+  });
+
+  it('hides the "Ghi chú" placeholders when both vehicleNote and customerNote are empty', () => {
+    renderGrid([row({ notes: { vehicleNote: null, customerNote: null } })]);
+
+    const notesCell = document.querySelector('td.detailed-plan-grid__cell--notes');
+    expect(notesCell).toBeTruthy();
+    // The "—" placeholders must NOT appear to avoid UI clutter.
+    expect(notesCell!.textContent?.trim()).toBe('');
+    // No "Xe:" or "Khách:" labels are rendered for empty notes.
+    expect(notesCell!.querySelectorAll('.detailed-plan-grid__line--notes, .detailed-plan-grid__line--muted')).toHaveLength(0);
+  });
+
+  it('hides the missing "Ghi chú" line when only one of the note fields is present', () => {
+    renderGrid([row({ notes: { vehicleNote: 'Giao giờ HC', customerNote: null } })]);
+
+    const notesCell = document.querySelector('td.detailed-plan-grid__cell--notes');
+    expect(notesCell).toBeTruthy();
+    expect(screen.getByText('Xe: Giao giờ HC')).toBeTruthy();
+    // The "Khách: —" placeholder for the missing customerNote must not appear.
+    expect(notesCell!.textContent).not.toContain('—');
   });
 
   it('renders an error state without the table', () => {
