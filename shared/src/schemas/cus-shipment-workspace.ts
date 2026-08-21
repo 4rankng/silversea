@@ -284,6 +284,7 @@ const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
   containerTypeEditable: z.boolean(),
   liftSiteEditable: z.boolean(),
   dropoffSiteEditable: z.boolean(),
+  routeEditable: z.boolean(),
   customerAppointmentEditable: z.boolean(),
 }).strict();
 
@@ -293,6 +294,8 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   containerNumber: z.string().nullable(),
   containerTypeId: z.number().int().positive().nullable(),
   containerTypeLabel: z.string().nullable(),
+  routeId: z.number().int().positive().nullable(),
+  routeName: z.string().nullable(),
   dispatchStatus: z.enum(['UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullable(),
@@ -309,12 +312,14 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
     containerTypeId: z.number().int().positive().nullable(),
     cargoWeightKg: z.string().nullable(),
     cargoVolumeCbm: z.string().nullable(),
+    routeId: z.number().int().positive().nullable(),
   }).strict(),
   fieldAccess: z.object({
     containerNumber: fieldAccessSchema,
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
     cargoVolumeCbm: fieldAccessSchema,
+    routeId: fieldAccessSchema,
     carrierType: fieldAccessSchema,
     externalCarrierId: fieldAccessSchema,
     externalCarrierVehicleId: fieldAccessSchema,
@@ -452,6 +457,7 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
     plateNumber: z.string().trim().min(1, 'Biển số xe là bắt buộc').max(20),
   }).strict().optional(),
   containerTypeId: z.coerce.number().int().positive().nullable().optional(),
+  routeId: z.coerce.number().int().positive().nullable().optional(),
   liftSiteId: z.coerce.number().int().positive().nullable().optional(),
   dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
   customerAppointmentAt: z.string().datetime().nullable().optional(),
@@ -573,6 +579,7 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   vehicleReadOnlyReason: z.string().min(1).nullable(),
   liftSiteEditable: z.boolean(),
   dropoffSiteEditable: z.boolean(),
+  routeEditable: z.boolean(),
   customerAppointmentEditable: z.boolean(),
   scheduleEditable: z.boolean(),
 }).strict();

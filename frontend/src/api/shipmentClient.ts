@@ -204,6 +204,7 @@ export interface OperationalSite {
   name: string;
   shortName?: string;
   siteType: 'FACTORY' | 'WAREHOUSE';
+  routeId: number | null;
   address: string;
   googleMapsUrl: string | null;
   contactName: string | null;
@@ -334,6 +335,8 @@ export interface ShipmentContainerBatch {
     cargoWeightKg?: string | number | null;
     cargoVolumeCbm?: string | number | null;
     shippingLineName?: string | null;
+    /** FCL route authority. Omitted updates preserve a pre-existing value. */
+    routeId?: number | null;
     customerAppointmentAt?: string | null;
     pickupPortId?: number | null;
     dropoffPortId?: number | null;
@@ -666,6 +669,7 @@ export interface CreateOperationalSiteBody {
   name: string;
   shortName: string;
   siteType: 'FACTORY' | 'WAREHOUSE';
+  routeId?: number | null;
   address: string;
   googleMapsUrl?: string | null;
   contactName?: string | null;

@@ -17,6 +17,7 @@ export interface ShipmentContainerInput {
   cargoWeightKg?: string | number | null;
   cargoVolumeCbm?: string | number | null;
   shippingLineName?: string | null;
+  routeId?: number | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
   operationalSiteId?: number | null;

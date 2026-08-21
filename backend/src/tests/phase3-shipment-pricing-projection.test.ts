@@ -175,6 +175,31 @@ describe('phase 3 shipment pricing projection', () => {
     assert.equal(projection.breakdown[0]?.quantity, 2);
   });
 
+  test('aggregates FCL freight and fuel by each container route and appointment date', async () => {
+    const customer = await mkCustomer();
+    const routeA = await mkRoute();
+    const routeB = await mkRoute();
+    const containerType = await mkContainerType(`20PR-${suffix}`.slice(0, 20), 'Container pricing route');
+    await mkPricingTable(customer.id, routeA.id, '1200000', containerType.id);
+    await mkPricingTable(customer.id, routeB.id, '1800000', containerType.id);
+
+    const projection = await resolveShipmentPricingProjection({
+      customerId: customer.id,
+      routeId: null,
+      cargoMode: 'FCL',
+      containerPricingLines: [
+        { routeId: routeA.id, containerTypeId: containerType.id, date: '2026-08-03' },
+        { routeId: routeB.id, containerTypeId: containerType.id, date: '2026-08-04' },
+      ],
+    });
+
+    assert.equal(projection.readiness, 'READY');
+    assert.equal(projection.freightPrice, 3_000_000);
+    assert.equal(projection.expectedFuelLiters, 200);
+    assert.equal(projection.expectedFuelSurcharge, 500_000);
+    assert.equal(projection.breakdown.length, 2);
+  });
+
   test('returns governed LCL weight-tier freight and expected fuel surcharge', async () => {
     const customer = await mkCustomer();
     const route = await mkRoute();

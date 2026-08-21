@@ -149,6 +149,7 @@ async function createShipmentFixture(args: {
   const containerType = await createContainerType(`20G${createdContainerTypeIds.length}`);
   const [container] = await db.insert(s.shipmentContainers).values({
     shipmentId: shipment.id,
+    routeId: args.routeId,
     containerTypeId: containerType.id,
     containerNumber: `MSCU${String(100000 + shipment.id).slice(-6)}1`,
     cargoWeightKg: args.containerCargoWeightKg ?? null,
@@ -915,13 +916,16 @@ describe('dispatch fulfillment workflow routes', () => {
 
   });
 
-  test('dispatch queue excludes a legacy accepted fulfillment without a route', async () => {
+  test('dispatch queue excludes a legacy accepted FCL fulfillment when its container has no route', async () => {
     const customer = await createCustomer(`Route-less queue ${suffix}-${createdCustomerIds.length}`);
     const route = await createRoute();
     const legacy = await createAcceptedFulfillment({ customerId: customer.id, routeId: route.id });
     await db.update(s.shipments)
-      .set({ routeId: null })
+      .set({ routeId: route.id })
       .where(eq(s.shipments.id, legacy.shipmentId));
+    await db.update(s.shipmentContainers)
+      .set({ routeId: null })
+      .where(eq(s.shipmentContainers.shipmentId, legacy.shipmentId));
 
     const response = await apiFetch<{
       items: Array<{ fulfillmentId: number; route: { id: number; name: string } }>;
@@ -1358,6 +1362,7 @@ describe('dispatch fulfillment workflow routes', () => {
 
     const containerValues: Array<typeof s.shipmentContainers.$inferInsert> = shipments.map((shipment, index) => ({
       shipmentId: shipment.id,
+      routeId: route.id,
       containerTypeId: containerType.id,
       containerNumber: `PERF${String(index).padStart(7, '0')}`,
       createdBy: adminUserId,

@@ -779,6 +779,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       handoffId: s.dispatchHandoffs.id,
       handoffVersion: s.dispatchHandoffs.version,
       containerNumber: s.shipmentContainers.containerNumber,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       shippingLineName: s.shipmentContainers.shippingLineName,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
@@ -802,15 +803,13 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      // Queue rows must be dispatchable. A route-less legacy fulfillment cannot
-      // create a trip, so it belongs in remediation/master planning—not here.
-      .innerJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .innerJoin(s.routes, eq(s.routes.id, dispatchEffectiveRouteIdSql()))
       .leftJoin(s.dispatchHandoffs, and(
         eq(s.dispatchHandoffs.shipmentId, s.shipments.id),
         eq(s.dispatchHandoffs.status, 'ACCEPTED'),
         isNull(s.dispatchHandoffs.supersededAt),
       ))
-      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
@@ -824,7 +823,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         cursor ? lt(s.shipmentFulfillments.id, cursor) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
-        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
+        date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
         qPattern ? or(
           ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
@@ -867,13 +866,13 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
     }).from(s.shipmentFulfillments)
       .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))
       .innerJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      .innerJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
+      .innerJoin(s.routes, eq(s.routes.id, dispatchEffectiveRouteIdSql()))
       .leftJoin(s.dispatchHandoffs, and(
         eq(s.dispatchHandoffs.shipmentId, s.shipments.id),
         eq(s.dispatchHandoffs.status, 'ACCEPTED'),
         isNull(s.dispatchHandoffs.supersededAt),
       ))
-      .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         ne(s.trips.status, TripStatus.CANCELED),
@@ -885,7 +884,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
         inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
         accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
         input.urgency ? eq(s.dispatchHandoffs.priority, input.urgency) : undefined,
-        date ? eq(sql`date(coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}))`, date) : undefined,
+        date ? eq(dispatchDetailTransportDateSql(), date) : undefined,
         qPattern ? or(
           ilike(CUSTOMER_OPERATIONAL_NAME, qPattern),
           ilike(s.customers.name, qPattern),
@@ -941,6 +940,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             containerNumber: row.containerNumber,
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
             shippingLineName: row.shippingLineName,
+            customerAppointmentAt: row.customerAppointmentAt?.toISOString() ?? null,
             pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,
             dropoffPortName: row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null,
             packageType: row.packageType,
@@ -1011,7 +1011,7 @@ async function buildZoneTruckSuggestions(tx: Tx, args: {
   const [target] = await tx.select({
     fulfillmentId: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
-    deliveryDate: s.shipments.expectedDeliveryDate,
+    deliveryDate: sql<string | null>`coalesce(date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'), ${s.shipments.expectedDeliveryDate})`,
     // Zone of the fulfillment's own container ports (either side) — the
     // suggestion set is scoped to the SAME zone the order touches, whatever
     // cluster that is; no zone is hard-coded. When both ports are zoned
@@ -1043,7 +1043,7 @@ async function buildZoneTruckSuggestions(tx: Tx, args: {
 
   // Planned work date: live trip's departure date when present, else the
   // shipment's expected delivery date. Canceled/deleted trips never count.
-  const workDateSql = sql<string>`coalesce(${s.trips.departureDate}, ${s.shipments.expectedDeliveryDate})`;
+  const workDateSql = sql<string>`coalesce(${s.trips.departureDate}, date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'), ${s.shipments.expectedDeliveryDate})`;
 
   const targetDate = String(target.deliveryDate).slice(0, 10);
   const dayBefore = addCalendarDays(targetDate, -1);
@@ -1565,12 +1565,6 @@ async function issueOrderCreateOrUpdate(
   if (shipmentStatus !== 'READY_FOR_DISPATCH' && shipmentStatus !== 'DISPATCHED') {
     throw new ApiError(409, 'Lô hàng chưa sẵn sàng điều xe hoặc đã kết thúc.');
   }
-  const [route] = shipment.routeId == null
-    ? []
-    : await tx.select({
-      distanceKm: s.routes.distanceKm,
-    }).from(s.routes).where(eq(s.routes.id, shipment.routeId)).limit(1);
-
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(
       eq(s.shipmentFulfillments.id, input.fulfillmentId),
@@ -1582,6 +1576,24 @@ async function issueOrderCreateOrUpdate(
   if (fulfillment.canceledAt) throw new ApiError(409, 'Tác vụ đã bị hủy.');
   if (fulfillment.version !== input.expectedVersion) {
     throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  }
+  const [containerRoute] = fulfillment.shipmentContainerId == null
+    ? []
+    : await tx.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
+      .limit(1);
+  const effectiveRouteId = fulfillment.cargoMode === 'FCL'
+    ? containerRoute?.routeId ?? null
+    : shipment.routeId;
+  const [route] = effectiveRouteId == null
+    ? []
+    : await tx.select({ distanceKm: s.routes.distanceKm })
+      .from(s.routes)
+      .where(and(eq(s.routes.id, effectiveRouteId), isNull(s.routes.deletedAt)))
+      .limit(1);
+  if (effectiveRouteId == null || !route) {
+    throw new ApiError(409, 'Container chưa có tuyến đường hợp lệ.');
   }
   const requiresPlannedCarrier = fulfillment.cargoMode === 'FCL';
   if (requiresPlannedCarrier) {
@@ -1788,7 +1800,7 @@ async function issueOrderCreateOrUpdate(
   if (!trip) {
     const createdTrip = await createTrip({
       customerId: shipment.customerId,
-      routeId: shipment.routeId ?? (() => { throw new ApiError(409, 'Lô hàng chưa có tuyến đường.'); })(),
+      routeId: effectiveRouteId,
       truckId,
       driverId,
       cargoTypeId,
@@ -2051,18 +2063,27 @@ function normalizeTimeMinutes(raw: string | undefined, label: string): number | 
 // the Postgres session timezone.
 const DISPATCH_BUSINESS_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 
+function dispatchEffectiveRouteIdSql() {
+  return sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
+    then ${s.shipmentContainers.routeId}
+    else ${s.shipments.routeId} end`;
+}
+
 function dispatchDetailRunMinutesSql() {
   return sql<number>`(
-    extract(hour from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)}) * 60
-    + extract(minute from coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})
+    extract(hour from coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)}) * 60
+    + extract(minute from coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)})
   )`;
 }
 
 function dispatchDetailTransportDateSql() {
-  // Điều vận plans a lô on its promised delivery date. A container appointment
-  // is a customer-facing detail within that plan; letting it replace the date
-  // here split the master and detailed dispatch queues into different days.
-  return sql<string>`${s.shipments.expectedDeliveryDate}`;
+  // FCL work is planned on each container's own appointment date. The root
+  // expectedDeliveryDate is only an earliest-date projection and stays the
+  // LCL/legacy fallback.
+  return sql<string>`coalesce(
+    date(${s.shipmentContainers.customerAppointmentAt} at time zone ${sql.raw(`'${DISPATCH_BUSINESS_TIME_ZONE}'`)}),
+    ${s.shipments.expectedDeliveryDate}
+  )`;
 }
 
 // Display-side hour in the same business timezone (matches the SQL filter).
@@ -2099,7 +2120,7 @@ function dispatchDetailPriorityOrderSql() {
   return [
     sql`${cargoRank} asc`,
     sql`${directionRank} asc`,
-    sql`coalesce(${s.shipments.expectedDeliveryDate}, '9999-12-31') asc`,
+    sql`coalesce(${dispatchDetailTransportDateSql()}, '9999-12-31') asc`,
     sql`${s.shipmentFulfillments.id} asc`,
   ];
 }
@@ -2181,6 +2202,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       bookingRef: s.shipments.bookingRef,
       blNumber: s.shipments.blNumber,
       tradeDirection: s.shipments.tradeDirection,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       closingAt: s.shipments.closingAt,
       plannedReturnAt: s.shipments.plannedReturnAt,
       transportDate: dispatchDetailTransportDateSql(),
@@ -2208,7 +2230,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .leftJoin(s.shipmentContainers, eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id))
       .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
       .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
-      .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
+      .leftJoin(s.routes, eq(s.routes.id, dispatchEffectiveRouteIdSql()))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         ne(s.trips.status, TripStatus.CANCELED),
@@ -2268,7 +2290,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           taskStatus: row.tripId ? 'DISPATCHED' : 'READY',
           time: {
             deliveryDate: row.transportDate,
-            runHour: dispatchDetailDisplayHour(row.closingAt, row.plannedReturnAt),
+            runHour: dispatchDetailDisplayHour(row.customerAppointmentAt, row.closingAt ?? row.plannedReturnAt),
           },
           customerRoute: {
             customerName: row.customerName,

@@ -21,6 +21,7 @@ import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';
 // expression (see driver/gps/dispatch-planning/trip-queries services).
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
+const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
 
 export type AllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 export const ALLOCATION_STATUSES: AllocationStatus[] = [
@@ -849,6 +850,50 @@ export async function loadShipmentListFactoryNames(
       [...labels].sort((left, right) => left.localeCompare(right, 'vi')),
     ]),
   );
+}
+
+/**
+ * FCL routes belong to individual containers. Shipment-list cards remain a
+ * summary surface, so they display the distinct effective route labels rather
+ * than pretending a single shipment-level route applies to every container.
+ */
+export async function loadShipmentListRouteNames(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+): Promise<Map<number, string[]>> {
+  const ids = [...new Set(shipments.map((shipment) => shipment.id))];
+  if (ids.length === 0) return new Map();
+
+  const rows = await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    routeName: ROUTE_OPERATIONAL_NAME,
+  }).from(s.shipmentContainers)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+    .leftJoin(s.routes, eq(s.routes.id, sql<number>`coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})`))
+    .where(inArray(s.shipmentContainers.shipmentId, ids));
+  const rootRouteIds = [...new Set(shipments.map((shipment) => shipment.routeId).filter((id): id is number => id != null))];
+  const rootRouteNames = rootRouteIds.length === 0
+    ? new Map<number, string>()
+    : new Map((await db.select({ id: s.routes.id, name: ROUTE_OPERATIONAL_NAME })
+      .from(s.routes).where(inArray(s.routes.id, rootRouteIds)))
+      .map((route) => [route.id, route.name]));
+
+  const byShipment = new Map<number, Set<string>>(ids.map((id) => [id, new Set<string>()]));
+  for (const row of rows) {
+    const label = row.routeName?.trim();
+    if (label) byShipment.get(row.shipmentId)?.add(label);
+  }
+  for (const shipment of shipments) {
+    const labels = byShipment.get(shipment.id);
+    if (!labels || labels.size > 0) continue;
+    // LCL and legacy FCL rows without containers retain their existing route.
+    if (shipment.routeId == null) continue;
+    const label = rootRouteNames.get(shipment.routeId);
+    if (label) labels.add(label);
+  }
+  return new Map([...byShipment.entries()].map(([id, labels]) => [
+    id,
+    [...labels].sort((left, right) => left.localeCompare(right, 'vi')),
+  ]));
 }
 
 export async function loadShipmentListAppointmentGroups(

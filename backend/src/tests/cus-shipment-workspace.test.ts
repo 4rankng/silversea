@@ -870,7 +870,8 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.equal(row.informationStatus, 'MISSING');
     const codes = row.missingFields.map((field) => field.code);
     // Applicable and absent: direction, declaration, route, shipping line,
-    // sites, appointment, carrier (date exists, none assigned).
+    // sites, appointment. Carrier is gated by the container appointment; a
+    // shipment-level date must not make an FCL container dispatch-ready.
     assert.ok(codes.includes('DIRECTION'));
     assert.ok(codes.includes('DECLARATION'));
     assert.ok(codes.includes('ROUTE'));
@@ -878,12 +879,14 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(codes.includes('LIFT_SITE'));
     assert.ok(codes.includes('DROPOFF_SITE'));
     assert.ok(codes.includes('APPOINTMENT'));
-    assert.ok(codes.includes('CARRIER'));
-    // Present, so not flagged: bill number, transport date, container number,
-    // container type (seedContainer defaults it);
+    assert.equal(codes.includes('CARRIER'), false);
+    // Present, so not flagged: bill number, container number, container type
+    // (seedContainer defaults it). The old shipment-level date is ignored for
+    // FCL, therefore the missing container appointment also yields
+    // TRANSPORT_DATE.
     // BKS not applicable because no external carrier is selected yet.
     assert.equal(codes.includes('BILL_BOOKING'), false);
-    assert.equal(codes.includes('TRANSPORT_DATE'), false);
+    assert.equal(codes.includes('TRANSPORT_DATE'), true);
     assert.equal(codes.includes('CONTAINER_NUMBER'), false);
     assert.equal(codes.includes('CONTAINER_TYPE'), false);
     assert.equal(codes.includes('BKS'), false);
@@ -902,6 +905,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedDeclaration(shipment.id);
     const container = await seedContainer(shipment.id, {
       containerNumber: `DON${suffix}1`.slice(0, 50),
+      routeId: route.id,
       containerTypeId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
@@ -930,6 +934,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedDeclaration(shipment.id);
     const container = await seedContainer(shipment.id, {
       containerNumber: `LIN${suffix}1`.slice(0, 50),
+      routeId: route.id,
       containerTypeId,
       shippingLineName: 'ONE',
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
@@ -964,6 +969,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedDeclaration(complete.id);
     const completeContainer = await seedContainer(complete.id, {
       containerNumber: `MC-${marker}`.slice(0, 50),
+      routeId: completeRoute.id,
       containerTypeId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
@@ -990,9 +996,9 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(response.items.every((row) => row.informationStatus === 'MISSING'));
   });
 
-  test('carrier is not a missing field before a transport date exists', async () => {
-    // Everything present except the transport date and the carrier: the
-    // vehicle stage is staged behind the date, so only TRANSPORT_DATE flags.
+  test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {
+    // The container appointment exists, while the shipment-level date does
+    // not. FCL therefore requires the carrier and must not flag the root date.
     const route = await seedRoute();
     const shipment = await seedShipment({
       blNumber: `NODATE${suffix}`,
@@ -1004,6 +1010,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedDeclaration(shipment.id);
     const container = await seedContainer(shipment.id, {
       containerNumber: `NOD${suffix}1`.slice(0, 50),
+      routeId: route.id,
       containerTypeId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });
@@ -1013,7 +1020,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
     assert.ok(row);
     const codes = row.missingFields.map((field) => field.code);
-    assert.deepEqual(codes, ['TRANSPORT_DATE']);
+    assert.deepEqual(codes, ['CARRIER']);
   });
 
   test('BKS stays inapplicable for an own-fleet carrier', async () => {
@@ -1029,6 +1036,7 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     await seedDeclaration(shipment.id);
     const container = await seedContainer(shipment.id, {
       containerNumber: `OWN${suffix}1`.slice(0, 50),
+      routeId: route.id,
       containerTypeId,
       customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
     });

@@ -203,6 +203,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     name: s.operationalSites.name,
     shortName: s.operationalSites.shortName,
     siteType: s.operationalSites.siteType,
+    routeId: s.operationalSites.routeId,
     address: s.operationalSites.address,
     googleMapsUrl: s.operationalSites.googleMapsUrl,
     contactName: s.operationalSites.contactName,
@@ -226,6 +227,7 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
       name: site.name,
       shortName: site.shortName,
       siteType: site.siteType,
+      routeId: site.routeId,
       address: site.address,
       liftFeeInvoiceName: site.liftFeeInvoiceName,
       liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
@@ -264,6 +266,11 @@ export async function createOperationalSiteForIntake(
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng.');
 
   return db.transaction(async (tx) => {
+    if (input.routeId != null) {
+      const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
+        .where(and(eq(s.routes.id, input.routeId), isNull(s.routes.deletedAt))).limit(1);
+      if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    }
     const [existing] = await tx.select().from(s.operationalSites).where(and(
       eq(s.operationalSites.customerId, input.customerId),
       eq(s.operationalSites.code, input.code),
@@ -278,6 +285,7 @@ export async function createOperationalSiteForIntake(
       name: input.name,
       shortName: input.shortName?.trim() || existing?.shortName.trim() || input.name.trim(),
       siteType: input.siteType,
+      routeId: input.siteType === 'FACTORY' ? input.routeId : null,
       address: input.address,
       googleMapsUrl: input.googleMapsUrl ?? null,
       contactName: input.contactName ?? null,
@@ -306,6 +314,7 @@ export async function createOperationalSiteForIntake(
       name: row.name,
       shortName: row.shortName,
       siteType: row.siteType,
+      routeId: row.routeId,
       address: row.address,
       googleMapsUrl: row.googleMapsUrl,
       contactName: row.contactName,
@@ -328,12 +337,16 @@ async function assertReferenceIsActive(
   tx: Tx,
   shipment: typeof s.shipments.$inferSelect,
 ): Promise<void> {
-  if (shipment.routeId == null) {
-    throw new ApiError(409, 'Vui lòng chọn tuyến đường trước khi gửi điều phối.');
+  // LCL owns one route on the shipment. FCL routes are validated per
+  // container below so a multi-container lot can legitimately use routes A/B.
+  if (shipment.cargoMode === 'LCL') {
+    if (shipment.routeId == null) {
+      throw new ApiError(409, 'Vui lòng chọn tuyến đường trước khi gửi điều phối.');
+    }
+    const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
+      .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
+    if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
   }
-  const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
-    .where(and(eq(s.routes.id, shipment.routeId), isNull(s.routes.deletedAt))).limit(1);
-  if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
 
   // A factory is common optional intake detail for both cargo modes. Validate it
   // when supplied, but do not make it a dispatch prerequisite.
@@ -392,10 +405,36 @@ async function assertIntakeReady(
   if (containers.length === 0) throw new ApiError(409, 'Hàng nguyên container cần ít nhất một container.');
   const incomplete = containers.find((container) => (
     container.containerTypeId == null
+    || container.operationalSiteId == null
+    || container.routeId == null
     || container.pickupPortId == null
     || container.dropoffPortId == null
   ));
-  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ loại, cảng nâng và cảng hạ.');
+  if (incomplete) throw new ApiError(409, 'Mỗi container cần đủ nhà máy, tuyến đường, loại, cảng nâng và cảng hạ.');
+  const routeIds = [...new Set(containers.map((container) => container.routeId)
+    .filter((id): id is number => id != null))];
+  const activeRoutes = await tx.select({ id: s.routes.id }).from(s.routes)
+    .where(and(inArray(s.routes.id, routeIds), isNull(s.routes.deletedAt)));
+  if (activeRoutes.length !== routeIds.length) throw new ApiError(409, 'Tuyến đường của container không còn hiệu lực.');
+  const factoryIds = [...new Set(containers.map((container) => container.operationalSiteId)
+    .filter((id): id is number => id != null))];
+  const factories = await tx.select({
+    id: s.operationalSites.id,
+    routeId: s.operationalSites.routeId,
+  }).from(s.operationalSites)
+    .where(and(
+      inArray(s.operationalSites.id, factoryIds),
+      eq(s.operationalSites.customerId, shipment.customerId),
+      eq(s.operationalSites.siteType, 'FACTORY'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    ));
+  const routeByFactoryId = new Map(factories.map((factory) => [factory.id, factory.routeId]));
+  if (factories.length !== factoryIds.length || containers.some((container) => (
+    routeByFactoryId.get(container.operationalSiteId!) !== container.routeId
+  ))) {
+    throw new ApiError(409, 'Tuyến đường của container phải khớp với tuyến đã cấu hình cho nhà máy.');
+  }
   const containerTypeIds = [...new Set(containers.map((container) => container.containerTypeId)
     .filter((id): id is number => id != null))];
   const activeContainerTypes = await tx.select({ id: s.containerTypes.id }).from(s.containerTypes)
@@ -651,4 +690,3 @@ export function normalizeShipmentDeclarationScope(input: unknown): ShipmentDecla
       return null;
   }
 }
-

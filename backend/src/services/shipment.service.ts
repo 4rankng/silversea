@@ -38,6 +38,7 @@ import { operationalName } from '../db/master-data-name';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import {
   canonicalShipmentStatus,
+  localDateInBusinessZone,
   NotificationType,
   Role,
   round2dp,
@@ -94,6 +95,7 @@ import {
   loadShipmentListDeclarationNumbers,
   loadShipmentListAppointmentGroups,
   loadShipmentListFactoryNames,
+  loadShipmentListRouteNames,
   loadShipmentListContainerPortGroups,
   type AllocationStatus,
   type ShipmentContainerPortGroup,
@@ -1074,6 +1076,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const factoryNamesByShipmentId = await loadShipmentListFactoryNames(
     items.map((row) => row.shipment),
   );
+  const routeNamesByShipmentId = await loadShipmentListRouteNames(
+    items.map((row) => row.shipment),
+  );
   if (!options.includeDispatchSummary) {
     containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
       items.map((row) => row.shipment),
@@ -1096,9 +1101,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // of one label. Derived from the appointment-group factory resolution,
     // plus the shipment-level factory for lots without appointments.
     factoryNames: factoryNamesByShipmentId.get(row.shipment.id) ?? [],
-    // Route operational name for the master-plan primary line (P8); null when
-    // the shipment has no route assigned.
-    routeName: row.routeName,
+    // FCL is summarized here only; its individual container route remains
+    // authoritative in detail/dispatch rows.
+    routeName: routeNamesByShipmentId.get(row.shipment.id)?.join(' · ') || row.routeName,
     cargoSummary: summariesByShipmentId.get(row.shipment.id)?.cargoSummary ?? null,
     shippingLineSummary: summariesByShipmentId.get(row.shipment.id)?.shippingLineSummary ?? null,
     carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,
@@ -1509,7 +1514,7 @@ async function buildShipmentPricingProjection(
     | 'expectedDeliveryDate'
     | 'cargoWeightKg'
   >,
-  containers: ReadonlyArray<Pick<typeof s.shipmentContainers.$inferSelect, 'containerTypeId'>>,
+  containers: ReadonlyArray<Pick<typeof s.shipmentContainers.$inferSelect, 'containerTypeId' | 'routeId' | 'customerAppointmentAt'>>,
 ): Promise<ShipmentPricingProjectionView> {
   return resolveShipmentPricingProjection({
     customerId: shipment.customerId,
@@ -1520,6 +1525,15 @@ async function buildShipmentPricingProjection(
     cargoWeightKg: shipment.cargoWeightKg,
     containerCount: containers.length,
     containerTypeIds: containers.map((container) => container.containerTypeId),
+    containerPricingLines: shipment.cargoMode === 'FCL'
+      ? containers.map((container) => ({
+          routeId: container.routeId,
+          containerTypeId: container.containerTypeId,
+          date: container.customerAppointmentAt
+            ? localDateInBusinessZone(container.customerAppointmentAt)
+            : shipment.expectedDeliveryDate,
+        }))
+      : undefined,
   });
 }
 

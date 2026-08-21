@@ -68,6 +68,8 @@ type ContainerRow = {
   containerTypeId: number | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
+  routeId: number | null;
+  routeName: string | null;
   shippingLineName: string | null;
   operationalSiteId: number | null;
   pickupPortId: number | null;
@@ -389,7 +391,9 @@ function trimmedPresentSql(value: SQL | Column): SQL {
 }
 
 function containerMissingBitsSql(): SQL[] {
-  const transportDate = s.shipments.expectedDeliveryDate;
+  const transportDate = sql<string>`case when ${s.shipments.cargoMode} = 'FCL'
+    then date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')
+    else ${s.shipments.expectedDeliveryDate} end`;
   const carrierType = activeCarrierTypeSql();
   return [
     // Shipment context (direction gates Bill/Booking via the DB CHECK).
@@ -400,7 +404,9 @@ function containerMissingBitsSql(): SQL[] {
       where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
         and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
     )`,
-    sql`${s.shipments.routeId} is null`,
+    sql`case when ${s.shipments.cargoMode} = 'FCL'
+      then ${s.shipmentContainers.routeId} is null
+      else ${s.shipments.routeId} is null end`,
     sql`not (${trimmedPresentSql(s.shipments.shippingLineName)} or ${trimmedPresentSql(s.shipmentContainers.shippingLineName)})`,
     sql`${transportDate} is null`,
     // Container row identity.
@@ -518,6 +524,7 @@ function containerFieldAccess(
   return {
     containerNumber: access('containerNumber'), containerTypeId: access('containerTypeId'),
     cargoWeightKg: access('cargoWeightKg'), cargoVolumeCbm: access('cargoVolumeCbm'),
+    routeId: access('routeId'),
     carrierType: access('carrierType'), externalCarrierId: access('externalCarrierId'),
     externalCarrierVehicleId: access('externalCarrierVehicleId'), plateNumber: access('plateNumber'),
     liftSiteId: access('liftSiteId'), dropoffSiteId: access('dropoffSiteId'),
@@ -721,12 +728,15 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
+      routeId: s.shipmentContainers.routeId,
+      routeName: ROUTE_OPERATIONAL_NAME,
       shippingLineName: s.shipmentContainers.shippingLineName,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+      .leftJoin(s.routes, eq(s.routes.id, s.shipmentContainers.routeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
     executor.select({ operationalSiteId: s.shipments.operationalSiteId })
@@ -1186,6 +1196,9 @@ function buildListItem(
           : null,
         trimOrNull(row.shipment.factoryName),
       ]);
+  const effectiveRouteNames = row.shipment.cargoMode === 'FCL'
+    ? uniqueNonEmpty(containers.map((container) => container.routeName ?? row.routeName))
+    : uniqueNonEmpty([row.routeName]);
   const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
     if (assignment == null) return result;
     const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
@@ -1229,7 +1242,9 @@ function buildListItem(
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
     declarationNumber: declaration?.declarationNumber ?? null,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
-    routeName: row.routeName,
+    // A lot overview may summarize multiple FCL routes, but individual
+    // container rows retain the exact route that drives dispatch.
+    routeName: effectiveRouteNames.join(' · ') || null,
     isCombined: row.shipment.isCombined,
     direction: row.shipment.tradeDirection,
     containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
@@ -1239,7 +1254,15 @@ function buildListItem(
       ?? (row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg)),
     volumeCbm: sumDecimal(containers.map((container) => container.cargoVolumeCbm), 3)
       ?? (row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm)),
-    transportDate: row.shipment.expectedDeliveryDate,
+    transportDate: row.shipment.cargoMode === 'FCL'
+      ? (() => {
+          const earliest = containers
+            .map((container) => container.customerAppointmentAt)
+            .filter((value): value is Date => value != null)
+            .sort((left, right) => left.getTime() - right.getTime())[0];
+          return earliest ? localDateInBusinessZone(earliest) : null;
+        })()
+      : row.shipment.expectedDeliveryDate,
     customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
     closingAt: row.shipment.closingAt?.toISOString() ?? null,
     plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
@@ -1377,6 +1400,8 @@ function buildContainerLine(
     containerNumber: container.containerNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
+    routeId: row.shipment.cargoMode === 'FCL' ? container.routeId : row.shipment.routeId,
+    routeName: row.shipment.cargoMode === 'FCL' ? container.routeName : row.routeName,
     dispatchStatus,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
@@ -1395,6 +1420,7 @@ function buildContainerLine(
       containerTypeId: container.containerTypeId,
       cargoWeightKg: container.cargoWeightKg,
       cargoVolumeCbm: container.cargoVolumeCbm,
+      routeId: row.shipment.cargoMode === 'FCL' ? container.routeId : row.shipment.routeId,
     },
     fieldAccess: containerFieldAccess(actor, activeLock != null, assignment?.tripId != null, carrierType as 'OWN' | 'EXTERNAL' | null),
     permissions: {
@@ -1404,6 +1430,7 @@ function buildContainerLine(
       liftSiteEditable: canEditOperational,
       dropoffSiteEditable: canEditOperational,
       customerAppointmentEditable: canEditOperational,
+      routeEditable: canEditOperational,
     },
     shipmentVersion: row.shipment.version,
     relatedTripVersion: assignment?.tripVersion ?? null,
@@ -1420,7 +1447,9 @@ function containerMissingFields(
   assignment: AssignmentRow | null,
 ): ShipmentCusMissingField[] {
   const missing: ShipmentCusMissingFieldCode[] = [];
-  const transportDate = row.shipment.expectedDeliveryDate;
+  const transportDate = row.shipment.cargoMode === 'FCL'
+    ? (container.customerAppointmentAt ? localDateInBusinessZone(container.customerAppointmentAt) : null)
+    : row.shipment.expectedDeliveryDate;
   const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
   const push = (code: ShipmentCusMissingFieldCode, absent: boolean) => {
     if (absent) missing.push(code);
@@ -1429,7 +1458,7 @@ function containerMissingFields(
   push('DIRECTION', row.shipment.tradeDirection == null);
   push('BILL_BOOKING', !(trimOrNull(row.shipment.blNumber) || trimOrNull(row.shipment.bookingRef)));
   push('DECLARATION', !support.declarationByShipment.has(row.shipment.id));
-  push('ROUTE', row.shipment.routeId == null);
+  push('ROUTE', (row.shipment.cargoMode === 'FCL' ? container.routeId : row.shipment.routeId) == null);
   push('SHIPPING_LINE', !(trimOrNull(row.shipment.shippingLineName) || trimOrNull(container.shippingLineName)));
   push('TRANSPORT_DATE', transportDate == null);
   // Container row.
@@ -1706,7 +1735,7 @@ export async function listCusShipmentContainers(
       }).from(s.shipmentContainers)
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
         .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
-        .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
+        .leftJoin(s.routes, eq(s.routes.id, sql<number>`coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})`))
         .where(and(...conditions))
         .orderBy(
           asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
@@ -1751,7 +1780,7 @@ export async function listCusShipmentContainers(
       customerId: row.shipment.customerId,
       customerName: row.customerName,
       factoryName: trimOrNull(row.shipment.factoryName),
-      routeName: row.routeName,
+      routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
       declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
       shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
@@ -1764,7 +1793,9 @@ export async function listCusShipmentContainers(
       plateNumber: line.plateNumber,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,
-      transportDate: row.shipment.expectedDeliveryDate,
+      transportDate: row.shipment.cargoMode === 'FCL'
+        ? (container.customerAppointmentAt ? localDateInBusinessZone(container.customerAppointmentAt) : null)
+        : row.shipment.expectedDeliveryDate,
       closingAt: row.shipment.closingAt?.toISOString() ?? null,
       plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
       customerAppointmentAt: line.customerAppointmentAt,
@@ -1794,6 +1825,7 @@ export async function listCusShipmentContainers(
         : line.fieldAccess.carrierType.reason,
       liftSiteEditable: line.permissions.liftSiteEditable,
       dropoffSiteEditable: line.permissions.dropoffSiteEditable,
+      routeEditable: line.permissions.routeEditable,
       customerAppointmentEditable: line.permissions.customerAppointmentEditable,
       scheduleEditable: line.permissions.liftSiteEditable
         || line.permissions.dropoffSiteEditable
@@ -1821,6 +1853,13 @@ async function assertActiveContainerType(containerTypeId: number, tx: Tx) {
     .where(and(eq(s.containerTypes.id, containerTypeId), isNull(s.containerTypes.deletedAt)))
     .limit(1);
   if (!row) throw new ApiError(409, 'Loại container không còn hiệu lực.');
+}
+
+async function assertActiveContainerRoute(routeId: number, tx: Tx) {
+  const [row] = await tx.select({ id: s.routes.id }).from(s.routes)
+    .where(and(eq(s.routes.id, routeId), isNull(s.routes.deletedAt)))
+    .limit(1);
+  if (!row) throw new ApiError(409, 'Tuyến đường container không còn hiệu lực.');
 }
 
 async function loadOperationalSiteRecords(
@@ -2136,6 +2175,7 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.containerNumber !== undefined
       || args.input.cargoWeightKg !== undefined
       || args.input.cargoVolumeCbm !== undefined
+      || args.input.routeId !== undefined
       || args.input.liftSiteId !== undefined
       || args.input.dropoffSiteId !== undefined
       || args.input.customerAppointmentAt !== undefined
@@ -2158,6 +2198,7 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.containerNumber !== undefined
       || args.input.cargoWeightKg !== undefined
       || args.input.cargoVolumeCbm !== undefined
+      || args.input.routeId !== undefined
       || args.input.customerAppointmentAt !== undefined
     );
     if (governedOperationalMutation && !isDirectlyEditableIntakeStatus(shipment.status)) {
@@ -2223,6 +2264,18 @@ export async function updateCusShipmentContainerLine(args: {
       if (args.input.containerTypeId != null) await assertActiveContainerType(args.input.containerTypeId, tx);
       await tx.update(s.shipmentContainers).set({
         containerTypeId: args.input.containerTypeId ?? null,
+        updatedAt: now,
+      }).where(eq(s.shipmentContainers.id, container.id));
+      touched = true;
+    }
+
+    if (args.input.routeId !== undefined && args.input.routeId !== container.routeId) {
+      if (args.input.routeId == null && shipment.cargoMode === 'FCL') {
+        throw new ApiError(409, 'Mỗi container FCL phải có tuyến đường riêng trước khi điều xe.');
+      }
+      if (args.input.routeId != null) await assertActiveContainerRoute(args.input.routeId, tx);
+      await tx.update(s.shipmentContainers).set({
+        routeId: args.input.routeId ?? null,
         updatedAt: now,
       }).where(eq(s.shipmentContainers.id, container.id));
       touched = true;

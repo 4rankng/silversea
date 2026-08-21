@@ -15,6 +15,7 @@ const siteIds: number[] = [];
 const customerIds: number[] = [];
 const containerTypeIds: number[] = [];
 const fulfillmentIds: number[] = [];
+const routeIds: number[] = [];
 
 async function makeCustomer(name: string) {
   const [row] = await db.insert(s.customers)
@@ -24,13 +25,14 @@ async function makeCustomer(name: string) {
   return row;
 }
 
-async function makeFactorySite(customerId: number, code: string) {
+async function makeFactorySite(customerId: number, code: string, routeId?: number) {
   const [row] = await db.insert(s.operationalSites)
     .values({
       customerId,
       code,
       name: `Nhà máy ${code} ${suffix}`,
       siteType: 'FACTORY',
+      routeId,
       address: `Địa chỉ ${code} ${suffix}`,
       isActive: true,
     })
@@ -47,10 +49,19 @@ async function makeContainerType(code: string) {
   return row;
 }
 
+async function makeRoute(code: string) {
+  const [row] = await db.insert(s.routes)
+    .values({ name: `Tuyến ${code} ${suffix}`, shortName: `Tuyến ${code}` })
+    .returning({ id: s.routes.id });
+  routeIds.push(row.id);
+  return row;
+}
+
 describe('shipment container site authority (SILVER L1 P2)', () => {
   test('persists per-container factory authority through the batch upsert', async () => {
     const customer = await makeCustomer('Site authority');
-    const factory = await makeFactorySite(customer.id, 'SITE-A');
+    const route = await makeRoute('SITE-A');
+    const factory = await makeFactorySite(customer.id, 'SITE-A', route.id);
     const containerType = await makeContainerType('SA');
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
@@ -72,12 +83,66 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     const rows = await db.select({
       containerNumber: s.shipmentContainers.containerNumber,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
+      routeId: s.shipmentContainers.routeId,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
     const byNumber = new Map(rows.map((row) => [row.containerNumber, row]));
     assert.equal(byNumber.get('AAAU1000001')?.operationalSiteId, factory.id);
+    assert.equal(byNumber.get('AAAU1000001')?.routeId, route.id);
     assert.equal(byNumber.get('AAAU1000001')?.customerAppointmentAt?.toISOString(), '2026-08-24T04:00:00.000Z');
     assert.equal(byNumber.get('BBHU2001007')?.operationalSiteId, null);
+  });
+
+  test('persists distinct FCL routes and appointments on their own containers', async () => {
+    const customer = await makeCustomer('Route authority');
+    const containerType = await makeContainerType('RA');
+    const routeA = await makeRoute('RA-A');
+    const routeB = await makeRoute('RA-B');
+    const factoryA = await makeFactorySite(customer.id, 'RA-A', routeA.id);
+    const factoryB = await makeFactorySite(customer.id, 'RA-B', routeB.id);
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL', routeId: null });
+    shipmentIds.push(shipment.id);
+
+    await batchUpsertShipmentContainers(shipment.id, null, [
+      { containerTypeId: containerType.id, containerNumber: 'AAAU1000001', operationalSiteId: factoryA.id, customerAppointmentAt: '2026-08-24T04:00:00.000Z' },
+      { containerTypeId: containerType.id, containerNumber: 'BBHU2001007', operationalSiteId: factoryB.id, customerAppointmentAt: '2026-08-26T07:30:00.000Z' },
+    ]);
+
+    const [savedShipment] = await db.select({ routeId: s.shipments.routeId, expectedDeliveryDate: s.shipments.expectedDeliveryDate })
+      .from(s.shipments).where(eq(s.shipments.id, shipment.id));
+    const rows = await db.select({
+      containerNumber: s.shipmentContainers.containerNumber,
+      routeId: s.shipmentContainers.routeId,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    const byNumber = new Map(rows.map((row) => [row.containerNumber, row]));
+
+    assert.equal(savedShipment.routeId, null, 'FCL shipment root cannot become the route authority');
+    assert.equal(savedShipment.expectedDeliveryDate, '2026-08-24', 'root date is only the earliest-container projection');
+    assert.equal(byNumber.get('AAAU1000001')?.routeId, routeA.id);
+    assert.equal(byNumber.get('AAAU1000001')?.customerAppointmentAt?.toISOString(), '2026-08-24T04:00:00.000Z');
+    assert.equal(byNumber.get('BBHU2001007')?.routeId, routeB.id);
+    assert.equal(byNumber.get('BBHU2001007')?.customerAppointmentAt?.toISOString(), '2026-08-26T07:30:00.000Z');
+  });
+
+  test('rejects a route that does not match the container factory mapping', async () => {
+    const customer = await makeCustomer('Factory route match');
+    const routeA = await makeRoute('MATCH-A');
+    const routeB = await makeRoute('MATCH-B');
+    const factory = await makeFactorySite(customer.id, 'MATCH', routeA.id);
+    const containerType = await makeContainerType('MATCH');
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+
+    await assert.rejects(
+      () => batchUpsertShipmentContainers(shipment.id, null, [{
+        containerTypeId: containerType.id,
+        containerNumber: 'CCCU2002008',
+        operationalSiteId: factory.id,
+        routeId: routeB.id,
+      }]),
+      /phải khớp với tuyến đã cấu hình cho nhà máy/,
+    );
   });
 
   test('rejects a cross-customer factory on the reconcile choke point (IDOR)', async () => {
@@ -237,6 +302,9 @@ after(async () => {
   }
   if (containerTypeIds.length > 0) {
     await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
+  }
+  if (routeIds.length > 0) {
+    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
   }
   if (siteIds.length > 0) {
     await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, siteIds));

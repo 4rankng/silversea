@@ -8,6 +8,7 @@ interface OperationalSiteCreateDialogProps {
   customerId: number;
   /** Default site type preselected when the dialog opens. */
   defaultSiteType?: 'FACTORY' | 'WAREHOUSE';
+  routes: Array<{ id: number; name: string }>;
   onClose: () => void;
   /** Called with the newly-created site so the parent can refresh + auto-select it. */
   onCreated: (site: OperationalSite) => void;
@@ -24,6 +25,7 @@ interface SiteFormState {
   googleMapsUrl: string;
   contactName: string;
   contactPhone: string;
+  routeId: string;
 }
 
 const EMPTY_FORM: SiteFormState = {
@@ -35,6 +37,7 @@ const EMPTY_FORM: SiteFormState = {
   googleMapsUrl: '',
   contactName: '',
   contactPhone: '',
+  routeId: '',
 };
 
 /**
@@ -49,6 +52,7 @@ export function OperationalSiteCreateDialog({
   isOpen,
   customerId,
   defaultSiteType = 'FACTORY',
+  routes,
   onClose,
   onCreated,
 }: OperationalSiteCreateDialogProps) {
@@ -82,6 +86,7 @@ export function OperationalSiteCreateDialog({
     if (!form.name.trim()) return 'Vui lòng nhập tên điểm vận hành';
     if (!form.shortName.trim()) return 'Vui lòng nhập tên ngắn';
     if (!form.address.trim()) return 'Vui lòng nhập địa chỉ';
+    if (form.siteType === 'FACTORY' && !form.routeId) return 'Vui lòng chọn tuyến đường cho nhà máy';
     if (form.googleMapsUrl.trim() && !/^https?:\/\//i.test(form.googleMapsUrl.trim())) {
       return 'Liên kết Google Maps phải bắt đầu bằng http:// hoặc https://';
     }
@@ -100,6 +105,7 @@ export function OperationalSiteCreateDialog({
         name: form.name.trim(),
         shortName: form.shortName.trim(),
         siteType: form.siteType,
+        routeId: form.siteType === 'FACTORY' ? Number(form.routeId) : null,
         address: form.address.trim(),
         googleMapsUrl: form.googleMapsUrl.trim() || null,
         contactName: form.contactName.trim() || null,
@@ -132,7 +138,7 @@ export function OperationalSiteCreateDialog({
         disabled={saving}
         style={{ minHeight: 44, padding: '0 20px', border: 0, borderRadius: 8, background: 'var(--accent, #2563eb)', color: '#fff', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}
       >
-        {saving ? 'Đang lưu…' : 'Thêm nhà máy'}
+        {saving ? 'Đang lưu…' : defaultSiteType === 'WAREHOUSE' ? 'Thêm kho' : 'Thêm nhà máy'}
       </button>
     </div>
   );
@@ -158,7 +164,7 @@ export function OperationalSiteCreateDialog({
             value={form.code}
             onChange={(event) => update('code', event.target.value.toUpperCase())}
             maxLength={80}
-            placeholder="VD: BB-NHA-MAY-1"
+            placeholder="Ví dụ: BB-NHA-MAY-1"
             disabled={saving}
           />
           <SelectField
@@ -171,6 +177,17 @@ export function OperationalSiteCreateDialog({
             <option value="WAREHOUSE">Kho</option>
           </SelectField>
         </div>
+        {form.siteType === 'FACTORY' && (
+          <SelectField
+            label="Tuyến đường"
+            value={form.routeId}
+            onChange={(event) => update('routeId', event.target.value)}
+            disabled={saving}
+          >
+            <option value="">— Chọn tuyến đường —</option>
+            {routes.map((route) => <option key={route.id} value={route.id}>{route.name}</option>)}
+          </SelectField>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 16 }}>
           <TextField
             label="Tên đầy đủ"

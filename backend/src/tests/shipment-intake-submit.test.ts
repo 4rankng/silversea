@@ -57,6 +57,7 @@ async function references() {
     code: `SITE-${suffix}-${siteIds.length}`,
     name: `Factory ${suffix}`,
     siteType: 'FACTORY',
+    routeId: route.id,
     address: 'Khu công nghiệp thử nghiệm',
     googleMapsUrl: 'https://maps.google.com/testing',
     contactName: 'Người liên hệ riêng',
@@ -130,6 +131,7 @@ describe('shipment intake submission', () => {
       code: ref.site.code,
       name: `Nhà máy tên pháp lý mới ${suffix}`,
       siteType: ref.site.siteType as OperationalSiteType,
+      routeId: ref.route.id,
       address: ref.site.address,
     }, admin);
 
@@ -160,6 +162,8 @@ describe('shipment intake submission', () => {
     shipmentIds.push(shipment.id);
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
+      routeId: ref.route.id,
+      operationalSiteId: ref.site.id,
       containerTypeId: ref.containerType.id,
       containerNumber: 'MSCU6639872',
       createdBy: admin.userId,
@@ -265,6 +269,8 @@ describe('shipment intake submission', () => {
     shipmentIds.push(shipment.id);
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
+      routeId: ref.route.id,
+      operationalSiteId: ref.site.id,
       containerTypeId: ref.containerType.id,
       containerNumber: 'MSCU6639871',
       shippingLineName: 'MSC',
@@ -296,7 +302,7 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 1);
   });
 
-  test('submits FCL intake without factory, shipping line, or carrier assignment', async () => {
+  test('rejects FCL intake without a per-container factory', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
     const [shipment] = await db.insert(s.shipments).values({
@@ -313,6 +319,7 @@ describe('shipment intake submission', () => {
     shipmentIds.push(shipment.id);
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
+      routeId: ref.route.id,
       containerTypeId: ref.containerType.id,
       containerNumber: 'MSCU6639874',
       pickupPortId: ref.ports[0]!.id,
@@ -322,19 +329,15 @@ describe('shipment intake submission', () => {
     const key = `submit-fcl-optional-${suffix}`;
     idempotencyKeys.push(key);
 
-    const result = await submitShipmentForDispatch({
+    await assert.rejects(() => submitShipmentForDispatch({
       shipmentId: shipment.id,
       expectedVersion: shipment.version,
       idempotencyKey: key,
       actor: admin,
-    });
-
-    assert.equal(result.result.handoff.status, 'UNSEEN');
+    }), /Mỗi container cần đủ nhà máy/);
     const fulfillments = await db.select().from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
-    assert.equal(fulfillments.length, 1);
-    assert.equal(fulfillments[0]?.plannedCarrierType, null);
-    assert.equal(fulfillments[0]?.plannedExternalCarrierId, null);
+    assert.equal(fulfillments.length, 0);
   });
 
   test('keeps an incomplete draft unchanged and creates no handoff', async () => {
@@ -386,6 +389,7 @@ describe('shipment intake submission', () => {
     shipmentIds.push(shipment.id);
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
+      routeId: ref.route.id,
       containerTypeId: ref.containerType.id,
       containerNumber: 'MSCU6639873',
       shippingLineName: 'MSC',

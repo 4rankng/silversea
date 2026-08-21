@@ -39,6 +39,8 @@ export interface ShipmentContainerDraft {
   key: string;
   containerNumber: string;
   containerTypeId: string;
+  /** Derived from this container's selected factory. */
+  routeId: string;
   pickupPortId: string;
   dropoffPortId: string;
   cargoWeightKg: string;
@@ -104,6 +106,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
+    routeId: '',
     pickupPortId: '',
     dropoffPortId: '',
     cargoWeightKg: '',
@@ -153,7 +156,7 @@ export function getShipmentCreateReadiness(
   } else if (form.tradeDirection === 'EXPORT' && !form.bookingRef) {
     issues.push(issue('shipment-booking-ref', 'Hàng Xuất cần Số Booking.', 'identity'));
   }
-  if (!form.routeId) {
+  if (form.cargoMode === 'LCL' && !form.routeId) {
     issues.push(issue('shipment-route', 'Chọn tuyến đường.', 'route'));
   }
 
@@ -162,6 +165,8 @@ export function getShipmentCreateReadiness(
       const prefix = `container-${row.key}`;
       const label = `Container ${index + 1}`;
       if (!row.containerTypeId) issues.push(issue(`${prefix}-type`, `${label}: chọn loại container.`, 'cargo'));
+      if (!row.operationalSiteId) issues.push(issue(`${prefix}-factory`, `${label}: chọn nhà máy.`, 'cargo'));
+      if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: nhà máy chưa được liên kết tuyến đường.`, 'cargo'));
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
@@ -223,16 +228,19 @@ export function buildShipmentRootPayload(
 ) {
   return {
     customerId: Number(form.customerId),
-    routeId: form.routeId ? Number(form.routeId) : null,
+    // Route authority for FCL lives in shipment_containers. Keep the root
+    // column empty so no later reader can mistake it for a lot-level route.
+    routeId: form.cargoMode === 'LCL' && form.routeId ? Number(form.routeId) : null,
     cargoTypeId: form.cargoTypeId ? Number(form.cargoTypeId) : null,
     bookingRef: form.tradeDirection === 'EXPORT' ? form.bookingRef || null : null,
     blNumber: form.tradeDirection === 'IMPORT' ? form.blNumber || null : null,
     tradeDirection: form.tradeDirection || null,
     cargoMode: form.cargoMode,
     isCombined: form.isCombined,
-    operationalSiteId: form.operationalSiteId ? Number(form.operationalSiteId) : null,
+    operationalSiteId: form.cargoMode === 'LCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: (() => {
+      if (form.cargoMode !== 'LCL') return null;
       const site = sites.find((item) => String(item.id) === form.operationalSiteId);
       return site?.shortName || site?.name || null;
     })(),
@@ -267,6 +275,7 @@ export function buildShipmentContainerPayload(
     containerNumber: row.containerNumber || null,
     containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
     shippingLineName: form.shippingLineName || null,
+    routeId: row.routeId ? Number(row.routeId) : null,
     pickupPortId: row.pickupPortId ? Number(row.pickupPortId) : null,
     dropoffPortId: row.dropoffPortId ? Number(row.dropoffPortId) : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,

@@ -1515,6 +1515,8 @@ export const shipmentContainerBatchSchema = z.object({
     cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
     shippingLineName: z.string().trim().max(255).optional().nullable()
       .transform(v => (v === '' ? null : v)),
+    // FCL route authority belongs to this container, not the shipment.
+    routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
     pickupPortId: z.coerce.number().int().positive().optional().nullable(),
     dropoffPortId: z.coerce.number().int().positive().optional().nullable(),
     // Per-container factory authority (SILVER L1): nullable, application-
@@ -1562,6 +1564,7 @@ export const operationalSiteSchema = z.object({
   name: z.string().trim().min(1, 'Tên điểm vận hành là bắt buộc').max(255),
   shortName: z.string().trim().min(1, 'Tên ngắn là bắt buộc').max(255).optional(),
   siteType: z.nativeEnum(OperationalSiteType),
+  routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
   address: z.string().trim().min(1, 'Địa chỉ là bắt buộc').max(2000),
   googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),
   contactName: z.string().trim().max(120).optional().nullable(),
@@ -1571,6 +1574,21 @@ export const operationalSiteSchema = z.object({
   liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
   strictRules: z.string().trim().max(8000).optional().nullable(),
   isActive: z.boolean().optional(),
+}).superRefine((input, ctx) => {
+  if (input.siteType === OperationalSiteType.FACTORY && input.routeId == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Nhà máy cần được liên kết với một tuyến đường.',
+      path: ['routeId'],
+    });
+  }
+  if (input.siteType === OperationalSiteType.WAREHOUSE && input.routeId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Kho lấy hàng không dùng tuyến đường của nhà máy.',
+      path: ['routeId'],
+    });
+  }
 });
 
 export const decomposeShipmentFulfillmentsSchema = z.object({

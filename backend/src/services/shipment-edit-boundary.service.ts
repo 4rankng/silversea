@@ -40,6 +40,7 @@ export type ShipmentPlanPatch = {
 
 export type ShipmentContainerDraft = {
   id?: number;
+  routeId?: number | null;
   containerTypeId?: number | null;
   containerNumber?: string | null;
   sealNumber?: string | null;
@@ -184,6 +185,7 @@ function currentContainerSnapshot(rows: ShipmentContainerRow[]) {
       sealNumber: row.sealNumber ?? null,
       cargoWeightKg: row.cargoWeightKg ?? null,
       shippingLineName: row.shippingLineName ?? null,
+      routeId: row.routeId ?? null,
       pickupPortId: row.pickupPortId ?? null,
       dropoffPortId: row.dropoffPortId ?? null,
       operationalSiteId: row.operationalSiteId ?? null,
@@ -207,6 +209,7 @@ function requestedContainerSnapshot(rows: ShipmentContainerDraft[]) {
       containerNumber: normalizeNullableText(row.containerNumber ?? null),
       sealNumber: normalizeNullableText(row.sealNumber ?? null),
       cargoWeightKg: normalizeNumberString(row.cargoWeightKg ?? null, 2),
+      routeId: row.routeId ?? null,
       operationalSiteId: row.operationalSiteId ?? null,
       // Normalize both sides to UTC ISO so an offset-form timestamp of the
       // same instant classifies as unchanged, not a phantom change request.

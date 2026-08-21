@@ -10,6 +10,15 @@ const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const shipmentIds: number[] = [];
 const customerIds: number[] = [];
 const containerTypeIds: number[] = [];
+const routeIds: number[] = [];
+
+async function makeRoute() {
+  const [route] = await db.insert(s.routes)
+    .values({ name: `Container route ${suffix}`, shortName: `Route ${suffix}` })
+    .returning({ id: s.routes.id });
+  routeIds.push(route.id);
+  return route;
+}
 
 describe('shipment container schedule', () => {
   test('a scheduled container with no number makes the shipment dispatch-ready and creates a handoff', async () => {
@@ -21,6 +30,7 @@ describe('shipment container schedule', () => {
       .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Container schedule ${suffix}` })
       .returning();
     containerTypeIds.push(containerType.id);
+    const route = await makeRoute();
 
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
@@ -29,6 +39,7 @@ describe('shipment container schedule', () => {
     await batchUpsertShipmentContainers(shipment.id, null, [{
       containerTypeId: containerType.id,
       containerNumber: null,
+      routeId: route.id,
       customerAppointmentAt: '2026-08-20T12:00:00.000Z',
     }]);
 
@@ -58,6 +69,7 @@ describe('shipment container schedule', () => {
       .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Explicit ${suffix}` })
       .returning();
     containerTypeIds.push(containerType.id);
+    const route = await makeRoute();
 
     const shipment = await createShipment({
       customerId: customer.id,
@@ -69,6 +81,7 @@ describe('shipment container schedule', () => {
     await batchUpsertShipmentContainers(shipment.id, null, [{
       containerTypeId: containerType.id,
       containerNumber: null,
+      routeId: route.id,
       customerAppointmentAt: '2026-08-20T12:00:00.000Z',
     }]);
 
@@ -87,6 +100,7 @@ describe('shipment container schedule', () => {
       .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Idem ${suffix}` })
       .returning();
     containerTypeIds.push(containerType.id);
+    const route = await makeRoute();
 
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
@@ -94,6 +108,7 @@ describe('shipment container schedule', () => {
     const row = {
       containerTypeId: containerType.id,
       containerNumber: null,
+      routeId: route.id,
       customerAppointmentAt: '2026-08-20T12:00:00.000Z',
     };
     await batchUpsertShipmentContainers(shipment.id, null, [row]);
@@ -118,12 +133,14 @@ describe('shipment container schedule', () => {
       .values({ code: `CS${Math.random().toString(16).slice(2, 10)}`, name: `Guard ${suffix}` })
       .returning();
     containerTypeIds.push(containerType.id);
+    const route = await makeRoute();
 
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
     const scheduled = [{
       containerTypeId: containerType.id,
       containerNumber: null,
+      routeId: route.id,
       customerAppointmentAt: '2026-08-20T12:00:00.000Z',
     }];
     await batchUpsertShipmentContainers(shipment.id, null, scheduled);
@@ -154,6 +171,9 @@ after(async () => {
   }
   if (containerTypeIds.length > 0) {
     await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, containerTypeIds));
+  }
+  if (routeIds.length > 0) {
+    await db.delete(s.routes).where(inArray(s.routes.id, routeIds));
   }
   if (customerIds.length > 0) {
     await db.delete(s.customers).where(inArray(s.customers.id, customerIds));

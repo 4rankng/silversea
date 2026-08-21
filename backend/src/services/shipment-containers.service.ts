@@ -57,18 +57,22 @@ export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
  * FACTORY. No DB FK by repo convention, so this boundary owns integrity —
  * including the cross-customer IDOR the review path previously accepted.
  */
-async function assertContainerSitesValid(
+async function loadContainerFactoryRoutes(
   tx: Tx,
   customerId: number,
-  containers: ShipmentContainerInput[],
-): Promise<void> {
-  const siteIds = [...new Set(
-    containers.map((container) => container.operationalSiteId)
-      .filter((id): id is number => id != null),
-  )];
-  if (siteIds.length === 0) return;
-  const sites = await tx.select({ id: s.operationalSites.id })
+  siteIds: number[],
+): Promise<Map<number, number>> {
+  if (siteIds.length === 0) return new Map();
+  const sites = await tx.select({
+    id: s.operationalSites.id,
+    routeId: s.operationalSites.routeId,
+    activeRouteId: s.routes.id,
+  })
     .from(s.operationalSites)
+    .leftJoin(s.routes, and(
+      eq(s.routes.id, s.operationalSites.routeId),
+      isNull(s.routes.deletedAt),
+    ))
     .where(and(
       inArray(s.operationalSites.id, siteIds),
       eq(s.operationalSites.customerId, customerId),
@@ -76,9 +80,10 @@ async function assertContainerSitesValid(
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));
-  if (sites.length !== siteIds.length) {
-    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+  if (sites.length !== siteIds.length || sites.some((site) => site.routeId != null && site.activeRouteId == null)) {
+    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng, hoặc có tuyến đường không còn hiệu lực.');
   }
+  return new Map(sites.flatMap((site) => site.routeId == null ? [] : [[site.id, site.routeId] as const]));
 }
 
 // ─── Container snapshot into trip ───────────────────────────────────────────
@@ -199,7 +204,6 @@ export async function reconcileShipmentContainersInTx(
     .limit(1)
     .for('update');
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-  await assertContainerSitesValid(tx, shipment.customerId, containers);
   const shippingLineName = resolveShipmentShippingLine(shipment.shippingLineName, containers);
   const synchronizedContainers = synchronizeContainerShippingLine(containers, shippingLineName);
   if (!shipment.shippingLineName?.trim() && shippingLineName) {
@@ -221,6 +225,12 @@ export async function reconcileShipmentContainersInTx(
 
   const upserted: Array<{ id: number }> = [];
   const currentById = new Map(current.map((row) => [row.id, row]));
+  const resolvedSiteIds = [...new Set(containers.map((container) => (
+    container.operationalSiteId !== undefined
+      ? container.operationalSiteId
+      : container.id != null ? currentById.get(container.id)?.operationalSiteId ?? null : null
+  )).filter((id): id is number => id != null))];
+  const routeByFactoryId = await loadContainerFactoryRoutes(tx, shipment.customerId, resolvedSiteIds);
   for (const container of synchronizedContainers) {
     const isUpdate = container.id != null && existingIds.has(container.id);
     // Per-container factory authority: an update that leaves the field
@@ -246,6 +256,21 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.dropoffPortId ?? null
         : null;
+    const factoryRouteId = resolvedSiteId == null ? null : routeByFactoryId.get(resolvedSiteId);
+    if (resolvedSiteId != null && container.routeId !== undefined && factoryRouteId == null) {
+      throw new ApiError(409, 'Nhà máy của container chưa được liên kết với một tuyến đường còn hiệu lực.');
+    }
+    if (factoryRouteId != null && container.routeId != null && container.routeId !== factoryRouteId) {
+      throw new ApiError(409, 'Tuyến đường của container phải khớp với tuyến đã cấu hình cho nhà máy.');
+    }
+    // The factory determines FCL route authority. A legacy row without a
+    // factory keeps its saved route until it is configured.
+    const resolvedRouteId = factoryRouteId
+      ?? (container.routeId !== undefined
+        ? container.routeId
+        : isUpdate
+          ? currentById.get(container.id as number)?.routeId ?? null
+          : null);
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -254,6 +279,7 @@ export async function reconcileShipmentContainersInTx(
       cargoWeightKg: container.cargoWeightKg != null ? String(container.cargoWeightKg) : null,
       cargoVolumeCbm: container.cargoVolumeCbm != null ? String(container.cargoVolumeCbm) : null,
       shippingLineName: container.shippingLineName?.trim() || null,
+      routeId: resolvedRouteId,
       pickupPortId: resolvedPickupPortId,
       dropoffPortId: resolvedDropoffPortId,
       operationalSiteId: resolvedSiteId,

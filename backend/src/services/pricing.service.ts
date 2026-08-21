@@ -94,6 +94,11 @@ export interface ResolveShipmentPricingProjectionInput {
   cargoWeightKg?: number | string | null;
   containerCount?: number | null;
   containerTypeIds?: Array<number | null | undefined>;
+  containerPricingLines?: Array<{
+    routeId: number | null | undefined;
+    containerTypeId: number | null | undefined;
+    date?: string | null;
+  }>;
 }
 
 function todayIsoDate(): string {
@@ -227,7 +232,7 @@ async function estimateShipmentFuelSurcharge(args: {
 export async function resolveShipmentPricingProjection(
   input: ResolveShipmentPricingProjectionInput,
 ): Promise<ShipmentPricingProjection> {
-  if (input.routeId == null) {
+  if (input.cargoMode !== 'FCL' && input.routeId == null) {
     return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
   }
   if (input.cargoMode == null) {
@@ -243,21 +248,36 @@ export async function resolveShipmentPricingProjection(
 
   if (input.cargoMode === 'FCL') {
     const explicitContainerCount = normalizePositiveInteger(input.containerCount);
-    const validTypeIds = (input.containerTypeIds ?? [])
+    const suppliedLines = input.containerPricingLines?.map((line) => ({
+      routeId: line.routeId ?? null,
+      containerTypeId: line.containerTypeId ?? null,
+      date: line.date?.trim() || estimationDate,
+    })) ?? [];
+    const fallbackTypeIds = (input.containerTypeIds ?? [])
       .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0);
-    const totalContainerCount = Math.max(explicitContainerCount, validTypeIds.length);
-    if (totalContainerCount <= 0) {
+    const pricingLines = suppliedLines.length > 0
+      ? suppliedLines
+      : fallbackTypeIds.map((containerTypeId) => ({ routeId: input.routeId ?? null, containerTypeId, date: estimationDate }));
+    while (pricingLines.length < explicitContainerCount) {
+      pricingLines.push({ routeId: input.routeId ?? null, containerTypeId: null, date: estimationDate });
+    }
+    if (pricingLines.length <= 0) {
       return missingProjection('Thêm ít nhất một container để xem cước dự kiến.');
     }
+    if (pricingLines.some((line) => line.routeId == null)) {
+      return missingProjection('Mỗi container cần tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+    }
 
-    const groupedCounts = new Map<number | null, number>();
-    for (const typeId of validTypeIds) {
-      groupedCounts.set(typeId, (groupedCounts.get(typeId) ?? 0) + 1);
+    const groupedCounts = new Map<string, { routeId: number; containerTypeId: number | null; date: string; quantity: number }>();
+    for (const line of pricingLines) {
+      const routeId = line.routeId!;
+      const key = `${routeId}:${line.containerTypeId ?? 'none'}:${line.date}`;
+      const group = groupedCounts.get(key);
+      if (group) group.quantity += 1;
+      else groupedCounts.set(key, { routeId, containerTypeId: line.containerTypeId, date: line.date, quantity: 1 });
     }
-    const unspecifiedCount = totalContainerCount - validTypeIds.length;
-    if (unspecifiedCount > 0) {
-      groupedCounts.set(null, (groupedCounts.get(null) ?? 0) + unspecifiedCount);
-    }
+    const validTypeIds = [...new Set(pricingLines.map((line) => line.containerTypeId)
+      .filter((value): value is number => value != null))];
 
     const namedContainerTypes = validTypeIds.length > 0
       ? await db.select({
@@ -274,11 +294,12 @@ export async function resolveShipmentPricingProjection(
       namedContainerTypes.map((row) => [row.id, row]),
     );
 
-    for (const [containerTypeId, quantity] of groupedCounts.entries()) {
+    const fuelGroups = new Map<string, { routeId: number; date: string; count: number }>();
+    for (const { routeId, containerTypeId, date, quantity } of groupedCounts.values()) {
       const resolved = await resolveTableFreightPrice({
         customerId: input.customerId,
-        routeId: input.routeId,
-        date: estimationDate,
+        routeId,
+        date,
         containerTypeId,
         containerCount: quantity,
       });
@@ -301,9 +322,42 @@ export async function resolveShipmentPricingProjection(
       freightPrice += resolved.price;
       freightSource = freightSource ?? resolved.source;
       fulfillmentCount += quantity;
+      const fuelKey = `${routeId}:${date}`;
+      const fuelGroup = fuelGroups.get(fuelKey);
+      if (fuelGroup) fuelGroup.count += quantity;
+      else fuelGroups.set(fuelKey, { routeId, date, count: quantity });
     }
     freightFormula = breakdown.map((item) => item.formula).join(' + ');
+    let fuelLiters = 0;
+    let fuelAmount = 0;
+    for (const group of fuelGroups.values()) {
+      const estimate = await estimateShipmentFuelSurcharge({
+        customerId: input.customerId,
+        routeId: group.routeId,
+        date: group.date,
+        fulfillmentCount: group.count,
+      });
+      if (estimate == null) {
+        return authorityProjection('Tuyến đường chưa đủ định mức hoặc quãng đường mặc định để ước tính phụ phí nhiên liệu.');
+      }
+      fuelLiters += estimate.liters;
+      fuelAmount += estimate.amount;
+    }
+    return {
+      readiness: 'READY',
+      message: `Cước dự kiến ${formatVnd(freightPrice)} và phụ phí nhiên liệu dự kiến ${formatVnd(fuelAmount)} được tính theo cấu hình hiện hành.`,
+      freightPrice,
+      freightSource,
+      freightFormula,
+      expectedFuelSurcharge: fuelAmount,
+      expectedFuelLiters: fuelLiters,
+      estimationDate,
+      breakdown,
+    };
   } else {
+    if (input.routeId == null) {
+      return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+    }
     const cargoWeightKg = normalizePositiveNumber(input.cargoWeightKg);
     if (input.cargoTypeId == null) {
       return missingProjection('Chọn loại hàng để xem cước LCL dự kiến.');

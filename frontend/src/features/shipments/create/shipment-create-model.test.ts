@@ -16,11 +16,12 @@ const container: ShipmentContainerDraft = {
   key: 'row-1',
   containerNumber: 'MSCU6639870',
   containerTypeId: '31',
+  routeId: '11',
   pickupPortId: '21',
   dropoffPortId: '22',
   cargoWeightKg: '12000.25',
   cargoVolumeCbm: '33.5',
-  operationalSiteId: '',
+  operationalSiteId: '41',
   customerAppointmentAt: '',
 };
 
@@ -33,13 +34,12 @@ describe('shipment create model', () => {
     expect(readiness.dispatchReady).toBe(false);
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-trade-direction',
-      'shipment-route',
       'container-row-1-customer-appointment',
     ]);
     expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
   });
 
-  it('builds the existing FCL root and container payload semantics', () => {
+  it('keeps FCL route authority on its container payload, never the root payload', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -56,11 +56,11 @@ describe('shipment create model', () => {
 
     expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
       customerId: 7,
-      routeId: 11,
+      routeId: null,
       blNumber: 'BL-FCL',
       cargoMode: 'FCL',
-      operationalSiteId: 41,
-      factoryName: 'Nhà máy Long Minh',
+      operationalSiteId: null,
+      factoryName: null,
       shippingLineName: 'MSC',
       isCombined: true,
       driverNotes: null,
@@ -71,9 +71,10 @@ describe('shipment create model', () => {
       shippingLineName: 'MSC',
       pickupPortId: 21,
       dropoffPortId: 22,
-      operationalSiteId: null,
+      operationalSiteId: 41,
       cargoWeightKg: '12000.25',
       cargoVolumeCbm: '33.5',
+      routeId: 11,
       customerAppointmentAt: null,
     }]);
   });
@@ -92,13 +93,14 @@ describe('shipment create model', () => {
       containerNumber: 'MSCU6639871',
       pickupPortId: '23',
       dropoffPortId: '24',
+      routeId: '12',
       customerAppointmentAt: '2026-08-15T09:00',
     };
 
     expect(getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00' }, secondContainer]).dispatchReady).toBe(true);
     expect(buildShipmentContainerPayload(form, [container, secondContainer])).toEqual([
-      expect.objectContaining({ pickupPortId: 21, dropoffPortId: 22 }),
-      expect.objectContaining({ pickupPortId: 23, dropoffPortId: 24 }),
+      expect.objectContaining({ routeId: 11, pickupPortId: 21, dropoffPortId: 22 }),
+      expect.objectContaining({ routeId: 12, pickupPortId: 23, dropoffPortId: 24 }),
     ]);
   });
 
@@ -163,7 +165,7 @@ describe('shipment create model', () => {
     expect(buildShipmentContainerPayload(form, [container])).toEqual([]);
   });
 
-  it('keeps shipping line and factory optional for FCL dispatch readiness', () => {
+  it('keeps the shipping line optional once each FCL container has its factory', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',

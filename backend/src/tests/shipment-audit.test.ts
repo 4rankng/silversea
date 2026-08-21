@@ -57,6 +57,7 @@ const createdAuditLogIds: number[] = [];
 const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdOperationalSiteIds: number[] = [];
 
 let adminToken: string;
 let managerToken: string;
@@ -236,6 +237,9 @@ after(async () => {
     if (createdTrailerIds.length > 0) {
       await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
     }
+    if (createdOperationalSiteIds.length > 0) {
+      await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdOperationalSiteIds));
+    }
     if (createdRouteIds.length > 0) {
       await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
     }
@@ -268,14 +272,14 @@ async function mkShipmentViaService(overrides: Record<string, unknown> = {}) {
 
 async function createOwnedResources() {
   const [trailer] = await db.insert(s.trailers).values({
-    licensePlate: `61R-${(10000 + createdTrailerIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `61R-${suffix.slice(-6)}-${createdTrailerIds.length}`,
     type: '40FT',
     status: 'ACTIVE',
   }).returning();
   createdTrailerIds.push(trailer.id);
 
   const [truck] = await db.insert(s.trucks).values({
-    licensePlate: `61C-${(10000 + createdTruckIds.length).toString().padStart(5, '0')}`,
+    licensePlate: `61C-${suffix.slice(-6)}-${createdTruckIds.length}`,
     currentTrailerId: trailer.id,
     trailerType: '40FT',
     status: 'ACTIVE',
@@ -295,6 +299,16 @@ async function createOwnedResources() {
 }
 
 async function createAcceptedFulfillment() {
+  const [factory] = await db.insert(s.operationalSites).values({
+    customerId,
+    routeId,
+    code: `SA-FACTORY-${suffix}`,
+    name: `ShipmentAudit factory ${suffix}`,
+    siteType: 'FACTORY',
+    isActive: true,
+    address: 'Khu công nghiệp thử nghiệm',
+  }).returning();
+  createdOperationalSiteIds.push(factory.id);
   const shipment = await mkShipmentViaService({
     routeId,
     cargoMode: 'FCL',
@@ -303,7 +317,7 @@ async function createAcceptedFulfillment() {
   });
   const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
   await batchUpsertShipmentContainers(shipment.id, null, [
-    { containerTypeId, containerNumber: 'MSKU1234565' },
+    { containerTypeId, containerNumber: 'MSKU1234565', operationalSiteId: factory.id, routeId },
   ]);
   const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
   await assignShipmentCarriers({

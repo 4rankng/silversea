@@ -242,7 +242,16 @@ export function ShipmentCreateWorkspace() {
     setCreateSiteDialog({ open: false, siteType: site.siteType });
     setSitesVersion((version) => version + 1);
     if (site.siteType === 'FACTORY') {
-      update('operationalSiteId', String(site.id));
+      if (form.cargoMode === 'FCL') {
+        setContainers((current) => {
+          const target = current.find((row) => !row.operationalSiteId) ?? current[0];
+          return current.map((row) => row.key === target?.key
+            ? { ...row, operationalSiteId: String(site.id), routeId: site.routeId == null ? '' : String(site.routeId) }
+            : row);
+        });
+      } else {
+        update('operationalSiteId', String(site.id));
+      }
     } else {
       update('pickupWarehouseSiteId', String(site.id));
     }
@@ -258,7 +267,7 @@ export function ShipmentCreateWorkspace() {
       ...current,
       cargoMode: next,
       cargoTypeId: next === 'FCL' ? '' : current.cargoTypeId,
-      operationalSiteId: current.operationalSiteId,
+      operationalSiteId: next === 'LCL' ? current.operationalSiteId : '',
       pickupWarehouseSiteId: next === 'FCL' ? '' : current.pickupWarehouseSiteId,
       cargoVolumeCbm: '',
       packageCount: '',
@@ -369,7 +378,7 @@ export function ShipmentCreateWorkspace() {
           </div>
         </ShipmentCreateSection>
 
-        <ShipmentCreateSection id="route" number="02" title="Điểm vận hành & tuyến" description="Chọn tuyến và điểm giao hoặc lấy hàng theo hình thức lô.">
+        {form.cargoMode === 'LCL' && <ShipmentCreateSection id="route" number="02" title="Điểm vận hành & tuyến" description="Chọn tuyến và điểm giao hoặc lấy hàng theo hình thức lô.">
           <div style={gridStyle}>
             <div className="csc-route-picker" data-field-id="shipment-route">
               <SearchableField
@@ -435,7 +444,7 @@ export function ShipmentCreateWorkspace() {
               <p>{selectedOperationalSite.strictRules}</p>
             </aside>
           )}
-        </ShipmentCreateSection>
+        </ShipmentCreateSection>}
 
         <ShipmentCreateSection id="cargo" number="03" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng nguyên container hoặc hàng lẻ.">
           <div className="csc-cargo-choice-grid">
@@ -456,22 +465,16 @@ export function ShipmentCreateWorkspace() {
           </div>
           {form.cargoMode === 'FCL' ? (
             <>
-            <div className="csc-cargo-route-picker" data-field-id="shipment-cargo-route">
-              <span className="csc-cargo-route-picker__label" aria-hidden="true">
-                Tuyến đường <span>*</span>
-              </span>
-              <SearchableField
-                id="shipment-cargo-route"
-                label="Chọn tuyến của lô hàng trong thông tin hàng"
-                hideLabel
-                required
-                value={form.routeId}
-                onChange={(value) => update('routeId', value)}
-                options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
-                placeholder="Gõ chọn"
+            <div className="csc-fcl-factory-action">
+              <button
+                type="button"
+                onClick={() => openCreateSiteDialog('FACTORY')}
                 disabled={Boolean(saving)}
-                error={issueByField.get('shipment-route')}
-              />
+                className="csc-utility-button csc-utility-button--dashed"
+              >
+                <Plus size={15} aria-hidden="true" />Thêm nhà máy
+              </button>
+              <span>Chọn nhà máy cho từng container; tuyến đường được xác định tự động theo nhà máy.</span>
             </div>
             <ShipmentContainerEditor
               saving={Boolean(saving)}
@@ -481,12 +484,6 @@ export function ShipmentCreateWorkspace() {
                   ...current,
                   ...Array.from({ length: count }, () => {
                     const next = createContainerFromPrevious(source);
-                    // New rows suggest the shipment factory as their starting
-                    // value (SILVER L1): a suggestion only — each row may name
-                    // its own factory.
-                    if (!source && form.operationalSiteId) {
-                      return { ...next, operationalSiteId: form.operationalSiteId };
-                    }
                     return next;
                   }),
                 ];
@@ -523,6 +520,47 @@ export function ShipmentCreateWorkspace() {
                     <SelectField id={`container-${row.key}-type`} label="Loại container" hideLabel required value={row.containerTypeId} onChange={(event) => updateContainer(row.key, 'containerTypeId', event.target.value)} disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-type`)} options={[{ value: '', label: '— Chọn loại —' }, ...(catalogs.containerTypes ?? []).map((item) => ({ value: String(item.id), label: item.code }))]} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
+                    label="Nhà máy *"
+                    value={factory?.shortName || factory?.name || ''}
+                    placeholder="Chọn nhà máy"
+                    fieldId={`container-${row.key}-factory`}
+                    error={issueByField.get(`container-${row.key}-factory`)}
+                  >
+                    <SearchableField
+                      id={`container-${row.key}-factory`}
+                      label="Nhà máy"
+                      hideLabel
+                      required
+                      value={row.operationalSiteId}
+                      onChange={(value) => {
+                        const selected = operationalSites.find((site) => String(site.id) === value);
+                        setContainers((current) => current.map((item) => item.key === row.key ? {
+                          ...item,
+                          operationalSiteId: value,
+                          routeId: selected?.routeId == null ? '' : String(selected.routeId),
+                        } : item));
+                        clearFeedback();
+                      }}
+                      options={operationalSites.map((site) => ({
+                        value: String(site.id),
+                        label: `${site.shortName || site.name}${site.routeId == null ? ' — chưa cấu hình tuyến' : ''}`,
+                        searchText: `${site.name} ${site.address ?? ''}`,
+                      }))}
+                      placeholder="Chọn nhà máy"
+                      disabled={!form.customerId || sitesLoading || Boolean(saving)}
+                      error={issueByField.get(`container-${row.key}-factory`)}
+                    />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
+                    label="Tuyến đường"
+                    value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name ?? ''}
+                    placeholder={row.operationalSiteId ? 'Nhà máy chưa có tuyến' : 'Chọn nhà máy trước'}
+                    fieldId={`container-${row.key}-route`}
+                    error={issueByField.get(`container-${row.key}-route`)}
+                  >
+                    <span aria-hidden="true" />
+                  </ShipmentContainerCell>
+                  <ShipmentContainerCell
                     label="Cảng nâng"
                     value={pickupPort?.name ?? ''}
                     placeholder="Chọn cảng nâng"
@@ -539,15 +577,6 @@ export function ShipmentCreateWorkspace() {
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
                     <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
-                  </ShipmentContainerCell>
-                  <ShipmentContainerCell
-                    label="Nhà máy"
-                    value={factory?.shortName || factory?.name || ''}
-                    placeholder="Chọn nhà máy"
-                    fieldId={`container-${row.key}-factory`}
-                    error={issueByField.get(`container-${row.key}-factory`)}
-                  >
-                    <SearchableField id={`container-${row.key}-factory`} label="Nhà máy" hideLabel value={row.operationalSiteId} onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)} options={operationalSites.map((site) => ({ value: String(site.id), label: site.shortName || site.name, searchText: `${site.name} ${site.address ?? ''}` }))} placeholder="Chọn nhà máy" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-factory`)} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Trọng lượng (kg)"
@@ -623,13 +652,13 @@ export function ShipmentCreateWorkspace() {
           )}
         </ShipmentCreateSection>
 
-        <ShipmentCreateSection id="schedule" number="04" title="Lịch & ghi chú" description="Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.">
-          <div style={gridStyle}>
+        <ShipmentCreateSection id="schedule" number="04" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? 'Ngày giờ đóng/trả đã được nhập trên từng container.' : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
+          {form.cargoMode === 'LCL' && <div style={gridStyle}>
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Thời điểm trả container" type="datetime-local" value={form.plannedReturnAt} onChange={(event) => update('plannedReturnAt', event.target.value)} disabled={Boolean(saving)} />
-            {form.cargoMode === 'LCL' && <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>}
-          </div>
+            <div data-field-id="shipment-expected-delivery"><DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} /></div>
+          </div>}
           {form.cargoMode === 'LCL' && (
             <div className="csc-extra-dates">
               {form.extraDeliveryDates.map((date, index) => (
@@ -660,6 +689,7 @@ export function ShipmentCreateWorkspace() {
         isOpen={createSiteDialog.open && Boolean(form.customerId)}
         customerId={Number(form.customerId)}
         defaultSiteType={createSiteDialog.siteType}
+        routes={catalogs?.routes ?? []}
         onClose={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}
         onCreated={handleSiteCreated}
       />

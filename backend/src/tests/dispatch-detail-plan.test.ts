@@ -144,7 +144,7 @@ async function createAllocatedLot(args: {
   const containerCount = args.containerCount ?? 1;
   const [shipment] = await db.insert(s.shipments).values({
     customerId: customer.id,
-    routeId: route.id,
+    routeId: null,
     cargoMode: 'FCL',
     isCombined: args.isCombined ?? false,
     shipmentCode: `DTL-${suffix}-${createdShipmentIds.length}`,
@@ -169,8 +169,10 @@ async function createAllocatedLot(args: {
       shipmentId: shipment.id,
       containerTypeId: containerType.id,
       containerNumber: `MSCU${String(300000 + shipment.id).slice(-6)}${index}`,
+      routeId: route.id,
       pickupPortId: pickupPort.id,
       dropoffPortId: dropoffPort.id,
+      customerAppointmentAt: new Date('2026-08-20T08:00:00.000Z'),
       createdBy: adminUserId,
     }).returning();
     const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
@@ -414,7 +416,7 @@ describe('dispatch detail plan rows', () => {
     assert.equal(wrongDirection.data.items.length, 0);
   });
 
-  test('date filter uses the shipment dispatch date, not a container appointment', async () => {
+  test('date filter resolves each FCL row from its own container appointment in the business timezone', async () => {
     const { shipment } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 2 });
     await db.update(s.shipments)
       .set({ expectedDeliveryDate: '2026-08-20' })
@@ -423,25 +425,24 @@ describe('dispatch detail plan rows', () => {
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, shipment.id))
       .orderBy(s.shipmentContainers.id);
+    // 20/08 UTC at 18:00 is 21/08 in Vietnam. The other container remains
+    // on 20/08 local time, proving date filters do not collapse to the lot.
     await db.update(s.shipmentContainers)
-      // 20/08 UTC has already rolled into 21/08 in Vietnam. This boundary
-      // locks the business-timezone conversion instead of only the fallback.
       .set({ customerAppointmentAt: new Date('2026-08-20T18:00:00.000Z') })
       .where(eq(s.shipmentContainers.id, containers[0]!.id));
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date('2026-08-20T06:00:00.000Z') })
+      .where(eq(s.shipmentContainers.id, containers[1]!.id));
 
     const shipmentDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-20`);
     assert.equal(shipmentDate.status, 200, JSON.stringify(shipmentDate.data));
-    assert.equal(shipmentDate.data.items.length, 2);
+    assert.equal(shipmentDate.data.items.length, 1);
     assert.equal(shipmentDate.data.items[0]!.time.deliveryDate, '2026-08-20');
 
     const appointmentDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-21`);
     assert.equal(appointmentDate.status, 200, JSON.stringify(appointmentDate.data));
-    assert.equal(appointmentDate.data.items.length, 0);
-
-    const shipmentFallbackDate = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}&date=2026-08-20`);
-    assert.equal(shipmentFallbackDate.status, 200, JSON.stringify(shipmentFallbackDate.data));
-    assert.equal(shipmentFallbackDate.data.items.length, 2);
-    assert.equal(shipmentFallbackDate.data.items[0]!.time.deliveryDate, '2026-08-20');
+    assert.equal(appointmentDate.data.items.length, 1);
+    assert.equal(appointmentDate.data.items[0]!.time.deliveryDate, '2026-08-21');
   });
 
   test('invalid hour filter is rejected with 400', async () => {

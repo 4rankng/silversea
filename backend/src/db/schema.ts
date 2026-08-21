@@ -2385,6 +2385,9 @@ export const operationalSites = pgTable('operational_sites', {
   name: varchar('name', { length: 255 }).notNull(),
   shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   siteType: operationalSiteTypeEnum('site_type').notNull(),
+  // A FACTORY has one canonical FCL route. Warehouses intentionally leave this
+  // null because LCL routing remains shipment-level.
+  routeId: integer('route_id'),
   address: text('address').notNull(),
   googleMapsUrl: text('google_maps_url'),
   contactName: varchar('contact_name', { length: 120 }),
@@ -2406,6 +2409,7 @@ export const operationalSites = pgTable('operational_sites', {
     .where(sql`${table.deletedAt} is null`),
   uniqueIndex('operational_sites_customer_id_id_uniq_idx').on(table.customerId, table.id),
   index('operational_sites_customer_type_idx').on(table.customerId, table.siteType, table.isActive),
+  index('operational_sites_route_idx').on(table.routeId),
 ]);
 
 // Persistent, auditable workbook analysis. The uploaded source is private and
@@ -2596,6 +2600,9 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // containers (sum), falling back to the shipment-level figure when unset.
   cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 12, scale: 3 }),
   shippingLineName: varchar('shipping_line_name', { length: 255 }),
+  // FCL authority is per container. The shipment route remains nullable only
+  // as a legacy/LCL projection; dispatch must resolve this value first.
+  routeId: integer('route_id'),
   customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),
   dropoffPortId: integer('dropoff_port_id'),
@@ -2611,6 +2618,7 @@ export const shipmentContainers = pgTable('shipment_containers', {
   index('shipment_containers_shipment_id_idx').on(table.shipmentId),
   index('shipment_containers_pickup_port_idx').on(table.pickupPortId),
   index('shipment_containers_dropoff_port_idx').on(table.dropoffPortId),
+  index('shipment_containers_route_idx').on(table.routeId),
   index('shipment_containers_operational_site_idx').on(table.operationalSiteId),
   uniqueIndex('shipment_containers_shipment_id_id_uniq_idx').on(table.shipmentId, table.id),
 ]);

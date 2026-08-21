@@ -315,12 +315,12 @@ def main() -> bool:
         )
         missing_data = containers_missing.get("data", {})
         missing_rows = [row for row in missing_data.get("items", []) if row.get("shipmentId") == shipment_id]
-        # The fixture deliberately leaves its shipment transport date and
-        # per-container appointment unset, so both applicable fields must be
-        # reported by the server-derived completeness filter.
+        # The fixture deliberately leaves the per-container route, transport
+        # date, and appointment unset. FCL authority is container-scoped, so
+        # all three applicable fields must be reported in precedence order.
         fixture_missing_ok = len(missing_rows) == 1 and [
             field.get("code") for field in missing_rows[0].get("missingFields", [])
-        ] == ["TRANSPORT_DATE", "APPOINTMENT"]
+        ] == ["ROUTE", "TRANSPORT_DATE", "APPOINTMENT"]
         check(
             results,
             "TC-1817",

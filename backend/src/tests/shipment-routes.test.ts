@@ -562,7 +562,7 @@ async function createAcceptedFulfillmentFixture(overrides: {
   if ((overrides.cargoMode ?? 'FCL') === 'FCL') {
     const { batchUpsertShipmentContainers } = await import('../services/shipment.service');
     await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId, containerNumber: 'MSKU1234565' },
+      { containerTypeId, containerNumber: 'MSKU1234565', routeId },
     ]);
     const { assignShipmentCarriers } = await import('../services/shipment-intake.service');
     await assignShipmentCarriers({
