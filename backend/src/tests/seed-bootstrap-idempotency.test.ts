@@ -1,4 +1,4 @@
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { and, eq, inArray, sql } from 'drizzle-orm';
@@ -196,6 +196,30 @@ async function fetchUserSnapshotById(id: number): Promise<UserSnapshot> {
 
 after(async () => {
   await client.end();
+});
+
+/**
+ * Best-effort cleanup of the legacy-fixture rows the idempotency test
+ * creates (e.g. ` CUS `, ` GIAONHAN `). When a previous run fails before
+ * the `finally` block fires (or the worker is killed mid-test), these
+ * soft-deleted rows linger and break the next run's
+ * `UPDATE ... SET username = ' CUS '` because the unique
+ * `users_username_unique` index now has two soft-deleted rows with the
+ * same ` CUS ` name. Deleting them up front is the only way to make the
+ * test reliably rerunnable.
+ */
+before(async () => {
+  await db.delete(s.userShipmentLinks)
+    .where(inArray(s.userShipmentLinks.userId,
+      sql`(SELECT id FROM users WHERE username IN (' CUS ', ' GIAONHAN '))`));
+  await db.delete(s.userBusinessUnitLinks)
+    .where(inArray(s.userBusinessUnitLinks.userId,
+      sql`(SELECT id FROM users WHERE username IN (' CUS ', ' GIAONHAN '))`));
+  await db.delete(s.userCustomerLinks)
+    .where(inArray(s.userCustomerLinks.userId,
+      sql`(SELECT id FROM users WHERE username IN (' CUS ', ' GIAONHAN '))`));
+  await db.delete(s.users)
+    .where(sql`username IN (' CUS ', ' GIAONHAN ')`);
 });
 
 describe('seed bootstrap app-owned idempotency', () => {

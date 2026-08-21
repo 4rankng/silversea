@@ -1,0 +1,261 @@
+
+> @tingting/backend@0.1.0 test:unit /Users/dev/Documents/projects/silversea/backend
+> npx tsx --test 'src/tests/unit/*.test.ts'
+
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+▶ agentEventSchema — AG-UI taxonomy (Phase 1 rename)
+  ✔ RUN_STARTED parses (old "received" fails) (1.387667ms)
+  ✔ TOOL_CALL_START parses with toolName + optional args (1.357041ms)
+  ✔ TOOL_CALL_END parses with ok flag + label (0.290708ms)
+  ✔ DIRECTIVE event parses with directive payload + ack fields (0.3775ms)
+  ✔ RUN_FINISHED parses with a valid AgentResponse (0.951041ms)
+  ✔ RUN_ERROR parses with a message (0.239833ms)
+✔ agentEventSchema — AG-UI taxonomy (Phase 1 rename) (5.4925ms)
+▶ agentEventSchema — text-message streaming events (Phase 2)
+  ✔ TEXT_MESSAGE_START parses with messageId (2.201458ms)
+  ✔ TEXT_MESSAGE_CONTENT parses with messageId + non-empty delta (2.067292ms)
+  ✔ TEXT_MESSAGE_END parses with messageId (0.2585ms)
+✔ agentEventSchema — text-message streaming events (Phase 2) (4.720458ms)
+▶ landmine guard — unrelated contracts unchanged by the event rename
+  ✔ agentResponseSchema STILL uses type:"directive" (response discriminator) (0.128125ms)
+  ✔ agentActionResultSchema.status STILL includes "error" (ack status enum) (0.064958ms)
+✔ landmine guard — unrelated contracts unchanged by the event rename (0.2415ms)
+▶ chatbot latency regression guards
+  ✔ expense mutations invalidate cached financial reports (1.782125ms)
+  ✔ parallel tool latency is measured as batch wall-clock, not summed spans (2.888209ms)
+  ✔ cancelled socket turns are persisted for abort telemetry (7.986167ms)
+  ✔ streaming-disabled fallback cannot create an empty text stream (0.788084ms)
+✔ chatbot latency regression guards (15.188917ms)
+▶ driverPayoutSchema — input contract
+  ✔ accepts a valid CASH payout (1.877833ms)
+  ✔ accepts a BANK payout with receiptId, string amount coerced to number (0.605042ms)
+  ✔ rejects non-positive amount (0.621584ms)
+  ✔ rejects amount over the 1 tỷ VND upper bound (typo guard) (0.144667ms)
+  ✔ rejects invalid method (not CASH/BANK) (0.142667ms)
+  ✔ rejects missing payoutDate (0.68175ms)
+  ✔ note and receiptId are optional and trimmed (0.081875ms)
+✔ driverPayoutSchema — input contract (5.007542ms)
+▶ recordDriverPayout — overpay guard (DB-stubbed)
+  ✔ payout ≤ payable + 1 is allowed; payout > payable + 1 throws ApiError(422) naming the driver + balance (25.311958ms)
+✔ recordDriverPayout — overpay guard (DB-stubbed) (26.283417ms)
+✔ encryptSecret accepts a documented 32-byte hex master key (0.716709ms)
+✔ debitNoteColumnSchema — accepts width:0 (hidden column) (0.845625ms)
+✔ debitNoteColumnSchema — defaults width to 14 when omitted (0.125375ms)
+✔ debitNoteColumnSchema — rejects negative width (2.734125ms)
+✔ debitNoteColumnSchema — rejects width > 80 (0.290792ms)
+✔ defaultDebitNoteColumns — exported as vertical debt-note columns (0.17625ms)
+✔ defaultDebitNoteColumns — every column validates against debitNoteColumnSchema (0.625958ms)
+✔ defaultPaymentStatementColumns — exported as horizontal VIETSUN-style columns (0.21875ms)
+✔ defaultPaymentStatementColumns — every column validates against debitNoteColumnSchema (0.340458ms)
+▶ DISPATCHER resource-catalog RBAC (read-only config)
+  ✔ DISPATCHER can read config catalogs (trucks/drivers/suppliers) (13.411167ms)
+  ✔ DISPATCHER cannot write config catalogs (1.3445ms)
+  ✔ DISPATCHER cannot delete config catalogs (2.992125ms)
+  ✔ DISPATCHER still cannot read financial (payables on suppliers) (1.468917ms)
+✔ DISPATCHER resource-catalog RBAC (read-only config) (19.728917ms)
+▶ Neighboring roles unchanged by the DISPATCHER grant
+  ✔ MANAGER keeps full config CRUD (regression guard) (0.783666ms)
+  ✔ CUS stays denied config (clerks are not resource managers) (1.166375ms)
+  ✔ DRIVER stays denied config (1.542417ms)
+✔ Neighboring roles unchanged by the DISPATCHER grant (3.648875ms)
+▶ gps-admin RBAC (office-only backfill/recapture)
+  ✔ ADMIN is allowed (wildcard) (42.953667ms)
+  ✔ MANAGER is allowed (0.961959ms)
+  ✔ ACCOUNTANT is denied (6.164792ms)
+  ✔ DRIVER is denied (4.737ms)
+  ✔ FORWARDER is denied (0.889833ms)
+✔ gps-admin RBAC (office-only backfill/recapture) (56.444ms)
+▶ gpsSettingsUpdateSchema
+  ✔ accepts a username with an optional replacement password (0.914042ms)
+  ✔ allows password omission so the stored password is preserved (0.1095ms)
+  ✔ rejects blank usernames and blank replacement passwords (0.203ms)
+✔ gpsSettingsUpdateSchema (1.810292ms)
+▶ classifyAgingRisk
+  ✔ over90 balance or >100M outstanding is high risk (0.272041ms)
+  ✔ d30/d60 balance is medium; current-only is low (0.051167ms)
+  ✔ non-positive outstanding is low (0.044125ms)
+✔ classifyAgingRisk (0.850417ms)
+▶ filterAgingByBucket
+  ✔ all returns every row (0.134292ms)
+  ✔ current keeps only rows with that bucket and outstanding (0.079459ms)
+  ✔ d30 keeps only rows with that bucket and outstanding (0.050166ms)
+  ✔ d60 keeps only rows with that bucket and outstanding (0.032542ms)
+  ✔ over90 keeps only rows with that bucket and outstanding (0.038167ms)
+  ✔ zero-outstanding rows are excluded from every named bucket (0.061708ms)
+✔ filterAgingByBucket (0.540541ms)
+▶ summarizeAgingTotals
+  ✔ aggregates sums and per-bucket customer counts over the full set (0.128875ms)
+✔ summarizeAgingTotals (0.190625ms)
+▶ paginatePayablesSummary
+  ✔ paginates, keeps full-set headline numbers, and aggregates totals (0.203209ms)
+  ✔ search narrows items and totals but not headline numbers (0.068ms)
+✔ paginatePayablesSummary (0.307292ms)
+▶ M2.5 — ancillary revenue schema shape
+  ✔ positive amount → valid (1.824917ms)
+  ✔ negative amount → accepted by schema (CRUD hook enforces note) (0.277625ms)
+  ✔ zero amount → valid (0.114542ms)
+  ✔ all 4 type values accepted (0.177416ms)
+  ✔ missing customerId → invalid (0.244625ms)
+✔ M2.5 — ancillary revenue schema shape (3.446958ms)
+▶ O2C AR snapshot — canonical cost hash
+  ✔ identical payload → identical hash (stable) (2.250042ms)
+  ✔ a cost edit (buyAmount change) produces a different hash (0.52925ms)
+  ✔ revenue drift produces a different hash (0.107959ms)
+  ✔ expense row order does not affect the hash (sorted by id) (0.351792ms)
+  ✔ adding an expense produces a different hash (0.233083ms)
+✔ O2C AR snapshot — canonical cost hash (4.824791ms)
+▶ O2C clean-baseline safety
+  ✔ preserves the consolidated baseline before ordered additive migrations (6.344584ms)
+  ✔ renames only active Lạch Huyện terminal labels without moving port rows (1.343666ms)
+  ✔ retains O2C identity fences as unique indexes (0.984209ms)
+  ✔ stores lifecycle values as flexible text without CHECK or foreign-key ownership (1.171209ms)
+✔ O2C clean-baseline safety (10.695542ms)
+[casbin] Enforcer initialized — 127 policies loaded
+▶ O2C trip close HTTP authorization
+  ✔ allows CUS only to create the close request (25.620417ms)
+  ✔ keeps non-maker roles outside the close-maker boundary (0.246542ms)
+✔ O2C trip close HTTP authorization (54.543958ms)
+▶ Q18 executable locked-entity boundary inventory
+  ✔ covers every reviewed terminal financial or operational entity exactly once (0.494375ms)
+  ✔ binds terminal states and direct-write rejection to concrete production declarations (446.113542ms)
+  ✔ binds each governed action to entity-specific immutable evidence and executable proof (160.9785ms)
+  ✔ binds the shared checker, approver, and applied reference persistence path (2.98175ms)
+  ✔ never exposes a reopen action for entities whose terminal state is irreversible (0.19375ms)
+✔ Q18 executable locked-entity boundary inventory (611.280334ms)
+▶ updateTripFiguresSchema — revenue/splits mutual exclusion
+  ✔ rejects when revenue is sent together with both splits (1.156084ms)
+  ✔ accepts revenue-only payload (no splits) (0.137333ms)
+  ✔ accepts splits-only payload (revenue omitted) (0.606708ms)
+  ✔ accepts a single explicit-zero split with revenue omitted (0.1275ms)
+  ✔ rejects when revenue is sent with only ONE split (0.159084ms)
+✔ updateTripFiguresSchema — revenue/splits mutual exclusion (2.635416ms)
+▶ scheduler registry
+  ✔ registerJob stores a job and getJob retrieves it (0.393208ms)
+  ✔ re-registering the same name replaces the prior definition (0.10225ms)
+  ✔ registerJob rejects empty name (0.11025ms)
+  ✔ registerJob rejects names with invalid characters (0.080958ms)
+  ✔ listJobs returns a snapshot of all registered jobs (0.345208ms)
+  ✔ listJobs snapshot is decoupled from the registry (0.077375ms)
+✔ scheduler registry (1.491209ms)
+▶ advisoryLockKey
+  ✔ is deterministic for the same name (0.71125ms)
+  ✔ is positive and fits int4 (Postgres advisory-lock constraint) (0.072791ms)
+  ✔ collides rarely — distinct names produce distinct keys for a sample (0.041375ms)
+  ✔ same name across calls is stable (0.050792ms)
+✔ advisoryLockKey (0.976334ms)
+▶ executeWithRetries
+  ✔ succeeds on first attempt — writes ATTEMPT(1) then SUCCESS(1) (0.139458ms)
+  ✔ succeeds on retry — stamps the SUCCESS row with the actual attempt (B2 regression) (4.983125ms)
+  ✔ exhausts retries — writes FAILED with the final attempt count and error (B2 regression) (1.968208ms)
+  ✔ retries=0 (maxAttempts=1) — single attempt, no retry sleep (0.150458ms)
+  ✔ writer throw does not mask the handler outcome (0.252208ms)
+✔ executeWithRetries (7.653583ms)
+[09:19:21.805] [33mWARN[39m: [36mscheduler: job failed — retrying[39m
+    [35mattempt[39m: 1
+    err: "boom"
+[09:19:21.809] [33mWARN[39m: [36mscheduler: job failed — retrying[39m
+    [35mattempt[39m: 2
+    err: "boom"
+[09:19:21.810] [33mWARN[39m: [36mscheduler: job failed — retrying[39m
+    [35mattempt[39m: 1
+    err: "always fails"
+[09:19:21.811] [33mWARN[39m: [36mscheduler: job failed — retrying[39m
+    [35mattempt[39m: 2
+    err: "always fails"
+[09:19:21.812] [33mWARN[39m: [36mscheduler: run-log write failed — outcome preserved[39m
+    [35mstatus[39m: "ATTEMPT"
+    [35mattempt[39m: 1
+    err: "db unavailable"
+[09:19:21.813] [33mWARN[39m: [36mscheduler: run-log write failed — outcome preserved[39m
+    [35mstatus[39m: "SUCCESS"
+    [35mattempt[39m: 1
+    err: "db unavailable"
+✔ keeps the approved Lạch Huyện terminal codes independent of display labels (1.919667ms)
+✔ groups lift and drop locations by the container pair instead of shipment fields (0.769458ms)
+✔ groups appointments only after their effective factory has been resolved (11.892708ms)
+✔ does not merge a site ID with the same legacy factory text (0.145708ms)
+▶ Wave 0 CUSTOMER role RBAC (portal-only)
+  ✔ CUSTOMER can read customer_portal (26.419667ms)
+  ✔ CUSTOMER can write dedicated customer_portal actions (2.607916ms)
+  ✔ CUSTOMER cannot delete through customer_portal (3.171167ms)
+  ✔ CUSTOMER is denied shipments read (1.848708ms)
+  ✔ CUSTOMER is denied shipments write (1.673125ms)
+  ✔ CUSTOMER is denied trips (operator scope) (1.715917ms)
+  ✔ CUSTOMER is denied financial (10.752291ms)
+✔ Wave 0 CUSTOMER role RBAC (portal-only) (50.689292ms)
+▶ Wave 0 CUS role RBAC (document clerk, M10)
+  ✔ CUS can read shipments (1.095792ms)
+  ✔ CUS can write shipments (1.083584ms)
+  ✔ CUS can read customer_portal (1.052334ms)
+  ✔ CUS is denied shipments delete (2.344458ms)
+  ✔ CUS is denied trips (operator scope) (1.905417ms)
+  ✔ CUS is denied financial (4.677458ms)
+  ✔ CUS is denied users (8.191209ms)
+  ✔ CUS is denied gps-admin backfill (7.742958ms)
+✔ Wave 0 CUS role RBAC (document clerk, M10) (41.576ms)
+▶ Wave 0: existing roles unchanged (regression guard)
+  ✔ ADMIN still wildcard-allowed (0.539167ms)
+  ✔ DRIVER still denied shipments (no new privilege leak) (2.4655ms)
+  ✔ OPS still denied shipments (11.19125ms)
+✔ Wave 0: existing roles unchanged (regression guard) (14.354ms)
+▶ Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface)
+  ✔ MANAGER can read shipments (0.972ms)
+  ✔ MANAGER can write shipments (0.922542ms)
+  ✔ MANAGER can delete shipments (4.268125ms)
+  ✔ ACCOUNTANT can read shipments (1.743042ms)
+  ✔ ACCOUNTANT can write shipments for direct O2C close and related review flows (3.653375ms)
+  ✔ ACCOUNTANT is denied shipments delete (7.373083ms)
+✔ Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface) (19.42775ms)
+▶ tireSchema — custom position labels
+  ✔ accepts and trims a typed tire position (0.818542ms)
+✔ tireSchema — custom position labels (1.143708ms)
+▶ transferTireSchema — move a mounted tire to another vehicle
+  ✔ accepts a truck target with a position (2.295083ms)
+  ✔ accepts a trailer target with no position (0.163ms)
+  ✔ rejects when no vehicle target is chosen (0.168333ms)
+  ✔ coerces numeric ids sent as form strings (0.072417ms)
+✔ transferTireSchema — move a mounted tire to another vehicle (3.432ms)
+▶ Trip Status Machine — Transition Rules
+  ✔ all from→to combinations are covered (1.95825ms)
+  ✔ no duplicate rules (0.13775ms)
+  ✔ ALLOWED: CREATED → IN_TRANSIT (Dispatch new trip) (0.164083ms)
+  ✔ ALLOWED: COMPLETED → IN_TRANSIT (Re-dispatch completed trip (direct reopen blocked — uses governed TRIP_REOPEN)) (0.198083ms)
+  ✔ ALLOWED: IN_TRANSIT → IN_TRANSIT (Idempotent: same status short-circuit) (0.186958ms)
+  ✔ BLOCKED: CANCELED → IN_TRANSIT (Cannot dispatch a canceled trip) (0.305834ms)
+  ✔ ALLOWED: IN_TRANSIT → COMPLETED (Complete a running trip through the governed close path; evidence gates are enforced) (0.092208ms)
+  ✔ BLOCKED: COMPLETED → COMPLETED (Direct re-complete is blocked; use governed reopen approval (COMPLETED → IN_TRANSIT)) (0.098208ms)
+  ✔ BLOCKED: CREATED → COMPLETED (Cannot complete a trip that was never dispatched) (0.102209ms)
+  ✔ BLOCKED: CANCELED → COMPLETED (Cannot complete a canceled trip) (0.130667ms)
+  ✔ ALLOWED: CREATED → CREATED (Idempotent: same status short-circuit) (0.086125ms)
+  ✔ BLOCKED: IN_TRANSIT → CREATED (Cannot revert a dispatched trip to CREATED) (0.059708ms)
+  ✔ BLOCKED: COMPLETED → CREATED (Cannot revert a completed trip to CREATED) (0.051292ms)
+  ✔ BLOCKED: CANCELED → CREATED (Cannot revert a canceled trip to CREATED) (0.057791ms)
+  ✔ ALLOWED: CREATED → CANCELED (Cancel a new trip) (0.046458ms)
+  ✔ ALLOWED: IN_TRANSIT → CANCELED (Cancel a running trip) (0.060959ms)
+  ✔ ALLOWED: COMPLETED → CANCELED (Cancel a completed trip (governed — requestCompletedTripCancellation)) (0.038959ms)
+  ✔ ALLOWED: CANCELED → CANCELED (Idempotent: same status short-circuit) (0.050583ms)
+✔ Trip Status Machine — Transition Rules (6.251084ms)
+▶ Trip Status Machine — Role Permission Rules
+  ✔ IN_TRANSIT dispatch requires ADMIN or MANAGER (0.236833ms)
+  ✔ COMPLETE requires ADMIN or MANAGER through governed approval (0.105666ms)
+  ✔ direct re-complete (COMPLETED→COMPLETED) is blocked (0.061916ms)
+  ✔ CANCEL requires ADMIN or MANAGER (0.085ms)
+  ✔ DRIVER role cannot dispatch, complete, or cancel (0.371333ms)
+  ✔ ACCOUNTANT role cannot dispatch, complete, or cancel (1.473833ms)
+✔ Trip Status Machine — Role Permission Rules (2.545625ms)
+▶ Trip Status Machine — Lifecycle Happy Path
+  ✔ standard lifecycle: CREATED → IN_TRANSIT → COMPLETED (0.179833ms)
+  ✔ reopen lifecycle requires the separate governance workflow (0.057083ms)
+  ✔ re-dispatch lifecycle: COMPLETED → IN_TRANSIT (0.04075ms)
+✔ Trip Status Machine — Lifecycle Happy Path (0.345708ms)
+ℹ tests 160
+ℹ suites 32
+ℹ pass 160
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1833.038083
+exit=0

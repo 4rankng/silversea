@@ -1,0 +1,15 @@
+
+> @tingting/backend@0.1.0 prebuild /Users/dev/Documents/projects/silversea/backend
+> pnpm --dir ../shared build
+
+
+> @tingting/shared@0.1.0 build /Users/dev/Documents/projects/silversea/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 0 bare imports in /Users/dev/Documents/projects/silversea/shared/dist
+
+> @tingting/backend@0.1.0 build /Users/dev/Documents/projects/silversea/backend
+> tsc -p tsconfig.build.json && node fix-esm-imports.js
+
+Fixed 0 bare imports in /Users/dev/Documents/projects/silversea/backend/dist
+exit=0
