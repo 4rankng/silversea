@@ -183,7 +183,7 @@ describe('MasterPlanGrid', () => {
     const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'documents', 'locations', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    expect(scheduleWidth).toBe(26);
+    expect(scheduleWidth).toBe(24);
     expect(scheduleWidth).toBeGreaterThan(widthFor('documents'));
     expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);

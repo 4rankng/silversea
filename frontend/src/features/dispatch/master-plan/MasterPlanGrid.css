@@ -526,17 +526,18 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Schedule carries the variable-length appointment groups and cutoff. Give it
-   the primary desktop budget, reclaiming space from the compact document and
-   allocation summaries without changing the narrow-screen record layout. */
-.master-plan-grid__col--schedule { width: 26%; }
+/* Schedule carries the variable-length appointment groups and cutoff. Trimmed
+   the primary desktop budget and handed the small headroom to allocation +
+   notes so the row still sums to 100% without horizontal gap; the narrow-screen
+   record layout is unchanged. */
+.master-plan-grid__col--schedule { width: 24%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 15%; }
 .master-plan-grid__col--documents { width: 9%; }
 .master-plan-grid__col--locations { width: 15%; }
 .master-plan-grid__col--cargo { width: 12%; }
-.master-plan-grid__col--notes { width: 12%; }
-.master-plan-grid__col--allocation { width: 11%; }
+.master-plan-grid__col--notes { width: 13%; }
+.master-plan-grid__col--allocation { width: 12%; }
 
 .master-plan-grid thead th {
   position: sticky;
