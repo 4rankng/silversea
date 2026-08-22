@@ -1,40 +1,47 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Loader2, Wallet, CheckCircle2, XCircle } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
-import { formatCurrency, formatNumber, formatDate } from '../lib/format';
+import { formatNumber, formatDate } from '../lib/format';
 import {
   ADVANCE_REQUEST_STATUS_LABELS,
   AdvanceRequestStatus,
   Role,
+  type AdvanceRequestWithRefs,
 } from '@tingting/shared';
 import { PageHeader, StatusPill, Toolbar, FilterPill } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { AssetIcon, type AssetIconName } from '../components/AssetIcon';
+import { Money } from '../components/shared/Money';
 import {
-  useAdminAdvanceRequests,
   useAdminAdvanceBalances,
   useApproveAdvanceRequest,
   useRejectAdvanceRequest,
 } from '../hooks/useQueries';
+import { forwarderClient } from '../api/forwarderClient';
+import { qk } from '../api/keys';
 import { advanceRequestStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import { useAuth } from '../hooks/useAuth';
+import { Pagination, UuiSelectField } from '../design-system';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import './AdminAdvancesPage.css';
+import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
-import { UuiSelectField } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
-interface AdvanceRequest {
-  id: number;
-  version: number;
-  requesterName: string | null;
-  requesterId: number;
-  amount: number | string;
-  createdAt: string;
-  status: AdvanceRequestStatus;
-  reason: string | null;
-  approverName: string | null;
+type AdvanceRequest = AdvanceRequestWithRefs;
+
+interface AdvanceListEnvelope {
+  items: AdvanceRequest[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  /** Full-set counts per status (status filter excluded) — KPIs/pills. */
+  statusCounts: Record<string, number>;
+  /** Full-set amount totals per status — KPI meta lines. */
+  statusAmounts: Record<string, number>;
 }
 
 export function buildAdvanceDecision(
@@ -139,7 +146,7 @@ function AdvanceGridRow({
 
       {/* Amount */}
       <div className="adv-amount">
-        {formatCurrency(Number(req.amount))}
+        <Money value={Number(req.amount)} />
       </div>
 
       {/* Date */}
@@ -242,7 +249,7 @@ function AdvanceMobileCard({
 
       {/* Amount — prominent */}
       <div className="adv-mcard__amount">
-        {formatCurrency(Number(req.amount))}
+        <Money value={Number(req.amount)} />
       </div>
 
       {/* Meta: date + reason */}
@@ -309,53 +316,45 @@ function AdvanceMobileCard({
 /* ── Page ──────────────────────────────────────────────────────────────── */
 
 export default function AdminAdvancesPage({ embedded = false }: { embedded?: boolean }) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
-
-  // Fetch ALL requests once — client-side filtering for accurate counts/totals
-  const { data, isLoading } = useAdminAdvanceRequests();
+  // Server-driven listing: page/limit/status go to the endpoint, so no silent
+  // 50-row cap; counts/amounts come from the full-set envelope aggregates.
+  const table = useTableQueryState<AdvanceRequest, { status?: string }, AdvanceListEnvelope>({
+    endpoint: forwarderClient.listAllAdvanceRequests,
+    queryKey: qk.adminForwarder.advanceRequestsAll,
+    defaultPageSize: 50,
+  });
   const { data: balancesData } = useAdminAdvanceBalances();
-  const { rootRef } = usePageAnimations({ ready: !isLoading });
+  const { rootRef } = usePageAnimations({ ready: !table.isLoading });
   const approveMutation = useApproveAdvanceRequest();
   const rejectMutation = useRejectAdvanceRequest();
   const { user } = useAuth();
   const canPropose = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
 
-  const allRequests: AdvanceRequest[] = useMemo(
-    () => (data?.items ?? []) as AdvanceRequest[],
-    [data],
-  );
+  const statusFilter = (table.filters.status ?? '') as StatusFilter;
+  const setStatusFilter = (next: StatusFilter) => {
+    table.setFilter('status', next === '' ? undefined : next);
+  };
 
   /* ── Focus deep-link: scroll to item from ?focus=<id> ──────────────── */
   // Called for its side effect (scrolling to the focused item); return value unused.
   useFocusDeepLink('adv');
 
-  /* ── Derived counts & totals ─────────────────────────────────────────── */
-  const stats = useMemo(() => {
-    const counts: Record<string, number> = { total: 0, [AdvanceRequestStatus.PENDING]: 0, [AdvanceRequestStatus.APPROVED]: 0, [AdvanceRequestStatus.REJECTED]: 0 };
-    const totals: Record<string, number> = { [AdvanceRequestStatus.PENDING]: 0, [AdvanceRequestStatus.APPROVED]: 0, [AdvanceRequestStatus.REJECTED]: 0 };
+  /* ── Full-set counts & amounts from the server envelope ─────────────── */
+  const statusCounts = table.query.data?.statusCounts ?? {};
+  const statusAmounts = table.query.data?.statusAmounts ?? {};
+  const countOf = (status: AdvanceRequestStatus) => statusCounts[status] ?? 0;
+  const amountOf = (status: AdvanceRequestStatus) => statusAmounts[status] ?? 0;
+  const totalCount =
+    countOf(AdvanceRequestStatus.PENDING) +
+    countOf(AdvanceRequestStatus.APPROVED) +
+    countOf(AdvanceRequestStatus.REJECTED);
 
-    for (const req of allRequests) {
-      counts.total++;
-      const s = req.status as string;
-      if (s in counts) counts[s]++;
-      const amt = Number(req.amount) || 0;
-      if (s in totals) totals[s] += amt;
-    }
-    return { counts, totals };
-  }, [allRequests]);
-
-  const filtered = useMemo(() => {
-    if (!statusFilter) return allRequests;
-    return allRequests.filter((r) => r.status === statusFilter);
-  }, [allRequests, statusFilter]);
-
-  /* ── Tab counts ──────────────────────────────────────────────────────── */
-  const tabCounts = useMemo(() => ({
-    '': stats.counts.total,
-    [AdvanceRequestStatus.PENDING]: stats.counts.PENDING,
-    [AdvanceRequestStatus.APPROVED]: stats.counts.APPROVED,
-    [AdvanceRequestStatus.REJECTED]: stats.counts.REJECTED,
-  }), [stats]);
+  const tabCounts: Record<StatusFilter, number> = {
+    '': totalCount,
+    [AdvanceRequestStatus.PENDING]: countOf(AdvanceRequestStatus.PENDING),
+    [AdvanceRequestStatus.APPROVED]: countOf(AdvanceRequestStatus.APPROVED),
+    [AdvanceRequestStatus.REJECTED]: countOf(AdvanceRequestStatus.REJECTED),
+  };
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
@@ -381,18 +380,18 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
       <div className="adv-kpi-row">
         <AdvKPI
           label="Chờ duyệt"
-          value={stats.counts.PENDING}
-          meta={`${formatNumber(stats.totals.PENDING)} ₫`}
+          value={countOf(AdvanceRequestStatus.PENDING)}
+          meta={`${formatNumber(amountOf(AdvanceRequestStatus.PENDING))} ₫`}
           variant="warn"
           iconName="advances"
           active={statusFilter === AdvanceRequestStatus.PENDING}
-          hasItems={stats.counts.PENDING > 0}
+          hasItems={countOf(AdvanceRequestStatus.PENDING) > 0}
           onClick={() => setStatusFilter(statusFilter === AdvanceRequestStatus.PENDING ? '' : AdvanceRequestStatus.PENDING)}
         />
         <AdvKPI
           label="Đã duyệt"
-          value={stats.counts.APPROVED}
-          meta={`${formatNumber(stats.totals.APPROVED)} ₫`}
+          value={countOf(AdvanceRequestStatus.APPROVED)}
+          meta={`${formatNumber(amountOf(AdvanceRequestStatus.APPROVED))} ₫`}
           variant="success"
           iconName="paid"
           active={statusFilter === AdvanceRequestStatus.APPROVED}
@@ -400,8 +399,8 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
         />
         <AdvKPI
           label="Từ chối"
-          value={stats.counts.REJECTED}
-          meta={`${formatNumber(stats.totals.REJECTED)} ₫`}
+          value={countOf(AdvanceRequestStatus.REJECTED)}
+          meta={`${formatNumber(amountOf(AdvanceRequestStatus.REJECTED))} ₫`}
           variant="danger"
           iconName="unpaid"
           active={statusFilter === AdvanceRequestStatus.REJECTED}
@@ -447,11 +446,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           />
         </label>
 
-        {isLoading ? (
+        {table.isLoading ? (
           <div className="adv-loading">
             <Loader2 size={24} className="spin" style={{ color: 'var(--ink-3)' }} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : table.rows.length === 0 ? (
           <div className="adv-empty">
             <img src={resolveEmptyIllustration('empty-advances')} alt="" aria-hidden="true" style={{ width: 160, height: 132, objectFit: 'contain', marginBottom: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <div className="adv-empty-text">Không có yêu cầu tạm ứng nào</div>
@@ -460,7 +459,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
         ) : (
           <>
             {/* Desktop: grid header + rows */}
-            <div className="adv-grid-head">
+            <div className="adv-grid-head ops-table">
               <div>Người yêu cầu</div>
               <div className="col-right">Số tiền</div>
               <div className="col-center">Ngày tạo</div>
@@ -470,7 +469,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
             </div>
 
             <div>
-              {filtered.map((req) => (
+              {table.rows.map((req) => (
                 <AdvanceGridRow
                   key={req.id}
                   req={req}
@@ -484,7 +483,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
 
             {/* Mobile: stacked cards */}
             <div className="adv-cards">
-              {filtered.map((req) => (
+              {table.rows.map((req) => (
                 <AdvanceMobileCard
                   key={req.id}
                   req={req}
@@ -495,16 +494,17 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
                 />
               ))}
             </div>
+
+            <Pagination
+              page={table.page}
+              totalPages={table.totalPages}
+              totalItems={table.total}
+              pageSize={table.pageSize}
+              onChange={table.setPage}
+            />
           </>
         )}
       </div>
-
-      {/* Footer count */}
-      {filtered.length > 0 && (
-        <div className="adv-footer">
-          {filtered.length} yêu cầu tạm ứng
-        </div>
-      )}
     </div>
   );
 }

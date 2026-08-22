@@ -9,7 +9,9 @@
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
   border: 1px solid var(--line);
   border-radius: 14px;       /* matches dashboard --wf-radius */
-  overflow: hidden;
+  /* Visible so the sticky grid header can pin against the .app-body
+     scrollport (record-table contract: no internal scroll/clip wrappers). */
+  overflow: visible;
   box-shadow: var(--sh-sm);
   min-height: 280px;
 }
@@ -72,8 +74,11 @@
   --stat-tint: var(--danger-soft);
   --stat-ink: var(--danger);
 }
-.adv-page .adv-kpi:hover {
-  background: var(--surface-2);
+/* Neutral ink wash on hover, gated to fine pointers (record-table contract). */
+@media (hover: hover) and (pointer: fine) {
+  .adv-page .adv-kpi:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 /* Summary-only stat (no filter): neutral cursor, no hover affordance, and
    stays out of the tab order so it isn't mistaken for a clickable control. */
@@ -127,16 +132,21 @@
 
 /* ── Desktop grid header ──────────────────────────────────────────────── */
 .adv-page .adv-grid-head {
+  position: sticky;
+  /* Same tokens as record-table thead: pins flush under the topbar while
+     .app-body scrolls (negates the scrollport's top padding). */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   display: grid;
   grid-template-columns: minmax(160px, 1.3fr) 120px 96px 116px minmax(130px, 1fr) minmax(270px, 1.5fr);
   padding: 11px 16px;
   gap: 12px;
-  background: var(--surface-2);
+  background: var(--surface-2);      /* opaque — required for sticky overlay */
   border-bottom: 1px solid var(--line);
   align-items: center;
 }
 .adv-page .adv-grid-head > div {
-  font-size: var(--fs-2xs);           /* dashboard .lbl uses 10.5px */
+  font-size: var(--ops-table-header-size, var(--fs-2xs));
   font-weight: var(--fw-bold);
   color: var(--ink-3);
   text-transform: uppercase;
@@ -160,7 +170,13 @@
   transition: background var(--t-fast);
 }
 .adv-page .adv-grid-row:last-child { border-bottom: none; }
-.adv-page .adv-grid-row:hover { background: var(--surface-2); }
+/* Quiet desktop scan aid: neutral two-percent ink wash, gated to fine
+   pointers (touch browsers retain :hover while scrolling). */
+@media (hover: hover) and (pointer: fine) {
+  .adv-page .adv-grid-row:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+}
 .adv-page .adv-grid-row > div {
   line-height: var(--lh-normal);
   min-width: 0;
@@ -271,14 +287,6 @@
   margin-top: 4px;
   font-size: var(--fs-xs);
   color: var(--ink-3);
-}
-
-/* ── Footer count ─────────────────────────────────────────────────────── */
-.adv-page .adv-footer {
-  margin-top: 8px;
-  padding-left: 4px;
-  font-size: var(--fs-xs);
-  color: var(--ink-4);
 }
 
 /* ── Mobile cards (hidden on desktop) ─────────────────────────────────── */
@@ -447,10 +455,6 @@
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
     margin-bottom: 8px;
-  }
-
-  .adv-page .adv-footer {
-    padding-left: 6px;
   }
 }
 
