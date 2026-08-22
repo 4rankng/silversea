@@ -26,10 +26,11 @@ export interface FuelInvoiceTripOption {
   routeName: string | null;
 }
 
-const governanceActionKeys = {
+export const governanceActionKeys = {
   all: ['governance-actions'] as const,
+  /** Full param bag (status/page/limit/…) keeps each request in its own cache entry. */
   list: (filters?: GovernanceActionFilters) =>
-    ['governance-actions', filters?.status ?? 'ALL', filters?.limit ?? 50, filters?.offset ?? 0] as const,
+    ['governance-actions', filters ?? {}] as const,
 };
 
 export function useGovernanceActions(filters?: GovernanceActionFilters) {

@@ -64,8 +64,19 @@ export interface GovernanceActionRecord {
 
 export interface GovernanceActionFilters {
   status?: GovernanceActionStatus;
+  page?: number;
   limit?: number;
   offset?: number;
+}
+
+/** GET /governance-actions envelope: page-scoped items plus full-set counts. */
+export interface GovernanceActionsEnvelope {
+  items: GovernanceActionRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** GROUP BY status over the same filters as `total` (ignores paging). */
+  statusCounts: Record<string, number>;
 }
 
 export type FuelInvoiceStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -160,9 +171,10 @@ export const financialClient = {
     ),
 
   getGovernanceActions: (filters?: GovernanceActionFilters) =>
-    api.get<GovernanceActionRecord[]>(
+    api.get<GovernanceActionsEnvelope>(
       `/governance-actions${toQuery({
         status: filters?.status,
+        page: filters?.page,
         limit: filters?.limit,
         offset: filters?.offset,
       })}`,

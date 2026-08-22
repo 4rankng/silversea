@@ -1,34 +1,36 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GovernanceActionRecord } from '../api/financialClient';
+import type {
+  GovernanceActionRecord,
+  GovernanceActionsEnvelope,
+} from '../api/financialClient';
 import { api } from '../lib/api';
 
 const {
   approveMutateAsyncMock,
   checkMutateAsyncMock,
-  governanceQueueState,
-  queueRefetchMock,
+  getGovernanceActionsMock,
   rejectMutateAsyncMock,
 } = vi.hoisted(() => ({
   approveMutateAsyncMock: vi.fn(),
   checkMutateAsyncMock: vi.fn(),
-  governanceQueueState: {
-    data: [] as GovernanceActionRecord[],
-    isLoading: false,
-    isFetching: false,
-    isError: false,
-    error: null as Error | null,
-  },
-  queueRefetchMock: vi.fn(),
+  getGovernanceActionsMock: vi.fn(),
   rejectMutateAsyncMock: vi.fn(),
 }));
 
+vi.mock('../api/financialClient', () => ({
+  financialClient: {
+    getGovernanceActions: getGovernanceActionsMock,
+  },
+}));
+
 vi.mock('../hooks/useFinancialQueries', () => ({
-  useGovernanceActions: () => ({
-    ...governanceQueueState,
-    refetch: queueRefetchMock,
-  }),
+  governanceActionKeys: {
+    all: ['governance-actions'],
+    list: (filters?: unknown) => ['governance-actions', filters ?? {}],
+  },
   useCheckGovernanceAction: () => ({
     mutateAsync: checkMutateAsyncMock,
     isPending: false,
@@ -86,25 +88,44 @@ function makeAction(overrides: Partial<GovernanceActionRecord> = {}): Governance
   };
 }
 
-function renderPage() {
+function makeEnvelope(
+  items: GovernanceActionRecord[],
+  overrides: Partial<GovernanceActionsEnvelope> = {},
+): GovernanceActionsEnvelope {
+  const statusCounts: Record<string, number> = {};
+  for (const item of items) {
+    statusCounts[item.status] = (statusCounts[item.status] ?? 0) + 1;
+  }
+  return { items, total: items.length, page: 1, pageSize: 25, statusCounts, ...overrides };
+}
+
+function renderPage(search = '') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter>
-      <GovernanceActionsPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/governance-actions${search}`]}>
+        <GovernanceActionsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+}
+
+function lastCallParams(): { status?: string; page?: number; limit?: number } {
+  return getGovernanceActionsMock.mock.calls.at(-1)?.[0] ?? {};
+}
+
+function summaryTileValue(label: string): string | undefined {
+  const span = screen.getByText(label, { selector: '.governance-actions__summary span' });
+  return span.parentElement?.querySelector('strong')?.textContent;
 }
 
 describe('GovernanceActionsPage', () => {
   beforeEach(() => {
     approveMutateAsyncMock.mockReset();
     checkMutateAsyncMock.mockReset();
-    queueRefetchMock.mockReset();
     rejectMutateAsyncMock.mockReset();
-    governanceQueueState.data = [makeAction()];
-    governanceQueueState.isLoading = false;
-    governanceQueueState.isFetching = false;
-    governanceQueueState.isError = false;
-    governanceQueueState.error = null;
+    getGovernanceActionsMock.mockReset();
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction()]));
   });
 
   it('renders type, status, requester, versions, reason, and server-allowed actions', async () => {
@@ -112,11 +133,11 @@ describe('GovernanceActionsPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Trung tâm phê duyệt' })).toBeTruthy();
     expect(screen.queryByText('Kiểm soát maker / checker / approver')).toBeNull();
-    expect(screen.getByText('Chốt kỳ lương')).toBeTruthy();
-    expect(screen.getAllByText('Chờ kiểm tra')).toHaveLength(2);
+    expect(await screen.findByText('Chốt kỳ lương')).toBeTruthy();
+    expect(screen.getByText('Chờ kiểm tra', { selector: '.governance-actions__status' })).toBeTruthy();
     expect(screen.getByText('Kế toán')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
-    expect(screen.getByText('1 yêu cầu đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
+    expect(screen.getByText('1 yêu cầu trên trang này đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
     expect(screen.getByText('Phiên bản').parentElement?.textContent).toContain('YC 4 · Gốc 3');
     expect(screen.getByText('Quyền xử lý:').parentElement?.textContent).toContain('Kiểm tra');
     expect(screen.getByPlaceholderText('Nhập lý do khi từ chối').tagName).toBe('INPUT');
@@ -125,13 +146,13 @@ describe('GovernanceActionsPage', () => {
   });
 
   it('explains why an admin maker cannot see a check or approve button', async () => {
-    governanceQueueState.data = [makeAction({
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction({
       actionKind: 'PRICE_CONFIG_CHANGE',
       subjectType: 'PRICE_CONFIG',
       makerId: 12,
       makerRole: 'ADMIN',
       allowedActions: ['CANCEL'],
-    })];
+    })]));
 
     renderPage();
 
@@ -143,13 +164,13 @@ describe('GovernanceActionsPage', () => {
   });
 
   it('shows approve for an admin maker with a legacy pending price-config request', async () => {
-    governanceQueueState.data = [makeAction({
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction({
       actionKind: 'PRICE_CONFIG_CHANGE',
       subjectType: 'PRICE_CONFIG',
       makerId: 12,
       makerRole: 'ADMIN',
       allowedActions: ['CANCEL', 'APPROVE'],
-    })];
+    })]));
 
     renderPage();
 
@@ -158,7 +179,7 @@ describe('GovernanceActionsPage', () => {
   });
 
   it('labels salary issue and official posting operations distinctly from period close', async () => {
-    governanceQueueState.data = [
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([
       makeAction({
         id: 511,
         afterSnapshot: { operation: 'ISSUE_PAYSLIPS', period: '2026-07' },
@@ -167,7 +188,7 @@ describe('GovernanceActionsPage', () => {
         id: 512,
         afterSnapshot: { operation: 'POST_OFFICIAL', period: '2026-07' },
       }),
-    ];
+    ]));
 
     renderPage();
 
@@ -178,13 +199,13 @@ describe('GovernanceActionsPage', () => {
 
   it('checks a salary issue request through its period-bound decision route', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValue({});
-    governanceQueueState.data = [makeAction({
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction({
       id: 511,
       subjectKey: '2026-07',
       version: 6,
       afterSnapshot: { operation: 'ISSUE_PAYSLIPS', period: '2026-07' },
       allowedActions: ['CHECK'],
-    })];
+    })]));
 
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra' }));
@@ -196,11 +217,13 @@ describe('GovernanceActionsPage', () => {
       );
     });
     expect(checkMutateAsyncMock).not.toHaveBeenCalled();
-    expect(queueRefetchMock).toHaveBeenCalled();
+    // The salary route bypasses the governance mutation hook, so the page
+    // refetches the queue itself.
+    await waitFor(() => expect(getGovernanceActionsMock.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
   it('shows the pending trip-expense decision and typed evidence without claiming it is applied', async () => {
-    governanceQueueState.data = [makeAction({
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction({
       actionKind: 'TRIP_EXPENSE_APPROVAL',
       subjectType: 'TRIP_EXPENSE',
       afterSnapshot: { decision: 'APPROVED', tripId: 77 },
@@ -210,7 +233,7 @@ describe('GovernanceActionsPage', () => {
           attachmentRefs: ['PHOTO-123'],
         },
       },
-    })];
+    })]));
     renderPage();
 
     expect(await screen.findByText('Đề nghị phê duyệt', { exact: false })).toBeTruthy();
@@ -219,29 +242,34 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText(/Chi phí vẫn chờ xử lý/)).toBeTruthy();
   });
 
-  it('lists pending actions by default and reveals completed history under Tất cả', async () => {
-    governanceQueueState.data = [
-      makeAction(),
-      makeAction({
-        id: 502,
-        status: 'APPROVED',
-        actionKind: 'PRICE_CONFIG_CHANGE',
-        reason: 'Cập nhật đơn giá tuyến.',
-        allowedActions: [],
-      }),
-    ];
+  it('opens completed history under Tất cả via the server-side status filter', async () => {
+    const pending = makeAction();
+    const approved = makeAction({
+      id: 502,
+      status: 'APPROVED',
+      actionKind: 'PRICE_CONFIG_CHANGE',
+      reason: 'Cập nhật đơn giá tuyến.',
+      allowedActions: [],
+    });
+    getGovernanceActionsMock.mockImplementation(async (filters?: { status?: string }) =>
+      filters?.status
+        ? makeEnvelope([pending])
+        : makeEnvelope([pending, approved]));
+
     renderPage();
 
     expect(await screen.findByText('Chốt kỳ lương')).toBeTruthy();
     expect(screen.queryByText('Thay đổi cấu hình giá')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
+    fireEvent.click(screen.getByRole('button', { name: /Tất cả/ }));
     expect(await screen.findByText('Thay đổi cấu hình giá')).toBeTruthy();
     expect(screen.getByText('Chỉ xem')).toBeTruthy();
+    expect(lastCallParams().status).toBeUndefined();
+    expect(lastCallParams().page).toBe(1);
   });
 
   it('checks and approves with the current expectedVersion only when allowed', async () => {
-    governanceQueueState.data = [
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([
       makeAction({ id: 501, version: 4, allowedActions: ['CHECK'] }),
       makeAction({
         id: 502,
@@ -249,7 +277,7 @@ describe('GovernanceActionsPage', () => {
         status: 'PENDING_APPROVAL',
         allowedActions: ['APPROVE'],
       }),
-    ];
+    ]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra' }));
@@ -284,5 +312,57 @@ describe('GovernanceActionsPage', () => {
       expectedVersion: 4,
       reason: 'Thiếu biên bản đối soát kỳ lương.',
     }));
+  });
+
+  it('forwards page/limit/status to the server and resets the page when the scope changes', async () => {
+    getGovernanceActionsMock.mockImplementation(async (filters?: { status?: string; page?: number }) => {
+      const page = filters?.page ?? 1;
+      const items = Array.from({ length: 2 }, (_, i) => makeAction({ id: 600 + page * 10 + i }));
+      return makeEnvelope(items, { total: 120, page, pageSize: 25 });
+    });
+    renderPage();
+
+    await screen.findAllByText('Yêu cầu phê duyệt');
+    expect(getGovernanceActionsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      status: 'PENDING_CHECK',
+      page: 1,
+      limit: 25,
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(lastCallParams().page).toBe(2));
+
+    fireEvent.click(screen.getByRole('button', { name: /Chờ phê duyệt/ }));
+    await waitFor(() => {
+      expect(lastCallParams().status).toBe('PENDING_APPROVAL');
+      expect(lastCallParams().page).toBe(1);
+    });
+  });
+
+  it('drives the summary tiles from full-set statusCounts, not the current page', async () => {
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope(
+      [makeAction()],
+      { total: 40, statusCounts: { PENDING_CHECK: 7, PENDING_APPROVAL: 5, APPROVED: 28 } },
+    ));
+    renderPage('?filter=all');
+
+    await screen.findByText('Chốt kỳ lương');
+    expect(summaryTileValue('Đang chờ')).toBe('12');
+    expect(summaryTileValue('Chờ kiểm tra')).toBe('7');
+    expect(summaryTileValue('Chờ phê duyệt')).toBe('5');
+  });
+
+  it('renders server-side pagination over the filtered total', async () => {
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction()], { total: 60 }));
+    renderPage();
+
+    await screen.findByText('Chốt kỳ lương');
+    const summary = screen.getByText(
+      (_, element) => element?.classList.contains('ds-pagination__summary') === true,
+    );
+    expect(summary.textContent).toBe('Hiển thị 1–25 trên 60');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+    await waitFor(() => expect(lastCallParams().page).toBe(2));
   });
 });

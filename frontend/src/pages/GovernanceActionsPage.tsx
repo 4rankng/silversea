@@ -15,20 +15,33 @@ import type {
   GovernanceAllowedAction,
 } from '@tingting/shared';
 import { ROLE_LABELS, Role } from '@tingting/shared';
-import type { GovernanceActionRecord } from '../api/financialClient';
+import {
+  financialClient,
+  type GovernanceActionRecord,
+  type GovernanceActionsEnvelope,
+} from '../api/financialClient';
 import { salaryClient } from '../api/salaryClient';
 import {
+  governanceActionKeys,
   useApproveGovernanceAction,
   useCheckGovernanceAction,
-  useGovernanceActions,
   useRejectGovernanceAction,
 } from '../hooks/useFinancialQueries';
 import { formatDateTimeVN } from '../lib/format';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
+import { Pagination } from '../design-system';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import './GovernanceActionsPage.css';
 
-type InboxFilter = 'PENDING' | 'ALL';
+/** Queue scopes map 1:1 onto the server's single-status filter. */
+type QueueScope = 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'ALL';
 type GovernanceMutation = ReturnType<typeof useCheckGovernanceAction>;
+
+const SCOPE_TABS: Array<{ scope: QueueScope; label: string }> = [
+  { scope: 'PENDING_CHECK', label: 'Chờ kiểm tra' },
+  { scope: 'PENDING_APPROVAL', label: 'Chờ phê duyệt' },
+  { scope: 'ALL', label: 'Tất cả' },
+];
 
 const STATUS_LABELS: Record<GovernanceActionStatus, string> = {
   PENDING_CHECK: 'Chờ kiểm tra',
@@ -196,32 +209,62 @@ function ActionButton({
 export default function GovernanceActionsPage() {
   const [searchParams] = useSearchParams();
   useFocusDeepLink('ga');
-  const [filter, setFilter] = React.useState<InboxFilter>(
-    () => searchParams.get('filter') === 'all' ? 'ALL' : 'PENDING',
-  );
+  // `?filter=all` deep-link opens the full history; the inbox default is the
+  // check stage. Read on first render only — afterwards the scope lives in
+  // the table query state.
+  const initialScope: QueueScope = searchParams.get('filter') === 'all'
+    ? 'ALL'
+    : 'PENDING_CHECK';
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
   const [salaryDecisionBusy, setSalaryDecisionBusy] = React.useState<{
     actionId: number;
     decision: 'CHECK' | 'APPROVE';
   } | null>(null);
-  const queue = useGovernanceActions({ limit: 100 });
+  const queue = useTableQueryState<
+    GovernanceActionRecord,
+    { status?: GovernanceActionStatus },
+    GovernanceActionsEnvelope
+  >({
+    endpoint: (params) => financialClient.getGovernanceActions(params),
+    queryKey: governanceActionKeys.list(),
+    initialFilters: initialScope === 'ALL' ? {} : { status: initialScope },
+  });
   const checkMutation = useCheckGovernanceAction();
   const approveMutation = useApproveGovernanceAction();
   const rejectMutation = useRejectGovernanceAction();
 
-  const allActions = queue.data ?? [];
-  const pendingCheckCount = allActions.filter((action) => action.status === 'PENDING_CHECK').length;
-  const pendingApprovalCount = allActions.filter((action) => action.status === 'PENDING_APPROVAL').length;
-  const actionableCount = allActions.filter((action) => (
+  const actions = queue.rows;
+  const statusScope = queue.filters.status;
+  const scope: QueueScope = statusScope === 'PENDING_CHECK' || statusScope === 'PENDING_APPROVAL'
+    ? statusScope
+    : 'ALL';
+  const statusCounts = queue.query.data?.statusCounts ?? {};
+  // statusCounts covers the same filters as total: when a status filter is
+  // active only that status's count is knowable from this response.
+  const unfiltered = scope === 'ALL';
+  const pendingCheckCount = statusCounts.PENDING_CHECK ?? 0;
+  const pendingApprovalCount = statusCounts.PENDING_APPROVAL ?? 0;
+  const pendingCount = unfiltered ? pendingCheckCount + pendingApprovalCount : queue.total;
+  const checkCount: number | '—' = scope === 'PENDING_APPROVAL' ? '—' : pendingCheckCount;
+  const approvalCount: number | '—' = scope === 'PENDING_CHECK' ? '—' : pendingApprovalCount;
+  // allowedActions is page-scoped, so the actionable count is page-scoped too.
+  const actionableCount = actions.filter((action) => (
     action.allowedActions.includes('CHECK')
     || action.allowedActions.includes('APPROVE')
     || action.allowedActions.includes('REJECT')
   )).length;
-  const pendingCount = pendingCheckCount + pendingApprovalCount;
-  const actions = filter === 'PENDING'
-    ? allActions.filter((action) => isPending(action.status))
-    : allActions;
+
+  function tabCount(tabScope: QueueScope): number | null {
+    if (tabScope === 'ALL') return unfiltered ? queue.total : null;
+    if (tabScope === scope) return queue.total;
+    return unfiltered ? statusCounts[tabScope] ?? 0 : null;
+  }
+
+  function setScope(next: QueueScope) {
+    // setFilter drops the key for undefined and resets the page to 1.
+    queue.setFilter('status', next === 'ALL' ? undefined : next);
+  }
 
   async function runVersionedMutation(
     action: GovernanceActionRecord,
@@ -243,7 +286,7 @@ export default function GovernanceActionsPage() {
             ? salaryClient.checkPostOfficial(action.subjectKey, action.id, action.version)
             : salaryClient.approvePostOfficial(action.subjectKey, action.id, action.version));
         }
-        await queue.refetch();
+        await queue.query.refetch();
         return;
       }
       await mutation.mutateAsync({
@@ -298,7 +341,7 @@ export default function GovernanceActionsPage() {
         <button
           type="button"
           className="governance-actions__refresh"
-          onClick={() => queue.refetch()}
+          onClick={() => queue.query.refetch()}
           disabled={queue.isFetching}
         >
           {queue.isFetching ? <Loader2 size={16} className="spin" /> : <RefreshCcw size={16} />}
@@ -314,8 +357,8 @@ export default function GovernanceActionsPage() {
           </div>
           <p>
             {actionableCount > 0
-              ? `${actionableCount} yêu cầu đang chờ quyết định theo quyền của bạn.`
-              : 'Hiện không có yêu cầu nào cần bạn xử lý.'}
+              ? `${actionableCount} yêu cầu trên trang này đang chờ quyết định theo quyền của bạn.`
+              : 'Không có yêu cầu nào trên trang này cần bạn xử lý.'}
           </p>
         </article>
         <article>
@@ -324,11 +367,11 @@ export default function GovernanceActionsPage() {
         </article>
         <article>
           <span>Chờ kiểm tra</span>
-          <strong>{pendingCheckCount}</strong>
+          <strong>{checkCount}</strong>
         </article>
         <article>
           <span>Chờ phê duyệt</span>
-          <strong>{pendingApprovalCount}</strong>
+          <strong>{approvalCount}</strong>
         </article>
       </section>
 
@@ -339,26 +382,21 @@ export default function GovernanceActionsPage() {
             <p>Ưu tiên các yêu cầu đang chờ, mở lịch sử khi cần đối chiếu.</p>
           </div>
           <div className="governance-actions__filter" role="group" aria-label="Phạm vi yêu cầu">
-            <button
-              type="button"
-              className={filter === 'PENDING' ? 'is-active' : ''}
-              aria-pressed={filter === 'PENDING'}
-              aria-label="Đang chờ"
-              onClick={() => setFilter('PENDING')}
-            >
-              Đang chờ
-              <span>{pendingCount}</span>
-            </button>
-            <button
-              type="button"
-              className={filter === 'ALL' ? 'is-active' : ''}
-              aria-pressed={filter === 'ALL'}
-              aria-label="Tất cả"
-              onClick={() => setFilter('ALL')}
-            >
-              Tất cả
-              <span>{allActions.length}</span>
-            </button>
+            {SCOPE_TABS.map(({ scope: tabScope, label }) => {
+              const count = tabCount(tabScope);
+              return (
+                <button
+                  key={tabScope}
+                  type="button"
+                  className={scope === tabScope ? 'is-active' : ''}
+                  aria-pressed={scope === tabScope}
+                  onClick={() => setScope(tabScope)}
+                >
+                  {label}
+                  {count !== null ? <span>{count}</span> : null}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -369,7 +407,7 @@ export default function GovernanceActionsPage() {
           </div>
         ) : null}
 
-        {queue.isError ? (
+        {queue.error ? (
           <div className="governance-actions__state is-error" role="alert">
             <AlertTriangle size={18} />
             <div>
@@ -379,21 +417,21 @@ export default function GovernanceActionsPage() {
           </div>
         ) : null}
 
-        {!queue.isLoading && !queue.isError && actions.length === 0 ? (
+        {!queue.isLoading && !queue.error && actions.length === 0 ? (
           <div className="governance-actions__state is-empty">
             <Clock3 size={20} aria-hidden="true" />
             <div>
               <strong>Không có yêu cầu nào trong phạm vi này</strong>
               <p>
-                {filter === 'PENDING'
-                  ? 'Hàng chờ đã được xử lý hết. Mở “Tất cả” để xem lịch sử.'
-                  : 'Chưa có yêu cầu quản trị nào được ghi nhận.'}
+                {scope === 'ALL'
+                  ? 'Chưa có yêu cầu quản trị nào được ghi nhận.'
+                  : 'Không còn yêu cầu nào ở giai đoạn này. Mở “Tất cả” để xem lịch sử.'}
               </p>
             </div>
           </div>
         ) : null}
 
-        {!queue.isLoading && !queue.isError && actions.length > 0 ? (
+        {!queue.isLoading && !queue.error && actions.length > 0 ? (
           <div className="governance-actions__cards" data-testid="governance-action-card-list">
           {actions.map((action) => {
             const tripExpenseDecision = tripExpenseDecisionSummary(action);
@@ -541,6 +579,17 @@ export default function GovernanceActionsPage() {
           })}
           </div>
         ) : null}
+
+        <div className="governance-actions__pagination">
+          <Pagination
+            page={queue.page}
+            totalPages={queue.totalPages}
+            totalItems={queue.total}
+            pageSize={queue.pageSize}
+            onChange={queue.setPage}
+            disabled={queue.isFetching}
+          />
+        </div>
       </section>
     </div>
   );

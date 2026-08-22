@@ -472,6 +472,16 @@
   color: var(--danger-text);
 }
 
+.governance-actions__pagination {
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+}
+
+.governance-actions__pagination:empty {
+  display: none;
+  border-top: 0;
+}
+
 .governance-actions__action-error {
   padding: 11px 12px;
   border-radius: var(--radius-sm);
@@ -506,6 +516,14 @@
 
   .governance-actions__decision.has-rejection {
     grid-template-columns: minmax(180px, 1fr) auto;
+  }
+}
+
+@media (max-width: 899px) {
+  .governance-actions__refresh,
+  .governance-actions__button,
+  .governance-actions__filter button {
+    min-height: 44px;
   }
 }
 
@@ -617,7 +635,7 @@
   .governance-actions__button {
     flex: 1 1 0;
     width: auto;
-    min-height: 42px;
+    min-height: 44px;
     padding-inline: 6px;
   }
 
