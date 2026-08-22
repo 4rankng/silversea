@@ -167,6 +167,7 @@ class VisualTestContext:
         self.role = role
         self.run_dir = run_dir
         self.tc_id = tc_id
+        self.detail = ""
         self._console_errors: list[str] = []
 
     # --- navigation & waits ---
@@ -465,10 +466,14 @@ def run_section(
                         result.detail = "TC has no implementation"
                     else:
                         t.fn(ctx)
-                        # Capture the final state as evidence.
-                        shot = ctx.capture()
-                        result.screenshot = str(shot)
-                        result.status = "PASS"
+                        if ctx.detail:
+                            result.status = "BLOCKED"
+                            result.detail = ctx.detail
+                        else:
+                            # Capture the final state as evidence.
+                            shot = ctx.capture()
+                            result.screenshot = str(shot)
+                            result.status = "PASS"
                 except AssertionError as e:
                     msg = str(e)
                     # Convention: TCs that detect missing seed data raise

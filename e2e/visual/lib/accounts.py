@@ -18,6 +18,10 @@ ACCOUNTS = {
     "MANAGER":   {"identifier": "giamdoc",   "home": "/dashboard"},
     "ACCOUNTANT":{"identifier": "ketoan",    "home": "/accounting"},
     "CUS":       {"identifier": os.environ.get("VISUAL_CUS_IDENTIFIER", "cus"), "home": "/shipments"},
+    "DISPATCHER":{
+        "identifier": os.environ.get("VISUAL_DISPATCHER_IDENTIFIER", "dieuvan"),
+        "home": "/dispatch-detail",
+    },
     "DRIVER":    {"identifier": "laixe",     "home": "/my-trips"},
     "FORWARDER": {"identifier": "giaonhan",  "home": "/my-orders"},
     "CUSTOMER":  {

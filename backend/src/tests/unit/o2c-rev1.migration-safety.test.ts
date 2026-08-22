@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 const baselineUrl = new URL('../../../drizzle/0000_flexible-baseline.sql', import.meta.url);
 const journalUrl = new URL('../../../drizzle/meta/_journal.json', import.meta.url);
 const terminalLabelsUrl = new URL('../../../drizzle/0026_rename-lach-huyen-terminal-labels.sql', import.meta.url);
+const legacyCargoModeUrl = new URL('../../../drizzle/0033_backfill-legacy-shipment-cargo-mode.sql', import.meta.url);
 
 describe('O2C clean-baseline safety', () => {
   test('preserves the consolidated baseline before ordered additive migrations', async () => {
@@ -57,6 +58,13 @@ describe('O2C clean-baseline safety', () => {
     assert.match(terminalLabels, /'HTIT'[\s\S]*'TIL - HTIT'/);
     assert.match(terminalLabels, /'HHIT'[\s\S]*'Hateco - HHIT'/);
     assert.doesNotMatch(terminalLabels, /\b(?:DELETE|INSERT|ALTER TABLE)\b/i);
+  });
+
+  test('classifies only legacy NULL shipments that already own containers', async () => {
+    const legacyCargoMode = await readFile(legacyCargoModeUrl, 'utf8');
+    assert.match(legacyCargoMode, /SET "cargo_mode" = 'FCL'/);
+    assert.match(legacyCargoMode, /EXISTS \([\s\S]*FROM "shipment_containers"/);
+    assert.doesNotMatch(legacyCargoMode, /SET "cargo_mode" = 'LCL'/);
   });
 
   test('retains O2C identity fences as unique indexes', async () => {

@@ -2,9 +2,10 @@
 -- Shipments created before the cargo_mode classification column exist (and
 -- seed data predating it) still carry NULL. Every decompose path (CUS
 -- container saves, dispatch planning, intake) rejects those rows with
--- "Hình thức hàng FCL/LCL chưa được xác định." A shipment that owns
--- containers can only be FCL (LCL cannot own containers); a shipment without
--- containers must be LCL (FCL decompose requires at least one container).
+-- "Hình thức hàng FCL/LCL chưa được xác định." A shipment that already owns
+-- containers can only be FCL because LCL cannot own containers. Container-less
+-- NULL rows remain unclassified: draft shipment roots may legitimately exist
+-- before either their cargo mode or container rows have been supplied.
 UPDATE "shipments" AS shipment
 SET "cargo_mode" = 'FCL'
 WHERE shipment."cargo_mode" IS NULL
@@ -12,10 +13,6 @@ WHERE shipment."cargo_mode" IS NULL
     SELECT 1 FROM "shipment_containers" AS container
     WHERE container."shipment_id" = shipment."id"
   );
---> statement-breakpoint
-UPDATE "shipments" AS shipment
-SET "cargo_mode" = 'LCL'
-WHERE shipment."cargo_mode" IS NULL;
 --> statement-breakpoint
 -- Repeat the 0031 container-route backfill for containers that missed it only
 -- because their shipment's cargo_mode was still NULL when 0031 ran. The

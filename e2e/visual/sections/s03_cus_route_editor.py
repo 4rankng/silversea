@@ -9,20 +9,21 @@ Covers the bugs the user reported on 2026-08-22:
   - Cross-role (CUS vs Điều vận) concurrent editing of the same container
     is not covered elsewhere.
 
-This section renders the route editor popover in three roles (CUS, DISPATCHER,
-ADMIN) and at three viewports (1440, 768, 390), verifying the editor opens,
-saves correctly, and that the error/recovery text never overflows.
+This section exercises the CUS route editor at the desktop viewport. The
+concurrency case uses the configured dispatcher account for the competing API
+write, while the browser remains on the CUS draft.
 
-Each TC opens a real container on /shipments-detail, then exercises a
-specific interaction. The popover is rendered, the screenshot is captured
-mid-flow when the assertion requires it, and the full-page screenshot at
-the end is the regression baseline.
+Browser-focused cases open a real container on /shipments-detail and capture
+the relevant rendered state. TC-04 directly verifies the same container-save
+API used by the editor because an unchanged form correctly disables its save
+button.
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import time
 import urllib.request
 import urllib.error
 from typing import Optional
@@ -58,6 +59,26 @@ def _api_get(token: str, path: str) -> dict:
         return {"error": str(e)}
 
 
+def _api_post(token: str, path: str, payload: dict, idempotency_key: str) -> dict:
+    req = urllib.request.Request(
+        f"{API_URL}{path}",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Idempotency-Key": idempotency_key,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as error:
+        raise AssertionError(
+            f"POST {path} returned HTTP {error.code}: {error.read().decode()}"
+        ) from error
+
+
 def _first_editable_container(token: str) -> Optional[dict]:
     """Return {shipmentId, containerId, version, containerNumber} for a
     container that CUS can edit (lift/drop ports are DIRECT). Falls back to
@@ -82,12 +103,15 @@ def _first_editable_container(token: str) -> Optional[dict]:
     return None
 
 
-def _open_route_editor(ctx: VisualTestContext, container_number: str) -> None:
-    """Click the 'Chỉnh sửa điểm nâng hạ' trigger for a given container."""
-    trigger = ctx.page.get_by_role(
-        "button", name=re.compile(rf"Chỉnh sửa điểm nâng hạ\s+.*{re.escape(container_number)}")
-    )
-    trigger.first.click()
+def _open_route_editor(ctx: VisualTestContext, container_number: str = "") -> None:
+    """Click the 'Chỉnh sửa điểm nâng hạ' trigger for the route editor.
+
+    The CUS route editor trigger is a button with `data-cell-label="điểm nâng hạ"`.
+    Using that attribute selector is robust against the visible text changing
+    as the cell content evolves (carrier name, route name, etc.).
+    """
+    trigger = ctx.page.locator('button[data-cell-label="điểm nâng hạ"]').first
+    trigger.click(timeout=4000)
     ctx.page.wait_for_timeout(400)
 
 
@@ -96,41 +120,33 @@ def _open_route_editor(ctx: VisualTestContext, container_number: str) -> None:
 @tc(
     "TC-CUS-DETAIL-ROUTE-01", roles=["CUS"],
     url="/shipments-detail",
-    title="CUS route editor: change Tuyến đường and save (happy path)",
+    title="CUS route editor: opens for a real editable container",
 )
 def tc_route_01_happy_path(ctx: VisualTestContext):
-    """Open the route editor for a real container, change the route, save,
-    and verify the popover closes and the list re-fetches without an
-    error. The screenshot is captured with the editor open so a baseline
-    is in place for future visual regression.
+    """Open the route editor for a real editable container and capture the
+    rendered editor as a visual baseline.
     """
     ctx.login("CUS")
-    token = _api_login("cus", DEFAULT_PASSWORD)
+    token = _api_login(ACCOUNTS["CUS"]["identifier"], DEFAULT_PASSWORD)
     if not token:
-        ctx.detail = "CUS login failed"
-        return
+        raise AssertionError("BLOCKED: CUS API login failed")
     target = _first_editable_container(token)
     if not target:
-        ctx.detail = "no editable CUS container seeded"
-        return
+        raise AssertionError("BLOCKED: no editable CUS container is available")
 
     # The /shipments-detail page needs a searchSuffix (4–5 chars) to render
-    # a specific container. Reuse the last 5 chars of the bill/booking
-    # number when available; otherwise we can still find a CUS-visible
-    # shipment and open its detail by id, but the page only takes a suffix.
+    # a specific container. Reuse the last 5 chars of billOrBookNumber.
     detail_body = _api_get(token, f"/api/shipments/cus-workspace/{target['shipmentId']}")
-    bl = (detail_body.get("summary") or {}).get("blNumber") \
-        or (detail_body.get("summary") or {}).get("bookingRef")
+    bl = (detail_body.get("summary") or {}).get("billOrBookNumber")
     suffix = None
     if bl:
         cleaned = "".join(ch for ch in bl if ch.isalnum())
         if len(cleaned) >= 4:
             suffix = cleaned[-5:].upper()
     if not suffix:
-        ctx.detail = "no bill/booking number for navigation suffix"
-        return
+        raise AssertionError("BLOCKED: editable shipment has no navigation suffix")
 
-    ctx.goto(f"/shipments-detail?searchSuffix={suffix}")
+    ctx.goto(f"/shipments-detail?searchSuffix={suffix}&dateScope=all")
     ctx.page.wait_for_timeout(800)
     _open_route_editor(ctx, target["containerNumber"])
     # Editor must be open: 'Cảng nâng' label is visible.
@@ -145,25 +161,20 @@ def tc_route_01_happy_path(ctx: VisualTestContext):
 @tc(
     "TC-CUS-DETAIL-ROUTE-04", roles=["CUS"],
     url="/shipments-detail",
-    title="CUS route editor: re-save with same lift/drop is a no-op (no 409)",
+    title="CUS container route API: identical lift/drop save is a no-op",
 )
 def tc_route_04_noop_save(ctx: VisualTestContext):
     """Regression: an identical lift/drop save must not bump the shipment
-    version. The frontend re-saves the same value; the test verifies the
-    version is unchanged after the round trip. Backend already covers this
-    in cus-shipment-workspace.test.ts; this is the visual end-to-end.
+    version. This API-level regression verifies the version is unchanged after
+    the round trip; the editor itself correctly disables save while unchanged.
     """
     ctx.login("CUS")
-    token = _api_login("cus", DEFAULT_PASSWORD)
+    token = _api_login(ACCOUNTS["CUS"]["identifier"], DEFAULT_PASSWORD)
     if not token:
-        ctx.detail = "CUS login failed"
-        return
-        ctx.detail = "CUS login failed"
-        return
+        raise AssertionError("BLOCKED: CUS API login failed")
     target = _first_editable_container(token)
     if not target:
-        ctx.detail = "no editable CUS container seeded"
-        return
+        raise AssertionError("BLOCKED: no editable CUS container is available")
 
     # First save: capture version before, then perform an identical save.
     detail_before = _api_get(token, f"/api/shipments/cus-workspace/{target['shipmentId']}")
@@ -172,30 +183,43 @@ def tc_route_04_noop_save(ctx: VisualTestContext):
         None,
     )
     if not line_before:
-        ctx.detail = "line missing on detail"
-        return
+        raise AssertionError("BLOCKED: selected container is absent from shipment detail")
 
-    # PATCH with identical values.
+    # PATCH with identical values. Retry once on a transient lock conflict
+    # (the integration suite runs against the same DB and may have a stale
+    # advisory lock from a prior request).
     import urllib.request as _ur
+    expected_version = line_before.get("shipmentVersion") or detail_before["summary"]["version"]
     body = json.dumps({
-        "expectedShipmentVersion": line_before.get("shipmentVersion") or detail_before["summary"]["version"],
+        "expectedShipmentVersion": expected_version,
         "liftSiteId": line_before.get("liftSiteId"),
         "dropoffSiteId": line_before.get("dropoffSiteId"),
     }).encode()
-    req = _ur.Request(
-        f"{API_URL}/api/shipments/cus-workspace/{target['shipmentId']}/containers/{target['containerId']}",
-        data=body, method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-            "Idempotency-Key": f"visual-noop-{target['containerId']}",
-        },
-    )
-    try:
-        with _ur.urlopen(req, timeout=10) as r:
-            response = json.loads(r.read())
-    except _ur.HTTPError as e:
-        raise AssertionError(f"no-op save returned HTTP {e.code}: {e.read().decode()}")
+    response = None
+    last_err = None
+    for attempt in range(3):
+        req = _ur.Request(
+            f"{API_URL}/api/shipments/cus-workspace/{target['shipmentId']}/containers/{target['containerId']}",
+            data=body, method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Idempotency-Key": f"visual-noop-{target['containerId']}-{expected_version}-{attempt}",
+            },
+        )
+        try:
+            with _ur.urlopen(req, timeout=10) as r:
+                response = json.loads(r.read())
+                break
+        except _ur.HTTPError as e:
+            err_body = e.read().decode()
+            if e.code == 409 and "Khóa" in err_body and attempt < 2:
+                time.sleep(1.0 * (attempt + 1))
+                continue
+            last_err = f"HTTP {e.code}: {err_body}"
+            break
+    if response is None:
+        raise AssertionError(f"no-op save failed: {last_err}")
     if response.get("line", {}).get("shipmentVersion") != line_before.get("shipmentVersion"):
         raise AssertionError(
             f"no-op save bumped version: before={line_before.get('shipmentVersion')} "
@@ -216,23 +240,19 @@ def tc_route_06_domain_409(ctx: VisualTestContext):
     response and inspecting the rendered DOM.
     """
     ctx.login("CUS")
-    token = _api_login("cus", DEFAULT_PASSWORD)
+    token = _api_login(ACCOUNTS["CUS"]["identifier"], DEFAULT_PASSWORD)
     if not token:
-        ctx.detail = "CUS login failed"
-        return
+        raise AssertionError("BLOCKED: CUS API login failed")
     target = _first_editable_container(token)
     if not target:
-        ctx.detail = "no editable CUS container seeded"
-        return
+        raise AssertionError("BLOCKED: no editable CUS container is available")
     detail_body = _api_get(token, f"/api/shipments/cus-workspace/{target['shipmentId']}")
-    bl = (detail_body.get("summary") or {}).get("blNumber") \
-        or (detail_body.get("summary") or {}).get("bookingRef")
+    bl = (detail_body.get("summary") or {}).get("billOrBookNumber")
     if not bl:
-        ctx.detail = "no bill/booking number for navigation suffix"
-        return
+        raise AssertionError("BLOCKED: editable shipment has no navigation suffix")
     suffix = "".join(ch for ch in bl if ch.isalnum())[-5:].upper()
 
-    ctx.goto(f"/shipments-detail?searchSuffix={suffix}")
+    ctx.goto(f"/shipments-detail?searchSuffix={suffix}&dateScope=all")
     ctx.page.wait_for_timeout(800)
 
     # Install a route handler that returns a domain 409 for the container
@@ -248,13 +268,29 @@ def tc_route_06_domain_409(ctx: VisualTestContext):
         ),
     )
     # Open the first available route editor.
-    trigger = ctx.page.get_by_role("button", name=re.compile(r"Chỉnh sửa điểm nâng hạ"))
+    trigger = ctx.page.locator('button[data-cell-label="điểm nâng hạ"]')
     try:
         trigger.first.click(timeout=4000)
-    except Exception:
-        ctx.detail = "no route-editor trigger visible"
-        return
+    except Exception as error:
+        raise AssertionError("BLOCKED: no route-editor trigger is visible") from error
     ctx.page.wait_for_timeout(400)
+    # The save button is disabled until a field is dirty. Open the Cảng nâng
+    # dropdown and pick the first available option so the form becomes dirty.
+    try:
+        lift_field = ctx.page.locator('[id^="shipment-detail-lift-"]').first
+        lift_field.click()
+        ctx.page.wait_for_timeout(300)
+        # Pick the second option (first one is the current value).
+        options = ctx.page.locator('[role="option"]')
+        if options.count() > 1:
+            options.nth(1).click()
+        else:
+            raise AssertionError("Cảng nâng dropdown has no alternative options")
+        ctx.page.wait_for_timeout(300)
+    except AssertionError:
+        raise
+    except Exception as e:
+        raise AssertionError(f"could not change Cảng nâng to dirty the form: {e}")
     # Click the save button.
     try:
         ctx.page.get_by_role("button", name=re.compile(r"Lưu hành trình")).first.click(timeout=4000)
@@ -291,7 +327,20 @@ def tc_route_08_long_error_text(ctx: VisualTestContext):
     (.shipment-container-ledger__edit-error / __recovery).
     """
     ctx.login("CUS")
-    ctx.goto("/shipments-detail")
+    token = _api_login(ACCOUNTS["CUS"]["identifier"], DEFAULT_PASSWORD)
+    if not token:
+        raise AssertionError("BLOCKED: CUS API login failed")
+    target = _first_editable_container(token)
+    if not target:
+        raise AssertionError("BLOCKED: no editable CUS container is available")
+    detail_body = _api_get(token, f"/api/shipments/cus-workspace/{target['shipmentId']}")
+    bl = (detail_body.get("summary") or {}).get("billOrBookNumber")
+    if not bl:
+        raise AssertionError("BLOCKED: editable shipment has no navigation suffix")
+    suffix = "".join(ch for ch in bl if ch.isalnum())[-5:].upper()
+    ctx.goto(f"/shipments-detail?searchSuffix={suffix}&dateScope=all")
+    ctx.page.wait_for_timeout(800)
+
     long_message = "Hệ thống từ chối: " + ("lô hàng vừa thay đổi do người khác cập nhật; " * 6)
     long_message = long_message.rstrip("; ")
     ctx.page.route(
@@ -302,13 +351,27 @@ def tc_route_08_long_error_text(ctx: VisualTestContext):
             body=json.dumps({"error": long_message}),
         ),
     )
-    trigger = ctx.page.get_by_role("button", name=re.compile(r"Chỉnh sửa điểm nâng hạ"))
+    trigger = ctx.page.locator('button[data-cell-label="điểm nâng hạ"]')
     try:
         trigger.first.click(timeout=4000)
-    except Exception:
-        ctx.detail = "no route-editor trigger visible"
-        return
+    except Exception as error:
+        raise AssertionError("BLOCKED: no route-editor trigger is visible") from error
     ctx.page.wait_for_timeout(400)
+    # Dirty the form by picking a different lift port.
+    try:
+        lift_field = ctx.page.locator('[id^="shipment-detail-lift-"]').first
+        lift_field.click()
+        ctx.page.wait_for_timeout(300)
+        options = ctx.page.locator('[role="option"]')
+        if options.count() > 1:
+            options.nth(1).click()
+        else:
+            raise AssertionError("BLOCKED: Cảng nâng has no alternative option")
+        ctx.page.wait_for_timeout(300)
+    except AssertionError:
+        raise
+    except Exception as error:
+        raise AssertionError("BLOCKED: could not dirty the route editor") from error
     try:
         ctx.page.get_by_role("button", name=re.compile(r"Lưu hành trình")).first.click(timeout=4000)
     except Exception:
@@ -351,46 +414,108 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
     where discarding the user's draft is correct.
     """
     ctx.login("CUS")
-    token_cus = _api_login("cus", DEFAULT_PASSWORD)
+    token_cus = _api_login(ACCOUNTS["CUS"]["identifier"], DEFAULT_PASSWORD)
     if not token_cus:
-        ctx.detail = "CUS login failed"
-        return
+        raise AssertionError("BLOCKED: CUS API login failed")
+    dispatcher_identifier = ACCOUNTS["DISPATCHER"]["identifier"]
+    token_dispatcher = _api_login(dispatcher_identifier, DEFAULT_PASSWORD)
+    if not token_dispatcher:
+        raise AssertionError("BLOCKED: dispatcher API login failed")
     target = _first_editable_container(token_cus)
     if not target:
-        ctx.detail = "no editable CUS container seeded"
-        return
-
-    # Simulate the concurrent edit: a Điều vận save bumps the version.
-    import urllib.request as _ur
-    body = json.dumps({
-        "expectedShipmentVersion": (target["shipmentVersion"] or 1) + 1,
-        "liftSiteId": 1,
-    }).encode()
-    req = _ur.Request(
-        f"{API_URL}/api/shipments/cus-workspace/{target['shipmentId']}/containers/{target['containerId']}",
-        data=body, method="POST",
-        headers={
-            "Authorization": f"Bearer {token_cus}",
-            "Content-Type": "application/json",
-            "Idempotency-Key": f"visual-conc-{target['containerId']}",
-        },
+        raise AssertionError("BLOCKED: no editable CUS container is available")
+    detail_body = _api_get(token_cus, f"/api/shipments/cus-workspace/{target['shipmentId']}")
+    bl = (detail_body.get("summary") or {}).get("billOrBookNumber")
+    if not bl:
+        raise AssertionError("BLOCKED: editable shipment has no navigation suffix")
+    suffix = "".join(ch for ch in bl if ch.isalnum())[-5:].upper()
+    line_before = next(
+        (line for line in detail_body.get("containers", [])
+         if line["id"] == target["containerId"]),
+        None,
     )
-    try:
-        _ur.urlopen(req, timeout=10).read()
-    except Exception:
-        pass  # The concurrent save may fail; we only need the version bump.
+    if not line_before:
+        raise AssertionError("BLOCKED: selected container is absent from shipment detail")
+    original_route_id = line_before.get("routeId")
+    alternate_route = next(
+        (route for route in detail_body.get("selectors", {}).get("routes", [])
+         if route.get("id") != original_route_id),
+        None,
+    )
+    if not alternate_route:
+        raise AssertionError("BLOCKED: no alternate route is configured")
 
-    # Now the CUS tab is at the old version. Save returns a real optimistic 409.
-    ctx.goto("/shipments-detail")
-    ctx.page.wait_for_timeout(500)
+    # Open the editor first so its draft keeps the current shipment version.
+    ctx.goto(f"/shipments-detail?searchSuffix={suffix}&dateScope=all")
+    ctx.page.wait_for_timeout(800)
     _open_route_editor(ctx, target["containerNumber"])
+    # Dirty the form by changing the route.
     try:
-        ctx.page.get_by_role("button", name=re.compile(r"Lưu hành trình")).first.click(timeout=4000)
-    except Exception:
-        raise AssertionError("save button not visible — editor did not open")
-    # The recovery banner must appear OR a 409 alert with the stale-data text.
-    body = ctx.page.inner_text("body")
-    if "Đã tải bản mới nhất" not in body and "vừa thay đổi" not in body:
-        raise AssertionError(
-            "stale-data 409 did not surface the recovery banner — see isOptimisticShipmentConflict()"
+        route_field = ctx.page.locator('[id^="shipment-detail-container-route-"]').first
+        route_field.click()
+        ctx.page.wait_for_timeout(300)
+        options = ctx.page.locator('[role="option"]')
+        if options.count() > 1:
+            options.nth(1).click()
+        else:
+            raise AssertionError("BLOCKED: route selector has no alternate option")
+        ctx.page.wait_for_timeout(300)
+    except AssertionError:
+        raise
+    except Exception as error:
+        raise AssertionError("BLOCKED: could not dirty the route editor") from error
+
+    endpoint = (
+        f"/api/shipments/cus-workspace/{target['shipmentId']}"
+        f"/containers/{target['containerId']}"
+    )
+    concurrent_version = line_before.get("shipmentVersion") or detail_body["summary"]["version"]
+    _api_post(
+        token_dispatcher,
+        endpoint,
+        {
+            "expectedShipmentVersion": concurrent_version,
+            "routeId": alternate_route["id"],
+        },
+        f"visual-concurrent-{target['containerId']}-{concurrent_version}",
+    )
+
+    try:
+        try:
+            ctx.page.get_by_role(
+                "button", name=re.compile(r"Lưu hành trình")
+            ).first.click(timeout=4000)
+        except Exception as error:
+            raise AssertionError("save button not visible — editor did not open") from error
+        try:
+            ctx.page.get_by_text(re.compile(r"Đã tải bản mới nhất")).wait_for(timeout=5000)
+        except Exception as error:
+            raise AssertionError(
+                "stale-data 409 did not surface the recovery banner"
+            ) from error
+    finally:
+        # Restore the original operational value so repeated local/staging QA
+        # does not leave a different route behind.
+        detail_after = _api_get(
+            token_dispatcher,
+            f"/api/shipments/cus-workspace/{target['shipmentId']}",
         )
+        line_after = next(
+            (line for line in detail_after.get("containers", [])
+             if line["id"] == target["containerId"]),
+            None,
+        )
+        if line_after and line_after.get("routeId") != original_route_id:
+            restore_version = (
+                line_after.get("shipmentVersion")
+                or detail_after["summary"]["version"]
+            )
+            _api_post(
+                token_dispatcher,
+                endpoint,
+                {
+                    "expectedShipmentVersion": restore_version,
+                    "routeId": original_route_id,
+                },
+                f"visual-concurrent-restore-{target['containerId']}-{restore_version}",
+            )
