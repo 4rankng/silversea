@@ -393,3 +393,12 @@ export type {
   EffectiveFactoryInput,
   EffectiveDateInput,
 } from './shipment-effective';
+
+export {
+  penaltyListQuerySchema,
+  penaltySummaryQuerySchema,
+} from './schemas/penalty-list';
+export type {
+  PenaltyListQuery,
+  PenaltySummaryQuery,
+} from './schemas/penalty-list';

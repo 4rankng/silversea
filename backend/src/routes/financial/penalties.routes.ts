@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Role, createPenaltySchema } from '@tingting/shared';
+import { Role, createPenaltySchema, penaltyListQuerySchema, penaltySummaryQuerySchema } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import * as financialService from '../../services/financial.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../../services/idempotency.service';
+import { throwValidation } from '../../lib/validation';
 
 const router = Router();
 
@@ -19,9 +20,18 @@ function getRequestIdempotencyKey(req: Request): string | undefined {
 
 // ─── Penalties ───────────────────────────────────────────────────────────────
 
+// Danh sách kỷ luật — phân trang + lọc (lái xe, khoảng ngày, trạng thái, tìm kiếm)
 router.get('/penalties', asyncHandler(async (req: Request, res: Response) => {
-  const driverId = req.query.driverId ? parseInt(req.query.driverId as string, 10) : undefined;
-  res.json(await financialService.getPenalties(driverId));
+  const parsed = penaltyListQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  res.json(await financialService.getPenalties(parsed.data));
+}));
+
+// Tổng hợp KPI kỷ luật — thay cho việc tổng hợp client-side trên toàn bộ danh sách
+router.get('/penalties/summary', asyncHandler(async (req: Request, res: Response) => {
+  const parsed = penaltySummaryQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  res.json(await financialService.getPenaltiesSummary(parsed.data));
 }));
 
 router.post('/penalties', asyncHandler(async (req: Request, res: Response) => {
