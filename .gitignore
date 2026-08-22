@@ -61,6 +61,7 @@ __pycache__/
 frontend/qa-*.js
 frontend/scripts/qa-*.mjs
 qa/scripts/*
+screenshot_filter_check.mjs
 
 # Playwright artifacts
 playwright-report/
