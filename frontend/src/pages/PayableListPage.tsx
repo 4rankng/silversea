@@ -7,7 +7,9 @@ import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { AssetIcon } from '../components/AssetIcon';
 import { ClickableCard } from '../components/shared/ClickableCard';
-import { usePayablesSummary, usePostCommission } from '../hooks/useQueries';
+import { usePostCommission } from '../hooks/useQueries';
+import { financialClient } from '../api/financialClient';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -22,7 +24,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { Pagination, SearchableSelect, UuiSelectField, useDebouncedValue } from '../design-system';
+import { Pagination, SearchableSelect, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -200,18 +202,21 @@ export function CommissionModal({
 
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
+type PayablesSummaryEnvelope = Awaited<ReturnType<typeof financialClient.getPayablesSummary>>;
+
 export default function PayableListPage() {
-  const [category, setCategory] = useState<PayablesCategory | undefined>(undefined);
-  const [searchInput, setSearchInput] = useState('');
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
-  const [page, setPage] = useState(1);
   // Server-side search + pagination; headline numbers and totals are full-set.
-  const { data, isLoading: loading, error: queryError } = usePayablesSummary({
-    category,
-    search: debouncedSearch || undefined,
-    page,
-    limit: 25,
+  // Search input, page-reset-on-filter and caching live in the table hook.
+  const table = useTableQueryState<PayableSummary, { category?: PayablesCategory }, PayablesSummaryEnvelope>({
+    endpoint: (params) => financialClient.getPayablesSummary(params),
+    queryKey: qk.financial.payablesSummaryAll,
+    defaultPageSize: 25,
   });
+  const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
+  const category = table.filters.category as PayablesCategory | undefined;
+  const data = query.data;
+  const loading = table.isLoading;
+  const queryError = query.error;
   const payables = useMemo(() => data?.items ?? [], [data]);
   const apiTotal = data?.totalOutstanding;
   const apiSupplierCount = data?.totalSuppliers ?? 0;
@@ -278,7 +283,6 @@ export default function PayableListPage() {
   // Search + pagination happen server-side; rows render the current window.
   const effectivePage = Math.min(page, data?.totalPages ?? 1);
   // Search or category change invalidates the current page number.
-  useEffect(() => { setPage(1); }, [debouncedSearch, category]);
 
   /* ── Row click-through destination ── */
   // Keep carrier payables inside the outbound-payment workflow. A carrier may
@@ -484,7 +488,7 @@ export default function PayableListPage() {
                 role="tab"
                 aria-selected={isActive}
                 className={`payables-category-chip${isActive ? ' is-active' : ''}`}
-                onClick={() => setCategory(chip.value)}
+                onClick={() => table.setFilter('category', chip.value)}
               >
                 {chip.label}
               </button>

@@ -15,11 +15,13 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { Pagination, useDebouncedValue } from '../design-system';
+import { Pagination } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
-import { useCustomerAging } from '../hooks/useQueries';
 import type { CustomerAging } from '../hooks/useQueries';
+import { financialClient, type CustomerAgingResponse } from '../api/financialClient';
+import { qk } from '../api/keys';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import {
   usePageAnimations,
   useListAnimations,
@@ -96,23 +98,32 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
 export default function DebtListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [searchInput, setSearchInput] = useState('');
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
-  const [page, setPage] = useState(1);
-  const [filterMode, setFilterMode] = useState<BucketFilterMode>(
-    searchParams.get('filter') === 'current' ? 'current'
+  // Bucket filter can arrive via ?filter= (aging-card deep links).
+  const urlBucket = searchParams.get('filter') === 'current' ? 'current'
     : searchParams.get('filter') === 'd30' ? 'd30'
     : searchParams.get('filter') === 'd60' ? 'd60'
     : searchParams.get('filter') === 'over90' ? 'over90'
-    : 'all',
-  );
-  // Server-side pagination + bucket filter + search; totals are full-set.
-  const { data, isLoading: loading, error: queryError } = useCustomerAging({
-    search: debouncedSearch || undefined,
-    bucket: filterMode,
-    page,
-    limit: 25,
+    : undefined;
+  // Server-side pagination + bucket filter + debounced search; totals are
+  // full-set. Search input, page-reset-on-filter and caching live in the hook.
+  const table = useTableQueryState<
+    CustomerAging,
+    { bucket?: 'current' | 'd30' | 'd60' | 'over90' },
+    CustomerAgingResponse & { items: CustomerAging[] }
+  >({
+    endpoint: async (params) => {
+      const response = await financialClient.getCustomerAging(params);
+      return { ...response, items: response.customers };
+    },
+    queryKey: qk.financial.customerAgingAll,
+    defaultPageSize: 25,
+    initialFilters: urlBucket ? { bucket: urlBucket } : {},
   });
+  const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
+  const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';
+  const data = query.data;
+  const loading = table.isLoading;
+  const queryError = query.error;
   const { toast: showToast } = useToast();
   const [exporting, setExporting] = useState(false);
 
@@ -197,9 +208,6 @@ export default function DebtListPage() {
   const debts = customerDebts;
   const totalDebtPages = data?.totalPages ?? 1;
   const effectivePage = Math.min(page, totalDebtPages);
-  // Any filter/search change invalidates the current page number.
-  useEffect(() => { setPage(1); }, [filterMode, debouncedSearch]);
-
   const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [debts] });
 
   /* ── Counter animation trigger ── */
@@ -222,7 +230,7 @@ export default function DebtListPage() {
   const heroMoney = moneyParts(totals.total, false);
 
   const handleBucketClick = (bucket: AgingBucket) => {
-    setFilterMode(bucket.filterMode);
+    table.setFilter('bucket', bucket.filterMode === 'all' ? undefined : bucket.filterMode);
   };
 
   return (
@@ -379,7 +387,7 @@ export default function DebtListPage() {
             <button
               type="button"
               className={`filter-pill${filterMode === 'all' ? ' is-active' : ''}`}
-              onClick={() => setFilterMode('all')}
+              onClick={() => table.setFilter('bucket', undefined)}
             >
               <Users size={14} />
               <span>Tất cả</span>
