@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum, ilike } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
@@ -17,6 +17,7 @@ import {
   type PaymentDatePolicy,
 } from './business-calendar.service';
 import { propagateExpenseApprovals } from './source-change.service';
+import { escapeLikeTerm } from '../lib/format';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import type { GovernanceApplyResult, GovernanceActionRow } from './governance-transition.service';
 type DbLike = typeof db | Tx;
@@ -200,11 +201,22 @@ export async function createAdvanceRequest(
 function buildAdvanceRequestConditions(filters?: {
   requesterId?: number;
   status?: string;
+  search?: string;
   excludeLinkedToActiveSettlement?: boolean;
 }) {
   const conditions = [];
   if (filters?.requesterId) conditions.push(eq(s.advanceRequests.requesterId, filters.requesterId));
   if (filters?.status) conditions.push(eq(s.advanceRequests.status, filters.status as ('PENDING' | 'APPROVED' | 'REJECTED')));
+  if (filters?.search) {
+    // Requester names are attached post-query by enrichWithNames, so search runs
+    // in SQL as an IN subquery over users.fullName — it composes with the
+    // LIMIT/OFFSET pagination instead of post-filtering the page.
+    const pattern = `%${escapeLikeTerm(filters.search)}%`;
+    conditions.push(inArray(
+      s.advanceRequests.requesterId,
+      db.select({ id: s.users.id }).from(s.users).where(ilike(s.users.fullName, pattern)),
+    ));
+  }
   if (filters?.excludeLinkedToActiveSettlement) {
     const claimedRequestIds = db.select({ id: s.advanceSettlementRequests.advanceRequestId })
       .from(s.advanceSettlementRequests)
@@ -226,6 +238,7 @@ function clampPageLimit(page: number | undefined, limit: number | undefined, def
 export async function listAdvanceRequests(filters?: {
   requesterId?: number;
   status?: string;
+  search?: string;
   excludeLinkedToActiveSettlement?: boolean;
   page?: number;
   limit?: number;
@@ -248,6 +261,8 @@ export interface PaginatedAdvanceRequests {
   items: Awaited<ReturnType<typeof listAdvanceRequests>>;
   page: number;
   limit: number;
+  /** Alias of `limit` for PaginatedResponse-shaped consumers. */
+  pageSize: number;
   total: number;
   totalPages: number;
   /** Full-set status counts for the page's filter pills. */
@@ -257,13 +272,16 @@ export interface PaginatedAdvanceRequests {
 }
 
 /**
- * SQL-paginated admin listing. statusCounts/statusAmounts are FULL-set
- * aggregates (status filter excluded) so KPIs/filter pills stay stable across
- * tabs; total/totalPages describe the filtered set for the pager.
+ * SQL-paginated listing for the HTTP list routes (admin + forwarder-scoped).
+ * statusCounts/statusAmounts are FULL-set aggregates (status/search/eligibility
+ * filters excluded) so KPIs/filter pills stay stable across tabs;
+ * total/totalPages describe the filtered set for the pager.
  */
 export async function listAdvanceRequestsPaginated(filters: {
   requesterId?: number;
   status?: string;
+  search?: string;
+  excludeLinkedToActiveSettlement?: boolean;
   page?: number;
   limit?: number;
 }): Promise<PaginatedAdvanceRequests> {
@@ -294,6 +312,7 @@ export async function listAdvanceRequestsPaginated(filters: {
     items,
     page,
     limit,
+    pageSize: limit,
     total: filteredTotal,
     totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
     statusCounts,

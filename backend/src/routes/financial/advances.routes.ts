@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import {
+  AdvanceRequestStatus,
   NotificationType,
   Role,
   accountantSettlementExpensePatchSchema,
@@ -35,12 +37,21 @@ import { emitNotification } from '../../services/notification.service';
 
 const router = Router();
 
+const advanceRequestListQuerySchema = z.object({
+  status: z.nativeEnum(AdvanceRequestStatus).optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
 // ─── Advance Requests (admin) ─────────────────────────────────────────────────
 
 router.get('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
-  const status = req.query.status as string | undefined;
+  const parsed = advanceRequestListQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  const { status, search } = parsed.data;
   const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 500 });
-  res.json(await listAdvanceRequestsPaginated({ status, page, limit }));
+  res.json(await listAdvanceRequestsPaginated({ status, search, page, limit }));
 }));
 
 router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {

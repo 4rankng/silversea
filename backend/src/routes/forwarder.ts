@@ -29,8 +29,8 @@ import { resolveForwarder } from '../middleware/forwarder';
 import { throwValidation } from '../lib/validation';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { tripContainerSchema, tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema } from '@tingting/shared';
-import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, createAdvanceSettlement, listAdvanceSettlements, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../services/advance.service';
+import { AdvanceRequestStatus, tripContainerSchema, tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema } from '@tingting/shared';
+import { createAdvanceRequest, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlements, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../services/advance.service';
 import { parsePagination } from './utils/pagination';
 import { createAdvanceRequestSchema, createAdvanceSettlementSchema } from '@tingting/shared';
 import { buildNoInvoicePolicySnapshot } from '../services/no-invoice-disbursement.service';
@@ -796,15 +796,32 @@ router.get('/unlinked-expenses', asyncHandler(async (req: Request, res: Response
 
 // ── Advance Requests ──
 
+const forwarderAdvanceRequestListQuerySchema = z.object({
+  status: z.nativeEnum(AdvanceRequestStatus).optional(),
+  eligibleForSettlement: z.enum(['true', 'false']).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+});
+
 router.get('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
   const forwarder = req.forwarder!;
-  const status = req.query.status as string | undefined;
-  const excludeLinkedToActiveSettlement = req.query.eligibleForSettlement === 'true';
-  const [items, counts] = await Promise.all([
-    listAdvanceRequests({ requesterId: forwarder.id, status, excludeLinkedToActiveSettlement }),
-    getAdvanceRequestCounts(forwarder.id),
-  ]);
-  res.json({ items, counts });
+  const parsed = forwarderAdvanceRequestListQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  const excludeLinkedToActiveSettlement = parsed.data.eligibleForSettlement === 'true';
+  // Default limit is the max so no-param callers (the advances overview's hero
+  // KPIs and the settlement form's eligible list) keep the legacy full-list
+  // behavior; the requests list page passes explicit page/limit.
+  const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
+  const result = await listAdvanceRequestsPaginated({
+    requesterId: forwarder.id,
+    status: parsed.data.status,
+    excludeLinkedToActiveSettlement,
+    page,
+    limit,
+  });
+  // `counts` alias keeps the live ForwarderAdvancesPage whole until its
+  // migration to the paginated envelope.
+  res.json({ ...result, counts: result.statusCounts });
 }));
 
 router.post('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
