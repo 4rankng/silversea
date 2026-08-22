@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, sql, desc, isNull, gte, lte } from 'drizzle-orm';
+import { eq, and, sql, desc, isNull, gte, lte, count, sum } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
@@ -658,7 +658,7 @@ export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListF
 
   const where = and(...conditions);
 
-  const [items, [countRow]] = await Promise.all([
+  const [items, [countRow], statusRows] = await Promise.all([
     dbOrTx.select({
       id: s.expenses.id,
       expenseDate: s.expenses.expenseDate,
@@ -726,9 +726,34 @@ export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListF
     dbOrTx.select({ count: sql<number>`count(*)` })
       .from(s.expenses)
       .where(where),
+    // Full-set (page-independent) payment-status aggregates over the SAME
+    // filters, so the list page's KPI strip no longer derives headline
+    // numbers from whichever page is loaded. Mirrors the payables list
+    // precedent (aging.service paginatePayablesSummary) and the advances
+    // statusCounts/statusAmounts convention.
+    dbOrTx.select({
+      paymentStatus: s.expenses.paymentStatus,
+      itemCount: count(),
+      amount: sum(s.expenses.amount),
+    }).from(s.expenses)
+      .where(where)
+      .groupBy(s.expenses.paymentStatus),
   ]);
 
-  return { items, total: Number(countRow?.count ?? 0), page, pageSize };
+  const summary = { totalAmount: 0, paidAmount: 0, unpaidAmount: 0, paidCount: 0, unpaidCount: 0 };
+  for (const row of statusRows) {
+    const amount = Number(row.amount ?? 0);
+    summary.totalAmount += amount;
+    if (row.paymentStatus === 'PAID') {
+      summary.paidAmount += amount;
+      summary.paidCount += Number(row.itemCount ?? 0);
+    } else {
+      summary.unpaidAmount += amount;
+      summary.unpaidCount += Number(row.itemCount ?? 0);
+    }
+  }
+
+  return { items, total: Number(countRow?.count ?? 0), page, pageSize, summary };
 }
 
 /**
