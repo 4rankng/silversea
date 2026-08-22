@@ -446,7 +446,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   };
 
   /* ── Tab counts (full-set, from server aggregates) ────────────────────── */
-  const tabCounts = useMemo(() => {
+  const tabCounts = useMemo<Record<string, number>>(() => {
     const fullTotal = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
     return {
       '': fullTotal,
