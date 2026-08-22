@@ -2,11 +2,19 @@ import { useCallback, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery, type QueryKey, type UseQueryResult } from '@tanstack/react-query';
 import { useDebouncedValue } from './useDebouncedValue';
 
-export interface TableQueryEndpoint<TItem, TParams extends Record<string, unknown>> {
-  (params: TParams & { search?: string; page?: number; limit?: number }): Promise<{ items: TItem[]; total: number }>;
+export interface TableQueryEndpoint<
+  TItem,
+  TParams extends Record<string, unknown>,
+  TEnvelope extends { items: TItem[]; total: number } = { items: TItem[]; total: number },
+> {
+  (params: TParams & { search?: string; page?: number; limit?: number }): Promise<TEnvelope>;
 }
 
-export interface TableQueryState<TItem, TParams extends Record<string, unknown>> {
+export interface TableQueryState<
+  TItem,
+  TParams extends Record<string, unknown>,
+  TEnvelope extends { items: TItem[]; total: number } = { items: TItem[]; total: number },
+> {
   /** Current raw search input. */
   search: string;
   setSearch: (s: string) => void;
@@ -24,15 +32,19 @@ export interface TableQueryState<TItem, TParams extends Record<string, unknown>>
   isLoading: boolean;
   isFetching: boolean;
   error: unknown;
-  query: UseQueryResult<{ items: TItem[]; total: number }>;
+  query: UseQueryResult<TEnvelope>;
   /** Currently-applied params (filters + debounced search + page). */
   appliedParams: TParams & { search: string; page: number; limit: number };
   /** Reset everything back to the initial state. */
   reset: () => void;
 }
 
-export interface UseTableQueryStateOpts<TItem, TParams extends Record<string, unknown>> {
-  endpoint: TableQueryEndpoint<TItem, TParams>;
+export interface UseTableQueryStateOpts<
+  TItem,
+  TParams extends Record<string, unknown>,
+  TEnvelope extends { items: TItem[]; total: number } = { items: TItem[]; total: number },
+> {
+  endpoint: TableQueryEndpoint<TItem, TParams, TEnvelope>;
   queryKey: QueryKey;
   defaultPageSize?: number;
   debounceMs?: number;
@@ -66,7 +78,8 @@ export interface UseTableQueryStateOpts<TItem, TParams extends Record<string, un
 export function useTableQueryState<
   TItem,
   TParams extends Record<string, unknown> = Record<string, never>,
->(opts: UseTableQueryStateOpts<TItem, TParams>): TableQueryState<TItem, TParams> {
+  TEnvelope extends { items: TItem[]; total: number } = { items: TItem[]; total: number },
+>(opts: UseTableQueryStateOpts<TItem, TParams, TEnvelope>): TableQueryState<TItem, TParams, TEnvelope> {
   const [search, setSearch] = useState(opts.initialSearch ?? '');
   const [filters, setFiltersRaw] = useState<TParams>(opts.initialFilters ?? ({} as TParams));
   const [page, setPage] = useState(1);

@@ -4,7 +4,28 @@ import { describe, expect, it, vi } from 'vitest';
 const { refetchUsers } = vi.hoisted(() => ({ refetchUsers: vi.fn() }));
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: [] }),
+  keepPreviousData: Symbol('keepPreviousData'),
+  // Key-aware stub: the users-table query returns the /users envelope; every
+  // other query (trucks, customers, shipment scope) gets an empty array.
+  useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+    const key = JSON.stringify(queryKey ?? []);
+    if (key.includes('users')) {
+      return {
+        data: {
+          items: [],
+          total: 0,
+          businessUnits: [
+            { id: 11, code: 'HCM', name: 'Điều hành miền Nam', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+            { id: 12, code: 'HN', name: 'Điều hành miền Bắc', status: 'INACTIVE', createdAt: '', updatedAt: '' },
+          ],
+          counts: { total: 0, staffCount: 0, driverCount: 0, inactiveCount: 0, byRole: {} },
+        },
+        isLoading: false,
+        refetch: refetchUsers,
+      };
+    }
+    return { data: [] };
+  },
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -14,20 +35,6 @@ vi.mock('../hooks/useAuth', () => ({
       role: 'ADMIN',
       capabilities: ['manage_users'],
     },
-  }),
-}));
-
-vi.mock('../hooks/useCatalogQueries', () => ({
-  useUsers: () => ({
-    data: {
-      items: [],
-      businessUnits: [
-        { id: 11, code: 'HCM', name: 'Điều hành miền Nam', status: 'ACTIVE', createdAt: '', updatedAt: '' },
-        { id: 12, code: 'HN', name: 'Điều hành miền Bắc', status: 'INACTIVE', createdAt: '', updatedAt: '' },
-      ],
-    },
-    isLoading: false,
-    refetch: refetchUsers,
   }),
 }));
 

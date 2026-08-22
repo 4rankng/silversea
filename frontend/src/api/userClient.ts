@@ -1,18 +1,40 @@
 import { api } from '../lib/api';
+import { toQuery } from '../lib/http/query';
 import { AUTH } from '@tingting/shared';
 import type { BusinessUnit, UserRow } from '../features/users/utils';
 
+/** List params for GET /users. All optional; omitted fields keep server defaults. */
+export type UsersListParams = {
+  search?: string;
+  role?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'name' | 'role' | 'status' | 'date';
+  sortOrder?: 'asc' | 'desc';
+};
+
+/** Aggregates for the /users KPI cards and role-filter pills (full visible set). */
+export interface UsersListCounts {
+  total: number;
+  staffCount: number;
+  driverCount: number;
+  inactiveCount: number;
+  byRole: Record<string, number>;
+}
+
 export interface UsersResponse {
   items: UserRow[];
+  /** Filtered count — matches the search/role params, drives pagination. */
   total: number;
   businessUnits: BusinessUnit[];
+  counts?: UsersListCounts;
 }
 
 const BUSINESS_UNITS_PATH = '/auth/business-units';
 
 export const userClient = {
-  getUsers: async () => {
-    return api.get<UsersResponse>(AUTH.USERS);
+  getUsers: async (params?: UsersListParams) => {
+    return api.get<UsersResponse>(`${AUTH.USERS}${toQuery(params)}`);
   },
 
   getUser: async (id: number) => {

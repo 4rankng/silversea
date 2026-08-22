@@ -238,7 +238,20 @@ router.post('/change-password', authMiddleware, asyncHandler(async (req: Request
 // ─── User management (admin) ─────────────────────────────────────────────────
 
 router.get('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
-  res.json(await userService.listUsers(req.user?.role));
+  const role = typeof req.query.role === 'string' && req.query.role !== 'all' ? req.query.role : undefined;
+  const sortByRaw = typeof req.query.sortBy === 'string' ? req.query.sortBy : undefined;
+  const sortBy = sortByRaw === 'name' || sortByRaw === 'role' || sortByRaw === 'status' || sortByRaw === 'date'
+    ? sortByRaw
+    : undefined;
+  const sortOrderRaw = typeof req.query.sortOrder === 'string' ? req.query.sortOrder : undefined;
+  res.json(await userService.listUsers(req.user?.role, {
+    search: typeof req.query.search === 'string' ? req.query.search : undefined,
+    role,
+    page: Number.parseInt(req.query.page as string, 10) || undefined,
+    limit: Number.parseInt(req.query.limit as string, 10) || undefined,
+    sortBy,
+    sortOrder: sortOrderRaw === 'desc' ? 'desc' : sortOrderRaw === 'asc' ? 'asc' : undefined,
+  }));
 }));
 
 router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {

@@ -19,9 +19,10 @@ import {
   userBusinessUnitLinks,
   userShipmentLinks,
 } from '../db/schema';
-import { eq, isNull, sql, or, and, ne, inArray } from 'drizzle-orm';
+import { eq, isNull, sql, or, and, ne, inArray, ilike, asc, desc } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { escapeLikeTerm } from '../lib/format';
 import { getEnforcer } from '../casbin/enforcer';
 import {
   cascadeDeleteUserLinks,
@@ -496,12 +497,77 @@ export async function authenticate(identifier: string, password: string) {
   return addScopeIds(userPublic, customerIds, businessUnitIds, shipmentIds);
 }
 
-/** List all active users, each joined with its optional driver profile. Non-ADMIN requesters cannot see ADMIN accounts. */
-export async function listUsers(requesterRole?: string) {
-  const where = requesterRole !== Role.ADMIN
+/** Optional list params. When omitted the endpoint keeps its historical full-list behavior. */
+export type ListUsersParams = {
+  search?: string;
+  role?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'name' | 'role' | 'status' | 'date';
+  sortOrder?: 'asc' | 'desc';
+};
+
+/** Aggregates for the /users KPI cards and role-filter pills, over the requester's full visible set. */
+export interface UsersListCounts {
+  total: number;
+  staffCount: number;
+  driverCount: number;
+  inactiveCount: number;
+  byRole: Record<string, number>;
+}
+
+const USERS_STAFF_ROLES: string[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
+const USERS_LIST_MAX_LIMIT = 500;
+
+/**
+ * List users, each joined with its optional driver profile. Non-ADMIN requesters cannot see ADMIN accounts.
+ * Search/filter/sort/pagination run in SQL when params are given; `total` is the filtered count
+ * (equals the visible-set size when no params are passed). `counts` always covers the full visible set.
+ */
+export async function listUsers(requesterRole?: string, params: ListUsersParams = {}) {
+  const visibilityWhere = requesterRole !== Role.ADMIN
     ? and(isNull(users.deletedAt), ne(users.role, Role.ADMIN))
     : isNull(users.deletedAt);
-  const items = await selectUserWithDriver(db, where);
+
+  const conditions = [visibilityWhere];
+  if (params.role) {
+    conditions.push(eq(users.role, params.role as (typeof users.role.enumValues)[number]));
+  }
+  const search = params.search?.trim();
+  if (search) {
+    const term = `%${escapeLikeTerm(search)}%`;
+    conditions.push(or(
+      ilike(users.username, term),
+      ilike(users.fullName, term),
+      ilike(users.email, term),
+      ilike(users.phone, term),
+    ));
+  }
+  const where = and(...conditions);
+
+  const page = typeof params.page === 'number' && Number.isInteger(params.page) && params.page > 0
+    ? params.page
+    : 1;
+  const limit = typeof params.limit === 'number' && Number.isInteger(params.limit) && params.limit > 0
+    ? Math.min(params.limit, USERS_LIST_MAX_LIMIT)
+    : USERS_LIST_MAX_LIMIT;
+
+  const dir = params.sortOrder === 'desc' ? desc : asc;
+  const orderBy = params.sortBy === 'name'
+    ? [dir(sql`lower(coalesce(${users.fullName}, ${users.username}, ''))`)]
+    : params.sortBy === 'role'
+      ? [dir(users.role)]
+      : params.sortBy === 'status'
+        ? [dir(users.status)]
+        : params.sortBy === 'date'
+          ? [dir(users.createdAt)]
+          : undefined;
+
+  const rowsQuery = selectUserWithDriver(db, where);
+  const items = await (orderBy ? rowsQuery.orderBy(...orderBy) : rowsQuery)
+    .limit(limit)
+    .offset((page - 1) * limit);
+
   const includeAssignmentMetadata = requesterRole === Role.ADMIN || requesterRole === Role.MANAGER;
   const withLinks = includeAssignmentMetadata
     ? await attachCustomerIdsToUsers(db, items)
@@ -511,8 +577,32 @@ export async function listUsers(requesterRole?: string) {
       businessUnitIds: [],
       shipmentIds: [],
     }));
+
+  const [countRows, [filteredRow]] = await Promise.all([
+    db.select({
+      role: users.role,
+      status: users.status,
+      count: sql<number>`count(*)::int`,
+    }).from(users).where(visibilityWhere).groupBy(users.role, users.status),
+    db.select({ value: sql<number>`count(*)::int` }).from(users).where(where),
+  ]);
+
+  const counts: UsersListCounts = { total: 0, staffCount: 0, driverCount: 0, inactiveCount: 0, byRole: {} };
+  for (const row of countRows) {
+    counts.total += row.count;
+    counts.byRole[row.role] = (counts.byRole[row.role] ?? 0) + row.count;
+    if (USERS_STAFF_ROLES.includes(row.role)) counts.staffCount += row.count;
+    if (row.role === Role.DRIVER) counts.driverCount += row.count;
+    if (row.status !== 'ACTIVE') counts.inactiveCount += row.count;
+  }
+
   const units = await listBusinessUnits();
-  return { items: withLinks, total: withLinks.length, businessUnits: units };
+  return {
+    items: withLinks,
+    total: filteredRow?.value ?? withLinks.length,
+    businessUnits: units,
+    counts,
+  };
 }
 
 /** Create a new user with hashed password. DRIVER-role users also get a linked drivers row. */

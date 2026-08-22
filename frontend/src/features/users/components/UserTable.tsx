@@ -14,9 +14,11 @@ import { AssetIcon } from '../../../components/AssetIcon';
 import { Pagination } from '../../../design-system';
 
 interface UserTableProps {
-  users: UserRow[];
-  filtered: UserRow[];
   paginated: UserRow[];
+  /** Filtered count from the server — drives the footer range + pagination. */
+  filteredTotal: number;
+  /** Per-role counts over the full visible set, for the active filter pill's badge. */
+  roleCounts?: Record<string, number>;
   total: number;
   staffCount: number;
   driverCount: number;
@@ -134,7 +136,7 @@ function getClerkScopeLabel(
 }
 
 export function UserTable({
-  users, filtered, paginated, total, staffCount, driverCount, inactiveCount,
+  paginated, filteredTotal, roleCounts, total, staffCount, driverCount, inactiveCount,
   filter, search, canManage, canDelete = canManage, canEditDriversOnly = false,
   truckMap, deleting, currentUserId,
   customerMap, businessUnitMap,
@@ -234,7 +236,7 @@ export function UserTable({
           aria-label="Lọc tài khoản theo vai trò"
         >
           {(['all', ...Object.values(Role)] as FilterKey[]).map(f => {
-            const count = f === 'all' ? total : users.filter(u => u.role === f).length;
+            const count = f === 'all' ? total : roleCounts?.[f] ?? 0;
             const label = f === 'all' ? 'Tất cả' : ROLE_LABELS[f as Role];
             return (
               <button
@@ -325,15 +327,15 @@ export function UserTable({
 
         {/* Footer */}
         {(() => {
-          const totalPages = Math.ceil(filtered.length / pageSize);
-          const startIdx = filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-          const endIdx = Math.min(filtered.length, currentPage * pageSize);
+          const totalPages = Math.ceil(filteredTotal / pageSize);
+          const startIdx = filteredTotal === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+          const endIdx = Math.min(filteredTotal, currentPage * pageSize);
           return (
             <div className="table-foot users-table-foot">
               <span className="users-table-foot__summary">
-                Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> tài khoản
+                Hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{startIdx}-{endIdx}</strong> trong số <strong style={{ fontFamily: 'var(--font-data)' }}>{filteredTotal}</strong> tài khoản
               </span>
-              {totalPages > 1 && <Pagination page={currentPage} totalPages={totalPages} totalItems={filtered.length} pageSize={pageSize} onChange={onPageChange} />}
+              {totalPages > 1 && <Pagination page={currentPage} totalPages={totalPages} totalItems={filteredTotal} pageSize={pageSize} onChange={onPageChange} />}
             </div>
           );
         })()}

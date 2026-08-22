@@ -23,9 +23,9 @@ describe('UserTable username display', () => {
   it('shows the stored username without a decorative @ prefix on desktop and mobile', () => {
     const { container } = render(
       <UserTable
-        users={[user]}
-        filtered={[user]}
         paginated={[user]}
+        filteredTotal={1}
+        roleCounts={{ [Role.ADMIN]: 1 }}
         total={1}
         staffCount={1}
         driverCount={0}

@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { configClient } from '../api/configClient';
-import { userClient } from '../api/userClient';
 import { qk } from '../api/keys';
 import type {
   Truck as TruckType,
@@ -81,14 +80,6 @@ export function useExpenseCategories(page?: number, search?: string) {
   return useQuery({
     queryKey: qk.catalogs.expenseCategories(page, search),
     queryFn: () => configClient.getExpenseCategories(page, search),
-  });
-}
-
-export function useUsers() {
-  return useQuery({
-    queryKey: qk.catalogs.users,
-    queryFn: () => userClient.getUsers(),
-    staleTime: 5 * 60 * 1000,
   });
 }
 

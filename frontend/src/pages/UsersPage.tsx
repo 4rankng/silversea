@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
-import type { Customer, Truck } from '@tingting/shared';
 import { listShipments } from '../api/shipmentClient';
-import { userClient } from '../api/userClient';
+import { userClient, type UsersResponse } from '../api/userClient';
+import { qk } from '../api/keys';
 import { useAuth } from '../hooks/useAuth';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { useUsers } from '../hooks/useCatalogQueries';
-import { configClient } from '../api/configClient';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+import { useAllCustomers, useTrucksAndDrivers } from '../hooks/useCatalogQueries';
 import { useUserMutations } from '../features/users/hooks/useUserMutations';
 import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
@@ -42,6 +42,13 @@ async function loadAllShipmentScopeOptions() {
   };
 }
 
+/** Server-driven filter/sort bag for the users table (search/page/limit owned by the hook). */
+type UsersTableFilters = {
+  role?: string;
+  sortBy?: 'name' | 'role' | 'status' | 'date';
+  sortOrder?: 'asc' | 'desc';
+};
+
 export default function UsersPage() {
   const { user: me } = useAuth();
   const canManage = me?.capabilities
@@ -54,28 +61,26 @@ export default function UsersPage() {
   const canEditDriversOnly = !canManage && me?.role === Role.ACCOUNTANT;
   const { toast } = useToast();
 
-  const { data: usersData, isLoading: loading, refetch: refetchUsers } = useUsers();
-  const { rootRef } = usePageAnimations({ ready: !loading });
-  const users = useMemo(() => (usersData?.items ?? []) as UserRow[], [usersData]);
+  const usersTable = useTableQueryState<UserRow, UsersTableFilters, UsersResponse>({
+    endpoint: (params) => userClient.getUsers(params),
+    queryKey: qk.catalogs.users,
+    defaultPageSize: 10,
+  });
+  const { rows: paginated, total: filteredTotal, query: usersQuery } = usersTable;
+  const usersData = usersQuery.data;
+  const loading = usersTable.isLoading;
+  const refetchUsers = usersQuery.refetch;
   const businessUnits = useMemo(() => usersData?.businessUnits ?? [], [usersData]);
+  const counts = usersData?.counts;
+  const { rootRef } = usePageAnimations({ ready: !loading });
 
-  // Load trucks once for the driver "Xe phân công" field + the table "Xe" plate column.
-  // Shares cache with useTrucksAndDrivers by using a common query key prefix.
-  const { data: truckList = [] } = useQuery<Truck[]>({
-    // eslint-disable-next-line @tingting/no-bare-query-key -- standalone trucks list; no matching qk domain key exists
-    queryKey: ['trucks'],
-    queryFn: () => configClient.getTrucks(),
-    staleTime: 5 * 60 * 1000,
-  });
-  const { data: customerList = [] } = useQuery<Customer[]>({
-    // eslint-disable-next-line @tingting/no-bare-query-key -- user-scope catalog has no dedicated qk domain key
-    queryKey: ['customers', 'user-scope'],
-    queryFn: () => configClient.getAllCustomers(),
-    staleTime: 5 * 60 * 1000,
-  });
+  // Load trucks once for the driver "Xe phân công" field + the table "Xe" plate
+  // column — reuses the combined trucks+drivers cache (qk.catalogs.trucksDrivers).
+  const { data: trucksAndDrivers } = useTrucksAndDrivers();
+  const truckList = useMemo(() => trucksAndDrivers?.trucks ?? [], [trucksAndDrivers]);
+  const { data: customerList = [] } = useAllCustomers();
   const { data: shipmentScopeData } = useQuery({
-    // eslint-disable-next-line @tingting/no-bare-query-key -- admin-only drawer assignment options are local to the users page
-    queryKey: ['shipments', 'user-scope'],
+    queryKey: qk.catalogs.userScopeShipments,
     queryFn: loadAllShipmentScopeOptions,
     staleTime: 60 * 1000,
     enabled: canManageClerkScope,
@@ -100,8 +105,15 @@ export default function UsersPage() {
     doCreate, doUpdate, doDelete, clearPanelError,
   } = useUserMutations(refetchUsers);
 
-  const [filter, setFilter] = useState<FilterKey>('all');
-  const [search, setSearch] = useState('');
+  // Filter/sort/search/page state lives in usersTable; search is debounced and
+  // every filter/sort change resets to page 1 inside the hook.
+  const filter = (usersTable.filters.role as FilterKey | undefined) ?? 'all';
+  const search = usersTable.search;
+  const sortBy = usersTable.filters.sortBy ?? null;
+  const sortOrder = usersTable.filters.sortOrder ?? 'asc';
+  const currentPage = usersTable.page;
+  const pageSize = usersTable.pageSize;
+
   const [showAdd, setShowAdd] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [unitDraft, setUnitDraft] = useState({ code: '', name: '' });
@@ -109,78 +121,18 @@ export default function UsersPage() {
   const [savingUnit, setSavingUnit] = useState(false);
   const [unitError, setUnitError] = useState<string | null>(null);
 
-  // Sorting and pagination state
-  const [sortBy, setSortBy] = useState<'name' | 'role' | 'status' | 'date' | null>(null);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-
   const handleFilterChange = (f: FilterKey) => {
-    setFilter(f);
-    setCurrentPage(1);
+    usersTable.setFilter('role', f === 'all' ? undefined : f);
   };
 
-  const handleSearchChange = (s: string) => {
-    setSearch(s);
-    setCurrentPage(1);
-  };
+  const handleSearchChange = usersTable.setSearch;
 
   const handleSort = (field: 'name' | 'role' | 'status' | 'date') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-    setCurrentPage(1);
+    const nextOrder = sortBy === field
+      ? (sortOrder === 'asc' ? 'desc' : 'asc')
+      : 'asc';
+    usersTable.setFilters({ ...usersTable.filters, sortBy: field, sortOrder: nextOrder });
   };
-
-  const { total, staffCount, driverCount, inactiveCount, filtered, paginated } = useMemo(() => {
-    const total        = users.length;
-    const staffCount   = users.filter(u => [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(u.role)).length;
-    const driverCount  = users.filter(u => u.role === Role.DRIVER).length;
-    const inactiveCount = users.filter(u => u.status !== 'ACTIVE').length;
-
-    let filtered = users
-      .filter(u => filter === 'all' || u.role === filter)
-      .filter(u => {
-        if (!search) return true;
-        const q = search.toLowerCase();
-        return (u.username || '').toLowerCase().includes(q)
-          || (u.fullName || '').toLowerCase().includes(q)
-          || (u.email || '').toLowerCase().includes(q)
-          || (u.phone || '').includes(q);
-      });
-
-    if (sortBy) {
-      filtered = [...filtered].sort((a, b) => {
-        let valA: string | number = '';
-        let valB: string | number = '';
-        if (sortBy === 'name') {
-          valA = (a.fullName || a.username || '').toLowerCase();
-          valB = (b.fullName || b.username || '').toLowerCase();
-        } else if (sortBy === 'role') {
-          valA = a.role;
-          valB = b.role;
-        } else if (sortBy === 'status') {
-          valA = a.status;
-          valB = b.status;
-        } else if (sortBy === 'date') {
-          valA = new Date(a.createdAt).getTime();
-          valB = new Date(b.createdAt).getTime();
-        }
-
-        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    const startIndex = (currentPage - 1) * pageSize;
-    const paginated = filtered.slice(startIndex, startIndex + pageSize);
-
-    return { total, staffCount, driverCount, inactiveCount, filtered, paginated };
-  }, [users, filter, search, sortBy, sortOrder, currentPage]);
 
   const openEdit = (u: UserRow) => { clearPanelError(); setEditingUser(u); setShowAdd(false); };
   const openAdd  = () => { clearPanelError(); setShowAdd(true); setEditingUser(null); };
@@ -256,13 +208,13 @@ export default function UsersPage() {
         ]}
       />
       <UserTable
-        users={users}
-        filtered={filtered}
         paginated={paginated}
-        total={total}
-        staffCount={staffCount}
-        driverCount={driverCount}
-        inactiveCount={inactiveCount}
+        filteredTotal={filteredTotal}
+        roleCounts={counts?.byRole}
+        total={counts?.total ?? filteredTotal}
+        staffCount={counts?.staffCount ?? 0}
+        driverCount={counts?.driverCount ?? 0}
+        inactiveCount={counts?.inactiveCount ?? 0}
         filter={filter}
         search={search}
         canManage={canManage}
@@ -283,7 +235,7 @@ export default function UsersPage() {
         onSort={handleSort}
         currentPage={currentPage}
         pageSize={pageSize}
-        onPageChange={setCurrentPage}
+        onPageChange={usersTable.setPage}
       />
 
       <AddPanel
