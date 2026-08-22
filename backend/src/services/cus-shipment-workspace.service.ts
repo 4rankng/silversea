@@ -2289,7 +2289,10 @@ export async function updateCusShipmentContainerLine(args: {
     if (args.input.liftSiteId !== undefined || args.input.dropoffSiteId !== undefined) {
       // Lift/drop editors pick from the Master-Data port catalog: validate the
       // ids against active ports and persist them on the per-container port
-      // columns — the same authority the create form writes.
+      // columns — the same authority the create form writes. Only persist
+      // when the value actually changed; an identical no-op save must not
+      // bump `shipment.version` (which would 409-conflict the user's next
+      // identical save through the CUS route editor).
       const portIds = [args.input.liftSiteId, args.input.dropoffSiteId]
         .filter((value): value is number => value != null);
       const portsByIdIn = portIds.length === 0
@@ -2305,35 +2308,40 @@ export async function updateCusShipmentContainerLine(args: {
         throw new ApiError(409, 'Cảng nâng/hạ không còn hiệu lực trong danh mục cảng, bãi.');
       }
       const nextContainerPortUpdate: Record<string, unknown> = {};
-      if (args.input.liftSiteId !== undefined) nextContainerPortUpdate.pickupPortId = args.input.liftSiteId;
-      if (args.input.dropoffSiteId !== undefined) nextContainerPortUpdate.dropoffPortId = args.input.dropoffSiteId;
-      if (Object.keys(nextContainerPortUpdate).length > 0) {
+      if (args.input.liftSiteId !== undefined && args.input.liftSiteId !== container.pickupPortId) {
+        nextContainerPortUpdate.pickupPortId = args.input.liftSiteId;
+      }
+      if (args.input.dropoffSiteId !== undefined && args.input.dropoffSiteId !== container.dropoffPortId) {
+        nextContainerPortUpdate.dropoffPortId = args.input.dropoffSiteId;
+      }
+      const portValueChanged = Object.keys(nextContainerPortUpdate).length > 0;
+      if (portValueChanged) {
         await tx.update(s.shipmentContainers).set({
           ...nextContainerPortUpdate,
           updatedAt: now,
         }).where(eq(s.shipmentContainers.id, container.id));
+        // Keep the fulfillment site-snapshot aligned for legacy projections
+        // (dispatch drawer, driver app) that still read the snapshot halves.
+        const snapshotPort = (portId: number | null) => portId == null ? null : ({
+          id: portsByIdIn.get(portId)!.id,
+          code: portsByIdIn.get(portId)!.code,
+          name: portsByIdIn.get(portId)!.name,
+          siteType: 'PORT',
+        });
+        const nextSnapshot = { ...((fulfillment.siteSnapshot ?? {}) as Record<string, unknown>) };
+        if (args.input.liftSiteId !== undefined) {
+          nextSnapshot.pickupWarehouse = snapshotPort(args.input.liftSiteId);
+        }
+        if (args.input.dropoffSiteId !== undefined) {
+          nextSnapshot.deliverySite = snapshotPort(args.input.dropoffSiteId);
+        }
+        await tx.update(s.shipmentFulfillments).set({
+          siteSnapshot: nextSnapshot,
+          version: fulfillment.version + 1,
+          updatedAt: now,
+        }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+        touched = true;
       }
-      // Keep the fulfillment site-snapshot aligned for legacy projections
-      // (dispatch drawer, driver app) that still read the snapshot halves.
-      const snapshotPort = (portId: number | null) => portId == null ? null : ({
-        id: portsByIdIn.get(portId)!.id,
-        code: portsByIdIn.get(portId)!.code,
-        name: portsByIdIn.get(portId)!.name,
-        siteType: 'PORT',
-      });
-      const nextSnapshot = { ...((fulfillment.siteSnapshot ?? {}) as Record<string, unknown>) };
-      if (args.input.liftSiteId !== undefined) {
-        nextSnapshot.pickupWarehouse = snapshotPort(args.input.liftSiteId);
-      }
-      if (args.input.dropoffSiteId !== undefined) {
-        nextSnapshot.deliverySite = snapshotPort(args.input.dropoffSiteId);
-      }
-      await tx.update(s.shipmentFulfillments).set({
-        siteSnapshot: nextSnapshot,
-        version: fulfillment.version + 1,
-        updatedAt: now,
-      }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
-      touched = true;
     }
 
     if (args.input.customerAppointmentAt !== undefined) {

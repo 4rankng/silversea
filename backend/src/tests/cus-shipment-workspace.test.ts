@@ -34,6 +34,7 @@ const createdUserIds: number[] = [];
 const createdBusinessUnitIds: number[] = [];
 const createdDeclarationIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
+const createdPortIds: number[] = [];
 
 let customerId: number;
 let containerTypeId: number;
@@ -207,6 +208,9 @@ after(async () => {
   }
   if (createdBusinessUnitIds.length) {
     await db.delete(s.businessUnits).where(inArray(s.businessUnits.id, createdBusinessUnitIds));
+  }
+  if (createdPortIds.length) {
+    await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
   }
   await client.end();
 });
@@ -877,6 +881,106 @@ describe('Overview operational priority ordering', () => {
       actor: cusActor,
     });
     assert.equal(result.line.customerAppointmentAt, '2026-08-25T04:00:00.000Z');
+  });
+
+  test('no-op lift/drop port save does not bump shipment version', async () => {
+    // Regression: previously, saving lift/drop ports with the same values still
+    // bumped the shipment's version (and the fulfillment's version), which made
+    // the next identical save 409-conflict and rendered the CUS route editor
+    // ("Hình sửa hành trình") useless for any port that the user re-saved.
+    const marker = Math.random().toString(16).slice(2, 8);
+    const [liftPort] = await db.insert(s.ports).values({
+      code: `LIFT${marker}`,
+      name: `CusWs cảng nâng ${marker}`,
+    }).returning();
+    const [dropPort] = await db.insert(s.ports).values({
+      code: `DROP${marker}`,
+      name: `CusWs cảng hạ ${marker}`,
+    }).returning();
+    createdPortIds.push(liftPort.id, dropPort.id);
+    const shipment = await seedShipment({
+      blNumber: `WS-PORTS-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSPORTS${marker}`.slice(0, 20),
+      pickupPortId: liftPort.id,
+      dropoffPortId: dropPort.id,
+    });
+    const startVersion = shipment.version;
+    const baselineDetail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    const baselineLine = baselineDetail.containers.find((line) => line.id === container.id);
+    assert.ok(baselineLine);
+    assert.equal(baselineLine.liftSiteId, liftPort.id);
+    assert.equal(baselineLine.dropoffSiteId, dropPort.id);
+
+    const noopResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: startVersion,
+        liftSiteId: liftPort.id,
+        dropoffSiteId: dropPort.id,
+      },
+      actor: cusActor,
+    });
+    assert.equal(noopResult.line.shipmentVersion, startVersion,
+      'no-op save must keep the shipment version stable for the next edit');
+
+    // And the follow-up identical save must still succeed (not 409), proving
+    // the version is no longer bumped by re-sending the same lift/drop ports.
+    const followupResult = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: startVersion,
+        liftSiteId: liftPort.id,
+        dropoffSiteId: dropPort.id,
+      },
+      actor: cusActor,
+    });
+    assert.equal(followupResult.line.shipmentVersion, startVersion);
+  });
+
+  test('actual lift/drop port change still bumps the shipment version', async () => {
+    // Counterpart to the no-op regression: a real port change must still bump
+    // the version so the optimistic-concurrency gate works for other clients.
+    const marker = Math.random().toString(16).slice(2, 8);
+    const [liftPortA] = await db.insert(s.ports).values({
+      code: `LFA${marker}`,
+      name: `CusWs cảng nâng A ${marker}`,
+    }).returning();
+    const [liftPortB] = await db.insert(s.ports).values({
+      code: `LFB${marker}`,
+      name: `CusWs cảng nâng B ${marker}`,
+    }).returning();
+    createdPortIds.push(liftPortA.id, liftPortB.id);
+    const shipment = await seedShipment({
+      blNumber: `WS-PORTBUMP-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSPB${marker}`.slice(0, 20),
+      pickupPortId: liftPortA.id,
+    });
+    const startVersion = shipment.version;
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: startVersion,
+        liftSiteId: liftPortB.id,
+      },
+      actor: cusActor,
+    });
+    assert.equal(result.line.shipmentVersion, startVersion + 1,
+      'real port change must still bump shipment version once');
+    assert.equal(result.line.liftSiteId, liftPortB.id);
   });
 });
 
