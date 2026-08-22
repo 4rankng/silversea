@@ -3,6 +3,7 @@ import { after, describe, it } from 'node:test';
 import { inArray } from 'drizzle-orm';
 import { client, db } from '../db';
 import * as s from '../db/schema';
+import { assertJournalInvariants, readJournal } from './helpers/journal-invariants';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const ids = {
@@ -140,48 +141,9 @@ describe('customer workflow migration safety', () => {
     const combinedBackfillSql = await readFile(new URL('../../drizzle/0013_backfill-shipment-combined-flag.sql', import.meta.url), 'utf8');
     const prevSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0003_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const nextSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0004_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
-    const journal = JSON.parse(await readFile(new URL('../../drizzle/meta/_journal.json', import.meta.url), 'utf8')) as {
-      entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;
-    };
-    assert.deepEqual(journal.entries.map(({ idx, tag }) => ({ idx, tag })), [
-      { idx: 0, tag: '0000_flexible-baseline' },
-      { idx: 1, tag: '0001_backfill_shipment_readiness' },
-      { idx: 2, tag: '0002_carrier_readiness_authorities' },
-      { idx: 3, tag: '0003_majestic_clea' },
-      { idx: 4, tag: '0004_tranquil_chronomancer' },
-      { idx: 5, tag: '0005_cus_container_customer_appointment' },
-      { idx: 6, tag: '0006_backfill_cus_container_customer_appointment' },
-      { idx: 7, tag: '0007_backfill_shipment_shipping_line' },
-      { idx: 8, tag: '0008_fair_stephen_strange' },
-      { idx: 9, tag: '0009_neat_doctor_octopus' },
-      { idx: 10, tag: '0010_backfill-shipment-document-reference-invariant' },
-      { idx: 11, tag: '0011_mean_vulture' },
-      { idx: 12, tag: '0012_sharp_jack_power' },
-      { idx: 13, tag: '0013_backfill-shipment-combined-flag' },
-      { idx: 14, tag: '0014_add-master-data-short-names' },
-      { idx: 15, tag: '0015_backfill-master-data-short-names' },
-      { idx: 16, tag: '0016_require-master-data-short-names' },
-      { idx: 17, tag: '0017_add-short-name-compat-defaults' },
-      { idx: 18, tag: '0018_add-supplier-short-name' },
-      { idx: 19, tag: '0019_backfill-supplier-short-name' },
-      { idx: 20, tag: '0020_require-supplier-short-name' },
-      { idx: 21, tag: '0021_add-dispatch-zone-classification' },
-      { idx: 22, tag: '0022_backfill-dispatch-zone-classification' },
-      { idx: 23, tag: '0023_merge-duplicate-lach-huyen-hict-port' },
-      { idx: 24, tag: '0024_create-dispatch-zones' },
-      { idx: 25, tag: '0025_add-container-operational-site' },
-      { idx: 26, tag: '0026_rename-lach-huyen-terminal-labels' },
-      { idx: 27, tag: '0027_backfill-fulfillment-classification-single' },
-      { idx: 28, tag: '0028_require-fulfillment-classification' },
-      { idx: 29, tag: '0029_correct-lcl-fulfillment-classification' },
-      { idx: 30, tag: '0030_enforce-lcl-fulfillment-classification' },
-      { idx: 31, tag: '0031_fcl-container-route-authority' },
-      { idx: 32, tag: '0032_add-factory-route' },
-      { idx: 33, tag: '0033_backfill-legacy-shipment-cargo-mode' },
-      { idx: 34, tag: '0034_audit-log-indexes' },
-      { idx: 35, tag: '0035_add-delivery-attempt-authority' },
-      { idx: 36, tag: '0036_backfill-delivery-attempts' },
-    ]);
+    // Structural journal invariants (contiguity, append-only ordering, tag↔file
+    // existence, genesis tag, count floor) — new migrations need no test edits.
+    await assertJournalInvariants(await readJournal(), 37);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
     assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_started_at" timestamp with time zone/);
