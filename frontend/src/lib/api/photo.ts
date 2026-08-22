@@ -1,4 +1,4 @@
-import { getToken } from '../../design-system/hooks/useToken';
+import { getToken } from '../token';
 
 /**
  * Photo URLs are protected behind the JWT, but the `<img>` tag can't send
@@ -10,7 +10,7 @@ import { getToken } from '../../design-system/hooks/useToken';
  * the implementation in one place so a future migration is a one-file
  * change.
  *
- * The token is read via the centralized `useToken` cache rather than
+ * The token is read via the centralized `lib/token` cache rather than
  * re-parsing `localStorage` on every URL construction.
  */
 export function getAuthenticatedPhotoUrl(url: string | null | undefined): string {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { setToken } from '../../design-system/hooks/useToken';
+import { setToken } from '../token';
 import { photoSrc } from './photo';
 
 describe('photoSrc', () => {

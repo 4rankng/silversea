@@ -13,7 +13,7 @@
 // `agentEventSchema`. Event names follow the AG-UI protocol taxonomy.
 import { io, type Socket } from 'socket.io-client';
 import { api } from '../lib/api';
-import { getToken } from '../design-system/hooks/useToken';
+import { getToken } from '../lib/token';
 import { agentEventSchema, type AgentActionResult, type AgentConversation, type AgentEvent } from '@tingting/shared';
 
 export const agentClient = {

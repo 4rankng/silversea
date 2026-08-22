@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, ApiError } from './api';
 import { onSessionExpired } from './api/session';
-import { getToken } from '../design-system/hooks/useToken';
+import { getToken } from './token';
 
 describe('API session expiry', () => {
   beforeEach(() => {

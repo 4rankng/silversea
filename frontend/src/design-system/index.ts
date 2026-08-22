@@ -7,7 +7,6 @@
  *   import { DataTable, Pagination, TextField, useDebouncedValue, useTableQueryState } from '@/design-system';
  */
 export * from './hooks/useDebouncedValue';
-export * from './hooks/useToken';
 export * from './hooks/useAuthedQuery';
 export * from './hooks/useMonthRoute';
 export * from './hooks/useTableQueryState';

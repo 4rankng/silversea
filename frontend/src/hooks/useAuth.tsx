@@ -3,7 +3,7 @@ import { hashKey, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
-import { getToken } from '../design-system/hooks/useToken';
+import { getToken } from '../lib/token';
 import { disposeAgentSocket, clearAgentConversation } from '../api/agentClient';
 import { onSessionExpired } from '../lib/api/session';
 

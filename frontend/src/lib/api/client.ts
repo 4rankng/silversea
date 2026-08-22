@@ -1,6 +1,6 @@
 import { ApiError } from './errors';
 import { notifySessionExpired } from './session';
-import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../../design-system/hooks/useToken';
+import { getToken, setToken as storeToken, clearToken as storeClearToken, invalidateTokenCache } from '../token';
 
 type MutationOptions = {
   expectedUpdatedAt?: string;
@@ -58,7 +58,7 @@ function ensureMutationTransactionKey(
  * translation. Endpoints are constructed in `api/*Client.ts` so this stays
  * purely transport-level.
  *
- * Token storage is delegated to `design-system/hooks/useToken` so all auth
+ * Token storage is delegated to `lib/token` so all auth
  * state flows through a single source of truth.
  */
 class ApiClient {
