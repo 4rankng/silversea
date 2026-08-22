@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { forwarderClient } from '../api/forwarderClient';
+import { forwarderClient, getAdvanceRequestsPaginated, type ForwarderAdvanceRequestsEnvelope } from '../api/forwarderClient';
 import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
+import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+import type { AdvanceRequestStatus, AdvanceRequestWithRefs } from '@tingting/shared';
 
 export function useForwarderTrips(
   status?: string,
@@ -102,10 +104,20 @@ export function useDeleteForwarderExpense() {
 
 // ── Advance Requests (forwarder) ──────────────────────────────────────────────
 
-export function useForwarderAdvanceRequests(status?: string) {
-  return useQuery({
-    queryKey: qk.forwarder.advanceRequests(status),
-    queryFn: () => forwarderClient.getAdvanceRequests(status),
+/**
+ * Paginated table state for the forwarder's own advance-requests list
+ * (/my-advances). statusCounts/statusAmounts in the envelope are full-set
+ * aggregates, so KPIs and filter pills stay stable across tabs and pages.
+ */
+export function useForwarderAdvanceRequestsTable() {
+  return useTableQueryState<
+    AdvanceRequestWithRefs,
+    { status?: AdvanceRequestStatus },
+    ForwarderAdvanceRequestsEnvelope
+  >({
+    endpoint: getAdvanceRequestsPaginated,
+    queryKey: [...qk.forwarder.forwarderAdvanceRequestsAll, 'table'],
+    defaultPageSize: 25,
   });
 }
 

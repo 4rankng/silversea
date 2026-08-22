@@ -2,9 +2,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Wallet, Loader2, Plus, X, User, AlertCircle, Clock, FileText, CheckCircle2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
-import type { AdvanceRequestWithRefs, AdvanceSettlementWithRefs } from '@tingting/shared';
+import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, FormGroup } from '../components/UI';
-import { useForwarderAdvanceRequests, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
+import { Pagination } from '../design-system';
+import { useForwarderAdvanceRequestsTable, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import './ForwarderAdvancesPage.css';
@@ -20,8 +21,10 @@ const STATUS_COLORS: Record<string, string> = {
 type StatusFilter = '' | AdvanceRequestStatus;
 
 export default function ForwarderAdvancesPage() {
-  const [activeFilter, setActiveFilter] = useState<StatusFilter>('');
-  const { data, isLoading: loading, error: queryError } = useForwarderAdvanceRequests(activeFilter || undefined);
+  const table = useForwarderAdvanceRequestsTable();
+  const { data: envelope, isLoading: loading, error: queryError } = table.query;
+  // Server-side filter — setFilter resets the page to 1 on every change.
+  const activeFilter: StatusFilter = table.filters.status ?? '';
   const { data: balanceData } = useForwarderAdvanceBalance();
   // C2b/C2c — settlement (hoàn ứng) figures shown alongside advances. Buckets
   // are disjoint: "Chờ duyệt hoàn ứng" = requested but not yet approved/rejected;
@@ -39,8 +42,11 @@ export default function ForwarderAdvancesPage() {
     selectors: ['.page-header', '.hero-kpi-row', '.fadv-form-panel', '.fwd-filter-pills', '.fadv-card-trip'],
   });
   const createAdvanceRequest = useCreateAdvanceRequest();
-  const requests = (data?.items ?? []) as AdvanceRequestWithRefs[];
-  const counts = data?.counts ?? {};
+  const requests = table.rows;
+  // Full-set aggregates (requester-scoped, status filter excluded) — pills and
+  // KPIs must never derive from the current page.
+  const counts = envelope?.statusCounts ?? {};
+  const statusAmounts = envelope?.statusAmounts ?? {};
   const { rootRef: listRef } = useListAnimations({ itemSelector: '.fadv-card-trip', mode: 'cards', deps: [requests] });
 
   const [showForm, setShowForm] = useState(false);
@@ -51,8 +57,8 @@ export default function ForwarderAdvancesPage() {
 
   const error = queryError ? 'Không thể tải danh sách yêu cầu tạm ứng' : null;
   const totalRequests = Object.values(counts).reduce((sum: number, c) => sum + c, 0);
-  const totalAmount = requests.reduce((sum, r) => sum + Number(r.amount), 0);
-  const pendingCount = requests.filter(r => r.status === 'PENDING').length;
+  const totalAmount = Object.values(statusAmounts).reduce((sum: number, a) => sum + a, 0);
+  const pendingCount = counts.PENDING ?? 0;
   const outstanding = balanceData ? Number(balanceData.outstanding) : 0;
 
   const prefersReduced = usePrefersReducedMotion();
@@ -238,7 +244,7 @@ export default function ForwarderAdvancesPage() {
         <div className="fwd-filter-pills">
           <button
             className={`fwd-filter-pill ${activeFilter === '' ? 'fwd-filter-pill--active' : ''}`}
-            onClick={() => setActiveFilter('')}
+            onClick={() => table.setFilter('status', undefined)}
           >
             Tất cả
             <span className="fwd-filter-pill__count">{totalRequests}</span>
@@ -250,7 +256,7 @@ export default function ForwarderAdvancesPage() {
               <button
                 key={status}
                 className={`fwd-filter-pill ${activeFilter === status ? 'fwd-filter-pill--active' : ''}`}
-                onClick={() => setActiveFilter(prev => prev === status ? '' : status)}
+                onClick={() => table.setFilter('status', activeFilter === status ? undefined : status)}
               >
                 <span className="fwd-filter-pill__dot" style={{ background: STATUS_COLORS[status] }} />
                 {label}
@@ -273,6 +279,7 @@ export default function ForwarderAdvancesPage() {
           </p>
         </div>
       ) : (
+        <>
         <div ref={listRef} className="fadv-list">
           {requests.map((req, idx) => (
             <div
@@ -306,6 +313,16 @@ export default function ForwarderAdvancesPage() {
             </div>
           ))}
         </div>
+        {table.total > 0 && (
+          <Pagination
+            page={table.page}
+            totalPages={table.totalPages}
+            totalItems={table.total}
+            pageSize={table.pageSize}
+            onChange={table.setPage}
+          />
+        )}
+        </>
       )}
     </div>
   );

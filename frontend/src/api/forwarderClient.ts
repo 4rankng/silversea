@@ -259,3 +259,30 @@ export interface LinkedExpense {
   departureDate: string | null;
   customerName: string | null;
 }
+
+/** Paginated envelope of GET /forwarder/me/advance-requests (list page). */
+export interface ForwarderAdvanceRequestsEnvelope {
+  items: AdvanceRequestWithRefs[];
+  page: number;
+  limit: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  /** Full-set counts per status (requester-scoped, status filter excluded). */
+  statusCounts: Record<string, number>;
+  /** Full-set amount totals per status (requester-scoped, status filter excluded). */
+  statusAmounts: Record<string, number>;
+  /** Route alias of statusCounts kept for legacy full-list consumers. */
+  counts: Record<string, number>;
+}
+
+/** Paginated variant of `forwarderClient.getAdvanceRequests` for the /my-advances list page. */
+export async function getAdvanceRequestsPaginated(params: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return api.get<ForwarderAdvanceRequestsEnvelope>(
+    `${FORWARDER.ADVANCE_REQUESTS}${toQuery({ status: params?.status, page: params?.page, limit: params?.limit })}`,
+  );
+}
