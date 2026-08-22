@@ -77,3 +77,12 @@ export interface ShipmentContainerMutationResult {
   message?: string;
   notificationDelivered?: boolean;
 }
+export type ShipmentStatus =
+  | 'NEW'
+  | 'PENDING_DATE'
+  | 'READY_FOR_DISPATCH'
+  | 'DISPATCHED'
+  | 'IN_TRANSIT'
+  | 'PENDING_EXPENSE_APPROVAL'
+  | 'COMPLETED'
+  | 'CANCELED';

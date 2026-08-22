@@ -29,8 +29,11 @@ import type {
   ShipmentDeclarationScopeValue,
   ShipmentDocumentTypeValue,
   UpdateShipmentInput,
+  ShipmentStatus,
 } from './shipment-types';
+import { normalizeShipmentRow, normalizeShipmentStatusValue, type ListShipmentsOptions } from './shipment-queries.service';
 import * as s from '../db/schema';
+import { CARGO_MODE } from '../db/schema';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -153,15 +156,7 @@ const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
   CANCELED: [],
 };
 
-export type ShipmentStatus =
-  | 'NEW'
-  | 'PENDING_DATE'
-  | 'READY_FOR_DISPATCH'
-  | 'DISPATCHED'
-  | 'IN_TRANSIT'
-  | 'PENDING_EXPENSE_APPROVAL'
-  | 'COMPLETED'
-  | 'CANCELED';
+
 
 const CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY: Partial<Record<ShipmentStatus, {
   title: string;
@@ -179,9 +174,6 @@ const CUSTOMER_VISIBLE_SHIPMENT_STATUS_COPY: Partial<Record<ShipmentStatus, {
 
 const SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX = '__fulfillment_lcl:';
 
-function normalizeShipmentStatusValue(status: string | null | undefined): ShipmentStatus | null {
-  return canonicalShipmentStatus(status);
-}
 
 function isSyntheticLclFulfillmentScope(notes: string | null | undefined): boolean {
   return typeof notes === 'string' && notes.startsWith(SYNTHETIC_LCL_FULFILLMENT_SCOPE_PREFIX);
@@ -292,12 +284,6 @@ async function assertShipmentDirectCloseTripReadiness(
   }
 }
 
-function normalizeShipmentRow<T extends { status: string | null }>(shipment: T): T {
-  const normalizedStatus = normalizeShipmentStatusValue(shipment.status);
-  return normalizedStatus == null
-    ? shipment
-    : { ...shipment, status: normalizedStatus } as T;
-}
 
 function normalizeShipmentStatusHistoryRow<
   T extends { fromStatus: string | null; toStatus: string },
@@ -373,40 +359,6 @@ export interface CreateShipmentInput {
   createdBy?: number | null;
 }
 
-export interface ListShipmentsOptions {
-  customerId?: number;
-  customerIds?: number[];
-  status?: ShipmentStatus;
-  q?: string;
-  /** W4 20260805_03 filter: limit to one trade direction. */
-  tradeDirection?: 'IMPORT' | 'EXPORT';
-  /** W4 20260805_03 filter: lower bound on customsCutoffAt (Ngày đóng/trả). */
-  dateFrom?: string;
-  /** W4 20240805_03 filter: upper bound on customsCutoffAt. */
-  dateTo?: string;
-  /** W4 20260805_03 filter: exact-ish match on blNumber. */
-  blNumber?: string;
-  /** Dispatch master-plan filter: lower bound on expectedDeliveryDate (Ngày giao hàng). */
-  deliveryDateFrom?: string;
-  /** Dispatch master-plan filter: upper bound on expectedDeliveryDate. */
-  deliveryDateTo?: string;
-  /** Dispatch master-plan filter: derived carrier-allocation coverage. */
-  allocationStatus?: AllocationStatus;
-  /** Dispatch master-plan filter (Lạch Huyện): OR-within pickup/dropoff port ids
-   *  matched against active fulfillments' containers. */
-  portIds?: number[];
-  /** Dispatch master-plan filter: OR-within carrier keys (OWN / EXTERNAL:<id> /
-   *  UNASSIGNED), AND-ed with portIds and dates. */
-  carrierKeys?: string[];
-  /** When true, also return dispatchSummary computed over the complete filtered
-   *  set in the same snapshot as rows+count. */
-  includeDispatchSummary?: boolean;
-  limit?: number;
-  offset?: number;
-  actor?: AuthUser;
-}
-
-/** listShipmentsPaginated result extended with the full-filtered-set summary. */
 export type ListShipmentsPaginatedResult = {
   items: Array<ReturnType<typeof normalizeShipmentRow> & Record<string, unknown>>;
   total: number;
@@ -885,259 +837,6 @@ export async function listShipments(options: ListShipmentsOptions = {}) {
  * (`{ items, total, page, limit }`). Kept separate from `listShipments` so the
  * service-test suite's array-style assertions stay intact.
  */
-export async function listShipmentsPaginated(options: ListShipmentsOptions & { page?: number }) {
-  const limit = Math.max(1, Math.min(options.limit ?? 50, 200));
-  const page = Math.max(1, options.page ?? 1);
-  const offset = (page - 1) * limit;
-
-  const conditions = [isNull(s.shipments.deletedAt)];
-  if (options.actor && isClerkScopedUser(options.actor)) {
-    const scope = await loadClerkShipmentScope(options.actor.userId);
-    conditions.push(buildShipmentScopeWhere(scope));
-  }
-  if (options.customerIds?.length) {
-    conditions.push(inArray(s.shipments.customerId, options.customerIds));
-  } else if (options.customerId != null) {
-    conditions.push(eq(s.shipments.customerId, options.customerId));
-  }
-  if (options.status != null) {
-    conditions.push(options.status === 'PENDING_DATE'
-      ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE'])
-      : options.status === 'NEW'
-        ? inArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'READY_FOR_DISPATCH'])
-        : eq(s.shipments.status, options.status));
-  }
-  const searchPredicate = buildShipmentSearchPredicate(options.q);
-  if (searchPredicate) {
-    conditions.push(searchPredicate);
-  }
-  if (options.tradeDirection) {
-    conditions.push(eq(s.shipments.tradeDirection, options.tradeDirection));
-  }
-  if (options.blNumber) {
-    // Exact match on trimmed value; empty strings are ignored by the route layer.
-    conditions.push(eq(s.shipments.blNumber, options.blNumber.trim()));
-  }
-  if (options.dateFrom) {
-    const from = new Date(options.dateFrom);
-    if (!isNaN(from.getTime())) {
-      conditions.push(gte(s.shipments.customsCutoffAt, from));
-    }
-  }
-  if (options.dateTo) {
-    const to = new Date(options.dateTo);
-    if (!isNaN(to.getTime())) {
-      // Inclusive end-of-day: bump to T23:59:59.999Z if user gave a date-only.
-      const inclusive = options.dateTo.length === 10
-        ? new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1)
-        : to;
-      conditions.push(lte(s.shipments.customsCutoffAt, inclusive));
-    }
-  }
-  // Dispatch master-plan: delivery-date range filters on expectedDeliveryDate
-  // (a plain date column, so no end-of-day bump is needed — equality matches).
-  if (options.deliveryDateFrom) {
-    conditions.push(gte(s.shipments.expectedDeliveryDate, options.deliveryDateFrom));
-  }
-  if (options.deliveryDateTo) {
-    conditions.push(lte(s.shipments.expectedDeliveryDate, options.deliveryDateTo));
-  }
-  // Dispatch master-plan Lạch Huyện facets: OR within each dimension, AND
-  // across dimensions. Correlated EXISTS keeps multi-container shipments to one
-  // row and totals exact.
-  const portFacet = buildDispatchPortFacetPredicate(options.portIds ?? []);
-  if (portFacet) conditions.push(portFacet);
-  const carrierFacet = buildDispatchCarrierFacetPredicate(options.carrierKeys ?? []);
-  if (carrierFacet) conditions.push(carrierFacet);
-
-  // allocationStatus is derived from container/fulfillment aggregates and
-  // cannot live in the WHERE clause. When filtering on it, resolve the full
-  // matching id set first, filter by the derived status, and paginate that id
-  // list — keeps `total` exact and the page consistent. The id list is already
-  // paginated, so the main query below must not apply offset/limit again.
-  let derivedTotal: number | null = null;
-  let paginatedByIds = false;
-  if (options.allocationStatus) {
-    const idRows = await db.select({ id: s.shipments.id }).from(s.shipments)
-      .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-      .where(and(...conditions))
-      .orderBy(desc(s.shipments.createdAt));
-    const aggregatesById = await loadShipmentDispatchAggregates(idRows.map((row) => row.id));
-    const matching = idRows.filter((row) =>
-      (aggregatesById.get(row.id)?.allocationStatus ?? 'NOT_ALLOCATED') === options.allocationStatus);
-    derivedTotal = matching.length;
-    const pageIds = matching.slice(offset, offset + limit).map((row) => row.id);
-    conditions.push(inArray(s.shipments.id, pageIds.length > 0 ? pageIds : [-1]));
-    paginatedByIds = true;
-  }
-
-  // Join customers so the list can show a human-readable customer name
-  // instead of a bare `customerId` ("KH #2698" is meaningless to users).
-  // leftJoin (not innerJoin): a shipment whose customer was hard-deleted
-  // must still appear, with customerName = null.
-  const rowsQuery = db.select({
-    shipment: s.shipments,
-    customerName: CUSTOMER_OPERATIONAL_NAME,
-    // Operational site preferred via short-name authority; stored shipment
-    // factoryName remains the fallback when no site is linked.
-    operationalSiteName: SITE_OPERATIONAL_NAME,
-    routeName: ROUTE_OPERATIONAL_NAME,
-    // "Ghi chú nhà máy": the factory's operating notes (strict rules).
-    factoryNotes: s.operationalSites.strictRules,
-  }).from(s.shipments)
-    .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-    .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
-    .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
-    .where(and(...conditions))
-    .orderBy(desc(s.shipments.createdAt));
-
-  // When the caller wants the filtered-set summary, run rows+count+summary in
-  // one read-only REPEATABLE READ transaction so all three see the same
-  // snapshot — header totals can never drift from the list mid-request.
-  let dispatchSummary: DispatchSummary | undefined;
-  let items: Array<{
-    shipment: typeof s.shipments.$inferSelect;
-    customerName: string | null;
-    operationalSiteName: string | null;
-    routeName: string | null;
-    factoryNotes: string | null;
-  }> = [];
-  let total = 0;
-  let containerPortGroupsByShipmentId = new Map<number, ShipmentContainerPortGroup[]>();
-  if (options.includeDispatchSummary) {
-    await db.transaction(async (tx) => {
-      // All three reads share this transaction's snapshot: page rows, total
-      // count, and the filtered-set ids feeding the cargo summary.
-      const pageQuery = tx.select({
-        shipment: s.shipments,
-        customerName: CUSTOMER_OPERATIONAL_NAME,
-        operationalSiteName: SITE_OPERATIONAL_NAME,
-        routeName: ROUTE_OPERATIONAL_NAME,
-        factoryNotes: s.operationalSites.strictRules,
-      }).from(s.shipments)
-        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-        .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
-        .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
-        .where(and(...conditions))
-        .orderBy(desc(s.shipments.createdAt));
-      const [pageRows, totalRows, filteredIdRows] = await Promise.all([
-        paginatedByIds ? pageQuery : pageQuery.limit(limit).offset(offset),
-        tx.select({ value: count() }).from(s.shipments)
-          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-          .where(and(...conditions)),
-        tx.select({ id: s.shipments.id }).from(s.shipments)
-          .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-          .where(and(...conditions)),
-      ]);
-      items = pageRows;
-      total = Number(totalRows[0]?.value ?? 0);
-      containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
-        items.map((row) => row.shipment),
-        tx as unknown as Pick<typeof db, 'select'>,
-      );
-      dispatchSummary = await computeDispatchSummaryForSet(
-        filteredIdRows.map((row) => row.id),
-        tx as unknown as Pick<typeof db, 'select'>,
-      );
-    }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
-  } else {
-    const [pageRows, totalRows] = await Promise.all([
-      paginatedByIds ? rowsQuery : rowsQuery.limit(limit).offset(offset),
-      db.select({ value: count() }).from(s.shipments)
-        .leftJoin(s.customers, eq(s.shipments.customerId, s.customers.id))
-        .where(and(...conditions)),
-    ]);
-    items = pageRows;
-    total = Number(totalRows[0]?.value ?? 0);
-  }
-  const summariesByShipmentId = await loadShipmentListSummaries(items.map((row) => row.shipment));
-  // W4 20260805_03: also fetch the first declaration number per shipment so
-  // the CUS grid can show "Số tờ khai" without a second roundtrip.
-  const declarationByShipmentId = await loadShipmentListDeclarationNumbers(
-    items.map((row) => row.shipment.id),
-  );
-  // Flatten `shipment` + `customerName` into a single object so the route
-  // layer returns `{ ...shipmentColumns, customerName }` directly.
-  const dispatchAggregatesByShipmentId = await loadShipmentDispatchAggregates(
-    items.map((row) => row.shipment.id),
-  );
-  // Per-instant container appointment groups so the dispatch master-plan
-  // "Giờ:" line can render N rows (one per distinct appointment time) —
-  // mirrors the CUS workspace contract from cus-shipment-workspace.service.
-  const appointmentGroupsByShipmentId = await loadShipmentListAppointmentGroups(
-    items.map((row) => row.shipment),
-  );
-  // Distinct effective factory labels per shipment: appointment groups already
-  // resolve container-site → shipment-site → legacy-text precedence, so their
-  // factory labels are the authoritative multi-factory view. Shipments whose
-  // containers carry no appointment fall back to their single projected label.
-  // (Task 2.1: the label set must come from ALL containers, not only those
-  // with a locked đóng/trả appointment — delegated to the query service.)
-  const factoryNamesByShipmentId = await loadShipmentListFactoryNames(
-    items.map((row) => row.shipment),
-  );
-  const routeNamesByShipmentId = await loadShipmentListRouteNames(
-    items.map((row) => row.shipment),
-  );
-  if (!options.includeDispatchSummary) {
-    containerPortGroupsByShipmentId = await loadShipmentListContainerPortGroups(
-      items.map((row) => row.shipment),
-    );
-  }
-  const enrichRow = (row: (typeof items)[number]) => ({
-    ...normalizeShipmentRow(row.shipment),
-    customerName: row.customerName,
-    // Operational-site short-name authority with stored factory text fallback
-    // (master-plan "Xưởng/Điểm" projection, plan phase-02).
-    factoryName: row.operationalSiteName ?? row.shipment.factoryName,
-    // Factory operating notes for the master-plan notes column.
-    factoryNotes: row.factoryNotes,
-    // Partial-missing-date warning (docx T2.2): how many containers of the
-    // lot still lack a đóng/trả appointment. Zero when all are scheduled.
-    containersMissingAppointment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containersMissingAppointment ?? 0,
-    containerTotal: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTotal ?? 0,
-    // All effective factories of the lot (container-site authority first,
-    // shipment-site fallback) so the master plan lists every factory instead
-    // of one label. Derived from the appointment-group factory resolution,
-    // plus the shipment-level factory for lots without appointments.
-    factoryNames: factoryNamesByShipmentId.get(row.shipment.id) ?? [],
-    // FCL is summarized here only; its individual container route remains
-    // authoritative in detail/dispatch rows.
-    routeName: routeNamesByShipmentId.get(row.shipment.id)?.join(' · ') || row.routeName,
-    cargoSummary: summariesByShipmentId.get(row.shipment.id)?.cargoSummary ?? null,
-    shippingLineSummary: summariesByShipmentId.get(row.shipment.id)?.shippingLineSummary ?? null,
-    carrierSummary: summariesByShipmentId.get(row.shipment.id)?.carrierSummary ?? null,
-    vehiclePlateSummary: summariesByShipmentId.get(row.shipment.id)?.vehiclePlateSummary ?? null,
-    declarationNumber: declarationByShipmentId.get(row.shipment.id) ?? null,
-    containerCount20: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerCount20 ?? 0,
-    containerCount40: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerCount40 ?? 0,
-    containerTypeSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTypeSummary ?? null,
-    totalCargoWeightKg: dispatchAggregatesByShipmentId.get(row.shipment.id)?.totalCargoWeightKg ?? null,
-    allocationStatus: dispatchAggregatesByShipmentId.get(row.shipment.id)?.allocationStatus ?? 'NOT_ALLOCATED',
-    carrierAllocationSummary: dispatchAggregatesByShipmentId.get(row.shipment.id)?.carrierAllocationSummary ?? [],
-    // Per-container appointment groups (P9 2.4 mapping). Empty array when
-    // the lot has no per-container appointment set — callers can fall back
-    // to shipment-level closingAt/plannedReturnAt in that case.
-    appointmentGroups: appointmentGroupsByShipmentId.get(row.shipment.id) ?? [],
-    // One row may include containers with different lift/drop ports. Do not
-    // project the shipment's legacy pickupLocation/deliveryLocation as if
-    // they applied to every container.
-    containerPortGroups: containerPortGroupsByShipmentId.get(row.shipment.id) ?? [],
-  });
-  const flatItems = items.map(enrichRow);
-  return dispatchSummary !== undefined
-    ? { items: flatItems, total: derivedTotal ?? total, page, limit, dispatchSummary }
-    : { items: flatItems, total: derivedTotal ?? total, page, limit };
-}
-
-// ─── Update (optimistic-lock) ───────────────────────────────────────────────
-
-/**
- * Shipment-level factory validation (SILVER L1 P2): the site must exist,
- * belong to the given customer, be active, not soft-deleted, and be a
- * FACTORY. Shared by create, update, and change-request apply so no write
- * path can land cross-customer or wrong-type site authority.
- */
 export async function assertShipmentFactorySiteValid(
   tx: Tx,
   customerId: number,
@@ -1202,7 +901,7 @@ export async function updateShipment(
       tradeDirection: input.tradeDirection !== undefined ? input.tradeDirection : existing.tradeDirection,
     });
 
-    if (existing.cargoMode === 'FCL' && input.cargoMode === 'LCL') {
+    if (existing.cargoMode === CARGO_MODE.FCL && input.cargoMode === CARGO_MODE.LCL) {
       const fulfillmentRows = await tx.select({
         id: s.shipmentFulfillments.id,
       }).from(s.shipmentFulfillments)
@@ -1525,7 +1224,7 @@ async function buildShipmentPricingProjection(
     cargoWeightKg: shipment.cargoWeightKg,
     containerCount: containers.length,
     containerTypeIds: containers.map((container) => container.containerTypeId),
-    containerPricingLines: shipment.cargoMode === 'FCL'
+    containerPricingLines: shipment.cargoMode === CARGO_MODE.FCL
       ? containers.map((container) => ({
           routeId: container.routeId,
           containerTypeId: container.containerTypeId,
@@ -2330,7 +2029,7 @@ export async function cancelShipmentFulfillment(args: {
           shipmentContainerId: fulfillment.shipmentContainerId,
           sourceShipmentVersion: shipment.version,
           siteSnapshot: fulfillment.siteSnapshot,
-          dispatchClassification: fulfillment.cargoMode === 'LCL' ? 'LCL' : 'SINGLE',
+          dispatchClassification: fulfillment.cargoMode === CARGO_MODE.LCL ? 'LCL' : 'SINGLE',
           createdBy: args.actor.userId,
         }).returning();
         if (!replacement) {
@@ -2759,3 +2458,6 @@ export type {
   ShipmentDeclarationMutationInput,
   UpdateShipmentInput,
 } from './shipment-types';
+export { listShipmentsPaginated } from './shipment-queries.service';
+export type { ListShipmentsOptions } from './shipment-queries.service';
+export type { ShipmentStatus } from './shipment-types';

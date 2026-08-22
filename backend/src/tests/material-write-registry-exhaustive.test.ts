@@ -145,19 +145,19 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_SUBMIT_FOR_DISPATCH',
   }],
   ['shipments.ts|POST|/:id/dispatch', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-commands.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
   ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN',
   }],
   ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/estimates', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE',
   }],
   ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plan', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE',
   }],
   ['shipments.ts|POST|/:id/pod-reviews/:submissionId/review', {
