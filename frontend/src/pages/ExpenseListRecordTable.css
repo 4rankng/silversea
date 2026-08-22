@@ -1,0 +1,49 @@
+/* ============================================================================
+ * Expense list record table — page-specific cell styling layered on the shared
+ * record-table base (frontend/src/styles/record-table.css). Sticky thead,
+ * neutral gated hover and the mobile record cards all come from the base;
+ * nothing here overrides selection or hover states.
+ * ========================================================================== */
+
+/* Card chrome matching the page's KPI/filter cards. Keeps the base's
+   overflow:visible + container-type so the sticky thead still pins against
+   the app-body scrollport. */
+.expense-record-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.expense-record-table tbody tr {
+  cursor: pointer;
+}
+
+/* Anchors the StatusStrip rail; keeps date + entry-date on one line each. */
+.expense-record-table__date {
+  position: relative;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.expense-record-table__entry-date {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-4);
+}
+
+.expense-record-table__supplier {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.expense-record-table__muted {
+  color: var(--ink-2);
+}
+
+.expense-record-table__action {
+  text-align: right;
+}
+
+.expense-record-table__chevron {
+  color: var(--ink-4);
+}
