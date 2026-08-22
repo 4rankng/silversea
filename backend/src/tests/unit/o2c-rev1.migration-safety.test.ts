@@ -45,6 +45,7 @@ describe('O2C clean-baseline safety', () => {
       { idx: 30, tag: '0030_enforce-lcl-fulfillment-classification' },
       { idx: 31, tag: '0031_fcl-container-route-authority' },
       { idx: 32, tag: '0032_add-factory-route' },
+      { idx: 33, tag: '0033_backfill-legacy-shipment-cargo-mode' },
     ]);
   });
 

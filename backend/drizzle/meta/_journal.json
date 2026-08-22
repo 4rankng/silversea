@@ -232,6 +232,13 @@
       "when": 1787287961946,
       "tag": "0032_add-factory-route",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787377782455,
+      "tag": "0033_backfill-legacy-shipment-cargo-mode",
+      "breakpoints": true
     }
   ]
 }
