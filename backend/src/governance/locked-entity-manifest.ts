@@ -147,7 +147,7 @@ const debitNoteAdjustment = action(
 const settlementCorrection = action(
   'ADVANCE_SETTLEMENT_CORRECTION',
   source(
-    'services/advance.service.ts',
+    'services/advance-settlement-reversal.service.ts',
     'adjustSettlementExpense',
     "actionKind: 'ADVANCE_SETTLEMENT_CORRECTION'",
     'reason',
@@ -170,7 +170,7 @@ const settlementCorrection = action(
 const settlementReversal = action(
   'ADVANCE_SETTLEMENT_REVERSAL',
   source(
-    'services/advance.service.ts',
+    'services/advance-settlement-reversal.service.ts',
     'requestAdvanceSettlementReversal',
     "actionKind: 'ADVANCE_SETTLEMENT_REVERSAL'",
     'reason',
@@ -434,7 +434,7 @@ const creditOverrideApproval = action(
 const advanceRequestApproval = action(
   'ADVANCE_REQUEST_APPROVAL',
   source(
-    'services/advance.service.ts',
+    'services/advance-request.service.ts',
     'requestAdvanceRequestApprovalGovernance',
     "actionKind: 'ADVANCE_REQUEST_APPROVAL'",
     'reason',
@@ -454,7 +454,7 @@ const advanceRequestApproval = action(
 const advanceRequestRejection = action(
   'ADVANCE_REQUEST_REJECTION',
   source(
-    'services/advance.service.ts',
+    'services/advance-request.service.ts',
     'requestAdvanceRequestRejectionGovernance',
     "actionKind: 'ADVANCE_REQUEST_REJECTION'",
     'reason',
@@ -595,7 +595,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       "'REVERSED'",
     ),
     directMutationBoundary: source(
-      'services/advance.service.ts',
+      'services/advance-settlement.service.ts',
       'updateAdvanceSettlement',
       "settlement.status !== 'PENDING'",
       "settlement.status !== 'CHECKED_BY_ACCOUNTANT'",
@@ -881,7 +881,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
       "'REJECTED'",
     ),
     directMutationBoundary: source(
-      'services/advance.service.ts',
+      'services/advance-request.service.ts',
       'approveAdvanceRequest',
       "request.status !== 'PENDING'",
       'throw new AdvanceError',

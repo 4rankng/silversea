@@ -31,7 +31,6 @@ const SIZE_BUDGET = 1500;
 /** repo-relative path (from backend/) -> owning phase or deferral reason */
 const SIZE_BASELINE: Record<string, string> = {
   'src/services/shipment.service.ts': 'phase 5 split',
-  'src/services/advance.service.ts': 'phase 4 split',
   'src/routes/shipments.ts': 'phase 6 split',
   'src/services/cus-shipment-workspace-reads.service.ts': 'deferred (cold)',
   'src/services/salary-period-close.service.ts': 'deferred (cold)',
