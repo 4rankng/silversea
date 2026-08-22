@@ -1933,7 +1933,12 @@ export const auditLogs = pgTable('audit_logs', {
   payload: jsonb('payload').$type<Record<string, unknown>>(),
   ipAddress: varchar('ip_address', { length: 45 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  // The audit log grows on every governed write; entity-correlation and
+  // user-scoped queries (audit-query.service) need these to stay O(log n).
+  index('audit_logs_entity_idx').on(table.entityType, table.entityId),
+  index('audit_logs_user_idx').on(table.userId),
+]);
 
 // ─── E2E Epic Extensions ──────────────────────────────────────────────────────
 
