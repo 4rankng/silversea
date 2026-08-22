@@ -94,3 +94,4 @@ kilo.json
 !.ua/meta.json
 !.ua/fingerprints.json
 !.ua/.understandignore
+.agentkit/
