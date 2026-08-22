@@ -1,0 +1,18 @@
+Command: cd frontend && pnpm test
+Started: 2026-08-22T22:44:23+08:00
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  182 passed (182)
+      Tests  1048 passed (1048)
+   Start at  22:44:24
+   Duration  36.03s (transform 9.73s, setup 10.61s, import 109.88s, tests 68.61s, environment 106.42s)
+
+Exit status: 0
+Finished: 2026-08-22T22:45:00+08:00

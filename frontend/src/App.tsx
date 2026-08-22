@@ -239,17 +239,17 @@ export function AppRoutes() {
           <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />
           <Route path="/trips/:id" element={dispatchOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
-          <Route path="/finance" element={adminOnly(page(<FinancePage />))} />
+          <Route path="/finance" element={financeReaderOnly(page(<FinancePage />))} />
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />
-          <Route path="/debt" element={adminOnly(page(<DebtListPage />))} />
-          <Route path="/debt/:id" element={adminOnly(page(<DebtDetailPage />))} />
-          <Route path="/debt/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
+          <Route path="/debt" element={financeReaderOnly(page(<DebtListPage />))} />
+          <Route path="/debt/:id" element={financeReaderOnly(page(<DebtDetailPage />))} />
+          <Route path="/debt/:id/billing/new" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/penalties" element={adminOnly(page(<PenaltyPage />))} />
-          <Route path="/advances" element={adminOnly(page(<AdvanceWorkspacePage />))} />
+          <Route path="/advances" element={financeReaderOnly(page(<AdvanceWorkspacePage />))} />
           <Route
             path="/admin/advance-settlements"
             element={officeStaffOnly(<LegacyAdvanceSettlementsRedirect />)}
@@ -314,11 +314,11 @@ export function AppRoutes() {
             }
           />
           <Route path="/suppliers/:id" element={adminOnly(page(<PayableDetailPage />))} />
-          <Route path="/expenses" element={adminOnly(page(<ExpenseListPage />))} />
+          <Route path="/expenses" element={financeReaderOnly(page(<ExpenseListPage />))} />
           <Route path="/expenses/new" element={adminOnly(page(<ExpenseEntryPage />))} />
           <Route path="/expenses/:id/edit" element={adminOnly(page(<ExpenseEntryPage />))} />
-          <Route path="/payables" element={adminOnly(page(<PayableListPage />))} />
-          <Route path="/payables/:id" element={adminOnly(page(<PayableDetailPage />))} />
+          <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
+          <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={adminOnly(page(<SalaryAttendancePage />))} />
           <Route path="/credit-overrides" element={officeStaffOnly(page(<CreditOverrideQueuePage />))} />
           <Route path="/governance-actions" element={officeStaffOnly(page(<GovernanceActionsPage />))} />

@@ -1,0 +1,9 @@
+Command: authenticated Playwright visual QA for Accountant at 1440x900, 768x1024, and 390x844
+Started: 2026-08-22T23:03:00+08:00
+desktop: PASS; overflow=False; keyboard=True; consoleErrors=0; server5xx=0
+tablet: PASS; overflow=False; keyboard=True; consoleErrors=0; server5xx=0
+mobile: FAIL; the long generated row label "TRỞ NGẠI / NGOẠI LỆ" collided with the value column in the 390px card layout.
+Root cause: the mobile data-label text exceeded its fixed 88px grid track.
+Fix: use the concise mobile row label "Ngoại lệ" while retaining the full desktop table heading.
+Exit status: 1
+Finished: 2026-08-22T23:03:14+08:00

@@ -13,19 +13,58 @@ vi.mock('../components/UI', () => ({
   ),
 }));
 
-function renderPage() {
+function renderPage(initialEntry = '/') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter><AccountingWorkspacePage /></MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}><AccountingWorkspacePage /></MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
 describe('AccountingWorkspacePage', () => {
+  let failReadyInbox = false;
+  let emptyInbox = false;
+
   beforeEach(() => {
+    failReadyInbox = false;
+    emptyInbox = false;
     getMock.mockReset();
     getMock.mockImplementation((path: string) => {
+      if (path.startsWith('/financial/work-inbox')) {
+        const view = new URLSearchParams(path.split('?')[1]).get('view');
+        if (view === 'ACTION' && failReadyInbox) return Promise.reject(new Error('ready inbox unavailable'));
+        const items = emptyInbox ? [] : view === 'ACTION' ? [{
+          id: 'financial:9', entityType: 'trip', entityId: 9,
+          title: 'C-009', subtitle: 'S-008 · Silver Sea', state: 'ACTION', priority: 10,
+          dueAt: null, freshnessAt: '2026-08-22T02:00:00.000Z', blockers: [],
+          advisories: [{ code: 'CUSTOMER_DISPUTE', label: 'Khách hàng báo sai lệch', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }],
+          nextAction: { label: 'Mở đối chiếu', targetRoute: '/accounting?view=transport&search=C-009' },
+          targetRoute: '/accounting?view=transport&search=C-009', tripId: 9,
+          acceptedPod: true, expenseApprovalPending: false, settlementComplete: true,
+          profitabilitySnapshotReady: true,
+        }] : [{
+          id: 'financial:10', entityType: 'trip', entityId: 10,
+          title: 'C-010', subtitle: 'S-010 · Khách hàng B', state: 'WAITING', priority: 20,
+          dueAt: null, freshnessAt: '2026-08-22T01:00:00.000Z',
+          blockers: [
+            { code: 'POD_ACCEPTANCE', label: 'Thiếu POD đã chấp nhận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
+            { code: 'EXPENSE_APPROVAL', label: 'Chi phí đang chờ duyệt', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
+            { code: 'SETTLEMENT', label: 'Quyết toán chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Nhân viên vận hành' },
+            { code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
+          ],
+          advisories: [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }],
+          nextAction: { label: 'Xử lý hồ sơ', targetRoute: '/accounting?view=transport&search=C-010' },
+          targetRoute: '/accounting?view=transport&search=C-010', tripId: 10,
+          acceptedPod: false, expenseApprovalPending: true, settlementComplete: false,
+          profitabilitySnapshotReady: false,
+        }];
+        return Promise.resolve({
+          asOf: '2026-08-22T02:01:00.000Z', timezone: 'Asia/Ho_Chi_Minh',
+          counts: { action: view === 'ACTION' ? items.length : 0, waiting: view === 'WAITING' ? items.length : 0, done: 0 },
+          page: 1, limit: 100, total: items.length, totalPages: items.length ? 1 : 0, items,
+        });
+      }
       if (path.startsWith('/reports/receivables-summary')) {
         return Promise.resolve({
           buckets: [
@@ -80,8 +119,44 @@ describe('AccountingWorkspacePage', () => {
     });
   });
 
-  it('composes finance authorities without duplicating their workflows', async () => {
+  it('uses work as the default view and keeps customer exceptions advisory', async () => {
     renderPage();
+
+    expect(screen.getByRole('heading', { name: 'Công việc kế toán' })).toBeTruthy();
+    expect(await screen.findByText('C-009')).toBeTruthy();
+    expect(screen.getByText('Khách hàng báo sai lệch')).toBeTruthy();
+    expect(screen.getAllByText('Ngoại lệ tham khảo — không chặn tài chính').length).toBe(2);
+    expect(screen.getByRole('link', { name: 'Mở đối chiếu' }).getAttribute('href'))
+      .toBe('/accounting?view=transport&search=C-009');
+
+    expect(screen.getByText('Thiếu POD đã chấp nhận')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Chi phí đang chờ duyệt' }).getAttribute('href'))
+      .toBe('/expenses?tripId=10');
+    expect(screen.getByRole('link', { name: 'Quyết toán chưa hoàn tất' }).getAttribute('href'))
+      .toBe('/advances?view=settlements&tripId=10');
+    expect(screen.getByRole('link', { name: 'Thiếu ảnh chụp lợi nhuận' }).getAttribute('href'))
+      .toBe('/profit?tripId=10');
+    expect(screen.getByText(/Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải/)).toBeTruthy();
+  });
+
+  it('shows independent empty states for ready and blocked work', async () => {
+    emptyInbox = true;
+    renderPage();
+
+    await waitFor(() => expect(screen.getAllByText('Không có hồ sơ trong nhóm này.').length).toBe(2));
+  });
+
+  it('keeps the blocked lane usable when the ready lane fails', async () => {
+    failReadyInbox = true;
+    renderPage();
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Không thể tải nhóm này');
+    expect(await screen.findByText('C-010')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Chi phí đang chờ duyệt' })).toBeTruthy();
+  });
+
+  it('retains the existing overview as a secondary workspace', async () => {
+    renderPage('/?view=overview');
 
     expect(screen.getByRole('heading', { name: 'Tổng Quan' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Công nợ phải thu/ }).getAttribute('href')).toBe('/debt');
@@ -99,15 +174,14 @@ describe('AccountingWorkspacePage', () => {
 
   it('keeps the workspace usable when one authority fails', async () => {
     getMock.mockRejectedValueOnce(new Error('receivables unavailable'));
-    renderPage();
+    renderPage('/?view=overview');
 
     expect((await screen.findByRole('alert')).textContent).toContain('Một phần số liệu chưa tải được');
     expect(screen.getByRole('link', { name: /Trung tâm phê duyệt/ })).toBeTruthy();
   });
 
   it('opens the bounded transport register inside the dedicated workspace', async () => {
-    renderPage();
-    fireEvent.click(screen.getAllByRole('link', { name: 'Đối chiếu vận tải' })[0]);
+    renderPage('/?view=transport');
 
     expect(await screen.findByRole('heading', { name: 'Sổ đối chiếu vận tải' })).toBeTruthy();
     expect((await screen.findAllByText('C-009')).length).toBeGreaterThan(0);

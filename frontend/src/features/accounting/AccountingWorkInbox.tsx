@@ -77,7 +77,7 @@ function InboxLane({
               <tr key={item.id}>
                 <td data-label="Hồ sơ"><strong>{item.title}</strong><small>{item.subtitle}</small></td>
                 <td data-label="Điều kiện"><ReadinessFacts item={item} /></td>
-                <td data-label="Trở ngại / ngoại lệ">
+                <td data-label="Ngoại lệ">
                   {item.blockers.length > 0 && <ul className="accounting-work-inbox__issues">{item.blockers.map((blocker) => <li key={blocker.code}><Link to={blockerRoute(item, blocker.code)}>{blocker.label}</Link><small>Chủ trì: {blocker.ownerLabel}</small></li>)}</ul>}
                   {item.advisories.length > 0 && <ul className="accounting-work-inbox__advisories">{item.advisories.map((advisory) => <li key={advisory.code}>{advisory.label}<small>Ngoại lệ tham khảo — không chặn tài chính</small></li>)}</ul>}
                   {item.blockers.length === 0 && item.advisories.length === 0 && <span className="accounting-work-inbox__clear">Đủ điều kiện</span>}

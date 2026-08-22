@@ -655,7 +655,7 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     # Browser UI Tests (TC-1260 to TC-1264)
     # ══════════════════════════════════════════════════════════════════
 
-    # TC-1260: Legacy expenses route converges on the unified accounting workspace
+    # TC-1260: Accountant opens the authoritative expense review workspace
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -663,13 +663,13 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1260_expenses_page')
-    if '/accounting' in page.url and page.get_by_role('heading', name='Tổng Quan', exact=True).count() == 1:
-        results.pass_('TC-1260', 'Expenses route opens the accounting workspace')
+    if '/expenses' in page.url and page.get_by_role('heading', name='Chi phí phát sinh', exact=True).count() == 1:
+        results.pass_('TC-1260', 'Expenses route opens the authoritative expense workspace')
     else:
         results.fail('TC-1260', 'Expenses page', f'URL={page.url}')
     page.close()
 
-    # TC-1261: Legacy payables route converges on the unified accounting workspace
+    # TC-1261: Accountant opens the authoritative payable review workspace
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -677,8 +677,8 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1261_payables_page')
-    if '/accounting' in page.url and page.get_by_text('Công nợ phải trả', exact=True).count() >= 1:
-        results.pass_('TC-1261', 'Payables route opens the accounting workspace')
+    if '/payables' in page.url and page.get_by_role('heading', name='Công nợ phải trả', exact=True).count() == 1:
+        results.pass_('TC-1261', 'Payables route opens the authoritative payable workspace')
     else:
         results.fail('TC-1261', 'Payables page', f'URL={page.url}')
     page.close()
@@ -691,8 +691,8 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1262_suppliers_page')
-    if '/accounting' in page.url and page.get_by_role('heading', name='Tổng Quan', exact=True).count() == 1:
-        results.pass_('TC-1262', 'Suppliers route opens the accounting workspace')
+    if '/accounting' in page.url and page.get_by_role('heading', name='Công việc kế toán', exact=True).count() == 1:
+        results.pass_('TC-1262', 'Suppliers route returns Accountant to the work inbox')
     else:
         results.fail('TC-1262', 'Suppliers page', f'URL={page.url}')
     page.close()
@@ -706,8 +706,8 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1263_mobile_expenses')
     mobile_expense_fits = page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
-    if '/accounting' in page.url and mobile_expense_fits:
-        results.pass_('TC-1263', 'Mobile accounting workspace renders from expenses route')
+    if '/expenses' in page.url and mobile_expense_fits:
+        results.pass_('TC-1263', 'Mobile expense workspace renders without document overflow')
     else:
         results.fail('TC-1263', 'Mobile expenses', f'URL={page.url}')
     page.close()
@@ -721,8 +721,8 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1264_mobile_payables')
     mobile_payables_fits = page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
-    if '/accounting' in page.url and mobile_payables_fits:
-        results.pass_('TC-1264', 'Mobile accounting workspace renders from payables route')
+    if '/payables' in page.url and mobile_payables_fits:
+        results.pass_('TC-1264', 'Mobile payable workspace renders without document overflow')
     else:
         results.fail('TC-1264', 'Mobile payables', f'URL={page.url}')
     page.close()
