@@ -2169,7 +2169,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     const filters = and(
       isNull(s.shipmentFulfillments.canceledAt),
       isNull(s.shipments.deletedAt),
-      eq(s.shipments.status, 'READY_FOR_DISPATCH'),
+      inArray(s.shipments.status, ['READY_FOR_DISPATCH', 'DISPATCHED']),
       inArray(s.shipmentFulfillments.plannedCarrierType, [...DISPATCH_DETAIL_PLAN_CARRIER_TYPES]),
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       input.direction ? eq(s.shipments.tradeDirection, input.direction) : undefined,

@@ -30,6 +30,7 @@ const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdShipmentIds: number[] = [];
+const createdTripIds: number[] = [];
 const createdSiteIds: number[] = [];
 
 let server: http.Server;
@@ -191,7 +192,7 @@ async function createAllocatedLot(args: {
     fulfillmentIds.push(fulfillment.id);
   }
 
-  return { shipment, fulfillmentIds, customer, site };
+  return { shipment, fulfillmentIds, customer, site, route };
 }
 
 async function createOwnedTruckWithDriver() {
@@ -239,6 +240,8 @@ type DetailPlanRow = {
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
+    tripId?: number;
+    tripStatus?: 'CREATED' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELED';
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   classification: 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | null;
@@ -317,6 +320,9 @@ after(async () => {
   }
 
   try {
+    if (createdTripIds.length > 0) {
+      await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+    }
     if (createdShipmentIds.length > 0) {
       await db.delete(s.notifications).where(and(
         eq(s.notifications.type, 'TRIP_DISPATCHED'),
@@ -369,6 +375,35 @@ describe('dispatch detail plan rows', () => {
     assert.equal(row.dispatch.carrierName, 'SilverSea');
     assert.equal(row.dispatch.assignedPlate, null);
     assert.equal(row.lotFullyPlated, false);
+  });
+
+  test('keeps a published CREATED trip visible so dispatch can reassign it', async () => {
+    const { shipment, fulfillmentIds, route } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    await db.update(s.shipments).set({ status: 'DISPATCHED' }).where(eq(s.shipments.id, shipment.id));
+    const [trip] = await db.insert(s.trips).values({
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillmentIds[0],
+      customerId: shipment.customerId,
+      routeId: route.id,
+      status: 'CREATED',
+      carrierType: 'OWN',
+      truckId: truck.id,
+      driverId: driver.id,
+      trailerId: truck.currentTrailerId,
+      plannedStartAt: new Date('2026-08-20T08:00:00.000Z'),
+      plannedEndAt: new Date('2026-08-20T12:00:00.000Z'),
+      departureDate: '2026-08-20',
+      createdBy: adminUserId,
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    const response = await fetchRows(dispatcherToken, `?q=${shipment.shipmentCode}`);
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    const row = response.data.items.find((item) => item.fulfillmentId === fulfillmentIds[0]);
+    assert.equal(row?.taskStatus, 'DISPATCHED');
+    assert.equal(row?.dispatch.tripId, trip.id);
+    assert.equal(row?.dispatch.tripStatus, 'CREATED');
   });
 
   test('CLERK and DRIVER get 403', async () => {
