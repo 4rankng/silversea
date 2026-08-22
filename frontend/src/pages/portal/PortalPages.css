@@ -654,17 +654,24 @@ a.portal-list__row:focus-visible {
 }
 
 .portal-table-wrap {
-  overflow-x: auto;
+  /* The ledger grows with its rows and never owns a horizontal rail — the
+     app-body scrollport owns scrolling, so the thead can pin flush under the
+     portal topbar (dispatch-grid contract). */
+  overflow: visible;
 }
 
 .portal-table {
   width: 100%;
-  min-width: 640px;
+  min-width: 0;
   border-collapse: collapse;
   font-size: var(--fs-xs);
 }
 
 .portal-table th {
+  position: sticky;
+  /* Negates the scrollport's top padding (--sticky-thead-top in tokens.css). */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line-2);
   background: var(--surface);
@@ -685,8 +692,11 @@ a.portal-list__row:focus-visible {
   border-bottom: 0;
 }
 
-.portal-table tbody tr:hover {
-  background: var(--surface-2);
+/* A record is not itself an action: quiet scan aid for fine pointers only. */
+@media (hover: hover) and (pointer: fine) {
+  .portal-table tbody tr:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 .portal-table__number {
