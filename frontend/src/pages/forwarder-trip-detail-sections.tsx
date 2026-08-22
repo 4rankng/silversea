@@ -203,7 +203,7 @@ export function ForwarderExpenseRow({ exp, expenseTypeOptions: forwarderExpenseT
                       </dl>
                     </div>
                     <div className="fwd-expense-record__amount">
-                      <div style={{ fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>
                         {formatCurrency(exp.buyAmount)}
                       </div>
                     </div>

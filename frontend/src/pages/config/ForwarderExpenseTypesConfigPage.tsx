@@ -357,7 +357,7 @@ export default function ForwarderExpenseTypesConfigPage() {
           },
           {
             header: 'VAT',
-            render: (item) => <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatPercent(item.vatRate)}</span>,
+            render: (item) => <span>{formatPercent(item.vatRate)}</span>,
           },
           {
             header: 'Cộng lãi',

@@ -23,8 +23,11 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { Pagination, UuiSelectField } from '../design-system';
+import { Money } from '../components/shared/Money';
 import { canCheckCreditOverride, canDecideCreditOverride } from '../lib/credit-override-permissions';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import './CreditOverrideQueuePage.css';
 
 const STATUS_LABELS: Record<CreditOverrideStatus, string> = {
@@ -396,180 +399,184 @@ export default function CreditOverrideQueuePage() {
 
       {!queue.isLoading && !queue.isError && requests.length > 0 ? (
         <>
-        <div className="credit-override-queue__cards" data-testid="credit-override-card-list">
-          {requests.map((request) => {
-            const readOnlyReason = decisionMessage(request, user ?? null);
-            const actionable = canActOnRequest(request, user ?? null);
-            const isChecking = checkMutation.isPending && checkMutation.variables?.id === request.id;
-            const isApproving = approveMutation.isPending && approveMutation.variables?.id === request.id;
-            const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === request.id;
-            return (
-              <article key={request.id} className="credit-override-queue__card">
-                <div className="credit-override-queue__card-header">
-                  <div>
-                    <div className="credit-override-queue__card-kicker">
-                      <span>Đề nghị vượt hạn mức</span>
+        <div className="record-table-wrap">
+          <table
+            className="record-table ops-table credit-override-queue__table"
+            data-testid="credit-override-table"
+          >
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Trạng thái</th>
+                <th>Người tạo</th>
+                <th>Giá trị đề nghị</th>
+                <th>Dư nợ hiện tại</th>
+                <th>Hạn mức công nợ</th>
+                <th>Mức vượt</th>
+                <th>Hiệu lực đến</th>
+                <th>Lý do</th>
+                <th className="record-table__action">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map((request) => {
+                const readOnlyReason = decisionMessage(request, user ?? null);
+                const actionable = canActOnRequest(request, user ?? null);
+                const isChecking = checkMutation.isPending && checkMutation.variables?.id === request.id;
+                const isApproving = approveMutation.isPending && approveMutation.variables?.id === request.id;
+                const isRejecting = rejectMutation.isPending && rejectMutation.variables?.id === request.id;
+                return (
+                  <tr key={request.id}>
+                    <td data-label="Khách hàng">
+                      <span className="credit-override-queue__cell-primary">
+                        {request.customerName || 'Chưa có tên khách hàng'}
+                      </span>
+                      <span className="credit-override-queue__cell-sub">
+                        {request.shipmentId != null
+                          ? `Lô ${request.shipmentCode || 'chưa có mã'}`
+                          : SCOPE_LABELS[request.scopeType]}
+                      </span>
+                    </td>
+                    <td data-label="Trạng thái">
                       <span className={`credit-override-queue__status ${statusTone(request.status)}`}>
                         {STATUS_LABELS[request.status]}
                       </span>
-                      <span className="credit-override-queue__badge">
+                      <span className="credit-override-queue__cell-sub">
                         {WORKFLOW_LABELS[request.workflowStatus]}
                       </span>
-                    </div>
-                    <h2>{request.customerName || 'Chưa có tên khách hàng'}</h2>
-                  </div>
-                  <div className="credit-override-queue__badges">
-                    <span className="credit-override-queue__badge">{SCOPE_LABELS[request.scopeType]}</span>
-                    <span className="credit-override-queue__badge">{TIER_LABELS[request.requiredTier]}</span>
-                    {request.repeatException ? (
-                      <span className="credit-override-queue__badge is-warning">
-                        <ShieldAlert size={14} />
-                        Lặp lại
+                      <span className="credit-override-queue__cell-badges">
+                        <span className="credit-override-queue__badge">{TIER_LABELS[request.requiredTier]}</span>
+                        {request.repeatException ? (
+                          <span className="credit-override-queue__badge is-warning">
+                            <ShieldAlert size={14} aria-hidden="true" />
+                            Lặp lại
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="credit-override-queue__facts">
-                  <div>
-                    <span className="credit-override-queue__fact-label">Người tạo</span>
-                    <strong>{request.requestedByName || displayRole(request.requestedRole)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Lô hàng</span>
-                    <strong>{request.shipmentId != null ? request.shipmentCode || 'Chưa có mã lô hàng' : 'Không áp dụng theo lô hàng'}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Hiệu lực đến</span>
-                    <strong>{formatDateTimeVN(request.expiresAt)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Tạo lúc</span>
-                    <strong>{formatDateTimeVN(request.createdAt)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Người kiểm tra</span>
-                    <strong>
-                      {request.checkedBy != null
-                        ? `${request.checkedByName || 'Người dùng không xác định'} · ${formatDateTimeVN(request.checkedAt)}`
-                        : 'Chưa kiểm tra'}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="credit-override-queue__reason">
-                  <span className="credit-override-queue__fact-label">Lý do đề nghị</span>
-                  <p>{request.reason}</p>
-                </div>
-
-                <div className="credit-override-queue__money-grid">
-                  <div>
-                    <span className="credit-override-queue__fact-label">Giá trị đề nghị</span>
-                    <strong>{formatCurrency(request.proposedAmount)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Dư nợ hiện tại</span>
-                    <strong>{formatCurrency(request.outstandingAmount)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Cam kết đã duyệt</span>
-                    <strong>{formatCurrency(request.approvedCommitmentAmount)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Tổng phơi nhiễm</span>
-                    <strong>{formatCurrency(request.totalExposure)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Hạn mức công nợ</span>
-                    <strong>{formatCurrency(request.creditLimit)}</strong>
-                  </div>
-                  <div>
-                    <span className="credit-override-queue__fact-label">Mức vượt</span>
-                    <strong>{formatCurrency(request.overLimitAmount)}</strong>
-                  </div>
-                </div>
-
-                <div className="credit-override-queue__meta">
-                  <span>Ngưỡng cảnh báo: {Math.round(Number(request.warningThreshold || 0) * 100)}%</span>
-                  <span>Tỷ lệ vượt: {Math.round(Number(request.overLimitRatio || 0) * 100)}%</span>
-                  {request.consumedTripId != null ? <span>Đã được sử dụng cho một chuyến đi</span> : null}
-                  {request.consumedAt ? <span>Dùng lúc {formatDateTimeVN(request.consumedAt)}</span> : null}
-                </div>
-
-                <DecisionSummary request={request} />
-
-                {request.status === 'PENDING' ? (
-                  <div className="credit-override-queue__actions">
-                    {readOnlyReason ? (
-                      <div className="credit-override-queue__read-only">
-                        <AlertTriangle size={16} />
-                        <span>{readOnlyReason}</span>
-                      </div>
-                    ) : null}
-
-                    {actionable ? (
-                      <div className="credit-override-queue__decision-box">
-                        {request.workflowStatus === 'PENDING_CHECK' ? (
-                          <button
-                            type="button"
-                            className="credit-override-queue__button is-primary"
-                            onClick={() => handleCheck(request)}
-                            disabled={isChecking}
-                          >
-                            {isChecking ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                            Xác nhận kiểm tra
-                          </button>
-                        ) : (
-                          <>
-                            <div className="credit-override-queue__decision-buttons">
-                              <button
-                                type="button"
-                                className="credit-override-queue__button is-primary"
-                                onClick={() => handleApprove(request)}
-                                disabled={isApproving || isRejecting}
-                              >
-                                {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-                                Duyệt đề nghị
-                              </button>
+                      <span className="credit-override-queue__cell-sub">
+                        {request.checkedBy != null
+                          ? `Kiểm tra: ${request.checkedByName || 'Người dùng không xác định'} · ${formatDateTimeVN(request.checkedAt)}`
+                          : 'Chưa kiểm tra'}
+                      </span>
+                    </td>
+                    <td data-label="Người tạo">
+                      <span className="credit-override-queue__cell-primary">
+                        {request.requestedByName || displayRole(request.requestedRole)}
+                      </span>
+                      <span className="credit-override-queue__cell-sub">{formatDateTimeVN(request.createdAt)}</span>
+                    </td>
+                    <td data-label="Giá trị đề nghị" className="num">
+                      <Money value={Number(request.proposedAmount || 0)} />
+                    </td>
+                    <td data-label="Dư nợ hiện tại" className="num">
+                      <Money value={Number(request.outstandingAmount || 0)} />
+                      <span className="credit-override-queue__cell-sub">
+                        Cam kết: {formatCurrency(request.approvedCommitmentAmount)}
+                      </span>
+                      <span className="credit-override-queue__cell-sub">
+                        Phơi nhiễm: {formatCurrency(request.totalExposure)}
+                      </span>
+                    </td>
+                    <td data-label="Hạn mức công nợ" className="num">
+                      <Money value={Number(request.creditLimit || 0)} />
+                      <span className="credit-override-queue__cell-sub">
+                        Ngưỡng: {Math.round(Number(request.warningThreshold || 0) * 100)}%
+                      </span>
+                    </td>
+                    <td data-label="Mức vượt" className="num">
+                      <Money value={Number(request.overLimitAmount || 0)} />
+                      <span className="credit-override-queue__cell-sub">
+                        Tỷ lệ: {Math.round(Number(request.overLimitRatio || 0) * 100)}%
+                      </span>
+                    </td>
+                    <td data-label="Hiệu lực đến">
+                      {formatDateTimeVN(request.expiresAt)}
+                      {request.consumedTripId != null ? (
+                        <span className="credit-override-queue__cell-sub">
+                          {request.consumedAt
+                            ? `Đã dùng ${formatDateTimeVN(request.consumedAt)}`
+                            : 'Đã dùng cho một chuyến đi'}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td data-label="Lý do" className="credit-override-queue__cell-reason">{request.reason}</td>
+                    <td data-label="" className="record-table__action credit-override-queue__cell-actions">
+                      <DecisionSummary request={request} />
+                      {request.status === 'PENDING' ? (
+                        <div className="credit-override-queue__actions">
+                          {readOnlyReason ? (
+                            <div className="credit-override-queue__read-only">
+                              <AlertTriangle size={16} />
+                              <span>{readOnlyReason}</span>
                             </div>
+                          ) : null}
 
-                            <label className="credit-override-queue__reject-field">
-                              <span>Lý do từ chối</span>
-                              <textarea
-                                value={rejectReasons[request.id] ?? ''}
-                                onChange={(event) => setRejectReasons((current) => ({
-                                  ...current,
-                                  [request.id]: event.target.value,
-                                }))}
-                                rows={3}
-                                placeholder="Bắt buộc khi từ chối đề nghị."
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              className="credit-override-queue__button is-secondary"
-                              onClick={() => handleReject(request)}
-                              disabled={isApproving || isRejecting}
-                            >
-                              {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
-                              Từ chối
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    ) : null}
+                          {actionable ? (
+                            <div className="credit-override-queue__decision-box">
+                              {request.workflowStatus === 'PENDING_CHECK' ? (
+                                <button
+                                  type="button"
+                                  className="credit-override-queue__button is-primary"
+                                  onClick={() => handleCheck(request)}
+                                  disabled={isChecking}
+                                >
+                                  {isChecking ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                                  Xác nhận kiểm tra
+                                </button>
+                              ) : (
+                                <>
+                                  <div className="credit-override-queue__decision-buttons">
+                                    <button
+                                      type="button"
+                                      className="credit-override-queue__button is-primary"
+                                      onClick={() => handleApprove(request)}
+                                      disabled={isApproving || isRejecting}
+                                    >
+                                      {isApproving ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
+                                      Duyệt đề nghị
+                                    </button>
+                                  </div>
 
-                    {actionErrors[request.id] ? (
-                      <div className="credit-override-queue__action-error" role="alert">
-                        <AlertTriangle size={16} />
-                        <span>{actionErrors[request.id]}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+                                  <label className="credit-override-queue__reject-field">
+                                    <span>Lý do từ chối</span>
+                                    <textarea
+                                      value={rejectReasons[request.id] ?? ''}
+                                      onChange={(event) => setRejectReasons((current) => ({
+                                        ...current,
+                                        [request.id]: event.target.value,
+                                      }))}
+                                      rows={3}
+                                      placeholder="Bắt buộc khi từ chối đề nghị."
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    className="credit-override-queue__button is-secondary"
+                                    onClick={() => handleReject(request)}
+                                    disabled={isApproving || isRejecting}
+                                  >
+                                    {isRejecting ? <Loader2 size={16} className="spin" /> : <XCircle size={16} />}
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {actionErrors[request.id] ? (
+                            <div className="credit-override-queue__action-error" role="alert">
+                              <AlertTriangle size={16} />
+                              <span>{actionErrors[request.id]}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
         <Pagination
           page={page}

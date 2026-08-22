@@ -184,12 +184,12 @@
   line-height: 1.1;
 }
 
-.credit-override-queue__workspace {
-  overflow: hidden;
-  border: 1px solid var(--line, var(--border-2));
-  border-radius: 10px;
-  background: var(--surface, var(--surface-1));
-}
+/*
+ * The queue list sits flush like the dispatch grids: no panel chrome around
+ * the table, .app-body scrolls, and the shared record-table base pins the
+ * thead under the topbar. An overflow other than visible here would break
+ * that sticky scrollport.
+ */
 
 .credit-override-queue__toolbar {
   display: flex;
@@ -198,7 +198,9 @@
   justify-content: space-between;
   gap: 18px;
   padding: 14px 18px;
+  border-top: 1px solid var(--line, var(--border-2));
   border-bottom: 1px solid var(--line, var(--border-2));
+  background: var(--surface, var(--surface-1));
 }
 
 .credit-override-queue__toolbar-title {
@@ -302,27 +304,68 @@
 }
 
 .credit-override-queue__workspace-body {
-  padding: 16px;
+  padding: 0;
 }
 
-.credit-override-queue__cards {
-  display: grid;
-  gap: 12px;
+/* The toolbar's border already separates it from the table. */
+.credit-override-queue__workspace-body .record-table-wrap {
+  border-top: 0;
 }
 
-.credit-override-queue__card {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--line, var(--border-2));
-  border-radius: 10px;
-  background: var(--surface, var(--surface-1));
+.credit-override-queue__workspace-body .ds-pagination {
+  padding: 12px 16px;
 }
 
-.credit-override-queue__card-header,
-.credit-override-queue__card-kicker,
-.credit-override-queue__badges,
-.credit-override-queue__meta,
+/* Record-table cell roles (ops-table tokens, see styles/operational-table-typography.css). */
+.credit-override-queue__cell-primary {
+  display: block;
+  color: var(--ink, var(--fg-1));
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+  overflow-wrap: anywhere;
+}
+
+.credit-override-queue__cell-sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-3, var(--fg-3));
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+.credit-override-queue__cell-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+/* Pills stay legible but do not inflate dense table rows. */
+.credit-override-queue__table .credit-override-queue__status,
+.credit-override-queue__table .credit-override-queue__badge {
+  min-height: 24px;
+  padding: 3px 8px;
+}
+
+.credit-override-queue__table .num .money {
+  white-space: nowrap;
+}
+
+.credit-override-queue__cell-reason {
+  max-width: 320px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.credit-override-queue__table .record-table__action {
+  width: 280px;
+}
+
+.credit-override-queue__cell-actions .credit-override-queue__button {
+  width: 100%;
+}
+
 .credit-override-queue__decision-buttons,
 .credit-override-queue__read-only,
 .credit-override-queue__decision-summary,
@@ -332,22 +375,6 @@
   align-items: center;
   gap: 9px;
   flex-wrap: wrap;
-}
-
-.credit-override-queue__card-header {
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.credit-override-queue__card-kicker {
-  color: var(--ink-2, var(--fg-2));
-  font-size: var(--fs-xs);
-}
-
-.credit-override-queue__card h2 {
-  margin: 5px 0 0;
-  color: var(--ink, var(--fg-1));
-  font-size: var(--fs-lg);
 }
 
 .credit-override-queue__status,
@@ -391,69 +418,6 @@
   color: var(--warning-text, #9a4b08);
 }
 
-.credit-override-queue__facts,
-.credit-override-queue__money-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-}
-
-.credit-override-queue__fact-label {
-  color: var(--ink-3, var(--fg-3));
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
-}
-
-.credit-override-queue__facts strong,
-.credit-override-queue__money-grid strong {
-  display: block;
-  min-width: 0;
-  margin-top: 4px;
-  overflow-wrap: anywhere;
-  color: var(--ink, var(--fg-1));
-  font-size: var(--fs-sm);
-  line-height: 1.35;
-}
-
-.credit-override-queue__money-grid strong {
-  font-family: var(--font-data);
-
-}
-
-.credit-override-queue__reason {
-  position: relative;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--surface-2, var(--bg-2));
-}
-
-.credit-override-queue__reason::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: var(--status-strip-width);
-  height: var(--status-strip-height);
-  border-radius: var(--status-strip-radius);
-  background: color-mix(in srgb, var(--brand) 40%, transparent);
-  transform: translateY(-50%);
-  content: '';
-  pointer-events: none;
-}
-
-.credit-override-queue__reason p {
-  margin: 6px 0 0;
-  color: var(--ink, var(--fg-1));
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.credit-override-queue__meta {
-  color: var(--ink-2, var(--fg-2));
-  font-size: var(--fs-xs);
-}
-
 .credit-override-queue__actions,
 .credit-override-queue__decision-box,
 .credit-override-queue__reject-field {
@@ -481,7 +445,19 @@
 
 .credit-override-queue__state {
   min-height: 72px;
+  margin-top: 12px;
   padding: 16px;
+  border: 1px solid var(--line, var(--border-2));
+  border-radius: 10px;
+  background: var(--surface, var(--surface-1));
+}
+
+/* Record-card mode: the base zeroes the action cell's padding for bare action
+   bars; this cell carries form controls, so restore the card gutter. */
+@container (max-width: 900px) {
+  .credit-override-queue__table tbody td.credit-override-queue__cell-actions {
+    padding: 12px 16px;
+  }
 }
 
 .credit-override-queue__state p {
@@ -623,8 +599,7 @@
     white-space: nowrap;
   }
 
-  .credit-override-queue__toolbar,
-  .credit-override-queue__workspace-body {
+  .credit-override-queue__toolbar {
     padding: 14px;
   }
 
@@ -636,15 +611,6 @@
   .credit-override-queue__field.is-status,
   .credit-override-queue__field.is-search {
     width: 100%;
-  }
-
-  .credit-override-queue__card {
-    padding: 14px;
-  }
-
-  .credit-override-queue__facts,
-  .credit-override-queue__money-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .credit-override-queue__decision-buttons,
@@ -671,10 +637,5 @@
 
   .credit-override-queue__summary-card.is-value .credit-override-queue__summary-icon {
     display: grid;
-  }
-
-  .credit-override-queue__facts,
-  .credit-override-queue__money-grid {
-    grid-template-columns: 1fr;
   }
 }

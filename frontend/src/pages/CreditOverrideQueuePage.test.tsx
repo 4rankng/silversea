@@ -163,17 +163,40 @@ describe('CreditOverrideQueuePage', () => {
     creditQueueState.error = null;
   });
 
-  it('renders exposure, limit, expiry, and reason context in a card-based queue', async () => {
+  it('renders the queue on the shared record-table base with Vietnamese labels', async () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: 'Duyệt vượt hạn mức' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Hàng chờ phê duyệt' })).toBeTruthy();
-    expect(screen.getByTestId('credit-override-card-list').className).toContain('credit-override-queue__cards');
-    expect(screen.getByRole('heading', { name: 'Công ty Minh Hải' })).toBeTruthy();
-    expect(screen.getByText('Nguyễn Thị Lan')).toBeTruthy();
+
+    const table = document.querySelector('table.credit-override-queue__table');
+    expect(table).toBeTruthy();
+    expect(table?.className).toContain('record-table ops-table');
+    expect(table?.closest('.record-table-wrap')).toBeTruthy();
+
+    const labels = Array.from(table?.querySelectorAll('tbody tr:first-child > td') ?? []).map(
+      (td) => td.getAttribute('data-label'),
+    );
+    expect(labels).toEqual([
+      'Khách hàng',
+      'Trạng thái',
+      'Người tạo',
+      'Giá trị đề nghị',
+      'Dư nợ hiện tại',
+      'Hạn mức công nợ',
+      'Mức vượt',
+      'Hiệu lực đến',
+      'Lý do',
+      '', // action cell: eyebrow suppressed in record-card mode
+    ]);
+
+    // Reviewer context stays visible: identity, requester, reason, money, expiry.
+    expect(table?.textContent).toContain('Công ty Minh Hải');
+    expect(table?.textContent).toContain('Nguyễn Thị Lan');
     expect(screen.queryByText('CLERK')).toBeNull();
     expect(screen.getByText('Khách đang chờ giao gấp.')).toBeTruthy();
-    expect(screen.getByText('55.000.000 ₫')).toBeTruthy();
-    expect(screen.getByText('50.000.000 ₫')).toBeTruthy();
+    expect(table?.textContent).toContain('55.000.000 ₫');
+    expect(table?.querySelector('td[data-label="Hạn mức công nợ"] .money')?.textContent).toContain('50.000.000');
+    expect(table?.querySelector('td[data-label="Giá trị đề nghị"]')?.className).toContain('num');
     expect(screen.getByText(/28\/7\/2026/)).toBeTruthy();
   });
 
@@ -190,8 +213,9 @@ describe('CreditOverrideQueuePage', () => {
     const daiDuongOption = await screen.findByRole('option', { name: 'Công ty Đại Dương' });
     fireEvent.click(daiDuongOption);
 
-    expect(screen.getByRole('heading', { name: 'Công ty Đại Dương' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'Công ty Minh Hải' })).toBeNull();
+    const table = document.querySelector('table.credit-override-queue__table');
+    expect(table?.textContent).toContain('Công ty Đại Dương');
+    expect(table?.textContent).not.toContain('Công ty Minh Hải');
     expect(document.body.textContent).not.toMatch(/Khách hàng\s*#\d+/);
   });
 

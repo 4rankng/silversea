@@ -71,11 +71,12 @@
   overflow-wrap: anywhere;
 }
 
-/* Numeric columns pair with the <Money>/formatCurrency conventions. */
+/* Numeric columns pair with the <Money>/formatCurrency conventions. The
+   bundled Be Vietnam Pro carries proportional figures only — align by
+   right edge, never force tabular-nums (font-family contract test). */
 .record-table .num {
   text-align: right;
   font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
 }
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
