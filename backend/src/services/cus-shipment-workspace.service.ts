@@ -2216,7 +2216,7 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.containerNumber !== undefined
       || args.input.cargoWeightKg !== undefined
       || args.input.cargoVolumeCbm !== undefined
-      || args.input.routeId !== undefined
+      || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
       || args.input.customerAppointmentAt !== undefined
     );
     if (governedOperationalMutation && !isDirectlyEditableIntakeStatus(shipment.status)) {

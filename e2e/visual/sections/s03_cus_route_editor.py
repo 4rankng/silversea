@@ -176,7 +176,9 @@ def tc_route_04_noop_save(ctx: VisualTestContext):
     if not target:
         raise AssertionError("BLOCKED: no editable CUS container is available")
 
-    # First save: capture version before, then perform an identical save.
+    # Save twice with identical values. A legacy row may perform a one-time
+    # cargo-mode repair on the first request; the second request must be a
+    # genuine no-op and keep the repaired/current version stable.
     detail_before = _api_get(token, f"/api/shipments/cus-workspace/{target['shipmentId']}")
     line_before = next(
         (l for l in detail_before.get("containers", []) if l["id"] == target["containerId"]),
@@ -185,44 +187,51 @@ def tc_route_04_noop_save(ctx: VisualTestContext):
     if not line_before:
         raise AssertionError("BLOCKED: selected container is absent from shipment detail")
 
-    # PATCH with identical values. Retry once on a transient lock conflict
+    # POST identical values. Retry on a transient lock conflict
     # (the integration suite runs against the same DB and may have a stale
     # advisory lock from a prior request).
     import urllib.request as _ur
     expected_version = line_before.get("shipmentVersion") or detail_before["summary"]["version"]
-    body = json.dumps({
-        "expectedShipmentVersion": expected_version,
-        "liftSiteId": line_before.get("liftSiteId"),
-        "dropoffSiteId": line_before.get("dropoffSiteId"),
-    }).encode()
-    response = None
-    last_err = None
-    for attempt in range(3):
-        req = _ur.Request(
-            f"{API_URL}/api/shipments/cus-workspace/{target['shipmentId']}/containers/{target['containerId']}",
-            data=body, method="POST",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-                "Idempotency-Key": f"visual-noop-{target['containerId']}-{expected_version}-{attempt}",
-            },
-        )
-        try:
-            with _ur.urlopen(req, timeout=10) as r:
-                response = json.loads(r.read())
+
+    def save(version: int, cycle: int) -> dict:
+        payload = json.dumps({
+            "expectedShipmentVersion": version,
+            "liftSiteId": line_before.get("liftSiteId"),
+            "dropoffSiteId": line_before.get("dropoffSiteId"),
+        }).encode()
+        last_err = None
+        for attempt in range(3):
+            req = _ur.Request(
+                f"{API_URL}/api/shipments/cus-workspace/{target['shipmentId']}/containers/{target['containerId']}",
+                data=payload, method="POST",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                    "Idempotency-Key": (
+                        f"visual-noop-{target['containerId']}-{version}-{cycle}-{attempt}"
+                    ),
+                },
+            )
+            try:
+                with _ur.urlopen(req, timeout=10) as r:
+                    return json.loads(r.read())
+            except _ur.HTTPError as error:
+                err_body = error.read().decode()
+                if error.code == 409 and "Khóa" in err_body and attempt < 2:
+                    time.sleep(1.0 * (attempt + 1))
+                    continue
+                last_err = f"HTTP {error.code}: {err_body}"
                 break
-        except _ur.HTTPError as e:
-            err_body = e.read().decode()
-            if e.code == 409 and "Khóa" in err_body and attempt < 2:
-                time.sleep(1.0 * (attempt + 1))
-                continue
-            last_err = f"HTTP {e.code}: {err_body}"
-            break
-    if response is None:
         raise AssertionError(f"no-op save failed: {last_err}")
-    if response.get("line", {}).get("shipmentVersion") != line_before.get("shipmentVersion"):
+
+    first_response = save(expected_version, 1)
+    first_version = first_response.get("line", {}).get("shipmentVersion")
+    if not isinstance(first_version, int):
+        raise AssertionError("first no-op response did not include shipmentVersion")
+    response = save(first_version, 2)
+    if response.get("line", {}).get("shipmentVersion") != first_version:
         raise AssertionError(
-            f"no-op save bumped version: before={line_before.get('shipmentVersion')} "
+            f"second identical save bumped version: before={first_version} "
             f"after={response['line']['shipmentVersion']}"
         )
 
@@ -436,29 +445,30 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
     )
     if not line_before:
         raise AssertionError("BLOCKED: selected container is absent from shipment detail")
-    original_route_id = line_before.get("routeId")
-    alternate_route = next(
-        (route for route in detail_body.get("selectors", {}).get("routes", [])
-         if route.get("id") != original_route_id),
+    original_lift_id = line_before.get("liftSiteId")
+    original_dropoff_id = line_before.get("dropoffSiteId")
+    alternate_port = next(
+        (port for port in detail_body.get("selectors", {}).get("ports", [])
+         if port.get("id") != original_dropoff_id),
         None,
     )
-    if not alternate_route:
-        raise AssertionError("BLOCKED: no alternate route is configured")
+    if not alternate_port:
+        raise AssertionError("BLOCKED: no alternate dropoff port is configured")
 
     # Open the editor first so its draft keeps the current shipment version.
     ctx.goto(f"/shipments-detail?searchSuffix={suffix}&dateScope=all")
     ctx.page.wait_for_timeout(800)
     _open_route_editor(ctx, target["containerNumber"])
-    # Dirty the form by changing the route.
+    # Dirty the form by changing the lift port.
     try:
-        route_field = ctx.page.locator('[id^="shipment-detail-container-route-"]').first
-        route_field.click()
+        lift_field = ctx.page.locator('[id^="shipment-detail-lift-"]').first
+        lift_field.click()
         ctx.page.wait_for_timeout(300)
         options = ctx.page.locator('[role="option"]')
         if options.count() > 1:
             options.nth(1).click()
         else:
-            raise AssertionError("BLOCKED: route selector has no alternate option")
+            raise AssertionError("BLOCKED: lift selector has no alternate option")
         ctx.page.wait_for_timeout(300)
     except AssertionError:
         raise
@@ -475,7 +485,7 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
         endpoint,
         {
             "expectedShipmentVersion": concurrent_version,
-            "routeId": alternate_route["id"],
+            "dropoffSiteId": alternate_port["id"],
         },
         f"visual-concurrent-{target['containerId']}-{concurrent_version}",
     )
@@ -495,7 +505,7 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
             ) from error
     finally:
         # Restore the original operational value so repeated local/staging QA
-        # does not leave a different route behind.
+        # does not leave a different port behind.
         detail_after = _api_get(
             token_dispatcher,
             f"/api/shipments/cus-workspace/{target['shipmentId']}",
@@ -505,7 +515,11 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
              if line["id"] == target["containerId"]),
             None,
         )
-        if line_after and line_after.get("routeId") != original_route_id:
+        ports_changed = line_after and (
+            line_after.get("liftSiteId") != original_lift_id
+            or line_after.get("dropoffSiteId") != original_dropoff_id
+        )
+        if ports_changed:
             restore_version = (
                 line_after.get("shipmentVersion")
                 or detail_after["summary"]["version"]
@@ -515,7 +529,8 @@ def tc_concurrency_stale_409(ctx: VisualTestContext):
                 endpoint,
                 {
                     "expectedShipmentVersion": restore_version,
-                    "routeId": original_route_id,
+                    "liftSiteId": original_lift_id,
+                    "dropoffSiteId": original_dropoff_id,
                 },
                 f"visual-concurrent-restore-{target['containerId']}-{restore_version}",
             )

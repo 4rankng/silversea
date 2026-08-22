@@ -1073,6 +1073,49 @@ describe('Overview operational priority ordering', () => {
       'real port change must still bump shipment version once');
     assert.equal(result.line.liftSiteId, liftPortB.id);
   });
+
+  test('allows a post-handoff port edit when the submitted route is unchanged', async () => {
+    // The route editor submits routeId, liftSiteId, and dropoffSiteId together.
+    // Presence of an unchanged route must not turn an otherwise permitted port
+    // edit into a governed route change after the shipment handoff.
+    const marker = Math.random().toString(16).slice(2, 8);
+    const route = await seedRoute();
+    const [liftPortA] = await db.insert(s.ports).values({
+      code: `PHA${marker}`,
+      name: `CusWs post-handoff A ${marker}`,
+    }).returning();
+    const [liftPortB] = await db.insert(s.ports).values({
+      code: `PHB${marker}`,
+      name: `CusWs post-handoff B ${marker}`,
+    }).returning();
+    createdPortIds.push(liftPortA.id, liftPortB.id);
+    const shipment = await seedShipment({
+      blNumber: `WS-POST-HANDOFF-${marker}`,
+      cargoMode: 'FCL',
+      status: 'PENDING_EXPENSE_APPROVAL',
+      routeId: route.id,
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSPH${marker}`.slice(0, 20),
+      routeId: route.id,
+      pickupPortId: liftPortA.id,
+    });
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        routeId: route.id,
+        liftSiteId: liftPortB.id,
+      },
+      actor: cusActor,
+    });
+
+    assert.equal(result.line.shipmentVersion, shipment.version + 1);
+    assert.equal(result.line.routeId, route.id);
+    assert.equal(result.line.liftSiteId, liftPortB.id);
+  });
 });
 
 describe('Container workboard "Chưa cập nhật" completeness', () => {
