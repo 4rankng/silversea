@@ -851,8 +851,7 @@
     font-size: 16px;
   }
 
-  /* The UUI select trigger ships a 38px md size; touch targets stay ≥44px. */
-  .as-page .as-mobile-filter .ds-uui-select__control button {
-    min-height: 44px;
-  }
+  /* UUI select triggers already ship max-md:min-h-11 (44px) from the vendored
+     base (select-shared.tsx) — page stylesheets never own UUI field dimensions
+     (control-density contract). */
 }
