@@ -17,23 +17,24 @@
 }
 
 .accounting-period > div:first-child { display: grid; gap: 5px; }
-.accounting-period strong { font-size: 15px; color: var(--fg-1); }
+.accounting-period strong { font-size: var(--fs-sm); color: var(--fg-1); }
 .accounting-eyebrow { color: var(--fg-3); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .accounting-period__fields { display: flex; gap: 12px; }
-.accounting-period label { display: grid; gap: 5px; color: var(--fg-3); font-size: 12px; font-weight: 600; }
-.accounting-period input { min-height: 44px; padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; }
+.accounting-period__fields [data-input-wrapper] { gap: 4px; min-width: 0; }
+.accounting-period__fields [data-label] { color: var(--fg-3); font-size: var(--fs-xs); font-weight: 600; }
+.accounting-period__fields input { font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
 
 .accounting-alert { padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--warning) 38%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--warning) 8%, transparent); color: var(--fg-1); font-size: 14px; }
 
 .accounting-tabs { display: flex; gap: 4px; padding: 4px; width: fit-content; max-width: 100%; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
-.accounting-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 7px; color: var(--fg-3); font-size: 14px; font-weight: 700; text-decoration: none; }
+.accounting-tabs a { display: inline-flex; align-items: center; min-height: var(--filter-control-h); padding: 0 12px; border-radius: 7px; color: var(--fg-3); font-size: var(--filter-control-font-size); font-weight: 700; text-decoration: none; }
 .accounting-tabs a[aria-current="page"] { background: var(--bg-3); color: var(--fg-1); }
 .accounting-tabs a:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: 1px; }
 
 .accounting-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .accounting-kpi { display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
-.accounting-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-3); font-size: 13px; font-weight: 700; }
-.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(20px, 2vw, 28px); line-height: 1.15; }
+.accounting-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-3); font-size: var(--fs-xs); font-weight: 700; }
+.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(var(--fs-lg), 1.6vw, var(--fs-2xl)); line-height: var(--lh-tight); }
 .accounting-kpi small { color: var(--fg-3); font-size: 12px; }
 .accounting-kpi--positive .accounting-kpi__head { color: var(--success); }
 .accounting-kpi--danger .accounting-kpi__head { color: var(--danger); }
@@ -48,21 +49,21 @@
 .accounting-workflow:focus-visible { position: relative; z-index: 1; outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: -3px; }
 .accounting-workflow__icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: color-mix(in srgb, var(--brand) 10%, var(--bg-1)); color: var(--brand); }
 .accounting-workflow__body { display: grid; gap: 4px; min-width: 0; }
-.accounting-workflow__body strong { color: var(--fg-1); font-size: 15px; }
-.accounting-workflow__body span { color: var(--fg-3); font-size: 13px; line-height: 1.45; }
+.accounting-workflow__body strong { color: var(--fg-1); font-size: var(--fs-sm); }
+.accounting-workflow__body span { color: var(--fg-3); font-size: var(--fs-xs); line-height: var(--lh-relaxed); }
 .accounting-workflow__metric { color: var(--fg-2); font-size: 12px; font-weight: 700; white-space: nowrap; }
 .accounting-workflow__arrow { color: var(--fg-3); }
 
 .accounting-register { min-width: 0; overflow: hidden; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
 .accounting-register__header { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 16px 18px; border-bottom: 1px solid var(--border-1); }
-.accounting-register__header h2 { margin: 0; color: var(--fg-1); font-size: 18px; }
-.accounting-register__header p { margin: 4px 0 0; color: var(--fg-3); font-size: 13px; }
+.accounting-register__header h2 { margin: 0; color: var(--fg-1); font-size: var(--fs-md); }
+.accounting-register__header p { margin: 4px 0 0; color: var(--fg-3); font-size: var(--fs-xs); }
 .accounting-register__search { display: grid; gap: 5px; width: min(420px, 100%); }
 .accounting-register__search label { color: var(--fg-3); font-size: 12px; font-weight: 600; }
 .accounting-register__search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
-.accounting-register__search input { min-width: 0; min-height: 44px; padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; }
+.accounting-register__search input { min-width: 0; min-height: var(--filter-control-h); padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px 0 0 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
 .accounting-register__search button,
-.accounting-register__footer button { min-height: 44px; padding: 0 14px; border: 1px solid var(--border-2); border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
+.accounting-register__footer button { min-height: var(--filter-control-h); padding: 0 12px; border: 1px solid var(--border-2); border-radius: 0 8px 8px 0; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); font-weight: 700; cursor: pointer; }
 .accounting-register__table-wrap { max-height: min(58vh, 620px); overflow: auto; }
 .accounting-register table { width: 100%; min-width: 1040px; border-collapse: collapse; color: var(--fg-2); font-size: 13px; }
 .accounting-register th { position: sticky; top: 0; z-index: 1; padding: 11px 12px; background: var(--bg-2); color: var(--fg-3); font-size: 12px; text-align: left; }
@@ -80,10 +81,10 @@
 .accounting-register__state { min-height: 160px; margin: 0; padding: 56px 18px; color: var(--fg-3); text-align: center; }
 .accounting-register__footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-top: 1px solid var(--border-1); color: var(--fg-3); }
 .accounting-register__footer > div { display: flex; align-items: center; gap: 10px; }
-.accounting-register__footer button { min-height: 44px; border-radius: 8px; }
+.accounting-register__footer button { min-height: var(--filter-control-h); border-radius: 8px; }
 .accounting-register__filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .accounting-register__filters label { display: grid; gap: 4px; }
-.accounting-register__filters select { min-width: 0; min-height: 44px; padding: 0 9px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: 13px; }
+.accounting-register__filters select { min-width: 0; min-height: var(--filter-control-h); padding: 0 9px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--fg-1); font: inherit; font-size: var(--filter-control-font-size); line-height: var(--filter-control-line-height); }
 .accounting-register__footer button:disabled { opacity: .45; cursor: not-allowed; }
 .accounting-status { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .accounting-status--ready { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
@@ -138,7 +139,7 @@
   .accounting-selection a { justify-content: center; flex: 1; }
   .accounting-period input,
   .accounting-register__search input,
-  .accounting-register__filters select { font-size: 16px; }
+  .accounting-register__filters select { font-size: var(--filter-control-font-size); }
 }
 
 @media (max-width: 360px) {

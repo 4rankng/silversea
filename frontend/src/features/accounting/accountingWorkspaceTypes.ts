@@ -39,7 +39,7 @@ export interface ProfitabilitySummary {
   checksum?: string;
 }
 
-export type AccountingView = 'overview' | 'transport';
+export type AccountingView = 'work' | 'overview' | 'transport';
 export type AccountingTransportFilterKey = 'customerId' | 'carrierId' | 'ownership' | 'readiness';
 
 export interface AccountingWorkspaceUrlState {

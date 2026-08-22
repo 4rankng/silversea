@@ -309,6 +309,8 @@ export const qk = {
   },
 
   accounting: {
+    workInbox: (view: 'ACTION' | 'WAITING', page: number) =>
+      ['accounting', 'work-inbox', view, page] as const,
     receivables: (asOf: string) => ['accounting', 'receivables', asOf] as const,
     payables: (asOf: string) => ['accounting', 'payables', asOf] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,

@@ -24,10 +24,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 44px;
-  padding: 8px 14px;
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  padding: 0 14px;
   border-radius: 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--filter-control-font-size);
   font-weight: 600;
   color: var(--ink-2);
   background: var(--surface-2);
@@ -35,7 +36,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  line-height: 1.35;
+  line-height: var(--filter-control-line-height);
 }
 .filter-tab:hover,
 .filter-bar .filter-tab:hover {
@@ -58,7 +59,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
   background: var(--surface-2);
   border: 1px solid transparent;
   border-radius: 10px;
@@ -87,7 +89,8 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--fs-xs);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
   color: var(--ink);
   height: 100%;
 }
@@ -98,12 +101,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
-  padding: 9px 13px;
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  padding: 0 13px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--filter-control-font-size);
   color: var(--ink-2);
   font-weight: 500;
   cursor: pointer;
@@ -152,13 +156,15 @@
   }
   .filter-tab,
   .filter-bar .filter-tab {
-    min-height: 44px;
+    height: var(--filter-control-h);
+    min-height: var(--filter-control-h);
     padding: 0 11px;
-    font-size: var(--fs-xs);
+    font-size: var(--filter-control-font-size);
   }
   .filter-bar__search {
     min-width: 0;
-    min-height: 44px;
+    height: var(--filter-control-h);
+    min-height: var(--filter-control-h);
     flex: 1;
     max-width: none;
   }

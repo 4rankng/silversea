@@ -49,8 +49,10 @@ export function useAccountingWorkspaceUrlState() {
     setTransportSearch(appliedTransportSearch);
   }, [appliedTransportSearch]);
 
-  const activeView: AccountingView =
-    searchParams.get('view') === 'transport' ? 'transport' : 'overview';
+  const requestedView = searchParams.get('view');
+  const activeView: AccountingView = requestedView === 'transport' || requestedView === 'overview'
+    ? requestedView
+    : 'work';
   const from = searchParams.get('from') ?? `${today.slice(0, 7)}-01`;
   const to = searchParams.get('to') ?? today;
   const transportPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);

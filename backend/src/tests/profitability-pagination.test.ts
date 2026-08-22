@@ -11,8 +11,11 @@ const tripIds: number[] = [];
 const postingIds: number[] = [];
 const snapshotIds: number[] = [];
 const policyIds: number[] = [];
+const shipmentIds: number[] = [];
 let routeId = 0;
 let cargoTypeId = 0;
+let firstCustomerShortName = '';
+let sourceBillPrefix = '';
 
 before(async () => {
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -33,11 +36,24 @@ before(async () => {
 
   const customers = await db.insert(s.customers).values(Array.from({ length: 51 }, (_, index) => ({
     name: `Profit page customer ${String(index + 1).padStart(2, '0')} ${suffix}`,
-  }))).returning({ id: s.customers.id, name: s.customers.name });
+    shortName: `KH-${String(index + 1).padStart(2, '0')}`,
+  }))).returning({ id: s.customers.id, name: s.customers.name, shortName: s.customers.shortName });
   customerIds.push(...customers.map((customer) => customer.id));
+  firstCustomerShortName = customers[0].shortName;
+  sourceBillPrefix = `BL-PROFIT-${suffix}`;
+  const [sourceShipment] = await db.insert(s.shipments).values({
+    customerId: customers[0].id,
+    routeId,
+    cargoTypeId,
+    blNumber: sourceBillPrefix.slice(0, 100),
+    tradeDirection: 'IMPORT',
+    cargoMode: 'FCL',
+  }).returning({ id: s.shipments.id });
+  shipmentIds.push(sourceShipment.id);
 
   const trips = await db.insert(s.trips).values(customers.map((customer, index) => ({
     tripCode: `PAG-${suffix}-${index}`.slice(0, 50),
+    shipmentId: index === 0 ? sourceShipment.id : null,
     customerId: customer.id,
     routeId,
     cargoTypeId,
@@ -134,6 +150,7 @@ after(async () => {
     if (snapshotIds.length) await db.delete(s.profitabilitySnapshots).where(inArray(s.profitabilitySnapshots.id, snapshotIds));
     if (postingIds.length) await db.delete(s.tripFinancialPostings).where(inArray(s.tripFinancialPostings.id, postingIds));
     if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
+    if (shipmentIds.length) await db.delete(s.shipments).where(inArray(s.shipments.id, shipmentIds));
     if (customerIds.length) await db.delete(s.customers).where(inArray(s.customers.id, customerIds));
     if (policyIds.length) await db.delete(s.financialReportingPolicyVersions).where(inArray(s.financialReportingPolicyVersions.id, policyIds));
     if (routeId) await db.delete(s.routes).where(inArray(s.routes.id, [routeId]));
@@ -150,8 +167,8 @@ describe('profitability pagination authority', () => {
     const second = await getProfitabilityReport({ month: 1, year: 2040, dimension: 'CUSTOMER', page: 2, limit: 50 });
 
     assert.equal(first.items.length, 50);
-    assert.equal(second.items.length, 2);
-    assert.equal(first.totalGroups, 52);
+    assert.equal(second.items.length, 1);
+    assert.equal(first.totalGroups, 51);
     assert.equal(first.totalPages, 2);
     assert.deepEqual(second.totals, first.totals);
     assert.deepEqual(second.sourceCoverage, first.sourceCoverage);
@@ -166,10 +183,10 @@ describe('profitability pagination authority', () => {
     assert.equal(first.lowMarginPolicy.status, 'CONFIGURED');
     assert.equal(first.lowMarginPolicy.thresholdRatio, 0.65);
     assert.ok(first.items.every((item) => item.alertState === 'LOW_MARGIN'));
-    assert.equal(
-      [...first.items, ...second.items].filter(item => item.key === String(customerIds[0])).length,
-      2,
-    );
+    const firstCustomer = [...first.items, ...second.items].find(item => item.key === String(customerIds[0]));
+    assert.equal(firstCustomer?.label, firstCustomerShortName);
+    assert.ok(firstCustomer?.sourceTripReferences.some((source) => source.reference === sourceBillPrefix));
+    assert.ok(firstCustomer?.sourceTripReferences.every((source) => !source.reference.includes(`#${source.tripId}`)));
   });
 
   test('applies the same configured low-margin filter across bounded pages', async () => {
@@ -179,9 +196,9 @@ describe('profitability pagination authority', () => {
     const second = await getProfitabilityReport({
       month: 1, year: 2040, dimension: 'CUSTOMER', page: 2, limit: 50, lowMarginOnly: true,
     });
-    assert.equal(first.totalGroups, 52);
+    assert.equal(first.totalGroups, 51);
     assert.equal(first.items.length, 50);
-    assert.equal(second.items.length, 2);
+    assert.equal(second.items.length, 1);
     assert.ok([...first.items, ...second.items].every((item) => item.alertState === 'LOW_MARGIN'));
   });
 
@@ -190,7 +207,7 @@ describe('profitability pagination authority', () => {
       month: 1, year: 2040, dimension: 'CUSTOMER', page: 3, limit: 50, lowMarginOnly: true,
     });
     assert.equal(report.items.length, 0);
-    assert.equal(report.totalGroups, 52);
+    assert.equal(report.totalGroups, 51);
     assert.equal(report.totalPages, 2);
   });
 });

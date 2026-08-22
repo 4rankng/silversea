@@ -457,17 +457,17 @@
 
 /* Keep every fixed-layout column explicit and the complete set at 100%.
    Otherwise a newly added column collapses to zero width and its wrapped
-   header label dictates the height of the entire header row. The Phân loại
-   column only renders the one-word pills "Đơn" / "Lẻ", so it can stay at the
-   minimum width that still fits its pill; the freed width flows into the
-   other columns so the wider route/notes stacks keep their wrap budget. */
+   header label dictates the height of the entire header row. Phân loại needs
+   enough of the desktop workspace for its header as well as its one-word
+   saved value; a 5% share at the normal 1076px dispatch canvas made it wrap
+   letter by letter. */
 .detailed-plan-grid__col--schedule { width: 14%; }
-.detailed-plan-grid__col--route { width: 24%; }
+.detailed-plan-grid__col--route { width: 21%; }
 .detailed-plan-grid__col--documents { width: 14%; }
-.detailed-plan-grid__col--container { width: 14%; }
-.detailed-plan-grid__col--assignment { width: 15%; }
-.detailed-plan-grid__col--classification { width: 5%; }
-.detailed-plan-grid__col--notes { width: 14%; }
+.detailed-plan-grid__col--container { width: 13%; }
+.detailed-plan-grid__col--assignment { width: 13%; }
+.detailed-plan-grid__col--classification { width: 9%; }
+.detailed-plan-grid__col--notes { width: 16%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -488,6 +488,14 @@
   line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* This two-word decision header is intentionally kept intact at desktop
+   canvases. The 900px container query below changes the table to labelled
+   records before this column needs a mobile wrapping fallback. */
+.detailed-plan-grid thead th:last-child {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .detailed-plan-grid__sort {

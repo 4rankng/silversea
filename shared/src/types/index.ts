@@ -1531,6 +1531,11 @@ export interface ProfitabilityReportRow {
   profit: number;
   tripCount: number;
   sourceTripIds: number[];
+  /** Operational source labels for links. Internal trip IDs are not user-facing copy. */
+  sourceTripReferences: Array<{
+    tripId: number;
+    reference: string;
+  }>;
   marginRatio: number | null;
   alertState: LowMarginState;
   attributionNote: string;

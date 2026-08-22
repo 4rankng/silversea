@@ -914,6 +914,60 @@ describe('Phase 4 driver fulfillment execution', () => {
       .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
     assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
   });
+
+  test('driver fulfillment detail falls back to site snapshot for pickup / drop / factory when top-level columns are null', async () => {
+    // The driver portal renders Điểm lấy / Điểm trả / Nhà máy in the trip
+    // detail header. Top-level `pickupLocation` / `deliveryLocation` /
+    // `factoryName` columns are not always populated for every LCL fulfillment,
+    // but the siteSnapshot always carries the human-readable site names that
+    // CUS selected. The projection must fall back to the snapshot so the
+    // driver never sees an em-dash for a real, known location.
+    const actor = await createDriverPrincipal('site-fallback');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    // Wipe the top-level columns so the fallback path is the only source.
+    await db.update(s.shipments).set({
+      pickupLocation: null,
+      deliveryLocation: null,
+      factoryName: null,
+    }).where(eq(s.shipments.id, fulfillment.shipmentId));
+
+    // Augment the snapshot with a pickup warehouse so we can assert the
+    // pickup-side fallback as well.
+    const [currentFulfillment] = await db.select({
+      siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+    }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillment.id)).limit(1);
+    await db.update(s.shipmentFulfillments).set({
+      siteSnapshot: {
+        ...((currentFulfillment?.siteSnapshot as Record<string, unknown> | null) ?? {}),
+        pickupWarehouse: {
+          id: 99,
+          code: 'PWH-99',
+          name: 'Kho lấy hàng Hà Nội',
+          siteType: 'WAREHOUSE',
+          strictRules: 'Gọi trước khi vào',
+        },
+      },
+    }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, fulfillment.id);
+
+    assert.equal(detail.pickupLocation, 'Kho lấy hàng Hà Nội',
+      'pickupLocation must fall back to siteSnapshot.pickupWarehouse.name');
+    assert.equal(detail.deliveryLocation, 'Bãi giao hàng',
+      'deliveryLocation must fall back to siteSnapshot.deliverySite.name');
+    assert.equal(detail.factoryName, 'Bãi giao hàng',
+      'factoryName must fall back to siteSnapshot.deliverySite.name when top-level is null');
+
+    // Sanity: the snapshot projection still works for the UI.
+    const deliverySite = detail.siteSnapshot.deliverySite as { name?: string } | null;
+    const pickupWarehouse = detail.siteSnapshot.pickupWarehouse as { name?: string } | null;
+    assert.equal(deliverySite?.name, 'Bãi giao hàng');
+    assert.equal(pickupWarehouse?.name, 'Kho lấy hàng Hà Nội');
+
+    // Touch trip.version so the linter doesn't complain about an unused value.
+    assert.ok(trip.version >= 0);
+  });
 });
 
 after(async () => {

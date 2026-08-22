@@ -617,6 +617,23 @@ export async function getDriverFulfillmentDetail(
     listPodSubmissionsForDriver(driverId, fulfillmentId),
   ]);
 
+  const siteSnapshot = projectSiteSnapshot(shipmentRow.siteSnapshot ?? {});
+  // The driver portal shows the trip's pickup / drop / factory in three
+  // dedicated facts. Top-level shipment columns (`pickupLocation`,
+  // `deliveryLocation`, `factoryName`) are not always populated for every
+  // fulfillment type, but the snapshot always carries the human-readable
+  // site names that CUS selected when creating the shipment. Fall back to
+  // those so the driver never sees an em-dash for a real, known location.
+  const pickupWarehouseName = typeof siteSnapshot.pickupWarehouse === 'object'
+    && siteSnapshot.pickupWarehouse !== null
+    && typeof (siteSnapshot.pickupWarehouse as { name?: unknown }).name === 'string'
+    ? (siteSnapshot.pickupWarehouse as { name: string }).name
+    : null;
+  const deliverySiteName = typeof siteSnapshot.deliverySite === 'object'
+    && siteSnapshot.deliverySite !== null
+    && typeof (siteSnapshot.deliverySite as { name?: unknown }).name === 'string'
+    ? (siteSnapshot.deliverySite as { name: string }).name
+    : null;
   return {
     fulfillmentId,
     shipmentId: shipmentRow.shipmentId,
@@ -626,17 +643,17 @@ export async function getDriverFulfillmentDetail(
     fulfillmentType: shipmentRow.fulfillmentType,
     tripId: ownedTrip.tripId,
     tripVersion: ownedTrip.tripVersion,
-    factoryName: shipmentRow.factoryName,
+    factoryName: shipmentRow.factoryName ?? deliverySiteName,
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
     customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,
     closingAt: shipmentRow.closingAt?.toISOString() ?? null,
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
-    pickupLocation: shipmentRow.pickupLocation,
-    deliveryLocation: shipmentRow.deliveryLocation,
+    pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName,
+    deliveryLocation: shipmentRow.deliveryLocation ?? deliverySiteName,
     contactName: shipmentRow.contactName,
     contactPhone: shipmentRow.contactPhone,
-    siteSnapshot: projectSiteSnapshot(shipmentRow.siteSnapshot ?? {}),
+    siteSnapshot,
     evidenceStatus,
     milestones,
     podSubmissions,

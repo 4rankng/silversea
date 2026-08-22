@@ -132,8 +132,17 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+    expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(9);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     expect(css).toContain('@container (max-width: 900px)');
+  });
+
+  it('keeps the desktop Phân loại header as a complete label', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const headerRule = css.match(/\.detailed-plan-grid thead th:last-child \{([\s\S]*?)\n\}/)?.[1] ?? '';
+
+    expect(headerRule).toContain('white-space: nowrap;');
+    expect(headerRule).toContain('overflow-wrap: normal;');
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {

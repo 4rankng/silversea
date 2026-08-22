@@ -48,7 +48,10 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
         key: '1', label: 'Khách hàng A', attributionStatus: 'ATTRIBUTED',
         revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000,
         allocatedFleetFixedCost: 20_000, profit: 150_000,
-        tripCount: 2, sourceTripIds: [101, 102], marginRatio: 0.15, alertState: 'LOW_MARGIN',
+        tripCount: 2, sourceTripIds: [101, 102], sourceTripReferences: [
+          { tripId: 101, reference: 'BL-2026-101' },
+          { tripId: 102, reference: 'BOOK-2026-102' },
+        ], marginRatio: 0.15, alertState: 'LOW_MARGIN',
         attributionNote: 'Biên lợi nhuận gồm chi phí đội xe được phân bổ.',
       }],
       totals: { revenue: 1_000_000, directCost: 830_000, sharedOverhead: 20_000, profit: 150_000 },
@@ -73,7 +76,8 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
       month: 8, year: 2026, dimension: 'CUSTOMER', page: 1, lowMarginOnly: true,
     }));
     expect(await screen.findByText('20.000 ₫')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Chuyến #101' }).getAttribute('href')).toBe('/trips/101');
+    expect(screen.getByRole('link', { name: 'BL-2026-101' }).getAttribute('href')).toBe('/trips/101');
+    expect(screen.queryByText('Chuyến #101')).toBeNull();
   });
 
   it('clears an impossible low-margin filter when navigating to an unconfigured period', async () => {

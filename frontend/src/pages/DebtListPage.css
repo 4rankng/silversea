@@ -318,7 +318,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   flex: 1 1 320px;
   background: var(--surface);
   border: 1px solid rgba(15, 23, 42, 0.10);
@@ -349,10 +349,11 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--fs-xs);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
   color: var(--ink);
   font-weight: 500;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
 }
 
 .debt-filter-search input::placeholder {

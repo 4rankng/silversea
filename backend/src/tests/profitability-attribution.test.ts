@@ -9,7 +9,7 @@ describe('profitability attribution snapshot', () => {
   it('always emits exactly eight dimensions and preserves explicit missing attribution', () => {
     const dimensions = buildProfitabilityAttributionSnapshot({
       completedBusinessDate: '2026-07-31',
-      customer: { id: 11, name: 'Khách A' },
+      customer: { id: 11, name: 'Khách A', shortName: 'KH A' },
       route: { id: 22, name: 'Cát Lái - Bình Dương' },
       truck: { id: 33, name: '51C-123.45' },
       dispatcher: null,
@@ -26,6 +26,7 @@ describe('profitability attribution snapshot', () => {
     }
     assert.equal(dimensions.find(item => item.dimension === 'MONTH')?.key, '2026-07');
     assert.equal(dimensions.find(item => item.dimension === 'YEAR')?.key, '2026');
+    assert.equal(dimensions.find(item => item.dimension === 'CUSTOMER')?.label, 'KH A');
   });
 
   it('never substitutes creator or handler identity for dispatcher or salesperson', () => {

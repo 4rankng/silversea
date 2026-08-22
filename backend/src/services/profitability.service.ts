@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, gt, gte, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { round2dp } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { recordedTripRevenue, getPnlReport } from './pnl.service';
 import { resolveFinancialReportingPolicyForMonth } from './financial-reporting-policy.service';
+import { operationalName } from '../db/master-data-name';
 
 export const PROFITABILITY_DIMENSIONS = [
   'CUSTOMER', 'ROUTE', 'TRUCK', 'DISPATCHER', 'SALESPERSON', 'MONTH', 'YEAR', 'CONTAINER',
@@ -47,7 +49,7 @@ type DimensionInput = {
 
 export function buildProfitabilityAttributionSnapshot(input: {
   completedBusinessDate: string;
-  customer: { id: number; name: string };
+  customer: { id: number; name: string; shortName?: string | null };
   route: { id: number; name: string };
   truck: { id: string | number; name: string } | null;
   dispatcher: { id: number; name: string } | null;
@@ -58,12 +60,12 @@ export function buildProfitabilityAttributionSnapshot(input: {
   const year = input.completedBusinessDate.slice(0, 4);
   const dimension = (
     name: ProfitabilityDimension,
-    value: { id: string | number; name: string } | null,
+    value: { id: string | number; name: string; shortName?: string | null } | null,
     metadata: Record<string, unknown> = {},
   ) => ({
     dimension: name,
     key: value == null ? 'MISSING_ATTRIBUTION' : String(value.id),
-    label: value == null ? 'Thiếu phân bổ' : value.name,
+    label: value == null ? 'Thiếu phân bổ' : value.shortName?.trim() || value.name,
     attributionStatus: value == null ? 'MISSING' as const : 'ATTRIBUTED' as const,
     metadata,
   });
@@ -94,6 +96,7 @@ export async function captureProfitabilityAttributionSnapshot(
     shipmentId: s.trips.shipmentId,
     customerId: s.trips.customerId,
     customerName: s.customers.name,
+    customerShortName: s.customers.shortName,
     routeId: s.trips.routeId,
     routeName: s.routes.name,
     truckId: s.trips.truckId,
@@ -161,7 +164,7 @@ export async function captureProfitabilityAttributionSnapshot(
   const completedBusinessDate = vietnamBusinessDate(effectiveAt);
   const dimensions = buildProfitabilityAttributionSnapshot({
     completedBusinessDate,
-    customer: { id: trip.customerId, name: trip.customerName },
+    customer: { id: trip.customerId, name: trip.customerName, shortName: trip.customerShortName },
     route: { id: trip.routeId, name: trip.routeName },
     truck,
     dispatcher: dispatcher ? { id: dispatcher.id, name: dispatcher.name || 'Nhân viên điều hành' } : null,
@@ -247,6 +250,45 @@ export async function getProfitabilityReport(input: {
   if (groupedRows.length > MAX_PROFITABILITY_GROUPS) {
     throw new ApiError(409, `Báo cáo vượt quá ${MAX_PROFITABILITY_GROUPS.toLocaleString('vi-VN')} nhóm. Vui lòng thu hẹp kỳ hoặc chiều phân tích.`);
   }
+  const customerIds = dimension === 'CUSTOMER'
+    ? [...new Set(groupedRows.flatMap((row) => {
+      const customerId = Number(row.key);
+      return Number.isSafeInteger(customerId) && customerId > 0 ? [customerId] : [];
+    }))]
+    : [];
+  const customerDisplayNames = new Map<number, string>();
+  if (customerIds.length > 0) {
+    const customers = await q.select({
+      id: s.customers.id,
+      name: operationalName(s.customers.shortName, s.customers.name),
+    }).from(s.customers).where(inArray(s.customers.id, customerIds));
+    for (const customer of customers) customerDisplayNames.set(customer.id, customer.name);
+  }
+  // Snapshot labels are immutable evidence, but customer names are operational
+  // presentation data. Re-label and merge historic rows by their customer key
+  // so a renamed full legal name never creates duplicate operational rows.
+  const displayGroupedRows = dimension === 'CUSTOMER'
+    ? Array.from(groupedRows.reduce((groups, row) => {
+      const customerId = Number(row.key);
+      const label = customerDisplayNames.get(customerId) ?? row.label;
+      const groupKey = `${row.key}\u001f${row.attributionStatus}`;
+      const existing = groups.get(groupKey);
+      if (!existing) {
+        groups.set(groupKey, { ...row, label });
+        return groups;
+      }
+      groups.set(groupKey, {
+        ...existing,
+        revenue: String(round2dp(Number(existing.revenue) + Number(row.revenue))),
+        directCost: String(round2dp(Number(existing.directCost) + Number(row.directCost))),
+        sharedOverhead: String(round2dp(Number(existing.sharedOverhead) + Number(row.sharedOverhead))),
+        profit: String(round2dp(Number(existing.profit) + Number(row.profit))),
+        tripCount: Number(existing.tripCount) + Number(row.tripCount),
+        tripIds: [...new Set([...existing.tripIds, ...row.tripIds])],
+      });
+      return groups;
+    }, new Map<string, typeof groupedRows[number]>()).values())
+    : groupedRows;
   const [aggregate] = await q.select({
     revenue: sql<string>`coalesce(sum(${s.profitabilitySnapshots.revenue}::numeric), 0)`,
     directCost: sql<string>`coalesce(sum(${s.profitabilitySnapshots.directCost}::numeric), 0)`,
@@ -266,7 +308,7 @@ export async function getProfitabilityReport(input: {
   const fleetAllocationByTrip = new Map(
     pnl.tripDetails.map((trip) => [trip.id, Number(trip.allocatedFleetFixedCost ?? 0)]),
   );
-  const projectedRows = groupedRows.map((row) => {
+  const projectedRows = displayGroupedRows.map((row) => {
     const allocatedFleetFixedCost = row.tripIds.reduce(
       (sum, tripId) => sum + (fleetAllocationByTrip.get(Number(tripId)) ?? 0),
       0,
@@ -300,7 +342,35 @@ export async function getProfitabilityReport(input: {
   const filteredRows = input.lowMarginOnly
     ? (thresholdRatio == null ? [] : projectedRows.filter((row) => row.alertState === 'LOW_MARGIN'))
     : projectedRows;
-  const rows = filteredRows.slice((page - 1) * limit, page * limit);
+  const pageRows = filteredRows.slice((page - 1) * limit, page * limit);
+  const sourceTripIds = [...new Set(pageRows.flatMap((row) => row.sourceTripIds))];
+  const sourceReferenceByTripId = new Map<number, string>();
+  if (sourceTripIds.length > 0) {
+    const sourceTrips = await q.select({
+      id: s.trips.id,
+      tripCode: s.trips.tripCode,
+      billNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.trips)
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+      .where(inArray(s.trips.id, sourceTripIds));
+    for (const sourceTrip of sourceTrips) {
+      sourceReferenceByTripId.set(
+        sourceTrip.id,
+        sourceTrip.billNumber?.trim()
+          || sourceTrip.bookingRef?.trim()
+          || sourceTrip.tripCode?.trim()
+          || 'Chưa có Bill/Booking',
+      );
+    }
+  }
+  const rows = pageRows.map((row) => ({
+    ...row,
+    sourceTripReferences: row.sourceTripIds.flatMap((tripId) => {
+      const reference = sourceReferenceByTripId.get(tripId);
+      return reference ? [{ tripId, reference }] : [];
+    }),
+  }));
   const allocatedFleetFixedCost = projectedRows.reduce((sum, row) => sum + row.allocatedFleetFixedCost, 0);
   const totals = {
     revenue: Number(aggregate?.revenue ?? 0),

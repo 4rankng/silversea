@@ -208,6 +208,13 @@
   --control-compact-touch-font-size: var(--fs-sm);
   --control-compact-touch-line-height: 20px;
   --control-h: 44px;
+
+  /* Filter density is intentionally independent from general form controls.
+     CUS and Điều vận use this compact desktop contract for high-frequency
+     filtering; every shared filter surface consumes the same tokens. */
+  --filter-control-h: var(--control-compact-h);
+  --filter-control-font-size: var(--control-compact-font-size);
+  --filter-control-line-height: var(--control-compact-line-height);
   --content-max-w: 1440px;
 
   /* The authenticated shell owns the outer canvas gutter. Full-width pages
@@ -321,4 +328,14 @@
   --slate-4: #0F172A;  /* slate-900 */
   --slate-5: #F1F5F9;  /* slate-100 */
   --slate-6: #E2E8F0;  /* slate-200 */
+}
+
+/* Preserve a 44px target on narrow touch canvases. Desktop and tablet filters
+   remain compact instead of inheriting general-form sizing. */
+@media (max-width: 767px) {
+  :root {
+    --filter-control-h: var(--control-touch-h);
+    --filter-control-font-size: var(--control-compact-touch-font-size);
+    --filter-control-line-height: var(--control-compact-touch-line-height);
+  }
 }

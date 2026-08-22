@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
-import { DateInput } from '../../design-system/forms/DateInput';
+import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { AccountingOverview } from './AccountingOverview';
 import { AccountingTransportRegister } from './AccountingTransportRegister';
+import { AccountingWorkInbox } from './AccountingWorkInbox';
 import { buildTransportSelectionScopeKey, displayBusinessDate } from './accountingWorkspaceUtils';
 import { useAccountingWorkspaceQueries } from './useAccountingWorkspaceQueries';
 import { useAccountingWorkspaceUrlState } from './useAccountingWorkspaceUrlState';
@@ -24,11 +25,13 @@ export function AccountingWorkspaceRoot() {
   return (
     <main className="accounting-page" data-testid="accounting-workspace">
       <PageHeader
-        title="Tổng Quan"
-        description="Đối chiếu vận tải, công nợ, thanh toán và báo cáo trên cùng một kỳ dữ liệu."
+        title={state.activeView === 'work' ? 'Công việc kế toán' : 'Tổng Quan'}
+        description={state.activeView === 'work'
+          ? 'Xử lý hồ sơ đã đủ điều kiện và nhìn rõ nguyên nhân đang chặn trước khi đối soát.'
+          : 'Đối chiếu vận tải, công nợ, thanh toán và báo cáo trên cùng một kỳ dữ liệu.'}
       />
 
-      <section className="accounting-period" aria-labelledby="accounting-period-title">
+      {state.activeView !== 'work' && <section className="accounting-period" aria-labelledby="accounting-period-title">
         <div>
           <span className="accounting-eyebrow" id="accounting-period-title">
             Kỳ làm việc
@@ -38,18 +41,31 @@ export function AccountingWorkspaceRoot() {
           </strong>
         </div>
         <div className="accounting-period__fields">
-          <label>
-            <span>Từ ngày</span>
-            <DateInput value={state.from} max={state.to || undefined} onChange={setFrom} />
-          </label>
-          <label>
-            <span>Đến ngày</span>
-            <DateInput value={state.to} min={state.from || undefined} max={state.today} onChange={setTo} />
-          </label>
+          <BufferedUuiDateInput
+            label="Từ ngày"
+            size="sm"
+            value={state.from}
+            max={state.to || undefined}
+            onChange={setFrom}
+          />
+          <BufferedUuiDateInput
+            label="Đến ngày"
+            size="sm"
+            value={state.to}
+            min={state.from || undefined}
+            max={state.today}
+            onChange={setTo}
+          />
         </div>
-      </section>
+      </section>}
 
       <nav className="accounting-tabs" aria-label="Không gian kế toán">
+        <Link
+          to={viewHref('work')}
+          aria-current={state.activeView === 'work' ? 'page' : undefined}
+        >
+          Công việc
+        </Link>
         <Link
           to={viewHref('overview')}
           aria-current={state.activeView === 'overview' ? 'page' : undefined}
@@ -71,7 +87,9 @@ export function AccountingWorkspaceRoot() {
         </div>
       )}
 
-      {state.activeView === 'overview' ? (
+      {state.activeView === 'work' ? (
+        <AccountingWorkInbox transportViewHref={viewHref('transport')} />
+      ) : state.activeView === 'overview' ? (
         <AccountingOverview
           to={state.to}
           transportViewHref={viewHref('transport')}

@@ -1,8 +1,9 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
-import { FINANCIAL, REPORTS } from '@tingting/shared';
+import { FINANCIAL, REPORTS, WORKSPACES } from '@tingting/shared';
 import type {
+  AccountantWorkInboxItem,
   GovernanceActionStatus,
   GovernanceAllowedAction,
   LedgerEntry,
@@ -19,6 +20,7 @@ import type {
   BillingDocumentEntityType,
   BillingDocumentType,
   SaveBillingDocumentInput,
+  WorkInboxResponseOf,
   GenerateBillingDocumentInput,
 } from '@tingting/shared';
 
@@ -152,6 +154,11 @@ export interface CustomerAgingResponse {
 }
 
 export const financialClient = {
+  getWorkInbox: (view: 'ACTION' | 'WAITING', page = 1) =>
+    api.get<WorkInboxResponseOf<AccountantWorkInboxItem>>(
+      `${WORKSPACES.FINANCIAL_INBOX}${toQuery({ view, page, limit: 100 })}`,
+    ),
+
   getGovernanceActions: (filters?: GovernanceActionFilters) =>
     api.get<GovernanceActionRecord[]>(
       `/governance-actions${toQuery({

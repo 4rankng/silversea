@@ -166,11 +166,11 @@ describe('MasterPlanGrid', () => {
       plannedReturnAt: null,
     });
     render(<MasterPlanGrid items={[fixture]} onAllocate={onAllocate} />);
-    // Host-TZ-independent: the seed 08:00 UTC maps to either 8H or 15H
-    // depending on the runner's TZ; assert the value is one of those two.
+    // Host-TZ-independent: the seed 08:00 UTC maps to 8H, 15H (ICT), or 16H
+    // in the repository's Asia/Singapore agent environment.
     const cell = screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/).closest('td');
     const hourLine = within(cell!).getByText(/^\d{1,2}H$/);
-    expect(hourLine.textContent).toMatch(/^(8H|15H)$/);
+    expect(hourLine.textContent).toMatch(/^(8H|15H|16H)$/);
   });
 
   it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {

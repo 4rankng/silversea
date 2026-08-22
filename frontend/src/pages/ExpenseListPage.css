@@ -158,12 +158,10 @@
 
 .expense-filter-bar__select,
 .expense-filter-bar__date {
-  min-height: 44px;
-  padding: 0 32px 0 12px;
+  min-height: var(--filter-control-h);
   background: var(--surface-2);
   border: 1px solid transparent;
   border-radius: 10px;
-  font-size: var(--fs-sm);
   color: var(--ink);
   font-family: var(--font-body);
   cursor: pointer;
@@ -176,6 +174,29 @@
   background-size: 16px 16px;
   min-width: 0;
   width: 100%;
+}
+
+/* UuiSelectField owns the select trigger. Keeping padding on its outer
+   wrapper made the visible control taller than CUS/Điều vận filters. */
+.expense-filter-bar__select {
+  height: var(--filter-control-h);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.expense-filter-bar__select > button {
+  height: var(--filter-control-h);
+  min-height: var(--filter-control-h);
+  padding: 0 32px 0 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
+}
+.expense-filter-bar__date {
+  padding: 0 12px;
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
 }
 
 .expense-filter-bar__select:hover,
@@ -209,10 +230,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 36px;
+  min-height: var(--filter-control-h);
   padding: 0 14px;
   border-radius: 10px;
-  font-size: var(--fs-xs);
+  font-size: var(--filter-control-font-size);
+  line-height: var(--filter-control-line-height);
   font-weight: 600;
   color: var(--ink-3);
   background: transparent;
@@ -537,9 +559,9 @@
   }
   .expense-list-page .expense-filter-bar__select,
   .expense-list-page .expense-filter-bar__date {
-    min-height: 44px;
-    font-size: 13px;
-    padding: 0 28px 0 11px;
+    min-height: var(--filter-control-h);
+    font-size: var(--filter-control-font-size);
+    padding: 0 11px;
     background-size: 14px 14px;
     background-position: right 8px center;
     border-radius: 10px;
@@ -548,10 +570,15 @@
   .expense-list-page .expense-filter-bar__date {
     padding-right: 10px;
   }
+  .expense-list-page .expense-filter-bar__select > button {
+    padding: 0 28px 0 11px;
+    background-size: 14px 14px;
+    background-position: right 8px center;
+  }
   .expense-list-page .expense-filter-bar__reset {
-    min-height: 44px;
+    min-height: var(--filter-control-h);
     padding: 0 11px;
-    font-size: var(--fs-xs);
+    font-size: var(--filter-control-font-size);
     grid-column: 1 / -1;
   }
 
