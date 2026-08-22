@@ -86,14 +86,8 @@ const rows: ExpenseWithRefs[] = [
   },
 ];
 
-function envelope(
-  items: ExpenseWithRefs[],
-  total = items.length,
-  summary?: { totalAmount: number; paidAmount: number; unpaidAmount: number; paidCount: number; unpaidCount: number },
-): PaginatedResponse<ExpenseWithRefs> & { summary?: typeof summary } {
-  return summary
-    ? { items, total, page: 1, pageSize: 20, summary }
-    : { items, total, page: 1, pageSize: 20 };
+function envelope(items: ExpenseWithRefs[], total = items.length): PaginatedResponse<ExpenseWithRefs> {
+  return { items, total, page: 1, pageSize: 20 };
 }
 
 function renderPage() {
@@ -109,15 +103,7 @@ function renderPage() {
 
 beforeEach(() => {
   apiGet.mockReset();
-  // Full-set aggregates differ from the loaded page (1 UNPAID + 1 PAID row)
-  // so the KPI assertions prove the strip reads the envelope summary.
-  apiGet.mockResolvedValue(envelope(rows, 43, {
-    totalAmount: 4050000,
-    paidAmount: 350000,
-    unpaidAmount: 3700000,
-    paidCount: 3,
-    unpaidCount: 7,
-  }));
+  apiGet.mockResolvedValue(envelope(rows, 43));
 });
 
 describe('ExpenseListPage', () => {
@@ -132,9 +118,6 @@ describe('ExpenseListPage', () => {
     expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20');
     expect(apiGet.mock.calls.every(call => !String(call[0]).includes('pageSize='))).toBe(true);
 
-    // KPI strip carries the full-set aggregates, not the loaded page's math.
-    expect(await screen.findByText('3.700.000')).toBeTruthy();
-    expect(screen.getByText('350.000')).toBeTruthy();
     // Pagination summary carries the envelope total (43), not the row count.
     expect(screen.getByText('43')).toBeTruthy();
   });
@@ -162,5 +145,24 @@ describe('ExpenseListPage', () => {
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledWith('/expenses?page=2&limit=20');
     });
+  });
+
+  it('drives the KPI strip from the envelope summary, not page math', async () => {
+    apiGet.mockResolvedValue({
+      ...envelope(rows, 43),
+      summary: {
+        totalAmount: 98_765_000,
+        paidAmount: 87_654_000,
+        unpaidAmount: 11_111_000,
+        paidCount: 39,
+        unpaidCount: 4,
+      },
+    });
+    renderPage();
+    await screen.findByText('Garage Auto 123');
+
+    // Server full-set figures — unreachable from the two-row page fixture.
+    expect(screen.getByText('11.111.000')).toBeTruthy();
+    expect(screen.getByText('87.654.000')).toBeTruthy();
   });
 });

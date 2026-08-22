@@ -41,24 +41,13 @@ type ExpenseTableFilters = {
   toDate?: string;
 };
 
-/** Full-set payment aggregates the expense list endpoint appends to its page. */
-type ExpenseListSummary = {
-  totalAmount: number;
-  paidAmount: number;
-  unpaidAmount: number;
-  paidCount: number;
-  unpaidCount: number;
-};
-
-type ExpenseListResponse = PaginatedResponse<ExpenseWithRefs> & { summary?: ExpenseListSummary };
-
 export default function ExpenseListPage() {
   const navigate = useNavigate();
 
   // Server-side pagination + filters. Search input lives in the hook contract
   // but the endpoint has no `search` param yet, so no search box is rendered
   // and the param is never sent.
-  const table = useTableQueryState<ExpenseWithRefs, ExpenseTableFilters, ExpenseListResponse>({
+  const table = useTableQueryState<ExpenseWithRefs, ExpenseTableFilters>({
     endpoint: (params) => {
       const qs = new URLSearchParams({
         page: String(params.page ?? 1),
@@ -69,7 +58,7 @@ export default function ExpenseListPage() {
       if (params.truckId) qs.set('truckId', String(params.truckId));
       if (params.fromDate) qs.set('fromDate', params.fromDate);
       if (params.toDate) qs.set('toDate', params.toDate);
-      return api.get<ExpenseListResponse>(`${FINANCIAL.EXPENSES}?${qs}`);
+      return api.get<PaginatedResponse<ExpenseWithRefs>>(`${FINANCIAL.EXPENSES}?${qs}`);
     },
     queryKey: qk.financial.expensesAll,
     defaultPageSize: PAGE_SIZE,
@@ -108,10 +97,13 @@ export default function ExpenseListPage() {
     deps: [expenses, isLoading],
   });
 
-  // KPI strip reads the envelope's full-set aggregates (page-independent,
-  // filter-scoped). Only envelopes without a summary fall back to page math.
-  const stats = useMemo<ExpenseListSummary>(() => {
-    const envelopeSummary = query.data?.summary;
+  // Full-set headline numbers come from the list envelope's server summary
+  // (page-independent, computed over the SAME filters). Page math remains
+  // only as a fallback for envelopes that predate the summary field.
+  const envelopeSummary = (query.data as (PaginatedResponse<ExpenseWithRefs> & {
+    summary?: { totalAmount: number; paidAmount: number; unpaidAmount: number; paidCount: number; unpaidCount: number };
+  }) | undefined)?.summary;
+  const stats = useMemo(() => {
     if (envelopeSummary) return envelopeSummary;
     const items = expenses;
     const totalAmount = items.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
@@ -120,7 +112,7 @@ export default function ExpenseListPage() {
     const unpaidAmount = unpaidItems.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
     const paidAmount = paidItems.reduce((s, e) => s + parseFloat(String(e.amount)), 0);
     return { totalAmount, unpaidCount: unpaidItems.length, unpaidAmount, paidCount: paidItems.length, paidAmount };
-  }, [query.data, expenses]);
+  }, [envelopeSummary, expenses]);
 
   const hasFilters = Object.keys(filters).length > 0;
   const kpiTotal = splitKpi(stats.totalAmount);
