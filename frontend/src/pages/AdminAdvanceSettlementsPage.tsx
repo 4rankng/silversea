@@ -26,7 +26,7 @@ import {
   summarizeSettlementExpenses,
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
-import { UuiSelectField } from '../design-system';
+import { Pagination, UuiSelectField } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -69,6 +69,17 @@ const TABS: { key: StatusFilter; label: string }[] = [
   { key: AdvanceSettlementStatus.REVERSED, label: 'Đã hoàn tác' },
   { key: AdvanceSettlementStatus.REJECTED, label: 'Từ chối' },
 ];
+
+const AS_PAGE_SIZE = 50;
+
+/** The composite "Chờ xử lý" tab selects both in-review statuses server-side. */
+function statusFilterParam(filter: StatusFilter): string | undefined {
+  if (!filter) return undefined;
+  if (filter === AdvanceSettlementStatus.PENDING) {
+    return `${AdvanceSettlementStatus.PENDING},${AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT}`;
+  }
+  return filter;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: '#D97706',
@@ -397,16 +408,22 @@ export function SettlementMobileCard({
 
 export default function AdminAdvanceSettlementsPage({ embedded = false }: { embedded?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [page, setPage] = useState(1);
 
-  // Fetch ALL settlements once — client-side filtering for accurate counts/totals
-  const { data, isLoading } = useAdminSettlements();
+  // Server-side filtering + pagination. KPI/tab counts come from the full-set
+  // aggregates in the response envelope — never a client-side slice of all rows.
+  const { data, isLoading } = useAdminSettlements({
+    status: statusFilterParam(statusFilter),
+    page,
+    limit: AS_PAGE_SIZE,
+  });
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !isLoading });
   const rejectMutation = useRejectSettlement();
   const { user } = useAuth();
   const canApproveReject = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT;
 
-  const allSettlements: Settlement[] = useMemo(
+  const settlements: Settlement[] = useMemo(
     () => (data?.items ?? []) as Settlement[],
     [data],
   );
@@ -414,32 +431,32 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   // Called for its side effect (scrolling to the focused item); return value unused.
   useFocusDeepLink('as');
 
-  /* ── Derived counts & totals ─────────────────────────────────────────── */
-  const stats = useMemo(
-    () => summarizeSettlementStats(allSettlements),
-    [allSettlements],
-  );
+  const statusCounts = data?.statusCounts ?? {};
+  const statusAmounts = data?.statusAmounts ?? {};
+  const totalPages = data?.totalPages ?? 1;
+  const effectivePage = Math.min(page, totalPages);
+  const pendingReviewCount = (statusCounts[AdvanceSettlementStatus.PENDING] ?? 0)
+    + (statusCounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
+  const pendingReviewAmount = (statusAmounts[AdvanceSettlementStatus.PENDING] ?? 0)
+    + (statusAmounts[AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT] ?? 0);
 
-  const filtered = useMemo(() => {
-    if (!statusFilter) return allSettlements;
-    if (statusFilter === AdvanceSettlementStatus.PENDING) {
-      return allSettlements.filter((s) =>
-        s.status === AdvanceSettlementStatus.PENDING ||
-        s.status === AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT,
-      );
-    }
-    return allSettlements.filter((s) => s.status === statusFilter);
-  }, [allSettlements, statusFilter]);
+  const applyFilter = (next: StatusFilter) => {
+    setStatusFilter(next);
+    setPage(1);
+  };
 
-  /* ── Tab counts ──────────────────────────────────────────────────────── */
-  const tabCounts = useMemo(() => ({
-    '': stats.counts.total,
-    [AdvanceSettlementStatus.PENDING]: stats.counts.PENDING + stats.counts.CHECKED_BY_ACCOUNTANT,
-    [AdvanceSettlementStatus.CHECKED_BY_ACCOUNTANT]: stats.counts.CHECKED_BY_ACCOUNTANT,
-    [AdvanceSettlementStatus.APPROVED]: stats.counts.APPROVED,
-    [AdvanceSettlementStatus.REVERSED]: stats.counts.REVERSED,
-    [AdvanceSettlementStatus.REJECTED]: stats.counts.REJECTED,
-  }), [stats]);
+  /* ── Tab counts (full-set, from server aggregates) ────────────────────── */
+  const tabCounts = useMemo(() => {
+    const fullTotal = Object.values(statusCounts).reduce((sum, n) => sum + n, 0);
+    return {
+      '': fullTotal,
+      [AdvanceSettlementStatus.PENDING]: pendingReviewCount,
+      [AdvanceSettlementStatus.APPROVED]: statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0,
+      [AdvanceSettlementStatus.REVERSED]: statusCounts[AdvanceSettlementStatus.REVERSED] ?? 0,
+      [AdvanceSettlementStatus.REJECTED]: statusCounts[AdvanceSettlementStatus.REJECTED] ?? 0,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
@@ -456,22 +473,22 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
       <div className="as-kpi-row">
         <AsKPI
           label="Chờ xử lý"
-          value={stats.counts.PENDING + stats.counts.CHECKED_BY_ACCOUNTANT}
-          meta={`${formatNumber(stats.totals.PENDING + stats.totals.CHECKED_BY_ACCOUNTANT)} ₫`}
+          value={pendingReviewCount}
+          meta={`${formatNumber(pendingReviewAmount)} ₫`}
           variant="warn"
           iconName="settlement"
           active={statusFilter === AdvanceSettlementStatus.PENDING}
-          hasItems={stats.counts.PENDING + stats.counts.CHECKED_BY_ACCOUNTANT > 0}
-          onClick={() => setStatusFilter(statusFilter === AdvanceSettlementStatus.PENDING ? '' : AdvanceSettlementStatus.PENDING)}
+          hasItems={pendingReviewCount > 0}
+          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.PENDING ? '' : AdvanceSettlementStatus.PENDING)}
         />
         <AsKPI
           label="Đã duyệt"
-          value={stats.counts.APPROVED}
-          meta={`${formatNumber(stats.totals.APPROVED)} ₫`}
+          value={statusCounts[AdvanceSettlementStatus.APPROVED] ?? 0}
+          meta={`${formatNumber(statusAmounts[AdvanceSettlementStatus.APPROVED] ?? 0)} ₫`}
           variant="success"
           iconName="paid"
           active={statusFilter === AdvanceSettlementStatus.APPROVED}
-          onClick={() => setStatusFilter(statusFilter === AdvanceSettlementStatus.APPROVED ? '' : AdvanceSettlementStatus.APPROVED)}
+          onClick={() => applyFilter(statusFilter === AdvanceSettlementStatus.APPROVED ? '' : AdvanceSettlementStatus.APPROVED)}
         />
         <AsKPI
           label="Tồn tạm ứng"
@@ -491,7 +508,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
             <FilterPill
               key={tab.key}
               active={statusFilter === tab.key}
-              onClick={() => setStatusFilter(tab.key)}
+              onClick={() => applyFilter(tab.key)}
               count={tabCounts[tab.key]}
             >
               {tab.label}
@@ -505,7 +522,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
             label="Lọc theo trạng thái"
             hideLabel
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+            onChange={(event) => applyFilter(event.target.value === 'all' ? '' : event.target.value as StatusFilter)}
             options={TABS.map((tab) => ({
               value: tab.key || 'all',
               label: `${tab.label} (${tabCounts[tab.key]})`,
@@ -517,7 +534,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
           <div className="as-loading">
             <Loader2 size={24} className="spin" style={{ color: 'var(--ink-3)' }} />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : settlements.length === 0 ? (
           <div className="as-empty">
             <FileText size={40} style={{ color: 'var(--ink-4)', marginBottom: 8 }} />
             <div className="as-empty-text">Không có phiếu hoàn ứng nào</div>
@@ -545,7 +562,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                 </div>
 
                 <div>
-                  {filtered.map((s) => (
+                  {settlements.map((s) => (
                     <SettlementGridRow
                       key={s.id}
                       s={s}
@@ -560,7 +577,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
 
             {/* Mobile: stacked cards */}
             <div className="as-cards">
-              {filtered.map((s) => (
+              {settlements.map((s) => (
                 <SettlementMobileCard
                   key={s.id}
                   s={s}
@@ -574,11 +591,15 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
         )}
       </div>
 
-      {/* Footer count */}
-      {filtered.length > 0 && (
-        <div className="as-footer">
-          {filtered.length} phiếu hoàn ứng
-        </div>
+      {/* Footer: server-side pagination */}
+      {settlements.length > 0 && (
+        <Pagination
+          page={effectivePage}
+          totalPages={totalPages}
+          totalItems={data?.total ?? 0}
+          pageSize={data?.limit ?? AS_PAGE_SIZE}
+          onChange={setPage}
+        />
       )}
     </div>
   );

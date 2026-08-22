@@ -205,6 +205,30 @@ type LiveTripRow = Pick<
   | 'updatedAt'
 >;
 
+/** Shared post-write trip projection — kept identical to LiveTripRow. */
+const LIVE_TRIP_RETURNING = {
+  id: s.trips.id,
+  version: s.trips.version,
+  tripCode: s.trips.tripCode,
+  status: s.trips.status,
+  shipmentId: s.trips.shipmentId,
+  fulfillmentId: s.trips.fulfillmentId,
+  carrierType: s.trips.carrierType,
+  truckId: s.trips.truckId,
+  driverId: s.trips.driverId,
+  trailerId: s.trips.trailerId,
+  plannedStartAt: s.trips.plannedStartAt,
+  plannedEndAt: s.trips.plannedEndAt,
+  externalEntityId: s.trips.externalEntityId,
+  externalEntityType: s.trips.externalEntityType,
+  externalPlateNumber: s.trips.externalPlateNumber,
+  externalDriverName: s.trips.externalDriverName,
+  externalDriverPhone: s.trips.externalDriverPhone,
+  createdBy: s.trips.createdBy,
+  createdAt: s.trips.createdAt,
+  updatedAt: s.trips.updatedAt,
+};
+
 type DispatchHandoffStatus = typeof s.dispatchHandoffs.status.enumValues[number];
 type DispatchQueueStatus = 'READY' | 'DISPATCHED';
 type DispatchFleetResource = ListDispatchFleetInput['resource'];
@@ -1842,28 +1866,7 @@ async function issueOrderCreateOrUpdate(
       vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, createdTrip.id)).returning({
-      id: s.trips.id,
-      version: s.trips.version,
-      tripCode: s.trips.tripCode,
-      status: s.trips.status,
-      shipmentId: s.trips.shipmentId,
-      fulfillmentId: s.trips.fulfillmentId,
-      carrierType: s.trips.carrierType,
-      truckId: s.trips.truckId,
-      driverId: s.trips.driverId,
-      trailerId: s.trips.trailerId,
-      plannedStartAt: s.trips.plannedStartAt,
-      plannedEndAt: s.trips.plannedEndAt,
-      externalEntityId: s.trips.externalEntityId,
-      externalEntityType: s.trips.externalEntityType,
-      externalPlateNumber: s.trips.externalPlateNumber,
-      externalDriverName: s.trips.externalDriverName,
-      externalDriverPhone: s.trips.externalDriverPhone,
-      createdBy: s.trips.createdBy,
-      createdAt: s.trips.createdAt,
-      updatedAt: s.trips.updatedAt,
-    });
+    }).where(eq(s.trips.id, createdTrip.id)).returning(LIVE_TRIP_RETURNING);
     trip = linked ?? null;
     if (!trip) throw new ApiError(409, 'Không thể liên kết chuyến với tác vụ.');
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
@@ -1891,28 +1894,7 @@ async function issueOrderCreateOrUpdate(
       vehicleCapacityKg,
       version: sql`${s.trips.version} + 1`,
       updatedAt: new Date(),
-    }).where(eq(s.trips.id, trip.id)).returning({
-      id: s.trips.id,
-      version: s.trips.version,
-      tripCode: s.trips.tripCode,
-      status: s.trips.status,
-      shipmentId: s.trips.shipmentId,
-      fulfillmentId: s.trips.fulfillmentId,
-      carrierType: s.trips.carrierType,
-      truckId: s.trips.truckId,
-      driverId: s.trips.driverId,
-      trailerId: s.trips.trailerId,
-      plannedStartAt: s.trips.plannedStartAt,
-      plannedEndAt: s.trips.plannedEndAt,
-      externalEntityId: s.trips.externalEntityId,
-      externalEntityType: s.trips.externalEntityType,
-      externalPlateNumber: s.trips.externalPlateNumber,
-      externalDriverName: s.trips.externalDriverName,
-      externalDriverPhone: s.trips.externalDriverPhone,
-      createdBy: s.trips.createdBy,
-      createdAt: s.trips.createdAt,
-      updatedAt: s.trips.updatedAt,
-    });
+    }).where(eq(s.trips.id, trip.id)).returning(LIVE_TRIP_RETURNING);
     trip = updatedTrip ?? trip;
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(

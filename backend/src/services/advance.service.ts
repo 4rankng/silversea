@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
@@ -197,7 +197,7 @@ export async function createAdvanceRequest(
   return enriched;
 }
 
-export async function listAdvanceRequests(filters?: {
+function buildAdvanceRequestConditions(filters?: {
   requesterId?: number;
   status?: string;
   excludeLinkedToActiveSettlement?: boolean;
@@ -212,13 +212,93 @@ export async function listAdvanceRequests(filters?: {
       .where(notInArray(s.advanceSettlements.status, ['REJECTED', 'REVERSED']));
     conditions.push(notInArray(s.advanceRequests.id, claimedRequestIds));
   }
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  return conditions.length > 0 ? and(...conditions) : undefined;
+}
 
-  const rows = await db.select()
+/** Clamp shared by both advance list paginators. */
+function clampPageLimit(page: number | undefined, limit: number | undefined, defaultLimit: number): { page: number; limit: number } {
+  return {
+    page: Math.max(1, Math.floor(page || 1)),
+    limit: Math.min(500, Math.max(1, Math.floor(limit || defaultLimit))),
+  };
+}
+
+export async function listAdvanceRequests(filters?: {
+  requesterId?: number;
+  status?: string;
+  excludeLinkedToActiveSettlement?: boolean;
+  page?: number;
+  limit?: number;
+}) {
+  const where = buildAdvanceRequestConditions(filters);
+
+  const base = db.select()
     .from(s.advanceRequests)
     .where(where)
     .orderBy(desc(s.advanceRequests.createdAt));
+  // Pagination is applied in SQL (never a client-side slice of the full set);
+  // callers that omit page/limit keep the full-array behavior.
+  const rows = filters?.limit != null
+    ? await base.limit(filters.limit).offset((Math.max(1, filters.page ?? 1) - 1) * filters.limit)
+    : await base;
   return enrichWithNames(rows);
+}
+
+export interface PaginatedAdvanceRequests {
+  items: Awaited<ReturnType<typeof listAdvanceRequests>>;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  /** Full-set status counts for the page's filter pills. */
+  statusCounts: Record<string, number>;
+  /** Full-set amount totals per status for the page's KPI strip. */
+  statusAmounts: Record<string, number>;
+}
+
+/**
+ * SQL-paginated admin listing. statusCounts/statusAmounts are FULL-set
+ * aggregates (status filter excluded) so KPIs/filter pills stay stable across
+ * tabs; total/totalPages describe the filtered set for the pager.
+ */
+export async function listAdvanceRequestsPaginated(filters: {
+  requesterId?: number;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedAdvanceRequests> {
+  const { page, limit } = clampPageLimit(filters.page, filters.limit, 50);
+  const where = buildAdvanceRequestConditions(filters);
+  const whereAll = buildAdvanceRequestConditions({ requesterId: filters.requesterId });
+
+  const [items, statusRows, filteredCountRows] = await Promise.all([
+    listAdvanceRequests({ ...filters, page, limit }),
+    db.select({
+      status: s.advanceRequests.status,
+      count: count(),
+      amount: sum(s.advanceRequests.amount),
+    }).from(s.advanceRequests)
+      .where(whereAll)
+      .groupBy(s.advanceRequests.status),
+    db.select({ total: count() }).from(s.advanceRequests).where(where),
+  ]);
+
+  const statusCounts: Record<string, number> = {};
+  const statusAmounts: Record<string, number> = {};
+  for (const row of statusRows) {
+    statusCounts[row.status] = row.count;
+    statusAmounts[row.status] = Number(row.amount ?? 0);
+  }
+  const filteredTotal = Number(filteredCountRows[0]?.total ?? 0);
+  return {
+    items,
+    page,
+    limit,
+    total: filteredTotal,
+    totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
+    statusCounts,
+    statusAmounts,
+  };
 }
 
 export async function getAdvanceRequestCounts(requesterId?: number) {
@@ -761,16 +841,32 @@ export async function autoOffsetExpenseApproval(tx: Tx, expenseId: number): Prom
   });
 }
 
-export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string }) {
+function buildAdvanceSettlementConditions(filters?: { forwarderId?: number; status?: string }) {
   const conditions = [];
   if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));
-  if (filters?.status) conditions.push(eq(s.advanceSettlements.status, filters.status as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED' | 'REVERSED')));
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  if (filters?.status) {
+    // Comma-separated status lists (e.g. "PENDING,CHECKED_BY_ACCOUNTANT")
+    // select a composite tab in one query.
+    const statuses = filters.status.split(',').map((v) => v.trim()).filter(Boolean) as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED' | 'REVERSED')[];
+    conditions.push(statuses.length === 1
+      ? eq(s.advanceSettlements.status, statuses[0])
+      : inArray(s.advanceSettlements.status, statuses));
+  }
+  return conditions.length > 0 ? and(...conditions) : undefined;
+}
 
-  const rows = await db.select()
+export async function listAdvanceSettlements(filters?: { forwarderId?: number; status?: string; page?: number; limit?: number }) {
+  const where = buildAdvanceSettlementConditions(filters);
+
+  const base = db.select()
     .from(s.advanceSettlements)
     .where(where)
     .orderBy(desc(s.advanceSettlements.createdAt));
+  // Pagination is applied in SQL (never a client-side slice of the full set);
+  // callers that omit page/limit keep the full-array behavior.
+  const rows = filters?.limit != null
+    ? await base.limit(filters.limit).offset((Math.max(1, filters.page ?? 1) - 1) * filters.limit)
+    : await base;
 
   const enriched = await enrichWithNames(rows);
 
@@ -870,15 +966,19 @@ export interface PaginatedAdvanceSettlements {
   totalPages: number;
   /** Full-set status counts for the page's filter pills. */
   statusCounts: Record<string, number>;
+  /** Full-set totalExpenseAmount per status for the page's KPI strip. */
+  statusAmounts: Record<string, number>;
   /** Full-set totals for the page's KPI strip. */
   totals: { totalExpenseAmount: number; pendingCount: number };
 }
 
 /**
- * Paginated + summarized wrapper over listAdvanceSettlements for the HTTP
- * list route. Callers that need the full array (admin ops, agent tools) keep
- * calling listAdvanceSettlements directly; page/limit here are always
- * bounded, and statusCounts/totals describe the whole filtered set.
+ * SQL-paginated + summarized listing for the HTTP list routes. Page rows come
+ * from a LIMIT/OFFSET query (never an in-memory slice of the full set).
+ * statusCounts/totals are FULL-set aggregates (status filter excluded) so
+ * KPIs/filter pills stay stable across tabs; total/totalPages describe the
+ * filtered set for the pager. Callers that need the full array (admin ops,
+ * agent tools) keep calling listAdvanceSettlements directly.
  */
 export async function listAdvanceSettlementsPaginated(filters: {
   forwarderId?: number;
@@ -886,28 +986,43 @@ export async function listAdvanceSettlementsPaginated(filters: {
   page?: number;
   limit?: number;
 }): Promise<PaginatedAdvanceSettlements> {
-  const enriched = await listAdvanceSettlements(filters);
-  const page = Math.max(1, Math.floor(filters.page || 1));
-  const limit = Math.min(500, Math.max(1, Math.floor(filters.limit || 25)));
-  const total = enriched.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = (page - 1) * limit;
+  const { page, limit } = clampPageLimit(filters.page, filters.limit, 50);
+  const where = buildAdvanceSettlementConditions(filters);
+  const whereAll = buildAdvanceSettlementConditions({ forwarderId: filters.forwarderId });
+
+  const [enriched, aggRows, statusRows, filteredCountRows] = await Promise.all([
+    listAdvanceSettlements({ ...filters, page, limit }),
+    db.select({
+      total: count(),
+      totalExpenseAmount: sum(s.advanceSettlements.totalExpenseAmount),
+    }).from(s.advanceSettlements).where(whereAll),
+    db.select({
+      status: s.advanceSettlements.status,
+      count: count(),
+      totalExpenseAmount: sum(s.advanceSettlements.totalExpenseAmount),
+    }).from(s.advanceSettlements).where(whereAll).groupBy(s.advanceSettlements.status),
+    db.select({ total: count() }).from(s.advanceSettlements).where(where),
+  ]);
+
   const statusCounts: Record<string, number> = {};
-  let totalExpenseAmount = 0;
-  let pendingCount = 0;
-  for (const s of enriched) {
-    statusCounts[s.status] = (statusCounts[s.status] ?? 0) + 1;
-    totalExpenseAmount += Number(s.totalExpenseAmount);
-    if (s.status === 'PENDING') pendingCount++;
+  const statusAmounts: Record<string, number> = {};
+  for (const row of statusRows) {
+    statusCounts[row.status] = row.count;
+    statusAmounts[row.status] = Number(row.totalExpenseAmount ?? 0);
   }
+  const filteredTotal = Number(filteredCountRows[0]?.total ?? 0);
   return {
-    items: enriched.slice(start, start + limit),
+    items: enriched,
     page,
     limit,
-    total,
-    totalPages,
+    total: filteredTotal,
+    totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
     statusCounts,
-    totals: { totalExpenseAmount, pendingCount },
+    statusAmounts,
+    totals: {
+      totalExpenseAmount: Number(aggRows[0]?.totalExpenseAmount ?? 0),
+      pendingCount: statusCounts['PENDING'] ?? 0,
+    },
   };
 }
 

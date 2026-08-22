@@ -174,10 +174,10 @@ export function useUnlinkedExpenses() {
 
 // ── Admin: Advance Requests ──────────────────────────────────────────────────
 
-export function useAdminAdvanceRequests(filters?: { status?: string }) {
+export function useAdminAdvanceRequests(params?: { status?: string; page?: number; limit?: number }) {
   return useQuery({
-    queryKey: qk.adminForwarder.advanceRequests(filters),
-    queryFn: () => forwarderClient.listAllAdvanceRequests(filters),
+    queryKey: qk.adminForwarder.advanceRequests(params),
+    queryFn: () => forwarderClient.listAllAdvanceRequests(params),
   });
 }
 
@@ -212,10 +212,10 @@ export function useRejectAdvanceRequest() {
 
 // ── Admin: Advance Settlements ──────────────────────────────────────────────
 
-export function useAdminSettlements(filters?: { status?: string }) {
+export function useAdminSettlements(params?: { status?: string; page?: number; limit?: number }) {
   return useQuery({
-    queryKey: qk.adminForwarder.settlements(filters),
-    queryFn: () => forwarderClient.listAllAdvanceSettlements(filters),
+    queryKey: qk.adminForwarder.settlements(params),
+    queryFn: () => forwarderClient.listAllAdvanceSettlements(params),
   });
 }
 

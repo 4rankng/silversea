@@ -19,6 +19,56 @@ function assertExpectedUpdatedAt(
   }
 }
 
+interface ContainerSealInput {
+  id?: number;
+  sealNumber: string;
+  sealType?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Diff-sync one container's seal rows: delete rows absent from `seals`, update
+ * rows whose id is still present, insert the rest. Shared by the
+ * single-container seal editor and the bulk trip-container upsert so the two
+ * write paths can never drift.
+ */
+async function syncContainerSeals(
+  tx: Tx,
+  containerId: number,
+  seals: ContainerSealInput[],
+  userId: number | null,
+  existingSealIds: Set<number>,
+): Promise<void> {
+  const incomingIds = new Set(seals.filter(x => x.id).map(x => x.id as number));
+
+  const toDelete = [...existingSealIds].filter(id => !incomingIds.has(id));
+  if (toDelete.length > 0) {
+    await tx.delete(s.tripContainerSeals).where(inArray(s.tripContainerSeals.id, toDelete));
+  }
+
+  const toUpdate = seals.filter(x => x.id && existingSealIds.has(x.id));
+  const toInsert = seals.filter(x => !(x.id && existingSealIds.has(x.id)));
+  await Promise.all(toUpdate.map(seal => tx.update(s.tripContainerSeals)
+    .set({
+      tripContainerId: containerId,
+      sealNumber: seal.sealNumber,
+      sealType: seal.sealType ?? null,
+      notes: seal.notes ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(s.tripContainerSeals.id, seal.id!))));
+  if (toInsert.length > 0) {
+    await tx.insert(s.tripContainerSeals).values(toInsert.map(seal => ({
+      tripContainerId: containerId,
+      sealNumber: seal.sealNumber,
+      sealType: seal.sealType ?? null,
+      notes: seal.notes ?? null,
+      createdBy: userId,
+      updatedAt: new Date(),
+    })));
+  }
+}
+
 export async function derivePrimarySealNumber(
   client: DbOrTx,
   tripContainerId: number,
@@ -312,34 +362,7 @@ export async function batchUpsertContainerSeals(
       .from(s.tripContainerSeals)
       .where(eq(s.tripContainerSeals.tripContainerId, containerId));
     const existingIds = new Set(existing.map(r => r.id));
-    const incomingIds = new Set(seals.filter(s2 => s2.id).map(s2 => s2.id as number));
-
-    const toDelete = [...existingIds].filter(id => !incomingIds.has(id));
-    if (toDelete.length > 0) {
-      await tx.delete(s.tripContainerSeals).where(inArray(s.tripContainerSeals.id, toDelete));
-    }
-
-    const toUpdate = seals.filter(s2 => s2.id && existingIds.has(s2.id));
-    const toInsert = seals.filter(s2 => !(s2.id && existingIds.has(s2.id)));
-    await Promise.all(toUpdate.map(seal => tx.update(s.tripContainerSeals)
-      .set({
-        tripContainerId: containerId,
-        sealNumber: seal.sealNumber,
-        sealType: seal.sealType ?? null,
-        notes: seal.notes ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(s.tripContainerSeals.id, seal.id!))));
-    if (toInsert.length > 0) {
-      await tx.insert(s.tripContainerSeals).values(toInsert.map(seal => ({
-        tripContainerId: containerId,
-        sealNumber: seal.sealNumber,
-        sealType: seal.sealType ?? null,
-        notes: seal.notes ?? null,
-        createdBy: userId,
-        updatedAt: new Date(),
-      })));
-    }
+    await syncContainerSeals(tx, containerId, seals, userId, existingIds);
 
     const primarySeal = await derivePrimarySealNumber(tx, containerId);
     await tx.update(s.tripContainers)
@@ -478,34 +501,7 @@ export async function batchUpsertTripContainers(
     for (const [containerId, seals] of sealInputs) {
       if (seals === undefined) continue;
       const existingSealIds = existingSealsByContainer.get(containerId) ?? new Set<number>();
-      const incomingSealIds = new Set(seals.filter(x => x.id).map(x => x.id as number));
-
-      const sealsToDelete = [...existingSealIds].filter(id => !incomingSealIds.has(id));
-      if (sealsToDelete.length > 0) {
-        await tx.delete(s.tripContainerSeals).where(inArray(s.tripContainerSeals.id, sealsToDelete));
-      }
-
-      const toUpdate = seals.filter(s2 => s2.id && existingSealIds.has(s2.id));
-      const toInsert = seals.filter(s2 => !(s2.id && existingSealIds.has(s2.id)));
-      await Promise.all(toUpdate.map(seal => tx.update(s.tripContainerSeals)
-        .set({
-          tripContainerId: containerId,
-          sealNumber: seal.sealNumber,
-          sealType: seal.sealType ?? null,
-          notes: seal.notes ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(s.tripContainerSeals.id, seal.id!))));
-      if (toInsert.length > 0) {
-        await tx.insert(s.tripContainerSeals).values(toInsert.map(seal => ({
-          tripContainerId: containerId,
-          sealNumber: seal.sealNumber,
-          sealType: seal.sealType ?? null,
-          notes: seal.notes ?? null,
-          createdBy: userId,
-          updatedAt: new Date(),
-        })));
-      }
+      await syncContainerSeals(tx, containerId, seals, userId, existingSealIds);
 
       const primarySeal = await derivePrimarySealNumber(tx, containerId);
       await tx.update(s.tripContainers)

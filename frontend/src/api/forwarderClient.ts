@@ -158,8 +158,16 @@ export const forwarderClient = {
     return api.get<{ items: TripExpenseWithSupplier[] }>(FORWARDER.UNLINKED_EXPENSES);
   },
 
-  listAllAdvanceRequests: async (filters?: { status?: string }) => {
-    return api.get<{ items: AdvanceRequestWithRefs[] }>(`${FINANCIAL.ADVANCE_REQUESTS}${toQuery(filters)}`);
+  listAllAdvanceRequests: async (params?: { status?: string; page?: number; limit?: number }) => {
+    return api.get<{
+      items: AdvanceRequestWithRefs[];
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      statusCounts: Record<string, number>;
+      statusAmounts: Record<string, number>;
+    }>(`${FINANCIAL.ADVANCE_REQUESTS}${toQuery(params)}`);
   },
   approveAdvanceRequest: async (id: number, expectedVersion: number, reason: string) => {
     return api.post(FINANCIAL.ADVANCE_REQUEST_APPROVE(id), { expectedVersion, reason });
@@ -168,8 +176,17 @@ export const forwarderClient = {
     return api.post(FINANCIAL.ADVANCE_REQUEST_REJECT(id), { expectedVersion, reason });
   },
 
-  listAllAdvanceSettlements: async (filters?: { status?: string }) => {
-    return api.get<{ items: AdvanceSettlementWithRefs[] }>(`${FINANCIAL.ADVANCE_SETTLEMENTS}${toQuery(filters)}`);
+  listAllAdvanceSettlements: async (params?: { status?: string; page?: number; limit?: number }) => {
+    return api.get<{
+      items: AdvanceSettlementWithRefs[];
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      statusCounts: Record<string, number>;
+      statusAmounts: Record<string, number>;
+      totals: { totalExpenseAmount: number; pendingCount: number };
+    }>(`${FINANCIAL.ADVANCE_SETTLEMENTS}${toQuery(params)}`);
   },
   getSettlementOpsCompletion: async (settlementIds: number[]) => {
     if (settlementIds.length === 0) return { items: [] as Array<{ settlementId: number; opsCompletion: NonNullable<AdvanceSettlementWithRefs['opsCompletion']> }> };

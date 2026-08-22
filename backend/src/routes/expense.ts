@@ -16,6 +16,7 @@ import {
   getExpensePhotoList,
 } from '../services/expense.service';
 import type { ExpenseUpdateInput } from '../services/expense.service';
+import { parsePagination } from './utils/pagination';
 import { asyncHandler } from '../middleware/asyncHandler';
 import multer from 'multer';
 import sharp from 'sharp';
@@ -172,14 +173,16 @@ router.get('/reports/renewals', asyncHandler(async (_req: Request, res: Response
 }));
 
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit } = parsePagination(req);
   const filters = {
     truckId: req.query.truckId ? Number(req.query.truckId) : undefined,
     supplierId: req.query.supplierId ? Number(req.query.supplierId) : undefined,
     categoryId: req.query.categoryId ? Number(req.query.categoryId) : undefined,
     fromDate: req.query.fromDate as string | undefined,
     toDate: req.query.toDate as string | undefined,
-    page: req.query.page ? Number(req.query.page) : undefined,
-    pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
+    page,
+    // Service param is `pageSize`; pagination parsing/clamping is shared.
+    pageSize: limit,
   };
   res.json(await listExpenses(db, filters));
 }));

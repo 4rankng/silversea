@@ -306,17 +306,3 @@ export async function getLatestHandoffForShipment(shipmentId: number) {
     .limit(1);
   return row ?? null;
 }
-
-/** List handoffs, optionally filtered by handler or status. */
-export async function listHandoffs(opts: {
-  handlerId?: number;
-  status?: HandoffStatus;
-} = {}) {
-  const conditions = [];
-  if (opts.handlerId) conditions.push(eq(s.dispatchHandoffs.handlerId, opts.handlerId));
-  if (opts.status) conditions.push(eq(s.dispatchHandoffs.status, opts.status));
-  const query = db.select().from(s.dispatchHandoffs);
-  return conditions.length > 0
-    ? query.where(and(...conditions)).orderBy(desc(s.dispatchHandoffs.dispatchedAt))
-    : query.orderBy(desc(s.dispatchHandoffs.dispatchedAt));
-}

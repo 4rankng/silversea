@@ -3,7 +3,7 @@
  *
  * Verifies: create handoff, markSeen (UNSEEN→SEEN), resolveHandoff
  * (ACCEPTED/REJECTED with reason), version-conflict detection,
- * getActiveHandoffForShipment, listHandoffs, partial-unique-index
+ * getActiveHandoffForShipment, partial-unique-index
  * enforcement (one active handoff per shipment), idempotent markSeen,
  * and notification emission.
  */
@@ -20,7 +20,6 @@ import {
   checkVersionConflict,
   getActiveHandoffForShipment,
   getLatestHandoffForShipment,
-  listHandoffs,
 } from '../services/dispatch-handoff.service';
 import { initNotificationService } from '../services/notification.service';
 
@@ -209,7 +208,7 @@ describe('M10.3 — checkVersionConflict', () => {
   });
 });
 
-describe('M10.3 — getActiveHandoffForShipment + listHandoffs', () => {
+describe('M10.3 — getActiveHandoffForShipment', () => {
   test('getActiveHandoffForShipment returns UNSEEN/SEEN handoff', async () => {
     const ship = await mkShipment();
     const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
@@ -237,16 +236,5 @@ describe('M10.3 — getActiveHandoffForShipment + listHandoffs', () => {
     const latest = await getLatestHandoffForShipment(ship.id);
     assert.equal(latest?.id, accepted.id);
     assert.equal(latest?.status, 'ACCEPTED');
-  });
-
-  test('listHandoffs filters by status', async () => {
-    const ship = await mkShipment();
-    const h = await createHandoff({ shipmentId: ship.id, createdBy: clerkUserId });
-    createdHandoffIds.push(h.id);
-    await resolveHandoff(h.id, 'ACCEPTED', clerkUserId, h.version);
-    const accepted = await listHandoffs({ status: 'ACCEPTED' });
-    assert.ok(accepted.some(r => r.id === h.id));
-    const unseen = await listHandoffs({ status: 'UNSEEN' });
-    assert.ok(!unseen.some(r => r.id === h.id));
   });
 });

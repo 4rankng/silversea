@@ -14,8 +14,8 @@ import { getUser } from '../../middleware/auth';
 import { getAdvanceSettlement } from '../../services/advance.service';
 import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settlement-export.service';
 import {
-  listAdvanceRequests,
-  listAdvanceSettlements,
+  listAdvanceRequestsPaginated,
+  listAdvanceSettlementsPaginated,
   checkAdvanceSettlement,
   approveAdvanceSettlement,
   rejectAdvanceSettlement,
@@ -28,6 +28,7 @@ import {
 } from '../../services/advance.service';
 import { throwValidation } from '../../lib/validation';
 import { formatLocalDate } from '../../lib/format';
+import { parsePagination } from '../utils/pagination';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { emitNotification } from '../../services/notification.service';
@@ -38,8 +39,8 @@ const router = Router();
 
 router.get('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
   const status = req.query.status as string | undefined;
-  const items = await listAdvanceRequests({ status });
-  res.json({ items });
+  const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 500 });
+  res.json(await listAdvanceRequestsPaginated({ status, page, limit }));
 }));
 
 router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {
@@ -106,8 +107,8 @@ router.get('/advance-balances', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCO
 
 router.get('/advance-settlements', asyncHandler(async (req: Request, res: Response) => {
   const status = req.query.status as string | undefined;
-  const items = await listAdvanceSettlements({ status });
-  res.json({ items });
+  const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 500 });
+  res.json(await listAdvanceSettlementsPaginated({ status, page, limit }));
 }));
 
 router.post('/advance-settlements/:id/check', requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
