@@ -24,6 +24,7 @@
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { CARGO_MODE } from '../db/schema';
 import { and, desc, eq, inArray, isNull, lte, ne, sql, type SQL } from 'drizzle-orm';
 import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/shared';
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
@@ -232,7 +233,7 @@ async function estimateShipmentFuelSurcharge(args: {
 export async function resolveShipmentPricingProjection(
   input: ResolveShipmentPricingProjectionInput,
 ): Promise<ShipmentPricingProjection> {
-  if (input.cargoMode !== 'FCL' && input.routeId == null) {
+  if (input.cargoMode !== CARGO_MODE.FCL && input.routeId == null) {
     return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
   }
   if (input.cargoMode == null) {
@@ -246,7 +247,7 @@ export async function resolveShipmentPricingProjection(
   let freightFormula: string | null = null;
   let fulfillmentCount = 0;
 
-  if (input.cargoMode === 'FCL') {
+  if (input.cargoMode === CARGO_MODE.FCL) {
     const explicitContainerCount = normalizePositiveInteger(input.containerCount);
     const suppliedLines = input.containerPricingLines?.map((line) => ({
       routeId: line.routeId ?? null,

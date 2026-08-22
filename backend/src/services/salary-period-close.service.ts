@@ -22,7 +22,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
-import { TxnType, FINANCIAL_ROLES, TripStatus } from '@tingting/shared';
+import { Role, TxnType, FINANCIAL_ROLES, TripStatus } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
@@ -819,7 +819,7 @@ export async function reopenSalaryPeriod(input: {
   expectedVersion?: number | null;
   transaction?: Tx;
 }): Promise<SalaryPeriodCloseResult> {
-  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
+  if (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER) {
     throw new ApiError(403, 'Bạn không có quyền mở lại kỳ lương');
   }
   if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
@@ -1518,7 +1518,7 @@ export async function approveSalaryPeriodExclusion(input: {
   expectedVersion?: number | null;
   transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
-  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
+  if (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER) {
     throw new ApiError(403, 'Bạn không có quyền phê duyệt loại trừ kỳ lương');
   }
   if (input.expectedVersion != null && (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 1)) {
@@ -1612,7 +1612,7 @@ export async function completeSalaryPeriodExclusionFollowup(input: {
   actorRole: string;
   transaction?: Tx;
 }): Promise<SalaryPeriodExclusionResult> {
-  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
+  if (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER) {
     throw new ApiError(403, 'Bạn không có quyền hoàn tất xử lý lương bổ sung');
   }
 

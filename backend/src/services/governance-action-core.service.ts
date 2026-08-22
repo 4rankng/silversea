@@ -11,6 +11,7 @@
  * durable-effect imports — never another governance domain service.
  */
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -118,7 +119,7 @@ export async function approveGovernanceActionWithAdapter(input: {
     assertExpectedActionVersion(action.version, input.expectedVersion);
     const isAdminPriceConfigMaker = action.actionKind === 'PRICE_CONFIG_CHANGE'
       && action.makerId === input.approverId
-      && input.approverRole === 'ADMIN';
+      && input.approverRole === Role.ADMIN;
     if (
       (action.status !== 'PENDING_APPROVAL' || action.checkerId == null)
       && !(isAdminPriceConfigMaker && action.status === 'PENDING_CHECK')

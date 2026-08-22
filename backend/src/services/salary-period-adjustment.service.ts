@@ -1,4 +1,4 @@
-import { FINANCIAL_ROLES } from '@tingting/shared';
+import { Role, FINANCIAL_ROLES } from '@tingting/shared';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '../db';
@@ -396,7 +396,7 @@ export async function approveSalaryPeriodAdjustment(input: {
   expectedVersion: number;
   transaction?: Tx;
 }): Promise<SalaryPeriodAdjustmentResult> {
-  if (input.actorRole !== 'ADMIN' && input.actorRole !== 'MANAGER') {
+  if (input.actorRole !== Role.ADMIN && input.actorRole !== Role.MANAGER) {
     throw new ApiError(403, 'Bạn không có quyền phê duyệt điều chỉnh hậu chốt');
   }
   parsePeriod(input.period);

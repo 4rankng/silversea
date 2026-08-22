@@ -2354,6 +2354,9 @@ export const shipmentTradeDirectionEnum = applicationEnum([
 export const shipmentCargoModeEnum = applicationEnum([
   'FCL', 'LCL',
 ]);
+/** Typed cargo-mode literal — prefer over raw 'FCL'/'LCL' strings (single source). */
+export type CargoMode = (typeof shipmentCargoModeEnum.enumValues)[number];
+export const CARGO_MODE = { FCL: 'FCL', LCL: 'LCL' } as const satisfies Record<string, CargoMode>;
 export const shipmentChangeRequestKindEnum = applicationEnum([
   'PLAN_UPDATE',
   'CONTAINER_RECONCILE',

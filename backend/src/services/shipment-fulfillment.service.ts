@@ -1,8 +1,9 @@
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus } from '@tingting/shared';
+import { Role, canonicalShipmentStatus } from '@tingting/shared';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
@@ -106,7 +107,7 @@ async function assertDecompositionActor(actorId: number, executor: Tx | typeof d
   if (!actor || actor.deletedAt || actor.status !== 'ACTIVE') {
     throw new ApiError(403, 'Tài khoản điều vận không còn hiệu lực.');
   }
-  if (actor.role !== 'ADMIN' && actor.role !== 'MANAGER' && actor.role !== 'DISPATCHER') {
+  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== 'DISPATCHER') {
     throw new ApiError(403, 'Chỉ Điều vận, Quản lý hoặc Quản trị viên được tạo tác vụ thực hiện.');
   }
 }
@@ -167,7 +168,7 @@ function assertExistingDecompositionMatches(
   containers: Array<typeof s.shipmentContainers.$inferSelect>,
   rows: FulfillmentRow[],
 ): void {
-  if (shipment.cargoMode === 'FCL') {
+  if (shipment.cargoMode === CARGO_MODE.FCL) {
     const expected = new Set(containers.map((container) => container.id));
     const actual = new Set(rows.map((row) => row.shipmentContainerId).filter((id): id is number => id != null));
     if (rows.length !== expected.size || actual.size !== expected.size
@@ -218,17 +219,17 @@ export async function ensureShipmentFulfillmentsInTx(
   if (shipmentStatus === 'CANCELED' || shipmentStatus === 'COMPLETED') {
     throw new ApiError(409, 'Không thể tạo tác vụ cho lô hàng đã kết thúc.');
   }
-  if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
+  if (shipment.cargoMode !== CARGO_MODE.FCL && shipment.cargoMode !== CARGO_MODE.LCL) {
     throw new ApiError(409, 'Hình thức hàng FCL/LCL chưa được xác định.');
   }
 
   const containers = await tx.select().from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipment.id))
     .orderBy(asc(s.shipmentContainers.id));
-  if (shipment.cargoMode === 'FCL' && containers.length === 0) {
+  if (shipment.cargoMode === CARGO_MODE.FCL && containers.length === 0) {
     throw new ApiError(409, 'Lô hàng nguyên container phải có ít nhất một container.');
   }
-  if (shipment.cargoMode === 'LCL' && containers.length > 0) {
+  if (shipment.cargoMode === CARGO_MODE.LCL && containers.length > 0) {
     throw new ApiError(409, 'Lô hàng lẻ không được tạo container giả.');
   }
 
@@ -245,7 +246,7 @@ export async function ensureShipmentFulfillmentsInTx(
   // a container's site changes, the guarded reconcile cancels the stale
   // fulfillments and this decomposition rebuilds snapshots from authority.
   const containerSnapshots = await loadContainerSiteSnapshots(tx, shipment, containers);
-  const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === 'FCL'
+  const values: Array<typeof s.shipmentFulfillments.$inferInsert> = shipment.cargoMode === CARGO_MODE.FCL
     ? containers.map((container) => ({
       shipmentId: shipment.id,
       fulfillmentType: 'FCL_CONTAINER' as const,

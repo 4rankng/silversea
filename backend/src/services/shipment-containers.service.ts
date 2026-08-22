@@ -10,6 +10,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { CARGO_MODE } from '../db/schema';
 import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -309,7 +310,7 @@ export async function reconcileShipmentContainersInTx(
   const derivedDate = deriveExpectedDeliveryDateFromContainers(synchronizedContainers);
   const canonicalStatus = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE');
   if (
-    shipment.cargoMode === 'FCL'
+    shipment.cargoMode === CARGO_MODE.FCL
     && derivedDate == null
     && canonicalStatus === 'READY_FOR_DISPATCH'
     && current.some((container) => container.customerAppointmentAt != null)
@@ -317,7 +318,7 @@ export async function reconcileShipmentContainersInTx(
     throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
   }
   if (derivedDate !== shipment.expectedDeliveryDate) {
-    const becomesReady = shipment.cargoMode === 'FCL'
+    const becomesReady = shipment.cargoMode === CARGO_MODE.FCL
       && canonicalStatus === 'PENDING_DATE'
       && derivedDate != null
       ;

@@ -5,6 +5,7 @@ import type { OperationalSiteInput } from '@tingting/shared';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
@@ -68,7 +69,7 @@ async function persistCarrierAllocations(
     actorId,
     allowClerkIntake: true,
   });
-  if (shipment.cargoMode === 'LCL') {
+  if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (allocations.length > 0) {
       throw new ApiError(409, 'Gán nhà xe theo số lượng 20/40 chỉ áp dụng cho lô FCL.');
     }
@@ -339,7 +340,7 @@ async function assertReferenceIsActive(
 ): Promise<void> {
   // LCL owns one route on the shipment. FCL routes are validated per
   // container below so a multi-container lot can legitimately use routes A/B.
-  if (shipment.cargoMode === 'LCL') {
+  if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (shipment.routeId == null) {
       throw new ApiError(409, 'Vui lòng chọn tuyến đường trước khi gửi điều phối.');
     }
@@ -361,7 +362,7 @@ async function assertReferenceIsActive(
       )).limit(1);
     if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng.');
   }
-  if (shipment.cargoMode === 'LCL') {
+  if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (shipment.pickupWarehouseSiteId == null) throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
     const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
       .where(and(
@@ -385,14 +386,14 @@ async function assertIntakeReady(
   if (shipment.tradeDirection !== 'IMPORT' && shipment.tradeDirection !== 'EXPORT') {
     throw new ApiError(409, 'Vui lòng chọn hình thức nhập khẩu hoặc xuất khẩu.');
   }
-  if (shipment.cargoMode !== 'FCL' && shipment.cargoMode !== 'LCL') {
+  if (shipment.cargoMode !== CARGO_MODE.FCL && shipment.cargoMode !== CARGO_MODE.LCL) {
     throw new ApiError(409, 'Vui lòng chọn hình thức hàng FCL hoặc LCL.');
   }
   await assertReferenceIsActive(tx, shipment);
 
   const containers = await tx.select().from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipment.id));
-  if (shipment.cargoMode === 'LCL') {
+  if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (containers.length > 0) throw new ApiError(409, 'Hàng lẻ không được có container giả.');
     if (!shipment.expectedDeliveryDate) throw new ApiError(409, 'Hàng lẻ cần ngày giao dự kiến.');
     if (!shipment.packageType?.trim() || shipment.packageCount == null || shipment.packageCount < 1
