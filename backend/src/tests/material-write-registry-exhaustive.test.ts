@@ -29,7 +29,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
   ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
   ['forwarder.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
-  ['shipments.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],
+  ['shipments/core.routes.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],
   ['notifications.ts|POST|/:id/read', 'Per-user notification read marker.'],
   ['notifications.ts|POST|/read-all', 'Per-user notification read markers.'],
   ['notifications.ts|POST|/subscribe', 'Replaceable per-user browser push subscription.'],
@@ -37,7 +37,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['trips.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
   ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
   ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
-  ['shipments.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
+  ['shipments/core.routes.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
 ]);
 
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
@@ -136,48 +136,48 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/routes/ocr.ts'),
     marker: 'ocr.fuel-evidence-reviews.decision',
   }],
-  ['shipments.ts|POST|/:id/customer-events', {
+  ['shipments/coordination.routes.ts|POST|/:id/customer-events', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-coordination.service.ts'),
     marker: 'export async function createCustomerVisibleEvent(',
   }],
-  ['shipments.ts|POST|/:id/dispatch-handoffs', {
+  ['shipments/coordination.routes.ts|POST|/:id/dispatch-handoffs', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-handoff.service.ts'),
     marker: 'export async function createHandoff(',
   }],
-  ['shipments.ts|POST|/:id/dispatch-handoffs/:handoffId/resolve', {
+  ['shipments/coordination.routes.ts|POST|/:id/dispatch-handoffs/:handoffId/resolve', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-handoff.service.ts'),
     marker: 'export async function resolveHandoff(',
   }],
-  ['shipments.ts|POST|/:id/submit-for-dispatch', {
+  ['shipments/core.routes.ts|POST|/:id/submit-for-dispatch', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-intake.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_SUBMIT_FOR_DISPATCH',
   }],
-  ['shipments.ts|POST|/:id/dispatch', {
+  ['shipments/core.routes.ts|POST|/:id/dispatch', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-commands.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DISPATCH',
   }],
-  ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
+  ['shipments/dispatch-planning.routes.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plate', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN',
   }],
-  ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/estimates', {
+  ['shipments/dispatch-planning.routes.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/estimates', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE',
   }],
-  ['shipments.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plan', {
+  ['shipments/dispatch-planning.routes.ts|PATCH|/dispatch-detail-plan-rows/:fulfillmentId/plan', {
     serviceFile: path.resolve(process.cwd(), 'src/services/dispatch-planning-detail-plan.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE',
   }],
-  ['shipments.ts|POST|/:id/pod-reviews/:submissionId/review', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+  ['shipments/pod.routes.ts|POST|/:id/pod-reviews/:submissionId/review', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-review.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_REVIEW',
   }],
-  ['shipments.ts|POST|/:id/complete', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+  ['shipments/core.routes.ts|POST|/:id/complete', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-lifecycle.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COMPLETE',
   }],
-  ['shipments.ts|POST|/:id/fulfillments/:fulfillmentId/cancellation-disposition', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment.service.ts'),
+  ['shipments/core.routes.ts|POST|/:id/fulfillments/:fulfillmentId/cancellation-disposition', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-lifecycle.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CANCEL',
   }],
 ]);
