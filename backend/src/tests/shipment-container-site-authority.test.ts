@@ -88,7 +88,7 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
     const byNumber = new Map(rows.map((row) => [row.containerNumber, row]));
     assert.equal(byNumber.get('AAAU1000001')?.operationalSiteId, factory.id);
-    assert.equal(byNumber.get('AAAU1000001')?.routeId, route.id);
+    assert.equal(byNumber.get('AAAU1000001')?.routeId, null, 'factory selection must not derive a route');
     assert.equal(byNumber.get('AAAU1000001')?.customerAppointmentAt?.toISOString(), '2026-08-24T04:00:00.000Z');
     assert.equal(byNumber.get('BBHU2001007')?.operationalSiteId, null);
   });
@@ -104,8 +104,8 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     shipmentIds.push(shipment.id);
 
     await batchUpsertShipmentContainers(shipment.id, null, [
-      { containerTypeId: containerType.id, containerNumber: 'AAAU1000001', operationalSiteId: factoryA.id, customerAppointmentAt: '2026-08-24T04:00:00.000Z' },
-      { containerTypeId: containerType.id, containerNumber: 'BBHU2001007', operationalSiteId: factoryB.id, customerAppointmentAt: '2026-08-26T07:30:00.000Z' },
+      { containerTypeId: containerType.id, containerNumber: 'AAAU1000001', operationalSiteId: factoryA.id, routeId: routeA.id, customerAppointmentAt: '2026-08-24T04:00:00.000Z' },
+      { containerTypeId: containerType.id, containerNumber: 'BBHU2001007', operationalSiteId: factoryB.id, routeId: routeB.id, customerAppointmentAt: '2026-08-26T07:30:00.000Z' },
     ]);
 
     const [savedShipment] = await db.select({ routeId: s.shipments.routeId, expectedDeliveryDate: s.shipments.expectedDeliveryDate })
@@ -125,7 +125,7 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     assert.equal(byNumber.get('BBHU2001007')?.customerAppointmentAt?.toISOString(), '2026-08-26T07:30:00.000Z');
   });
 
-  test('rejects a route that does not match the container factory mapping', async () => {
+  test('persists a route chosen independently from the container factory mapping', async () => {
     const customer = await makeCustomer('Factory route match');
     const routeA = await makeRoute('MATCH-A');
     const routeB = await makeRoute('MATCH-B');
@@ -134,14 +134,38 @@ describe('shipment container site authority (SILVER L1 P2)', () => {
     const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
     shipmentIds.push(shipment.id);
 
+    await batchUpsertShipmentContainers(shipment.id, null, [{
+      containerTypeId: containerType.id,
+      containerNumber: 'CCCU2002008',
+      operationalSiteId: factory.id,
+      routeId: routeB.id,
+    }]);
+
+    const [saved] = await db.select({
+      operationalSiteId: s.shipmentContainers.operationalSiteId,
+      routeId: s.shipmentContainers.routeId,
+    }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipment.id));
+    assert.equal(saved?.operationalSiteId, factory.id);
+    assert.equal(saved?.routeId, routeB.id);
+  });
+
+  test('rejects an inactive route at the container reconciliation choke point', async () => {
+    const customer = await makeCustomer('Inactive route');
+    const route = await makeRoute('INACTIVE');
+    const factory = await makeFactorySite(customer.id, 'INACTIVE');
+    const containerType = await makeContainerType('INACTIVE');
+    const shipment = await createShipment({ customerId: customer.id, cargoMode: 'FCL' });
+    shipmentIds.push(shipment.id);
+    await db.update(s.routes).set({ deletedAt: new Date() }).where(eq(s.routes.id, route.id));
+
     await assert.rejects(
       () => batchUpsertShipmentContainers(shipment.id, null, [{
         containerTypeId: containerType.id,
-        containerNumber: 'CCCU2002008',
+        containerNumber: 'DDDU3003005',
         operationalSiteId: factory.id,
-        routeId: routeB.id,
+        routeId: route.id,
       }]),
-      /phải khớp với tuyến đã cấu hình cho nhà máy/,
+      /Tuyến đường của container không còn hiệu lực/,
     );
   });
 

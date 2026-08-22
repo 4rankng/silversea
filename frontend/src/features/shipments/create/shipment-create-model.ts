@@ -39,7 +39,7 @@ export interface ShipmentContainerDraft {
   key: string;
   containerNumber: string;
   containerTypeId: string;
-  /** Derived from this container's selected factory. */
+  /** Selected independently for this container. */
   routeId: string;
   pickupPortId: string;
   dropoffPortId: string;
@@ -166,7 +166,7 @@ export function getShipmentCreateReadiness(
       const label = `Container ${index + 1}`;
       if (!row.containerTypeId) issues.push(issue(`${prefix}-type`, `${label}: chọn loại container.`, 'cargo'));
       if (!row.operationalSiteId) issues.push(issue(`${prefix}-factory`, `${label}: chọn nhà máy.`, 'cargo'));
-      if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: nhà máy chưa được liên kết tuyến đường.`, 'cargo'));
+      if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: chọn tuyến đường.`, 'cargo'));
       if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));

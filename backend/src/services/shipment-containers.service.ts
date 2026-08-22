@@ -52,27 +52,19 @@ export async function listShipmentContainers(shipmentId: number, tx?: Tx) {
 /**
  * Per-container factory authority validation — the single choke point every
  * container write passes through (direct PUT, change-request review, CUS
- * reconcile). A container may name only an operational site that exists,
- * belongs to the shipment's customer, is active, not soft-deleted, and is a
- * FACTORY. No DB FK by repo convention, so this boundary owns integrity —
- * including the cross-customer IDOR the review path previously accepted.
+ * reconcile). Factory and route are selected independently for the temporary
+ * intake workflow; this still protects the factory's customer/type boundary.
  */
-async function loadContainerFactoryRoutes(
+async function assertContainerFactorySitesValid(
   tx: Tx,
   customerId: number,
   siteIds: number[],
-): Promise<Map<number, number>> {
-  if (siteIds.length === 0) return new Map();
+): Promise<void> {
+  if (siteIds.length === 0) return;
   const sites = await tx.select({
     id: s.operationalSites.id,
-    routeId: s.operationalSites.routeId,
-    activeRouteId: s.routes.id,
   })
     .from(s.operationalSites)
-    .leftJoin(s.routes, and(
-      eq(s.routes.id, s.operationalSites.routeId),
-      isNull(s.routes.deletedAt),
-    ))
     .where(and(
       inArray(s.operationalSites.id, siteIds),
       eq(s.operationalSites.customerId, customerId),
@@ -80,10 +72,20 @@ async function loadContainerFactoryRoutes(
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));
-  if (sites.length !== siteIds.length || sites.some((site) => site.routeId != null && site.activeRouteId == null)) {
-    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng, hoặc có tuyến đường không còn hiệu lực.');
+  if (sites.length !== siteIds.length) {
+    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
-  return new Map(sites.flatMap((site) => site.routeId == null ? [] : [[site.id, site.routeId] as const]));
+}
+
+/** Routes remain independent from factories, but must be active catalog rows. */
+async function assertContainerRoutesActive(tx: Tx, routeIds: number[]): Promise<void> {
+  if (routeIds.length === 0) return;
+  const routes = await tx.select({ id: s.routes.id })
+    .from(s.routes)
+    .where(and(inArray(s.routes.id, routeIds), isNull(s.routes.deletedAt)));
+  if (routes.length !== routeIds.length) {
+    throw new ApiError(409, 'Tuyến đường của container không còn hiệu lực.');
+  }
 }
 
 // ─── Container snapshot into trip ───────────────────────────────────────────
@@ -230,7 +232,13 @@ export async function reconcileShipmentContainersInTx(
       ? container.operationalSiteId
       : container.id != null ? currentById.get(container.id)?.operationalSiteId ?? null : null
   )).filter((id): id is number => id != null))];
-  const routeByFactoryId = await loadContainerFactoryRoutes(tx, shipment.customerId, resolvedSiteIds);
+  await assertContainerFactorySitesValid(tx, shipment.customerId, resolvedSiteIds);
+  const resolvedRouteIds = [...new Set(containers.map((container) => (
+    container.routeId !== undefined
+      ? container.routeId
+      : container.id != null ? currentById.get(container.id)?.routeId ?? null : null
+  )).filter((id): id is number => id != null))];
+  await assertContainerRoutesActive(tx, resolvedRouteIds);
   for (const container of synchronizedContainers) {
     const isUpdate = container.id != null && existingIds.has(container.id);
     // Per-container factory authority: an update that leaves the field
@@ -256,21 +264,14 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.dropoffPortId ?? null
         : null;
-    const factoryRouteId = resolvedSiteId == null ? null : routeByFactoryId.get(resolvedSiteId);
-    if (resolvedSiteId != null && container.routeId !== undefined && factoryRouteId == null) {
-      throw new ApiError(409, 'Nhà máy của container chưa được liên kết với một tuyến đường còn hiệu lực.');
-    }
-    if (factoryRouteId != null && container.routeId != null && container.routeId !== factoryRouteId) {
-      throw new ApiError(409, 'Tuyến đường của container phải khớp với tuyến đã cấu hình cho nhà máy.');
-    }
-    // The factory determines FCL route authority. A legacy row without a
-    // factory keeps its saved route until it is configured.
-    const resolvedRouteId = factoryRouteId
-      ?? (container.routeId !== undefined
-        ? container.routeId
-        : isUpdate
-          ? currentById.get(container.id as number)?.routeId ?? null
-          : null);
+    // A route remains authoritative per container, but is intentionally
+    // independent from the selected factory while factory-route data is not
+    // ready. Unspecified updates preserve the saved route.
+    const resolvedRouteId = container.routeId !== undefined
+      ? container.routeId
+      : isUpdate
+        ? currentById.get(container.id as number)?.routeId ?? null
+        : null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,

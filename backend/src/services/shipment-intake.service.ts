@@ -418,10 +418,7 @@ async function assertIntakeReady(
   if (activeRoutes.length !== routeIds.length) throw new ApiError(409, 'Tuyến đường của container không còn hiệu lực.');
   const factoryIds = [...new Set(containers.map((container) => container.operationalSiteId)
     .filter((id): id is number => id != null))];
-  const factories = await tx.select({
-    id: s.operationalSites.id,
-    routeId: s.operationalSites.routeId,
-  }).from(s.operationalSites)
+  const factories = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, factoryIds),
       eq(s.operationalSites.customerId, shipment.customerId),
@@ -429,11 +426,8 @@ async function assertIntakeReady(
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));
-  const routeByFactoryId = new Map(factories.map((factory) => [factory.id, factory.routeId]));
-  if (factories.length !== factoryIds.length || containers.some((container) => (
-    routeByFactoryId.get(container.operationalSiteId!) !== container.routeId
-  ))) {
-    throw new ApiError(409, 'Tuyến đường của container phải khớp với tuyến đã cấu hình cho nhà máy.');
+  if (factories.length !== factoryIds.length) {
+    throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
   const containerTypeIds = [...new Set(containers.map((container) => container.containerTypeId)
     .filter((id): id is number => id != null))];

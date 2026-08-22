@@ -158,7 +158,7 @@ Trạng thái chuyển sang `Mới tạo`.
 - **Tiền điều kiện:** Bảng giá đã ký cho Khách hàng × Tuyến đường tồn tại trong master data.
 - **Các bước:**
   1. CUS mở `/shipments/new`.
-  2. Nhập Số Bill/Booking, chọn Khách hàng, Tuyến đường, Nhà máy.
+  2. Nhập Số Bill/Booking, chọn Khách hàng, rồi chọn Tuyến đường và Nhà máy cho từng container. Trong giai đoạn tạm thời khi chưa có dữ liệu liên kết, hai lựa chọn này độc lập; cả hai vẫn là bắt buộc trước khi gửi Điều vận.
   3. Phân loại FCL: nhập số Cont (ví dụ `2 × 40HC`), KG, CBM.
   4. Lưu.
 - **Kết quả mong đợi (Pass):**

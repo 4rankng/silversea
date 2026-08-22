@@ -251,12 +251,16 @@ describe('shipment intake submission', () => {
     assert.equal(emptied.shipment.version, partial.shipment.version + 1);
   });
 
-  test('atomically moves a complete FCL draft to the dispatch queue and replays once', async () => {
+  test('submits a complete FCL draft with a route independent from its factory and replays once', async () => {
     const admin = await actor(Role.ADMIN);
     const ref = await references();
+    const [containerRoute] = await db.insert(s.routes)
+      .values({ name: `Independent intake route ${suffix}-${routeIds.length}` })
+      .returning({ id: s.routes.id });
+    routeIds.push(containerRoute.id);
     const [shipment] = await db.insert(s.shipments).values({
       customerId: ref.customer.id,
-      routeId: ref.route.id,
+      routeId: null,
       cargoMode: 'FCL',
       tradeDirection: 'IMPORT',
       blNumber: `BL-${suffix}`,
@@ -269,7 +273,7 @@ describe('shipment intake submission', () => {
     shipmentIds.push(shipment.id);
     await db.insert(s.shipmentContainers).values({
       shipmentId: shipment.id,
-      routeId: ref.route.id,
+      routeId: containerRoute.id,
       operationalSiteId: ref.site.id,
       containerTypeId: ref.containerType.id,
       containerNumber: 'MSCU6639871',

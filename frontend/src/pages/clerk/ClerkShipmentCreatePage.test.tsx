@@ -323,22 +323,27 @@ describe('ClerkShipmentCreatePage', () => {
     expect(screen.getAllByLabelText('Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['2026-08-20T09:30', '2026-08-20T09:30']);
   });
 
-  it('removes the FCL shipment-level factory/route section and derives each route from its factory', async () => {
+  it('removes the FCL shipment-level factory/route section and keeps each container route independent', async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      routes: [...bootstrap.routes, { id: 12, name: 'Cái Mép — Mỹ Phước' }],
+    });
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     expect(screen.queryByRole('heading', { name: 'Điểm vận hành & tuyến' })).toBeNull();
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toContain('Tuyến đường');
     await choose('Khách hàng', '7');
+    await choose('Tuyến đường', '12');
     await choose('Nhà máy', '41');
-    expect(screen.getByText('Cát Lái — Sóng Thần')).toBeTruthy();
+    expect(screen.getByText('Cái Mép — Mỹ Phước', { selector: '.csc-container-cell__display' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
       expect.objectContaining({ routeId: null, operationalSiteId: null }),
       expect.any(String),
     ));
     await waitFor(() => expect(mocks.saveContainers).toHaveBeenCalledWith(90, expect.objectContaining({
-      containers: [expect.objectContaining({ routeId: 11 })],
+      containers: [expect.objectContaining({ routeId: 12, operationalSiteId: 41 })],
     })));
   });
 

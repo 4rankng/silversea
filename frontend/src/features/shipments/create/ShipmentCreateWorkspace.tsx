@@ -250,7 +250,7 @@ export function ShipmentCreateWorkspace() {
         setContainers((current) => {
           const target = current.find((row) => !row.operationalSiteId) ?? current[0];
           return current.map((row) => row.key === target?.key
-            ? { ...row, operationalSiteId: String(site.id), routeId: site.routeId == null ? '' : String(site.routeId) }
+            ? { ...row, operationalSiteId: String(site.id) }
             : row);
         });
       } else {
@@ -478,7 +478,7 @@ export function ShipmentCreateWorkspace() {
               >
                 <Plus size={15} aria-hidden="true" />Thêm nhà máy
               </button>
-              <span>Chọn nhà máy cho từng container; tuyến đường được xác định tự động theo nhà máy.</span>
+              <span>Chọn nhà máy và tuyến đường riêng cho từng container.</span>
             </div>
             <ShipmentContainerEditor
               saving={Boolean(saving)}
@@ -536,18 +536,10 @@ export function ShipmentCreateWorkspace() {
                       hideLabel
                       required
                       value={row.operationalSiteId}
-                      onChange={(value) => {
-                        const selected = operationalSites.find((site) => String(site.id) === value);
-                        setContainers((current) => current.map((item) => item.key === row.key ? {
-                          ...item,
-                          operationalSiteId: value,
-                          routeId: selected?.routeId == null ? '' : String(selected.routeId),
-                        } : item));
-                        clearFeedback();
-                      }}
+                      onChange={(value) => updateContainer(row.key, 'operationalSiteId', value)}
                       options={operationalSites.map((site) => ({
                         value: String(site.id),
-                        label: `${site.shortName || site.name}${site.routeId == null ? ' — chưa cấu hình tuyến' : ''}`,
+                        label: site.shortName || site.name,
                         searchText: `${site.name} ${site.address ?? ''}`,
                       }))}
                       placeholder="Chọn nhà máy"
@@ -556,13 +548,24 @@ export function ShipmentCreateWorkspace() {
                     />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
-                    label="Tuyến đường"
+                    label="Tuyến đường *"
                     value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name ?? ''}
-                    placeholder={row.operationalSiteId ? 'Nhà máy chưa có tuyến' : 'Chọn nhà máy trước'}
+                    placeholder="Chọn tuyến đường"
                     fieldId={`container-${row.key}-route`}
                     error={issueByField.get(`container-${row.key}-route`)}
                   >
-                    <span aria-hidden="true" />
+                    <SearchableField
+                      id={`container-${row.key}-route`}
+                      label="Tuyến đường"
+                      hideLabel
+                      required
+                      value={row.routeId}
+                      onChange={(value) => updateContainer(row.key, 'routeId', value)}
+                      options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                      placeholder="Chọn tuyến đường"
+                      disabled={Boolean(saving)}
+                      error={issueByField.get(`container-${row.key}-route`)}
+                    />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Cảng nâng"
