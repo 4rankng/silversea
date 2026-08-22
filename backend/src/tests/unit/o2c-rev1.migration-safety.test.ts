@@ -48,6 +48,8 @@ describe('O2C clean-baseline safety', () => {
       { idx: 32, tag: '0032_add-factory-route' },
       { idx: 33, tag: '0033_backfill-legacy-shipment-cargo-mode' },
       { idx: 34, tag: '0034_audit-log-indexes' },
+      { idx: 35, tag: '0035_add-delivery-attempt-authority' },
+      { idx: 36, tag: '0036_backfill-delivery-attempts' },
     ]);
   });
 

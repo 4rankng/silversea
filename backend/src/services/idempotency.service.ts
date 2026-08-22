@@ -135,6 +135,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   BILLING_DOCUMENT_ADJUSTMENT_REQUEST: 'billing-documents.adjustments.request',
   PORTAL_DEBIT_NOTE_CONFIRM: 'portal.debit-notes.confirm',
   PORTAL_DEBIT_NOTE_DISPUTE: 'portal.debit-notes.dispute',
+  PORTAL_DELIVERY_RESPONSE: 'portal.delivery-response',
   SALARY_PERIOD_CLOSE: 'salary-periods.close',
   SALARY_PERIOD_REOPEN: 'salary-periods.reopen',
   SALARY_PERIOD_ADJUSTMENT: 'salary-periods.adjustments.request',

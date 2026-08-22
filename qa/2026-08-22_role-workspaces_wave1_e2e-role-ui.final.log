@@ -1,0 +1,139 @@
+Command: cd e2e && ./run_all.sh 11 13 15
+Started: 2026-08-22T22:21:59+08:00
+🔍 Checking servers...
+✅ Servers ready (frontend :7174, backend :3001)
+
+
+🧪 Running: 11-driver-portal
+────────────────────────────────────────────────────────────
+  ✅ TC-1101: DRIVER accesses portal — API returns 36 trips
+  ✅ TC-1102: ADMIN blocked from /my-trips → http://localhost:7174/dashboard
+  ✅ TC-1103: DRIVER blocked from /finance → http://localhost:7174/my-trips
+  ✅ TC-1104: DRIVER blocked from /users → http://localhost:7174/my-trips
+  ✅ TC-1105: ADMIN → /api/driver/me/trips → 404
+  ✅ TC-1106: Invalid token → 401
+  ✅ TC-1107: DRIVER blocked from /trips → http://localhost:7174/my-trips
+  ✅ TC-1110: Trip list page loaded
+  ⏭️  TC-1111: Empty state — SKIPPED
+  ✅ TC-1112: Navigated to trip detail: http://localhost:7174/my-trips/43822
+  ✅ TC-1113: Trip list API returns 36 trips with id field
+  ✅ TC-1114: Trip list cards render on page
+  ✅ TC-1120: Trip detail page loads for trip 43822
+  ✅ TC-1121: Trip detail page loaded (fuel section may vary)
+  ✅ TC-1122: Trip detail API returns data for trip 43822
+  ✅ TC-1123: Foreign trip 99999 → 404
+  ✅ TC-1124: Back button returns to trip list
+  ✅ TC-1125: Route/leg information visible on detail page
+  ✅ TC-1130: Earnings page loads
+  ✅ TC-1131: Earnings API returns 200
+  ✅ TC-1132: Earnings KPI/summary cards visible
+  ✅ TC-1133: Earnings breakdown content renders
+  ✅ TC-1134: Earnings API response contains all formula fields (17 keys)
+  ✅ TC-1140: Penalties page loads
+  ✅ TC-1141: Penalties API returns 0 items
+  ✅ TC-1142: Penalties page renders
+  ✅ TC-1143: Penalties page loaded (filter may use different selector)
+  ✅ TC-1144: No penalties to inspect — API returns valid empty list
+  ✅ TC-1150: Mobile trip list renders at 375px
+  ✅ TC-1151: Mobile trip detail renders at 375px
+  ✅ TC-1152: DRIVER sidebar: 4 menu items at mobile viewport
+  ✅ TC-1153: Mobile earnings page renders at 375px
+
+============================================================
+  Test Suite: 11-driver-portal
+  Total: 32  |  ✅ Pass: 31  |  ❌ Fail: 0  |  ⏭️  Skip: 1
+  Time: 93.2s
+============================================================
+
+
+🧪 Running: 13-forwarder-portal
+────────────────────────────────────────────────────────────
+  ✅ TC-1301: FORWARDER accesses portal, API returns 200
+  ✅ TC-1302: ADMIN redirected from /my-forwarder-trips
+  ✅ TC-1303: DRIVER redirected from /my-forwarder-trips
+  ✅ TC-1304: FORWARDER redirected from /trips
+  ✅ TC-1305: OPS trip catalog is read-only
+  ✅ TC-1306: ADMIN GET /api/forwarder/me/trips → 404
+  ✅ TC-1307: Invalid token → 401
+  ✅ TC-1308: FORWARDER sidebar limited (admin links: 0)
+  ✅ TC-1310: Operations work inbox displays (authoritative empty state)
+  ⏭️  TC-1311: Empty state — SKIPPED
+  ⏭️  TC-1312: Click card → embedded bill workspace — SKIPPED
+  ✅ TC-1313: Trip API response has no financial fields
+  ✅ TC-1314: Trips returned with status: {'COMPLETED'}
+  ✅ TC-1315: Trip cards show route/customer/date info
+  ⏭️  TC-1320: Trip detail displays — SKIPPED
+  ✅ TC-1321: Non-existent trip → 404
+  ⏭️  TC-1322: Back button — SKIPPED
+  ⏭️  TC-1323: Legs display — SKIPPED
+  ⏭️  TC-1324: Notes display — SKIPPED
+  ⏭️  TC-1325: Container section — SKIPPED
+  ⏭️  TC-1326: Expense section — SKIPPED
+  ⏭️  TC-1330: Container test — SKIPPED
+  ⏭️  TC-1331: Container test — SKIPPED
+  ⏭️  TC-1332: Container test — SKIPPED
+  ⏭️  TC-1333: Container test — SKIPPED
+  ⏭️  TC-1334: Container test — SKIPPED
+  ⏭️  TC-1335: Container test — SKIPPED
+  ⏭️  TC-1336: Container test — SKIPPED
+  ⏭️  TC-1340: Expense test — SKIPPED
+  ⏭️  TC-1341: Expense test — SKIPPED
+  ⏭️  TC-1342: Expense test — SKIPPED
+  ⏭️  TC-1343: Expense test — SKIPPED
+  ⏭️  TC-1344: Expense test — SKIPPED
+  ⏭️  TC-1345: Expense test — SKIPPED
+  ⏭️  TC-1346: Expense test — SKIPPED
+  ⏭️  TC-1347: Expense test — SKIPPED
+  ⏭️  TC-1350: Delete expense test — SKIPPED
+  ⏭️  TC-1351: Delete expense test — SKIPPED
+  ⏭️  TC-1352: Delete expense test — SKIPPED
+  ⏭️  TC-1353: Delete expense test — SKIPPED
+  ⏭️  TC-1354: Delete expense test — SKIPPED
+  ✅ TC-1360: ADMIN views forwarder expenses → 200
+  ✅ TC-1361: Filter by tripId → 200
+  ✅ TC-1362: Filter by expenseType=LIFTING → 200
+  ✅ TC-1363: FORWARDER GET /api/forwarder-expenses → 403
+  ✅ TC-1364: MANAGER views forwarder expenses → 200
+  ✅ TC-1370: Mobile trip list renders without horizontal overflow
+  ⏭️  TC-1371: Mobile trip detail — SKIPPED
+  ⏭️  TC-1372: Mobile container form — SKIPPED
+  ✅ TC-1373: Mobile navigation control is present without overflow
+
+============================================================
+  Test Suite: 13-forwarder-portal
+  Total: 50  |  ✅ Pass: 20  |  ❌ Fail: 0  |  ⏭️  Skip: 30
+  Time: 34.6s
+============================================================
+
+
+🧪 Running: 15_customer_portal
+────────────────────────────────────────────────────────────
+  ✅ TC-1501: Dedicated CUSTOMER fixture authenticates with CUSTOMER role
+  ✅ TC-1502: Customer-scoped shipment list returns 200
+  ✅ TC-1503: CUSTOMER remains blocked from operator shipment API
+  ✅ TC-1504: Foreign shipment direct ID returns 404
+  ✅ TC-1505: Debit-note list returns 200
+  ✅ TC-1506: Customer statement returns 200
+  ✅ TC-1510: Desktop navigation is customer-only and decision-focused
+  ✅ TC-1511: Desktop portal has no horizontal overflow
+  ✅ TC-1512: CUSTOMER /dashboard redirects to portal without office content
+  ✅ TC-1520: Mobile bottom navigation has three usable customer actions
+  ✅ TC-1521: Theo dõi lô hàng fits 375px viewport
+  ✅ TC-1522: Giấy báo nợ fits 375px viewport
+  ✅ TC-1523: Sao kê công nợ fits 375px viewport
+
+============================================================
+  Test Suite: 15_customer_portal
+  Total: 13  |  ✅ Pass: 13  |  ❌ Fail: 0  |  ⏭️  Skip: 0
+  Time: 7.8s
+============================================================
+
+============================================================
+  E2E Test Results
+============================================================
+  Suites: 3  |  Total: 95  |  ✅ Pass: 64  |  ❌ Fail: 0  |  ⏭️  Skip: 31
+============================================================
+
+📁 Screenshots & results: /tmp/silversea-e2e/20260822-222200-5131
+Exit status: 0
+Finished: 2026-08-22T22:24:15+08:00

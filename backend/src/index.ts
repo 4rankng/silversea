@@ -50,6 +50,7 @@ import notificationRoutes from './routes/notifications';
 import salaryRoutes from './routes/salary';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
+import { dashboardWorkInboxRouter, driverWorkInboxRouter, financialWorkInboxRouter, forwarderWorkInboxRouter, portalWorkInboxRouter, systemWorkInboxRouter } from './routes/work-inbox';
 
 await initAuditService();
 await initNotificationService();
@@ -175,8 +176,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/salary-periods', authMiddleware, salaryPeriodsRouter);
 // Admin CRUD for salary periods (defaults, overrides) — config authz
 app.use('/api/salary-periods', authMiddleware, casbinAuthz('config'), salaryPeriodsAdminRouter);
-app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverRoutes);
-app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderRoutes);
+app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverWorkInboxRouter, driverRoutes);
+app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), forwarderWorkInboxRouter, forwarderRoutes);
 app.use('/api/forwarder-expenses', authMiddleware, casbinAuthz('financial'), forwarderAdminRoutes);
 // GPS route-DB admin (backfill + recapture) — MANAGER/ADMIN only (gps-admin action).
 app.use('/api/admin/gps', authMiddleware, casbinAuthz('gps-admin'), adminGpsRoutes);
@@ -206,7 +207,10 @@ app.use('/api/trips', authMiddleware, tripRouteAuthz(), tripRoutes);
 // portal ships its own row-scoped surface in Wave 2.
 app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
 app.use('/api/recoverable-costs', authMiddleware, casbinAuthz('recoverable_costs'), recoverableCostRoutes);
-app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRoles(Role.CUSTOMER), portalRoutes);
+app.use('/api/portal', authMiddleware, casbinAuthz('customer_portal'), requireRoles(Role.CUSTOMER), portalWorkInboxRouter, portalRoutes);
+app.use('/api/financial', authMiddleware, casbinAuthz('financial'), financialWorkInboxRouter);
+app.use('/api/dashboard', authMiddleware, dashboardWorkInboxRouter);
+app.use('/api/system', authMiddleware, systemWorkInboxRouter);
 // Command-and-insight assistant (bot). Acts as the caller; office roles only.
 // 503 while BOT_ENABLE is off. Mounts before the catch-all /api.
 app.use('/api/agent', authMiddleware, casbinAuthz('agent'), agentRoutes);

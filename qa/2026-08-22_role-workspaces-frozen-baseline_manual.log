@@ -1,0 +1,26 @@
+Command: cd frontend && node /tmp/silversea-frozen-baseline.cjs
+Timestamp: 2026-08-22 Asia/Singapore
+Exit status: 0
+
+baseline-login-debug cus http://localhost:7174/login TransTing
+Quản lý vận tải và logistics
+Kết nối bảo mật
+
+CỔNG VẬN HÀNH
+
+Chào mừng trở lại
+
+baseline-login-debug dieuvan http://localhost:7174/login TransTing
+Quản lý vận tải và logistics
+Kết nối bảo mật
+
+CỔNG VẬN HÀNH
+
+Chào mừng trở lại
+
+{
+  "screenshotCount": 12,
+  "errors": []
+}
+
+Screenshots: qa/2026-08-22_role-workspaces_frozen-baseline/

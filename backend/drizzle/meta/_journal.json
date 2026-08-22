@@ -246,6 +246,20 @@
       "when": 1787395639316,
       "tag": "0034_audit-log-indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787401563567,
+      "tag": "0035_add-delivery-attempt-authority",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787401570589,
+      "tag": "0036_backfill-delivery-attempts",
+      "breakpoints": true
     }
   ]
 }

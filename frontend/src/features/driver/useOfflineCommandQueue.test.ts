@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildOfflineCommandKey,
   createMemoryCommandQueue,
@@ -88,5 +88,52 @@ describe('useOfflineCommandQueue', () => {
 
     rerender({ storageScope: 'driver:11' });
     expect(result.current.commands.map((command) => command.id)).toEqual(['driver-11-command']);
+  });
+
+  it('persists replay authority and keeps FIFO within one fulfillment while other fulfillments proceed', async () => {
+    const queue = createMemoryCommandQueue();
+    queue.enqueue({ id: 'a1', endpoint: 'driver.task.milestone', method: 'POST', path: '/a1', fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 4, actionKind: 'PICKED_UP', payload: { draft: 'kept' } });
+    queue.enqueue({ id: 'a2', endpoint: 'driver.task.complete', method: 'POST', path: '/a2', fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 5, actionKind: 'COMPLETE', payload: { draft: 'later' } });
+    queue.enqueue({ id: 'b1', endpoint: 'driver.task.milestone', method: 'POST', path: '/b1', fulfillmentScopeKey: 'fulfillment:2', expectedVersion: 2, actionKind: 'PICKED_UP', payload: { draft: 'other' } });
+    const sent: string[] = [];
+    await queue.drain(async (command) => {
+      sent.push(command.id);
+      return command.id === 'a1' ? { ok: false, kind: 'network', message: 'offline' } : { ok: true };
+    });
+    expect(sent).toEqual(['a1', 'b1']);
+    expect(queue.listAll().find((command) => command.id === 'a1')).toMatchObject({ expectedVersion: 4, actionKind: 'PICKED_UP', payload: { draft: 'kept' }, status: 'FAILED' });
+    sent.length = 0;
+    await queue.drain(async (command) => { sent.push(command.id); return { ok: true }; });
+    expect(sent).toEqual(['a1', 'a2']);
+  });
+
+  it('keeps a conflict visible and blocks later commands in that fulfillment across drains', async () => {
+    const queue = createMemoryCommandQueue();
+    queue.enqueue({ id: 'conflict', endpoint: 'driver.task.milestone', method: 'POST', path: '/a1', fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 4, actionKind: 'DELIVERED', payload: { draft: 'preserve me' } });
+    queue.enqueue({ id: 'blocked', endpoint: 'driver.task.complete', method: 'POST', path: '/a2', fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 5, actionKind: 'COMPLETE' });
+    await queue.drain(async (command) => command.id === 'conflict' ? { ok: false, kind: 'conflict', message: 'version' } : { ok: true });
+    const send = vi.fn(async () => ({ ok: true } as const));
+    await queue.drain(send);
+    expect(send).not.toHaveBeenCalled();
+    expect(queue.listVisible()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'conflict', status: 'CONFLICT', payload: { draft: 'preserve me' } })]));
+  });
+
+  it('makes non-retryable server rejection terminal, preserves its draft, and reports each command outcome by id', async () => {
+    const queue = createMemoryCommandQueue();
+    queue.enqueue({ id: 'rejected', endpoint: 'driver.task.complete', method: 'POST', path: '/a1', fulfillmentScopeKey: 'fulfillment:1', payload: { draft: 'keep rejected payload' } });
+    queue.enqueue({ id: 'later', endpoint: 'driver.task.complete', method: 'POST', path: '/a2', fulfillmentScopeKey: 'fulfillment:1', payload: { draft: 'later payload' } });
+    queue.enqueue({ id: 'other', endpoint: 'driver.task.complete', method: 'POST', path: '/b1', fulfillmentScopeKey: 'fulfillment:2' });
+    const sent: string[] = [];
+    const result = await queue.drain(async (command) => {
+      sent.push(command.id);
+      return command.id === 'rejected' ? { ok: false, kind: 'rejected', message: 'forbidden' } : { ok: true };
+    });
+    expect(sent).toEqual(['rejected', 'other']);
+    expect(result.statusById).toMatchObject({ rejected: 'REJECTED', later: 'QUEUED', other: 'DONE' });
+    expect(result.messageById.rejected).toBe('forbidden');
+    expect(queue.listAll().find((command) => command.id === 'rejected')).toMatchObject({ status: 'REJECTED', payload: { draft: 'keep rejected payload' } });
+    const replay = vi.fn(async () => ({ ok: true } as const));
+    await queue.drain(replay);
+    expect(replay).not.toHaveBeenCalled();
   });
 });

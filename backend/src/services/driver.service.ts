@@ -28,6 +28,7 @@ import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
+import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import {
   getDriverCompletionEvidenceStatus,
   listOrderedMilestoneTypesTx,
@@ -916,6 +917,23 @@ export async function recordDriverProgress(
 ): Promise<{ event: DriverProgressEvent; replayed: boolean }> {
   await assertTripOwnedByDriver(tripId, driverId);
 
+  if (isDriverFulfillmentMilestone(input.eventType)) {
+    const [trip] = await db.select({ fulfillmentId: s.trips.fulfillmentId })
+      .from(s.trips)
+      .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt)))
+      .limit(1);
+    if (!trip?.fulfillmentId) {
+      throw new ApiError(409, 'Chuyến cũ chưa có tác vụ giao nhận; không thể ghi mốc vận hành theo lộ trình mới.');
+    }
+    return recordDriverFulfillmentProgress({
+      fulfillmentId: trip.fulfillmentId,
+      driverId,
+      input,
+      recordedBy,
+      idempotencyKey,
+    });
+  }
+
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
     idempotencyKey,
@@ -983,6 +1001,34 @@ export async function recordDriverFulfillmentProgress(args: {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
       const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
+      const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
+      if (publication) {
+        const customerEvent = await createCustomerVisibleEvent({
+          shipmentId: ownedTrip.shipmentId,
+          eventKey: `driver-progress:${event.id}:${eventType}`,
+          eventType: 'MILESTONE',
+          title: publication.title,
+          message: publication.message,
+          occurredAt: event.occurredAt,
+          createdBy: args.recordedBy,
+        }, undefined, tx);
+        if (eventType === DriverProgressEventType.DELIVERED) {
+          const [scope] = await tx.select({
+            shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+          }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, ownedTrip.fulfillmentId)).limit(1);
+          await tx.insert(s.deliveryAttempts).values({
+            shipmentId: ownedTrip.shipmentId,
+            fulfillmentId: ownedTrip.fulfillmentId,
+            tripId: ownedTrip.tripId,
+            shipmentContainerId: scope?.shipmentContainerId ?? null,
+            driverProgressEventId: event.id,
+            customerVisibleEventId: customerEvent.id,
+            result: 'DELIVERED',
+            occurredAt: event.occurredAt,
+            recordedBy: args.recordedBy,
+          });
+        }
+      }
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
         await transitionTripStatus(
           ownedTrip.tripId,
@@ -1010,6 +1056,16 @@ export async function recordDriverFulfillmentProgress(args: {
     load: async (id, tx) => loadDriverProgressEventTx(tx, id),
   });
   return { event: result, replayed };
+}
+
+function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date): { title: string; message: string } | null {
+  // This is a deliberately closed allowlist. It must never interpolate notes,
+  // evidence references, expense details, incident text, or internal IDs.
+  const occurred = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(occurredAt);
+  if (eventType === DriverProgressEventType.PICKED_UP) return { title: 'Đã nhận hàng để vận chuyển', message: `Tài xế đã báo nhận hàng lúc ${occurred}.` };
+  if (eventType === DriverProgressEventType.LOADING_OR_RETURNING) return { title: 'Đang thực hiện chặng vận chuyển', message: `Tài xế đã báo đang thực hiện chặng vận chuyển lúc ${occurred}.` };
+  if (eventType === DriverProgressEventType.DELIVERED) return { title: 'Tài xế báo đã giao hàng', message: `Tài xế đã báo giao hàng lúc ${occurred}. Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.` };
+  return null;
 }
 
 export async function syncDriverFulfillmentStartSideEffects(

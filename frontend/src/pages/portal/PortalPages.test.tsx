@@ -12,7 +12,8 @@ const { apiGet, apiPost, apiGetBlob, apiGetForText } = vi.hoisted(() => ({
   apiGetForText: vi.fn(),
 }));
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../../lib/api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../lib/api')>(),
   api: { get: apiGet, post: apiPost, getBlob: apiGetBlob, getForText: apiGetForText },
 }));
 
@@ -23,6 +24,19 @@ import PortalStatementPage from './PortalStatementPage';
 import { CustomerPortalScopeProvider } from './CustomerPortalScope';
 
 const portalPagesCss = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalPages.css'), 'utf8');
+
+function portalInbox(items: Array<Record<string, unknown>>) {
+  return {
+    asOf: new Date().toISOString(),
+    timezone: 'Asia/Ho_Chi_Minh',
+    counts: { action: items.filter((item) => item.state === 'ACTION').length, waiting: items.filter((item) => item.state === 'WAITING').length, done: items.filter((item) => item.state === 'DONE').length },
+    page: 1,
+    limit: 100,
+    total: items.length,
+    totalPages: items.length ? 1 : 0,
+    items,
+  };
+}
 
 describe('customer portal pages', () => {
   beforeEach(() => {
@@ -45,20 +59,10 @@ describe('customer portal pages', () => {
     expect(portalPagesCss).toMatch(/\.portal-pagination \.ds-pagination__ellipsis\s*\{\s*display:\s*none;/);
   });
 
-  it('PortalShipmentsPage calls the row-scoped portal shipments endpoint', async () => {
-    apiGet.mockResolvedValue({
-      items: [
-        {
-          id: 42,
-          shipmentCode: 'SHP-2607-00042',
-          status: ShipmentStatus.DISPATCHED,
-          bookingRef: 'BK-42',
-          blNumber: 'BL-42',
-          expectedDeliveryDate: '2026-07-31',
-        },
-      ],
-      total: 1,
-    });
+  it('PortalShipmentsPage calls the role-scoped customer inbox endpoint', async () => {
+    apiGet.mockResolvedValue(portalInbox([{
+      id: 'shipment:42', entityType: 'shipment', entityId: 42, title: 'SHP-2607-00042', subtitle: 'Đang theo dõi vận chuyển', state: 'WAITING', priority: 30, dueAt: '2026-07-31T00:00:00.000Z', freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: null, targetRoute: '/portal/shipments/42', shipmentId: 42, containerSummary: 'MSBU1234567', deliveryTruth: 'IN_TRANSIT', deliveryResponseRequired: false, deliveryEventId: null, deliveryEventVersion: null,
+    }]));
 
     render(
       <MemoryRouter>
@@ -66,35 +70,23 @@ describe('customer portal pages', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&limit=10'));
-    expect(screen.getByText('BL-42')).toBeTruthy();
-    expect(screen.queryByText('SHP-2607-00042')).toBeNull();
-    expect(screen.getByText('Lịch cont sớm nhất')).toBeTruthy();
-    expect(screen.getByText('31/7/2026')).toBeTruthy();
-    expect(screen.getByLabelText('Tổng số lô hàng').textContent).toContain('1');
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/work-inbox?view=ACTION&page=1&limit=100'));
+    fireEvent.click(screen.getByRole('tab', { name: /Đang vận chuyển/ }));
+    expect(await screen.findByText('SHP-2607-00042')).toBeTruthy();
+    expect(screen.getByText('MSBU1234567')).toBeTruthy();
+    expect(screen.getAllByText('Đang vận chuyển').length).toBeGreaterThan(0);
   });
 
-  it('uses a normalized booking once when a customer shipment has no Bill number', async () => {
-    apiGet.mockResolvedValue({
-      items: [
-        {
-          id: 43,
-          shipmentCode: 'SHP-2607-00043',
-          status: ShipmentStatus.DISPATCHED,
-          bookingRef: '  BK-43  ',
-          blNumber: '   ',
-          expectedDeliveryDate: null,
-        },
-      ],
-      total: 1,
-    });
+  it('shows the authoritative shipment identity once in the customer inbox', async () => {
+    apiGet.mockResolvedValue(portalInbox([{
+      id: 'shipment:43', entityType: 'shipment', entityId: 43, title: 'SHP-2607-00043', subtitle: 'Đang theo dõi vận chuyển', state: 'ACTION', priority: 100, dueAt: null, freshnessAt: new Date().toISOString(), blockers: [], advisories: [], nextAction: { label: 'Phản hồi giao hàng', targetRoute: '/portal/shipments/43' }, targetRoute: '/portal/shipments/43', shipmentId: 43, containerSummary: null, deliveryTruth: 'DRIVER_REPORTED', deliveryResponseRequired: true, deliveryEventId: 91, deliveryEventVersion: 2,
+    }]));
 
     render(<MemoryRouter><PortalShipmentsPage /></MemoryRouter>);
 
-    expect(await screen.findByText('BK-43')).toBeTruthy();
-    expect(screen.getAllByText('BK-43')).toHaveLength(1);
-    expect(screen.queryByText(/Booking:/)).toBeNull();
-    expect(screen.queryByText('SHP-2607-00043')).toBeNull();
+    expect(await screen.findByText('SHP-2607-00043')).toBeTruthy();
+    expect(screen.getAllByText('SHP-2607-00043')).toHaveLength(1);
+    expect(screen.getByText('Tài xế báo đã giao')).toBeTruthy();
   });
 
   it('keeps a multi-customer portal list separated by the selected legal entity', async () => {
@@ -108,7 +100,7 @@ describe('customer portal pages', () => {
           ],
         };
       }
-      return { items: [], total: 0 };
+      return portalInbox([]);
     });
 
     render(
@@ -120,7 +112,7 @@ describe('customer portal pages', () => {
     );
 
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/portal/shipments?page=1&limit=10&customerId=9');
+      expect(apiGet).toHaveBeenCalledWith('/portal/work-inbox?view=ACTION&page=1&limit=100&customerId=9');
     });
   });
 

@@ -182,6 +182,7 @@ export const REPORTS = {
 
 // ─── Driver portal ─────────────────────────────────────────────────────────────
 export const DRIVER = {
+  WORK_INBOX: '/driver/me/work-inbox',
   TRIPS: '/driver/me/trips',
   TRIP_DETAIL: (id: number) => `/driver/me/trips/${id}`,
   EARNINGS: '/driver/me/earnings',
@@ -197,6 +198,7 @@ export const DRIVER = {
 
 // ─── Forwarder portal ───────────────────────────────────────────────────────────
 export const FORWARDER = {
+  WORK_INBOX: '/forwarder/me/work-inbox',
   TRIPS: '/forwarder/me/trips',
   TRIP_DETAIL: (id: number) => `/forwarder/me/trips/${id}`,
   ORDER_EXCHANGE_START: (shipmentId: number) => `/forwarder/me/shipments/${shipmentId}/order-exchange/start`,
@@ -212,6 +214,18 @@ export const FORWARDER = {
   ADVANCE_BALANCE: '/forwarder/me/advance-balance',
   UNLINKED_EXPENSES: '/forwarder/me/unlinked-expenses',
   SUPPLIERS: '/forwarder/me/suppliers',
+} as const;
+
+export const PORTAL = {
+  WORK_INBOX: '/portal/work-inbox',
+  DELIVERY_RESPONSE: (shipmentId: number, eventId: number) => `/portal/shipments/${shipmentId}/customer-events/${eventId}/delivery-response`,
+} as const;
+
+export const WORKSPACES = {
+  FINANCIAL_INBOX: '/financial/work-inbox',
+  DECISION_INBOX: '/dashboard/decision-inbox',
+  RESOLVE_DELIVERY_DISPUTE: (responseId: number) => `/dashboard/delivery-disputes/${responseId}/resolve`,
+  ADMIN_HEALTH: '/system/admin-health',
 } as const;
 
 // ─── Notifications ──────────────────────────────────────────────────────────────

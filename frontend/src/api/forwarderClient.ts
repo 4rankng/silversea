@@ -24,16 +24,16 @@ export const forwarderClient = {
     return api.get<ForwarderTripDetail>(FORWARDER.TRIP_DETAIL(id));
   },
 
-  collectPaperOrder: async (tripId: number, expectedVersion: number) => {
-    return api.post(`/forwarder/me/trips/${tripId}/paper-order-collection`, { expectedVersion });
+  collectPaperOrder: async (tripId: number, expectedVersion: number, idempotencyKey?: string) => {
+    return api.post(`/forwarder/me/trips/${tripId}/paper-order-collection`, { expectedVersion }, { idempotencyKey });
   },
 
-  startOrderExchange: async (shipmentId: number, expectedVersion: number) => {
-    return api.post(FORWARDER.ORDER_EXCHANGE_START(shipmentId), { expectedVersion });
+  startOrderExchange: async (shipmentId: number, expectedVersion: number, idempotencyKey?: string) => {
+    return api.post(FORWARDER.ORDER_EXCHANGE_START(shipmentId), { expectedVersion }, { idempotencyKey });
   },
 
-  completeOrderExchange: async (shipmentId: number, expectedVersion: number) => {
-    return api.post(FORWARDER.ORDER_EXCHANGE_COMPLETE(shipmentId), { expectedVersion });
+  completeOrderExchange: async (shipmentId: number, expectedVersion: number, idempotencyKey?: string) => {
+    return api.post(FORWARDER.ORDER_EXCHANGE_COMPLETE(shipmentId), { expectedVersion }, { idempotencyKey });
   },
 
   listSuppliers: async () => {

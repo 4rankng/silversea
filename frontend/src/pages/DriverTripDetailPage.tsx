@@ -36,9 +36,9 @@ import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolo
 import {
   buildOfflineCommandKey,
   type OfflineCommand,
-  type OfflineCommandSendResult,
   useOfflineCommandQueue,
 } from '../features/driver/useOfflineCommandQueue';
+import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
@@ -138,14 +138,6 @@ function valueOrDash(value: string | null | undefined): string {
  * a regex on `error.message` would silently misclassify every API error as a
  * network failure and trap the command in an infinite auto-retry loop.
  */
-function classifyCommandError(error: unknown): OfflineCommandSendResult {
-  if (error instanceof ApiError && (error.status === 409 || error.status === 428)) {
-    return { ok: false, kind: 'conflict', message: error.message };
-  }
-  const message = error instanceof Error ? error.message : 'Không thể đồng bộ lệnh.';
-  return { ok: false, kind: 'network', message };
-}
-
 function fuelEvidenceUploadErrorMessage(error: unknown): string {
   if (isGeolocationError(error)) {
     const issue = getLocationPermissionIssue(error);
@@ -188,19 +180,6 @@ function isMilestonePayload(payload: Record<string, unknown> | null): payload is
     && payload.kind === 'milestone'
     && typeof payload.eventType === 'string'
     && typeof payload.occurredAt === 'string'
-    && typeof payload.expectedVersion === 'number';
-}
-
-function isPodSubmitPayload(payload: Record<string, unknown> | null): payload is PodSubmitCommandPayload {
-  return isCommandPayload(payload)
-    && payload.kind === 'pod-submit'
-    && typeof payload.submissionId === 'number'
-    && typeof payload.expectedVersion === 'number';
-}
-
-function isCompletePayload(payload: Record<string, unknown> | null): payload is CompleteCommandPayload {
-  return isCommandPayload(payload)
-    && payload.kind === 'complete'
     && typeof payload.expectedVersion === 'number';
 }
 
@@ -295,74 +274,26 @@ export default function DriverTripDetailPage() {
     ]);
   }, [evidence, progress, taskDetail]);
 
-  const sendQueuedCommand = useCallback(async (command: OfflineCommand): Promise<OfflineCommandSendResult> => {
-    if (command.endpoint === 'driver.task.milestone' && isMilestonePayload(command.payload)) {
-      try {
-        await driverClient.recordProgress(command.payload.fulfillmentId, {
-          eventType: command.payload.eventType,
-          occurredAt: command.payload.occurredAt,
-          expectedVersion: command.payload.expectedVersion,
-          fulfillmentId: command.payload.fulfillmentId,
-        }, command.id);
-        return { ok: true };
-      } catch (error) {
-        return classifyCommandError(error);
-      }
-    }
-
-    if (command.endpoint === 'driver.task.pod.submit' && isPodSubmitPayload(command.payload)) {
-      try {
-        await driverClient.submitPod(
-          command.payload.fulfillmentId,
-          command.payload.submissionId,
-          { expectedVersion: command.payload.expectedVersion },
-          command.id,
-        );
-        return { ok: true };
-      } catch (error) {
-        return classifyCommandError(error);
-      }
-    }
-
-    if (command.endpoint === 'driver.task.complete' && isCompletePayload(command.payload)) {
-      try {
-        await driverClient.completeTrip(
-          command.payload.fulfillmentId,
-          { expectedVersion: command.payload.expectedVersion },
-          command.id,
-        );
-        return { ok: true };
-      } catch (error) {
-        return classifyCommandError(error);
-      }
-    }
-
-    return { ok: false, kind: 'conflict', message: 'Lệnh đồng bộ không hợp lệ.' };
-  }, []);
-
-  const runDrain = useCallback(async (successMessage?: string) => {
-    const result = await drain(sendQueuedCommand);
-    if (result.done > 0) {
+  const runDrain = useCallback(async (successMessage?: string, currentCommandId?: string) => {
+    const result = await drain(sendRoleOfflineCommand);
+    const currentStatus = currentCommandId ? result.statusById?.[currentCommandId] : undefined;
+    if (currentStatus === 'DONE' || (!currentCommandId && result.done > 0)) {
       await refreshAll();
-      if (successMessage) {
+      if (successMessage && currentStatus === 'DONE') {
         toast({ kind: 'success', message: successMessage });
       }
-    } else if (result.failed > 0) {
+    } else if (currentStatus === 'FAILED') {
       toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
-    } else if (result.conflicts > 0) {
-      // Surface the server's actual conflict reason (e.g. "Xe đang chạy chuyến
-      // TRP-…") instead of a generic reload prompt, so the driver understands
-      // the blocker. Fall back to the generic message if no reason is present.
-      const conflictReason = commands
-        .find((command) => command.status === 'CONFLICT' && command.lastError)
-        ?.lastError;
+    } else if (currentStatus === 'CONFLICT' || currentStatus === 'REJECTED') {
       toast({
         kind: 'error',
-        message: conflictReason ?? 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.',
+        message: result.messageById?.[currentCommandId!] ?? (currentStatus === 'CONFLICT' ? 'Dữ liệu đã đổi trên hệ thống. Vui lòng tải lại chuyến.' : 'Máy chủ từ chối lệnh. Bản nháp vẫn được giữ để kiểm tra.'),
       });
+    } else if (currentCommandId) {
+      toast({ kind: 'info', message: 'Lệnh đang chờ đồng bộ; chưa được xem là hoàn tất.' });
     }
     return result;
-  }, [commands, drain, refreshAll, sendQueuedCommand, toast]);
+  }, [drain, refreshAll, toast]);
 
   useEffect(() => {
     if (!online || tripCommands.length === 0) return;
@@ -395,6 +326,9 @@ export default function DriverTripDetailPage() {
       endpoint: 'driver.task.milestone',
       method: 'POST',
       path: `/driver/me/fulfillments/${validFulfillmentId}/progress`,
+      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
+      expectedVersion: trip.version,
+      actionKind: `MILESTONE_${eventType}`,
       payload: {
         kind: 'milestone',
         fulfillmentId: validFulfillmentId,
@@ -403,7 +337,7 @@ export default function DriverTripDetailPage() {
         expectedVersion: trip.version,
       },
     });
-    await runDrain('Đã ghi nhận mốc tiến độ.');
+    await runDrain('Đã ghi nhận mốc tiến độ.', idempotencyKey);
   }
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
@@ -476,6 +410,9 @@ export default function DriverTripDetailPage() {
       endpoint: 'driver.task.pod.submit',
       method: 'POST',
       path: `/driver/me/fulfillments/${validFulfillmentId}/pod/${submission.id}/submit`,
+      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
+      expectedVersion: submission.version,
+      actionKind: 'POD_SUBMIT',
       payload: {
         kind: 'pod-submit',
         fulfillmentId: validFulfillmentId,
@@ -483,7 +420,7 @@ export default function DriverTripDetailPage() {
         expectedVersion: submission.version,
       },
     });
-    await runDrain('Đã gửi e-POD để duyệt.');
+    await runDrain('Đã gửi e-POD để duyệt.', idempotencyKey);
   }
 
   async function handleCompleteTrip() {
@@ -494,13 +431,16 @@ export default function DriverTripDetailPage() {
       endpoint: 'driver.task.complete',
       method: 'POST',
       path: `/driver/me/fulfillments/${validFulfillmentId}/complete`,
+      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
+      expectedVersion: trip.version,
+      actionKind: 'COMPLETE',
       payload: {
         kind: 'complete',
         fulfillmentId: validFulfillmentId,
         expectedVersion: trip.version,
       },
     });
-    await runDrain('Chuyến đã chuyển sang chờ kế toán/CUS duyệt phí.');
+    await runDrain('Chuyến đã chuyển sang chờ kế toán/CUS duyệt phí.', idempotencyKey);
   }
 
   async function handleUploadFuelEvidence(file: File) {

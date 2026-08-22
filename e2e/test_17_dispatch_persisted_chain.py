@@ -638,6 +638,31 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         results.fail("TC-1701", "Seed customers include Long Minh", str(customers[:3]))
         return
 
+    customer_login = ensure_customer_test_account()
+    if not customer_login.get("token"):
+        results.fail("TC-1701C", "Customer portal fixture authenticates", str(customer_login))
+        return
+    users_payload = admin_api.get("/api/auth/users")
+    customer_user = next((row for row in first_items(users_payload) if row.get("username") == DEMO_ACCOUNTS["customer"]["identifier"]), None)
+    if not customer_user:
+        results.fail("TC-1701C", "Customer portal fixture resolves", str(users_payload))
+        return
+    customer_scope_status, customer_scope_body = request_json(
+        admin_api,
+        "PATCH",
+        f"/api/auth/users/{customer_user['id']}",
+        {"customerIds": [customer_id], "customerAccountType": "SINGLE_ENTITY"},
+        headers={
+            "If-Unmodified-Since": customer_user["updatedAt"],
+            "Idempotency-Key": f"{BOOKING_PREFIX}-customer-scope",
+        },
+    )
+    if customer_scope_status != 200:
+        results.fail("TC-1701C", "Customer portal fixture receives isolated customer scope", api_failure_detail(customer_scope_body))
+        return
+    customer_api = login_api("customer")
+    results.pass_("TC-1701C", "Customer portal fixture receives isolated customer scope", f"customer#{customer_id}")
+
     routes = require_json_array(
         results,
         "TC-1702",
@@ -1008,6 +1033,55 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
                 return
             results.pass_("TC-1714-1B", "Driver acknowledgement activates the trip", f"trip#{trip_id} version={trip_version}")
 
+    customer_inbox_status, customer_inbox_body = request_json(
+        customer_api,
+        "GET",
+        "/api/portal/work-inbox?view=ACTION&page=1&limit=100",
+    )
+    customer_inbox_items = first_items(customer_inbox_body)
+    delivery_item = next((row for row in customer_inbox_items if row.get("shipmentId") == shipment_id), None)
+    if customer_inbox_status != 200 or not delivery_item:
+        results.fail("TC-1714-5", "Customer sees the driver-reported safe delivery event", str(customer_inbox_body))
+        return
+    serialized_delivery_item = json.dumps(delivery_item, ensure_ascii=False).lower()
+    safe_projection = delivery_item.get("deliveryTruth") == "DRIVER_REPORTED" and all(
+        private_key not in serialized_delivery_item
+        for private_key in ("storagekey", "expense", "internalnote", "incident")
+    )
+    if not safe_projection:
+        results.fail("TC-1714-5", "Customer delivery event excludes private operational data", str(delivery_item))
+        return
+    results.pass_("TC-1714-5", "Customer sees only driver-reported safe delivery truth", f"event#{delivery_item.get('deliveryEventId')}")
+
+    response_key = f"{BOOKING_PREFIX}-customer-dispute"
+    dispute_payload = {
+        "expectedVersion": delivery_item["deliveryEventVersion"],
+        "decision": "DISPUTED",
+        "reason": "Số kiện thực nhận chưa khớp",
+    }
+    dispute_status, dispute_body = request_json(
+        customer_api,
+        "POST",
+        f"/api/portal/shipments/{shipment_id}/customer-events/{delivery_item['deliveryEventId']}/delivery-response",
+        dispute_payload,
+        headers={"Idempotency-Key": response_key},
+    )
+    if dispute_status != 201 or dispute_body.get("decision") != "DISPUTED":
+        results.fail("TC-1714-6", "Customer reports a delivery discrepancy", str(dispute_body))
+        return
+    replay_dispute_status, replay_dispute_body = request_json(
+        customer_api,
+        "POST",
+        f"/api/portal/shipments/{shipment_id}/customer-events/{delivery_item['deliveryEventId']}/delivery-response",
+        dispute_payload,
+        headers={"Idempotency-Key": response_key},
+    )
+    if replay_dispute_status != 200 or replay_dispute_body.get("replayed") is not True:
+        results.fail("TC-1714-6R", "Customer discrepancy replay returns the original response", str(replay_dispute_body))
+        return
+    results.pass_("TC-1714-6", "Customer reports a delivery discrepancy without blocking the workflow", f"response#{dispute_body.get('id')}")
+    results.pass_("TC-1714-6R", "Customer discrepancy replay returns the original response", f"response#{replay_dispute_body.get('id')}")
+
     pod_create_status, pod_create_body = request_json(
         driver_api,
         "POST",
@@ -1244,6 +1318,18 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         results.fail("TC-1723", "Direct close reports the completed trip ids", str(close_request_body))
         return
     results.pass_("TC-1723", "Accountant closes the shipment directly", f"shipment#{shipment_id} trip#{trip_id}")
+
+    finance_inbox_status, finance_inbox_body = request_json(
+        accountant_api,
+        "GET",
+        f"/api/financial/work-inbox?view=ACTION&page=1&limit=100&search={urllib.parse.quote(trip.get('tripCode') or str(trip_id))}",
+    )
+    finance_item = next((row for row in first_items(finance_inbox_body) if row.get("tripId") == trip_id), None)
+    advisory_codes = [advisory.get("code") for advisory in (finance_item or {}).get("advisories", [])]
+    if finance_inbox_status != 200 or not finance_item or finance_item.get("blockers") or "CUSTOMER_DISPUTE" not in advisory_codes:
+        results.fail("TC-1723A", "Accountant readiness treats the customer dispute as advisory", str(finance_inbox_body))
+        return
+    results.pass_("TC-1723A", "Accountant closes with accepted POD while the customer dispute remains advisory", f"trip#{trip_id}")
 
     replay_status, replay_body = request_json(
         accountant_api,

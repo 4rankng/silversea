@@ -2972,6 +2972,53 @@ export const customerVisibleEvents = pgTable('customer_visible_events', {
   index('customer_visible_events_customer_idx').on(table.customerId, table.occurredAt),
 ]);
 
+export const deliveryAttemptResultEnum = applicationEnum(['DELIVERED', 'PARTIAL', 'FAILED']);
+export const customerDeliveryDecisionEnum = applicationEnum(['CONFIRMED', 'DISPUTED']);
+
+// Immutable driver-reported delivery record. This deliberately separates the
+// driver claim from customer acceptance and accounting/POD readiness.
+export const deliveryAttempts = pgTable('delivery_attempts', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  fulfillmentId: integer('fulfillment_id').notNull(),
+  tripId: integer('trip_id').notNull(),
+  shipmentContainerId: integer('shipment_container_id'),
+  driverProgressEventId: integer('driver_progress_event_id').notNull(),
+  customerVisibleEventId: integer('customer_visible_event_id'),
+  result: deliveryAttemptResultEnum('result').notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+  recordedBy: integer('recorded_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('delivery_attempts_driver_progress_event_uniq').on(table.driverProgressEventId),
+  uniqueIndex('delivery_attempts_customer_visible_event_uniq').on(table.customerVisibleEventId).where(sql`${table.customerVisibleEventId} is not null`),
+  index('delivery_attempts_shipment_idx').on(table.shipmentId, table.occurredAt),
+  index('delivery_attempts_fulfillment_idx').on(table.fulfillmentId, table.occurredAt),
+  index('delivery_attempts_trip_idx').on(table.tripId, table.occurredAt),
+  index('delivery_attempts_container_idx').on(table.shipmentContainerId),
+]);
+
+export const customerDeliveryResponses = pgTable('customer_delivery_responses', {
+  id: serial('id').primaryKey(),
+  deliveryAttemptId: integer('delivery_attempt_id').notNull(),
+  customerVisibleEventId: integer('customer_visible_event_id').notNull(),
+  eventVersion: integer('event_version').notNull(),
+  customerId: integer('customer_id').notNull(),
+  decision: customerDeliveryDecisionEnum('decision').notNull(),
+  reason: text('reason'),
+  evidenceRefs: jsonb('evidence_refs').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  respondedBy: integer('responded_by').notNull(),
+  idempotencyKey: varchar('idempotency_key', { length: 100 }).notNull(),
+  respondedAt: timestamp('responded_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('customer_delivery_responses_event_version_customer_uniq').on(table.customerVisibleEventId, table.eventVersion, table.customerId),
+  uniqueIndex('customer_delivery_responses_idempotency_uniq').on(table.idempotencyKey),
+  index('customer_delivery_responses_attempt_idx').on(table.deliveryAttemptId),
+  index('customer_delivery_responses_customer_idx').on(table.customerId, table.respondedAt),
+  index('customer_delivery_responses_responded_by_idx').on(table.respondedBy),
+  check('customer_delivery_responses_dispute_reason_check', sql`${table.decision} <> 'DISPUTED' or (length(trim(${table.reason})) between 1 and 1000)`),
+]);
+
 export const customerEventAcknowledgements = pgTable('customer_event_acknowledgements', {
   id: serial('id').primaryKey(),
   eventId: integer('event_id')

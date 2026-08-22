@@ -253,22 +253,18 @@ def test_forwarder_portal(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/my-forwarder-trips')
     page.wait_for_load_state('networkidle')
-    try:
-        page.wait_for_selector('.ftrip-card', state='visible', timeout=10000)
-    except Exception:
-        # Keep the assertion below authoritative and preserve its diagnostic
-        # details when the API/render genuinely produces no cards.
-        pass
-    cards = page.locator('.ftrip-card:visible').count()
-    if len(fwd_trips) > 0 and cards > 0:
-        results.pass_('TC-1310', f'Trip list displays ({cards} visible cards, {len(fwd_trips)} API trips)')
-    elif len(fwd_trips) == 0 and page.get_by_text('Chưa có lệnh phù hợp').count() > 0:
-        results.pass_('TC-1310', 'Trip list displays the authoritative empty state')
+    rows = page.locator('.role-work-inbox__table tbody tr:visible').count()
+    empty_state = page.get_by_text('Không có việc trong nhóm này.')
+    has_empty_state = empty_state.count() > 0 and empty_state.first.is_visible()
+    heading = page.get_by_role('heading', name='Công việc vận hành')
+    if heading.count() > 0 and heading.first.is_visible() and (rows > 0 or has_empty_state):
+        state = f'{rows} visible inbox rows' if rows > 0 else 'authoritative empty state'
+        results.pass_('TC-1310', f'Operations work inbox displays ({state})')
     else:
         results.fail(
             'TC-1310',
-            'Trip list displays',
-            f'Expected visible cards for {len(fwd_trips)} API trips, found {cards}',
+            'Operations work inbox displays',
+            f'heading={heading.count()}, rows={rows}, emptyState={has_empty_state}',
         )
     ctx.screenshot(page, 'TC-1310_trip_list')
     page.close()
@@ -1047,14 +1043,13 @@ def test_forwarder_portal(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_timeout(1000)
     ctx.screenshot(page, 'TC-1370_mobile_trip_list')
     no_overflow = page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
-    has_mobile_content = (
-        page.locator('.ftrip-card:visible').count() > 0
-        or page.get_by_text('Chưa có lệnh phù hợp').count() > 0
-    )
+    mobile_rows = page.locator('.role-work-inbox__table tbody tr:visible').count()
+    mobile_empty = page.get_by_text('Không có việc trong nhóm này.')
+    has_mobile_content = mobile_rows > 0 or (mobile_empty.count() > 0 and mobile_empty.first.is_visible())
     if '/my-forwarder-trips' in page.url and no_overflow and has_mobile_content:
         results.pass_('TC-1370', 'Mobile trip list renders without horizontal overflow')
     else:
-        results.fail('TC-1370', 'Mobile trip list', f'URL={page.url}, noOverflow={no_overflow}, cards={page.locator(".ftrip-card").count()}')
+        results.fail('TC-1370', 'Mobile work inbox', f'URL={page.url}, noOverflow={no_overflow}, rows={mobile_rows}')
     page.close()
 
     # TC-1371: Mobile trip detail

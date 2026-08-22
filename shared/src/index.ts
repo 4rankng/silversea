@@ -19,7 +19,7 @@ export {
   NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_EVIDENCE_TYPE_LABELS, DEFAULT_NO_INVOICE_EVIDENCE_TYPES, NO_INVOICE_POLICY_DEFAULTS,
   NO_INVOICE_REQUIRED_SCOPE, NO_INVOICE_APPROVAL_TITLES, NO_INVOICE_APPROVAL_TITLE_LABELS, NO_INVOICE_DEFAULT_CATEGORY_ALIASES,
   NotificationType, NOTIFICATION_TYPE_LABELS, PUSH_RULES,
-  CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, NOTIFICATIONS, SALARY,
+  CONFIG, FINANCIAL, REPORTS, DRIVER, SYSTEM, AUTH, TRIPS, SHIPMENTS, CATALOGS, FORWARDER, PORTAL, WORKSPACES, NOTIFICATIONS, SALARY,
   TRACKING,
   CarrierType, SettlementMethod, ApprovalStatus, DebitNoteMode,
   TruckCapRole,
@@ -32,6 +32,19 @@ export {
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, NoInvoiceApprovalTitle, DispatchClassification } from './constants';
+export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
+export type {
+  WorkInboxItemBase,
+  WorkInboxResponse,
+  WorkInboxResponseOf,
+  OperationsWorkInboxItem,
+  DriverWorkInboxItem,
+  CustomerWorkInboxItem,
+  AccountantWorkInboxItem,
+  ManagerWorkInboxItem,
+  AdminHealthInboxItem,
+  CustomerDeliveryResponseInput,
+} from './schemas/work-inbox';
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,

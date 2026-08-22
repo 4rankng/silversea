@@ -34,6 +34,10 @@ export interface QueuedOp {
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   body: unknown;
+  /** Explicit workflow scope prevents commands for one fulfillment blocking another. */
+  fulfillmentScopeKey?: string;
+  expectedVersion?: number;
+  actionKind?: string;
   status: 'QUEUED' | 'IN_PROGRESS' | 'DONE' | 'FAILED' | 'CONFLICT';
   retryCount: number;
   /** Last error message (for FAILED) or server conflict message (CONFLICT). */
@@ -47,7 +51,7 @@ export interface QueuedOp {
 /** Result of a drain attempt on a single op. Returned by the `send` callback. */
 export type SendResult =
   | { ok: true; response?: unknown }
-  | { ok: false; kind: 'network' | 'conflict'; message?: string };
+  | { ok: false; kind: 'network' | 'conflict' | 'server'; message?: string };
 
 type QueueListener = (ops: QueuedOp[]) => void;
 
@@ -188,6 +192,12 @@ export class OfflineQueue {
     return all.filter((o) => o.status !== 'DONE' && o.status !== 'CONFLICT');
   }
 
+  /** Ops that still need user attention, including terminal conflicts. */
+  async listVisible(): Promise<QueuedOp[]> {
+    const all = await this.listAll();
+    return all.filter((o) => o.status !== 'DONE');
+  }
+
   /** Peek the next op to drain (oldest pending). */
   async peek(): Promise<QueuedOp | null> {
     const pending = await this.listQueued();
@@ -205,6 +215,9 @@ export class OfflineQueue {
     path: string;
     body?: unknown;
     id?: string;
+    fulfillmentScopeKey?: string;
+    expectedVersion?: number;
+    actionKind?: string;
   }): Promise<QueuedOp> {
     const now = new Date().toISOString();
     const op: QueuedOp = {
@@ -213,6 +226,9 @@ export class OfflineQueue {
       method: input.method,
       path: input.path,
       body: input.body ?? null,
+      fulfillmentScopeKey: input.fulfillmentScopeKey,
+      expectedVersion: input.expectedVersion,
+      actionKind: input.actionKind,
       status: 'QUEUED',
       retryCount: 0,
       lastError: null,
@@ -224,17 +240,31 @@ export class OfflineQueue {
     return op;
   }
 
+  /** Queue a versioned fulfillment command with all replay authority fields. */
+  async enqueueFulfillmentCommand(input: {
+    endpoint: string;
+    method: QueuedOp['method'];
+    path: string;
+    body: unknown;
+    fulfillmentScopeKey: string;
+    expectedVersion: number;
+    actionKind: string;
+    id?: string;
+  }): Promise<QueuedOp> {
+    return this.enqueue(input);
+  }
+
   /** Subscribe to queue changes (enqueue/drain/status). Returns unsubscribe. */
   subscribe(listener: QueueListener): () => void {
     this.listeners.add(listener);
     // Fire once immediately so the UI can render the current backlog.
-    this.listQueued().then((ops) => listener(ops)).catch(() => listener([]));
+    this.listVisible().then((ops) => listener(ops)).catch(() => listener([]));
     return () => { this.listeners.delete(listener); };
   }
 
   private async notify(): Promise<void> {
     if (this.listeners.size === 0) return;
-    const ops = await this.listQueued().catch(() => []);
+    const ops = await this.listVisible().catch(() => []);
     for (const l of this.listeners) l(ops);
   }
 
@@ -261,9 +291,16 @@ export class OfflineQueue {
     if (this.drainInFlight) return { done: 0, failed: 0, conflicts: 0 };
     this.drainInFlight = true;
     let done = 0, failed = 0, conflicts = 0;
+    const all = await this.listAll();
+    const blockedScopes = new Set(
+      all
+        .filter((op) => op.status === 'CONFLICT' && op.fulfillmentScopeKey)
+        .map((op) => op.fulfillmentScopeKey as string),
+    );
     try {
       const pending = await this.listQueued();
       for (const op of pending) {
+        if (op.fulfillmentScopeKey && blockedScopes.has(op.fulfillmentScopeKey)) continue;
         await this.markStatus(op.id, 'IN_PROGRESS', null);
         const result = await send(op).catch((err: unknown): SendResult => ({
           ok: false,
@@ -277,6 +314,7 @@ export class OfflineQueue {
           // 409 = same key, different body. Terminal — a client bug, not a
           // network blip. Don't retry (Q23: never silently overwrite).
           await this.markStatus(op.id, 'CONFLICT', result.message ?? null);
+          if (op.fulfillmentScopeKey) blockedScopes.add(op.fulfillmentScopeKey);
           conflicts++;
         } else {
           // Network/5xx — retriable. Bump retryCount; next drain retries.
@@ -285,6 +323,7 @@ export class OfflineQueue {
             cur.retryCount = (cur.retryCount ?? 0) + 1;
             await this.store.put(cur);
           }
+          if (op.fulfillmentScopeKey) blockedScopes.add(op.fulfillmentScopeKey);
           failed++;
         }
       }

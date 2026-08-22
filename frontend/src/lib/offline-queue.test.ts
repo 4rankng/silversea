@@ -150,6 +150,22 @@ describe('offline-queue — subscribe', () => {
   });
 });
 
+describe('offline-queue — fulfillment FIFO', () => {
+  it('stores versioned command authority and persistently blocks a conflicted fulfillment only', async () => {
+    const q = mkQueue();
+    await q.enqueueFulfillmentCommand({ id: 'a1', endpoint: 'driver.progress', method: 'POST', path: '/a1', body: { note: 'draft' }, fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 3, actionKind: 'DELIVERED' });
+    await q.enqueueFulfillmentCommand({ id: 'a2', endpoint: 'driver.complete', method: 'POST', path: '/a2', body: {}, fulfillmentScopeKey: 'fulfillment:1', expectedVersion: 4, actionKind: 'COMPLETE' });
+    await q.enqueueFulfillmentCommand({ id: 'b1', endpoint: 'driver.progress', method: 'POST', path: '/b1', body: {}, fulfillmentScopeKey: 'fulfillment:2', expectedVersion: 2, actionKind: 'PICKED_UP' });
+    const firstSend = vi.fn(async (op: QueuedOp): Promise<SendResult> => op.id === 'a1' ? { ok: false, kind: 'conflict', message: 'version' } : { ok: true });
+    await q.drain(firstSend);
+    expect(firstSend.mock.calls.map(([op]) => op.id)).toEqual(['a1', 'b1']);
+    const secondSend = vi.fn(async (): Promise<SendResult> => ({ ok: true }));
+    await q.drain(secondSend);
+    expect(secondSend).not.toHaveBeenCalled();
+    expect(await q.listVisible()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'a1', status: 'CONFLICT', expectedVersion: 3, actionKind: 'DELIVERED', body: { note: 'draft' } })]));
+  });
+});
+
 describe('offline-queue — uuidv4', () => {
   it('generates distinct RFC 4122 v4 ids', () => {
     const a = uuidv4();

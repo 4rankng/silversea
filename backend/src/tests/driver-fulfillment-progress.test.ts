@@ -32,6 +32,7 @@ import {
 } from '../services/trip-pod.service';
 import { storageService } from '../services/storage.service';
 import { transitionTripStatus } from '../services/trip-status-machine.service';
+import { driverWorkInbox } from '../services/work-inbox.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const originalStorageUpload = storageService.upload.bind(storageService);
@@ -44,6 +45,7 @@ const createdTripPhotoIds: number[] = [];
 const createdProgressEventIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
+const createdShipmentContainerIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdDriverIds: number[] = [];
 const createdUserIds: number[] = [];
@@ -361,6 +363,113 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.equal(Number(total ?? 0), 1);
   });
 
+  test('publishes only safe driver milestones and creates replay-safe LCL/FCL delivery attempts', async () => {
+    for (const scope of ['LCL', 'FCL'] as const) {
+      const actor = await createDriverPrincipal(`safe-delivery-${scope.toLowerCase()}`);
+      const fixture = await createOwnedFulfillmentTrip(actor.driver.id);
+
+      let expectedContainerId: number | null = null;
+      if (scope === 'FCL') {
+        const [container] = await db.insert(s.shipmentContainers).values({
+          shipmentId: fixture.shipment.id,
+          containerNumber: `SAFE-${suffix}`.slice(0, 50),
+          routeId: fixture.shipment.routeId,
+          createdBy: actor.user.id,
+        }).returning();
+        createdShipmentContainerIds.push(container.id);
+        expectedContainerId = container.id;
+        await db.update(s.shipments).set({ cargoMode: 'FCL' })
+          .where(eq(s.shipments.id, fixture.shipment.id));
+        await db.update(s.shipmentFulfillments).set({
+          cargoMode: 'FCL',
+          fulfillmentType: 'FCL_CONTAINER',
+          shipmentContainerId: container.id,
+        }).where(eq(s.shipmentFulfillments.id, fixture.fulfillment.id));
+      }
+
+      const occurredAt = [
+        '2026-08-01T08:00:00.000Z',
+        '2026-08-01T09:00:00.000Z',
+        '2026-08-01T10:00:00.000Z',
+        '2026-08-01T11:00:00.000Z',
+      ];
+      let deliveredKey = '';
+      let deliveredEventId = 0;
+      for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+        const key = `safe-${scope}-${eventType}-${suffix}`;
+        usedIdempotencyKeys.push(key);
+        const result = await recordDriverFulfillmentProgress({
+          fulfillmentId: fixture.fulfillment.id,
+          driverId: actor.driver.id,
+          recordedBy: actor.user.id,
+          idempotencyKey: key,
+          input: {
+            eventType,
+            occurredAt: occurredAt[index]!,
+            note: 'PRIVATE incident expense storage://must-never-publish',
+            expectedVersion: index === 0 ? fixture.trip.version : undefined,
+          },
+        });
+        createdProgressEventIds.push(result.event.id);
+        if (eventType === DriverProgressEventType.DELIVERED) {
+          deliveredKey = key;
+          deliveredEventId = result.event.id;
+        }
+      }
+
+      const portalEvents = await db.select().from(s.customerVisibleEvents)
+        .where(eq(s.customerVisibleEvents.shipmentId, fixture.shipment.id));
+      assert.equal(portalEvents.length, 3, 'only pickup/loading/delivery are portal safe');
+      const serialized = JSON.stringify(portalEvents.map((event) => event.contentSnapshot));
+      assert.doesNotMatch(serialized, /PRIVATE|incident|expense|storage:\/\//i);
+      assert.match(serialized, /Tài xế báo đã giao hàng/);
+      assert.match(serialized, /chưa phải xác nhận chấp nhận giao hàng cuối cùng/);
+
+      const [attempt] = await db.select().from(s.deliveryAttempts)
+        .where(eq(s.deliveryAttempts.driverProgressEventId, deliveredEventId));
+      assert.ok(attempt);
+      assert.equal(attempt.shipmentContainerId, expectedContainerId);
+      assert.equal(attempt.fulfillmentId, fixture.fulfillment.id);
+
+      const inboxAfterDelivery = await driverWorkInbox(actor.driver.id, { page: 1, limit: 100 });
+      const inboxItem = inboxAfterDelivery.items.find((item) => item.tripId === fixture.trip.id);
+      assert.equal(inboxItem?.nextAction?.label, 'Nộp POD');
+      assert.equal(inboxItem?.milestone, 'Nộp POD giao hàng');
+
+      const replay = await recordDriverFulfillmentProgress({
+        fulfillmentId: fixture.fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: deliveredKey,
+        input: {
+          eventType: DriverProgressEventType.DELIVERED,
+          occurredAt: occurredAt[3]!,
+          note: 'PRIVATE incident expense storage://must-never-publish',
+          expectedVersion: undefined,
+        },
+      });
+      assert.equal(replay.replayed, true);
+      assert.equal(replay.event.id, deliveredEventId);
+      const [{ attempts }] = await db.select({ attempts: sql<number>`count(*)::int` })
+        .from(s.deliveryAttempts)
+        .where(eq(s.deliveryAttempts.driverProgressEventId, deliveredEventId));
+      assert.equal(Number(attempts), 1);
+
+      await assertApiError(409, () => recordDriverFulfillmentProgress({
+        fulfillmentId: fixture.fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: deliveredKey,
+        input: {
+          eventType: DriverProgressEventType.DELIVERED,
+          occurredAt: '2026-08-01T11:05:00.000Z',
+          note: 'different payload',
+          expectedVersion: undefined,
+        },
+      }), /Khóa giao dịch trùng nhưng nội dung khác/);
+    }
+  });
+
   test('driver cannot confirm order receipt before Ops hands over the paper order', async () => {
     const actor = await createDriverPrincipal('paper-order-gate');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
@@ -383,6 +492,46 @@ describe('Phase 4 driver fulfillment execution', () => {
         expectedVersion: trip.version,
       },
     }), /Ops chưa xác nhận giao lệnh gốc/);
+  });
+
+  test('Driver inbox follows order acknowledgement and waits truthfully while POD is under review', async () => {
+    const actor = await createDriverPrincipal('inbox-sequence');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+    const initial = await driverWorkInbox(actor.driver.id, { page: 1, limit: 100 });
+    const initialItem = initial.items.find((item) => item.tripId === trip.id);
+    assert.equal(initialItem?.nextAction?.label, 'Xác nhận đã nhận lệnh');
+    assert.equal(initialItem?.milestone, 'Xác nhận đã nhận lệnh gốc');
+
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+      const key = `inbox-sequence-${eventType}-${suffix}`;
+      usedIdempotencyKeys.push(key);
+      const result = await recordDriverFulfillmentProgress({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: key,
+        input: { eventType, occurredAt: isoHour(8 + index, 0), expectedVersion: index === 0 ? trip.version : undefined },
+      });
+      createdProgressEventIds.push(result.event.id);
+    }
+    const delivered = await driverWorkInbox(actor.driver.id, { page: 1, limit: 100 });
+    assert.equal(delivered.items.find((item) => item.tripId === trip.id)?.nextAction?.label, 'Nộp POD');
+
+    const [submission] = await db.insert(s.tripPodSubmissions).values({
+      tripId: trip.id,
+      fulfillmentId: fulfillment.id,
+      submissionVersion: 1,
+      sourceTripVersion: trip.version,
+      status: 'SUBMITTED',
+      submittedBy: actor.user.id,
+      submittedAt: new Date(),
+    }).returning();
+    createdPodSubmissionIds.push(submission.id);
+    const waiting = await driverWorkInbox(actor.driver.id, { page: 1, limit: 100 });
+    const waitingItem = waiting.items.find((item) => item.tripId === trip.id);
+    assert.equal(waitingItem?.state, 'WAITING');
+    assert.equal(waitingItem?.milestone, 'Chờ duyệt POD');
+    assert.equal(waitingItem?.nextAction, null);
   });
 
   test('receiving an assigned order starts the driver-owned fulfillment', async () => {
@@ -466,7 +615,7 @@ describe('Phase 4 driver fulfillment execution', () => {
         idempotencyKey: key,
         input: {
           eventType,
-          occurredAt: isoHour(createdProgressEventIds.length + 8, 0),
+          occurredAt: isoHour(12 + index, 0),
           expectedVersion: index === 0 ? trip.version : undefined,
         },
       });
@@ -789,6 +938,7 @@ after(async () => {
       await db.delete(s.tripPodSubmissions).where(inArray(s.tripPodSubmissions.id, createdPodSubmissionIds));
     }
     if (createdProgressEventIds.length > 0) {
+      await db.delete(s.deliveryAttempts).where(inArray(s.deliveryAttempts.driverProgressEventId, createdProgressEventIds));
       await db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.id, createdProgressEventIds));
     }
     if (createdTripIds.length > 0) {
@@ -806,6 +956,9 @@ after(async () => {
     }
     if (createdFulfillmentIds.length > 0) {
       await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
+    }
+    if (createdShipmentContainerIds.length > 0) {
+      await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.id, createdShipmentContainerIds));
     }
     if (createdShipmentIds.length > 0) {
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));

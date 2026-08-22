@@ -1,146 +1,15 @@
-import { useState, useEffect } from 'react';
-import { CalendarClock, ChevronRight, Package } from 'lucide-react';
-import { api } from '../../lib/api';
-import { SHIPMENT_STATUS_LABELS, ShipmentStatus } from '@tingting/shared';
-import { ClickableCard } from '../../components/shared/ClickableCard';
-import { EmptyState, Pagination } from '../../design-system';
-import { routes } from '../../lib/routes';
-import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
-import './PortalPages.css';
-
-interface ShipmentRow {
-  id: number;
-  status: ShipmentStatus;
-  bookingRef: string | null;
-  blNumber: string | null;
-  expectedDeliveryDate: string | null;
-}
-
-function customerShipmentReference(shipment: Pick<ShipmentRow, 'blNumber' | 'bookingRef'>) {
-  const billNumber = shipment.blNumber?.trim() || null;
-  const bookingNumber = shipment.bookingRef?.trim() || null;
-  return {
-    primary: billNumber || bookingNumber || 'Chưa có số Bill/Book',
-    bookingNumber: billNumber ? bookingNumber : null,
-  };
-}
-
-function shipmentStatusClass(status: ShipmentStatus) {
-  if (status === ShipmentStatus.DISPATCHED || status === ShipmentStatus.IN_TRANSIT || status === ShipmentStatus.PENDING_EXPENSE_APPROVAL) return 'portal-status portal-status--action';
-  if (status === ShipmentStatus.COMPLETED) return 'portal-status portal-status--success';
-  if (status === 'CANCELED') return 'portal-status portal-status--danger';
-  return 'portal-status';
-}
-
-function formatDeliveryDate(value: string | null) {
-  return value ? new Date(value).toLocaleDateString('vi-VN') : 'Chưa cập nhật';
-}
+import { RoleWorkInbox } from '../../components/work-inbox/RoleWorkInbox';
+import { useCustomerPortalScope } from './CustomerPortalScope';
 
 export default function PortalShipmentsPage() {
-  const { selectedCustomerId, ready: customerScopeReady } = useCustomerPortalScope();
-  const [items, setItems] = useState<ShipmentRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    if (!customerScopeReady) return;
-    let active = true;
-    setLoading(true);
-    setError(null);
-    api.get<{ items: ShipmentRow[]; total: number }>(
-      withCustomerScope(`/portal/shipments?page=${page}&limit=10`, selectedCustomerId),
-    )
-      .then((res) => {
-        if (!active) return;
-        setItems(res.items);
-        setTotal(res.total);
-      })
-      .catch(() => {
-        if (active) setError('Không thể tải danh sách lô hàng');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => { active = false; };
-  }, [customerScopeReady, page, selectedCustomerId]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [selectedCustomerId]);
-
-  const totalPages = Math.max(1, Math.ceil(total / 10));
-
+  const { selectedCustomerId, ready } = useCustomerPortalScope();
   return (
-    <div className="portal-page">
-      <header className="portal-page__header">
-        <div className="portal-page__title">
-          <span className="portal-page__eyebrow">Theo dõi vận chuyển</span>
-          <h1>Lô hàng của tôi</h1>
-          <p>Theo dõi tiến độ giao nhận và mở hồ sơ để xem chứng từ của từng lô hàng.</p>
-        </div>
-        <div className="portal-page__headline-stat" aria-label="Tổng số lô hàng">
-          <span>Tổng lô hàng</span>
-          <strong>{loading ? '—' : total.toLocaleString('vi-VN')}</strong>
-          <small>Thuộc tài khoản đang xem</small>
-        </div>
-      </header>
-
-      {loading ? (
-        <div className="portal-panel portal-loading" role="status" aria-label="Đang tải danh sách lô hàng">
-          <span className="portal-loading__bar" />
-          <span className="portal-loading__bar" />
-          <span className="portal-loading__bar" />
-        </div>
-      ) : error ? (
-        <div className="portal-panel portal-state portal-state--error" role="alert">{error}</div>
-      ) : items.length === 0 ? (
-        <div className="portal-panel">
-          <div className="portal-panel__heading">
-            <div><span>Danh sách vận chuyển</span><h2>Lô hàng gần đây</h2></div>
-            <strong>0 lô hàng</strong>
-          </div>
-          <EmptyState icon={Package} title="Chưa có lô hàng" description="Lô hàng sẽ xuất hiện tại đây sau khi được bộ phận vận hành tạo." />
-        </div>
-      ) : (
-        <div className="portal-panel">
-          <div className="portal-panel__heading">
-            <div><span>Danh sách vận chuyển</span><h2>Lô hàng gần đây</h2></div>
-            <strong>{total.toLocaleString('vi-VN')} lô hàng</strong>
-          </div>
-          <div className="portal-list">
-            {items.map((s) => {
-              const reference = customerShipmentReference(s);
-              return (
-                <ClickableCard
-                  key={s.id}
-                  to={withCustomerScope(routes.portalShipmentDetail(s.id), selectedCustomerId)}
-                  className={`portal-list__row portal-shipment-row portal-shipment-row--${s.status.toLowerCase()}`}
-                >
-                  <div className="portal-list__primary">
-                    <strong>{reference.primary}</strong>
-                    <div className="portal-list__meta">
-                      {reference.bookingNumber && <span>Booking: {reference.bookingNumber}</span>}
-                    </div>
-                  </div>
-                  <div className="portal-list__datum">
-                    <span><CalendarClock size={15} aria-hidden="true" /> Lịch cont sớm nhất</span>
-                    <strong>{formatDeliveryDate(s.expectedDeliveryDate)}</strong>
-                  </div>
-                  <div className="portal-list__aside">
-                    <span className={shipmentStatusClass(s.status)}>{SHIPMENT_STATUS_LABELS[s.status]}</span>
-                    <ChevronRight size={18} aria-hidden="true" />
-                  </div>
-                </ClickableCard>
-              );
-            })}
-          </div>
-          <div className="portal-pagination">
-            <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={10} onChange={setPage} />
-          </div>
-        </div>
-      )}
-    </div>
+    <RoleWorkInbox
+      role="customer"
+      title="Theo dõi lô hàng"
+      description="Xác nhận khi đã nhận hàng hoặc báo sai lệch. Trạng thái giao luôn nêu rõ nguồn xác nhận."
+      customerId={selectedCustomerId}
+      scopeReady={ready}
+    />
   );
 }

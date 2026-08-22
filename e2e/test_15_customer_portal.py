@@ -107,7 +107,7 @@ def test_customer_portal(ctx: SilverseaTestContext, results: TestResults):
         results.fail('TC-1520', 'Mobile navigation', f'nav={mobile_nav}, minHeight={min_target}')
 
     for path, heading in (
-        ('/portal/shipments', 'Lô hàng của tôi'),
+        ('/portal/shipments', 'Theo dõi lô hàng'),
         ('/portal/debit-notes', 'Giấy báo nợ'),
         ('/portal/statement', 'Sao kê công nợ'),
     ):

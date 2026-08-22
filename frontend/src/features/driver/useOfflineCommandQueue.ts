@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type OfflineCommandMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-export type OfflineCommandStatus = 'QUEUED' | 'IN_PROGRESS' | 'DONE' | 'FAILED' | 'CONFLICT';
+export type OfflineCommandStatus = 'QUEUED' | 'IN_PROGRESS' | 'DONE' | 'FAILED' | 'CONFLICT' | 'REJECTED';
 export type OfflineCommandPayload = Record<string, unknown> | null;
 
 export interface OfflineCommand<TPayload extends OfflineCommandPayload = OfflineCommandPayload> {
@@ -10,6 +10,9 @@ export interface OfflineCommand<TPayload extends OfflineCommandPayload = Offline
   method: OfflineCommandMethod;
   path: string;
   payload: TPayload;
+  fulfillmentScopeKey?: string;
+  expectedVersion?: number;
+  actionKind?: string;
   status: OfflineCommandStatus;
   retryCount: number;
   lastError: string | null;
@@ -19,7 +22,16 @@ export interface OfflineCommand<TPayload extends OfflineCommandPayload = Offline
 
 export type OfflineCommandSendResult =
   | { ok: true; response?: unknown }
-  | { ok: false; kind: 'network' | 'conflict'; message?: string };
+  | { ok: false; kind: 'network' | 'conflict' | 'rejected'; message?: string };
+
+export type OfflineDrainResult = {
+  done: number;
+  failed: number;
+  conflicts: number;
+  rejected: number;
+  statusById: Record<string, OfflineCommandStatus>;
+  messageById: Record<string, string | null>;
+};
 
 type QueueListener = (commands: OfflineCommand[]) => void;
 
@@ -29,7 +41,7 @@ type QueueStore = {
 };
 
 const STORAGE_KEY = 'silversea.driver-offline-command-queue.v1';
-const TERMINAL_STATUSES: ReadonlySet<OfflineCommandStatus> = new Set(['DONE', 'CONFLICT']);
+const TERMINAL_STATUSES: ReadonlySet<OfflineCommandStatus> = new Set(['DONE', 'CONFLICT', 'REJECTED']);
 
 const memoryFallbackByKey = new Map<string, OfflineCommand[]>();
 const persistentQueues = new Map<string, DriverOfflineCommandQueue>();
@@ -97,16 +109,20 @@ export class DriverOfflineCommandQueue {
     return this.listAll().filter((command) => !TERMINAL_STATUSES.has(command.status));
   }
 
+  listVisible(): OfflineCommand[] {
+    return this.listAll().filter((command) => command.status !== 'DONE');
+  }
+
   subscribe(listener: QueueListener): () => void {
     this.listeners.add(listener);
-    listener(this.listPending());
+    listener(this.listVisible());
     return () => {
       this.listeners.delete(listener);
     };
   }
 
   private notify(): void {
-    const pending = this.listPending();
+    const pending = this.listVisible();
     for (const listener of this.listeners) {
       listener(pending);
     }
@@ -119,6 +135,9 @@ export class DriverOfflineCommandQueue {
       method: OfflineCommandMethod;
       path: string;
       payload?: OfflineCommandPayload;
+      fulfillmentScopeKey?: string;
+      expectedVersion?: number;
+      actionKind?: string;
     },
     options?: { maxPending?: number },
   ): OfflineCommand {
@@ -140,6 +159,9 @@ export class DriverOfflineCommandQueue {
       method: input.method,
       path: input.path,
       payload: input.payload ?? null,
+      fulfillmentScopeKey: input.fulfillmentScopeKey,
+      expectedVersion: input.expectedVersion,
+      actionKind: input.actionKind,
       status: 'QUEUED',
       retryCount: existing?.retryCount ?? 0,
       lastError: null,
@@ -169,20 +191,28 @@ export class DriverOfflineCommandQueue {
     this.notify();
   }
 
-  async drain(send: (command: OfflineCommand) => Promise<OfflineCommandSendResult>): Promise<{ done: number; failed: number; conflicts: number }> {
+  async drain(send: (command: OfflineCommand) => Promise<OfflineCommandSendResult>): Promise<OfflineDrainResult> {
     if (this.drainInFlight) {
-      return Promise.resolve({ done: 0, failed: 0, conflicts: 0 });
+      const commands = this.listAll();
+      return Promise.resolve({ done: 0, failed: 0, conflicts: 0, rejected: 0, statusById: Object.fromEntries(commands.map((command) => [command.id, command.status])), messageById: Object.fromEntries(commands.map((command) => [command.id, command.lastError])) });
     }
     this.drainInFlight = true;
 
     let done = 0;
     let failed = 0;
     let conflicts = 0;
+    let rejected = 0;
 
     try {
       const commands = this.listAll();
+      const blockedScopes = new Set(
+        commands
+          .filter((command) => (command.status === 'CONFLICT' || command.status === 'REJECTED') && command.fulfillmentScopeKey)
+          .map((command) => command.fulfillmentScopeKey as string),
+      );
       for (const command of commands) {
         if (TERMINAL_STATUSES.has(command.status)) continue;
+        if (command.fulfillmentScopeKey && blockedScopes.has(command.fulfillmentScopeKey)) continue;
         command.status = 'IN_PROGRESS';
         command.lastError = null;
         command.updatedAt = new Date().toISOString();
@@ -207,11 +237,18 @@ export class DriverOfflineCommandQueue {
         } else if (result.kind === 'conflict') {
           command.status = 'CONFLICT';
           command.lastError = result.message ?? 'Xung đột dữ liệu';
+          if (command.fulfillmentScopeKey) blockedScopes.add(command.fulfillmentScopeKey);
           conflicts += 1;
+        } else if (result.kind === 'rejected') {
+          command.status = 'REJECTED';
+          command.lastError = result.message ?? 'Máy chủ từ chối lệnh';
+          if (command.fulfillmentScopeKey) blockedScopes.add(command.fulfillmentScopeKey);
+          rejected += 1;
         } else {
           command.status = 'FAILED';
           command.retryCount += 1;
           command.lastError = result.message ?? 'Không thể gửi khi ngoại tuyến';
+          if (command.fulfillmentScopeKey) blockedScopes.add(command.fulfillmentScopeKey);
           failed += 1;
         }
         command.updatedAt = new Date().toISOString();
@@ -219,7 +256,7 @@ export class DriverOfflineCommandQueue {
         this.notify();
       }
 
-      return { done, failed, conflicts };
+      return { done, failed, conflicts, rejected, statusById: Object.fromEntries(commands.map((command) => [command.id, command.status])), messageById: Object.fromEntries(commands.map((command) => [command.id, command.lastError])) };
     } finally {
       this.drainInFlight = false;
     }
@@ -250,7 +287,7 @@ export function useOfflineCommandQueue(options?: {
     return driverOfflineCommandQueue;
   }, [options?.queue, options?.storageScope]);
   const maxPending = options?.maxPending ?? 12;
-  const [commands, setCommands] = useState<OfflineCommand[]>(() => queue.listPending());
+  const [commands, setCommands] = useState<OfflineCommand[]>(() => queue.listVisible());
 
   useEffect(() => queue.subscribe(setCommands), [queue]);
 
@@ -260,6 +297,9 @@ export function useOfflineCommandQueue(options?: {
     method: OfflineCommandMethod;
     path: string;
     payload?: OfflineCommandPayload;
+    fulfillmentScopeKey?: string;
+    expectedVersion?: number;
+    actionKind?: string;
   }) => queue.enqueue(input, { maxPending }), [maxPending, queue]);
 
   const drain = useCallback((send: (command: OfflineCommand) => Promise<OfflineCommandSendResult>) => {
@@ -278,6 +318,7 @@ export function useOfflineCommandQueue(options?: {
     pendingCount: commands.filter((command) => command.status === 'QUEUED' || command.status === 'IN_PROGRESS').length,
     failedCount: commands.filter((command) => command.status === 'FAILED').length,
     conflictCount: commands.filter((command) => command.status === 'CONFLICT').length,
+    rejectedCount: commands.filter((command) => command.status === 'REJECTED').length,
   }), [commands]);
 
   return {

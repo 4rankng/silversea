@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import {
   ShipmentStatus,
   acknowledgeCustomerEventSchema,
+  customerDeliveryResponseSchema,
   portalDebitNoteDecisionSchema,
 } from '@tingting/shared';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -39,6 +40,7 @@ import {
   listCustomerVisibleEvents,
 } from '../../services/shipment-coordination.service';
 import { throwValidation } from '../../lib/validation';
+import { submitCustomerDeliveryResponse } from '../../services/customer-delivery-response.service';
 
 const router = Router();
 
@@ -247,6 +249,17 @@ router.post('/shipments/:id/customer-events/:eventId/acknowledge', asyncHandler(
     expectedCustomerId: resolveSelectedCustomerId(req),
   });
   res.status(201).json(acknowledgement);
+}));
+
+router.post('/shipments/:id/customer-events/:eventId/delivery-response', asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parsePositiveId(String(req.params.id), 'ID lô hàng');
+  const eventId = parsePositiveId(String(req.params.eventId), 'ID sự kiện');
+  const parsed = customerDeliveryResponseSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc');
+  const outcome = await submitCustomerDeliveryResponse({ shipmentId, eventId, selectedCustomerId: resolveSelectedCustomerId(req), actor: getUser(req), input: parsed.data, idempotencyKey });
+  res.status(outcome.replayed ? 200 : 201).json({ ...outcome.response, replayed: outcome.replayed });
 }));
 
 router.get('/debit-notes', asyncHandler(async (req: Request, res: Response) => {
