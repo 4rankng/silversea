@@ -26,6 +26,7 @@ import {
   summarizeSettlementExpenses,
 } from './admin-advance-settlement-summary';
 import './AdminAdvanceSettlementsPage.css';
+import '../styles/operational-table-typography.css';
 import { Pagination, UuiSelectField } from '../design-system';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -542,14 +543,15 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
           </div>
         ) : (
           <>
-            {/* Desktop: one scroll region keeps every column reachable. */}
+            {/* Desktop ledger: sticky head pins against the .app-body
+                scrollport — no internal scroll region, the page scrolls. */}
             <div
               className="as-ledger-scroll"
               role="region"
               aria-label="Danh sách phiếu hoàn ứng"
               tabIndex={0}
             >
-              <div className="as-ledger">
+              <div className="as-ledger ops-table">
                 <div className="as-grid-head">
                   <div>Ngày / Khách hàng</div>
                   <div>Kế hoạch / Phiếu</div>

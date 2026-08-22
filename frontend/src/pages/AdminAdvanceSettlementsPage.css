@@ -10,7 +10,9 @@
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.94));
   border: 1px solid var(--line);
   border-radius: 14px;       /* matches dashboard --wf-radius */
-  overflow: hidden;
+  /* Transparent to overflow so the sticky grid head can pin against the
+     .app-body scrollport; children carry their own corner radii. */
+  overflow: visible;
   box-shadow: var(--sh-sm);
   min-height: clamp(360px, 46vh, 460px);
 }
@@ -142,55 +144,51 @@
 }
 
 /* ── Desktop grid header ──────────────────────────────────────────────── */
+/* Dispatch-grid contract: no internal scroll wrapper — the ledger fits the
+   panel width and .app-body scrolls, so the header can pin against the
+   app-body scrollport. Columns compress toward their minmax minimums on
+   narrow desktop viewports instead of spilling into a clipped overflow. */
 .as-page .as-ledger-scroll {
   max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-gutter: stable;
-  scrollbar-color: color-mix(in srgb, var(--brand) 34%, transparent) transparent;
-  scrollbar-width: thin;
-}
-.as-page .as-ledger-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-.as-page .as-ledger-scroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--brand) 28%, transparent);
-  border-radius: 999px;
+  overflow: visible;
 }
 .as-page .as-ledger-scroll:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: -2px;
 }
-.as-page .as-ledger {
-  min-width: 1096px;
-}
 .as-page .as-grid-head,
 .as-page .as-grid-row {
   display: grid;
   grid-template-columns:
-    135px
-    150px
-    50px
-    130px
+    minmax(110px, 135px)
+    minmax(120px, 150px)
+    minmax(44px, 50px)
+    minmax(100px, 130px)
     minmax(230px, 1fr)
-    90px
-    100px
-    100px;
+    minmax(80px, 90px)
+    minmax(88px, 100px)
+    minmax(96px, 100px);
   gap: 8px;
 }
 .as-page .as-grid-head {
+  position: sticky;
+  /* Negates the scrollport's top padding (see --sticky-thead-top in
+     tokens.css) so the header pins flush under the topbar while .app-body
+     scrolls. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
   padding: 11px 16px;
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
   align-items: center;
 }
 .as-page .as-grid-head > div {
-  font-size: var(--fs-2xs);
-  font-weight: var(--fw-bold);
+  font-size: var(--ops-table-header-size, var(--fs-2xs));
+  font-weight: var(--ops-table-header-weight, var(--fw-semibold));
+  line-height: var(--ops-table-header-line-height, 1.35);
   color: var(--ink-3);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   font-family: var(--font-data);
   white-space: normal;
   overflow: visible;
@@ -199,6 +197,15 @@
 .as-page .as-grid-head .col-right { text-align: right; }
 .as-page .as-grid-head .col-center { text-align: center; }
 
+/* Desktop ledger range only: the panel no longer clips its children, so the
+   toolbar carries the panel's top corner radius itself. Below 1100px the
+   toolbar becomes its own bordered card instead. */
+@media (min-width: 1101px) {
+  .as-page .as-panel > .toolbar:first-child {
+    border-radius: 14px 14px 0 0;
+  }
+}
+
 /* ── Desktop grid row ─────────────────────────────────────────────────── */
 .as-page .as-grid-row {
   padding: 12px 16px;
@@ -206,11 +213,23 @@
   border-bottom: 1px solid var(--line);
   transition: background var(--t-fast);
 }
-.as-page .as-grid-row:last-child { border-bottom: none; }
-.as-page .as-grid-row:hover { background: var(--surface-2); }
+/* The panel no longer clips (sticky head contract), so the final row rounds
+   its own bottom corners to the panel radius. */
+.as-page .as-grid-row:last-child {
+  border-bottom: none;
+  border-radius: 0 0 13px 13px;
+}
 .as-page .as-grid-row > div {
   line-height: var(--lh-normal);
   min-width: 0;
+}
+
+/* Row hover is a quiet scan aid for fine pointers only — a neutral two-percent
+   ink wash, never an accent fill or a selection look. */
+@media (hover: hover) and (pointer: fine) {
+  .as-page .as-grid-row:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 .as-page .as-settlement-summary {
   display: grid;
@@ -830,5 +849,10 @@
     padding: 0 12px;
     font: inherit;
     font-size: 16px;
+  }
+
+  /* The UUI select trigger ships a 38px md size; touch targets stay ≥44px. */
+  .as-page .as-mobile-filter .ds-uui-select__control button {
+    min-height: 44px;
   }
 }
