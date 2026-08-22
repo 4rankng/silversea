@@ -63,7 +63,7 @@ export const qk = {
     allCustomers: ['all-customers'],
     users: ['users'],
     /** Admin-only drawer option list: shipments eligible for clerk-scope assignment. */
-    userScopeShipments: ['shipments', 'user-scope'] as const,
+    userScopeShipments: ['users', 'user-scope-shipments'] as const,
     ports: ['ports'],
     portsCatalog: ['ports-catalog'],
     tirePositions: ['tire-positions'],
