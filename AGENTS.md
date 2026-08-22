@@ -205,6 +205,7 @@ rather than each rebuilding it.
 
 ## Local dev quick reference
 
+- **Backend architecture:** see [`docs/backend-architecture.md`](docs/backend-architecture.md) — layering rules, naming, the god-file split recipe, and the add-an-entity path; enforced by `backend/src/tests/unit/arch-layering.test.ts`.
 - **Agent context engineering:** see [`docs/context-engineering/playbook.md`](docs/context-engineering/playbook.md) — the system-prompt builder, lanes, tool-selection, and governance mapped to code.
 - Start everything: `make dev` → Postgres `:5441` · Redis `:6391` · Backend `:3001` · Frontend `:7174` · Adminer `:8083`
 - First-time setup: `make setup` (infra + migrate + seed)
