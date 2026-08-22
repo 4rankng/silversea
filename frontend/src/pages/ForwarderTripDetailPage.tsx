@@ -26,7 +26,7 @@ import { AccountingLockBanner } from '../components/shipment/AccountingLockBanne
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
+import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolocation';
 import {
   ForwarderContainersSection,
   ForwarderExpenseRow,
@@ -38,14 +38,8 @@ import {
   isSyntheticLclContainer,
   type ForwarderContainer,
 } from './forwarder-trip-detail-sections';
+import { tripStatusVariant } from '../lib/tripStatus';
 import './ForwarderTripDetailPage.css';
-
-function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
-  if (status === 'IN_TRANSIT') return 'info';
-  if (status === 'COMPLETED') return 'success';
-  if (status === 'CANCELED') return 'danger';
-  return 'neutral';
-}
 
 const newExpenseForm = () => ({
   expenseType: 'LIFTING' as string,
@@ -66,13 +60,6 @@ const newExpenseForm = () => ({
   noInvoiceEvidenceTypes: [] as string[],
 });
 type ExpenseFormState = ReturnType<typeof newExpenseForm>;
-
-function isGeolocationError(error: unknown): error is GeolocationError {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && typeof (error as { code: unknown }).code === 'number';
-}
 
 function expensePhotoUploadErrorMessage(error: unknown): string {
   if (isGeolocationError(error)) {

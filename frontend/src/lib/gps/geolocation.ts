@@ -43,6 +43,14 @@ export interface GeolocationError extends Error {
   requiredAccuracy?: number;
 }
 
+/** Runtime guard for errors shaped like a GeolocationPositionError (code: number). */
+export function isGeolocationError(error: unknown): error is GeolocationError {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && typeof (error as { code: unknown }).code === 'number';
+}
+
 export function createGeolocationError(code: number, message: string): GeolocationError {
   const err = new Error(message) as GeolocationError;
   err.code = code;

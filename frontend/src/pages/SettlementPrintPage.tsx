@@ -1,3 +1,4 @@
+import type { LinkedExpense, LinkedRequest } from '../api/forwarderClient';
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2, RotateCcw } from 'lucide-react';
@@ -43,32 +44,6 @@ function settlementStatusVariant(status: AdvanceSettlementStatus): 'neutral' | '
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit' });
-}
-
-interface LinkedExpense {
-  id: number;
-  tripId: number;
-  expenseType: string;
-  buyAmount: string;
-  sellAmount?: string;
-  submittedBuyAmount?: string | null;
-  adjustmentReason?: string | null;
-  adjustedAt?: string | null;
-  completionStatus?: string | null;
-  containerNumber: string | null;
-  invoiceNumber: string | null;
-  note: string | null;
-  tripCode: string | null;
-  departureDate: string | null;
-  customerName: string | null;
-}
-
-interface LinkedRequest {
-  id: number;
-  amount: string;
-  reason: string;
-  status: string;
-  createdAt: string;
 }
 
 interface SettlementData {

@@ -43,5 +43,3 @@ export { DateInput } from './forms/DateInput';
 export type { DateInputProps } from './forms/DateInput';
 export { BufferedUuiDateInput } from './forms/BufferedUuiDateInput';
 export type { BufferedUuiDateInputProps } from './forms/BufferedUuiDateInput';
-export { CrudFormModal } from './forms/CrudFormModal';
-export type { CrudFormModalProps } from './forms/CrudFormModal';

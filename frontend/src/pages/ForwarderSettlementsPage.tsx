@@ -1,3 +1,4 @@
+import type { LinkedExpense, LinkedRequest } from '../api/forwarderClient';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Loader2, Plus, ArrowRight, Clock } from 'lucide-react';
@@ -28,27 +29,6 @@ const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
   REJECTED: '#DC2626',
   REVERSED: '#64748B',
 };
-
-interface LinkedRequest {
-  id: number;
-  amount: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-}
-
-interface LinkedExpense {
-  id: number;
-  tripId: number;
-  expenseType: string;
-  buyAmount: string;
-  containerNumber: string | null;
-  note: string | null;
-  createdAt: string;
-  tripCode: string | null;
-  departureDate: string | null;
-  truckPlate: string | null;
-}
 
 interface Settlement {
   id: number;

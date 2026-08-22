@@ -11,7 +11,6 @@ const animatedOverlaySource = readFileSync(
 );
 const responsiveStyles = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const modalStyles = readFileSync(resolve(process.cwd(), 'src/components/Modal.css'), 'utf8');
-const crudModalStyles = readFileSync(resolve(process.cwd(), 'src/design-system/forms/CrudFormModal.css'), 'utf8');
 const shipmentStyles = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const userStyles = readFileSync(resolve(process.cwd(), 'src/features/users/users.css'), 'utf8');
 
@@ -65,8 +64,6 @@ describe('Drawer keyboard focus', () => {
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__foot\s*\{[^}]*padding:\s*8px 16px max\(8px, env\(safe-area-inset-bottom\)\);/);
     expect(modalStyles).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.modal__close\.btn\s*\{[^}]*min-height:\s*44px;/);
     expect(responsiveStyles).not.toContain('.modal__head');
-    expect(crudModalStyles).toMatch(/\.ds-crud-modal__head\s*\{[^}]*padding:\s*8px 16px;/);
-    expect(crudModalStyles).toMatch(/\.ds-crud-modal__foot\s*\{[^}]*padding:\s*8px 16px;/);
   });
 
   it('moves focus into the drawer, traps it, and restores the opener after Escape', async () => {

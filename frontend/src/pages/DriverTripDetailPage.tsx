@@ -18,10 +18,11 @@ import {
   Truck,
   WalletCards,
 } from 'lucide-react';
-import { DriverProgressEventType, TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
+import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
+import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
@@ -31,7 +32,7 @@ import { ApiError } from '../lib/api';
 import { formatCurrency, formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { getLocationPermissionIssue, type GeolocationError } from '../lib/gps/geolocation';
+import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolocation';
 import {
   buildOfflineCommandKey,
   type OfflineCommand,
@@ -117,19 +118,6 @@ const FUEL_EVIDENCE_REVIEW_LABELS = {
   REJECTED: 'Kế toán từ chối',
 } as const;
 
-function tripStatusVariant(status: TripStatus): 'neutral' | 'info' | 'warn' | 'success' | 'danger' {
-  switch (status) {
-    case 'IN_TRANSIT':
-      return 'info';
-    case 'COMPLETED':
-      return 'success';
-    case 'CANCELED':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
-}
-
 const formatDateTime = formatDateTimeShort;
 
 function valueOrDash(value: string | null | undefined): string {
@@ -156,13 +144,6 @@ function classifyCommandError(error: unknown): OfflineCommandSendResult {
   }
   const message = error instanceof Error ? error.message : 'Không thể đồng bộ lệnh.';
   return { ok: false, kind: 'network', message };
-}
-
-function isGeolocationError(error: unknown): error is GeolocationError {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && typeof (error as { code: unknown }).code === 'number';
 }
 
 function fuelEvidenceUploadErrorMessage(error: unknown): string {

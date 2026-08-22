@@ -7,7 +7,7 @@
  *  - A registry count: incremented/decremented by overlay hooks
  *    (useAnimatedOverlay, useClickOutside w/ escapeKey, PhotoViewer).
  *  - A DOM fallback: any portal'd element with role="dialog"/"alertdialog"
- *    (catches overlays that don't use our hooks, e.g. CrudFormModal).
+ *    (catches overlays that don't use our hooks).
  *
  * The count is decremented on the *next* tick after an overlay closes (via React
  * effect cleanup), so during the ESC press that closes an overlay the value is

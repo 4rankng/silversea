@@ -391,17 +391,6 @@ export function StatusPill({ variant, children, dot = true }: StatusPillProps) {
   );
 }
 
-/* ─── Plate Tag ─────────────────────────────────────────────────────────── */
-
-interface PlateTagProps {
-  plate: string;
-  className?: string;
-}
-
-export function PlateTag({ plate, className = '' }: PlateTagProps) {
-  return <span className={`plate ${className}`}>{plate}</span>;
-}
-
 /* ─── Badge (legacy) ────────────────────────────────────────────────────── */
 
 interface BadgeProps {

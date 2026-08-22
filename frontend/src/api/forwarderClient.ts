@@ -231,3 +231,31 @@ export const forwarderClient = {
     return api.post(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${id}/reversal`, data);
   },
 };
+
+/** Advance request attached to a trip/settlement detail (API response shape). */
+export interface LinkedRequest {
+  id: number;
+  amount: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
+/** Trip expense attached to a settlement printout — superset of the list view's fields. */
+export interface LinkedExpense {
+  id: number;
+  tripId: number;
+  expenseType: string;
+  buyAmount: string;
+  sellAmount?: string;
+  submittedBuyAmount?: string | null;
+  adjustmentReason?: string | null;
+  adjustedAt?: string | null;
+  completionStatus?: string | null;
+  containerNumber: string | null;
+  invoiceNumber: string | null;
+  note: string | null;
+  tripCode: string | null;
+  departureDate: string | null;
+  customerName: string | null;
+}
