@@ -1,7 +1,8 @@
-import { and, desc, eq, type SQL } from 'drizzle-orm';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import {
   type GovernanceActionListQuery,
   type GovernanceAllowedAction,
+  type PaginatedResponse,
 } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -153,11 +154,17 @@ export async function getGovernanceAction(input: {
   });
 }
 
+export type GovernanceActionListResult = PaginatedResponse<GovernanceActionView> & {
+  // Full-set counts by status over the same filters (ignores limit/offset);
+  // per-actor "actionable" signals stay page-scoped via item allowedActions.
+  statusCounts: Record<string, number>;
+};
+
 export async function listGovernanceActions(input: {
   actorId: number;
   actorRole: string;
   query: GovernanceActionListQuery;
-}): Promise<GovernanceActionView[]> {
+}): Promise<GovernanceActionListResult> {
   assertViewer(input.actorRole);
   const filters: SQL[] = [];
   if (input.query.status) {
@@ -175,11 +182,32 @@ export async function listGovernanceActions(input: {
   if (input.query.subjectKey) {
     filters.push(eq(s.governanceActions.subjectKey, input.query.subjectKey));
   }
+  const where = filters.length > 0 ? and(...filters) : undefined;
+  const { limit, offset } = input.query;
   const rows = await db.select().from(s.governanceActions)
-    .where(filters.length > 0 ? and(...filters) : undefined)
+    .where(where)
     .orderBy(desc(s.governanceActions.id))
-    .limit(input.query.limit)
-    .offset(input.query.offset);
+    .limit(limit)
+    .offset(offset);
+  const [countRow] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.governanceActions)
+    .where(where);
+  const statusRows = await db.select({
+    status: s.governanceActions.status,
+    count: sql<number>`count(*)`,
+  }).from(s.governanceActions)
+    .where(where)
+    .groupBy(s.governanceActions.status);
+  const statusCounts: Record<string, number> = {};
+  for (const row of statusRows) {
+    statusCounts[row.status] = Number(row.count);
+  }
   const actor = { actorId: input.actorId, actorRole: input.actorRole };
-  return rows.map(action => withAllowedActions(action, actor));
+  return {
+    items: rows.map(action => withAllowedActions(action, actor)),
+    total: Number(countRow?.count ?? 0),
+    page: Math.floor(offset / limit) + 1,
+    pageSize: limit,
+    statusCounts,
+  };
 }

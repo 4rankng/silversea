@@ -31,12 +31,15 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const actor = getUser(req);
     const query = governanceActionListQuerySchema.parse(req.query);
-    const actions = await listGovernanceActions({
+    // page wins over an explicit offset (see governanceActionListQuerySchema)
+    const effectiveQuery = req.query.page !== undefined
+      ? { ...query, offset: (query.page - 1) * query.limit }
+      : query;
+    res.json(await listGovernanceActions({
       actorId: actor.userId,
       actorRole: actor.role,
-      query,
-    });
-    res.json(actions);
+      query: effectiveQuery,
+    }));
   }),
 );
 

@@ -201,6 +201,7 @@ describe('Q15 shared governance foundation', () => {
     }), {
       status: 'PENDING_CHECK',
       subjectKey: '7:2026-07',
+      page: 1,
       limit: 25,
       offset: 0,
     });
@@ -510,12 +511,13 @@ describe('Q15 shared governance foundation', () => {
       actorRole: Role.ACCOUNTANT,
       query: {
         subjectId: action.subjectId!,
+        page: 1,
         limit: 10,
         offset: 0,
       },
     });
-    assert.equal(listed.length, 1);
-    assert.deepEqual(listed[0]!.allowedActions, ['CANCEL']);
+    assert.equal(listed.items.length, 1);
+    assert.deepEqual(listed.items[0]!.allowedActions, ['CANCEL']);
     await expectApiError(getGovernanceAction({
       actionId: action.id,
       actorId: actors[4]!.id,
@@ -524,7 +526,7 @@ describe('Q15 shared governance foundation', () => {
     await expectApiError(listGovernanceActions({
       actorId: actors[4]!.id,
       actorRole: Role.DRIVER,
-      query: { limit: 10, offset: 0 },
+      query: { page: 1, limit: 10, offset: 0 },
     }), 403, /không có quyền xem/);
   });
 
@@ -564,9 +566,81 @@ describe('Q15 shared governance foundation', () => {
       { headers: { 'X-Test-Actor': '0' } },
     );
     assert.equal(response.status, 200);
-    const listed = await response.json() as Array<{ id: number; subjectKey: string | null }>;
-    assert.deepEqual(listed.map(action => action.id), [target.id]);
-    assert.equal(listed[0]!.subjectKey, targetSubjectKey);
+    const body = await response.json() as {
+      items: Array<{ id: number; subjectKey: string | null }>;
+    };
+    assert.deepEqual(body.items.map(action => action.id), [target.id]);
+    assert.equal(body.items[0]!.subjectKey, targetSubjectKey);
+  });
+
+  it('returns a paginated envelope where total spans pages and filters still apply', async () => {
+    const subjectKey = `q15-page:${Date.now()}`;
+    const created = await db.insert(s.governanceActions).values(
+      Array.from({ length: 5 }, (_, index) => ({
+        subjectType: 'SALARY_CONFIRMATION' as const,
+        subjectKey,
+        actionKind: 'SALARY_CONFIRMATION' as const,
+        reason: 'Paginated salary history',
+        // distinct originalVersion keeps rows apart under the active-subject-key uniqueness rule
+        originalVersion: index + 1,
+        beforeSnapshot: {},
+        afterSnapshot: {},
+        makerId: actors[0]!.id,
+        makerRole: Role.ACCOUNTANT,
+      })),
+    ).returning({ id: s.governanceActions.id });
+    actionIds.push(...created.map(action => action.id));
+
+    const fetchList = async (search: string) => {
+      const response = await fetch(`${baseUrl}/api/governance-actions${search}`, {
+        headers: { 'X-Test-Actor': '0' },
+      });
+      assert.equal(response.status, 200);
+      return response.json() as Promise<{
+        items: Array<{ id: number }>;
+        total: number;
+        page: number;
+        pageSize: number;
+        statusCounts: Record<string, number>;
+      }>;
+    };
+    const filteredBySubjectKey = (extra: string) =>
+      `?subjectKey=${encodeURIComponent(subjectKey)}${extra}`;
+
+    const page1 = await fetchList(filteredBySubjectKey('&limit=2&page=1'));
+    assert.equal(page1.page, 1);
+    assert.equal(page1.pageSize, 2);
+    assert.equal(page1.items.length, 2);
+    assert.equal(page1.total, 5);
+    assert.deepEqual(page1.statusCounts, { PENDING_CHECK: 5 }, 'statusCounts must cover the full filtered set, not the page');
+
+    const page2 = await fetchList(filteredBySubjectKey('&limit=2&page=2'));
+    assert.equal(page2.page, 2);
+    assert.equal(page2.total, 5);
+    assert.equal(page2.items.length, 2);
+    const page1Ids = new Set(page1.items.map(action => action.id));
+    assert.equal(page2.items.some(action => page1Ids.has(action.id)), false, 'page 2 must show different rows than page 1');
+
+    const page3 = await fetchList(filteredBySubjectKey('&limit=2&page=3'));
+    assert.equal(page3.items.length, 1);
+    assert.equal(page3.total, 5);
+    const allIds = [...page1.items, ...page2.items, ...page3.items].map(action => action.id);
+    assert.deepEqual([...allIds].sort((a, b) => b - a), allIds, 'pages must follow the id-desc ordering');
+    assert.deepEqual(new Set(allIds), new Set(created.map(action => action.id)));
+
+    const offsetIgnored = await fetchList(filteredBySubjectKey('&limit=2&page=2&offset=0'));
+    assert.deepEqual(offsetIgnored.items.map(action => action.id), page2.items.map(action => action.id), 'page wins over an explicit offset');
+
+    const statusFiltered = await fetchList(filteredBySubjectKey('&status=PENDING_CHECK&limit=2&page=1'));
+    assert.equal(statusFiltered.total, 5);
+    assert.deepEqual(statusFiltered.statusCounts, { PENDING_CHECK: 5 });
+
+    const unfiltered = await fetchList('?limit=2&page=1');
+    assert.ok(unfiltered.total > 5, 'filters must narrow the counted total');
+    assert.ok((unfiltered.statusCounts.PENDING_CHECK ?? 0) > 5, 'statusCounts must reflect the same filters as total');
+    const statusSum = Object.values(unfiltered.statusCounts)
+      .reduce((sum, count) => sum + count, 0);
+    assert.equal(statusSum, unfiltered.total, 'statusCounts must partition the full unfiltered set');
   });
 
   it('keeps application-owned actor separation as the final invariant', async () => {

@@ -121,6 +121,9 @@ export const governanceActionListQuerySchema = z.object({
   subjectType: z.enum(GOVERNANCE_SUBJECT_TYPES).optional(),
   subjectId: z.coerce.number().int().positive().optional(),
   subjectKey: z.string().trim().min(1).max(120).optional(),
+  // When both page and offset are present, page wins: the route derives
+  // offset = (page - 1) * limit and ignores the explicit offset.
+  page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
