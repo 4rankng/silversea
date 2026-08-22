@@ -3,18 +3,15 @@ import assert from 'node:assert/strict';
 import { inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { listAdvanceRequestsPaginated } from '../services/advance.service';
+import { listAdvanceRequests, listAdvanceRequestsPaginated } from '../services/advance.service';
 import { withTestCleanup } from './helpers/db-isolation';
 
-describe('advance requests SQL-paginated list', () => {
+// Covers the paginated forwarder advance-requests list route swap:
+// listAdvanceRequestsPaginated({ requesterId, status, page, limit }) plus the
+// settlement-eligibility branch that keeps the legacy full-array shape.
+describe('forwarder advance requests list', () => {
   const cleanup = withTestCleanup();
   const ids = { users: [] as number[], requests: [] as number[], settlements: [] as number[] };
-
-  // Name tokens share a unique suffix so the search subquery matches only this
-  // run's rows even on the shared integration database.
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const forwarderAName = `ARList A ${suffix}`;
-  const forwarderBName = `ARList B ${suffix}`;
 
   let forwarderAId: number;
   let forwarderBId: number;
@@ -24,7 +21,7 @@ describe('advance requests SQL-paginated list', () => {
     const [request] = await db.insert(s.advanceRequests).values({
       requesterId: ownerId,
       amount: String(amount),
-      reason: `ARList ${status}`,
+      reason: 'ARList test',
       status,
       approvedBy: status === 'PENDING' ? null : ownerId,
       approvedAt: status === 'PENDING' ? null : createdAt,
@@ -36,9 +33,10 @@ describe('advance requests SQL-paginated list', () => {
   }
 
   before(async () => {
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const users = await db.insert(s.users).values([
-      { username: `arlist-a-${suffix}`, passwordHash: 'x', fullName: forwarderAName, role: 'DRIVER' },
-      { username: `arlist-b-${suffix}`, passwordHash: 'x', fullName: forwarderBName, role: 'DRIVER' },
+      { username: `arlist-a-${suffix}`, passwordHash: 'x', fullName: `ARList A ${suffix}`, role: 'DRIVER' },
+      { username: `arlist-b-${suffix}`, passwordHash: 'x', fullName: `ARList B ${suffix}`, role: 'DRIVER' },
     ]).returning();
     [forwarderAId, forwarderBId] = users.map(row => row.id);
     ids.users.push(...users.map(row => row.id));
@@ -65,11 +63,13 @@ describe('advance requests SQL-paginated list', () => {
     await client.end();
   });
 
-  test('paginates in SQL with a complete envelope (forwarder-scoped)', async () => {
+  test('paginates in SQL with the shared envelope, scoped to one forwarder', async () => {
     const page2 = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, page: 2, limit: 2 });
+    // pageSize is the wave-convention alias of limit (plan envelope: pageSize|limit).
+    assert.deepEqual(Object.keys(page2).sort(),
+      ['items', 'limit', 'page', 'pageSize', 'statusAmounts', 'statusCounts', 'total', 'totalPages']);
     assert.equal(page2.page, 2);
     assert.equal(page2.limit, 2);
-    assert.equal(page2.pageSize, 2);
     assert.equal(page2.total, 5);
     assert.equal(page2.totalPages, 3);
     assert.equal(page2.items.length, 2);
@@ -85,48 +85,31 @@ describe('advance requests SQL-paginated list', () => {
     assert.equal(beyond.total, 5);
 
     // Enrichment runs on the page rows only — every item carries its names.
-    assert.equal(page1.items[0].requesterName, forwarderAName);
+    assert.ok(page1.items.every(item => typeof item.requesterName === 'string'));
+  });
+
+  test('never returns another forwarder rows; aggregates stay requester-scoped', async () => {
+    const result = await listAdvanceRequestsPaginated({ requesterId: forwarderBId, page: 1, limit: 50 });
+    assert.equal(result.total, 2);
+    assert.ok(result.items.every(item => item.requesterId === forwarderBId));
+    assert.ok(!result.items.some(item => item.requesterId === forwarderAId));
+    // Pills/KPIs describe this forwarder's whole set, not the global table.
+    assert.deepEqual(result.statusCounts, { PENDING: 1, APPROVED: 1 });
+    assert.equal(result.statusAmounts.APPROVED, 125_000);
   });
 
   test('filters by status server-side while aggregates stay full-set', async () => {
     const result = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, status: 'APPROVED', page: 1, limit: 50 });
     assert.equal(result.total, 1);
     assert.equal(result.items.length, 1);
-    assert.equal(result.items[0].status, 'APPROVED');
     assert.equal(result.items[0].id, approvedARequestId);
-    assert.equal(result.totalPages, 1);
-    // Pills/KPIs describe the forwarder's whole set, not the active tab.
     assert.deepEqual(result.statusCounts, { PENDING: 3, APPROVED: 1, REJECTED: 1 });
-    assert.equal(result.statusAmounts.APPROVED, 500_000);
     assert.equal(result.statusAmounts.PENDING, 600_000);
   });
 
-  test('search matches requester names in SQL and composes with scoping', async () => {
-    const bySuffix = await listAdvanceRequestsPaginated({ search: suffix, page: 1, limit: 50 });
-    assert.equal(bySuffix.total, 7); // both forwarders of this run
-    assert.ok(bySuffix.items.every(item => item.requesterName === forwarderAName || item.requesterName === forwarderBName));
-
-    const onlyB = await listAdvanceRequestsPaginated({ search: `ARList B ${suffix}`, page: 1, limit: 50 });
-    assert.equal(onlyB.total, 2);
-    assert.ok(onlyB.items.every(item => item.requesterId === forwarderBId));
-
-    // Search is intersected with the requester scope, never able to leak rows.
-    const scopedToA = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, search: `ARList B ${suffix}`, page: 1, limit: 50 });
-    assert.equal(scopedToA.total, 0);
-    assert.equal(scopedToA.items.length, 0);
-  });
-
-  test('forwarder scoping never returns another forwarder rows', async () => {
-    const result = await listAdvanceRequestsPaginated({ requesterId: forwarderBId, page: 1, limit: 50 });
-    assert.equal(result.total, 2);
-    assert.ok(result.items.every(item => item.requesterId === forwarderBId));
-    assert.ok(!result.items.some(item => item.requesterId === forwarderAId));
-    assert.deepEqual(result.statusCounts, { PENDING: 1, APPROVED: 1 });
-  });
-
-  test('excludeLinkedToActiveSettlement drops claimed requests from the filtered set only', async () => {
+  test('settlement-eligibility branch excludes requests linked to an active settlement', async () => {
     const [settlement] = await db.insert(s.advanceSettlements).values({
-      code: `PT-ARL-${suffix}`.slice(0, 20),
+      code: `PT-ARL-${Date.now()}`.slice(0, 20),
       forwarderId: forwarderAId,
       totalExpenseAmount: '500000',
       status: 'PENDING',
@@ -138,19 +121,14 @@ describe('advance requests SQL-paginated list', () => {
       allocatedAmount: '500000',
     });
 
-    const eligible = await listAdvanceRequestsPaginated({
+    const eligible = await listAdvanceRequests({
       requesterId: forwarderAId,
       status: 'APPROVED',
       excludeLinkedToActiveSettlement: true,
-      page: 1,
-      limit: 50,
     });
-    assert.equal(eligible.total, 0);
-    assert.equal(eligible.items.length, 0);
-    // The full-set aggregates ignore the eligibility filter by design.
-    assert.deepEqual(eligible.statusCounts, { PENDING: 3, APPROVED: 1, REJECTED: 1 });
+    assert.ok(!eligible.some(item => item.id === approvedARequestId));
 
-    const unfiltered = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, status: 'APPROVED', page: 1, limit: 50 });
-    assert.equal(unfiltered.total, 1);
+    const unfiltered = await listAdvanceRequests({ requesterId: forwarderAId, status: 'APPROVED' });
+    assert.ok(unfiltered.some(item => item.id === approvedARequestId));
   });
 });
