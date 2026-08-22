@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DateInput } from '../design-system/forms/DateInput';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { TxnType, FINANCIAL } from '@tingting/shared';
-import type { SupplierStatement as SupplierStatementType, LedgerEntry, AgingBucket, VendorPaymentRequest } from '@tingting/shared';
+import type { SupplierStatement as SupplierStatementType, LedgerEntry, VendorPaymentRequest } from '@tingting/shared';
+import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
 import { AlertTriangle, Phone, Building2, ArrowLeft, CreditCard, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useSupplierStatement } from '../hooks/useQueries';
 import { api, ApiError } from '../lib/api';
@@ -30,13 +31,6 @@ const TXN_META: Record<string, { label: string; pill: string }> = {
 };
 const DEFAULT_META = { label: 'KHÁC', pill: 'dd-txn-pill dd-txn-pill--other' };
 
-const AGING_RANGES = [
-  { label: '0–30 NGÀY',    dotColor: 'var(--accent)',  index: 0 },
-  { label: '31–60 NGÀY',   dotColor: 'var(--warning)', index: 1 },
-  { label: '61–90 NGÀY',   dotColor: '#D97706',        index: 2 },
-  { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)',  index: 3 },
-] as const;
-
 type LedgerFilter = 'all' | typeof TxnType.VENDOR_EXPENSE | typeof TxnType.VENDOR_PAYMENT | typeof TxnType.ADJUSTMENT | typeof TxnType.FUEL_EXPENSE | typeof TxnType.EXTERNAL_CARRIER_COST;
 
 const FILTER_OPTIONS: { key: LedgerFilter; label: string }[] = [
@@ -47,14 +41,6 @@ const FILTER_OPTIONS: { key: LedgerFilter; label: string }[] = [
   { key: TxnType.EXTERNAL_CARRIER_COST, label: 'Cước thuê ngoài' },
   { key: TxnType.ADJUSTMENT,        label: 'Điều chỉnh' },
 ];
-
-function normalizeAging(buckets: AgingBucket[]): number[] {
-  const amounts = [0, 0, 0, 0];
-  buckets.forEach((b, i) => {
-    if (i < 4) amounts[i] = b.amount;
-  });
-  return amounts;
-}
 
 export default function PayableDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -142,11 +128,7 @@ export default function PayableDetailPage() {
     return typedStatement.ledgerRows.filter((r: LedgerEntry) => r.txnType === ledgerFilter);
   }, [typedStatement, ledgerFilter]);
 
-  const activeAgingIdx = useMemo(() => {
-    let max = -1, idx = 0;
-    agingAmounts.forEach((a, i) => { if (a > max) { max = a; idx = i; } });
-    return max > 0 ? idx : -1;
-  }, [agingAmounts]);
+  const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
 
   const totalOutstanding = typedStatement?.totalOutstanding ?? 0;
 

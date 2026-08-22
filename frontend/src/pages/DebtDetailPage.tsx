@@ -19,19 +19,11 @@ import { useAgentOpenable } from '../hooks/useAgentOpenable';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { qk } from '../api/keys';
 import './DebtDetailPage.css';
-import { normalizeAging, money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
+import { money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
+import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
 import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
 import { matchLinkedSupplierStatement } from './linked-supplier-statement';
-
-// ── Aging constants ────────────────────────────────────────────────────────
-
-const AGING_RANGES = [
-  { label: '0–30 NGÀY',  dotColor: 'var(--accent)',  index: 0 },
-  { label: '31–60 NGÀY', dotColor: 'var(--warning)', index: 1 },
-  { label: '61–90 NGÀY', dotColor: '#D97706',        index: 2 },
-  { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
-] as const;
 
 function coerceFiniteNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -251,11 +243,7 @@ export default function DebtDetailPage() {
     return statement.ledgerRows.filter(r => r.txnType === ledgerFilter);
   }, [statement, ledgerFilter]);
 
-  const activeAgingIdx = useMemo(() => {
-    let max = -1, idx = 0;
-    agingAmounts.forEach((a, i) => { if (a > max) { max = a; idx = i; } });
-    return max > 0 ? idx : -1;
-  }, [agingAmounts]);
+  const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
 
   const lastPayment = useMemo(() => {
     if (!profileStatement) return null;

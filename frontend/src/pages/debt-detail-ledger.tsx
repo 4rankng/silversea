@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { TxnType } from '@tingting/shared';
-import type { LedgerEntry, AgingBucket } from '@tingting/shared';
+import type { LedgerEntry } from '@tingting/shared';
 import { formatCurrency, formatDate } from '../lib/format';
 
 const TXN_META: Record<string, { label: string; pill: string }> = {
@@ -34,15 +34,6 @@ export const FILTER_OPTIONS: { key: LedgerFilter; label: string }[] = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-// Map backend agingBuckets (ordered 0→90+) to fixed 4-slot array
-export function normalizeAging(buckets: AgingBucket[]): number[] {
-  const amounts = [0, 0, 0, 0];
-  buckets.forEach((b, i) => {
-    if (i < 4) amounts[i] = b.amount;
-  });
-  return amounts;
-}
 
 export type LedgerDisplayRow =
   | { kind: 'single'; key: string; row: LedgerEntry }
