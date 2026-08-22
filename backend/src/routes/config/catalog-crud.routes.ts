@@ -40,7 +40,7 @@ import {
   businessCalendarDaySchema,
 } from '@tingting/shared';
 
-// Catalog CRUD routes (T3c split) — the 27 crud-factory mounts plus the
+// Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
 // bootstrap/pricing endpoints, moved verbatim from routes/config.ts.
 // Helper predicates/guards come from ./config-helpers (H. prefix).
 

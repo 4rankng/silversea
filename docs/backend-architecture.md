@@ -56,7 +56,7 @@ Catalog-style CRUD (config tables, no transactional invariants):
 
 1. Define the table in `db/schema.ts`; `pnpm db:generate` → migration lands in `drizzle/`.
    Journal invariants are checked structurally — there is no list to extend.
-2. Mount `createCrudRouter` in `routes/config/catalog-crud.routes.ts` (27 existing mounts).
+2. Mount `createCrudRouter` in `routes/config/catalog-crud.routes.ts` (26 existing mounts).
 3. Transactional needs (multi-statement invariants) get a dedicated router instead — see the
    header comment in `routes/config/debit-note-templates.routes.ts` for why crud-factory's
    non-transactional beforeCreate+insert is insufficient.
