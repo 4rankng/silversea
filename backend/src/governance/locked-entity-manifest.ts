@@ -818,7 +818,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'PRICE_CONFIG',
     terminalStates: ['APPROVED'],
     stateAuthority: source(
-      'services/governance-transition.service.ts',
+      'services/governance-action-core.service.ts',
       'approveGovernanceActionWithAdapter',
       "status: 'APPROVED'",
       'appliedAt',

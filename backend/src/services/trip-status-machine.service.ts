@@ -11,7 +11,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { applyTripPairLifecycleEffects } from './trip-pairs.service';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
-import { assertActiveApprovalApplication } from './governance-transition.service';
+import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { deriveMilestoneFromTripStatus } from './milestone.service';
 import {
   createFinancialPosting,

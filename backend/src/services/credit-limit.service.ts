@@ -13,7 +13,7 @@ import {
   rejectGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyResult,
-} from './governance-transition.service';
+} from './governance-action-core.service';
 
 const DEFAULT_WARNING_THRESHOLD = 0.8;
 const TIER_ONE_MAX_RATIO = 0.1;

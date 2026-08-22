@@ -16,7 +16,7 @@ import {
   checkGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyResult,
-} from './governance-transition.service';
+} from './governance-action-core.service';
 import {
   getClosedPeriodLock,
   resolveSalaryPeriodAuthority,

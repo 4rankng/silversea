@@ -20,11 +20,14 @@ import {
 } from './business-calendar.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
+// Import from the approval CORE (leaf), never the transition hub — the hub
+// aggregates this service via financial.service, and importing it back would
+// close a services-graph import cycle.
 import {
   approveGovernanceActionWithAdapter,
   assertActiveApprovalApplication,
   type GovernanceActionRow,
-} from './governance-transition.service';
+} from './governance-action-core.service';
 import { applyBillingDocumentGovernanceAction } from './billing-document-governance.service';
 import { applyPriceConfigGovernanceAction } from './price-config-governance.service';
 import { applyDebtOffsetGovernanceAction } from './debtOffset.service';
@@ -51,7 +54,7 @@ import {
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 
-export { checkGovernanceAction } from './governance-transition.service';
+export { checkGovernanceAction } from './governance-action-core.service';
 
 function requireReason(reason: string): string {
   const normalized = reason.trim();

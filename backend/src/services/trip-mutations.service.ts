@@ -54,7 +54,7 @@ export function assertCustomerCommissionWithinRevenue(
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
-import { assertActiveApprovalApplication } from './governance-transition.service';
+import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { LedgerService } from './ledger.service';
 import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
 

@@ -8,7 +8,7 @@ import { ApiError } from '../errors';
 import {
   approveGovernanceActionWithAdapter,
   checkGovernanceAction,
-} from './governance-transition.service';
+} from './governance-action-core.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   issueSalaryPeriodPayslips,

@@ -215,7 +215,7 @@ describe('Q18 executable locked-entity boundary inventory', () => {
   test('binds the shared checker, approver, and applied reference persistence path', () => {
     const checker = assertDeclarationBinding(
       {
-        file: 'services/governance-transition.service.ts',
+        file: 'services/governance-action-core.service.ts',
         symbol: 'checkGovernanceAction',
         requiredFragments: [
           'checkerId',
@@ -230,7 +230,7 @@ describe('Q18 executable locked-entity boundary inventory', () => {
 
     const approval = assertDeclarationBinding(
       {
-        file: 'services/governance-transition.service.ts',
+        file: 'services/governance-action-core.service.ts',
         symbol: 'approveGovernanceActionWithAdapter',
         requiredFragments: [
           'approverId',

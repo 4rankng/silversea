@@ -38,7 +38,7 @@ import {
   checkGovernanceAction,
   type GovernanceActionRow,
   type GovernanceApplyResult,
-} from './governance-transition.service';
+} from './governance-action-core.service';
 import { getAppSettings } from './app-settings.service';
 
 const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
