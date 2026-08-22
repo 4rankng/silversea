@@ -1108,6 +1108,7 @@ describe('Overview operational priority ordering', () => {
         expectedShipmentVersion: shipment.version,
         routeId: route.id,
         liftSiteId: liftPortB.id,
+        dropoffSiteId: liftPortB.id,
       },
       actor: cusActor,
     });
@@ -1115,6 +1116,7 @@ describe('Overview operational priority ordering', () => {
     assert.equal(result.line.shipmentVersion, shipment.version + 1);
     assert.equal(result.line.routeId, route.id);
     assert.equal(result.line.liftSiteId, liftPortB.id);
+    assert.equal(result.line.dropoffSiteId, liftPortB.id);
   });
 });
 

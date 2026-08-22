@@ -2306,8 +2306,10 @@ export async function updateCusShipmentContainerLine(args: {
       // when the value actually changed; an identical no-op save must not
       // bump `shipment.version` (which would 409-conflict the user's next
       // identical save through the CUS route editor).
-      const portIds = [args.input.liftSiteId, args.input.dropoffSiteId]
-        .filter((value): value is number => value != null);
+      const portIds = [...new Set(
+        [args.input.liftSiteId, args.input.dropoffSiteId]
+          .filter((value): value is number => value != null),
+      )];
       const portsByIdIn = portIds.length === 0
         ? new Map<number, { id: number; code: string; name: string }>()
         : new Map((await tx.select({
