@@ -34,6 +34,7 @@ SECTIONS = [
     "s01_overview_dispatch",
     "s02_pricing_revenue",
     "s03_cus",
+    "s03_cus_route_editor",
     "s04_disbursement",
     "s05_ar",
     "s05_ar_workflow",
