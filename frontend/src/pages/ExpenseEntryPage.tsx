@@ -380,11 +380,8 @@ export default function ExpenseEntryPage() {
         });
       }
       // Invalidate every cached expenses page so the list refetches with the new row.
-      // ExpenseListPage uses queryKey ['expenses', params], so we match the prefix.
-      // qk.financial.expenses(filters) is a per-filter key; there is no broad
-      // expensesAll prefix in the factory, so we match the raw prefix here.
-      // eslint-disable-next-line @tingting/no-bare-query-key
-      await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      // Broad registered prefix — matches every ['expenses', params] query.
+      await queryClient.invalidateQueries({ queryKey: qk.financial.expensesAll });
       navigate('/expenses');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Lỗi lưu chi phí';

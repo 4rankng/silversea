@@ -19,7 +19,7 @@ export function useCreditOverrideQueue(filters: CreditOverrideListFilters, enabl
 
 export function useCreditOverrideRequest(id: number | null, enabled = true) {
   return useQuery({
-    queryKey: ['credit-override-detail', id] as const,
+    queryKey: qk.creditOverrides.detail(id),
     queryFn: () => creditOverrideClient.getRequest(id as number),
     enabled: enabled && id != null,
     staleTime: 15_000,

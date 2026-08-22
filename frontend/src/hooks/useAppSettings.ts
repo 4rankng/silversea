@@ -51,13 +51,9 @@ export function useSaveEmailSettings() {
   });
 }
 
-const financialReportingPolicyQueryKey = ['app-settings', 'financial-reporting-policy'] as const;
-const truckFinancialProfilesQueryKey = (truckId: number | null) =>
-  ['app-settings', 'truck-financial-profiles', truckId ?? 'auto'] as const;
-
 export function useFinancialReportingPolicy() {
   return useQuery({
-    queryKey: financialReportingPolicyQueryKey,
+    queryKey: qk.appSettings.financialReportingPolicy,
     queryFn: () => appSettingsClient.getFinancialReportingPolicy(),
     staleTime: 30_000,
   });
@@ -69,14 +65,14 @@ export function useRequestFinancialReportingPolicy() {
     mutationFn: (payload: FinancialReportingPolicyRequest) =>
       appSettingsClient.requestFinancialReportingPolicy(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: financialReportingPolicyQueryKey });
+      queryClient.invalidateQueries({ queryKey: qk.appSettings.financialReportingPolicy });
     },
   });
 }
 
 export function useTruckFinancialProfiles(truckId: number | null) {
   return useQuery({
-    queryKey: truckFinancialProfilesQueryKey(truckId),
+    queryKey: qk.appSettings.truckFinancialProfiles(truckId),
     queryFn: () => appSettingsClient.getTruckFinancialProfiles(truckId),
     staleTime: 30_000,
   });
@@ -88,7 +84,7 @@ export function useRequestTruckFinancialProfile() {
     mutationFn: (payload: TruckFinancialProfileRequest) =>
       appSettingsClient.requestTruckFinancialProfile(payload),
     onSuccess: (_result, payload) => {
-      queryClient.invalidateQueries({ queryKey: truckFinancialProfilesQueryKey(payload.truckId) });
+      queryClient.invalidateQueries({ queryKey: qk.appSettings.truckFinancialProfiles(payload.truckId) });
     },
   });
 }

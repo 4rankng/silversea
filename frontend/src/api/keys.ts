@@ -62,6 +62,8 @@ export const qk = {
     customersTable: ['customers'],
     allCustomers: ['all-customers'],
     users: ['users'],
+    /** Admin-only drawer option list: shipments eligible for clerk-scope assignment. */
+    userScopeShipments: ['shipments', 'user-scope'] as const,
     ports: ['ports'],
     portsCatalog: ['ports-catalog'],
     tirePositions: ['tire-positions'],
@@ -297,6 +299,8 @@ export const qk = {
     /** Broad prefix — matches every supplier-statement query regardless of range. */
     supplierStatementAll: ['supplier-statement'] as const,
     expenses: (filters: unknown) => ['expenses', filters] as const,
+    /** Broad prefix — matches every expenses query regardless of filters. */
+    expensesAll: ['expenses'] as const,
     debtOffsets: (customerId: number | string) =>
       ['debt-offsets', customerId] as const,
     /** Broad prefix — matches all debtOffsets queries regardless of args. */
@@ -407,10 +411,15 @@ export const qk = {
     general: ['app-settings'] as const,
     email: ['email-settings'] as const,
     businessUnits: ['app-settings', 'business-units'] as const,
+    financialReportingPolicy: ['app-settings', 'financial-reporting-policy'] as const,
+    truckFinancialProfiles: (truckId: number | null) =>
+      ['app-settings', 'truck-financial-profiles', truckId ?? 'auto'] as const,
   },
 
   creditOverrides: {
     all: ['credit-overrides'] as const,
+    detail: (id: number | null | undefined) =>
+      ['credit-overrides', 'detail', id ?? null] as const,
     list: (filters?: { status?: string; customerId?: number; shipmentId?: number; cursor?: string; limit?: number }) =>
       [
         'credit-overrides',
