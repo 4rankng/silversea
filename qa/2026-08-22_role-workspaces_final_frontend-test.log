@@ -1,0 +1,30 @@
+Command: cd frontend && pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  189 passed (189)
+      Tests  1082 passed (1082)
+   Start at  23:47:24
+   Duration  39.89s (transform 13.71s, setup 11.28s, import 129.64s, tests 83.40s, environment 105.10s)
+
+Exit status: 0
+Final re-run command: cd frontend && pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/Documents/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.8 /Users/dev/Documents/projects/silversea/frontend
+
+
+ Test Files  189 passed (189)
+      Tests  1084 passed (1084)
+   Start at  23:54:35
+   Duration  37.71s (transform 9.81s, setup 10.60s, import 120.04s, tests 73.88s, environment 106.89s)
+
+Final re-run exit status: 0

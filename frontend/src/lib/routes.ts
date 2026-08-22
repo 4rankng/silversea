@@ -140,7 +140,8 @@ export const routes = {
  * Resolve a "home" route for a given role — used after login + on 404.
  *
  * Role → Route mappings per O2C workflow specification:
- * - ADMIN/Manager → /dashboard
+ * - ADMIN → /config
+ * - Manager → /dashboard
  * - ACCOUNTANT → /accounting
  * - DISPATCHER → /dispatch
  * - CLERK/CUS → /shipments
@@ -165,6 +166,7 @@ export function homeForRole(role: string): string {
     case 'DISPATCHER':
       return routes.dispatch;
     case 'ADMIN':
+      return routes.config;
     case 'MANAGER':
     default:
       return routes.dashboard;

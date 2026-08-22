@@ -221,9 +221,11 @@ describe('work inbox projection', () => {
     ));
     const items = [first, ...pages].flatMap((result) => result.items);
     const sources = new Set(items.map((candidate) => candidate.source));
-    for (const source of ['database', 'setup', 'users_permissions', 'configuration', 'audit']) {
+    for (const source of ['database', 'setup', 'users_permissions', 'configuration', 'audit', 'durable_effect_jobs', 'customer_email_logs']) {
       assert.ok(sources.has(source), source);
     }
+    assert.equal(items.filter((candidate) => candidate.source === 'durable_effect_jobs').length, 1);
+    assert.equal(items.filter((candidate) => candidate.source === 'customer_email_logs').length, 1);
     const audit = items.find((candidate) => candidate.source === 'audit');
     assert.equal(audit?.healthState, 'HEALTHY');
   });

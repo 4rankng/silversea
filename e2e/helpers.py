@@ -17,7 +17,7 @@ SCREENSHOT_DIR = Path(os.environ.get('SILVERSEA_SCREENSHOTS', '/tmp/silversea-e2
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 DEMO_ACCOUNTS = {
-    'admin':     {'identifier': 'admin',    'password': 'Abc123', 'role': 'ADMIN',     'home': '/dashboard'},
+    'admin':     {'identifier': 'admin',    'password': 'Abc123', 'role': 'ADMIN',     'home': '/config'},
     'manager':   {'identifier': 'giamdoc',  'password': 'Abc123', 'role': 'MANAGER',   'home': '/dashboard'},
     'accountant':{'identifier': 'ketoan',   'password': 'Abc123', 'role': 'ACCOUNTANT', 'home': '/accounting'},
     'clerk':     {'identifier': 'cus',      'password': 'Abc123', 'role': 'CUS',        'home': '/clerk/shipments'},

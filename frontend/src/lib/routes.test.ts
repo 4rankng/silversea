@@ -85,6 +85,14 @@ describe('homeForRole', () => {
     expect(homeForRole('ACCOUNTANT')).toBe('/accounting');
   });
 
+  it('routes ADMIN users to the system configuration workspace', () => {
+    expect(homeForRole('ADMIN')).toBe('/config');
+  });
+
+  it('keeps MANAGER users on the management dashboard', () => {
+    expect(homeForRole('MANAGER')).toBe('/dashboard');
+  });
+
   it('routes DISPATCHER users to the dispatch workspace', () => {
     expect(homeForRole('DISPATCHER')).toBe('/dispatch');
   });

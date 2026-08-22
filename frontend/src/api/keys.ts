@@ -244,7 +244,7 @@ export const qk = {
     distributionHistory: ['distribution-history'],
     receivablesSummary: ['receivables-summary'],
     auditRecent: ['dashboard-audit-recent'],
-    decisionInbox: ['dashboard', 'decision-inbox'] as const,
+    decisionInbox: (page: number) => ['dashboard', 'decision-inbox', page] as const,
     approvalQueue: (role: string | undefined, userId: number | undefined) =>
       ['approval-queue', role, userId] as const,
   },

@@ -19,6 +19,7 @@ import { ApprovalQueueCard } from '../features/dashboard/components/ApprovalQueu
 import { useApprovalQueue, canSeeApprovalQueue } from '../features/dashboard/hooks/useApprovalQueue';
 import { useDashboardAnimations } from '../features/dashboard/hooks/useDashboardAnimations';
 import { CompanyInfoSetupBanner } from '../features/dashboard/components/CompanyInfoSetupBanner';
+import { ManagerDecisionInbox } from '../features/dashboard/components/ManagerDecisionInbox';
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
@@ -377,6 +378,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
+      <ManagerDecisionInbox enabled={user?.role === 'MANAGER'} />
+
       <ExecutiveFinancialStrip enabled={Boolean(user?.capabilities?.includes('executive_dashboard.read'))} />
 
       {/* ── KPI row ── */}
@@ -435,7 +438,7 @@ export default function DashboardPage() {
 
         {/* Action-first priority board — the most important operational
             decisions stay in the first scan path on every breakpoint. */}
-        <section
+        {user?.role !== 'MANAGER' && <section
           className={`d-card d-card-border bg-base-100 wf-card wf-att wf-att--wide wf-bento-full wf-priority-board${showAllAttention ? ' is-expanded' : ''}`}
           data-tour-id="dashboard-attention"
           aria-labelledby="dashboard-priority-title"
@@ -499,7 +502,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-          </section>
+          </section>}
 
         {/* Hero 1 — Chart (8 cols × 2 rows) */}
         <section className="d-card d-card-border bg-base-100 wf-card wf-chart wf-bento-hero" aria-labelledby="dashboard-revenue-title">
@@ -664,7 +667,7 @@ export default function DashboardPage() {
 
         {/* Cần duyệt — full-width so its height does not inherit the much
             taller decision list beside it. */}
-        {showApprovalQueue && (
+        {showApprovalQueue && user?.role !== 'MANAGER' && (
           <div className="wf-bento-full">
             <ApprovalQueueCard
               data={approvalQueue}

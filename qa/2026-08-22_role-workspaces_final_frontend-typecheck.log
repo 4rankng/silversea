@@ -1,0 +1,4 @@
+Command: cd frontend && npx tsc -b
+Exit status: 0
+Final re-run command: cd frontend && npx tsc -b
+Final re-run exit status: 0

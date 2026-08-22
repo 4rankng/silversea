@@ -154,17 +154,17 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     else:
         results.fail('TC-0018', 'DRIVER API access', f'Expected 403, got {resp.get("status")}')
 
-    # TC-0020: ADMIN → /my-trips → redirect /dashboard
+    # TC-0020: ADMIN → /my-trips → redirect /config
     page = ctx.new_page()
     ctx.login_as('admin', page)
     page.wait_for_load_state('networkidle')
     page.goto(f'{BASE_URL}/my-trips')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/dashboard' in page.url:
-        results.pass_('TC-0020', 'ADMIN → /my-trips → redirect /dashboard')
+    if '/config' in page.url:
+        results.pass_('TC-0020', 'ADMIN → /my-trips → redirect /config')
     else:
-        results.fail('TC-0020', 'ADMIN driver redirect', f'Expected /dashboard, got {page.url}')
+        results.fail('TC-0020', 'ADMIN driver redirect', f'Expected /config, got {page.url}')
     page.close()
 
     # TC-0022: 404 catch-all for ADMIN
@@ -174,10 +174,10 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/page-khong-ton-tai')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/dashboard' in page.url:
-        results.pass_('TC-0022', '404 catch-all ADMIN → /dashboard')
+    if '/config' in page.url:
+        results.pass_('TC-0022', '404 catch-all ADMIN → /config')
     else:
-        results.fail('TC-0022', '404 catch-all', f'Expected /dashboard, got {page.url}')
+        results.fail('TC-0022', '404 catch-all', f'Expected /config, got {page.url}')
     page.close()
 
     # TC-0034: OPS → /my-orders
@@ -236,10 +236,10 @@ def test_auth(ctx: SilverseaTestContext, results: TestResults):
     page.goto(f'{BASE_URL}/my-forwarder-trips')
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1000)
-    if '/dashboard' in page.url:
-        results.pass_('TC-0038', 'ADMIN → /my-forwarder-trips → redirect')
+    if '/config' in page.url:
+        results.pass_('TC-0038', 'ADMIN → /my-forwarder-trips → redirect /config')
     else:
-        results.fail('TC-0038', 'ADMIN forwarder redirect', f'Got {page.url}')
+        results.fail('TC-0038', 'ADMIN forwarder redirect', f'Expected /config, got {page.url}')
     page.close()
 
     # TC-0039: DRIVER → /my-forwarder-trips → redirect
