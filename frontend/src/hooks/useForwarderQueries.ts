@@ -116,7 +116,7 @@ export function useForwarderAdvanceRequestsTable() {
     ForwarderAdvanceRequestsEnvelope
   >({
     endpoint: getAdvanceRequestsPaginated,
-    queryKey: [...qk.forwarder.forwarderAdvanceRequestsAll, 'table'],
+    queryKey: qk.forwarder.advanceRequestsTable(),
     defaultPageSize: 25,
   });
 }

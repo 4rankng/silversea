@@ -123,12 +123,6 @@ function parseVnd(value: string): { valid: true; value: number | null } | { vali
     : { valid: false, value: null };
 }
 
-function formatVnd(value: string | null): string {
-  if (value == null || value === '') return 'Chưa nhập';
-  const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('vi-VN').format(amount)} đ` : value;
-}
-
 interface VehicleBody {
   truckId?: number | null;
   externalCarrierVehicleId?: number | null;

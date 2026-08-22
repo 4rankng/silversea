@@ -195,6 +195,8 @@ export const qk = {
     eligibleAdvanceRequests: ['forwarder-advance-requests', 'eligible-for-settlement'] as const,
     /** Broad prefix — matches all forwarder-advance-requests queries. */
     forwarderAdvanceRequestsAll: ['forwarder-advance-requests'] as const,
+    /** Paginated advance-requests table — applied params ride the key via useTableQueryState. */
+    advanceRequestsTable: () => [...qk.forwarder.forwarderAdvanceRequestsAll, 'table'] as const,
     settlements: ['forwarder-settlements'] as const,
     /** Paginated settlements list — page/status ride the key. */
     settlementsList: (params?: { status?: string; page?: number; limit?: number }) =>
@@ -242,6 +244,7 @@ export const qk = {
     distributionHistory: ['distribution-history'],
     receivablesSummary: ['receivables-summary'],
     auditRecent: ['dashboard-audit-recent'],
+    decisionInbox: ['dashboard', 'decision-inbox'] as const,
     approvalQueue: (role: string | undefined, userId: number | undefined) =>
       ['approval-queue', role, userId] as const,
   },
@@ -462,6 +465,7 @@ export const qk = {
 
   configCounts: {
     base: 'cfg-count',
+    adminHealth: ['cfg-count', 'admin-health'] as const,
     penaltyReasons: ['cfg-count', 'penalty-reasons'],
     roadAllowances: ['cfg-count', 'road-allowances'],
     drivers: ['cfg-count', 'drivers'],
