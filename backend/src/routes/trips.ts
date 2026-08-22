@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { TripStatus, NotificationType, Role, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
@@ -39,6 +39,7 @@ import {
 import { createTripPair } from '../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { reassignIssuedDispatchWriteCommand } from '../services/dispatch-planning.service';
 
 // Audit event registrations — declared once at module load, matched by middleware
 registerAuditEvent('POST', '/api/trips', AuditEvent.TRIP_CREATED);
@@ -584,8 +585,9 @@ router.post('/:id/driver-order-accepted', requireRoles(Role.DRIVER), asyncHandle
   });
 }));
 
-// Reassign truck/driver (only for CREATED trips)
-router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) => {
+// Reassign truck/driver (only for CREATED trips). Dispatchers own this
+// pre-departure correction after an order has been issued.
+router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);
   const data = req.body;
   if (data.expectedVersion !== undefined
@@ -598,19 +600,54 @@ router.patch('/:id/reassign', asyncHandler(async (req: Request, res: Response) =
   if (data.carrierType === 'EXTERNAL' && (!data.externalCarrierId && !data.externalPlateNumber)) {
     return res.status(400).json({ error: 'Vui lòng chọn đối tác xe ngoài hoặc nhập biển số' });
   }
+  const [trip] = await db.select({
+    id: s.trips.id,
+    version: s.trips.version,
+    shipmentId: s.trips.shipmentId,
+    fulfillmentId: s.trips.fulfillmentId,
+    plannedStartAt: s.trips.plannedStartAt,
+    plannedEndAt: s.trips.plannedEndAt,
+    externalCarrierVehicleId: s.trips.externalCarrierVehicleId,
+  }).from(s.trips).where(and(eq(s.trips.id, id), isNull(s.trips.deletedAt))).limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  if (trip.shipmentId == null || trip.fulfillmentId == null || !trip.plannedStartAt || !trip.plannedEndAt) {
+    if (getUser(req).role === Role.DISPATCHER) {
+      throw new ApiError(409, 'Chỉ có thể phân xe lại từ Điều phối cho lệnh gắn với tác vụ điều xe.');
+    }
+    const reassigned = await tripService.reassignTrip(id, data);
+    return res.json(reassigned);
+  }
+  if (data.expectedVersion === undefined) {
+    throw new ApiError(400, 'Phiên bản chuyến đi là bắt buộc khi phân xe lại.');
+  }
+  const [fulfillment] = await db.select({ version: s.shipmentFulfillments.version })
+    .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, trip.fulfillmentId)).limit(1);
+  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
   const user = getUser(req);
-  const idempotencyKey = getRequestIdempotencyKey(req);
-  const { result: trip, replayed } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_REASSIGN,
-    idempotencyKey,
-    payload: { actorId: user.userId, tripId: id, data },
-    createdBy: user.userId,
-    entityType: 'trip',
-    create: (tx) => tripService.reassignTrip(id, data, tx),
-    getEntityId: (result) => result.id,
+  const outcome = await reassignIssuedDispatchWriteCommand({
+    shipmentId: trip.shipmentId,
+    fulfillmentId: trip.fulfillmentId,
+    expectedVersion: fulfillment.version,
+    expectedTripVersion: data.expectedVersion,
+    plannedStartAt: trip.plannedStartAt.toISOString(),
+    plannedEndAt: trip.plannedEndAt.toISOString(),
+    endTimeConfirmed: true,
+    carrierType: data.carrierType ?? 'OWN',
+    truckId: data.truckId ?? null,
+    driverId: data.driverId ?? null,
+    externalCarrierId: data.externalCarrierId ?? null,
+    // The trip-detail reassignment form has no carrier-fleet vehicle picker.
+    // Preserve the issued vehicle so the governed FCL validation still checks
+    // a real active vehicle instead of accepting an unbound external plate.
+    externalCarrierVehicleId: trip.externalCarrierVehicleId,
+    externalPlateNumber: data.externalPlateNumber ?? null,
+    externalDriverName: data.externalDriverName ?? null,
+    externalDriverPhone: data.externalDriverPhone ?? null,
+    idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+    actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
   });
-  if (!replayed) await invalidateReportCaches();
-  res.json(idempotencyKey ? { ...trip, replayed } : trip);
+  res.locals.auditEntityId = trip.shipmentId;
+  res.status(outcome.replayed ? 200 : 201).json(outcome);
 }));
 
 // Submit an exceptional reopen request. The trip remains COMPLETED until a

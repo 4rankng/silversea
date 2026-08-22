@@ -176,12 +176,13 @@ Cho phép hủy với lý do. Mỗi chuyến chỉ có một lái xe.
   2. Mở 2 tab cùng sửa chuyến C-001, 2 người bấm lưu gần như cùng lúc.
 - **Kết quả mong đợi (Pass):** Xem TC-HT-04 và TC-HT-23.
 
-### TC-M01-03-06 — Biên: chuyến qua ngày; đổi xe trước giờ chạy; hủy sau khi phát sinh dữ liệu
+### TC-M01-03-06 — Biên: chuyến qua ngày; phân xe lại trước giờ chạy; hủy sau khi phát sinh dữ liệu
 
 - **Các bước:**
   1. Tạo chuyến bắt đầu 23:00 hôm nay, kết thúc 02:00 ngày mai. Kiểm tra hiển thị ngày.
-  2. Đổi xe của chuyến ở trạng thái "Mới tạo" trước giờ chạy → được.
-  3. Hủy chuyến đã có công tác phí → yêu cầu lý do + kiểm tra bút toán hoàn tác.
+  2. Sau khi đã phát hành lệnh, đăng nhập `dieuvan`, mở `/dispatch-detail` và bấm biển số của chuyến ở trạng thái "Mới tạo". Chọn xe/tài xế khác trong luồng "Phân xe lại" → được; tài xế mới nhận thông báo lệnh đã thay đổi.
+  3. Thử cùng thao tác khi chuyến đã chạy hoặc đã khóa kế toán → bị chặn.
+  4. Hủy chuyến đã có công tác phí → yêu cầu lý do + kiểm tra bút toán hoàn tác.
 
 ---
 

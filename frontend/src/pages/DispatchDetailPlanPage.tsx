@@ -1,4 +1,5 @@
 import { PageHeader } from '../components/UI';
+import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
@@ -12,6 +13,7 @@ import './DispatchPlanPage.css';
  */
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
+  const navigate = useNavigate();
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
@@ -40,6 +42,7 @@ export default function DispatchDetailPlanPage() {
           sortKey={detailPlan.sortKey}
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
+          onOpenTripReassign={(tripId) => navigate(`/trips/${tripId}?reassign=1`)}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination

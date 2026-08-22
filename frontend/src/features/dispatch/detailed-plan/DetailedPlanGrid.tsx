@@ -54,6 +54,7 @@ interface DetailedPlanGridProps {
       isCombined: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
+  onOpenTripReassign: (tripId: number) => void;
 }
 
 /**
@@ -79,6 +80,7 @@ export function DetailedPlanGrid({
   sortKey,
   onToggleSort,
   onAtomicSave,
+  onOpenTripReassign,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -240,7 +242,11 @@ export function DetailedPlanGrid({
                     )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
-                    <DispatchPlanEditorCell row={row} onAtomicSave={onAtomicSave} />
+                    <DispatchPlanEditorCell
+                      row={row}
+                      onAtomicSave={onAtomicSave}
+                      onOpenTripReassign={onOpenTripReassign}
+                    />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">
                     <span className="detailed-plan-grid__classification">

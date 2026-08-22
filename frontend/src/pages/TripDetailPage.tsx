@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Shuffle, FilePen, X } from 'lucide-react';
 import { api } from '../lib/api';
 import { useLiveFleet } from '../hooks/useTripQueries';
@@ -27,6 +27,7 @@ import './TripDetailPage.css';
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const page = useTripDetailPage(id);
   const { rootRef } = usePageAnimations({ ready: !page.loading });
   const [governanceIntent, setGovernanceIntent] = useState<'complete' | 'cancel' | null>(null);
@@ -37,6 +38,17 @@ export default function TripDetailPage() {
 
   const handleBack = () => navigate('/trips');
   useBackShortcut(handleBack);
+
+  useEffect(() => {
+    if (searchParams.get('reassign') !== '1'
+      || !page.trip
+      || !page.permissions.canReassign
+      || page.trip.accountingLock != null) return;
+    page.openReassign();
+    const nextSearchParams = new URLSearchParams(searchParams);
+    nextSearchParams.delete('reassign');
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [page.openReassign, page.permissions.canReassign, page.trip, searchParams, setSearchParams]);
 
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {

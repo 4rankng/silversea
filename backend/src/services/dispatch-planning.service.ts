@@ -159,6 +159,8 @@ export interface IssueFulfillmentDispatchOrderInput {
   shipmentId: number;
   fulfillmentId: number;
   expectedVersion: number;
+  /** Required when correcting a published trip to prevent a silent overwrite. */
+  expectedTripVersion?: number;
   plannedStartAt: string;
   plannedEndAt: string;
   endTimeConfirmed: boolean;
@@ -1769,6 +1771,9 @@ async function issueOrderCreateOrUpdate(
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
     throw new ApiError(409, 'Không thể điều chỉnh tác vụ đã xuất phát.');
   }
+  if (liveTrip && input.expectedTripVersion !== undefined && liveTrip.version !== input.expectedTripVersion) {
+    throw new ApiError(409, 'Lệnh điều xe đã thay đổi. Vui lòng tải lại.');
+  }
   const previousDriverId = liveTrip?.driverId ?? null;
   const assignmentChanged = liveTrip == null
     ? true
@@ -1933,6 +1938,12 @@ async function issueOrderCreateOrUpdate(
   }
 
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
+    plannedCarrierType: input.carrierType,
+    plannedExternalCarrierId: externalCarrierId,
+    plannedExternalCarrierVehicleId: externalCarrierVehicleId,
+    plannedVehiclePlateNumber: input.carrierType === 'OWN'
+      ? (await tx.select({ licensePlate: s.trucks.licensePlate }).from(s.trucks).where(eq(s.trucks.id, truckId!)).limit(1))[0]?.licensePlate ?? null
+      : externalPlateNumber,
     version: sql`${s.shipmentFulfillments.version} + 1`,
     updatedAt: new Date(),
   }).where(eq(s.shipmentFulfillments.id, fulfillment.id)).returning();
@@ -1965,6 +1976,7 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       shipmentId: input.shipmentId,
       fulfillmentId: input.fulfillmentId,
       expectedVersion: input.expectedVersion,
+      expectedTripVersion: input.expectedTripVersion ?? null,
       plannedStartAt: input.plannedStartAt,
       plannedEndAt: input.plannedEndAt,
       endTimeConfirmed: input.endTimeConfirmed,
@@ -2022,6 +2034,16 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
     },
     replayed: outcome.replayed,
   };
+}
+
+/**
+ * Command boundary for correcting a published fulfillment before departure.
+ * It deliberately reuses the issuance transaction so reassignment keeps the
+ * same validation, optimistic locking, fulfillment projection, and durable
+ * notification guarantees as first-time dispatch.
+ */
+export async function reassignIssuedDispatchWriteCommand(input: IssueFulfillmentDispatchOrderInput) {
+  return issueFulfillmentDispatchOrder(input);
 }
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
@@ -2313,6 +2335,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             customerNote: row.customerNotes,
           },
           dispatch: {
+            tripId: row.tripId,
+            tripStatus: row.tripStatus,
             carrierType: row.plannedCarrierType,
             carrierName: row.plannedCarrierType === 'OWN'
               ? INTERNAL_FLEET_CARRIER_NAME

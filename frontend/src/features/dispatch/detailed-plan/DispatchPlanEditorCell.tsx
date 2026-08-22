@@ -63,6 +63,8 @@ interface DispatchPlanEditorCellProps {
       isCombined: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
+  /** Opens the governed trip reassignment flow after an order is issued. */
+  onOpenTripReassign: (tripId: number) => void;
   disabled?: boolean;
 }
 
@@ -150,7 +152,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * carrier, vehicle, estimates, classification and Đóng kết hợp save together
  * through PATCH /dispatch-detail-plan-rows/:id/plan or not at all.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -277,6 +279,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
 
   function openEditor() {
     if (disabled) return;
+    // An issued order owns a live trip. Its vehicle must be changed through
+    // the trip reassignment flow so the driver/vehicle state stays coherent.
+    if (row.taskStatus === 'DISPATCHED'
+      && row.dispatch.tripId != null
+      && row.dispatch.tripStatus === 'CREATED') {
+      onOpenTripReassign(row.dispatch.tripId);
+      return;
+    }
     setDraft(draftForRow(row));
     setCarrierSearch('');
     setVehicleSearch('');
@@ -389,6 +399,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
 
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
+  const canReassignIssuedTrip = row.taskStatus === 'DISPATCHED'
+    && row.dispatch.tripId != null
+    && row.dispatch.tripStatus === 'CREATED';
 
   return (
     <>
@@ -399,8 +412,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, disabled = false }: 
         data-cell-label="Điều phối"
         onClick={openEditor}
         disabled={disabled}
-        aria-haspopup="dialog"
-        aria-label={`Sửa ô điều phối ${identity}`}
+        aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
+        aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
+        title={canReassignIssuedTrip ? 'Phân xe lại trước khi chuyến xuất phát' : `Chỉnh sửa điều phối · ${identity}`}
       >
         <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>

@@ -200,6 +200,9 @@ export interface DispatchDetailPlanRow {
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
   notes: { vehicleNote: string | null; customerNote: string | null };
   dispatch: {
+    /** Present once the dispatch order has created a live trip. */
+    tripId?: number | null;
+    tripStatus?: string | null;
     carrierType: 'OWN' | 'EXTERNAL';
     carrierName: string | null;
     externalCarrierId: number | null;

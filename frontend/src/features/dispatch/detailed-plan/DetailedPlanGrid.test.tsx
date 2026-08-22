@@ -49,6 +49,7 @@ function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, u
       sortKey={null}
       onToggleSort={vi.fn()}
       onAtomicSave={vi.fn()}
+      onOpenTripReassign={vi.fn()}
       {...extraProps}
     />,
   );
@@ -173,6 +174,26 @@ describe('DetailedPlanGrid', () => {
 
     expect(screen.getByText('51C-123.45')).toBeTruthy();
     expect(screen.queryByText('Đã phân xe')).toBeNull();
+  });
+
+  it('opens governed reassignment for a dispatched trip that has not departed', () => {
+    const onOpenTripReassign = vi.fn();
+    renderGrid([row({
+      taskStatus: 'DISPATCHED',
+      dispatch: {
+        carrierType: 'OWN',
+        carrierName: 'SilverSea',
+        externalCarrierId: null,
+        externalCarrierVehicleId: null,
+        assignedPlate: '51C-123.45',
+        tripId: 77,
+        tripStatus: 'CREATED',
+      },
+    })], { onOpenTripReassign });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Phân xe lại MSCU1234567' }));
+    expect(onOpenTripReassign).toHaveBeenCalledWith(77);
+    expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/i })).toBeNull();
   });
 
   it('renders the vendor placeholder hint for unassigned EXTERNAL rows', () => {

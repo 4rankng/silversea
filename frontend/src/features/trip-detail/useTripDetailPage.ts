@@ -177,6 +177,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   /* ── Permissions ────────────────────────────────────────────────────── */
   const permissions: TripPermissions = useMemo(() => {
     const isManagerOrAdmin = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
+  const hasDispatchAuthority = isManagerOrAdmin || user?.role === Role.DISPATCHER;
     const isAccountant = user?.role === Role.ACCOUNTANT;
     const s = trip?.status;
     // Lifecycle / structural edits (route, customer, truck, driver, status
@@ -202,7 +203,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       canCancel: s !== TripStatus.COMPLETED && s !== TripStatus.CANCELED && isManagerOrAdmin,
       canDispatch: s === TripStatus.CREATED && isManagerOrAdmin,
       canComplete: s === TripStatus.IN_TRANSIT && isManagerOrAdmin,
-      canReassign: s === TripStatus.CREATED && isManagerOrAdmin,
+    canReassign: s === TripStatus.CREATED && hasDispatchAuthority,
       // Adjustment/governed reopen available on a completed trip (manager/admin).
       canAdjust: s === TripStatus.COMPLETED && isManagerOrAdmin,
       canChangeDate: s !== TripStatus.CANCELED && isManagerOrAdmin,
@@ -284,6 +285,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setReassignError('');
     try {
       await api.patch(`/trips/${id}/reassign`, {
+        expectedVersion: trip?.version,
         carrierType: reassignCarrierType,
         truckId: reassignTruckId ? Number(reassignTruckId) : null,
         driverId: reassignDriverId ? Number(reassignDriverId) : null,
