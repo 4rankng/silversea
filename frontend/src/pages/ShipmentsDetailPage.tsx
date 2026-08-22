@@ -41,6 +41,14 @@ const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+function isOptimisticShipmentConflict(error: unknown): error is ApiError {
+  if (!(error instanceof ApiError) || error.status !== 409) return false;
+  return error.message.includes('Lô hàng vừa thay đổi')
+    || error.message.includes('Lô hàng đã bị người khác cập nhật')
+    || error.message.includes('yêu cầu thay đổi mới hơn')
+    || error.message.includes('Dữ liệu đã được xử lý đồng thời');
+}
+
 function readIsoDate(value: string | null): string {
   if (!value || !ISO_DATE_PATTERN.test(value)) return '';
   const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -321,7 +329,7 @@ export default function ShipmentsDetailPage() {
         ...(line.permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId } : {}),
       }, key);
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       delete editIdempotencyKeys.current[signature];
       await recoverConflict(activeEdit.row, 'route');
       return;
@@ -341,7 +349,7 @@ export default function ShipmentsDetailPage() {
       });
       if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       await recoverConflict(row, 'identity');
       return;
     }
@@ -360,7 +368,7 @@ export default function ShipmentsDetailPage() {
       });
       if (response.changeMode === 'REQUESTED') setEditNotice(response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.');
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       await recoverConflict(row, 'documents');
       return;
     }
@@ -381,7 +389,7 @@ export default function ShipmentsDetailPage() {
         cargoVolumeCbm: draft.cargoVolumeCbm,
       }, key);
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       delete editIdempotencyKeys.current[signature];
       await recoverConflict(activeEdit.row, 'container');
       return;
@@ -408,7 +416,7 @@ export default function ShipmentsDetailPage() {
             }),
       }, key);
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       delete editIdempotencyKeys.current[signature];
       await recoverConflict(activeEdit.row, 'vehicle');
       return;
@@ -448,7 +456,7 @@ export default function ShipmentsDetailPage() {
         }, key);
       }
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       delete editIdempotencyKeys.current[signature];
       await recoverConflict(row, 'schedule');
       return;
@@ -465,7 +473,7 @@ export default function ShipmentsDetailPage() {
         driverNotes: draft.operationalNotes,
       });
     } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 409) throw error;
+      if (!isOptimisticShipmentConflict(error)) throw error;
       await recoverConflict(row, 'notes');
       return;
     }

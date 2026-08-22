@@ -2146,6 +2146,19 @@ export async function updateCusShipmentContainerLine(args: {
       .for('update');
     if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
 
+    // Historical intake rows can predate the explicit shipment cargo-mode
+    // field while already owning real container records. A container-scoped
+    // write is unambiguously FCL (LCL is forbidden from owning containers), so
+    // repair only that legacy null case inside this locked transaction before
+    // creating its canonical fulfillment. Explicit FCL/LCL values still flow
+    // through the strict decomposition checks unchanged.
+    const repairedLegacyCargoMode = shipment.cargoMode == null;
+    if (repairedLegacyCargoMode) {
+      await tx.update(s.shipments).set({ cargoMode: 'FCL' })
+        .where(eq(s.shipments.id, shipment.id));
+      shipment.cargoMode = 'FCL';
+    }
+
     let fulfillment: ShipmentFulfillmentRow | null = (await tx.select().from(s.shipmentFulfillments)
       .where(and(
         eq(s.shipmentFulfillments.shipmentId, args.shipmentId),
@@ -2210,7 +2223,7 @@ export async function updateCusShipmentContainerLine(args: {
       throw new ApiError(409, 'Lô hàng đã bàn giao điều phối. Thay đổi container phải đi qua yêu cầu thay đổi để phê duyệt.');
     }
 
-    let touched = false;
+    let touched = repairedLegacyCargoMode;
     const now = new Date();
 
     if (args.input.containerNumber !== undefined) {

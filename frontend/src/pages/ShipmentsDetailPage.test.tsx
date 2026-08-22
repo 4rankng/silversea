@@ -684,6 +684,44 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     }, { headers: { 'Idempotency-Key': expect.any(String) } }));
   });
 
+  it('keeps the route draft and shows a domain 409 inline instead of treating it as stale data', async () => {
+    const domainMessage = 'Hình thức hàng FCL/LCL chưa được xác định.';
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail);
+    apiPost.mockRejectedValueOnce(new ApiError(409, { error: domainMessage }, domainMessage));
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
+    fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(domainMessage);
+    expect(screen.getByRole('button', { name: 'Hủy hành trình CONT-002' })).toBeTruthy();
+    expect(screen.getByLabelText('Cảng nâng').textContent).toContain('DV · Cảng Đình Vũ');
+    expect(screen.queryByText(/Đã tải bản mới nhất/)).toBeNull();
+    expect(apiGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats a newer change-request 409 as stale data and rebases the editor', async () => {
+    const refreshedDetail = {
+      ...detail,
+      summary: { ...detail.summary, version: 8 },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(refreshedDetail).mockResolvedValueOnce(response);
+    apiPost.mockRejectedValueOnce(new ApiError(409, {}, 'Lô hàng đã có yêu cầu thay đổi mới hơn. Vui lòng tải lại.'));
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ }));
+    fireEvent.click(await screen.findByLabelText('Cảng nâng'));
+    fireEvent.click(screen.getByRole('option', { name: 'DV · Cảng Đình Vũ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hành trình CONT-002' }));
+
+    await waitFor(() => expect(screen.getAllByRole('status').some((element) => element.textContent?.includes('Đã tải bản mới nhất'))).toBe(true));
+    expect(apiGet).toHaveBeenCalledTimes(3);
+  });
+
   it('closes a stale editor when refreshed permissions become read-only', async () => {
     const readOnlyDetail = {
       ...detail,

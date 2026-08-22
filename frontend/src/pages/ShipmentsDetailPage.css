@@ -238,8 +238,8 @@
 .shipment-container-ledger__edit-action { display: inline-flex; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 13px; }
 .shipment-container-ledger__edit-action [data-text] { display: none; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: 11px; line-height: 1.35; white-space: nowrap; }
-.shipment-container-ledger__edit-error { display: block; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; }
-.shipment-container-ledger__recovery { display: block; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; }
+.shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 
 .shipments-detail-skeleton { padding: 0 12px; }
 .shipments-detail-skeleton__row { display: flex; gap: 12px; align-items: center; min-height: 72px; border-bottom: 1px solid var(--line); }

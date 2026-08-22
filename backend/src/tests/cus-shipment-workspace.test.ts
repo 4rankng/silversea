@@ -13,7 +13,7 @@
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -881,6 +881,97 @@ describe('Overview operational priority ordering', () => {
       actor: cusActor,
     });
     assert.equal(result.line.customerAppointmentAt, '2026-08-25T04:00:00.000Z');
+  });
+
+  test('route save repairs a legacy unclassified shipment that already has a container', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const route = await seedRoute();
+    const [liftPort] = await db.insert(s.ports).values({
+      code: `LGCUP${marker}`,
+      name: `CusWs cảng nâng legacy ${marker}`,
+    }).returning();
+    const [dropPort] = await db.insert(s.ports).values({
+      code: `LGCDN${marker}`,
+      name: `CusWs cảng hạ legacy ${marker}`,
+    }).returning();
+    createdPortIds.push(liftPort.id, dropPort.id);
+    const shipment = await seedShipment({
+      blNumber: `WS-LEGACY-${marker}`,
+      cargoMode: null,
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSLEG${marker}`.slice(0, 20),
+    });
+
+    const result = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        routeId: route.id,
+        liftSiteId: liftPort.id,
+        dropoffSiteId: dropPort.id,
+      },
+      actor: cusActor,
+    });
+
+    assert.equal(result.line.routeId, route.id);
+    assert.equal(result.line.liftSiteId, liftPort.id);
+    assert.equal(result.line.dropoffSiteId, dropPort.id);
+    assert.equal(result.line.shipmentVersion, shipment.version + 1);
+
+    const [persistedShipment] = await db.select({ cargoMode: s.shipments.cargoMode })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id));
+    assert.equal(persistedShipment?.cargoMode, 'FCL');
+
+    const [fulfillment] = await db.select({
+      id: s.shipmentFulfillments.id,
+      cargoMode: s.shipmentFulfillments.cargoMode,
+      shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+    }).from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(fulfillment?.cargoMode, 'FCL');
+    assert.equal(fulfillment?.shipmentContainerId, container.id);
+    const snapshotJson = JSON.stringify(fulfillment?.siteSnapshot ?? {});
+    assert.ok(snapshotJson.includes(String(liftPort.id)), 'lift site missing from the fulfillment site snapshot');
+    assert.ok(snapshotJson.includes(String(dropPort.id)), 'drop site missing from the fulfillment site snapshot');
+    if (fulfillment) createdFulfillmentIds.push(fulfillment.id);
+  });
+
+  test('explicit LCL shipment with a stray container is rejected, not repaired to FCL', async () => {
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-LCL-${marker}`,
+      cargoMode: 'LCL',
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSLCL${marker}`.slice(0, 20),
+    });
+
+    await assert.rejects(
+      updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: {
+          expectedShipmentVersion: shipment.version,
+        },
+        actor: cusActor,
+      }),
+      /Lô hàng lẻ không được tạo container giả\.|Tác vụ thực hiện hiện có không khớp/,
+    );
+
+    const [persisted] = await db.select({ cargoMode: s.shipments.cargoMode })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, shipment.id));
+    assert.equal(persisted?.cargoMode, 'LCL');
+    const fulfillments = await db.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipment.id));
+    assert.equal(fulfillments.length, 0);
   });
 
   test('no-op lift/drop port save does not bump shipment version', async () => {
