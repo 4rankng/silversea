@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { inArray } from 'drizzle-orm';
+import { inArray, isNull, eq, and } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -16,6 +16,7 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
+import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const DAY_MS = 86_400_000;
@@ -56,6 +57,31 @@ function sign(userId: number, username: string, role: Role) {
 function expectedStreakDays(lastPenaltyDate: string | null, createdAt: Date) {
   const anchor = lastPenaltyDate ? new Date(lastPenaltyDate).getTime() : createdAt.getTime();
   return Math.max(0, Math.floor((Date.now() - anchor) / DAY_MS));
+}
+
+// ── Legacy client-side helpers, transplanted verbatim from
+// frontend/src/features/penalties/utils.ts (computeStreak + getViolationGrade).
+// The golden insights test proves the SQL-computed endpoint reproduces the
+// client-side computation exactly on the same rows.
+function legacyComputeStreak(driverId: number, penalties: { driverId: number; date: string }[], createdAt: string): number {
+  const driverPenalties = penalties
+    .filter((p) => p.driverId === driverId && p.date)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (driverPenalties.length === 0) {
+    const hire = new Date(createdAt);
+    const now = new Date();
+    return Math.max(0, Math.floor((now.getTime() - hire.getTime()) / DAY_MS));
+  }
+  const lastViolation = new Date(driverPenalties[0].date);
+  const now = new Date();
+  return Math.max(0, Math.floor((now.getTime() - lastViolation.getTime()) / DAY_MS));
+}
+
+function legacyGetViolationGrade(violationCount: number): string {
+  if (violationCount === 0) return 'A+';
+  if (violationCount <= 2) return 'A';
+  if (violationCount <= 5) return 'B';
+  return 'C';
 }
 
 before(async () => {
@@ -138,6 +164,7 @@ describe('GET /api/penalties (paginated)', () => {
     assert.equal(body.items[0].date, '2026-08-05');
     assert.equal(body.items[0].driverName, driverA.name);
     assert.equal(body.items[1].date, '2026-08-01');
+    assert.deepEqual(body.statusCounts, { all: 5, ACTIVE: 4, CANCELED: 1 });
   });
 
   test('later pages continue the ordering and the last page is partial', async () => {
@@ -179,11 +206,14 @@ describe('GET /api/penalties (paginated)', () => {
     assert.equal(openEnded.body.total, 2);
   });
 
-  test('filters by status', async () => {
+  test('filters by status while chip counts stay full-set', async () => {
     const { status, body } = await request(`${scoped}&status=CANCELED`);
     assert.equal(status, 200);
     assert.equal(body.total, 1);
     assert.equal(body.items[0].status, 'CANCELED');
+    // Chips render from statusCounts over the same where minus the status
+    // filter — never page-derived, never status-filtered.
+    assert.deepEqual(body.statusCounts, { all: 5, ACTIVE: 4, CANCELED: 1 });
   });
 
   test('rejects invalid queries with 400', async () => {
@@ -194,60 +224,106 @@ describe('GET /api/penalties (paginated)', () => {
   });
 });
 
-describe('GET /api/penalties/summary', () => {
-  test('aggregates range, status, YTD and per-driver figures', async () => {
-    const { status, body } = await request(`/penalties/summary?driverId=${driverA.id}&dateFrom=2026-08-01&dateTo=2026-08-05`);
+describe('GET /api/penalties/insights', () => {
+  test('golden parity: server KPIs equal the transplanted client-side computation', async () => {
+    const { status, body } = await request('/penalties/insights?month=8&year=2026');
     assert.equal(status, 200);
 
-    assert.equal(body.totalCount, 2);
-    assert.equal(body.totalAmount, 300_000);
-    assert.equal(body.statusCounts.ACTIVE, 1);
-    assert.equal(body.statusCounts.CANCELED, 1);
-    assert.equal(body.statusAmounts.ACTIVE, 100_000);
-    assert.equal(body.statusAmounts.CANCELED, 200_000);
-    assert.equal(body.penalizedDriverCount, 1);
+    // Snapshot the exact inputs the frontend used to receive as props.
+    const [allPenalties, allDrivers, allTrucks] = await Promise.all([
+      db.select({ driverId: s.penalties.driverId, date: s.penalties.date, amount: s.penalties.amount })
+        .from(s.penalties).where(isNull(s.penalties.deletedAt)),
+      db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, assignedTruckId: s.drivers.assignedTruckId })
+        .from(s.drivers).where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE'))),
+      db.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks),
+    ]);
 
-    const ytdSeed = seedPenalties.filter((p) => p.driver === 'A' && p.date >= yearStart);
-    assert.equal(body.ytdCount, ytdSeed.length);
-    assert.equal(body.ytdAmount, ytdSeed.reduce((acc, p) => acc + p.amount, 0));
+    const period = await resolveSalaryPeriodDateRange(8, 2026);
+    const prevPeriod = await resolveSalaryPeriodDateRange(7, 2026);
+    const now = new Date();
+    const yearStart = `${now.getFullYear()}-01-01`;
 
-    // driverId scopes the roster to the single seeded driver.
-    assert.equal(body.drivers.length, 1);
-    const driverARow = body.drivers[0];
-    assert.equal(driverARow.driverId, driverA.id);
-    assert.equal(driverARow.driverName, driverA.name);
-    assert.equal(driverARow.count, 2);
-    assert.equal(driverARow.totalAmount, 300_000);
-    assert.equal(driverARow.ytdCount, 2);
-    assert.equal(driverARow.ytdAmount, 300_000);
-    assert.equal(driverARow.lastPenaltyDate, '2026-08-05');
-    assert.equal(driverARow.streakDays, expectedStreakDays('2026-08-05', new Date()));
+    // ── PenaltyTable.tsx KPI block, transplanted ──────────────────────────
+    const monthPenalties = allPenalties.filter((p) => p.date >= period.start && p.date <= period.end);
+    const incidentCount = monthPenalties.length;
+    const totalMonthAmount = monthPenalties.reduce((acc, p) => acc + parseFloat(p.amount), 0);
+    const prevMonthCount = allPenalties.filter((p) => p.date >= prevPeriod.start && p.date <= prevPeriod.end).length;
+    const comparisonLabel = prevMonthCount > 0
+      ? `Giảm ${Math.round((1 - incidentCount / prevMonthCount) * 100)}% so với ${String(7).padStart(2, '0')}/${String(2026).slice(-2)}`
+      : incidentCount === 0 ? 'Tháng an toàn' : '';
+    const penalizedDriverIds = new Set(monthPenalties.map((p) => p.driverId));
+    const safeDriverCount = allDrivers.filter((d) => !penalizedDriverIds.has(d.id)).length;
+    const ytdPenalties = allPenalties.filter((p) => p.date >= yearStart);
+    const ytdTotal = ytdPenalties.reduce((acc, p) => acc + parseFloat(p.amount), 0);
+    const cutoff = (days: number) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - days);
+      return d.toISOString().slice(0, 10);
+    };
+    const truckMap = new Map(allTrucks.map((t) => [t.id, t.licensePlate]));
+    const violationsIn = (driverId: number, from: string) => allPenalties.filter((p) => p.driverId === driverId && p.date >= from).length;
+    const expected = allDrivers.map((d) => {
+      const violations90d = violationsIn(d.id, cutoff(90));
+      return {
+        driverId: d.id,
+        name: d.name,
+        streakDays: legacyComputeStreak(d.id, allPenalties, d.createdAt.toISOString()),
+        violations7d: violationsIn(d.id, cutoff(7)),
+        violations30d: violationsIn(d.id, cutoff(30)),
+        violations90d,
+        violationsYtd: ytdPenalties.filter((p) => p.driverId === d.id).length,
+        fineYtd: ytdPenalties.filter((p) => p.driverId === d.id).reduce((acc, p) => acc + parseFloat(p.amount), 0),
+        grade: legacyGetViolationGrade(violations90d),
+        truckPlate: d.assignedTruckId ? truckMap.get(d.assignedTruckId) ?? null : null,
+      };
+    }).sort((a, b) => b.streakDays - a.streakDays || a.violations90d - b.violations90d);
+    // ── end transplant ────────────────────────────────────────────────────
+
+    assert.equal(body.month.incidentCount, incidentCount);
+    assert.equal(body.month.totalAmount, totalMonthAmount);
+    assert.equal(body.month.prevMonthCount, prevMonthCount);
+    assert.equal(body.month.comparisonLabel, comparisonLabel);
+    assert.equal(body.ytd.count, ytdPenalties.length);
+    assert.equal(body.ytd.total, ytdTotal);
+    assert.equal(body.safeDriverCount, safeDriverCount);
+    assert.equal(body.driverTotal, allDrivers.length);
+    assert.equal(body.longestStreak, expected.reduce((max, d) => Math.max(max, d.streakDays), 0));
+    assert.equal(body.streakLeader, expected[0]?.name || '—');
+    assert.equal(
+      body.avgStreak,
+      expected.length > 0 ? Math.round(expected.reduce((acc, d) => acc + d.streakDays, 0) / expected.length) : 0,
+    );
+    assert.equal(body.driversOver90, expected.filter((d) => d.streakDays >= 90).length);
+    assert.equal(body.driversOver6m, expected.filter((d) => d.streakDays >= 180).length);
+
+    assert.equal(body.scoreboard.length, expected.length);
+    assert.deepEqual(body.scoreboard.map((r: { driverId: number }) => r.driverId), expected.map((d) => d.driverId));
+    for (const row of expected) {
+      const actual = body.scoreboard.find((r: { driverId: number }) => r.driverId === row.driverId);
+      assert.ok(actual, `driver ${row.driverId} missing from scoreboard`);
+      assert.deepEqual(actual, row);
+    }
+
+    // Seeded-driver sanity: the fresh seeds must actually exercise the paths.
+    const driverARow = body.scoreboard.find((r: { driverId: number }) => r.driverId === driverA.id);
+    const driverASeedYtd = seedPenalties.filter((p) => p.driver === 'A' && p.date >= yearStart);
+    assert.equal(driverARow.violationsYtd, driverASeedYtd.length);
+    assert.equal(driverARow.fineYtd, driverASeedYtd.reduce((acc, p) => acc + p.amount, 0));
   });
 
-  test('without dates covers the whole history and sorts by streak first', async () => {
-    const { status, body } = await request(`/penalties/summary?driverId=${driverB.id}`);
+  test('defaults to the current period without params', async () => {
+    const { status, body } = await request('/penalties/insights');
     assert.equal(status, 200);
-    // Whole history includes the 2025 row — no hidden date cap.
-    assert.equal(body.totalCount, 3);
-    assert.equal(body.totalAmount, 750_000);
-    assert.equal(body.penalizedDriverCount, 1);
-    assert.equal(body.drivers.length, 1);
-
-    const driverBRow = body.drivers[0];
-    assert.equal(driverBRow.driverId, driverB.id);
-    assert.equal(driverBRow.lastPenaltyDate, '2026-07-15');
-    assert.equal(driverBRow.streakDays, expectedStreakDays('2026-07-15', new Date()));
-    // YTD only counts rows inside the current calendar year.
-    const driverBYtdSeed = seedPenalties.filter((p) => p.driver === 'B' && p.date >= yearStart);
-    assert.equal(driverBRow.ytdCount, driverBYtdSeed.length);
-    assert.equal(driverBRow.ytdAmount, driverBYtdSeed.reduce((acc, p) => acc + p.amount, 0));
-    assert.equal(body.ytdCount, driverBYtdSeed.length);
-    assert.equal(body.ytdAmount, driverBYtdSeed.reduce((acc, p) => acc + p.amount, 0));
+    assert.equal(typeof body.month.incidentCount, 'number');
+    assert.equal(typeof body.month.comparisonLabel, 'string');
+    assert.ok(Array.isArray(body.scoreboard));
+    assert.equal(body.driverTotal, body.scoreboard.length);
   });
 
   test('rejects invalid queries with 400', async () => {
-    assert.equal((await request('/penalties/summary?driverId=abc')).status, 400);
-    assert.equal((await request('/penalties/summary?dateFrom=2026-09-01&dateTo=2026-08-01')).status, 400);
-    assert.equal((await request('/penalties/summary?dateFrom=not-a-date')).status, 400);
+    assert.equal((await request('/penalties/insights?month=13')).status, 400);
+    assert.equal((await request('/penalties/insights?month=0')).status, 400);
+    assert.equal((await request('/penalties/insights?year=1999')).status, 400);
+    assert.equal((await request('/penalties/insights?bogus=1')).status, 400);
   });
 });

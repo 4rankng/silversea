@@ -24,17 +24,13 @@ export const penaltyListQuerySchema = z.object({
 export type PenaltyListQuery = z.infer<typeof penaltyListQuerySchema>;
 
 /**
- * GET /api/penalties/summary — KPI aggregates (status totals, per-driver
- * counts/amounts, streak and YTD figures) over the same driver/date filters,
- * so the frontend no longer computes them over the full dataset.
+ * GET /api/penalties/insights — server-computed KPI block (month figures via
+ * salary-period boundaries, YTD totals, streak scoreboard) mirroring what
+ * PenaltyTable used to derive client-side. Defaults to the current period.
  */
-export const penaltySummaryQuerySchema = z.object({
-  driverId: z.coerce.number().int().positive().optional(),
-  dateFrom: z.string().date().optional(),
-  dateTo: z.string().date().optional(),
-}).strict().refine((q) => !q.dateFrom || !q.dateTo || q.dateFrom <= q.dateTo, {
-  message: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
-  path: ['dateTo'],
-});
+export const penaltyInsightsQuerySchema = z.object({
+  month: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+}).strict();
 
-export type PenaltySummaryQuery = z.infer<typeof penaltySummaryQuerySchema>;
+export type PenaltyInsightsQuery = z.infer<typeof penaltyInsightsQuerySchema>;

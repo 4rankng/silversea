@@ -396,9 +396,9 @@ export type {
 
 export {
   penaltyListQuerySchema,
-  penaltySummaryQuerySchema,
+  penaltyInsightsQuerySchema,
 } from './schemas/penalty-list';
 export type {
   PenaltyListQuery,
-  PenaltySummaryQuery,
+  PenaltyInsightsQuery,
 } from './schemas/penalty-list';
