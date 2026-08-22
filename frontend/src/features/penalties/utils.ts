@@ -1,5 +1,3 @@
-import type { PenaltyRow } from '../../hooks/usePenalties';
-
 export type Severity = 'light' | 'med' | 'heavy' | 'critical';
 
 export function getSeverity(amount: number): Severity {
@@ -42,18 +40,4 @@ export function formatTenure(createdAt: string): string {
   if (years > 0 && months > 0) return `${years} năm ${months} tháng`;
   if (years > 0) return `${years} năm`;
   return `${months} tháng`;
-}
-
-export function computeStreak(driverId: number, penalties: PenaltyRow[], createdAt: string): number {
-  const driverPenalties = penalties
-    .filter(p => p.driverId === driverId && p.date)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  if (driverPenalties.length === 0) {
-    const hire = new Date(createdAt);
-    const now = new Date();
-    return Math.max(0, Math.floor((now.getTime() - hire.getTime()) / 86400000));
-  }
-  const lastViolation = new Date(driverPenalties[0].date);
-  const now = new Date();
-  return Math.max(0, Math.floor((now.getTime() - lastViolation.getTime()) / 86400000));
 }

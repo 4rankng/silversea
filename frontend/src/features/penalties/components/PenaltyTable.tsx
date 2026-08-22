@@ -1,113 +1,119 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMonth } from '../../../hooks/useMonth';
-import { Shield, ShieldCheck, Download, Plus, FileText, Zap, Trophy, Users, DollarSign, XCircle, Loader2, UserRound } from 'lucide-react';
+import { Shield, ShieldCheck, Download, Plus, FileText, Zap, Trophy, Users, DollarSign, XCircle, Loader2, UserRound, Search, X } from 'lucide-react';
 import { Panel, Btn, KPI, PageHeader } from '../../../components/UI';
-import { StatusStrip } from '../../../components/shared/StatusStrip';
+import { Pagination, UuiSelectField } from '../../../design-system';
+import { Money } from '../../../components/shared/Money';
 import { formatCurrency, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
-import type { Truck } from '@tingting/shared';
-import { useSalaryPeriod } from '../../../hooks/useQueries';
-import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure, computeStreak } from '../utils';
+import { PenaltyStatus } from '@tingting/shared';
+import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
 import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
-import type { PenaltyTableProps } from './penalty-table-types';
+import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
+import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
+
+const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
+  { key: 'all', label: 'Tất cả' },
+  { key: PenaltyStatus.ACTIVE, label: 'Chờ duyệt' },
+  { key: PenaltyStatus.CANCELED, label: 'Đã hủy' },
+];
+
+const SCORE_WINDOWS: Array<{ key: PenaltyScoreWindow; label: string }> = [
+  { key: '7d', label: '7 ngày' },
+  { key: '30d', label: '30 ngày' },
+  { key: '90d', label: '90 ngày' },
+  { key: 'ytd', label: 'YTD' },
+];
+
+/** Violations shown for a scoreboard row under the active window. */
+function violationsInWindow(row: PenaltyInsightsScoreboardRow, window: PenaltyScoreWindow): number {
+  if (window === '7d') return row.violations7d;
+  if (window === '30d') return row.violations30d;
+  if (window === '90d') return row.violations90d;
+  return row.violationsYtd;
+}
 
 export function PenaltyTable({
-  penalties,
+  rows,
+  total,
+  page,
+  pageSize,
+  totalPages,
+  listLoading,
+  onPageChange,
+  statusCounts,
+  search,
+  onSearchChange,
+  statusFilter,
+  onStatusFilterChange,
+  driverFilter,
+  onDriverFilterChange,
+  hasActiveFilters,
+  onResetFilters,
   drivers,
   reasons,
-  trucks,
-  listLoading,
+  insights,
+  insightsLoading,
+  monthLabel,
   canCancel,
   onOpenDrawer,
   onCancelPenalty,
 }: PenaltyTableProps) {
   const navigate = useNavigate();
-  const [scoreFilter, setScoreFilter] = useState<'7d' | '30d' | '90d' | 'ytd'>('90d');
-  const [logFilter, setLogFilter] = useState<'all' | 'pending' | 'deducted'>('all');
-  const [logDriverFilter, setLogDriverFilter] = useState<number | null>(null);
+  // Window toggle is client-side — every window rides the insights payload.
+  const [scoreFilter, setScoreFilter] = useState<PenaltyScoreWindow>('90d');
 
-  const { month: selMonth, year: selYear } = useMonth();
+  // ── KPI strip (server-computed, selected salary period) ────────────────
+  const incidentCount = insights?.month.incidentCount ?? 0;
+  const totalMonthAmount = insights?.month.totalAmount ?? 0;
+  const ytdTotal = insights?.ytd.total ?? 0;
+  const teamSize = insights?.driverTotal ?? 0;
+  const safeCount = insights?.safeDriverCount ?? 0;
+  const comparisonLabel = insights?.month.comparisonLabel || '';
 
-  const { data: salaryPeriod, isLoading: periodLoading } = useSalaryPeriod(selMonth, selYear);
-  const prevMonthNum = selMonth === 1 ? 12 : selMonth - 1;
-  const prevYearNum = selMonth === 1 ? selYear - 1 : selYear;
-  const { data: prevSalaryPeriod } = useSalaryPeriod(prevMonthNum, prevYearNum);
+  // ── Status chips (full-set counts from the list envelope) ──────────────
+  const chipCounts: Record<PenaltyStatusFilter, number> = {
+    all: statusCounts?.all ?? total,
+    [PenaltyStatus.ACTIVE]: statusCounts?.ACTIVE ?? 0,
+    [PenaltyStatus.CANCELED]: statusCounts?.CANCELED ?? 0,
+  };
 
-  const truckMap = new Map<number, Truck>();
-  trucks.forEach(t => truckMap.set(t.id, t));
+  // ── Safe-streak KPI (whole-history streaks, window-independent) ────────
+  const longestStreak = insights?.longestStreak ?? 0;
+  const streakLeader = insights?.streakLeader || '—';
 
-  const now = new Date();
-  const monthLabel = `${String(selMonth).padStart(2, '0')}/${String(selYear).slice(-2)}`;
-
-  const monthPenalties = penalties.filter(p => {
-    if (!salaryPeriod) return false;
-    const d = p.date || '';
-    return d >= salaryPeriod.start && d <= salaryPeriod.end;
+  // ── Scoreboard (insights rows + catalog tenure) ────────────────────────
+  const tenureByDriver = new Map(drivers.map(d => [d.id, d.createdAt] as const));
+  const scoreboardRows = (insights?.scoreboard ?? []).map(row => {
+    const tenureCreatedAt = tenureByDriver.get(row.driverId);
+    return {
+      ...row,
+      tenure: tenureCreatedAt ? formatTenure(tenureCreatedAt) : null,
+      grade: scoreFilter === '90d' ? row.grade : getViolationGrade(violationsInWindow(row, scoreFilter)),
+      violations: violationsInWindow(row, scoreFilter),
+    };
   });
-  const totalMonthAmount = monthPenalties.reduce((s, p) => s + parseFloat(p.amount), 0);
-  const incidentCount = monthPenalties.length;
+  const avgStreak = insights?.avgStreak ?? 0;
+  const driversOver90 = insights?.driversOver90 ?? 0;
+  const driversOver6m = insights?.driversOver6m ?? 0;
 
-  const prevMonthCount = prevSalaryPeriod
-    ? penalties.filter(p => {
-        const d = p.date || '';
-        return d >= prevSalaryPeriod.start && d <= prevSalaryPeriod.end;
-      }).length
-    : 0;
-  const monthComparison = prevMonthCount > 0
-    ? `Giảm ${Math.round((1 - incidentCount / prevMonthCount) * 100)}% so với ${String(prevMonthNum).padStart(2, '0')}/${String(prevYearNum).slice(-2)}`
-    : incidentCount === 0 ? 'Tháng an toàn' : '';
-
-  const penalizedDriverIds = new Set(monthPenalties.map(p => p.driverId));
-  const safeCount = drivers.filter(d => !penalizedDriverIds.has(d.id)).length;
-
-  const yearStart = `${now.getFullYear()}-01-01`;
-  const ytdPenalties = penalties.filter(p => p.date >= yearStart);
-  const ytdTotal = ytdPenalties.reduce((s, p) => s + parseFloat(p.amount), 0);
-
-  const cutoffDate = new Date();
-  if (scoreFilter === '7d') cutoffDate.setDate(cutoffDate.getDate() - 7);
-  else if (scoreFilter === '30d') cutoffDate.setDate(cutoffDate.getDate() - 30);
-  else if (scoreFilter === '90d') cutoffDate.setDate(cutoffDate.getDate() - 90);
-  else cutoffDate.setMonth(0, 1);
-  const cutoffStr = cutoffDate.toISOString().slice(0, 10);
-
-  const driverDetails = drivers.map(d => {
-    const streakDays = computeStreak(d.id, penalties, d.createdAt);
-    const driverPenalties = penalties.filter(p => p.driverId === d.id && p.date >= cutoffStr);
-    const violationsInPeriod = driverPenalties.length;
-    const driverYTD = ytdPenalties.filter(p => p.driverId === d.id);
-    const fineYTD = driverYTD.reduce((s, p) => s + parseFloat(p.amount), 0);
-    const grade = getViolationGrade(violationsInPeriod);
-    const truckPlate = d.assignedTruckId && truckMap.has(d.assignedTruckId)
-      ? truckMap.get(d.assignedTruckId)!.licensePlate: null;
-    return { ...d, streakDays, violationsInPeriod, fineYTD, grade, truckPlate };
-  }).sort((a, b) => b.streakDays - a.streakDays || a.violationsInPeriod - b.violationsInPeriod);
-
-  const longestStreak = driverDetails.reduce((max, d) => Math.max(max, d.streakDays), 0);
-  const streakLeader = driverDetails.length > 0
-    ? [...driverDetails]
-        .sort((a, b) => b.streakDays - a.streakDays || a.violationsInPeriod - b.violationsInPeriod)[0]?.name || '—'
-    : '—';
-  const avgStreak = driverDetails.length > 0
-    ? Math.round(driverDetails.reduce((s, d) => s + d.streakDays, 0) / driverDetails.length)
-    : 0;
-  const driversOver90 = driverDetails.filter(d => d.streakDays >= 90).length;
-  const driversOver6m = driverDetails.filter(d => d.streakDays >= 180).length;
-
-  const driverFiltered = logDriverFilter
-    ? penalties.filter(p => p.driverId === logDriverFilter)
-    : penalties;
-
-  const filteredPenalties = logFilter === 'pending'
-    ? driverFiltered.filter(p => p.status === 'ACTIVE')
-    : logFilter === 'deducted'
-      ? driverFiltered.filter(p => p.status === 'CANCELED')
-      : driverFiltered;
-
-  const pendingCount = driverFiltered.filter(p => p.status === 'ACTIVE').length;
-  const deductedCount = driverFiltered.filter(p => p.status === 'CANCELED').length;
+  const handleExport = async () => {
+    const headers = ['Lái xe', 'Mã chuyến', 'Lý do', 'Số tiền', 'Ngày'];
+    await downloadCSV(`ky-luat-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows.map(p => [
+      p.driverName || '—',
+      p.tripCode || '—',
+      p.reasonText || p.customReason || '—',
+      p.amount,
+      p.date,
+    ]), {
+      title: 'SỔ KỶ LUẬT LÁI XE',
+      subtitle: `${rows.length} biên bản trang hiện tại · tổng ${total} biên bản`,
+      columnTypes: ['text', 'text', 'text', 'currency', 'date'],
+      totalsColumns: [3],
+      totalsLabel: 'TỔNG PHẠT',
+    });
+  };
 
   return (
     <>
@@ -126,24 +132,8 @@ export function PenaltyTable({
         description="Theo dõi vi phạm nghiệp vụ, mức phạt khấu trừ trực tiếp vào bảng lương lái xe"
         action={
           <>
-          <Btn variant="secondary" icon={<Download size={14} />} onClick={async () => {
-            const headers = ['Lái xe', 'Mã chuyến', 'Lý do', 'Số tiền', 'Ngày'];
-            const rows = filteredPenalties.map(p => [
-              p.driverName || '—',
-              p.tripCode || '—',
-              p.reasonText || p.customReason || '—',
-              p.amount,
-              p.date,
-            ]);
-            await downloadCSV(`ky-luat-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows, {
-              title: 'SỔ KỶ LUẬT LÁI XE',
-              subtitle: `${filteredPenalties.length} biên bản · khấu trừ trực tiếp vào lương lái xe`,
-              columnTypes: ['text', 'text', 'text', 'currency', 'date'],
-              totalsColumns: [3],
-              totalsLabel: 'TỔNG PHẠT',
-            });
-          }}>
-            Xuất báo cáo
+          <Btn variant="secondary" icon={<Download size={14} />} onClick={handleExport}>
+            Xuất báo cáo (trang hiện tại)
           </Btn>
           <Btn variant="primary" icon={<Plus size={14} />} onClick={() => onOpenDrawer()}>
             Lập biên bản
@@ -152,8 +142,8 @@ export function PenaltyTable({
         }
       />
 
-      {/* ── KPI strip (4 cards) ──────────────────────────────────────────── */}
-      {periodLoading ? (
+      {/* ── KPI strip (4 cards, server-computed) ────────────────────────── */}
+      {insightsLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '24px 0', color: 'var(--fg-3)', fontSize: 13 }}>
           <Loader2 size={16} className="spin" />
           Đang tải dữ liệu kỳ lương...
@@ -170,7 +160,7 @@ export function PenaltyTable({
           meta={
             <span className="penalty-kpi-meta">
               <span className="dot" />
-              <span className="pos">{monthComparison || 'Không có so sánh'}</span>
+              <span className="pos">{comparisonLabel || 'Không có so sánh'}</span>
             </span>
           }
         />
@@ -190,16 +180,16 @@ export function PenaltyTable({
         <KPI
           label="Lái xe đạt chuẩn"
           value={safeCount}
-          unit={`/${drivers.length} lái xe`}
+          unit={`/${teamSize} lái xe`}
           icon={Users}
           assetIconName="driver"
           variant="info"
           meta={
             <span className="penalty-kpi-meta">
               <span className="dot" />
-              <span className="pos">{drivers.length > 0 ? Math.round(safeCount / drivers.length * 100) : 0}% toàn đội</span>
+              <span className="pos">{teamSize > 0 ? Math.round(safeCount / teamSize * 100) : 0}% toàn đội</span>
               <span className="sep">·</span>
-              <span>{drivers.length - safeCount} cần nhắc nhở</span>
+              <span>{teamSize - safeCount} cần nhắc nhở</span>
             </span>
           }
         />
@@ -231,20 +221,20 @@ export function PenaltyTable({
             <div style={{ minWidth: 0 }}>
               <div className="penalty-card-title">
                 Bảng xếp hạng lái xe
-                <span className="count-pill">{drivers.length}</span>
+                <span className="count-pill">{scoreboardRows.length}</span>
               </div>
               <div className="penalty-card-sub">Sắp xếp theo chuỗi ngày an toàn và mức vi phạm nghiệp vụ</div>
             </div>
           </div>
           <div className="penalty-head-tools">
             <div className="penalty-seg">
-              {(['7d', '30d', '90d', 'ytd'] as const).map(f => (
+              {SCORE_WINDOWS.map(f => (
                 <button
-                  key={f}
-                  className={scoreFilter === f ? 'active' : ''}
-                  onClick={() => setScoreFilter(f)}
+                  key={f.key}
+                  className={scoreFilter === f.key ? 'active' : ''}
+                  onClick={() => setScoreFilter(f.key)}
                 >
-                  {f === '7d' ? '7 ngày' : f === '30d' ? '30 ngày' : f === '90d' ? '90 ngày' : 'YTD'}
+                  {f.label}
                 </button>
               ))}
             </div>
@@ -252,11 +242,11 @@ export function PenaltyTable({
         </div>
         <div className="mobile-only">
           <div className="penalty-m-cards">
-            {driverDetails.map((d) => {
+            {scoreboardRows.map((d) => {
               const gc = getGradeClass(d.grade);
-              const vClass = d.violationsInPeriod === 0 ? 'zero' : d.violationsInPeriod <= 2 ? 'warn' : 'danger';
+              const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'danger';
               return (
-                <div key={d.id} className="penalty-m-card" onClick={() => onOpenDrawer(d.id)}>
+                <div key={d.driverId} className="penalty-m-card" onClick={() => onOpenDrawer(d.driverId)}>
                   <div className="penalty-m-card__top">
                     <div className="left">
                       <div className="penalty-driver-avatar">
@@ -282,15 +272,15 @@ export function PenaltyTable({
                       </span>
                     </div>
                     <div className="mm">
-                      <span className="lab">Vi phạm (tháng)</span>
+                      <span className="lab">Vi phạm (kỳ lọc)</span>
                       <span className={vClass === 'zero' ? 'val empty' : `val ${vClass}`}>
-                        {d.violationsInPeriod} vụ
+                        {d.violations} vụ
                       </span>
                     </div>
                     <div className="mm">
                       <span className="lab">Phạt YTD</span>
-                      <span className={d.fineYTD > 0 ? 'val danger' : 'val empty'}>
-                        {d.fineYTD > 0 ? `${formatCurrency(d.fineYTD)} ₫` : '—'}
+                      <span className={d.fineYtd > 0 ? 'val danger' : 'val empty'}>
+                        {d.fineYtd > 0 ? `${formatCurrency(d.fineYtd)} ₫` : '—'}
                       </span>
                     </div>
                   </div>
@@ -307,77 +297,75 @@ export function PenaltyTable({
           </div>
         </div>
         <div className="desktop-only">
-          <div className="table-wrap">
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th style={{ width: 54, textAlign: 'center' }}>STT</th>
-                    <th>Lái xe</th>
-                    <th>Chuỗi an toàn</th>
-                    <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
-                    <th>Phạt YTD</th>
-                    <th style={{ textAlign: 'center' }}>Mức</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {driverDetails.map((d, idx) => {
-                    const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
-                    const streakPct = Math.min(100, (d.streakDays / 180) * 100);
-                    const vClass = d.violationsInPeriod === 0 ? 'zero' : d.violationsInPeriod <= 2 ? 'warn' : 'bad';
-                    const moneyClass = d.fineYTD === 0 ? 'zero' : '';
-                    const gc = getGradeClass(d.grade);
-                    return (
-                      <tr key={d.id} onClick={() => onOpenDrawer(d.id)} style={{ cursor: 'pointer' }}>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
-                        </td>
-                        <td>
-                          <span className="penalty-driver-cell">
-                            <span className="penalty-driver-mini">
-                              <UserRound size={14} aria-hidden="true" />
-                            </span>
-                            <span className="penalty-driver-info">
-                              <div className="name">{d.name}</div>
-                              <div className="role">
-                                {d.truckPlate || 'Chưa phân xe'} · {formatTenure(d.createdAt)}
-                              </div>
-                            </span>
+          <div className="record-table-wrap penalty-scoreboard-wrap">
+            <table className="record-table ops-table penalty-scoreboard-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 54, textAlign: 'center' }}>STT</th>
+                  <th>Lái xe</th>
+                  <th>Chuỗi an toàn</th>
+                  <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
+                  <th>Phạt YTD</th>
+                  <th style={{ textAlign: 'center' }}>Mức</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scoreboardRows.map((d, idx) => {
+                  const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+                  const streakPct = Math.min(100, (d.streakDays / 180) * 100);
+                  const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'bad';
+                  const moneyClass = d.fineYtd === 0 ? 'zero' : '';
+                  const gc = getGradeClass(d.grade);
+                  return (
+                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} style={{ cursor: 'pointer' }}>
+                      <td data-label="" style={{ textAlign: 'center' }}>
+                        <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
+                      </td>
+                      <td data-label="Lái xe">
+                        <span className="penalty-driver-cell">
+                          <span className="penalty-driver-mini">
+                            <UserRound size={14} aria-hidden="true" />
                           </span>
-                        </td>
-                        <td>
-                          <span className="penalty-streak">
-                            <span className="penalty-streak-num">
-                              {d.streakDays}<span className="unit">ngày</span>
-                            </span>
-                            <span className="penalty-streak-bar">
-                              <span
-                                className={`fill ${idx === 0 ? 'gold' : ''}`}
-                                style={{ width: `${streakPct}%` }}
-                              />
-                            </span>
+                          <span className="penalty-driver-info">
+                            <div className="name">{d.name}</div>
+                            <div className="role">
+                              {[d.truckPlate || 'Chưa phân xe', d.tenure].filter(Boolean).join(' · ')}
+                            </div>
                           </span>
-                        </td>
-                        <td>
-                          <span className={`penalty-violation-count ${vClass}`}>
-                            <span className="dot" />
-                            {d.violationsInPeriod} vụ
+                        </span>
+                      </td>
+                      <td data-label="Chuỗi an toàn">
+                        <span className="penalty-streak">
+                          <span className="penalty-streak-num">
+                            {d.streakDays}<span className="unit">ngày</span>
                           </span>
-                        </td>
-                        <td>
-                          <span className={`penalty-money ${moneyClass}`}>
-                            {d.fineYTD > 0 ? formatCurrency(d.fineYTD) : `0`}<span className="unit">đ</span>
+                          <span className="penalty-streak-bar">
+                            <span
+                              className={`fill ${idx === 0 ? 'gold' : ''}`}
+                              style={{ width: `${streakPct}%` }}
+                            />
                           </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`penalty-grade ${gc}`}>{d.grade}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </span>
+                      </td>
+                      <td data-label="Vi phạm">
+                        <span className={`penalty-violation-count ${vClass}`}>
+                          <span className="dot" />
+                          {d.violations} vụ
+                        </span>
+                      </td>
+                      <td data-label="Phạt YTD" className="num">
+                        <span className={`penalty-money ${moneyClass}`}>
+                          {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : `0`}<span className="unit">đ</span>
+                        </span>
+                      </td>
+                      <td data-label="Mức" style={{ textAlign: 'center' }}>
+                        <span className={`penalty-grade ${gc}`}>{d.grade}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           <div className="penalty-table-foot">
             <div className="legend">
@@ -387,16 +375,13 @@ export function PenaltyTable({
               <span style={{ opacity: 0.5 }}>·</span>
               <span>{driversOver6m} lái xe vượt 6 tháng</span>
             </div>
-            <span>Hiển thị {drivers.length}/{drivers.length}</span>
+            <span>Hiển thị {scoreboardRows.length}/{scoreboardRows.length}</span>
           </div>
         </div>
       </Panel>
 
-      {/* ── Two-column: Violation log + Violation type reference ─────────── */}
-      <div className="penalty-two-col">
-
-        {/* Left: Violation log */}
-        <Panel flush className="penalty-transparent-panel">
+      {/* ── Violation log (full width so the record table keeps table mode) ── */}
+      <Panel flush className="penalty-transparent-panel penalty-log-panel">
           <div className="penalty-card-head">
             <div className="penalty-card-lead">
               <div className="penalty-card-icon alt">
@@ -405,55 +390,81 @@ export function PenaltyTable({
               <div style={{ minWidth: 0 }}>
                 <div className="penalty-card-title">
                   Sổ biên bản vi phạm
-                  <span className="count-pill">{filteredPenalties.length}</span>
+                  <span className="count-pill">{total}</span>
                 </div>
                 <div className="penalty-card-sub">Lịch sử biên bản đã lập và khấu trừ lương</div>
-                {logDriverFilter && (() => {
-                  const drv = drivers.find(dr => dr.id === logDriverFilter);
-                  return drv ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--brand)', fontWeight: 600 }}>
-                        Lọc theo: {drv.name}
-                      </span>
-                      <button
-                        style={{ minHeight: 44, fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', background: 'var(--bg-2)', border: 'none', borderRadius: 6, padding: '0 10px', cursor: 'pointer' }}
-                        onClick={() => setLogDriverFilter(null)}
-                      >
-                        ✕ Xóa lọc
-                      </button>
-                    </div>
-                  ) : null;
-                })()}
               </div>
             </div>
             <div className="penalty-head-tools">
-              {(['all', 'pending', 'deducted'] as const).map(f => (
+              {STATUS_CHIPS.map(f => (
                 <button
-                  key={f}
-                  className={`penalty-chip${logFilter === f ? ' active' : ''}`}
-                  onClick={() => setLogFilter(f)}
+                  key={f.key}
+                  className={`penalty-chip${statusFilter === f.key ? ' active' : ''}`}
+                  onClick={() => onStatusFilterChange(f.key)}
                 >
-                  {f === 'all' ? 'Tất cả' : f === 'pending' ? 'Chờ duyệt' : 'Đã hủy'}
+                  {f.label}
                   <span className="count">
-                    {f === 'all' ? driverFiltered.length : f === 'pending' ? pendingCount : deductedCount}
+                    {chipCounts[f.key]}
                   </span>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Filter toolbar — search + driver, scoped to the salary period */}
+          <div className="penalty-filter-bar">
+            <div className="penalty-filter-bar__search">
+              <Search size={14} />
+              <input
+                type="text"
+                aria-label="Tìm biên bản"
+                placeholder="Tìm lái xe, mã chuyến, lý do..."
+                value={search}
+                onChange={e => onSearchChange(e.target.value)}
+              />
+              {search && (
+                <button
+                  className="penalty-filter-bar__clear"
+                  onClick={() => onSearchChange('')}
+                  title="Xóa tìm kiếm"
+                  aria-label="Xóa nội dung tìm kiếm"
+                  type="button"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <UuiSelectField
+              id="penalty-driver-filter"
+              label="Lái xe"
+              inline
+              value={driverFilter == null ? '' : String(driverFilter)}
+              onChange={e => onDriverFilterChange(e.target.value ? Number(e.target.value) : undefined)}
+              controlClassName="penalty-filter-bar__select"
+              options={[
+                { value: '', label: 'Tất cả lái xe' },
+                ...drivers.map(d => ({ value: String(d.id), label: d.name })),
+              ]}
+            />
+            {hasActiveFilters && (
+              <button className="penalty-filter-bar__reset" onClick={onResetFilters} type="button">
+                <X size={12} /> Xóa bộ lọc
+              </button>
+            )}
+          </div>
+
           {listLoading ? (
             <div style={{ padding: 48, textAlign: 'center' }}>
               <div className="spin" style={{ display: 'inline-block', width: 24, height: 24, border: '3px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
             </div>
-          ) : filteredPenalties.length === 0 ? (
+          ) : rows.length === 0 ? (
             <div className="penalty-empty-log">
               <div className="penalty-empty-icon-wrap">
                 <ShieldCheck size={36} strokeWidth={2.5} />
               </div>
               <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
               <div className="penalty-empty-desc">
-                Chưa có biên bản vi phạm nào trong tháng này. Hệ thống sẽ tự động khấu trừ vào bảng lương khi biên bản được duyệt.
+                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương khi biên bản được duyệt.
               </div>
               <div className="penalty-empty-stats">
                 <div className="penalty-empty-stat">
@@ -463,7 +474,7 @@ export function PenaltyTable({
                 <div className="penalty-empty-divider" />
                 <div className="penalty-empty-stat">
                   <div className="lbl">Vi phạm YTD</div>
-                  <div className="val">{ytdPenalties.length}<span className="u">vụ</span></div>
+                  <div className="val">{insights?.ytd.count ?? 0}<span className="u">vụ</span></div>
                 </div>
                 <div className="penalty-empty-divider" />
                 <div className="penalty-empty-stat">
@@ -478,59 +489,83 @@ export function PenaltyTable({
             </div>
           ) : (
             <>
-              <div className="plog-list">
-                {filteredPenalties.map(p => {
-                  const canceled = p.status === 'CANCELED';
-                  return (
-                    <div key={p.id} className={`plog-item${canceled ? ' plog-item--canceled' : ''}`}>
-                      <StatusStrip color={canceled ? '#94A3B8' : '#059669'} />
-                      <div className="plog-avatar">
-                        <UserRound size={15} aria-hidden="true" />
-                      </div>
-                      <div className="plog-body">
-                        <div className="plog-name">{p.driverName || 'Lái xe'}</div>
-                        <div className="plog-meta">
-                          <span className="plog-reason">{p.reasonText || p.customReason || '—'}</span>
-                          <span className="plog-sep">·</span>
-                          <span className="plog-date">{formatDate(p.date)}</span>
-                          {p.tripId && p.tripCode && (
-                            <>
-                              <span className="plog-sep">·</span>
+              {/* Record table — shared base provides sticky thead, neutral
+                  gated hover and mobile record cards via container queries. */}
+              <div className="record-table-wrap penalty-log-wrap">
+                <table className="record-table ops-table penalty-log-table">
+                  <thead>
+                    <tr>
+                      <th>Lái xe</th>
+                      <th>Lý do</th>
+                      <th>Ngày</th>
+                      <th>Chuyến</th>
+                      <th className="num">Số tiền</th>
+                      {canCancel && <th style={{ width: 44 }}></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(p => {
+                      const canceled = p.status === 'CANCELED';
+                      return (
+                        <tr key={p.id} className={canceled ? 'penalty-log-row--canceled' : undefined}>
+                          <td data-label="Lái xe">
+                            <span className="penalty-log-driver">
+                              <span className="penalty-log-avatar">
+                                <UserRound size={14} aria-hidden="true" />
+                              </span>
+                              <span className="penalty-log-driver-name">{p.driverName || 'Lái xe'}</span>
+                            </span>
+                          </td>
+                          <td data-label="Lý do">{p.reasonText || p.customReason || '—'}</td>
+                          <td data-label="Ngày">{formatDate(p.date)}</td>
+                          <td data-label="Chuyến">
+                            {p.tripId && p.tripCode ? (
                               <a
                                 href={`/trips/${p.tripId}`}
                                 onClick={(e) => { e.preventDefault(); navigate(`/trips/${p.tripId}`); }}
-                                className="plog-trip"
+                                className="penalty-log-trip"
                               >{p.tripCode}</a>
-                            </>
+                            ) : '—'}
+                          </td>
+                          <td data-label="Số tiền" className="num">
+                            <Money value={Number(p.amount)} sign="-" className="penalty-log-money" />
+                          </td>
+                          {canCancel && (
+                            <td data-label="" className="record-table__action">
+                              {!canceled && (
+                                <button
+                                  className="penalty-row-act"
+                                  style={{ color: 'var(--danger)' }}
+                                  aria-label="Hủy kỷ luật"
+                                  title="Hủy kỷ luật"
+                                  onClick={() => onCancelPenalty(p)}
+                                  type="button"
+                                >
+                                  <XCircle size={14} />
+                                </button>
+                              )}
+                            </td>
                           )}
-                        </div>
-                      </div>
-                      <div className="plog-right">
-                        <span className="plog-amount">-{formatCurrency(Number(p.amount))}</span>
-                        {canCancel && !canceled && (
-                          <button
-                            className="penalty-row-act"
-                            style={{ color: 'var(--danger)', marginTop: 2 }}
-                            aria-label="Hủy kỷ luật"
-                            onClick={() => onCancelPenalty(p)}
-                          >
-                            <XCircle size={13} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div className="penalty-table-foot">
-                <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filteredPenalties.length}</strong> biên bản</span>
-              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                onChange={onPageChange}
+                disabled={listLoading}
+              />
             </>
           )}
         </Panel>
 
-        {/* Right: Violation type reference */}
-        <Panel flush className="penalty-transparent-panel">
+      {/* ── Violation type reference ─────────────────────────────────────── */}
+      <Panel flush className="penalty-transparent-panel">
           <div className="penalty-card-head">
             <div className="penalty-card-lead">
               <div className="penalty-card-icon">
@@ -602,7 +637,6 @@ export function PenaltyTable({
             </a>
           </div>
         </Panel>
-      </div>
     </>
   );
 }

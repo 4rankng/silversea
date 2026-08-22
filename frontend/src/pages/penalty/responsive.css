@@ -1,11 +1,3 @@
-/* ─── Two-column layout ─── */
-
-.penalty-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
 /* ─── Table footer ─── */
 
 .penalty-table-foot {
@@ -53,18 +45,6 @@
 }
 
 /* ─── Responsive ─── */
-
-@media (max-width: 1100px) {
-  .penalty-two-col {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1023px) {
-  .penalty-two-col {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ─── Mobile driver cards (mirrors trip-mcard design) ─── */
 
@@ -313,25 +293,6 @@
     display: none;
   }
 
-  /* Row action touch targets */
-  .penalty-row-act {
-    min-width: 36px;
-    min-height: 36px;
-  }
-
-  /* Violation log items */
-  .penalty-page .plog-item {
-    padding: 12px 14px;
-    gap: 10px;
-  }
-  .penalty-page .plog-avatar {
-    width: 36px;
-    height: 36px;
-  }
-  .penalty-page .plog-amount {
-    font-size: var(--fs-sm);
-  }
-
   /* Violation type rows */
   .penalty-page .penalty-vio-type-row {
     padding: 12px 14px;
@@ -428,26 +389,38 @@
   .fleet-page .fleet-card-tools::-webkit-scrollbar { display: none; }
   .penalty-page .penalty-head-tools > *,
   .fleet-page .fleet-card-tools > * { flex-shrink: 0; }
-  .penalty-page .penalty-two-col { grid-template-columns: 1fr; }
-  .penalty-page .penalty-grid { grid-template-columns: 1fr; }
 } /* end 640px */
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 640px) {
-  /* ── PenaltyPage: larger chip/seg tap targets ── */
+  /* ── PenaltyPage: 44px tap targets on primary controls ── */
   .penalty-chip {
-    min-height: 36px;
-    padding: 6px 12px;
-    font-size: var(--fs-xs);
-  }
-  .penalty-seg button {
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 14px;
     font-size: var(--fs-xs);
   }
+  .penalty-seg button {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: var(--fs-xs);
+  }
   .penalty-row-act {
-    min-width: 38px;
-    min-height: 38px;
+    min-width: 44px;
+    min-height: 44px;
   }
   .penalty-page .kpi-grid { gap: 8px; }
 } /* end 640px */
+
+/* ── Record-card mode (container ≤900px): full 44px touch targets for the
+      cancel action and the search/clear controls ride along with the shared
+      filter-control density. ── */
+@media (max-width: 899px) {
+  .penalty-page .penalty-log-table .record-table__action .penalty-row-act {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .penalty-page .penalty-filter-bar__clear {
+    width: 32px;
+    height: 32px;
+  }
+}

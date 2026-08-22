@@ -333,6 +333,11 @@ export const qk = {
     list: ['penalties'],
     catalogs: ['penalty-catalogs'],
     stats: ['/penalty-reasons/stats'],
+    /** Base for the insights read (KPI strip / scoreboard) — mutation
+     *  invalidation hits this prefix so every period refetches. */
+    insightsBase: ['penalties', 'insights'] as const,
+    insights: (month: number, year: number) =>
+      ['penalties', 'insights', month, year] as const,
     /** Trip picker for the penalty form — rides the trips prefix so trip
      *  invalidations refresh it, but is scoped per driver + search. */
     tripSelector: (driverId: string | null, search: string) =>
