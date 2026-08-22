@@ -16,6 +16,8 @@ describe('selection-state contract', () => {
     expect(read('src/pages/TruckTiresPage.css')).toContain('.ttp-unmount-choice.is-active {\n  border-color: var(--fg-1, #101828);\n  background: var(--bg-1, #fff);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);');
     expect(read('src/pages/TruckTiresPage.css')).toContain(".ttp-position-picker-option[aria-selected='true'] {\n  background: var(--surface, #fff);\n  color: var(--fg-1, #101828);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);");
     expect(read('src/pages/AuditLogPage.css')).toContain('.audit-list-panel .table-hover tbody tr.is-selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
+    // Audit rows hover as a neutral ink wash for fine pointers, not accent fill.
+    expect(read('src/pages/AuditLogPage.css')).toContain('.audit-list-panel .table-hover tbody tr:hover {\n    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));');
     expect(read('src/features/recoverable-costs/RecoverableCostsWorkspace.css')).toContain('.recoverable-costs__decision-group>[role=radio][data-selected]{border-color:var(--ink,var(--fg-1));background:var(--surface,var(--bg-1));box-shadow:inset 3px 0 0 var(--ink,var(--fg-1))}');
     expect(read('src/pages/WorkflowFinance.css')).toContain('.workflow-choice button.is-active{border-color:var(--fg-1);background:var(--bg-1);color:var(--fg-1);box-shadow:inset 3px 0 0 var(--fg-1)}');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-column-picker__card.is-active {\n  border-color: var(--ink);\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
@@ -43,6 +45,17 @@ describe('selection-state contract', () => {
     expect(read('src/pages/trip-list/mobile-cards.css')).toContain('.trip-list-page .trip-mcard--quick.selected {\n  border-color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/DebtDetailPage.css')).toContain('.dd-aging-cell--active {\n  background: var(--surface);\n  border-color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/DashboardPage.css')).toContain('.dash-wf .wf-chart-toggle .d-btn.is-active {\n  background: var(--ink);\n  color: var(--fg-on-brand);');
+  });
+
+  it('keeps the shared record-table base selection structural and hover neutral', () => {
+    const css = read('src/styles/record-table.css');
+
+    expect(css).toContain('.record-table tbody tr.is-selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
+    // Hover is a quiet scan aid for fine pointers only — never a selection look.
+    expect(css).toContain('@media (hover: hover) and (pointer: fine)');
+    expect(css).toContain('color-mix(in srgb, var(--fg-1) 2%, var(--surface))');
+    // Mobile record cards must stay labelled by their column names.
+    expect(css).toContain('content: attr(data-label);');
   });
 
   it('keeps success and warning as forwarder workflow context when a row is selected', () => {

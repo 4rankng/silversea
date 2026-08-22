@@ -90,11 +90,17 @@
   cursor: pointer;
   transition: background-color var(--t-fast), box-shadow var(--t-fast);
 }
-.audit-list-panel .table-hover tbody tr:hover,
-.audit-list-panel .table-hover tbody tr:focus-visible {
-  background: var(--surface-accent);
+/* A record is not itself an action: the quiet scan aid is a neutral ink wash
+   for fine pointers only — touch browsers retain :hover while scrolling,
+   which made whole records look selected. Keyboard focus keeps the same
+   wash plus the accent outline for orientation. */
+@media (hover: hover) and (pointer: fine) {
+  .audit-list-panel .table-hover tbody tr:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 .audit-list-panel .table-hover tbody tr:focus-visible {
+  background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -209,6 +215,25 @@
   overflow-wrap: anywhere;
   white-space: normal;
   max-width: 100%;
+}
+
+/* ── Desktop (≥821px): sticky thead against the app-body scrollport ──
+ *
+ * The dispatch-grid contract: no internal scroll wrappers or fixed heights —
+ * the table grows and .app-body scrolls. The thead pins flush under the
+ * topbar by negating the scrollport's top padding (--sticky-thead-top). */
+@media (min-width: 821px) {
+  .audit-log-page .table-scroll {
+    overflow: visible;
+    min-height: 0;
+  }
+  .audit-log-page .table-scroll::after { display: none; }
+  .audit-list-panel .table-hover thead th {
+    position: sticky;
+    top: var(--sticky-thead-top, -24px);
+    z-index: 3;
+    background: var(--surface-2);
+  }
 }
 
 /* ── Compact screens (≤820px): table → vertical card list ──

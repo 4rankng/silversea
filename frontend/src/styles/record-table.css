@@ -1,0 +1,204 @@
+/*
+ * Record table base — the shared table pattern behind the dispatch grids and
+ * the CUS worksheet, extracted so every list screen adopts it once instead of
+ * copy-pasting per-route variants (MasterPlanGrid / DetailedPlanGrid / Portal
+ * each carry a private copy that had already started to drift).
+ *
+ * Adoption recipe (pair with ops-table typography):
+ *
+ *   import '../styles/record-table.css';
+ *   import '../styles/operational-table-typography.css';
+ *
+ *   <div className="record-table-wrap">
+ *     <table className="record-table ops-table …page-specific-classes">
+ *       <thead>…</thead>
+ *       <tbody>
+ *         <tr className="is-selected?">
+ *           <td data-label="Cột">…</td>
+ *           <td data-label="Số tiền" className="num">…</td>
+ *           <td data-label="" className="record-table__action">…</td>
+ *         </tr>
+ *       </tbody>
+ *     </table>
+ *   </div>
+ *
+ * Contract (see styles/selection-state-contract.styles.test.ts):
+ *   - no fixed heights, no internal scroll wrappers — .app-body scrolls;
+ *   - hover is a neutral ink wash, gated to fine pointers;
+ *   - selection is a structural edge (inset ink shadow), never an accent fill.
+ */
+
+.record-table-wrap {
+  container-type: inline-size;
+  /* No card chrome to clip: keep the wrapper transparent to overflow so the
+     sticky thead can pin against the app-body scrollport. */
+  overflow: visible;
+  border-top: 1px solid var(--line);
+}
+
+.record-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.record-table thead th {
+  position: sticky;
+  /* Negates the scrollport's top padding (see --sticky-thead-top in
+     tokens.css) so the header pins flush under the topbar while .app-body
+     scrolls. */
+  top: var(--sticky-thead-top, -24px);
+  z-index: 3;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: var(--ops-table-header-size, 11px);
+  font-weight: var(--ops-table-header-weight, 600);
+  line-height: var(--ops-table-header-line-height, 1.35);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-3);
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--line);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.record-table tbody td {
+  padding: 10px 12px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Numeric columns pair with the <Money>/formatCurrency conventions. */
+.record-table .num {
+  text-align: right;
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A record is not itself an action. Restrict the quiet desktop scan aid to
+   fine pointers: touch browsers otherwise retain :hover while the user is
+   merely scrolling, which made whole records look selected. */
+@media (prefers-reduced-motion: no-preference) {
+  .record-table tbody tr {
+    transition: background-color 150ms var(--ease);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .record-table tbody tr:hover {
+    /* A neutral two-percent ink wash provides orientation in a dense desktop
+       grid without impersonating an active, selected, or status state. */
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
+}
+
+/* Selection is a structural edge in neutral ink — never an accent fill. */
+.record-table tbody tr.is-selected {
+  background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+/* Tablet / narrow desktop: each row becomes a labelled record card. */
+@container (max-width: 900px) {
+  .record-table {
+    display: block;
+    font-size: var(--ops-table-supporting-size, 12px);
+  }
+
+  .record-table colgroup,
+  .record-table thead {
+    display: none;
+  }
+
+  .record-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+
+  .record-table tbody tr {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md, var(--r, 12px));
+    background: var(--surface);
+  }
+
+  .record-table tbody td {
+    display: block;
+    padding: 10px 16px;
+    border: 0;
+  }
+
+  .record-table tbody td + td {
+    border-top: 1px solid var(--line);
+  }
+
+  .record-table tbody td::before {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--fg-3);
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .record-table tbody td.record-table__action {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .record-table tbody td.record-table__action::before {
+    display: none;
+  }
+
+  /* Empty labels (decorative cells) skip the eyebrow entirely. */
+  .record-table tbody td[data-label='']::before {
+    display: none;
+  }
+}
+
+/* Phone: primary identity spans full width, remaining facts pair two-up. */
+@container (max-width: 640px) {
+  .record-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record-table tbody td:first-child,
+  .record-table tbody td.record-table__action {
+    grid-column: 1 / -1;
+  }
+
+  .record-table tbody td + td {
+    border-top: 0;
+  }
+
+  .record-table tbody td:nth-child(even) {
+    border-inline-start: 1px solid var(--line);
+  }
+
+  .record-table tbody td:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* Very narrow phones collapse the two-up pairing to one column. */
+@container (max-width: 360px) {
+  .record-table tbody tr {
+    display: block;
+  }
+
+  .record-table tbody td:nth-child(even) {
+    border-inline-start: 0;
+  }
+
+  .record-table tbody td:nth-child(n + 2) {
+    border-top: 1px solid var(--line);
+  }
+}

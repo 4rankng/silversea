@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth';
 import { usePageAnimations } from '../hooks/animations';
 import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-helpers';
 import './AuditLogPage.css';
+import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -414,7 +415,7 @@ fontSize: 13,
           <span className="audit-list-panel__count">{total.toLocaleString('vi-VN')} bản ghi</span>
         </div>
           <div className="table-scroll" data-tour-id="audit-table">
-            <table className="table-hover">
+            <table className="table-hover ops-table">
               <thead>
                 <tr>
                   <th style={{ width: 54 }}>STT</th>
