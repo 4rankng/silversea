@@ -358,8 +358,7 @@
   grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(110px, 1fr));
   gap: 6px 14px;
   margin: 0;
-  padding: 8px 0;
-  border-block: 1px solid var(--line);
+  padding: 2px 0;
 }
 
 .governance-actions__facts dd {
@@ -376,8 +375,7 @@
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: baseline;
   gap: 8px;
-  padding: 7px 0 0;
-  border-top: 1px solid var(--line-2);
+  padding: 2px 0 0;
 }
 
 .governance-actions__reason p {

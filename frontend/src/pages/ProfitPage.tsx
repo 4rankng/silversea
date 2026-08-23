@@ -35,13 +35,7 @@ import { UuiSelectField } from '../design-system';
 function RoleTag({ role }: { role?: TruckCapRole | string | null }) {
   if (!role || role === TruckCapRole.INVESTOR) return null;
   const label = TRUCK_CAP_ROLE_LABELS[TruckCapRole.DRIVER];
-  return (
-    <span style={{
-      marginLeft: 6, fontSize: 12, fontWeight: 700, color: 'var(--warn)',
-      background: 'var(--warn-soft)', padding: '1px 6px', borderRadius: 999,
-      letterSpacing: '0.02em', verticalAlign: 'middle',
-    }}>{label}</span>
-  );
+  return <span className="profit-role-tag">{label}</span>;
 }
 
 interface DistributionResult {
@@ -241,8 +235,8 @@ export default function ProfitPage() {
       )}
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-          <div className="spin" style={{ width: 32, height: 32, border: '4px solid var(--border-2)', borderTopColor: 'var(--brand)', borderRadius: '50%' }}></div>
+        <div className="profit-loading">
+          <div className="profit-loading__spinner" />
         </div>
       ) : (
         <div className="profit-layout">
@@ -274,7 +268,7 @@ export default function ProfitPage() {
               style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
               noPadding
             >
-              <div className="calc-breakdown" style={{ border: 'none', borderRadius: 0, flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div className="calc-breakdown profit-calc-breakdown">
                 <div className="calc-row">
                   <div className="calc-row__label calc-row__label--bold">Doanh thu vận hành</div>
                   <div className="calc-row__value"><Money value={report?.totalRevenue || 0} /></div>
@@ -384,18 +378,11 @@ export default function ProfitPage() {
               </div>
 
               {activeCapTable.length === 0 && (
-                <div style={{
-                  padding: 24,
-                  background: 'var(--bg-2)',
-                  borderRadius: 8,
-                  textAlign: 'center',
-                  color: 'var(--fg-3)',
-                  fontSize: 13,
-                }}>
-                  <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--fg-2)' }}>Chưa cấu hình tỷ lệ cổ phần</p>
-                  <p style={{ margin: 0 }}>
+                <div className="profit-settlement__empty">
+                  <p className="profit-settlement__empty-title">Chưa cấu hình tỷ lệ cổ phần</p>
+                  <p className="profit-settlement__empty-body">
                     Vui lòng thêm bản ghi tại{' '}
-                    <a href="/config/cap-table" style={{ color: 'var(--brand)', fontWeight: 600 }}>
+                    <a href="/config/cap-table" className="profit-settlement__empty-link">
                       Cấu hình Cổ đông
                     </a>{' '}
                     để hiển thị phân chia lợi nhuận.
@@ -412,8 +399,8 @@ export default function ProfitPage() {
               title="Quyết toán & Chốt Quý"
               subtitle="Khóa sổ kế toán và tạo bản ghi phân phối lợi nhuận chính thức."
             >
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', gap: 12 }}>
+              <div className="profit-settlement">
+                <div className="profit-settlement__fields">
                   <UuiSelectField
                     label="Chọn Quý"
                     value={String(selectedQuarter)}
@@ -429,10 +416,9 @@ export default function ProfitPage() {
                     inline
                   />
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                <div className="profit-settlement__actions">
                   <button
-                    className="btn btn--secondary"
-                    style={{ height: 38, display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 auto', justifyContent: 'center' }}
+                    className="btn btn--secondary btn--sm"
                     onClick={handlePreview}
                     disabled={previewing}
                   >
@@ -440,8 +426,7 @@ export default function ProfitPage() {
                     {previewing ? 'Đang tính...' : 'Xem trước'}
                   </button>
                   <button
-                    className="btn btn--primary"
-                    style={{ height: 38, display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 auto', justifyContent: 'center' }}
+                    className="btn btn--primary btn--sm"
                     onClick={handleDistributeProfit}
                     disabled={distributing}
                   >

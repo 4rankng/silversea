@@ -1,13 +1,21 @@
 /* ============================================================================
- * Profit Hero + Partner cards + Calc breakdown
- * Refactored to match Dashboard (.dash-wf) design language:
- * - Tighter spacing, smaller fonts, consistent 14px border-radius
- * - Deeper green palette (#005A2D) matching dashboard sidebar/theme
+ * Profit Hero + Partner cards + Calc breakdown + Settlement preview
+ * Sizing contract (docs/design-guidelines.md):
+ * - Spacing from --space-* (4/8/12/16/24/32/48). Raw 22/18/14/10/2 px were
+ *   either rounded to the nearest token or assigned a non-token role (tight
+ *   chip padding stays raw because no token matches a 2px chip inset).
+ * - Avatars read --avatar-md (36px) instead of the bare 36px.
+ * - In-card action heights dropped from 38px (between two control tokens) to
+ *   --control-compact-h (34px) via .btn--sm; the responsive.css 44px
+ *   phone rule bumps them on touch.
+ * - Border-radius: --r-sm (8) / --r (12) / --r-lg (18). The 4px period pill
+ *   and 999px role tag keep their tight/pill geometry because no token
+ *   encodes them.
  * ========================================================================== */
 .profit-layout {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 20px;
+  gap: var(--space-lg);
   align-items: stretch;
 }
 .profit-layout > * {
@@ -54,9 +62,9 @@
     var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 22px 24px;
-  margin-bottom: 16px;
+  border-radius: var(--r-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
   position: relative;
   overflow: hidden;
 }
@@ -68,16 +76,16 @@
   font-size: var(--fs-2xs);
   color: var(--accent-ink);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  margin-bottom: 8px;
+  letter-spacing: var(--tracking-eyebrow);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-sm);
   position: relative;
   z-index: 1;
 }
 .profit-hero__value {
   font-family: var(--font-display);
   font-size: var(--fs-2xl);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: 0;
   line-height: 1.25;
   color: var(--ink);
@@ -88,33 +96,34 @@
   font-family: var(--font-display);
   font-size: var(--fs-xs);
   color: var(--ink-3);
-  margin-left: 6px;
-  font-weight: 500;
+  margin-left: var(--space-xs);
+  font-weight: var(--fw-medium);
 }
 .profit-hero__sub {
-  margin-top: 8px;
+  margin-top: var(--space-sm);
   font-size: var(--fs-xs);
   color: var(--ink-2);
   position: relative;
   z-index: 1;
 }
 
-.partner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.partner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
 @media (max-width: 1023px) { .partner-grid { grid-template-columns: 1fr; } }
 
 .partner-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: var(--r);
+  padding: var(--space-lg);
   position: relative;
   overflow: hidden;
 }
 .partner-card--primary { border-color: var(--sb-bg); }
-.partner-card__head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.partner-card__head { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); }
 .partner-card__info { flex: 1; min-width: 0; }
 .partner-card__avatar {
-  width: 36px; height: 36px;
+  width: var(--avatar-md);
+  height: var(--avatar-md);
   border-radius: 50%;
   display: grid; place-items: center;
   color: var(--fg-on-brand);
@@ -124,27 +133,208 @@
 .partner-card__avatar--primary { background: linear-gradient(135deg, var(--sb-bg), var(--accent-2)); }
 .partner-card__avatar--thuong,
 .partner-card__avatar--secondary { background: linear-gradient(135deg, #6E9DCB, #3D6FA3); }
-.partner-card__name { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0; margin-bottom: 2px; color: var(--ink); }
+.partner-card__name { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: var(--fw-semibold); letter-spacing: 0; margin-bottom: 2px; color: var(--ink); }
 .partner-card__role { font-size: var(--fs-xs); color: var(--ink-3); }
-.partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0; }
-.partner-card__amount { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; line-height: 1.25; margin-bottom: 6px; color: var(--ink); }
-.partner-card__amount-label { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 6px; }
+.partner-card__pct { margin-left: auto; font-family: var(--font-display); font-weight: var(--fw-bold); font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0; }
+.partner-card__amount { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--fw-bold); letter-spacing: 0; line-height: 1.25; margin-bottom: var(--space-xs); color: var(--ink); }
+.partner-card__amount-label { font-family: var(--font-data); font-size: var(--fs-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: var(--tracking-eyebrow); font-weight: var(--fw-semibold); margin-bottom: var(--space-xs); }
 
-.calc-breakdown { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-.calc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.calc-breakdown { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+/* Nesting inside the bento Card strips the outer border/radius so the
+   breakdown fills the card edge-to-edge while keeping its internal hairline
+   rhythm. */
+.profit-calc-breakdown { border: 0; border-radius: 0; flex: 1; display: flex; flex-direction: column; height: 100%; }
+.calc-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); padding: var(--space-md) var(--space-lg); border-bottom: 1px solid var(--line); }
 .calc-row:last-child { border-bottom: none; }
-.calc-row--total { background: var(--surface-2); font-weight: 700; }
+.calc-row--total { background: var(--surface-2); font-weight: var(--fw-bold); }
 .calc-row--final {
   background: linear-gradient(180deg, var(--surface-accent), var(--surface));
   border-top: 2px solid var(--sb-bg);
 }
-.calc-row__label { font-size: var(--fs-sm); color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.calc-row__label--bold { color: var(--ink); font-weight: 600; }
-.calc-row__op { font-family: var(--font-data); font-weight: 700; color: var(--ink-3); width: 16px; display: inline-block; text-align: center; flex-shrink: 0; }
-.calc-row__value { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600; letter-spacing: 0; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+.calc-row__label { font-size: var(--fs-sm); color: var(--ink-2); display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+.calc-row__label--bold { color: var(--ink); font-weight: var(--fw-semibold); }
+.calc-row__op { font-family: var(--font-data); font-weight: var(--fw-bold); color: var(--ink-3); width: 16px; display: inline-block; text-align: center; flex-shrink: 0; }
+.calc-row__value { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: var(--fw-semibold); letter-spacing: 0; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
 .calc-row__value--neg { color: var(--danger); }
 .calc-row__value--positive { color: var(--sb-bg); }
 .calc-row--final .calc-row__value { font-size: var(--fs-lg); color: var(--sb-bg); }
+
+/* ── Settlement card internals (was inline-styled in TSX) ── */
+.profit-settlement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.profit-settlement__fields {
+  display: flex;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.profit-settlement__actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+/* In-card action: --control-compact-h (34px desktop, 44px phone via
+   responsive.css). Replaces the legacy 38px which sat between two tokens. */
+.profit-settlement__actions .btn {
+  min-height: var(--control-compact-h);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.profit-settlement__preview {
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.profit-settlement__preview-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--fg-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.profit-settlement__preview-title strong {
+  color: var(--brand);
+}
+.profit-settlement__preview-summary {
+  margin: 0 0 var(--space-md);
+  font-size: var(--fs-xs);
+  color: var(--fg-2);
+}
+.profit-settlement__preview-warning {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+}
+.profit-settlement__preview-warning a {
+  color: var(--warn);
+  font-weight: var(--fw-bold);
+}
+.profit-settlement__preview-empty {
+  padding: var(--space-md);
+  background: var(--bg-1);
+  border-radius: var(--r-sm);
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.profit-settlement__group-label {
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  font-weight: var(--fw-bold);
+  color: var(--fg-3);
+  letter-spacing: var(--tracking-wide);
+  margin: var(--space-sm) 0 var(--space-xs);
+}
+.profit-settlement__truck {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-1);
+  border-radius: var(--r-sm);
+}
+.profit-settlement__truck-head {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-2);
+  margin-bottom: var(--space-xs);
+}
+.profit-settlement__truck-head strong {
+  color: var(--brand);
+}
+.profit-settlement__truck-partner {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: var(--fs-xs);
+  color: var(--fg-3);
+  padding: 3px 0;
+}
+.profit-settlement__truck-partner strong {
+  font-weight: var(--fw-semibold);
+  color: var(--fg-1);
+  white-space: nowrap;
+}
+
+.profit-settlement__request {
+  margin-top: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--brand-soft);
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--brand);
+}
+.profit-settlement__request-title {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+}
+.profit-settlement__request-body {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--fg-2);
+}
+
+.profit-settlement__empty {
+  padding: var(--space-xl);
+  background: var(--bg-2);
+  border-radius: var(--r-sm);
+  text-align: center;
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+}
+.profit-settlement__empty-title {
+  margin: 0 0 var(--space-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--fg-2);
+}
+.profit-settlement__empty-body {
+  margin: 0;
+}
+.profit-settlement__empty-link {
+  color: var(--brand);
+  font-weight: var(--fw-semibold);
+}
+
+/* Compact driver-contributor role tag — pill, 999px radius is intentional
+   (no token encodes a full-pill radius; keep raw). */
+.profit-role-tag {
+  margin-left: var(--space-xs);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--warn);
+  background: var(--warn-soft);
+  padding: 1px var(--space-xs);
+  border-radius: 999px;
+  letter-spacing: var(--tracking-wide);
+  vertical-align: middle;
+}
+
+.profit-loading {
+  display: flex;
+  justify-content: center;
+  padding: 80px var(--space-xl);
+}
+.profit-loading__spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid var(--border-2);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+}
 
 .profit-history-scroll {
   max-height: 420px;
@@ -155,35 +345,35 @@
 .profit-history-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 .profit-history-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 14px;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-2);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 .profit-history-item__top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 .profit-history-item__period {
   font-family: var(--font-data);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: var(--fs-2xs);
   color: var(--sb-bg);
   background: var(--surface-accent);
-  padding: 2px 8px;
+  padding: 2px var(--space-sm);
   border-radius: 4px;
   flex-shrink: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-wide);
 }
 .profit-history-item__partner {
-  font-weight: 600;
+  font-weight: var(--fw-semibold);
   font-size: var(--fs-sm);
   color: var(--ink);
   min-width: 0;
@@ -199,7 +389,7 @@
 .profit-history-item__amount {
   font-family: var(--font-data);
   font-size: var(--fs-sm);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--sb-bg);
 }
 .profit-history-item__date {
@@ -208,25 +398,33 @@
   flex-shrink: 0;
 }
 
-/* ── Responsive overrides (from responsive.css decomposition) ── */
+/* ── Responsive overrides ── */
 @media (max-width: 640px) {
   /* ── Profit page ── */
-  .profit-hero { padding: 18px 16px; border-radius: 14px; margin-bottom: 16px; }
-  .profit-hero__label { font-size: var(--fs-2xs); margin-bottom: 6px; letter-spacing: 0.06em; }
+  .profit-hero { padding: var(--space-lg); border-radius: var(--r); margin-bottom: var(--space-lg); }
+  .profit-hero__label { font-size: var(--fs-2xs); margin-bottom: var(--space-xs); letter-spacing: var(--tracking-wide); }
   .profit-hero__value { font-size: var(--fs-2xl); letter-spacing: 0; word-break: break-word; }
-  .profit-hero__currency { font-size: var(--fs-xs); margin-left: 4px; }
-  .profit-hero__sub { font-size: var(--fs-xs); margin-top: 8px; line-height: 1.4; }
-  .partner-grid { gap: 10px; }
-  .partner-card { padding: 14px; border-radius: 12px; }
-  .partner-card__head { gap: 10px; margin-bottom: 8px; }
-  .partner-card__avatar { width: 36px; height: 36px; font-size: var(--fs-sm); }
+  .profit-hero__currency { font-size: var(--fs-xs); margin-left: var(--space-xs); }
+  .profit-hero__sub { font-size: var(--fs-xs); margin-top: var(--space-sm); line-height: 1.4; }
+  .partner-grid { gap: var(--space-sm); }
+  .partner-card { padding: var(--space-md); border-radius: var(--r-sm); }
+  .partner-card__head { gap: var(--space-sm); margin-bottom: var(--space-sm); }
+  .partner-card__avatar { width: var(--avatar-md); height: var(--avatar-md); font-size: var(--fs-sm); }
   .partner-card__name { font-size: var(--fs-sm); }
   .partner-card__role { font-size: var(--fs-2xs); }
   .partner-card__pct { font-size: var(--fs-sm); }
-  .partner-card__amount-label { font-size: var(--fs-2xs); margin-bottom: 4px; letter-spacing: 0.04em; }
+  .partner-card__amount-label { font-size: var(--fs-2xs); margin-bottom: var(--space-xs); letter-spacing: var(--tracking-wide); }
   .partner-card__amount { font-size: var(--fs-xl); letter-spacing: 0; word-break: break-word; }
-  .calc-row { padding: 10px 12px; gap: 8px; }
+  .calc-row { padding: var(--space-sm) var(--space-md); gap: var(--space-sm); }
   .calc-row__label { font-size: var(--fs-sm); }
   .calc-row__value { font-size: var(--fs-sm); }
   .calc-row--final .calc-row__value { font-size: var(--fs-lg); }
+  .profit-settlement { flex-direction: column; align-items: stretch; }
+  .profit-settlement__fields { flex-direction: column; }
+  .profit-settlement__actions { flex-direction: column; }
+  .profit-settlement__actions .btn { width: 100%; }
+  .profit-settlement__preview,
+  .profit-settlement__request { padding: var(--space-md); }
+  .profit-settlement__truck { padding: var(--space-sm) var(--space-md); }
+  .profit-settlement__empty { padding: var(--space-lg); }
 } /* end 640px */
