@@ -33,15 +33,18 @@
      surfaces keep their own min-widths and are unaffected. */
   .record-table,
   .record-table-wrap > table { min-width: 0; }
-  /* The Untitled-UI select trigger hides its label with .truncate
-     (overflow: hidden + white-space: nowrap). On a 7-column filter bar,
-     each control is too narrow for the label to fit on one line; let
-     it wrap so the audit never sees scrollWidth > clientWidth. */
+  /* The Untitled-UI select trigger value is single-line by design (its own
+     `truncate` utility ellipsizes). An earlier block here forced it to wrap
+     so a width audit would never see scrollWidth > clientWidth; that audit
+     no longer exists, and since controlClassName lands on the trigger
+     button (2026-08-23) the wrap pushed narrow filter-bar selects to a
+     46px row against the 34px control scale. Let the value ellipsize like
+     every other select; the full text stays available in the open menu. */
   .expense-filter-bar .truncate.font-medium,
   .expense-filters .truncate.font-medium {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

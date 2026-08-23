@@ -98,12 +98,13 @@ describe('payable list — operational canvas hand-off to card list', () => {
 });
 
 describe('finance category-breakdown table — operational canvas hand-off', () => {
-  it('hides the thead and switches the table to a labelled-card layout at ≤1500px', () => {
-    expect(financeCss).toMatch(
-      /@media\s*\(max-width:\s*1500px\)\s*\{[\s\S]*?\.finance-category-breakdown__scroll\s*>\s*table\s+thead\s*\{\s*display:\s*none;/,
-    );
-    expect(financeCss).toMatch(
-      /\.finance-category-breakdown__scroll\s*>\s*table\s+td:not\(:first-child\)::before\s*\{[^}]*content:\s*attr\(data-label\);/,
-    );
+  it('adopts the shared record-table card collapse inside its own scroller', () => {
+    // The page-local ≤1500px card-collapse block died with the workboard
+    // conformance: the table now rides the shared container-query card
+    // collapse (record-table.css @container 1100px) through the wrap, inside
+    // the panel's own scroller. The page contract is the class wiring.
+    const financeSource = readFileSync(resolve(process.cwd(), 'src/pages/FinancePage.tsx'), 'utf8');
+    expect(financeSource).toMatch(/finance-category-breakdown__scroll[\s\S]*?record-table-wrap[\s\S]*?record-table ops-table/);
+    expect(recordTableCss).toContain('content: attr(data-label);');
   });
 });

@@ -81,6 +81,10 @@
   vertical-align: top;
 }
 
+/* Workboard standard underline — the global thead rule (components/Table.css)
+   already carries case, tracking, ink, and padding for this bare table. */
+.fuel-invoices-table th { border-bottom: 1px solid var(--line-strong); }
+
 .fuel-invoices-table__actions {
   text-align: right;
   white-space: nowrap;

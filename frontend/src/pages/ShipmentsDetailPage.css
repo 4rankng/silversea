@@ -259,8 +259,14 @@
 .shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: 11px; line-height: 1.4; }
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
 .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
-.shipment-container-ledger__edit-action { display: inline-flex; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 13px; }
-.shipment-container-ledger__edit-action [data-text] { display: none; }
+.shipment-container-ledger__edit-action { display: inline-flex; width: auto; min-width: 36px; height: 36px; min-height: 36px; padding-inline: 12px; font-size: 13px; }
+/* Disabled must read as a gray pill, not brand-green at half opacity: the
+   base button's only disabled styling is disabled:opacity-50, which washes
+   the green instead of neutralizing it against the white editor tray. Only
+   the primary Save sits disabled at rest (dirty-gated); the secondary cancel
+   disables mid-save only. Unlayered declarations override Tailwind's layered
+   disabled/hover utilities, so reset opacity and flatten the shadow. */
+.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-4); box-shadow: none; opacity: 1; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: 11px; line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
@@ -360,7 +366,7 @@
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
   .shipment-container-ledger__cell-trigger,
   .shipment-container-ledger__edit-action { min-height: 40px; }
-  .shipment-container-ledger__edit-action { width: 40px; min-width: 40px; height: 40px; }
+  .shipment-container-ledger__edit-action { min-width: 40px; height: 40px; }
 }
 
 /* The page chrome is comfortable at tablet width, but a three-column ledger
@@ -394,11 +400,9 @@
   .shipment-container-ledger__editor-grid select,
   .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
   .shipment-container-ledger__cell-trigger { min-height: 44px; }
-  .shipment-container-ledger__edit-action { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  .shipment-container-ledger__edit-action { min-width: 44px; height: 44px; min-height: 44px; }
   .shipment-container-ledger__keyboard-hint { display: none; }
   .shipment-container-ledger__editor-footer { justify-content: flex-end; }
-  .shipment-container-ledger__edit-action { width: auto; min-width: 44px; padding-inline: 12px; }
-  .shipment-container-ledger__edit-action [data-text] { display: inline; }
   .shipments-detail-error { margin-inline: 10px; }
   .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
 }

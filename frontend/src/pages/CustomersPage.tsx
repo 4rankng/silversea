@@ -29,7 +29,8 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import { EmptyIllustration } from '../components/shared';
-import '../styles/table-sort.css';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import './CustomersPage.css';
 
 /** Sort keys mirror the backend /customers sortBy whitelist (server-side sort). */
@@ -38,13 +39,10 @@ type CustomerTableFilters = {
   sortDir?: 'asc' | 'desc';
 };
 
-const thBaseStyle: CSSProperties = {
-  textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)',
-  borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600,
-  color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em',
-  whiteSpace: 'nowrap',
-};
-const thNumStyle: CSSProperties = { ...thBaseStyle, textAlign: 'right', fontFamily: 'var(--font-data)' };
+/** Numeric header cells right-align to match the .num body cells. Every other
+ * header property (padding, background, case, tracking, sticky pinning) is the
+ * shared record-table base. */
+const thNumStyle: CSSProperties = { textAlign: 'right' };
 
 /** Sortable header cell — the shared table-sort button contract (table-sort.css),
  * so this bespoke table matches the DataTable/record-table sort affordance. */
@@ -666,8 +664,8 @@ export default function CustomersPage() {
 
       {/* ── Desktop table (>640px) ──────────────────────────────────────── */}
       <div className="desktop-only table-wrap">
-        <div className="table-scroll">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900, tableLayout: 'fixed' }}>
+        <div className="record-table-wrap">
+          <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '44%' }} />
               <col style={{ width: '22%' }} />
@@ -677,8 +675,8 @@ export default function CustomersPage() {
             </colgroup>
             <thead>
               <tr>
-                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={applySort} style={thBaseStyle} />
-                <SortHeader label="Liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Hạn mức TD" sortKey="creditLimit" sort={sort} onSortChange={applySort} style={thNumStyle} />
                 <SortHeader label="Công nợ" sortKey="debt" sort={sort} onSortChange={applySort} style={thNumStyle} />
                 <th style={{ width: 60 }}></th>
@@ -686,32 +684,30 @@ export default function CustomersPage() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 13 }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={5} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyIllustration name="empty-clients" width={140} height={116} style={{ margin: '0 auto 8px', display: 'block' }} />
                   <div>Chưa có dữ liệu</div>
                 </td></tr>
               )}
               {filtered.map((c, index) => (
                   <tr key={c.id} role="button" tabIndex={0}
-                    style={{ cursor: 'pointer', transition: 'background 0.12s ease' }}
+                    style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/customers/${c.id}`)}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '')}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/customers/${c.id}`); } }}
                   >
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', position: 'relative', verticalAlign: 'middle' }}>
+                    <td data-label="Khách hàng" style={{ position: 'relative' }}>
                       <StatusStrip status={c.status} />
                       <div style={{ fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
@@ -731,7 +727,7 @@ export default function CustomersPage() {
                       <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2 }}>{c.name}</div>
                       {c.taxCode && <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'var(--font-data)' }}>MST {c.taxCode}</div>}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td data-label="Liên hệ">
                       {c.contactPerson && <div style={{ fontWeight: 600 }}>{c.contactPerson}</div>}
                       {(c.phone || c.contactInfo) && (
                         <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--ink-3)', marginTop: 2, fontFamily: 'var(--font-data)' }}>
@@ -740,15 +736,15 @@ export default function CustomersPage() {
                       )}
                       {!c.contactPerson && !c.phone && !c.contactInfo && <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', textAlign: 'right', fontFamily: 'var(--font-data)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="num" data-label="Hạn mức TD">
                       {c.creditLimit ? formatCurrency(c.creditLimit) : '—'}
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span style={debtMap.get(c.id) ? { color: 'var(--danger)', fontFamily: 'var(--font-data)' } : { color: 'var(--ink-3)' }}>
+                    <td className="num" data-label="Công nợ">
+                      <span style={debtMap.get(c.id) ? { color: 'var(--danger)' } : { color: 'var(--ink-3)' }}>
                         <Money value={debtMap.get(c.id) ?? 0} />
                       </span>
                     </td>
-                    <td style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', position: 'relative' }}>
+                    <td data-label="" className="record-table__action" style={{ position: 'relative' }}>
                       <div className="row-actions">
                         <button className="row-action" aria-label={`Mở thao tác cho ${c.shortName || c.name}`} onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}>
                           <MoreHorizontal size={14} />

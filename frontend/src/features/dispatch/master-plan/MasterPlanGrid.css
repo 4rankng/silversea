@@ -550,11 +550,13 @@
   padding: 10px 12px;
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-3);
+  /* Workboard standard (docs/design-guidelines.md §"Workboard table & summary
+     rail"): --ink-2 header text with the 1px --line-strong underline. Case and
+     tracking stay owned by the global thead th rule in components/Table.css,
+     as on /shipments — not re-declared here. */
+  color: var(--ink-2);
   background: var(--surface-2);
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;
@@ -578,7 +580,7 @@
 }
 
 .master-plan-grid__cell {
-  padding: 12px;
+  padding: 10px 12px;
   vertical-align: top;
   border-bottom: 1px solid var(--line);
   color: var(--fg-2);

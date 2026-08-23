@@ -84,21 +84,22 @@
   top: var(--sticky-thead-top, -24px);
   z-index: 3;
   text-align: left;
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-3);
-  border-bottom: 1px solid var(--border-2);
-  background: var(--bg-1, #fff);
-  white-space: nowrap;
+  padding: 10px 12px;
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
+  /* Workboard standard: --ink-2 header text on surface-2 with the 1px
+     --line-strong underline; case/tracking owned by the global thead th rule
+     in components/Table.css. */
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: normal;
 }
 
 .dispatch-catalogs__table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border-1);
-  vertical-align: middle;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
 }
 
 .dispatch-catalogs__table tbody tr:hover {

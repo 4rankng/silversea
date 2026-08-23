@@ -173,47 +173,12 @@
   min-height: 0;
 }
 
+/* Workboard standard: the thead/td skin, sticky header, and neutral hover are
+   owned by the shared record-table base (see docs/design-guidelines.md
+   §"Workboard table & summary rail") — the page keeps only its column
+   proportions and content-role type scale below. */
 .suppliers-page__grid {
-  width: 100%;
-  min-width: 0;
-  border-collapse: separate;
-  border-spacing: 0;
   table-layout: fixed;
-  font-size: var(--ops-table-supporting-size);
-}
-
-.suppliers-page__grid th {
-  position: sticky;
-  top: var(--sticky-thead-top, -24px);
-  z-index: 3;
-  padding: 10px 12px !important;
-  border-bottom: 2px solid var(--border-color, var(--line, #e2e8f0)) !important;
-  background: var(--background-color-secondary, var(--surface, #fff)) !important;
-  color: var(--text-secondary, var(--ink-3, #64748b)) !important;
-  font-size: var(--ops-table-header-size) !important;
-  font-weight: var(--ops-table-header-weight) !important;
-  letter-spacing: 0.04em !important;
-  line-height: var(--ops-table-header-line-height);
-  white-space: normal !important;
-  overflow-wrap: anywhere;
-}
-
-.suppliers-page__grid tbody tr:hover {
-  background: var(--bg-hover, #f8fafc) !important;
-}
-
-.suppliers-page__grid .suppliers-page__cell {
-  min-width: 0;
-  padding: 12px !important;
-  border-bottom: 1px solid var(--border-color, var(--line, #eef2f7)) !important;
-  vertical-align: top !important;
-  color: var(--text-primary, var(--ink, #0f172a));
-  font-size: var(--ops-table-supporting-size);
-  line-height: var(--ops-table-supporting-line-height);
-  overflow: visible !important;
-  overflow-wrap: anywhere;
-  text-overflow: clip !important;
-  white-space: normal !important;
 }
 
 .suppliers-page__grid .suppliers-page__cell--name {

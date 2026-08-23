@@ -25,7 +25,7 @@ import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import '../styles/operational-table-typography.css';
-import '../styles/table-sort.css';
+import '../styles/record-table.css';
 import './SupplierListPage.css';
 
 type FilterKey = 'all' | 'active' | 'inactive';
@@ -36,14 +36,10 @@ type SupplierTableFilters = {
   sortDir?: 'asc' | 'desc';
 };
 
-const thBaseStyle: CSSProperties = {
-  textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)',
-  borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600,
-  color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em',
-  whiteSpace: 'nowrap',
-};
-const thDataStyle: CSSProperties = { ...thBaseStyle, fontFamily: 'var(--font-data)' };
-const thMoneyStyle: CSSProperties = { ...thDataStyle, textAlign: 'right' };
+/** Numeric header cells right-align to match the .num body cells. Every other
+ * header property (padding, background, case, tracking, sticky pinning) is the
+ * shared record-table base. */
+const thMoneyStyle: CSSProperties = { textAlign: 'right' };
 
 /** Sortable header cell — the shared table-sort button contract (table-sort.css),
  * so this bespoke table matches the DataTable/record-table sort affordance. */
@@ -512,8 +508,8 @@ export default function SupplierListPage() {
       </div>
 
       <div className="desktop-only table-wrap suppliers-page__workspace">
-        <div className="table-scroll suppliers-page__grid-wrapper">
-          <table className="suppliers-page__grid ops-table">
+        <div className="record-table-wrap suppliers-page__grid-wrapper">
+          <table className="record-table ops-table suppliers-page__grid">
             <colgroup>
               <col style={{ width: '26%' }} />
               <col style={{ width: '15%' }} />
@@ -525,43 +521,41 @@ export default function SupplierListPage() {
             </colgroup>
             <thead>
               <tr>
-                <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={applySort} style={thBaseStyle} />
-                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} style={thBaseStyle} />
-                <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} style={thBaseStyle} />
-                <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} style={thDataStyle} />
-                <SortHeader label="KH liên kết" sortKey="linkedCustomer" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
+                <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} />
+                <SortHeader label="KH liên kết" sortKey="linkedCustomer" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Công nợ" sortKey="payable" sort={sort} onSortChange={applySort} style={thMoneyStyle} />
                 <th style={{ width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 13 }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchSuppliers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <img src={resolveEmptyIllustration('empty-clients')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain', margin: '0 auto 8px', display: 'block' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                   <div>Chưa có dữ liệu</div>
                 </td></tr>
               )}
               {filtered.map((s, index) => (
                   <tr key={s.id} role="button" tabIndex={0}
-                    style={{ cursor: 'pointer', transition: 'background 0.12s ease' }}
+                    style={{ cursor: 'pointer' }}
                     onClick={() => navigate(`/suppliers/${s.id}`)}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '')}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/suppliers/${s.id}`); } }}
                   >
-                    <td className="suppliers-page__cell suppliers-page__cell--name" style={{ padding: 12, borderBottom: '1px solid var(--line)', position: 'relative', verticalAlign: 'middle', fontWeight: 600 }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--name" data-label="Tên" style={{ position: 'relative' }}>
                       <StatusStrip status={s.status} />
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, width: '100%', minWidth: 0, flexWrap: 'wrap' }}>
                         <span style={{ wordBreak: 'break-word', whiteSpace: 'normal', minWidth: 0 }}>
@@ -574,16 +568,16 @@ export default function SupplierListPage() {
                         )}
                       </div>
                     </td>
-                    <td className="suppliers-page__cell" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                    <td className="suppliers-page__cell" data-label="Người liên hệ">
                       {s.contactPerson || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--data" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data" data-label="SĐT">
                       {s.phone || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--data" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data" data-label="Mã số thuế">
                       {s.taxCode || <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--linked" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--linked" data-label="KH liên kết">
                       {s.linkedCustomerId ? (
                         <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                           <span style={{ flexShrink: 0, color: '#16a34a', fontWeight: 700, background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', fontSize: 12 }}>2 chiều</span>
@@ -595,10 +589,10 @@ export default function SupplierListPage() {
                         <span style={{ color: 'var(--ink-3)' }}>—</span>
                       )}
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', whiteSpace: 'nowrap', textAlign: 'right', fontFamily: 'var(--font-data)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--data suppliers-page__cell--money num" data-label="Công nợ">
                       <Money value={payableBySupplier.get(s.id) ?? 0} />
                     </td>
-                    <td className="suppliers-page__cell suppliers-page__cell--actions" style={{ padding: 12, borderBottom: '1px solid var(--line)', verticalAlign: 'middle', position: 'relative' }}>
+                    <td className="suppliers-page__cell suppliers-page__cell--actions record-table__action" data-label="" style={{ position: 'relative' }}>
                       <div className="row-actions">
                         <button className="row-action" onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === s.id ? null : s.id); }}>
                           <MoreHorizontal size={14} />

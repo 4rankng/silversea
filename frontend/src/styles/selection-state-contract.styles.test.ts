@@ -15,9 +15,10 @@ describe('selection-state contract', () => {
     expect(read('src/pages/config/config-page.css')).toContain('.cfg-provider-option.is-selected {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/TruckTiresPage.css')).toContain('.ttp-unmount-choice.is-active {\n  border-color: var(--fg-1, #101828);\n  background: var(--bg-1, #fff);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);');
     expect(read('src/pages/TruckTiresPage.css')).toContain(".ttp-position-picker-option[aria-selected='true'] {\n  background: var(--surface, #fff);\n  color: var(--fg-1, #101828);\n  box-shadow: inset 3px 0 0 var(--fg-1, #101828);");
-    expect(read('src/pages/AuditLogPage.css')).toContain('.audit-list-panel .table-hover tbody tr.is-selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
-    // Audit rows hover as a neutral ink wash for fine pointers, not accent fill.
-    expect(read('src/pages/AuditLogPage.css')).toContain('.audit-list-panel .table-hover tbody tr:hover {\n    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));');
+    // The audit ledger rides the shared record-table base: its selection edge
+    // and neutral fine-pointer hover are pinned by the record-table block
+    // below, so this page only has to keep the adoption classes in place.
+    expect(read('src/pages/AuditLogPage.tsx')).toContain('className="record-table ops-table table-hover"');
     expect(read('src/features/recoverable-costs/RecoverableCostsWorkspace.css')).toContain('.recoverable-costs__decision-group>[role=radio][data-selected]{border-color:var(--ink,var(--fg-1));background:var(--surface,var(--bg-1));box-shadow:inset 3px 0 0 var(--ink,var(--fg-1))}');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-column-picker__card.is-active {\n  border-color: var(--ink);\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-align-control button.is-active {\n  background: var(--ink);\n  color: var(--surface);');

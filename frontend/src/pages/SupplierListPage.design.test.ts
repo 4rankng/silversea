@@ -8,9 +8,12 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
 
     expect(page).toContain("import '../styles/operational-table-typography.css'");
-    expect(page).toContain('className="suppliers-page__grid ops-table"');
+    // record-table base adoption: shared skin + card collapse ride these classes.
+    expect(page).toContain('className="record-table ops-table suppliers-page__grid"');
     expect(page).toContain('className="desktop-only table-wrap suppliers-page__workspace"');
-    expect(css).toContain('.suppliers-page__grid th {');
+    // Workboard standard: the thead skin is owned by the shared record-table
+    // base — the page must not re-declare it (conformance invariant).
+    expect(css).not.toContain('.suppliers-page__grid th {');
     expect(css).toContain('position: sticky');
     expect(css).toContain('font-size: var(--ops-table-primary-size)');
     expect(css).toContain('.suppliers-page__workspace > .ds-pagination {');
@@ -18,11 +21,12 @@ describe('SupplierListPage dispatch worksheet styling', () => {
 
   it('keeps supplier values visible by wrapping instead of ellipsizing cells', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
-    const cellRule = css.match(/\.suppliers-page__grid \.suppliers-page__cell \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const recordTableCss = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
 
-    expect(cellRule).toContain('overflow-wrap: anywhere');
-    expect(cellRule).toContain('text-overflow: clip !important');
-    expect(cellRule).toContain('white-space: normal !important');
+    // Wrapping is owned by the shared record-table base; the page only
+    // un-clips the linked-supplier spans it stacks.
+    expect(recordTableCss).toMatch(/\.record-table tbody td\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(css).toMatch(/__cell--linked > span[\s\S]*?white-space:\s*normal !important;/);
   });
 
   it('uses a four-column form grid with the Dispatch compact control contract', () => {

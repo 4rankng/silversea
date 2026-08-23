@@ -480,11 +480,11 @@
   padding: 10px 12px;
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary, #64748b);
-  background: var(--background-color-secondary, var(--surface, #fff));
-  border-bottom: 2px solid var(--border-color, #e2e8f0);
+  /* Workboard standard: --ink-2 header text, 1px --line-strong underline; case
+     and tracking owned by the global thead th rule in components/Table.css. */
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
   white-space: normal;
   overflow-wrap: anywhere;

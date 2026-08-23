@@ -181,6 +181,15 @@ per-page table skins instead of re-declaring their values. The mobile
 card-collapse eyebrow keeps uppercase — it is a card label, not a desktop
 thead.
 
+**In-card and sub-ledger tables skip the wrap.** `record-table-wrap` exists
+to register the container that drives the shared card collapse — it is for
+full-canvas ledgers. A table that lives inside a card, panel, or its own
+scroller (P&L previews, truck-trip sub-ledgers, breakdown panels) adopts the
+classes WITHOUT the wrap: such containers sit permanently under the 1100px
+container threshold, so wrapping them would force permanent card mode and
+destroy the layout. The sticky thead is inert inside `overflow` containers,
+which is correct there — the card is the scroll context.
+
 ## Filter toolbars (CUS + điều vận)
 
 **Current state is inconsistent — this section is the target contract, not a

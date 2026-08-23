@@ -1244,15 +1244,18 @@
   border-collapse: collapse;
 }
 .dd-table thead th {
-  font-size: var(--fs-2xs);
-  line-height: 1.35;
-  letter-spacing: .13em;
-  color: var(--ink-3);
-  font-weight: 700;
+  /* Workboard standard (docs/design-guidelines.md §"Workboard table &
+     summary rail"): --ink-2 on surface-2, 10×12 padding, 1px --line-strong
+     underline; case/tracking owned by the global thead th rule in
+     components/Table.css. */
+  font-size: var(--ops-table-header-size);
+  line-height: var(--ops-table-header-line-height);
+  color: var(--ink-2);
+  font-weight: var(--ops-table-header-weight);
   text-align: left;
-  padding: 13px 24px;
+  padding: 10px 12px;
   background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
 }
 .dd-table thead th.dd-r { text-align: right; }
 
