@@ -67,7 +67,9 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(phoneBlock).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(css).toContain('min-height: var(--control-touch-h)');
     expect(phoneBlock).toContain('height: var(--control-touch-h)');
-    expect(phoneBlock).toContain('border-radius: var(--r)');
+    // Compact form controls keep the shared 8px (--r-sm) radius from the base
+    // rules; the phone block only lifts heights to touch size.
+    expect(css).toContain('border-radius: var(--r-sm)');
     expect(css).toContain('@media (min-width: 641px) and (max-width: 900px)');
     expect(css).toContain('min-height: var(--control-compact-h) !important');
   });

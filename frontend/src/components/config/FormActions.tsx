@@ -9,7 +9,7 @@ export function FormActions({ saving, onsave, oncancel, isedit }: {
         {saving ? <Loader2 size={12} className="spin" /> : <Save size={12} />}
         {isedit ? 'Cập nhật' : 'Thêm'}
       </button>
-      <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+      <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
         <X size={12} /> Hủy
       </button>
     </div>

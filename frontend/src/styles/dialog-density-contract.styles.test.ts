@@ -24,7 +24,7 @@ describe('dialog density contract', () => {
   it('renders every select as one labelled control — no .input double boundary outside frozen dispatch surfaces', () => {
     const offenders = collectTsxFiles(srcRoot)
       .map((file) => ({ rel: file.slice(srcRoot.length + 1), text: readFileSync(file, 'utf8') }))
-      .filter(({ rel, text }) => text.includes('wrapperClassName="input"') && !FROZEN_WRAPPER_ALLOWLIST.includes(rel))
+      .filter(({ rel, text }) => /wrapperClassName=\{?["']input["']\}?/.test(text) && !FROZEN_WRAPPER_ALLOWLIST.includes(rel))
       .map(({ rel }) => rel);
 
     expect(offenders).toEqual([]);

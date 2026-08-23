@@ -66,7 +66,7 @@ export function TireTable({
   if (tires.length === 0) return <div className="ttp-empty">{emptyHint}</div>;
 
   return (
-    <div className="ttp-table-wrap" tabIndex={0} role="region" aria-label="Bảng lốp, dùng phím mũi tên trái phải để cuộn ngang" onKeyDown={handleTableKeyDown}>
+    <div className="ttp-table-wrap" tabIndex={0} role="region" aria-label="Bảng lốp" onKeyDown={handleTableKeyDown}>
       <table className="ttp-table">
         <colgroup>
           <col className="ttp-col-serial" />

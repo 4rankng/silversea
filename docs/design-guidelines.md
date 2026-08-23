@@ -65,11 +65,12 @@ the chrome; feature dialogs own only their field grid.
 - **Scroll model:** header and action footer stay pinned; only the body
   scrolls. Never reintroduce a body `max-height` cap or let the whole dialog
   scroll its title away.
-- **Backdrop:** every overlay family — modal, confirm, drawer, and feature
-  dialogs with bespoke overlays — uses `rgba(10, 10, 10, 0.56)` with a 2px
-  desktop blur so background content never stays readable enough to compete.
-  `frontend/src/styles/dialog-density-contract.styles.test.ts` guards the
-  owned overlay files against drift.
+- **Backdrop:** every dialog overlay family — modal, confirm, drawer, and
+  feature dialogs with bespoke overlays — uses `rgba(10, 10, 10, 0.56)` with
+  a 2px desktop blur so background content never stays readable enough to
+  compete. Navigation scrims (sidebar/bottom-nav) are a separate layer and
+  keep their own tokens. `frontend/src/styles/dialog-density-contract.styles.test.ts`
+  guards the owned overlay files against drift.
 - **One control per field:** `UuiSelectField` renders its own accessible label
   and its own boundary. Never wrap it in an outer `.field` label or add
   `wrapperClassName="input"` — that produces a duplicated label and a second

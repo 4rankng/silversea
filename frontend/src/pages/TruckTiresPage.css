@@ -1028,6 +1028,10 @@
     grid-column: 1 / -1;
     justify-content: flex-end;
     padding-top: 8px;
+    /* Card rows must not keep the desktop table's sticky action-cell chrome. */
+    position: static;
+    background: transparent;
+    box-shadow: none;
   }
 }
 

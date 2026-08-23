@@ -356,7 +356,7 @@ export function RecoverableCostsWorkspace() {
         maxWidth={620}
         footer={(
           <>
-            <Btn variant="ghost" onClick={closeReview} disabled={saving}>Hủy</Btn>
+            <Btn variant="secondary" onClick={closeReview} disabled={saving}>Hủy</Btn>
             <Btn variant="primary" onClick={() => void submit()} disabled={saving || !reason.trim()}>
               {saving ? 'Đang gửi…' : 'Gửi yêu cầu'}
             </Btn>
