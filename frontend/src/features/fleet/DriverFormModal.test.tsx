@@ -66,4 +66,36 @@ describe('DriverFormModal', () => {
 
     expect(screen.getByRole('button', { name: /Hủy/ }).className).toContain('btn--secondary');
   });
+
+  it('pairs fields on the driver grid — phone takes the full row when salary is hidden', () => {
+    const { rerender } = render(
+      <DriverFormModal
+        isOpen
+        saving={false}
+        trucks={trucks}
+        onsave={vi.fn()}
+        oncancel={vi.fn()}
+      />,
+    );
+
+    expect(document.querySelector('.fleet-form__grid')?.className).toContain('fleet-form__grid--driver');
+    expect(document.getElementById('driver-phone')?.closest('.fleet-form__field')?.className)
+      .not.toContain('fleet-form__field--wide');
+    expect(document.getElementById('driver-salary')).toBeTruthy();
+
+    rerender(
+      <DriverFormModal
+        isOpen
+        saving={false}
+        trucks={trucks}
+        showSalary={false}
+        onsave={vi.fn()}
+        oncancel={vi.fn()}
+      />,
+    );
+
+    expect(document.getElementById('driver-phone')?.closest('.fleet-form__field')?.className)
+      .toContain('fleet-form__field--wide');
+    expect(document.getElementById('driver-salary')).toBeNull();
+  });
 });

@@ -825,6 +825,14 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Driver dialog: compact 620px canvas → paired two-column field grid
+   (dense-dialog contract; four columns are reserved for 900px+ dialogs).
+   Name spans both gutters, phone pairs with salary, truck pairs with
+   status — phone takes the full row when DISPATCHER hides salary. */
+.fleet-form__grid--driver {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .fleet-form__field {
   margin: 0;
   min-width: 0;
@@ -1132,8 +1140,10 @@
 }
 
 /* Truck dialog column rhythm: 4 columns on wide canvases, 2 columns ≤960px
-   (dense-dialog contract), 1 column ≤640px. The generic .fleet-form__grid
-   (trailer/driver dialogs) keeps its own 760px single-column handoff. */
+   (dense-dialog contract), 1 column ≤640px. The driver grid collapses one
+   step earlier (760px) because its desktop canvas is already only 620px.
+   The generic .fleet-form__grid (trailer dialog) keeps its own 760px
+   single-column handoff. */
 @media (max-width: 960px) {
   .fleet-form__grid--truck {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1145,6 +1155,13 @@
 }
 
 @media (max-width: 760px) {
+  /* Driver grid hands off one step earlier than the truck dialog. Kept
+     explicit and styles-test-pinned rather than leaning on the generic rule
+     below, which would already win by source order at equal specificity. */
+  .fleet-form__grid--driver {
+    grid-template-columns: 1fr;
+  }
+
   .fleet-form__grid {
     grid-template-columns: 1fr;
   }

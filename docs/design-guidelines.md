@@ -81,12 +81,22 @@ the chrome; feature dialogs own only their field grid.
   icon-only and low-emphasis row actions; the primary action is the only
   filled button on the screen.
 - **Grid & rhythm:** wide dialogs (900px+ canvas) use a 4-column field grid;
-  collapse to 2 columns ≤960px and 1 column ≤640px. Column gap 12px, row gap
+  collapse to 2 columns ≤960px and 1 column ≤640px. Compact dialogs pair
+  fields on two columns rather than the wide 4-column grid when fields pair
+  naturally — the driver dialog's `fleet-form__grid--driver` is the
+  reference. Column gap 12px, row gap
   24px, section gap 32px, label→input 7–8px. The grid gap owns vertical
   rhythm — no per-field bottom margins inside a grid group.
 - **Empty vs filled:** placeholders are examples (`Ví dụ: …`) in muted
   `--ink-3`; entered values are full-contrast `--ink` (the `Input.css`
   contract). Never style a placeholder to read like a value.
+- **Tablet-band control heights:** the app-wide ≤900px safety rule raises
+  native inputs to 44px, but UUI select triggers keep the compact boundary
+  until the 640px phone sheet — so a dense dialog that stays compact across
+  641–900px ends up with mixed control heights in one row. Counter it
+  explicitly in that band (`@media (min-width: 641px) and (max-width: 900px)`
+  with compact `min-height`/`height !important` on `.input:not(textarea)`),
+  as the supplier and fleet form dialogs do.
 - **Checkbox chips:** a taxonomy chip is a flex row — draw the checkbox
   yourself (`appearance: none`, 16px box, 4px radius, `--accent` fill with a
   white check when checked) and give the label `line-height: 18px` with

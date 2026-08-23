@@ -59,11 +59,14 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
         </div>
       }
     >
-      {/* Five fields, one flat grid — no boxed sections or prose headers. The
-          grid gap owns the rhythm; row 1 is the profile (name spans 2), row 2
-          the assignment pair, so no column slot sits empty on the wide rows. */}
+      {/* Compact 620px dialog → paired two-column grid (dense-dialog contract;
+          four columns are reserved for 900px+ dialogs). Name spans both
+          gutters, phone pairs with salary, and the assignment selects close
+          as a pair. Dispatcher creates hide salary, so phone then spans the
+          full row — no column slot ever sits empty. Selects carry an explicit
+          label + hideLabel so every label shares one type treatment. */}
       <div className="fleet-form">
-        <div className="fleet-form__grid">
+        <div className="fleet-form__grid fleet-form__grid--driver">
           <div className="field fleet-form__field fleet-form__field--wide">
             <label htmlFor="driver-name">
               Họ và tên <span>*</span>
@@ -77,7 +80,7 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
               autoFocus
             />
           </div>
-          <div className="field fleet-form__field">
+          <div className={showSalary ? 'field fleet-form__field' : 'field fleet-form__field fleet-form__field--wide'}>
             <label htmlFor="driver-phone">Số điện thoại</label>
             <input
               id="driver-phone"
@@ -98,7 +101,8 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
               placeholder="0"
             />
           </div>}
-          <div className="fleet-form__field fleet-form__field--wide">
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-truck">Xe phân công</label>
             <UuiSelectField
               id="driver-truck"
               label="Xe phân công"
@@ -108,15 +112,18 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
                 { value: '0', label: '— Chưa phân —' },
                 ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
               ]}
+              hideLabel
             />
           </div>
-          <div className="fleet-form__field fleet-form__field--wide">
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-status">Trạng thái</label>
             <UuiSelectField
               id="driver-status"
               label="Trạng thái"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
+              hideLabel
             />
           </div>
         </div>
