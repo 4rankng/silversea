@@ -43,8 +43,8 @@
   text-align: left;
   font-size: 13px;
   font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0;
+  /* Case and tracking owned by the global thead th rule in
+     components/Table.css — never re-declared, even to opt out. */
   color: var(--ink-2);
   padding: 12px 14px;
   background: var(--surface-2);

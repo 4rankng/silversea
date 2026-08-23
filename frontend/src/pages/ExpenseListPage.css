@@ -177,7 +177,8 @@
 }
 
 /* controlClassName lands on the UUI trigger button itself — wear the chip
-   skin directly. Only the native-chevron bits above belong to __date alone. */
+   skin directly, and keep the grouped native-chevron image off it (the UUI
+   trigger draws its own chevron; __date likewise nulls it further down). */
 .expense-filter-bar__select {
   padding: 0 32px 0 12px;
   background-image: none;
@@ -270,8 +271,8 @@
   font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  /* Case and tracking owned by the global thead th rule in
+     components/Table.css — never re-declared per surface. */
   white-space: nowrap;
   position: sticky;
   top: 0;
