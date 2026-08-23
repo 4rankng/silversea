@@ -298,7 +298,7 @@ export default function DebtDetailPage() {
             <ArrowLeft size={20} />
           </button>
           <div className="dd-meta">
-            <h1>Sổ kế toán</h1>
+            <h1 className="sr-only">Sổ kế toán</h1>
           </div>
         </div>
         <div className="dd-summary">

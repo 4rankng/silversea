@@ -259,7 +259,7 @@ export default function PayableDetailPage() {
             <ArrowLeft size={20} />
           </button>
           <div className="dd-meta">
-            <h1>Công nợ phải trả</h1>
+            <h1 className="sr-only">Công nợ phải trả</h1>
           </div>
         </div>
         <div className="dd-summary">

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2, Search, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
-import { Money } from '../components/shared/Money';
 import { Panel } from '../components/UI';
+import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyIllustration } from '../components/shared';
 import {
@@ -57,15 +57,11 @@ export default function SalaryAttendancePage() {
           { label: 'Lương & Chấm công' },
         ]}
       />
-      {/* ── Hero section with bento metrics ── */}
+      {/* ── Period actions + summary rail ── */}
       <section className="hero">
         <div className="hero-top fade-up-2">
           <div className="hero-title-block">
-            <div className="hero-eyebrow">Kỳ lương</div>
-            <h1 className="hero-h1" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src="/assets/icons/16-payroll-luong-tien-luong.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
-              Lương & Chấm công
-            </h1>
+            <h1 className="sr-only">Lương &amp; Chấm công</h1>
             <div className="hero-sub">Tháng {month} · {year} · {aggregates.total} lái xe</div>
           </div>
           <div className="hero-actions">
@@ -83,35 +79,16 @@ export default function SalaryAttendancePage() {
             <button className="btn btn--secondary btn--icon" onClick={goNext} aria-label="Tháng sau"><ChevronRight size={15} /></button>
           </div>
         </div>
-        <div className="metrics fade-up-3">
-          <div className="metric featured">
-            <div className="metric-label">Tổng quỹ lương</div>
-            <div className="metric-value"><Money value={aggregates.totalNet} /></div>
-            <div className="metric-delta delta-flat">Lương thực nhận · tất cả lái xe</div>
-            <div className="utilization-bar"><div className="utilization-fill" style={{ width: `${aggregates.total > 0 ? (aggregates.confirmed / aggregates.total) * 100 : 0}%` }} /></div>
-            <div className="metric-delta delta-up"><CheckCircle2 size={10} strokeWidth={2.5} /> {aggregates.confirmed}/{aggregates.total} đã xác nhận</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Tổng lái xe</div>
-            <div className="metric-value d-mono">{aggregates.total}</div>
-            <div className="metric-delta delta-flat">— trong kỳ</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Đã xác nhận</div>
-            <div className="metric-value d-mono">{aggregates.confirmed}<span className="metric-value-unit">/{aggregates.total}</span></div>
-            <div className="metric-delta delta-up"><CheckCircle2 size={10} strokeWidth={2.5} /> kỳ lương</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Ngày đi chuyến</div>
-            <div className="metric-value d-mono">{aggregates.totalTripDays}</div>
-            <div className="metric-delta delta-flat">— tổng cả đội</div>
-          </div>
-          <div className="metric">
-            <div className="metric-label">Ngày chờ việc</div>
-            <div className="metric-value d-mono">{aggregates.totalStandbyDays}</div>
-            <div className="metric-delta delta-flat">— tổng cả đội</div>
-          </div>
-        </div>
+        <SummaryRail
+          ariaLabel="Tóm tắt kỳ lương"
+          items={[
+            { label: 'Tổng quỹ lương', value: formatCurrency(aggregates.totalNet) },
+            { label: 'Tổng lái xe', value: aggregates.total },
+            { label: 'Đã xác nhận', value: `${aggregates.confirmed}/${aggregates.total}` },
+            { label: 'Ngày đi chuyến', value: aggregates.totalTripDays },
+            { label: 'Ngày chờ việc', value: aggregates.totalStandbyDays },
+          ]}
+        />
       </section>
 
       {/* ── Driver selector grid ── */}
