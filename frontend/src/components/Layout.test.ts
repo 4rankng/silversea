@@ -33,7 +33,6 @@ describe('getNavItems', () => {
       ['Khách hàng', '/customers'],
       ['Nhà cung cấp / Nhà xe', '/suppliers'],
       ['Tuyến đường', '/config/routes'],
-      ['Nhà máy', '/config/factories'],
       ['Cảng / Bãi & Biểu phí', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
       ['Trung tâm quản trị', '/admin-center'],
@@ -62,7 +61,6 @@ describe('getNavItems', () => {
       ['Khách hàng', '/customers'],
       ['Nhà cung cấp / Nhà xe', '/suppliers'],
       ['Tuyến đường', '/config/routes'],
-      ['Nhà máy', '/config/factories'],
       ['Cảng / Bãi & Biểu phí', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
       ['Quản lý Người dùng', '/users'],
@@ -81,13 +79,6 @@ describe('getNavItems', () => {
       ['Duyệt vượt hạn mức', '/credit-overrides'],
       ['Trung tâm phê duyệt', '/governance-actions'],
       ['Tổng quan lô hàng', '/shipments'],
-      ['Sổ chuyến đi', '/trips'],
-      ['Đội xe', '/fleet'],
-      ['Lương & Chấm công', '/salary'],
-      ['Kỷ luật', '/penalties'],
-      ['Khách hàng', '/customers'],
-      ['Nhà cung cấp / Nhà xe', '/suppliers'],
-      ['Bảng giá cước', '/config/pricing-tables'],
       ['Nhật ký hệ thống', '/audit-logs'],
     ]],
     [Role.DRIVER, [
@@ -150,9 +141,28 @@ describe('getNavItems', () => {
       'Vận hành', 'Báo cáo & Phê duyệt', 'Công nợ & Dòng tiền', 'Nhân sự', 'Danh mục', 'Hệ thống',
     ]);
     // Spec §III.2 — ACCOUNTANT:
-    // Công nợ & Dòng tiền → Báo cáo & Phê duyệt → Vận hành liên quan → Nhân sự → Danh mục → Hệ thống
+    // Công nợ & Dòng tiền → Báo cáo & Phê duyệt → Vận hành liên quan → Hệ thống.
+    // Nhân sự + Danh mục are gone: all their ACCOUNTANT items were
+    // adminOnly-bounced dead links, so the sections went with them.
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.label)).toEqual([
-      'Công nợ & Dòng tiền', 'Báo cáo & Phê duyệt', 'Vận hành liên quan', 'Nhân sự', 'Danh mục', 'Hệ thống',
+      'Công nợ & Dòng tiền', 'Báo cáo & Phê duyệt', 'Vận hành liên quan', 'Hệ thống',
+    ]);
+  });
+
+  it('offers the accountant no adminOnly-bounced destination', () => {
+    // App.tsx bounces ACCOUNTANT off every adminOnly route (and the
+    // non-dispatcher /suppliers branch). Each of these nav keys used to be a
+    // silent dead link that re-rendered /accounting unchanged.
+    const deadKeys = ['trips', 'fleet', 'penalties', 'customers', 'salary', 'suppliers', 'config-pricing'];
+    const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['treasury.read']);
+    for (const key of deadKeys) {
+      expect(items.some((item) => item.key === key), key).toBe(false);
+    }
+    // Every remaining accountant destination must stay reachable: only
+    // financeReader/officeStaff/shipmentReader-guarded paths survive.
+    expect(items.map((item) => item.path)).toEqual([
+      '/accounting', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances',
+      '/finance', '/profit', '/credit-overrides', '/governance-actions', '/shipments', '/audit-logs',
     ]);
   });
 
@@ -171,7 +181,7 @@ describe('getNavItems', () => {
       .filter((item) => item.section === 'operations')
       .map((item) => item.key);
     expect(adminOperations).toEqual(['shipments', 'dispatch', 'trips', 'fleet']);
-    expect(accountantOperations).toEqual(['shipments', 'trips', 'fleet']);
+    expect(accountantOperations).toEqual(['shipments']);
   });
 
   it('keeps every role menu structurally complete and free of duplicate destinations', () => {

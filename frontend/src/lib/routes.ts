@@ -70,7 +70,6 @@ export const routes = {
   /* ── Config (catalog admin) ─────────────────────────────────────────── */
 
   config: PAGE_CATALOG.config.path,
-  configFactories: '/config/factories',
   configTrailers: PAGE_CATALOG.configTrailers.path,
   configTrucks: PAGE_CATALOG.configTrucks.path,
   configTruckOwners: (truckId: number | string) => PAGE_CATALOG.configTruckOwners.path({ truckId }),

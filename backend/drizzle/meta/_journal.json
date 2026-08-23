@@ -260,6 +260,13 @@
       "when": 1787401570589,
       "tag": "0036_backfill-delivery-attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1787497691350,
+      "tag": "0037_migrate-forwarder-users-to-ops",
+      "breakpoints": true
     }
   ]
 }

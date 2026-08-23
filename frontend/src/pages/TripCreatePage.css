@@ -54,34 +54,7 @@
   background: var(--surface);
   border-color: var(--ink-2);
 }
-.tc-create-hero .tc-hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--fs-2xs);
-  letter-spacing: 1.8px;
-  font-weight: 700;
-  color: var(--accent-ink);
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-.tc-create-hero .tc-hero-eyebrow::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
-  border-radius: 50%;
-}
 
-.tc-create-hero .tc-hero-h1 {
-  font-family: var(--font-display);
-  font-size: var(--fs-2xl);
-  font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1.35;
-  margin: 0 0 6px;
-  color: var(--ink);
-}
 .tc-create-hero .tc-hero-sub {
   font-size: var(--fs-sm);
   color: var(--ink-2);
@@ -231,7 +204,6 @@
   .tc-create-wrap { padding: 8px 12px 0; }
   .tc-create-hero { padding: 16px; margin-bottom: 14px; }
   .tc-hero-top { gap: 12px; flex-wrap: wrap; }
-  .tc-create-hero .tc-hero-h1 { font-size: var(--fs-xl); line-height: 1.35; }
   .tc-hero-widgets {
     display: none;
   }

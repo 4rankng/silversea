@@ -125,7 +125,6 @@ export function getNavItems(
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
         { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
-        { key: 'config-factories', label: 'Nhà máy', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
@@ -176,7 +175,6 @@ export function getNavItems(
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
         { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
-        { key: 'config-factories', label: 'Nhà máy', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
@@ -217,19 +215,11 @@ export function getNavItems(
         { key: 'credit-overrides', label: 'Duyệt vượt hạn mức', path: routes.creditOverrides, icon: Shield, section: 'reports' as SectionName },
         { key: 'governance-actions', label: 'Trung tâm phê duyệt', path: routes.governanceActions, icon: ClipboardCheck, section: 'reports' as SectionName },
 
-        // Vận hành liên quan (Operations - View-only/Audit) per spec
+        // Vận hành liên quan (Operations - View-only/Audit) per spec.
+        // Trips/fleet/salary/penalties/customers/suppliers/pricing were removed:
+        // App.tsx bounces ACCOUNTANT off every adminOnly route, so each was a
+        // silent dead link that re-rendered /accounting unchanged.
         { key: 'shipments', label: 'Tổng quan lô hàng', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
-        { key: 'fleet', label: 'Đội xe', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
-
-        // Nhân sự (HR)
-        { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
-        { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
-
-        // Danh mục (Master Data) per spec
-        { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
-        { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
-        { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
         // Hệ thống (System) per spec — accountant has ONLY audit-logs in this section
         { key: 'audit-logs', label: 'Nhật ký hệ thống', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
@@ -338,8 +328,6 @@ export function getNavSections(role: Role | string): NavSection[] {
         { key: 'financials', label: 'Công nợ & Dòng tiền' },
         { key: 'reports', label: 'Báo cáo & Phê duyệt' },
         { key: 'operations', label: 'Vận hành liên quan' },
-        { key: 'hr', label: 'Nhân sự' },
-        { key: 'master-data', label: 'Danh mục' },
         { key: 'system', label: 'Hệ thống' },
       ];
     case Role.DISPATCHER:

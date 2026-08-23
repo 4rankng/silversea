@@ -103,7 +103,6 @@
 
 @media (max-width: 640px) {
   .trip-list-page .hero { padding: 20px; }
-  .trip-list-page .hero-h1 { font-size: var(--fs-xl); }
   .trip-list-page .hero-top { flex-direction: column; gap: 14px; }
   .trip-list-page .hero-actions { width: 100%; }
   .trip-list-page .hero-actions .btn { flex: 1; justify-content: center; }
@@ -154,7 +153,6 @@
      off the right edge with no swipe hint). */
   .trip-list-page .hero { padding: 14px 14px 12px; }
   .trip-list-page .hero-top { flex-direction: column; gap: 10px; align-items: flex-start; }
-  .trip-list-page .hero-h1 { font-size: var(--fs-xl); line-height: 1.25; }
   .trip-list-page .hero-sub { font-size: var(--fs-xs); }
   .trip-list-page .hero-actions { width: 100%; flex-wrap: wrap; }
   .trip-list-page .hero-actions .btn { flex: 1 1 auto; justify-content: center; min-height: 44px; }
