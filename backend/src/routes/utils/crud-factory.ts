@@ -8,12 +8,15 @@
 import { Router } from 'express';
 import { db } from '../../db';
 import { asc, eq, getTableName, isNull, sql, and, or } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
 import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { parsePagination } from './pagination';
+import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { getUser } from '../../middleware/auth';
 import {
@@ -55,6 +58,12 @@ export interface CrudRouterOptions<
   maxLimit?: number;
   /** Deterministic ascending order for configuration lists that have chronology. */
   orderByField?: string;
+  /** Sortable list columns for the factory GET: URL sort key → column or scalar
+   * SQL expression. Expressions must yield exactly one value per row (correlated
+   * subqueries are fine; joins that fan out rows are not). NULLs sort last in
+   * both directions; `id` stays the stable tiebreaker. Absent sortBy/sortDir
+   * params keep the resource's default order untouched. */
+  sortableColumns?: Record<string, PgColumn | SQL>;
   /** Optional schema for update compatibility when persisted legacy values are
    * readable but prohibited on new creates. */
   updateSchema?: AnyZodObject;
@@ -109,6 +118,7 @@ export function createCrudRouter<
     deleteMode = 'soft',
     maxLimit,
     orderByField,
+    sortableColumns,
     updateSchema,
     beforeCreate,
     afterCreate,
@@ -206,6 +216,32 @@ export function createCrudRouter<
     const { page, limit, offset } = parsePagination(req, maxLimit ? { maxLimit } : undefined);
     const search = req.query.search as string;
 
+    // Server-side sorting: strict enum pair validated against the resource's
+    // whitelist, mirroring the dedicated list endpoints' query schemas. An
+    // absent pair leaves the default order (orderByField or DB order) intact.
+    let sortOverride: SQL[] | null = null;
+    const sortKeys = Object.keys(sortableColumns ?? {});
+    if (req.query.sortBy !== undefined || req.query.sortDir !== undefined) {
+      if (sortKeys.length === 0) {
+        throw new ApiError(400, 'Danh mục này không hỗ trợ sắp xếp');
+      }
+      const parsed = z.object({
+        sortBy: z.enum(sortKeys as [string, ...string[]]).optional(),
+        sortDir: z.enum(['asc', 'desc']).optional(),
+      }).safeParse({ sortBy: req.query.sortBy, sortDir: req.query.sortDir });
+      if (!parsed.success) throwValidation(parsed.error);
+      if (parsed.data.sortBy) {
+        const expr = sortableColumns![parsed.data.sortBy];
+        const direction = parsed.data.sortDir === 'desc' ? sql`desc` : sql`asc`;
+        // Explicit `nulls last` keeps empty cells at the bottom in both
+        // directions; `id` keeps pages stable when sort values tie.
+        sortOverride = [
+          sql`${expr} ${direction} nulls last`,
+          asc(column(table, 'id')),
+        ];
+      }
+    }
+
     const conditions = [];
     if (hasSoftDelete) conditions.push(isNull(column(table, 'deletedAt')));
     const searchFields = searchableFields ?? (searchableField ? [searchableField] : []);
@@ -223,7 +259,9 @@ export function createCrudRouter<
     let itemsQuery = db.select().from(tbl)
       .where(where)
       .$dynamic();
-    if (orderByField) {
+    if (sortOverride) {
+      itemsQuery = itemsQuery.orderBy(...sortOverride);
+    } else if (orderByField) {
       itemsQuery = itemsQuery.orderBy(asc(column(table, orderByField)));
     }
     const items = await itemsQuery.limit(limit).offset(offset);

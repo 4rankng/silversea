@@ -1,6 +1,7 @@
 import { api, fileCommandFingerprint } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
+import type { TableSortState } from '../lib/table-sort';
 import type { PendingGovernanceResponse } from '../lib/governance';
 import { CONFIG } from '@tingting/shared';
 import type {
@@ -31,8 +32,8 @@ import type {
 } from '@tingting/shared';
 
 export const configClient = {
-  getCustomers: async (page: number, search: string) => {
-    const qs = toQuery({ page, limit: '10', search: search || undefined });
+  getCustomers: async (page: number, search: string, sort?: TableSortState | null) => {
+    const qs = toQuery({ page, limit: '10', search: search || undefined, sortBy: sort?.by, sortDir: sort?.dir });
     return api.get<{ items: Customer[]; total: number }>(`${CONFIG.CUSTOMERS}${qs}`);
   },
 
@@ -46,9 +47,9 @@ export const configClient = {
 
   getDrivers: () => fetchAllPaginated<Driver>(CONFIG.DRIVERS),
 
-  getSuppliers: async (page?: number, search?: string) =>
+  getSuppliers: async (page?: number, search?: string, sort?: TableSortState | null) =>
     api.get<PaginatedResponse<Supplier>>(
-      `${CONFIG.SUPPLIERS}${toQuery({ page, limit: '10', search })}`,
+      `${CONFIG.SUPPLIERS}${toQuery({ page, limit: '10', search, sortBy: sort?.by, sortDir: sort?.dir })}`,
     ),
 
   getExpenseCategories: async (page?: number, search?: string) =>

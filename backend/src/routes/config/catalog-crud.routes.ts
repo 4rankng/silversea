@@ -2,13 +2,14 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, like, ne } from 'drizzle-orm';
+import { and, eq, isNull, like, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
-import { Role } from '@tingting/shared';
+import { Role, TxnType } from '@tingting/shared';
 import { createCrudRouter } from '../utils/crud-factory';
+import { operationalName } from '../../db/master-data-name';
 import { runIdempotent, resolveIdempotencyKey } from '../../services/idempotency.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../../lib/redis';
 import * as H from './config-helpers';
@@ -182,8 +183,54 @@ function validatePricingSelector<T extends { containerTypeId?: number | null; ra
 
 // ─── CRUD routes ─────────────────────────────────────────────────────────────
 
+// Partner-list sort whitelists. Each key is the list page's URL sort key; the
+// value is the column or a correlated scalar subquery — exactly one value per
+// row, so pagination counts never fan out. The two balance keys replicate the
+// pages' displayed projections:
+// - customers `debt` mirrors buildCustomerDebtMap: the CUSTOMER ledger sum
+//   (debit − credit) with carrier-payable postings excluded (same filter shape
+//   as aging.service's excludeCarrierPayables projection).
+// - suppliers `payable` mirrors the vendor payables summary total (VENDOR
+//   ledger, credit − debit), clamped at 0 because the summary drops entities
+//   with non-positive outstanding and the page renders those as 0.
+const customerDebtSortSql = sql`(
+  select coalesce(sum(coalesce(${s.ledger.debit}, 0) - coalesce(${s.ledger.credit}, 0)), 0)
+  from ${s.ledger}
+  where ${s.ledger.entityType} = 'CUSTOMER'
+    and ${s.ledger.entityId} = ${s.customers.id}
+    and not (
+      ${s.ledger.txnType} = ${TxnType.EXTERNAL_CARRIER_COST}
+      or ${s.ledger.txnType} = ${TxnType.VENDOR_PAYMENT}
+      or (
+        ${s.ledger.txnType} = ${TxnType.UNLOCK_REVERSAL}
+        and ${s.ledger.note} like 'Cước thuê ngoài%'
+      )
+    )
+)`;
+
+const supplierPayableSortSql = sql`(
+  select greatest(coalesce(sum(coalesce(${s.ledger.credit}, 0) - coalesce(${s.ledger.debit}, 0)), 0), 0)
+  from ${s.ledger}
+  where ${s.ledger.entityType} = 'VENDOR'
+    and ${s.ledger.entityId} = ${s.suppliers.id}
+)`;
+
+// The list renders the linked customer's full name (or an em dash when
+// unlinked) — sort on that same label, not the raw linked_customer_id.
+const supplierLinkedCustomerNameSortSql = sql`(
+  select ${s.customers.name}
+  from ${s.customers}
+  where ${s.customers.id} = ${s.suppliers.linkedCustomerId}
+)`;
+
 router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   searchableFields: ['shortName', 'name'],
+  sortableColumns: {
+    name: operationalName(s.customers.shortName, s.customers.name),
+    contactPerson: s.customers.contactPerson,
+    creditLimit: s.customers.creditLimit,
+    debt: customerDebtSortSql,
+  },
   updateSchema: customerUpdateSchema,
   governance: {
     reasonLabel: 'cấu hình khách hàng ảnh hưởng công nợ',
@@ -586,6 +633,14 @@ router.use('/truck-cap', createCrudRouter(s.truckCapTable, truckCapSchema, {
 }));
 router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
   searchableFields: ['shortName', 'name'],
+  sortableColumns: {
+    name: operationalName(s.suppliers.shortName, s.suppliers.name),
+    contactPerson: s.suppliers.contactPerson,
+    phone: s.suppliers.phone,
+    taxCode: s.suppliers.taxCode,
+    linkedCustomer: supplierLinkedCustomerNameSortSql,
+    payable: supplierPayableSortSql,
+  },
   // Dispatchers allocate external capacity from this catalog; they may add
   // subcontractors (casbin route-scoped POST allowance) while updates/deletes
   // stay with MANAGER/ACCOUNTANT/ADMIN.

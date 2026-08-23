@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
+  ArrowDown, ArrowUp, ArrowUpDown,
 } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { api } from '../lib/api';
 import { labelStyle } from '../utils/formStyles';
 import { downloadCSV } from '../lib/csv';
+import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
@@ -23,9 +25,46 @@ import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import '../styles/operational-table-typography.css';
+import '../styles/table-sort.css';
 import './SupplierListPage.css';
 
 type FilterKey = 'all' | 'active' | 'inactive';
+
+/** Sort keys mirror the backend /suppliers sortBy whitelist (server-side sort). */
+type SupplierTableFilters = {
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+};
+
+const thBaseStyle: CSSProperties = {
+  textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)',
+  borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600,
+  color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em',
+  whiteSpace: 'nowrap',
+};
+const thDataStyle: CSSProperties = { ...thBaseStyle, fontFamily: 'var(--font-data)' };
+const thMoneyStyle: CSSProperties = { ...thDataStyle, textAlign: 'right' };
+
+/** Sortable header cell — the shared table-sort button contract (table-sort.css),
+ * so this bespoke table matches the DataTable/record-table sort affordance. */
+function SortHeader({ label, sortKey, sort, onSortChange, style }: {
+  label: ReactNode; sortKey: string; sort: TableSortState | null;
+  onSortChange: (key: string) => void; style?: CSSProperties;
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <th style={style} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Hoạt động',
@@ -242,15 +281,28 @@ export default function SupplierListPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirm();
 
-  const table = useTableQueryState<Supplier, Record<string, never>>({
-    endpoint: (params) => configClient.getSuppliers(params.page ?? 1, params.search ?? ''),
+  const table = useTableQueryState<Supplier, SupplierTableFilters>({
+    endpoint: (params) => configClient.getSuppliers(
+      params.page ?? 1,
+      params.search ?? '',
+      readTableSort(params.sortBy, params.sortDir),
+    ),
     queryKey: qk.catalogs.suppliersTable,
     defaultPageSize: 10,
     debounceMs: 300,
   });
-  const { page, setPage, pageSize, search, setSearch, rows: suppliers, total, isLoading: loading, error: queryError } = table;
+  const { page, setPage, pageSize, search, setSearch, rows: suppliers, total, isLoading: loading, error: queryError, setFilter: setSortFilter } = table;
   const refetchSuppliers = table.query.refetch;
   const { rootRef } = usePageAnimations({ ready: !loading });
+
+  // Server-side sorting: the sort pair rides the filters bag so setFilter's
+  // built-in page reset applies (page 1 whenever the sort changes).
+  const sort = readTableSort(table.filters.sortBy, table.filters.sortDir);
+  const applySort = (key: string) => {
+    const next = nextTableSort(sort, key);
+    setSortFilter('sortBy', next.by);
+    setSortFilter('sortDir', next.dir);
+  };
 
   // AP outstanding per supplier — fetched once from the payables summary.
   // Each PayableSummary item exposes a nested `supplier.id` + `totalOutstanding`.
@@ -473,12 +525,12 @@ export default function SupplierListPage() {
             </colgroup>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Tên</th>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Người liên hệ</th>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>SĐT</th>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)' }}>Mã số thuế</th>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>KH liên kết</th>
-                <th style={{ textAlign: 'right', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Công nợ</th>
+                <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Mã số thuế" sortKey="taxCode" sort={sort} onSortChange={applySort} style={thDataStyle} />
+                <SortHeader label="KH liên kết" sortKey="linkedCustomer" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Công nợ" sortKey="payable" sort={sort} onSortChange={applySort} style={thMoneyStyle} />
                 <th style={{ width: 60 }}></th>
               </tr>
             </thead>

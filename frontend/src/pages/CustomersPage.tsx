@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'; // useEffect remains for the form modal's reset-on-open
+import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react'; // useEffect remains for the form modal's reset-on-open
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, BarChart3, Lock, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
+  ArrowDown, ArrowUp, ArrowUpDown,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
 import { downloadCSV } from '../lib/csv';
+import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { labelStyle } from '../utils/formStyles';
 import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -27,7 +29,43 @@ import { ClickableCard } from '../components/shared/ClickableCard';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import { EmptyIllustration } from '../components/shared';
+import '../styles/table-sort.css';
 import './CustomersPage.css';
+
+/** Sort keys mirror the backend /customers sortBy whitelist (server-side sort). */
+type CustomerTableFilters = {
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+};
+
+const thBaseStyle: CSSProperties = {
+  textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)',
+  borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600,
+  color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em',
+  whiteSpace: 'nowrap',
+};
+const thNumStyle: CSSProperties = { ...thBaseStyle, textAlign: 'right', fontFamily: 'var(--font-data)' };
+
+/** Sortable header cell — the shared table-sort button contract (table-sort.css),
+ * so this bespoke table matches the DataTable/record-table sort affordance. */
+function SortHeader({ label, sortKey, sort, onSortChange, style }: {
+  label: ReactNode; sortKey: string; sort: TableSortState | null;
+  onSortChange: (key: string) => void; style?: CSSProperties;
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <th style={style} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
 
 type FilterKey = 'all' | 'locked' | 'active' | 'risk';
 
@@ -295,15 +333,28 @@ export default function CustomersPage() {
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  const table = useTableQueryState<Customer, Record<string, never>>({
-    endpoint: (params) => configClient.getCustomers(params.page ?? 1, params.search ?? ''),
+  const table = useTableQueryState<Customer, CustomerTableFilters>({
+    endpoint: (params) => configClient.getCustomers(
+      params.page ?? 1,
+      params.search ?? '',
+      readTableSort(params.sortBy, params.sortDir),
+    ),
     queryKey: qk.catalogs.customersTable,
     defaultPageSize: 10,
     debounceMs: 300,
   });
-  const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError } = table;
+  const { page, setPage, pageSize, search, setSearch, rows: customers, total, isLoading: loading, error: queryError, setFilter: setSortFilter } = table;
   const error = queryError ? 'Không thể tải dữ liệu' : null;
   const refetchCustomers = table.query.refetch;
+
+  // Server-side sorting: the sort pair rides the filters bag so setFilter's
+  // built-in page reset applies (page 1 whenever the sort changes).
+  const sort = readTableSort(table.filters.sortBy, table.filters.sortDir);
+  const applySort = (key: string) => {
+    const next = nextTableSort(sort, key);
+    setSortFilter('sortBy', next.by);
+    setSortFilter('sortDir', next.dir);
+  };
 
   const { rootRef } = usePageAnimations({ ready: !loading });
   const { data: ledgerEntries } = useCustomerLedgerEntries();
@@ -626,10 +677,10 @@ export default function CustomersPage() {
             </colgroup>
             <thead>
               <tr>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Khách hàng</th>
-                <th style={{ textAlign: 'left', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>Liên hệ</th>
-                <th style={{ textAlign: 'right', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)' }}>Hạn mức TD</th>
-                <th style={{ textAlign: 'right', padding: '11px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', fontFamily: 'var(--font-data)' }}>Công nợ</th>
+                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} style={thBaseStyle} />
+                <SortHeader label="Hạn mức TD" sortKey="creditLimit" sort={sort} onSortChange={applySort} style={thNumStyle} />
+                <SortHeader label="Công nợ" sortKey="debt" sort={sort} onSortChange={applySort} style={thNumStyle} />
                 <th style={{ width: 60 }}></th>
               </tr>
             </thead>
