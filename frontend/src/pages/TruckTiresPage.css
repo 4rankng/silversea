@@ -111,7 +111,7 @@
 }
 
 .ttp-tool-btn {
-  min-height: 44px;
+  min-height: var(--control-compact-h);
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -428,7 +428,7 @@
 
 .ttp-add-submit {
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--control-default-h);
   line-height: 1.35;
 }
 
@@ -514,8 +514,8 @@
 }
 
 .ttp-kebab {
-  width: 44px;
-  height: 44px;
+  width: var(--control-compact-h);
+  height: var(--control-compact-h);
   display: inline-flex;
   align-items: center;
   justify-content: center;

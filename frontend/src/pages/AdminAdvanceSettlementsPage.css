@@ -741,7 +741,7 @@
 }
 .as-page .as-mcard__actions .btn {
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--control-compact-h);
 }
 .as-page .as-mcard__reject {
   border: 1px solid color-mix(in srgb, var(--danger) 34%, var(--line));

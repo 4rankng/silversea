@@ -358,7 +358,7 @@
   font-size: 13px;
   font-weight: 600;
   line-height: 1.35;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   padding: 9px 16px;
   border-radius: 999px;
   cursor: pointer;
@@ -407,7 +407,7 @@
 }
 
 .commission-form .input {
-  height: 44px;
+  height: var(--control-default-h);
   font-size: 15px;
 }
 

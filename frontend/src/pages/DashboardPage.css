@@ -778,7 +778,7 @@
 .dash-wf .wf-severity--success { color: var(--wf-green-700); background: var(--wf-green-soft); }
 .dash-wf .wf-arow .go { align-self: center; }
 .dash-wf .wf-minibtn {
-  min-height: 44px;
+  min-height: var(--control-compact-h);
   padding: 0 12px 0 14px;
   border-radius: 8px;
   border: 1px solid var(--wf-border-2);
@@ -1668,7 +1668,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-h);
+  min-height: var(--control-default-h);
   padding: 4px 10px;
   border: 1px solid currentColor;
   border-radius: var(--r-sm);

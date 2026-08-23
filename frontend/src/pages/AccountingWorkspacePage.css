@@ -74,9 +74,9 @@
 .accounting-register td a,
 .accounting-transport-card > a { color: var(--brand); font-weight: 700; }
 .accounting-register td > a,
-.accounting-transport-card > a { display: inline-flex; align-items: center; min-height: 44px; }
+.accounting-transport-card > a { display: inline-flex; align-items: center; min-height: var(--control-compact-h); }
 .accounting-alert button,
-.accounting-register__state button { min-height: 44px; padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
+.accounting-register__state button { min-height: var(--control-compact-h); padding: 0 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-weight: 700; cursor: pointer; }
 .accounting-register .accounting-money { text-align: right; white-space: nowrap; }
 .accounting-register__state { min-height: 160px; margin: 0; padding: 56px 18px; color: var(--fg-3); text-align: center; }
 .accounting-register__footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 18px; border-top: 1px solid var(--border-1); color: var(--fg-3); }
@@ -90,7 +90,7 @@
 .accounting-status--ready { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .accounting-status--missing { background: color-mix(in srgb, var(--warning) 13%, transparent); color: var(--fg-1); }
 .accounting-register__cards { display: none; }
-.accounting-row-check { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 44px; }
+.accounting-row-check { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: var(--filter-control-h); }
 .accounting-row-check input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--brand); }
 .accounting-row-check input:disabled { opacity: .45; }
 .accounting-selection { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--border-2); background: var(--bg-1); }
@@ -98,7 +98,7 @@
 .accounting-selection strong { color: var(--fg-1); font-size: 14px; }
 .accounting-selection span { color: var(--fg-3); font-size: 12px; }
 .accounting-selection button,
-.accounting-selection a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
+.accounting-selection a { display: inline-flex; align-items: center; min-height: var(--control-compact-h); padding: 0 13px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); color: var(--fg-1); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; }
 .accounting-selection a { border-color: var(--brand); background: var(--brand); color: white; }
 
 @media (max-width: 1023px) {

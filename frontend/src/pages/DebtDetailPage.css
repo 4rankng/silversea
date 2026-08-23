@@ -664,7 +664,7 @@
 }
 
 .dd-filter-chip {
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   padding: 8px 14px;
   border-radius: 9px;
   border: 1px solid var(--line);
@@ -1255,9 +1255,9 @@
 .dd-table thead th.dd-r { text-align: right; }
 
 .dd-table tbody td {
-  padding: 13px 24px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--bg-3);
-  font-size: var(--fs-sm);
+  font-size: var(--ops-table-supporting-size);
   line-height: 1.35;
   vertical-align: middle;
 }
@@ -1513,7 +1513,7 @@
   font-family: var(--font-data);
   font-weight: 500;
   color: var(--ink-2);
-  font-size: var(--fs-sm);
+  font-size: var(--ops-table-supporting-size);
   white-space: nowrap;
 }
 
@@ -1628,7 +1628,7 @@
 
 .dd-td-note {
   color: var(--ink-2);
-  font-size: var(--fs-sm);
+  font-size: var(--ops-table-supporting-size);
   white-space: nowrap;
 }
 .dd-group-detail-btn {

@@ -59,7 +59,7 @@
 .credit-override-queue__button,
 .credit-override-queue__clear-filters {
   display: inline-flex;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -68,7 +68,7 @@
   background: var(--surface, var(--surface-1));
   color: var(--ink, var(--fg-1));
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--filter-control-font-size);
   font-weight: 700;
   cursor: pointer;
   transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
@@ -276,7 +276,7 @@
 
 .credit-override-queue__field input,
 .credit-override-queue__field select {
-  min-height: 44px;
+  min-height: var(--filter-control-h);
 }
 
 .credit-override-queue__field select {

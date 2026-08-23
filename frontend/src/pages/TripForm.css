@@ -20,10 +20,10 @@
   gap: 16px;
 }
 .tc-back-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-compact-h);
+  height: var(--control-compact-h);
+  min-width: var(--control-compact-h);
+  min-height: var(--control-compact-h);
   border-radius: var(--r);
   background: var(--surface);
   border: 1px solid var(--border-1);

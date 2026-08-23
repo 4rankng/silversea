@@ -55,7 +55,7 @@
   flex-shrink: 0;
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
   min-width: 120px;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   font: inherit;
   text-align: left;
   cursor: pointer;

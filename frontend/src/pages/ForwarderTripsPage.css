@@ -14,7 +14,7 @@
 }
 
 .ops-bill-page__advance {
-  min-height: 44px;
+  min-height: var(--control-default-h);
   border-color: color-mix(in srgb, var(--brand) 32%, var(--border-2));
   background: var(--ops-surface);
   color: var(--brand);
@@ -338,7 +338,7 @@
   border-top: 1px solid var(--border-1);
 }
 
-.ops-order-exchange__action .btn { height: 44px; min-height: 44px; flex: none; }
+.ops-order-exchange__action .btn { height: var(--control-compact-h); min-height: var(--control-compact-h); flex: none; }
 
 @media (max-width: 1023px) {
   .ops-bill-toolbar { grid-template-columns: minmax(0, 1fr); }

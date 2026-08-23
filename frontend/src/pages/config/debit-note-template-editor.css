@@ -23,8 +23,8 @@
 }
 
 .debit-editor-page .billing-builder__close {
-  width: 44px;
-  height: 44px;
+  width: var(--control-compact-h);
+  height: var(--control-compact-h);
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
@@ -98,7 +98,7 @@
 .debit-editor-template-name {
   display: block;
   min-width: 220px;
-  min-height: 44px;
+  min-height: var(--control-default-h);
   outline: none;
 }
 
@@ -1883,7 +1883,7 @@
 }
 
 .debit-editor-selected-group .input {
-  min-height: 44px;
+  min-height: var(--control-default-h);
   font-size: 15px;
   font-weight: 650;
 }
@@ -1899,7 +1899,7 @@
 }
 
 .debit-editor-align-control button {
-  min-height: 44px;
+  min-height: var(--control-compact-h);
   border: 0;
   border-radius: 7px;
   display: grid;
@@ -1922,7 +1922,7 @@
 }
 
 .debit-editor-switch-list label {
-  min-height: 44px;
+  min-height: var(--control-default-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1934,9 +1934,11 @@
   line-height: 1.35;
 }
 
+/* Checkboxes are exempt from the responsive phone floor — keep the 44px
+   touch target at every width. */
 .debit-editor-switch-list input {
-  width: 44px;
-  height: 44px;
+  width: var(--control-touch-h);
+  height: var(--control-touch-h);
   accent-color: var(--accent);
 }
 

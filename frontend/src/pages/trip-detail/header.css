@@ -60,10 +60,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: var(--control-compact-h);
+  height: var(--control-compact-h);
+  min-width: var(--control-compact-h);
+  min-height: var(--control-compact-h);
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -248,7 +248,7 @@
 
 .header-overflow__menu button {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--control-compact-h);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -285,7 +285,7 @@
   color: var(--ink);
   border-color: var(--line-2);
   font-weight: 700;
-  min-height: 44px;
+  min-height: var(--control-compact-h);
 }
 
 .tdp-edit-btn:hover {

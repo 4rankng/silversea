@@ -522,9 +522,9 @@
 
 .fset-search-bar__input {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   padding: 0 14px 0 34px;
-  font-size: var(--fs-sm);
+  font-size: var(--filter-control-font-size);
   font-family: var(--font-sans, inherit);
   border-radius: 10px;
   border: 1px solid var(--line-2);
@@ -542,14 +542,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   padding: 8px 12px;
   border: 1px solid var(--line-2);
   border-radius: 9px;
   background: var(--surface);
   color: var(--ink-2);
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--filter-control-font-size);
   font-weight: 650;
   line-height: 1.35;
   cursor: pointer;
@@ -694,7 +694,7 @@
 }
 
 .fset-input {
-  min-height: 44px;
+  min-height: var(--control-default-h);
   padding: 0 14px;
   font-family: var(--font-sans, inherit);
   font-size: var(--fs-sm);

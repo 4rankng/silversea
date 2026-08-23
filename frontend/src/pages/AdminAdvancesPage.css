@@ -238,12 +238,12 @@
 .adv-page .adv-actions .form-input {
   min-width: 0;
   width: 100%;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
 }
 .adv-page .adv-actions .btn--icon {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: var(--control-compact-h);
+  min-width: var(--control-compact-h);
+  height: var(--control-compact-h);
 }
 .adv-page .adv-readonly-state {
   color: var(--ink-3);
@@ -392,12 +392,12 @@
   font-weight: var(--fw-semibold);
 }
 .adv-page .adv-decision-reason .form-input {
-  min-height: 44px;
-  font-size: 16px;
+  min-height: var(--filter-control-h);
+  font-size: var(--filter-control-font-size);
 }
 .adv-page .adv-mcard__actions .btn {
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--control-compact-h);
   min-width: 0;
   white-space: normal;
   line-height: var(--lh-snug);
