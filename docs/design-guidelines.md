@@ -1,5 +1,61 @@
 # Silversea product design guidelines
 
+## Bringing an existing page into the sizing contract
+
+Pages like `/credit-overrides` (`CreditOverrideQueuePage.css`) predate the
+token system and hardcode raw pixel values that don't even exist on the
+scale — `font-size: 22px` / `17px` have no `--fs-*` equivalent, and control
+heights of `24px`/`38px`/`64px` sit between the real control tokens instead of
+on one of them. This is why pages feel randomly sized against each other:
+each page invented its own numbers instead of reading from the same source.
+Use this as the conversion procedure whenever you touch a pre-token page —
+don't do a repo-wide sweep in one PR, convert the file you're already in.
+
+1. **Audit the file first**, don't eyeball it:
+   ```bash
+   grep -nE "font-size:\s*[0-9]+px|(^|[^-])height:\s*[0-9]+px|padding:\s*[0-9]+(px| [0-9]+px)" frontend/src/pages/<Page>.css
+   ```
+   Every match is a candidate — classify each as type scale, control height,
+   or spacing before touching anything.
+2. **Map raw font-size to the nearest semantic token**, never the nearest
+   number. Round to the *role*, not the pixel:
+   - Table/ledger header → `var(--ops-table-header-size)` (11px)
+   - Table/ledger supporting text → `var(--ops-table-supporting-size)` (12px)
+   - Table/ledger bold primary value → `var(--ops-table-primary-size)` (13px)
+   - Status pill / badge text → `var(--fs-status-pill)` (11px)
+   - Body / form text → `var(--fs-xs)` (12px) or `var(--fs-sm)` (14px)
+   - KPI number → 20px bold per the global sizing contract (24/28px only for
+     a genuine hero display number, not a denser secondary stat)
+   - Page/section heading → `var(--fs-lg)`/`var(--fs-xl)`/`var(--fs-2xl)`
+   A raw value that doesn't obviously map to one of these is itself the bug —
+   it means the element's role was never decided. Decide the role, then pick
+   the token for that role.
+3. **Map raw control heights to the nearest control token**, not the nearest
+   number: `--filter-control-h` (toolbar/filter controls), `--control-default-h`
+   (40px general form controls), `--control-compact-h` (34px in-card/row
+   actions). A control sized between two tokens (e.g. today's 38px) is
+   evidence it was never assigned a role — assign it one (is this a filter
+   control or a form control?) rather than splitting the difference.
+4. **Map raw spacing/padding to `--space-*`** (`xs` 4 / `sm` 8 / `md` 12 /
+   `lg` 16 / `xl` 24 / `2xl` 32 / `3xl` 48). If a padding value doesn't land
+   on one of these, round to the nearest and verify nothing visually breaks —
+   it won't, because these values already encode the rhythm every converted
+   page reads correctly at.
+5. **Convert in one pass per file, then screenshot-diff it.** Partial
+   conversion (some rules tokenized, others left raw) is worse than doing
+   nothing, because it hides which values are still real drift under a false
+   sense that the file was addressed.
+6. **`pnpm --dir frontend check:ui` does not catch this class of drift.** It
+   only guards a fixed list of specific historical regressions (legacy status
+   rails, the sidebar gradient, a couple of focus-outline rules) — it has no
+   general "no raw px font-size/height on a page" rule, which is exactly why
+   `/credit-overrides` shipped and stayed unnoticed. Don't treat a passing
+   `check:ui` as evidence a page is on-contract; run the audit grep above
+   instead. If you're touching this repeatedly, the next real investment is
+   extending `check-ui-contract.mjs` with a token-drift scan (flag raw
+   `font-size:`/`height:` px values in page CSS outside an allowlisted set of
+   token values) so this stops depending on a human noticing.
+
 ## Customer-facing shipment identifiers
 
 Customer-facing screens, exports, notifications, and API projections must use
@@ -37,6 +93,30 @@ customer content.
 - Fixed-layout tables wrap long values and switch to cards before they require
   page-level horizontal scrolling.
 
+## Sortable column headers
+
+Authority: `frontend/src/styles/table-sort.css` (shared button) +
+`frontend/src/lib/table-sort.ts` (toggle contract) + `DataTable`'s
+`sortKey`/`sort`/`onSortChange` props.
+
+- Every data-table column header is sortable. The header renders a real
+  `<button>` with `aria-sort` (`ascending`/`descending`/`none`) and lucide
+  direction arrows (`ArrowUp`/`ArrowDown` active; `ArrowUpDown` at 40% opacity
+  idle). The button inherits the th's typography — it carries no font sizing of
+  its own, so each table's density contract stays authoritative.
+- Sorting on server-paginated tables is server-side: `sortBy` (whitelisted
+  enum per endpoint) + `sortDir=asc|desc` query params, validated by the
+  endpoint's zod schema and mapped to an `orderBy` whitelist with a stable id
+  tiebreaker. Absent params must reproduce the endpoint's previous default
+  order exactly. Client-side sorting is only for tables without pagination.
+- Toggle order: a fresh column starts ascending; the active column flips
+  asc ↔ desc (`nextTableSort`). Sorting always resets the page to 1.
+- State plumbing follows the page's existing architecture: URL-param pages keep
+  `sortBy`/`sortDir` in the address bar; `useTableQueryState` pages carry them
+  in the filters bag via `setFilter`.
+- Hover affordance is a neutral ink lift (`var(--ink)`), never an accent wash —
+  same selection-state contract as row hover.
+
 ## Global sizing contract (table type + control density)
 
 The `/shipments` (CUS + điều vận) sizing philosophy is app-wide default, not a
@@ -56,6 +136,65 @@ per-route style. Authority: `frontend/src/styles/operational-table-typography.cs
   universal rule — never hardcode a desktop 44px control.
 - KPI/decision rails: numbers 20px bold with 12px labels (hero display numbers
   may use 24/28px). Status pills stay 11px.
+
+## Filter toolbars (CUS + điều vận)
+
+**Current state is inconsistent — this section is the target contract, not a
+description of what already ships.** `ShipmentsDetailPage.css`
+(`.shipments-detail-filters`), `ShipmentsPage.css`
+(`.cus-worksheet-toolbar__filters`), and the dispatch master/detailed-plan
+facet pickers (`MasterPlanFilters.tsx`, `DetailedPlanFilters.tsx`) each grid
+their filter row differently today (grouped sub-grids vs. one flat row vs.
+bespoke facet-popover controls) with different gap values and different
+action-row placement. Do not copy any one of them as-is; converge new and
+touched toolbars on the rules below, and fold the others in opportunistically
+when you're already in that file.
+
+- **Grid, not flexbox, for the field row.** `display: grid` with explicit
+  `grid-template-columns` sized in `minmax()` — flex-wrap causes fields to
+  reflow unpredictably as labels translate to Vietnamese text of varying
+  length. Semantically related fields (a date range, a facet pair) form a
+  nested sub-grid group so they read as one cluster, not N independent
+  columns.
+- **Gap rhythm from tokens, not magic numbers.** Between distinct filter
+  groups use `--space-lg` (16px; the codebase's existing 14px group-gaps
+  predate this token and should migrate on touch). Within a group
+  (label↔control, or two controls in one cluster) use `--space-sm` (8px) or
+  tighter (6px) when the pairing is visually a single unit (e.g. from/to
+  dates). Never hand-roll a third gap value for the same relationship.
+- **Controls use `--filter-control-h`**, never a hardcoded 34px/44px. This is
+  what makes the phone breakpoint's 44px bump apply automatically instead of
+  needing a per-page override.
+- **Action row trails right-aligned.** Secondary actions (reset, date-scope
+  shortcuts, "về hôm nay") sit in a row with `justify-content: flex-end` so
+  they close the toolbar at its right edge — never left-anchored under an
+  arbitrary middle column, and never float without an explicit
+  `justify-content`. If the action row needs a visual break from the fields
+  above it, use a `border-top: 1px solid var(--line)` divider (as
+  `.cus-worksheet-toolbar__actions` does); a grouped toolbar without a divider
+  relies on the group gap alone and needs no border.
+- **Responsive collapse is container-query-scoped**, not viewport-media-query,
+  so the same toolbar behaves correctly inside a narrower sidebar-adjacent
+  layout. Register the page grid with `container-type: inline-size` +
+  `container-name` and collapse groups in this order as width shrinks: (1)
+  drop the widest low-priority group to its own full-width row, (2) fold
+  paired groups (date range, facet pair) to 2-column, (3) stack every group
+  to one column full-width, actions row last. `ShipmentsDetailPage.css`'s
+  1300px → 900px → 520px container-query cascade is the reference sequence
+  for this collapse order.
+- **Facet-popover controls (dispatch master/detailed-plan) are a legitimate
+  alternate control family** for a field with a large or dynamic option set
+  (carriers, routes) where a native `<select>` would be unusable — but the
+  popover trigger still sizes to `--filter-control-h` and still sits inside
+  the same grid/gap contract as every other field in the row. Don't let a
+  facet picker's internal layout leak into the toolbar's outer grid rules.
+- **One control family per toolbar row.** Don't mix `UuiSelectField`,
+  bare `NativeSelect`, and a facet popover as siblings in the same filter
+  grid unless each is solving a problem the others structurally can't (e.g.
+  large option sets → facet picker). Where two families coexist for that
+  reason, they must still share height, label treatment, and gap — the
+  toolbar should not visually betray that two different components are
+  rendering it.
 
 ## Status signals in dense ledgers
 

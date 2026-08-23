@@ -1,0 +1,40 @@
+/*
+ * Shared sort-header button — the one implementation behind both table systems
+ * (.ds-table via DataTable, .record-table via the recipe's @import). The button
+ * owns only layout and hit area; type, colour, and alignment inherit from the
+ * th so each table's density contract stays authoritative.
+ */
+
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.table-sort-button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Hover affordance is a neutral ink lift — never an accent wash (selection
+   contract). Gated to fine pointers like the row-hover wash. */
+@media (hover: hover) and (pointer: fine) {
+  .table-sort-button:hover {
+    color: var(--ink);
+  }
+}
+
+/* Idle indicator stays quiet until the column becomes the active sort. */
+.table-sort-button__icon--idle {
+  opacity: 0.4;
+}

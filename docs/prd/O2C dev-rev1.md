@@ -3,7 +3,7 @@
 
 ### I. SƠ ĐỒ CHUYỂN ĐỔI TRẠNG THÁI HỆ THỐNG (STATE MACHINE)
 *(Dev Note: Hệ thống cần có 1 trường `Status` cho Lô hàng)*
-1. `Mới tạo (New)` ➔ 2. `Đã điều xe (Dispatched)` ➔ 3. `Đang chạy (In-Transit)` ➔ 4. `Chờ duyệt phí (Pending)` ➔ 5. `Hoàn thành (Completed)`.
+1. `Mới tạo (New)` ➔ 2. `Đã phân xe (Dispatched)` ➔ 3. `Đang chạy (In-Transit)` ➔ 4. `Chờ duyệt phí (Pending)` ➔ 5. `Hoàn thành (Completed)`.
 
 > **Lưu ý nghiệp vụ:** Tạm thời **BỎ trạng thái `Đã khóa (Locked/Billed)`**. Trạng thái kết thúc là `Hoàn thành (Completed)` — chuyến đi sau khi hoàn thành **vẫn cho phép chỉnh sửa chi phí** (thực tế khách: chuyến xong vẫn phải điều chỉnh chi phí). Tính năng "Khóa cứng / Đóng băng dữ liệu (Read-only)" được **hoãn lại**, chỉ build khi khách hàng chính thức yêu cầu — tránh việc sau này khách phàn nàn *"sao em không sửa được chi phí"*.
 
@@ -52,7 +52,7 @@
     *   *Kế thừa Data:* Khi gán xe, hệ thống tự động lưu trữ Tag `Xe nhà` hoặc `Xe ngoài` đi theo Lô hàng đó để phục vụ tách P&L ở Bước 4.
     *   *Thuật toán Tối ưu Tiền đường:* Khi tích chọn "Kẹp hàng" (1 xe chạy 2 lệnh/ngày trên cùng lộ trình), hệ thống chỉ gợi ý 1 lần định mức phí đường bộ (VETC) khép kín, tránh nhân đôi chi phí ảo.
     *   Phát lệnh tự động sang App Lái xe (Kích hoạt Push Notification).
-    *   *Trạng thái Lô hàng:* `Đã điều xe`.
+    *   *Trạng thái Lô hàng:* `Đã phân xe`.
 
 #### BƯỚC 3: VẬN HÀNH & GHI NHẬN CHI PHÍ THỰC TẾ (HIỆN TRƯỜNG & LÁI XE)
 *   **Người thực hiện:** Nhân viên Hiện trường (Ops) & Lái xe.

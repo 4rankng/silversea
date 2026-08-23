@@ -30,7 +30,7 @@ hỏng sổ sách, công nợ hoặc P&L.
 | ---- | ----------------- | ----------------- | -------------------- |
 | 0 — Thiết lập nền tảng | Admin / Giám đốc / Kế toán / CUS | (master data sẵn sàng) | Bảo mật dữ liệu nhạy cảm, Create-only, quy tắc xóa, push MVP |
 | 1 — Khởi tạo & kiểm duyệt lô | CUS (Nhân viên chứng từ) | `Mới tạo` | Tự áp giá cước + phụ phí xăng dầu, cross-check |
-| 2 — Phân bổ & điều xe 2 cấp | Điều vận | `Đã điều xe` | Phát lệnh tự động sang App Lái xe, tối ưu phí đường kẹp hàng |
+| 2 — Phân bổ & điều xe 2 cấp | Điều vận | `Đã phân xe` | Phát lệnh tự động sang App Lái xe, tối ưu phí đường kẹp hàng |
 | 3 — Vận hành & chi phí hiện trường | Ops + Lái xe | `Đang chạy` → `Chờ duyệt phí` | Tự áp giá nâng/hạ, chống gian lận nhiên liệu, SLA log, gom chi phí |
 | 4 — Đối chiếu, quyết toán & hoàn thành | Kế toán / CUS | `Hoàn thành` | Cổng POD, cấn trừ tạm ứng, snapshot AR/AP, tách P&L Xe nhà/Xe ngoài |
 
@@ -230,7 +230,7 @@ Trạng thái chuyển sang `Mới tạo`.
 **Quy tắc (PRD Bước 2):** Điều vận làm 2 cấp: (1) Phần 1 — dữ liệu gộp (`5x40HC`) để gán nháp xe; (2) Phần 2 —
 rã chi tiết từng dòng với gợi ý xe "gán nháp" để chốt. Hỗ trợ ghép (LCL) và kẹp (chạy 2 chiều). Khi chọn
 "kẹp hàng", thuật toán chỉ gợi ý **1 lần định mức phí đường bộ (VETC) khép kín**, tránh nhân đôi chi phí ảo.
-Tag `Xe nhà`/`Xe ngoài` đi theo lô để tách P&L. Phát lệnh tự động sang App Lái xe (push). Trạng thái → `Đã điều xe`.
+Tag `Xe nhà`/`Xe ngoài` đi theo lô để tách P&L. Phát lệnh tự động sang App Lái xe (push). Trạng thái → `Đã phân xe`.
 
 ### TC-O2C-02-01 — Điều xe Phần 1 (gộp) rồi Phần 2 (rã dòng)
 
@@ -245,7 +245,7 @@ Tag `Xe nhà`/`Xe ngoài` đi theo lô để tách P&L. Phát lệnh tự độn
 - **Kết quả mong đợi (Pass):**
   - Phần 1 cho cái nhìn tổng, gán nháp không chốt ngay.
   - Phần 2 rã đúng số dòng, gợi ý xe từ Phần 1 đi theo.
-  - Chốt xe → lô chuyển `Đã điều xe`.
+  - Chốt xe → lô chuyển `Đã phân xe`.
 - **Bằng chứng:** ảnh Phần 1 (gộp) + ảnh Phần 2 (rã dòng).
 
 ### TC-O2C-02-02 — Kẹp hàng: chỉ tính 1 lần phí đường bộ (VETC)
@@ -344,7 +344,7 @@ về trạng thái `Treo (Pending)`. Trạng thái lô: `Đang chạy` → `Ch�
 
 - **Mã PRD:** O2C Bước 3 (Log thời gian SLA)
 - **Vai trò:** `laixe`
-- **Tiền điều kiện:** lệnh đã điều xe hiển thị trên `/my-trips`.
+- **Tiền điều kiện:** lệnh đã phân xe hiển thị trên `/my-trips`.
 - **Các bước:**
   1. `laixe` mở `/my-trips/:id`, xem giờ cut-off/đóng-trả.
   2. Bấm "Xác nhận Lệnh" (nhận lệnh gốc từ Ops).

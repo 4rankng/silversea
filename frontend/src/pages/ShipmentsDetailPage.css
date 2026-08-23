@@ -52,7 +52,7 @@
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter--search input { text-transform: uppercase; }
-.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; }
+.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
 .shipments-detail-filters__date-actions button,
 .shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
@@ -67,7 +67,7 @@
 /* Summary reads as a KPI rail of stat cards (20px number over 12px label per
    the global sizing contract), not as ledger-adjacent inline text. Amber is
    reserved for the two genuinely attention-seeking counters. */
-.shipment-container-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 18px 0; }
+.shipment-container-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 18px 16px; }
 .shipment-container-summary > div { display: grid; min-width: 0; align-content: start; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .shipment-container-summary dt { color: var(--ink-3); font-size: 12px; font-weight: var(--fw-semibold); line-height: 1.3; }
 .shipment-container-summary dd { margin: 0; color: var(--ink); font-family: var(--font-data); font-size: 20px; font-weight: var(--fw-bold); line-height: 1.2; }

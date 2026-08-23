@@ -885,7 +885,7 @@ export async function recomputeShipmentCompletion(
         shipmentId,
         'DISPATCHED',
         {
-          reason: 'Tự động giữ trạng thái Đã điều xe vì lô hàng chưa còn tác vụ bắt buộc.',
+          reason: 'Tự động giữ trạng thái Đã phân xe vì lô hàng chưa còn tác vụ bắt buộc.',
           changedBy: options.changedBy ?? null,
         },
         tx,
@@ -953,7 +953,7 @@ export async function recomputeShipmentCompletion(
           shipmentId,
           'DISPATCHED',
           {
-            reason: 'Tự động quay về Đã điều xe vì tác vụ bắt buộc chưa xuất phát hoặc cần điều phối lại.',
+            reason: 'Tự động quay về Đã phân xe vì tác vụ bắt buộc chưa xuất phát hoặc cần điều phối lại.',
             changedBy: options.changedBy ?? null,
           },
           tx,
@@ -1019,7 +1019,7 @@ export async function recomputeShipmentCompletion(
     let currentRow = shipment;
     if (current === 'READY_FOR_DISPATCH') {
       currentRow = await transitionShipmentStatus(shipmentId, 'DISPATCHED', {
-        reason: 'Khôi phục trạng thái Đã điều xe trước khi ghi nhận kết quả vận hành.',
+        reason: 'Khôi phục trạng thái Đã phân xe trước khi ghi nhận kết quả vận hành.',
         changedBy: options.changedBy ?? null,
       }, tx);
       current = 'DISPATCHED';

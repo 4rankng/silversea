@@ -7,6 +7,14 @@ const accountingInboxCss = readFileSync(
   resolve(process.cwd(), 'src/features/accounting/AccountingWorkInbox.css'),
   'utf8',
 );
+const accountingInboxSource = readFileSync(
+  resolve(process.cwd(), 'src/features/accounting/AccountingWorkInbox.tsx'),
+  'utf8',
+);
+const recordTableCss = readFileSync(
+  resolve(process.cwd(), 'src/styles/record-table.css'),
+  'utf8',
+);
 const catalogsCss = readFileSync(
   resolve(process.cwd(), 'src/features/dispatch/catalogs/catalogs.css'),
   'utf8',
@@ -46,10 +54,16 @@ describe('expense filter bar (≤640px)', () => {
 });
 
 describe('accounting work-inbox (≤1500px) hand-off', () => {
-  it('hides the thead and switches the inbox to a labelled-card layout before the 980px table rail forces overflow', () => {
-    expect(accountingInboxCss).toMatch(
-      /@media\s*\(max-width:\s*1500px\)\s*\{[\s\S]*?\.accounting-work-inbox__table-wrap\s*\{\s*overflow:\s*visible;[\s\S]*?\.accounting-work-inbox\s+thead\s*\{\s*display:\s*none;/,
+  it('rides the shared record-table card hand-off instead of a page media rail', () => {
+    // The inbox table moved onto the shared record-table base (sticky thead +
+    // container-query record cards), so the overflow hand-off is owned by
+    // record-table.css at the 1100px container width, not by a page-level
+    // max-width rule. The page contract is the class wiring, not local CSS.
+    expect(recordTableCss).toMatch(
+      /@container \(max-width:\s*1100px\)\s*\{[\s\S]*?\.record-table thead\s*\{[^}]*display:\s*none;/,
     );
+    expect(accountingInboxSource).toContain('record-table-wrap accounting-work-inbox__table-wrap');
+    expect(accountingInboxSource).toContain('record-table ops-table accounting-work-inbox__table');
   });
 
   it('lets the inbox advisory <li> wrap instead of overflowing the right edge', () => {

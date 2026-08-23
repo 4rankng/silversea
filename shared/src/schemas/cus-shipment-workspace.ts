@@ -44,13 +44,33 @@ export const shipmentCusWorkspaceQuerySchema = z.object(shipmentCusWorkspaceQuer
   .strict()
   .refine(refineTransportDateOrder, transportDateOrderIssue);
 
+// Container-workboard sort keys — one per ledger column group, named for the
+// primary field the group sorts by. The URL-facing vocabulary for the
+// workboard's sortable headers; keep the frontend header sortKeys and the
+// backend orderBy whitelist in sync with this list.
+export const SHIPMENT_CUS_CONTAINER_SORT_KEYS = [
+  'customerName',
+  'billOrBookNumber',
+  'containerNumber',
+  'liftSite',
+  'transportDate',
+  'carrierName',
+  'customerNotes',
+  'dispatchStatus',
+] as const;
+export type ShipmentCusContainerSortKey = typeof SHIPMENT_CUS_CONTAINER_SORT_KEYS[number];
+
 // Container-workboard-only query. `informationStatus=MISSING` selects the
-// server-derived "Chưa cập nhật" triage queue; the overview schema above
-// rejects this parameter by design so a detail-only filter can never silently
-// no-op on the overview endpoint.
+// server-derived "Chưa cập nhật" triage queue and `dispatchStatus` the
+// binary "Đã/Chưa điều xe" vehicle-assignment split; the overview schema
+// above rejects both parameters by design so a detail-only filter can never
+// silently no-op on the overview endpoint.
 export const shipmentCusContainerQuerySchema = z.object({
   ...shipmentCusWorkspaceQueryShape,
   informationStatus: z.enum(['MISSING']).optional(),
+  dispatchStatus: z.enum(['ASSIGNED', 'UNASSIGNED']).optional(),
+  sortBy: z.enum(SHIPMENT_CUS_CONTAINER_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
 })
   .strict()
   .refine(refineTransportDateOrder, transportDateOrderIssue);

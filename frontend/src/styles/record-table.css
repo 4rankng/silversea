@@ -28,6 +28,8 @@
  *   - selection is a structural edge (inset ink shadow), never an accent fill.
  */
 
+@import './table-sort.css';
+
 .record-table-wrap {
   container-type: inline-size;
   /* No card chrome to clip: keep the wrapper transparent to overflow so the

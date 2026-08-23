@@ -235,7 +235,7 @@ thời gian vận chuyển (không hiển thị sau khi hoàn thành).
 
 - **Mã PRD:** CUS-03-01
 - **Vai trò:** `admin` (đổi trạng thái chuyến), `customer` (xem)
-- **Tiền điều kiện:** lô A đã điều xe và có chuyến gắn.
+- **Tiền điều kiện:** lô A đã phân xe và có chuyến gắn.
 - **Các bước:**
   1. `admin` mở chuyến của lô A, chuyển trạng thái `IN_TRANSIT` (Đang vận chuyển).
   2. Đăng nhập `customer`. Mở `/portal/shipments/:id`.

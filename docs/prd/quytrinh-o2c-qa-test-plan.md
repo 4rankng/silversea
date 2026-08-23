@@ -36,7 +36,7 @@
 | P&L | Báo cáo lãi lỗ `/finance` |
 | Maker / Checker / Approver | Người tạo / người kiểm tra / người phê duyệt |
 | `NEW` / Mới tạo | Lô vừa được CUS tạo |
-| `DISPATCHED` / Đã điều xe | Lệnh điều xe đã phát hành |
+| `DISPATCHED` / Đã phân xe | Lệnh điều xe đã phát hành |
 | `IN_TRANSIT` / Đang chạy | Driver đã nhận lệnh gốc và trip được kích hoạt |
 | `PENDING_EXPENSE_APPROVAL` / Chờ duyệt phí | Vận hành đã bàn giao, mọi expense scope đã kê xong |
 | `COMPLETED` / Hoàn thành | Đã qua e-POD/POD, chi phí và thao tác chốt trực tiếp của Kế toán hoặc CUS |
@@ -284,7 +284,7 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | Vai trò | CUS, sau đó Dispatcher |
 | Tiền điều kiện | Hai lô `Mới tạo`; có xe nhà, xe ngoài và tài xế phù hợp |
 | Hành động | 1. CUS tạo FCL có ngày giao dự kiến trên ít nhất một container, cùng LCL có ngày giao; xác nhận trạng thái được tự xác định. 2. Đăng nhập `dieuvan`, mở `/dispatch`, bấm `Tiếp nhận`. 3. Rã FCL thành đúng 2 fulfillment/container và kiểm tra dữ liệu theo từng dòng. 4. Gán FCL cho Xe nhà; gán LCL cho Xe ngoài. 5. Thử gán cùng xe nhà cho một chuyến trùng thời gian. 6. Sau khi thấy xung đột bị chặn, sửa về thời gian/xe hợp lệ và bấm `Phát hành lệnh điều xe`. 7. Ghi fulfillment/trip ID, tag xe và trạng thái. |
-| PRD kỳ vọng | Ngày/hạn vận hành hoặc ngày giao của container tự xác định trạng thái và hiển thị lô cho Điều phối; FCL rã đúng 2 dòng; lệnh hợp lệ được phát; xung đột xe bận bị chặn; tag `Xe nhà`/`Xe ngoài` theo đúng trip; shipment chuyển `DISPATCHED/Đã điều xe` |
+| PRD kỳ vọng | Ngày/hạn vận hành hoặc ngày giao của container tự xác định trạng thái và hiển thị lô cho Điều phối; FCL rã đúng 2 dòng; lệnh hợp lệ được phát; xung đột xe bận bị chặn; tag `Xe nhà`/`Xe ngoài` theo đúng trip; shipment chuyển `DISPATCHED/Đã phân xe` |
 | FAIL nếu | Lô có lịch vận hành hoặc ngày giao container không đến được Điều phối; rã sai số dòng; không chặn xe bận; sai tag; thiếu push/in-app lệnh cho Driver; phát lệnh khi thiếu quyền hoặc shipment không sang `DISPATCHED` |
 | BLOCKED nếu | Chưa có xe/tài xế phù hợp để kiểm thử conflict |
 | Bằng chứng | Ảnh trước/sau handoff; ảnh gộp/rã; ảnh conflict; ảnh lệnh đã phát; entity IDs và trạng thái |

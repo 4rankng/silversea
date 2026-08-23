@@ -7,7 +7,7 @@
 ## I. MỤC ĐÍCH & PHẠM VI
 *   **Mục đích:** Quy chuẩn hóa toàn bộ luồng luân chuyển thông tin, chứng từ và trách nhiệm của các bộ phận từ khi tiếp nhận yêu cầu vận tải đến khi chốt dữ liệu công nợ.
 *   **Phạm vi hệ thống:** Quy trình này được áp dụng nghiêm ngặt trên phần mềm TTransport. Bất kỳ sự thay đổi nào về luồng thao tác đều phải được phê duyệt.
-*   **Vòng đời tiêu chuẩn của Lô hàng:** (1) `Mới tạo` ➔ (2) `Đã điều xe` ➔ (3) `Đang chạy` ➔ (4) `Chờ duyệt phí` ➔ (5) `Hoàn thành`.
+*   **Vòng đời tiêu chuẩn của Lô hàng:** (1) `Mới tạo` ➔ (2) `Đã phân xe` ➔ (3) `Đang chạy` ➔ (4) `Chờ duyệt phí` ➔ (5) `Hoàn thành`.
 
 > **Ghi chú quyết định (01/08/2026):** Tạm thời **bỏ trạng thái `Đã khóa`**. Trạng thái kết thúc là `Hoàn thành` — chuyến đi sau khi hoàn thành **vẫn cho phép chỉnh sửa chi phí** (thực tế khách: chuyến xong vẫn phải điều chỉnh chi phí). Tính năng khóa cứng (Read-only) **hoãn lại**, chỉ build khi khách hàng chính thức yêu cầu. Quy tắc xóa: người Create-only được xóa khi tạo sai **trong phiên làm việc hiện tại**; xóa dữ liệu ở phiên cũ phải được Admin/Giám đốc phê duyệt; chi phí/chứng từ đã được duyệt thì cấm xóa. Push notification trong MVP chỉ cơ bản cho **Lái xe** và **Điều vận**; các role khác chỉ làm khi khách đề xuất.
 

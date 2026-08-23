@@ -169,7 +169,7 @@ export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {
   [ShipmentStatus.NEW]: 'Chờ bổ sung ngày',
   [ShipmentStatus.PENDING_DATE]: 'Chờ chốt lịch',
   [ShipmentStatus.READY_FOR_DISPATCH]: 'Sẵn sàng điều xe',
-  [ShipmentStatus.DISPATCHED]: 'Đã điều xe',
+  [ShipmentStatus.DISPATCHED]: 'Đã phân xe',
   [ShipmentStatus.IN_TRANSIT]: 'Đang chạy',
   [ShipmentStatus.PENDING_EXPENSE_APPROVAL]: 'Chờ duyệt phí',
   [ShipmentStatus.COMPLETED]: 'Hoàn thành',

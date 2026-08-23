@@ -74,12 +74,22 @@ describe('shared control density', () => {
   });
 
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {
+    // Form-scoped conformance skins are sanctioned by the design guidelines
+    // ("scope a local conformance skin (label + trigger metrics) to the form,
+    // as the CUS quick-edit modal does" — docs/design-guidelines.md, Dense
+    // dialogs & forms). Every entry must stay scoped to a named form surface:
+    // a bare `.ds-uui-*` selector is never allowed here.
+    const sanctionedConformanceScopes = [
+      '.cus-quick-edit-modal__fields .ds-uui-select',
+    ];
+    const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
+
     const violations = cssFilesUnder('src/pages').concat(cssFilesUnder('src/features')).flatMap((path) => {
       const blocks = [...read(path).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
       return blocks.flatMap(([, selector, declarations]) => {
         const targetsUuiField = /uui-(?:field|control|input|select)|\[data-input-(?:wrapper|size)/.test(selector);
         const ownsDimensions = /(?:^|;)\s*(?:height|min-height|font(?:-size)?|line-height)\s*:/.test(declarations);
-        return targetsUuiField && ownsDimensions ? [`${path}: ${selector.trim()}`] : [];
+        return targetsUuiField && ownsDimensions && !isSanctioned(selector) ? [`${path}: ${selector.trim()}`] : [];
       });
     });
 

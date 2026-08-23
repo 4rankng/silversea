@@ -62,7 +62,7 @@ Không dùng `admin` để giả lập CUS, Điều phối, Ops, Driver hoặc C
 2. Kiểm tra FCL được rã thành đúng hai phần việc/container.
 3. Gán FCL cho **Xe nhà** và LCL cho **Xe ngoài**, cùng tài xế/thời gian hợp lệ.
 4. Thử gán cùng xe nhà vào một thời gian chồng lấn để xác nhận hệ thống chặn xung đột; sau đó sửa về lịch hợp lệ.
-5. Bấm **Phát hành lệnh điều xe**. Ghi riêng hai mã phần việc/chuyến của FCL theo từng container, mã chuyến LCL và xác nhận lô chuyển `DISPATCHED/Đã điều xe`.
+5. Bấm **Phát hành lệnh điều xe**. Ghi riêng hai mã phần việc/chuyến của FCL theo từng container, mã chuyến LCL và xác nhận lô chuyển `DISPATCHED/Đã phân xe`.
 
 ### Bước 3 — Driver vận hành và nộp e-POD
 
@@ -99,7 +99,7 @@ Không dùng `admin` để giả lập CUS, Điều phối, Ops, Driver hoặc C
 
 ## 5. Điều kiện PASS, FAIL và BLOCKED
 
-- **PASS:** Mọi bước hoàn thành, trạng thái đúng chuỗi `NEW/Mới tạo → DISPATCHED/Đã điều xe → IN_TRANSIT/Đang chạy → PENDING_EXPENSE_APPROVAL/Chờ duyệt phí → COMPLETED/Hoàn thành`, số liệu đối soát được và có ảnh/mã chứng từ. (Lưu ý: từ trạng thái chưa chốt, lô cũng có thể chuyển `CANCELED/Đã hủy`; code cho phép lùi trạng thái trước COMPLETED khi e-POD bị reject — đây là hành vi đúng, không phải FAIL.)
+- **PASS:** Mọi bước hoàn thành, trạng thái đúng chuỗi `NEW/Mới tạo → DISPATCHED/Đã phân xe → IN_TRANSIT/Đang chạy → PENDING_EXPENSE_APPROVAL/Chờ duyệt phí → COMPLETED/Hoàn thành`, số liệu đối soát được và có ảnh/mã chứng từ. (Lưu ý: từ trạng thái chưa chốt, lô cũng có thể chuyển `CANCELED/Đã hủy`; code cho phép lùi trạng thái trước COMPLETED khi e-POD bị reject — đây là hành vi đúng, không phải FAIL.)
 - **FAIL:** Hệ thống sai quyền, sai trạng thái, sai số liệu, mất dữ liệu sau tải lại, cho tự sửa giá, cho tự duyệt hoặc tạo tài chính trùng. Ghi lỗi kèm ảnh và mã lô/chuyến; không đổi kỳ vọng để khớp với màn hình.
 - **BLOCKED:** Chưa có tài khoản đúng role, chưa được phép tạo dữ liệu staging, thiếu master data, hoặc hạ tầng không sẵn sàng. Ghi rõ owner cần xử lý và điều kiện chạy lại.
 

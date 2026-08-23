@@ -1,8 +1,11 @@
 import type { ReactNode, CSSProperties } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Pagination, type PaginationProps } from './Pagination';
 import { EmptyState } from './EmptyState';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
+import type { TableSortState } from '../lib/table-sort';
 import './DataTable.css';
+import '../styles/table-sort.css';
 
 export interface DataTableColumn<T> {
   key: string;
@@ -11,6 +14,12 @@ export interface DataTableColumn<T> {
   width?: string | number;
   render?: (row: T) => ReactNode;
   accessor?: (row: T) => unknown;
+  /**
+   * Enables the shared sort-header button for this column. The key is the
+   * caller's stable sort identifier (usually the backend's sortBy enum value);
+   * sorting itself stays controlled by `sort` + `onSortChange`.
+   */
+  sortKey?: string;
 }
 
 export interface DataTableProps<T> {
@@ -25,6 +34,10 @@ export interface DataTableProps<T> {
   pagination?: Omit<PaginationProps, 'page' | 'onChange'> & { page: number; onChange: (p: number) => void };
   loadingRows?: number;
   rowKey?: (row: T, idx: number) => string | number;
+  /** Active sort state, controlled by the caller (server-side for paginated endpoints). */
+  sort?: TableSortState | null;
+  /** Fired with the column's sortKey when its header button is pressed. */
+  onSortChange?: (key: string) => void;
 }
 
 function defaultRowKey<T extends { id?: number | string }>(row: T, idx: number): string | number {
@@ -48,10 +61,32 @@ export function DataTable<T extends { id?: number | string }>({
   pagination,
   loadingRows = 6,
   rowKey = defaultRowKey,
+  sort,
+  onSortChange,
 }: DataTableProps<T>) {
   const rows = data ?? [];
   const isLoading = loading && rows.length === 0;
   const densityClass = hasOperationalDensity(currentPathname()) ? ' ds-table--operational' : '';
+
+  const headerCell = (c: DataTableColumn<T>) => {
+    const sortable = Boolean(c.sortKey && onSortChange);
+    const active = sortable && sort != null && sort.by === c.sortKey;
+    const ariaSort = !sortable ? undefined : active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return (
+      <th key={c.key} className={c.numeric ? 'num' : ''} style={{ width: c.width }} aria-sort={ariaSort}>
+        {sortable ? (
+          <button type="button" className="table-sort-button" onClick={() => onSortChange!(c.sortKey!)}>
+            {c.label}
+            {active
+              ? (sort!.dir === 'asc'
+                ? <ArrowUp size={13} aria-hidden="true" />
+                : <ArrowDown size={13} aria-hidden="true" />)
+              : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+          </button>
+        ) : c.label}
+      </th>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -60,9 +95,7 @@ export function DataTable<T extends { id?: number | string }>({
           <table className={`ds-table${densityClass}`}>
             <thead>
               <tr>
-                {columns.map((c) => (
-                  <th key={c.key} className={c.numeric ? 'num' : ''} style={{ width: c.width }}>{c.label}</th>
-                ))}
+                {columns.map(headerCell)}
               </tr>
             </thead>
             <tbody>
@@ -93,9 +126,7 @@ export function DataTable<T extends { id?: number | string }>({
           <table className={`ds-table${densityClass}`}>
             <thead>
               <tr>
-                {columns.map((c) => (
-                  <th key={c.key} className={c.numeric ? 'num' : ''} style={{ width: c.width }}>{c.label}</th>
-                ))}
+                {columns.map(headerCell)}
               </tr>
             </thead>
             <tbody>

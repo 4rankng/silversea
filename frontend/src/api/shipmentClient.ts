@@ -20,6 +20,7 @@ import {
   type ShipmentCusReopenRequestInput,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
+  type ShipmentCusContainerSortKey,
   type ShipmentAccountingLockSummary,
 } from '@tingting/shared';
 import { api } from '../lib/api';
@@ -850,10 +851,13 @@ export interface ShipmentCusWorkspaceFilters {
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
 }
 
-// Container-workboard-only filters. informationStatus is a detail-only
-// parameter the overview endpoint rejects; never add it to overview calls.
+// Container-workboard-only filters. Both are detail-only parameters the
+// overview endpoint rejects; never add them to overview calls.
 export interface ShipmentCusContainerFilters extends ShipmentCusWorkspaceFilters {
   informationStatus?: 'MISSING';
+  dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED';
+  sortBy?: ShipmentCusContainerSortKey;
+  sortDir?: 'asc' | 'desc';
 }
 
 export async function listCusShipmentWorkspace(
@@ -885,6 +889,9 @@ export async function listCusShipmentContainers(
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
   if (filters.informationStatus) query.set('informationStatus', filters.informationStatus);
+  if (filters.dispatchStatus) query.set('dispatchStatus', filters.dispatchStatus);
+  if (filters.sortBy) query.set('sortBy', filters.sortBy);
+  if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentCusContainerFlatResponse>(`${SHIPMENTS.CUS_WORKSPACE_CONTAINERS}${suffix}`);
 }

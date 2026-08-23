@@ -166,6 +166,7 @@ export {
   shipmentCusMissingFieldSchema,
   SHIPMENT_CUS_MISSING_FIELD_CODES,
   SHIPMENT_CUS_MISSING_FIELD_LABELS,
+  SHIPMENT_CUS_CONTAINER_SORT_KEYS,
   shipmentCusWorkspaceOperationalSummarySchema,
   shipmentCusWorkspaceFinanceSummarySchema,
   shipmentCusWorkspaceDocumentCustodySchema,
@@ -193,6 +194,7 @@ export {
 export type {
   ShipmentCusWorkspaceQuery,
   ShipmentCusContainerQuery,
+  ShipmentCusContainerSortKey,
   ShipmentCusMissingField,
   ShipmentCusMissingFieldCode,
   ShipmentCusWorkspaceOperationalSummary,

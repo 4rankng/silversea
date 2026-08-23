@@ -186,6 +186,29 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
   });
 
+  it('sorts columns server-side through URL params with aria-sort tracking', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={['/shipments-detail?dateScope=all']}><ShipmentsDetailPage /></MemoryRouter>);
+
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20');
+
+    const containerHeader = screen.getByRole('button', { name: 'Thông số container' });
+    expect(screen.getByRole('columnheader', { name: /Thông số container/ }).getAttribute('aria-sort')).toBe('none');
+
+    // First click sorts ascending, refetching with both params in one pass.
+    fireEvent.click(containerHeader);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&sortBy=containerNumber&sortDir=asc'));
+    // The ledger remounts after each refetch (skeleton swap), so re-query the
+    // header rather than holding a detached node.
+    expect(screen.getByRole('columnheader', { name: /Thông số container/ }).getAttribute('aria-sort')).toBe('ascending');
+
+    // Second click flips to descending; the header stays the active column.
+    fireEvent.click(screen.getByRole('button', { name: 'Thông số container' }));
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&sortBy=containerNumber&sortDir=desc'));
+    expect(screen.getByRole('columnheader', { name: /Thông số container/ }).getAttribute('aria-sort')).toBe('descending');
+  });
+
   it('can show all dates and return to today', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
@@ -444,23 +467,23 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
   });
 
-  it('backs the Chưa cập nhật filter in the URL and sends it only to the container endpoint', async () => {
+  it('backs the Trạng thái (điều xe) filter in the URL and sends it only to the container endpoint', async () => {
     apiGet.mockResolvedValue(response);
-    render(<MemoryRouter initialEntries={['/?informationStatus=MISSING']}><ShipmentsDetailPage /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/?dispatchStatus=UNASSIGNED']}><ShipmentsDetailPage /></MemoryRouter>);
 
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&informationStatus=MISSING`));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=UNASSIGNED`));
     await screen.findByText('CONT-001');
-    const informationSelect = await screen.findByLabelText('Trạng thái dữ liệu');
-    expect((informationSelect as HTMLSelectElement).value).toBe('MISSING');
-    expect(screen.getAllByText('Chưa cập nhật').length).toBeGreaterThanOrEqual(1);
+    const statusSelect = await screen.findByLabelText('Trạng thái');
+    expect((statusSelect as HTMLSelectElement).value).toBe('UNASSIGNED');
+    expect(screen.getAllByText('Chưa điều xe').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
   });
 
-  it('ignores a malformed informationStatus value instead of sending an invalid query', async () => {
+  it('ignores a malformed dispatchStatus value instead of sending an invalid query', async () => {
     apiGet.mockResolvedValue(response);
-    render(<MemoryRouter initialEntries={['/?informationStatus=COMPLETE']}><ShipmentsDetailPage /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/?dispatchStatus=FOO']}><ShipmentsDetailPage /></MemoryRouter>);
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });

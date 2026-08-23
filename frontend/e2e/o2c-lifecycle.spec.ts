@@ -11,7 +11,7 @@ import { test, expect } from '@playwright/test';
  * - OPS-007: Chọn xe đúng nhà xe đã gán
  * - OPS-008: Chặn xung đột xe, tài xế và lịch
  * - OPS-009: Kẹp hai lệnh tương thích
- * - OPS-010: Phát lệnh và chuyển trạng thái Đã điều xe
+ * - OPS-010: Phát lệnh và chuyển trạng thái Đã phân xe
  * - OPS-011: Tài xế bắt đầu vận chuyển và cập nhật mốc đúng thứ tự
  * - OPS-012: Nộp e-POD đầy đủ từng fulfillment
  * - OPS-013: Ghi chi phí hiện trường theo tariff
@@ -190,7 +190,7 @@ test.describe('O2C Lifecycle', () => {
     await page.click('button:has-text("Xác nhận")');
 
     // Verify transition to DISPATCHED state
-    await expect(page.locator('text=Đã điều xe')).toBeVisible();
+    await expect(page.locator('text=Đã phân xe')).toBeVisible();
   });
 
   test('OPS-011: Driver starts transport and updates milestones in order', async ({ page }) => {

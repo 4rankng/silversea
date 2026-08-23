@@ -354,7 +354,7 @@ export async function updateCusShipmentContainerLine(args: {
       || args.input.newExternalCarrier !== undefined
     );
     if (trip && requestedOperationalMutation) {
-      throw new ApiError(409, 'Tác vụ đã điều xe; hãy dùng luồng điều chỉnh hiện có thay vì ghi đè trực tiếp lịch sử thực hiện.');
+      throw new ApiError(409, 'Tác vụ đã phân xe; hãy dùng luồng điều chỉnh hiện có thay vì ghi đè trực tiếp lịch sử thực hiện.');
     }
     // Three-way edit routing (SILVER L1 P3): once the container has been
     // decomposed (fulfillment exists) the shipment has left direct-intake

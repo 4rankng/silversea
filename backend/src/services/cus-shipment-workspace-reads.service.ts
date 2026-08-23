@@ -19,6 +19,7 @@ import {
   localDateInBusinessZone,
   type DispatchClassification,
   type ShipmentCusContainerQuery,
+  type ShipmentCusContainerSortKey,
   type ShipmentCusMissingField,
   type ShipmentCusMissingFieldCode,
   type ShipmentCusWorkspaceContainerLine,
@@ -178,6 +179,9 @@ const plannedCarrier = alias(s.customers, 'cus_workspace_planned_carrier');
 const actualCarrier = alias(s.customers, 'cus_workspace_actual_carrier');
 const billingSourceTrip = alias(s.trips, 'cus_workspace_billing_source_trip');
 const billingExpenseTrip = alias(s.trips, 'cus_workspace_billing_expense_trip');
+// Sort-only join for the container workboard's lift-site column (1:1 on the
+// container's port reference; snapshot fallbacks live in the sort SQL below).
+const liftPort = alias(s.ports, 'cus_container_lift_port');
 
 function toNumber(value: string | number | null | undefined): number {
   if (value == null) return 0;
@@ -323,6 +327,98 @@ function containerTransportDateSql() {
   // one Bill/Booking across different dispatch days.
   return sql<string>`${s.shipments.expectedDeliveryDate}`;
 }
+
+// ─── Container workboard column sorting ──────────────────────────────────────
+//
+
+// Derived columns (carrier, dispatch status, legacy site snapshots) come from
+// the first active fulfillment per container — mirroring the support loader's
+// first-row-wins projection (assignmentsByContainer). Each is expressed as a
+// correlated scalar subquery so it can be sorted WITHOUT joining
+// fulfillment/trip rows into the paginated page query, where a join would
+// multiply container rows and break LIMIT/OFFSET pagination.
+
+/** Rank mirrors buildContainerLine's dispatchStatus derivation: trip status
+ * COMPLETED > IN_TRANSIT > CREATED, then planned-carrier (PLANNED), else
+ * UNASSIGNED. Only relative order matters for sorting. */
+function containerDispatchRankSql(): SQL {
+  return sql`(
+    select case
+      when t.status = 'COMPLETED' then 4
+      when t.status = 'IN_TRANSIT' then 3
+      when t.status = 'CREATED' then 2
+      when sf.planned_carrier_type is not null then 1
+      else 0
+    end
+    from ${s.shipmentFulfillments} sf
+    left join ${s.trips} t
+      on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
+    where sf.shipment_container_id = ${s.shipmentContainers.id}
+      and sf.canceled_at is null
+    order by sf.id, t.id
+    limit 1
+  )`;
+}
+
+/** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed
+ * SilverSea label; otherwise the executed trip's carrier wins over the plan. */
+function containerCarrierNameSql(): SQL {
+  return sql`(
+    select coalesce(
+      case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then 'SilverSea' end,
+      ac.name,
+      pc.name
+    )
+    from ${s.shipmentFulfillments} sf
+    left join ${s.trips} t
+      on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
+    left join ${s.customers} ac on ac.id = t.external_entity_id
+    left join ${s.customers} pc on pc.id = sf.planned_external_carrier_id
+    where sf.shipment_container_id = ${s.shipmentContainers.id}
+      and sf.canceled_at is null
+    order by sf.id, t.id
+    limit 1
+  )`;
+}
+
+/** Legacy rows without port columns fall back to the first fulfillment's
+ * site-snapshot label (shortName preferred, then name) for sort parity with
+ * the displayed lift site. */
+function containerSnapshotLiftSiteSql(): SQL {
+  return sql`(
+    select coalesce(
+      nullif(btrim(sf.site_snapshot->'pickupWarehouse'->>'shortName'), ''),
+      nullif(btrim(sf.site_snapshot->'pickupWarehouse'->>'name'), '')
+    )
+    from ${s.shipmentFulfillments} sf
+    where sf.shipment_container_id = ${s.shipmentContainers.id}
+      and sf.canceled_at is null
+    order by sf.id
+    limit 1
+  )`;
+}
+
+// Whitelist mapping each sortable column's URL key to its sort expression.
+// Expressions must yield exactly one value per container row; NULLs sort last
+// in both directions via the `nulls last` wrapper at the call site.
+const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
+  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
+  billOrBookNumber: sql`case
+    when ${s.shipments.tradeDirection} = 'EXPORT'
+      then coalesce(nullif(btrim(${s.shipments.bookingRef}), ''), nullif(btrim(${s.shipments.blNumber}), ''))
+    else coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))
+  end`,
+  containerNumber: sql`${s.shipmentContainers.containerNumber}`,
+  liftSite: sql`coalesce(${liftPort.name}, ${containerSnapshotLiftSiteSql()})`,
+  transportDate: sql`case
+    when ${s.shipments.cargoMode} = 'FCL'
+      then (${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')::date
+    else ${s.shipments.expectedDeliveryDate}
+  end`,
+  carrierName: containerCarrierNameSql(),
+  customerNotes: sql`${s.shipments.customerNotes}`,
+  dispatchStatus: containerDispatchRankSql(),
+};
 
 // ─── "Chưa cập nhật" completeness (real FCL container rows only) ─────────────
 //
@@ -1601,6 +1697,13 @@ async function buildShipmentPageConditions(
     conditions.push(eq(s.shipments.cargoMode, 'FCL'));
     conditions.push(containerIncompleteSql());
   }
+  // Detail-only dispatch triage: ASSIGNED = the container line has any active
+  // carrier (trip first, planned as fallback), UNASSIGNED is its complement —
+  // exactly the rows the ledger badges "Chưa điều xe".
+  if (searchMode === 'container' && 'dispatchStatus' in query) {
+    if (query.dispatchStatus === 'ASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is not null`);
+    if (query.dispatchStatus === 'UNASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is null`);
+  }
 
   return conditions;
 }
@@ -1725,6 +1828,22 @@ export async function listCusShipmentContainers(
 ): Promise<ShipmentCusContainerFlatResponse> {
   const conditions = await buildShipmentPageConditions(query, actor, 'container');
   const offset = (query.page - 1) * query.limit;
+  // Explicit `nulls last` keeps empty cells at the bottom in both directions
+  // (Postgres would otherwise float NULLs first on desc). Cargo rank + id stay
+  // as secondary keys so one shipment's containers still cluster in place.
+  const sortOrder = query.sortBy
+    ? [
+        sql`${CONTAINER_SORT_SQL[query.sortBy]} ${query.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        sql`${cargoRankSql()} asc`,
+        sql`${s.shipmentContainers.id} asc`,
+      ]
+    : [
+        asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
+        sql`coalesce(${containerTransportDateSql()}, ${s.shipments.createdAt}) desc`,
+        cargoRankSql(),
+        desc(s.shipments.createdAt),
+        asc(s.shipmentContainers.id),
+      ];
   // Page rows, total count, and customer options run in one read-only
   // REPEATABLE READ transaction so all three see the same snapshot — a
   // container deleted between the page query and the support load can no
@@ -1740,14 +1859,9 @@ export async function listCusShipmentContainers(
         .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
         .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
         .leftJoin(s.routes, eq(s.routes.id, sql<number>`coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})`))
+        .leftJoin(liftPort, eq(liftPort.id, s.shipmentContainers.pickupPortId))
         .where(and(...conditions))
-        .orderBy(
-          asc(sql`case when ${containerTransportDateSql()} is null then 0 else 1 end`),
-          sql`coalesce(${containerTransportDateSql()}, ${s.shipments.createdAt}) desc`,
-          cargoRankSql(),
-          desc(s.shipments.createdAt),
-          asc(s.shipmentContainers.id),
-        )
+        .orderBy(...sortOrder)
         .limit(query.limit)
         .offset(offset),
       tx.select({ value: count() }).from(s.shipmentContainers)
