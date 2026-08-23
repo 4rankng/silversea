@@ -287,7 +287,7 @@
 }
 
 .tc-rail-notice {
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   color: var(--fg-3);
   line-height: 1.5;
   letter-spacing: 0.005em;
@@ -305,7 +305,7 @@
   border: 1px solid rgba(199, 123, 92, 0.25);
   border-radius: 10px;
   color: var(--copper);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   line-height: 1.45;
 }
 .tc-rail-error-title {
@@ -375,12 +375,12 @@
     left: 14px;
     right: 14px;
   }
-  .tc-page-title { font-size: 19px; }
+  .tc-page-title { font-size: var(--fs-xl); }
   
   .tc-card-head {
     margin-bottom: 12px;
   }
-  .tc-card-title { font-size: 15px; }
+  .tc-card-title { font-size: var(--fs-sm); }
   .tc-card-sub { font-size: 12px; }
   .tc-card-body {
     gap: 12px;

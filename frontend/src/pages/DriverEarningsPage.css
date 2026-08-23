@@ -152,7 +152,7 @@
   display: block;
   color: var(--ink);
   font-family: var(--font-data);
-  font-size: 15px;
+  font-size: var(--fs-xl);
 
   letter-spacing: 0;
   white-space: nowrap;

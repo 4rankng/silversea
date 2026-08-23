@@ -169,9 +169,9 @@ for (const file of sharedColorFiles) {
 // td/th rules reintroduce per-route airier scales, so they are banned on
 // desktop-width contexts. Narrow-viewport blocks (@media max-width /
 // @container) are exempt — touch layouts may legitimately bump text.
-const TABLE_CELL_SCALE_EXEMPT_PREFIXES = [
-  // Frozen CUS + dispatch surfaces and print documents render unchanged.
-  // Paths are relative to frontend/ (see sourceRoot), hence the src/ prefix.
+// Frozen CUS + dispatch surfaces and print documents render unchanged.
+// Paths are relative to frontend/ (see sourceRoot), hence the src/ prefix.
+const FROZEN_CSS_PREFIXES = [
   'src/pages/ShipmentsPage.css',
   'src/pages/ShipmentsDetailPage.css',
   'src/pages/ShipmentDetailPage.css',
@@ -179,6 +179,7 @@ const TABLE_CELL_SCALE_EXEMPT_PREFIXES = [
   'src/features/dispatch/',
   'src/pages/SettlementPrintPage.css',
 ];
+const TABLE_CELL_SCALE_EXEMPT_PREFIXES = FROZEN_CSS_PREFIXES;
 // Files still carrying legacy oversize table text; shrinks to zero as the
 // sizing-philosophy wave lands. MUST be empty before the wave closes.
 const TABLE_CELL_SCALE_PENDING = new Set();
@@ -242,6 +243,50 @@ async function checkTableTypeScale(directoryUrl) {
 }
 
 await checkTableTypeScale(sourceRoot);
+
+// --- Page-CSS font-size token drift ----------------------------------------
+// Design guidelines §"Bringing an existing page into the sizing contract":
+// a raw px font-size in page CSS is only tolerable when its value sits on
+// the token scale, so a value that matches no token is drift from an
+// unassigned role (the /credit-overrides failure mode) and fails here. Allowed values
+// are the px equivalents of the type tokens (11/12/14/16/18/20/24 via
+// --fs-*, 13 = --ops-table-primary-size) plus the 10px dense-metadata floor
+// from the dense-workspace section. Heights are deliberately NOT scanned —
+// raw heights include too many legitimate non-control geometry values; the
+// control-height contract stays a per-file audit.
+const PAGE_FONT_TOKEN_VALUES = new Set([0, 10, 11, 12, 13, 14, 16, 18, 20, 24]);
+
+async function checkPageFontSizeDrift(directoryUrl) {
+  const entries = await readdir(directoryUrl, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      await checkPageFontSizeDrift(new URL(`${entry.name}/`, directoryUrl));
+      continue;
+    }
+    if (extname(entry.name) !== '.css') continue;
+
+    const entryUrl = new URL(entry.name, directoryUrl);
+    const displayPath = relative(new URL('..', sourceRoot).pathname, entryUrl.pathname);
+    // Scoped to pages/ — the guideline's audit surface. Feature stylesheets
+    // are guarded separately (control-density.styles.test.ts) and join this
+    // scan in a later wave.
+    if (!displayPath.startsWith('src/pages/')) continue;
+    if (FROZEN_CSS_PREFIXES.some((p) => displayPath.startsWith(p))) continue;
+
+    const css = await readFile(entryUrl, 'utf8');
+    const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const match of text.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) {
+      if (!PAGE_FONT_TOKEN_VALUES.has(Number(match[1]))) {
+        const line = text.slice(0, match.index).split('\n').length;
+        failures.push(
+          `${displayPath}:${line}: raw font-size ${match[1]}px matches no type token (assign a role, then use the token value — see docs/design-guidelines.md)`,
+        );
+      }
+    }
+  }
+}
+
+await checkPageFontSizeDrift(sourceRoot);
 
 async function checkInlineTouchTargets(directoryUrl) {
   const entries = await readdir(directoryUrl, { withFileTypes: true });

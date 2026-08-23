@@ -550,7 +550,7 @@
   }
 
   .credit-override-queue__header h1 {
-    font-size: 22px;
+    font-size: var(--fs-xl);
   }
 
   .credit-override-queue__subtitle {
@@ -597,7 +597,7 @@
   }
 
   .credit-override-queue__summary-card.is-value strong {
-    font-size: 17px;
+    font-size: var(--fs-lg);
     white-space: nowrap;
   }
 

@@ -107,7 +107,7 @@
 }
 
 .ops-bill-state--empty > svg { color: var(--brand); }
-.ops-bill-state--empty strong { display: block; color: var(--fg-1); font-size: 15px; }
+.ops-bill-state--empty strong { display: block; color: var(--fg-1); font-size: var(--fs-sm); }
 .ops-bill-state--empty p { margin: 4px 0 0; color: var(--fg-3); font-size: 13px; line-height: 1.45; }
 .ops-bill-state--empty button {
   min-height: 40px;
@@ -264,7 +264,7 @@
 
 .ops-order-exchange__heading > div { min-width: 0; }
 .ops-order-exchange__eyebrow { color: var(--fg-3); font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
-.ops-order-exchange h2 { margin: 3px 0; color: var(--fg-1); font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+.ops-order-exchange h2 { margin: 3px 0; color: var(--fg-1); font-size: var(--fs-lg); line-height: 1.3; overflow-wrap: anywhere; }
 .ops-order-exchange p { margin: 0; color: var(--fg-3); font-size: 12px; line-height: 1.45; }
 
 .ops-order-exchange__state {
@@ -438,7 +438,7 @@
     display: -webkit-box;
     overflow: hidden;
     color: var(--brand);
-    font-size: 15px;
+    font-size: var(--fs-sm);
     line-height: 1.35;
     overflow-wrap: anywhere;
     -webkit-box-orient: vertical;

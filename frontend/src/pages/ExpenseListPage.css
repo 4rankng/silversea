@@ -468,7 +468,7 @@
   }
 
   .expense-list-page .page-title {
-    font-size: 27px;
+    font-size: var(--fs-xl);
     line-height: 1.35;
     letter-spacing: 0;
   }
@@ -537,7 +537,7 @@
   }
 
   .expense-list-page .expense-kpi-card:not(.expense-kpi-card--total) .expense-kpi-value {
-    font-size: 25px;
+    font-size: var(--fs-xl);
   }
 
   .expense-list-page .expense-kpi-value-unit {
@@ -608,7 +608,7 @@
   }
 
   .expense-list-page .m-card__title {
-    font-size: 15px;
+    font-size: var(--fs-sm);
     letter-spacing: 0;
     line-height: 1.35;
   }

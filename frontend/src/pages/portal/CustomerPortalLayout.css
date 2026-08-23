@@ -156,7 +156,7 @@
 }
 .customer-shell__scope-bar select {
   min-width: min(320px, 48vw);
-  min-height: 38px;
+  min-height: var(--control-compact-h);
   padding: 0 34px 0 11px;
   border: 1px solid var(--border-2, #d8dfdb);
   border-radius: 8px;
@@ -181,7 +181,7 @@
   font-size: 13px;
 }
 .customer-shell__scope-error button {
-  min-height: 36px;
+  min-height: var(--control-compact-h);
   padding: 0 12px;
   border: 1px solid currentColor;
   border-radius: 8px;
@@ -228,7 +228,7 @@
     color: #fff;
   }
   .customer-shell__mobile-header img { width: 28px; height: 28px; }
-  .customer-shell__mobile-header strong { font-size: 15px; }
+  .customer-shell__mobile-header strong { font-size: var(--fs-sm); }
   .customer-shell__icon-button {
     display: grid;
     width: 44px;

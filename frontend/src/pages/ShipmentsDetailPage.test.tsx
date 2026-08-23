@@ -441,10 +441,12 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '2026-08-15' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
 
-    fireEvent.change(screen.getByLabelText('Khách hàng'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Công ty Silver Sea' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7'));
 
-    fireEvent.change(screen.getByLabelText('Nhập / Xuất'), { target: { value: 'IMPORT' } });
+    fireEvent.click(screen.getByRole('button', { name: /Nhập \/ Xuất/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
 
     fireEvent.change(screen.getByLabelText(/Container, Bill\/Booking hoặc tờ khai/i), { target: { value: 'abcd' } });
@@ -473,8 +475,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=UNASSIGNED`));
     await screen.findByText('CONT-001');
-    const statusSelect = await screen.findByLabelText('Trạng thái');
-    expect((statusSelect as HTMLSelectElement).value).toBe('UNASSIGNED');
+    const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
+    expect(within(filtersGroup).getByRole('button', { name: /Trạng thái/i })).toHaveTextContent('Chưa điều xe');
     expect(screen.getAllByText('Chưa điều xe').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));

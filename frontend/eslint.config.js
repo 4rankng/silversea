@@ -119,6 +119,8 @@ const noNativeSelect = {
     messages: {
       noNativeSelect:
         "Native <select> renders the OS-styled picker menu (the recurring macOS dropdown visual bug). Use UuiSelectField from 'design-system/forms/UuiSelectField' (or SelectField for the children API).",
+      noNativeSelectImport:
+        "NativeSelect (select-native.tsx) is the vendored UUI screen-reader accessibility fallback, not a general-purpose control — importing it elsewhere reintroduces the OS-styled picker menu (the recurring macOS dropdown visual bug). Use UuiSelectField from 'design-system/forms/UuiSelectField' instead.",
     },
   },
   create(context) {
@@ -134,6 +136,11 @@ const noNativeSelect = {
         if (isPlainSelect || isMemberSelect) {
           context.report({ node, messageId: 'noNativeSelect' });
         }
+      },
+      /** Importing the vendored accessibility-fallback NativeSelect from outside its own module. */
+      ImportDeclaration(node) {
+        if (!/\/select\/select-native$/.test(node.source.value)) return;
+        context.report({ node, messageId: 'noNativeSelectImport' });
       },
     };
   },

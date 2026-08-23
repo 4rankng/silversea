@@ -10,10 +10,9 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { Btn, Modal, StatusPill, type PillVariant } from '../../components/UI';
-import { NativeSelect } from '../../components/untitled-ui/base/select/select-native';
 import { RadioButton, RadioGroup } from '../../components/untitled-ui/base/radio-buttons/radio-buttons';
 import { TextAreaBase } from '../../components/untitled-ui/base/textarea/textarea';
-import { EmptyState, Pagination } from '../../design-system';
+import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
 import { ApiError } from '../../lib/api';
 import { formatCurrency, formatDate } from '../../lib/format';
 import {
@@ -305,9 +304,8 @@ export function RecoverableCostsWorkspace() {
       </section>
 
       <section className="recoverable-costs__toolbar" aria-label="Bộ lọc chi phí">
-        <NativeSelect
+        <UuiSelectField
           label="Trạng thái phê duyệt"
-          size="sm"
           value={status}
           options={[
             { value: '', label: 'Tất cả trạng thái' },

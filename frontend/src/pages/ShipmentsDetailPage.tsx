@@ -21,8 +21,7 @@ import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
-import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
-import { EmptyState, Pagination, BufferedUuiDateInput } from '../design-system';
+import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
   ShipmentContainerLedger,
@@ -525,9 +524,9 @@ export default function ShipmentsDetailPage() {
               <BufferedUuiDateInput label="Đến ngày vận chuyển" size="sm" value={dateTo} onChange={(value) => updateParam('transportDateTo', value || null)} inputProps={{ min: dateFrom || undefined }} className="shipments-detail-filter" />
             </div>
             <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
-              <UUINativeSelect label="Khách hàng" size="sm" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} className="shipments-detail-filter" />
-              <UUINativeSelect label="Nhập / Xuất" size="sm" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} className="shipments-detail-filter" />
-              <UUINativeSelect label="Trạng thái" size="sm" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'ASSIGNED', label: 'Đã phân xe' }, { value: 'UNASSIGNED', label: 'Chưa điều xe' }]} className="shipments-detail-filter" />
+              <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
+              <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
+              <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'ASSIGNED', label: 'Đã phân xe' }, { value: 'UNASSIGNED', label: 'Chưa điều xe' }]} wrapperClassName="shipments-detail-filter" />
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">

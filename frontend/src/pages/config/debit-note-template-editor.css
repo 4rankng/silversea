@@ -89,7 +89,7 @@
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 22px;
+  font-size: var(--fs-xl);
   line-height: 1.25;
   letter-spacing: 0;
   font-weight: 850;
@@ -291,7 +291,7 @@
 
 .debit-editor-table-toolbar strong {
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--fs-sm);
 }
 
 .debit-editor-table-toolbar span {
@@ -432,7 +432,7 @@
 .debit-editor-column-inspector__header strong {
   min-width: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
@@ -1751,7 +1751,7 @@
 
 .debit-editor-selected-group > strong {
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 850;
   line-height: 1.35;
 }
@@ -1883,7 +1883,7 @@
 
 .debit-editor-selected-group .input {
   min-height: var(--control-default-h);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 650;
 }
 

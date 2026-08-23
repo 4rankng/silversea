@@ -338,7 +338,7 @@
 }
 
 .driver-task-footer__summary strong {
-  font-size: 15px;
+  font-size: var(--fs-sm);
   color: var(--ink);
 }
 
@@ -369,7 +369,7 @@
   border: 1px solid transparent;
   background: var(--ink);
   color: #fff;
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
 }

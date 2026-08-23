@@ -13,7 +13,7 @@ import {
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
-import { NativeSelect as UUINativeSelect } from '../../../components/untitled-ui/base/select/select-native';
+import { UuiSelectField } from '../../../design-system';
 import './DispatchAllocationPopover.css';
 
 const OWN_CARRIER_OPTION: CarrierAllocationOption = {
@@ -351,16 +351,15 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
                 )}
               </div>
               <div className="dispatch-allocation-popover__fields">
-                <UUINativeSelect
-                  className="dispatch-allocation-popover__carrier"
-                  selectClassName="dispatch-allocation-popover__control"
-                  size="sm"
+                <UuiSelectField
+                  wrapperClassName="dispatch-allocation-popover__carrier"
+                  controlClassName="dispatch-allocation-popover__control"
                   label="Nhà xe"
                   hint={rowIssues[index]?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
                   value={row.carrierKey}
                   onChange={(event) => updateRow(index, { carrierKey: event.target.value })}
-                  aria-label={`Nhà xe dòng ${index + 1}`}
-                  aria-invalid={Boolean(rowIssues[index]?.carrier)}
+                  ariaLabel={`Nhà xe dòng ${index + 1}`}
+                  invalid={Boolean(rowIssues[index]?.carrier)}
                   disabled={optionsLoading}
                   options={options.map((option) => ({
                     label: option.label,

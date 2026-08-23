@@ -214,7 +214,7 @@
   align-items: baseline;
   gap: 4px;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: var(--fs-xl);
   line-height: 1.35;
   font-weight: 600;
   letter-spacing: 0;
@@ -498,7 +498,7 @@
     border-radius: 14px;
   }
   .debt-aging-card__amount {
-    font-size: 17px;
+    font-size: var(--fs-lg);
   }
 
   /* Data card compact */
@@ -526,7 +526,7 @@
   /* Mobile card amount styling */
   .debt-list-page .m-card .debt-list-page__amount {
     font-family: var(--font-data);
-    font-size: 15px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     letter-spacing: 0;
   }
@@ -538,7 +538,7 @@
 
 @media (max-width: 420px) {
   .debt-list-page .hero-kpi-card__amount.debt-hero__amount {
-    font-size: 22px;
+    font-size: var(--fs-xl);
   }
   .debt-hero__art {
     width: 132px;
@@ -560,7 +560,7 @@
     height: 30px;
   }
   .debt-aging-card__amount {
-    font-size: 15px;
+    font-size: var(--fs-sm);
   }
 }
 

@@ -286,7 +286,7 @@
   }
 
   .fadv-card-trip__amount {
-    font-size: 15px;
+    font-size: var(--fs-sm);
     line-height: 1.35;
   }
 

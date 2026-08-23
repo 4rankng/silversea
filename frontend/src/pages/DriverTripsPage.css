@@ -76,7 +76,7 @@
 .dt-card__salary {
   grid-column: 2;
   grid-row: 1;
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   font-family: var(--font-data);
 

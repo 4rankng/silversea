@@ -149,7 +149,7 @@
   border: 1px solid var(--line, #EAECEF);
   border-radius: var(--r-sm, 8px);
   padding: 8px 14px;
-  min-height: 42px;
+  min-height: var(--filter-control-h);
   width: 300px;
   transition: border-color 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1)),
               box-shadow 0.15s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
@@ -259,7 +259,7 @@
   }
 
   .payables-page .hero-kpi-mini__value {
-    font-size: 22px;
+    font-size: var(--fs-xl);
   }
 
   .payables-page .hero-kpi-mini__label {
@@ -289,7 +289,7 @@
   }
 
   .aging-card__value {
-    font-size: 19px;
+    font-size: var(--fs-lg);
   }
 
   .aging-card__count {
@@ -330,7 +330,7 @@
   /* Mobile amount text in card list */
   .payables-page .m-card .m-card__row-value {
     font-family: var(--font-data);
-    font-size: 15px;
+    font-size: var(--fs-sm);
     font-weight: 700;
     letter-spacing: 0;
   }
@@ -345,7 +345,7 @@
   }
 
   .payables-page .hero-kpi-card__amount {
-    font-size: 26px;
+    font-size: var(--fs-xl);
   }
 
   .payables-page .hero-kpi-mini {
@@ -424,7 +424,7 @@
 
 .commission-form .input {
   height: var(--control-default-h);
-  font-size: 15px;
+  font-size: var(--fs-sm);
 }
 
 .commission-form__error {

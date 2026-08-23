@@ -29,8 +29,7 @@ import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
-import { NativeSelect as UUINativeSelect } from '../components/untitled-ui/base/select/select-native';
-import { EmptyState, Pagination, BufferedUuiDateInput } from '../design-system';
+import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
 import {
   createShipmentDeclaration,
   getCusShipmentWorkspaceDetail,
@@ -738,9 +737,8 @@ export default function ShipmentsPage() {
               {searchError && <span id="cus-search-error" className="cus-field-error" role="alert">{searchError}</span>}
             </div>
 
-            <UUINativeSelect
+            <UuiSelectField
               label="Xuất / Nhập"
-              size="sm"
               value={direction}
               onChange={(event) => updateParam('direction', event.target.value || null)}
               options={[
@@ -748,8 +746,8 @@ export default function ShipmentsPage() {
                 { value: 'EXPORT', label: 'Xuất' },
                 { value: 'IMPORT', label: 'Nhập' },
               ]}
-              className="shipment-uui-field"
-              selectClassName="shipment-uui-select"
+              wrapperClassName="shipment-uui-field"
+              controlClassName="shipment-uui-select"
             />
             <BufferedUuiDateInput
               label="Từ ngày giao"
@@ -769,17 +767,16 @@ export default function ShipmentsPage() {
               wrapperClassName="shipment-uui-control"
               inputClassName="shipment-uui-control__input"
             />
-            <UUINativeSelect
+            <UuiSelectField
               label="Kế hoạch"
-              size="sm"
               value={bucket}
               onChange={(event) => updateParam('bucket', event.target.value || null)}
               options={[
                 { value: '', label: 'Tất cả trạng thái' },
                 ...BUCKETS.map((value) => ({ value, label: SHIPMENT_CUS_BUCKET_LABELS[value] })),
               ]}
-              className="shipment-uui-field cus-plan-status-filter"
-              selectClassName="shipment-uui-select"
+              wrapperClassName="shipment-uui-field cus-plan-status-filter"
+              controlClassName="shipment-uui-select"
             />
           </div>
 
@@ -1114,9 +1111,8 @@ export default function ShipmentsPage() {
                     ) : <strong>Chưa có lịch</strong>}
                   </div>
                   <div className="cus-drawer-decision cus-drawer-decision--custody">
-                    <UUINativeSelect
+                    <UuiSelectField
                       label="Phơi phiếu"
-                      size="sm"
                       value={drawerItem.documentCustody.status ?? ''}
                       disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
                       onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
@@ -1124,8 +1120,8 @@ export default function ShipmentsPage() {
                         { value: '', label: 'Chưa xác định', disabled: true },
                         ...Object.values(ShipmentDocumentCustody).map((status) => ({ value: status, label: SHIPMENT_DOCUMENT_CUSTODY_LABELS[status] })),
                       ]}
-                      className="cus-drawer-uui-field"
-                      selectClassName="cus-drawer-uui-select"
+                      wrapperClassName="cus-drawer-uui-field"
+                      controlClassName="cus-drawer-uui-select"
                     />
                   </div>
                   <div className="cus-drawer-decision cus-drawer-decision--finance"><FinanceEvidence item={drawerItem} /></div>

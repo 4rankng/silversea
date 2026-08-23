@@ -45,16 +45,15 @@ don't do a repo-wide sweep in one PR, convert the file you're already in.
    conversion (some rules tokenized, others left raw) is worse than doing
    nothing, because it hides which values are still real drift under a false
    sense that the file was addressed.
-6. **`pnpm --dir frontend check:ui` does not catch this class of drift.** It
-   only guards a fixed list of specific historical regressions (legacy status
-   rails, the sidebar gradient, a couple of focus-outline rules) — it has no
-   general "no raw px font-size/height on a page" rule, which is exactly why
-   `/credit-overrides` shipped and stayed unnoticed. Don't treat a passing
-   `check:ui` as evidence a page is on-contract; run the audit grep above
-   instead. If you're touching this repeatedly, the next real investment is
-   extending `check-ui-contract.mjs` with a token-drift scan (flag raw
-   `font-size:`/`height:` px values in page CSS outside an allowlisted set of
-   token values) so this stops depending on a human noticing.
+6. **`pnpm --dir frontend check:ui` now guards font-size token drift.** The
+   contract script flags any raw `font-size: Npx` under `frontend/src/pages/`
+   whose value is not on the type-token scale (10 = dense-metadata floor,
+   11/12/14/16/18/20/24 = `--fs-*` equivalents, 13 =
+   `--ops-table-primary-size`). A value off that scale means the element's
+   role was never decided — assign the role and use the token. Raw **heights**
+   are still not machine-scanned (too many legitimate non-control geometry
+   values); the control-height rule above stays a per-file audit when you
+   touch a page.
 
 ## Customer-facing shipment identifiers
 

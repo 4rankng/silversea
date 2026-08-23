@@ -14,7 +14,7 @@
 }
 
 .ttp-header h1 {
-  font-size: 22px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--fg-1);
   margin: 0 0 4px;
@@ -98,7 +98,7 @@
 .ttp-section-head h2 {
   margin: 0;
   color: var(--fg-1);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -251,7 +251,7 @@
 .ttp-add .input,
 .ttp-add select.input {
   width: 100%;
-  height: 42px;
+  height: var(--control-default-h);
   padding: 0 12px;
   border: 1px solid var(--line-2, var(--border-2));
   border-radius: 10px;
@@ -397,7 +397,7 @@
   align-items: center;
   padding: 0 14px;
   color: var(--ink-3, var(--fg-3));
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
 }
 
 .ttp-position-picker-manage {
@@ -728,7 +728,7 @@
 .ttp-position-head p {
   max-width: 420px;
   font-family: var(--font-sans, inherit);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   line-height: 1.45;
 }
@@ -792,21 +792,21 @@
 }
 
 .ttp-position-control .input {
-  height: 38px;
+  height: var(--control-compact-h);
   border-color: var(--line-2, var(--border-2));
   border-radius: 9px;
   background: var(--surface, #fff);
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
 }
 
 .ttp-position-add-btn {
-  min-height: 38px;
+  min-height: var(--control-compact-h);
   align-self: end;
   justify-content: center;
   gap: 6px;
   padding: 0 14px;
   border-radius: 9px;
-  font-size: 12.5px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -897,7 +897,7 @@
 
 .ttp-position-name span {
   color: var(--ink, var(--fg-1));
-  font-size: 13.5px;
+  font-size: var(--ops-table-primary-size);
   font-weight: 750;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -1729,7 +1729,7 @@
     min-width: 0;
   }
   .debt-detail-page .dd-meta h1 {
-    font-size: 17px;
+    font-size: var(--fs-lg);
     line-height: 1.35;
     overflow-wrap: anywhere;
   }
@@ -1801,7 +1801,7 @@
     letter-spacing: 0.12em;
   }
   .debt-detail-page .dd-sum-total {
-    font-size: 26px;
+    font-size: var(--fs-xl);
     margin-top: 6px;
   }
   .debt-detail-page .dd-sum-total .dd-cur {
@@ -1878,11 +1878,11 @@
   .dd-header { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; }
   .dd-avatar { display: none; }
   .dd-meta { min-width: 0; }
-  .dd-meta h1 { font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }
+  .dd-meta h1 { font-size: var(--fs-lg); line-height: 1.25; overflow-wrap: anywhere; }
   .dd-actions { grid-column: 1 / -1; }
   .dd-actions .btn { width: 100%; justify-content: center; }
   .dd-ledger-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
-  .dd-ledger-head h2 { font-size: 15px; }
+  .dd-ledger-head h2 { font-size: var(--fs-sm); }
   .dd-filters { width: 100%; flex-wrap: wrap; gap: 8px; }
   .dd-filters > * { flex-shrink: 0; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }

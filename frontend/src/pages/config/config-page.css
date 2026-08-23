@@ -313,7 +313,7 @@
 .debit-template-card__title strong {
   min-width: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
@@ -381,7 +381,7 @@
 
 .debit-template-list-empty__copy strong,
 .debit-template-list-empty > strong {
-  font-size: 17px;
+  font-size: var(--fs-lg);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -669,7 +669,7 @@
     content: none;
   }
   .routes-table tbody td:first-child[data-label] .row-strong {
-    font-size: 15px;
+    font-size: var(--ops-table-primary-size);
     font-weight: 600;
     line-height: 1.35;
     color: var(--fg-1, var(--ink));

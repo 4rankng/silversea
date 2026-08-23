@@ -23,13 +23,17 @@ export interface UuiSelectFieldProps {
   value: string;
   /** Native-select-shaped change event: `(e) => setState(e.target.value)`. */
   onChange: (event: { target: { value: string } }) => void;
-  options: Array<{ value: string; label: string }>;
+  options: Array<{ value: string; label: string; disabled?: boolean }>;
   disabled?: boolean;
   required?: boolean;
   error?: string;
   hint?: ReactNode;
   /** Hide the visible label (still announced via aria-label). */
   hideLabel?: boolean;
+  /** Overrides the accessible name; use for repeated rows where every control shares one visible label. */
+  ariaLabel?: string;
+  /** Flags the control as invalid to assistive tech without switching `hint` to the red `error` styling. */
+  invalid?: boolean;
   /** Inline layout: label left, control right — for filter toolbars. */
   inline?: boolean;
   /** Accepted for API parity; the trigger shows the first option when unselected. */
@@ -59,6 +63,8 @@ export function UuiSelectField({
   error,
   hint,
   hideLabel,
+  ariaLabel,
+  invalid,
   inline,
   width = 'stretch',
   wrapperClassName,
@@ -78,19 +84,19 @@ export function UuiSelectField({
       <UUISelect
         id={id}
         size="sm"
-        aria-label={hideLabel ? label : undefined}
+        aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
         label={hideLabel ? undefined : label}
         selectedKey={value || EMPTY_SELECT_KEY}
         onSelectionChange={(key) => onChange(asEvent(key === EMPTY_SELECT_KEY ? '' : String(key)))}
-        items={options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label }))}
+        items={options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label, isDisabled: option.disabled }))}
         isDisabled={disabled}
         isRequired={required}
-        isInvalid={Boolean(error)}
+        isInvalid={invalid ?? Boolean(error)}
         hideRequiredIndicator={!required}
         popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
         className={`ds-uui-select__control ds-uui-boundary${controlClassName ? ` ${controlClassName}` : ''}`}
       >
-        {(item) => <UUISelect.Item id={item.id} label={item.label} selectionIndicatorAlign="left" />}
+        {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
       </UUISelect>
       {error
         ? <span className="ds-uui-select__error">{error}</span>

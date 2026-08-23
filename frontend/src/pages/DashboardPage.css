@@ -400,7 +400,7 @@
 .dash-wf .wf-kpi .delta.flat { color: var(--wf-ink-2); background: var(--wf-bg); }
 .dash-wf .wf-kpi .delta.warn { color: var(--wf-amber); background: var(--wf-amber-soft); }
 .dash-wf .wf-kpi .val { font-family: var(--font-data); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; margin-top: 9px; line-height: 1.35; }
-.dash-wf .wf-kpi .val i { font-style: normal; font-size: 15px; color: var(--wf-ink-3); font-weight: 500; margin-left: 1px; }
+.dash-wf .wf-kpi .val i { font-style: normal; font-size: var(--fs-sm); color: var(--wf-ink-3); font-weight: 500; margin-left: 1px; }
 .dash-wf .wf-kpi .foot { font-size: var(--fs-2xs); color: var(--wf-ink-2); margin-top: 7px; }
 
 .dash-wf .wf-grid {
@@ -1041,7 +1041,7 @@
   }
 
   .dash-wf .wf-card-h .ttl {
-    font-size: 15px;
+    font-size: var(--fs-sm);
     line-height: 1.35;
   }
 
@@ -1053,7 +1053,7 @@
   .dash-wf .wf-kpi:nth-child(5) { grid-column: 1 / -1; }
   .dash-wf .wf-kpi { padding: 12px 14px; }
   .dash-wf .wf-kpi .val {
-    font-size: 15px;
+    font-size: var(--fs-sm);
     white-space: nowrap;
     overflow: visible;
   }
@@ -1096,7 +1096,7 @@
 
   .dash-wf .wf-arow .tx .t {
     gap: 5px;
-    font-size: 12.5px;
+    font-size: var(--fs-xs);
     line-height: 1.35;
   }
 
@@ -1656,7 +1656,7 @@
   }
 
   .dash-wf .wf-kpi .val {
-    font-size: 15px;
+    font-size: var(--fs-sm);
     letter-spacing: 0;
   }
 

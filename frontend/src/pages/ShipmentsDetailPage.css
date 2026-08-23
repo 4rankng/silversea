@@ -38,19 +38,11 @@
 .shipments-detail-filters__group--selects { grid-template-columns: minmax(170px, 1.25fr) minmax(110px, .65fr) minmax(140px, .85fr); }
 .shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
 .shipments-detail-filter > *,
-.shipments-detail-filter input,
-.shipments-detail-filter select { width: 100%; min-width: 0; }
+.shipments-detail-filter input { width: 100%; min-width: 0; }
 .shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
-/* UUI Input establishes vertical rhythm through its flex gap; NativeSelect
-   instead relies on a label margin. Normalize the two mechanisms so every
-   control in the shared grid starts on the same baseline. */
-.shipments-detail-filter:not([data-input-wrapper]) > label[data-label] { margin-bottom: 5px; color: var(--ink-2); font-weight: var(--fw-semibold); }
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
-.shipments-detail-filter input,
-.shipments-detail-filter select { box-shadow: none; }
-.shipments-detail-filter input { background: transparent; }
+.shipments-detail-filter input { box-shadow: none; background: transparent; }
 .shipments-detail-filter--search input { padding-left: 30px; }
-.shipments-detail-filter select { background: var(--surface); }
 .shipments-detail-filter--search input { text-transform: uppercase; }
 .shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
 .shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }

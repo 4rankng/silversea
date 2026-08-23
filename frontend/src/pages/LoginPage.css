@@ -142,7 +142,7 @@
   max-width: 36ch;
   margin: 13px 0 0;
   color: var(--ink-3);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   line-height: 1.65;
 }
 
@@ -179,7 +179,7 @@
   border-color: var(--line-2);
   border-radius: 11px;
   background: rgba(255, 255, 255, 0.94);
-  font-size: 15px;
+  font-size: var(--fs-sm);
 }
 
 .login-form .input-icon:focus-within > svg {
@@ -254,7 +254,7 @@
   height: 52px;
   margin-top: 4px;
   border-radius: 11px;
-  font-size: 15px;
+  font-size: var(--fs-sm);
   font-weight: 750;
 }
 
@@ -358,7 +358,7 @@
   max-width: 610px;
   margin: 20px 0 0;
   color: rgba(255, 255, 255, 0.76);
-  font-size: 15px;
+  font-size: var(--fs-sm);
   line-height: 1.65;
 }
 
@@ -491,7 +491,7 @@
   }
 
   .login-form h1 {
-    font-size: 32px;
+    font-size: var(--fs-2xl);
   }
 
   .login-subtitle {
@@ -579,7 +579,7 @@
   }
 
   .login-visual h2 {
-    font-size: 23px;
+    font-size: var(--fs-2xl);
   }
 
   .login-auth-panel {
