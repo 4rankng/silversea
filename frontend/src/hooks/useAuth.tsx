@@ -85,10 +85,17 @@ async function revokeToken(token: string): Promise<void> {
   }
 }
 
-/** Decode a JWT payload without a library; null if malformed or expired. */
-function isTokenExpired(token: string): boolean {
+/** True when the JWT is malformed or its exp has passed. JWT segments are
+ *  base64URL (—/_ alphabet, stripped padding) and the payload body is UTF-8,
+ *  so the raw segment must be normalized before atob and decoded through
+ *  TextDecoder. Calling atob on the raw segment throws on most real tokens —
+ *  which cleared the token and logged every cold boot out. */
+export function isTokenExpired(token: string): boolean {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
     return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now();
   } catch {
     return true;
