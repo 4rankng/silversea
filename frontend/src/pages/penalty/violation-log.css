@@ -167,7 +167,7 @@
   gap: 6px;
   padding: 4px 10px;
   background: var(--accent-soft);
-  border: 1px solid rgba(0, 177, 79, 0.15);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
   border-radius: 999px;
   color: var(--accent-ink);
   font-size: var(--fs-2xs);
@@ -181,7 +181,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* ─── Segmented time filter ─── */
@@ -222,7 +222,7 @@
 .penalty-seg button.active {
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
 .penalty-seg button:hover:not(.active) {
@@ -256,7 +256,7 @@
   color: var(--accent-2);
   display: grid;
   place-items: center;
-  border: 1px solid rgba(0, 177, 79, 0.15);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
   flex-shrink: 0;
 }
 
@@ -313,18 +313,18 @@
 }
 
 .penalty-rank.gold {
-  background: #FEF3C7;
-  color: #92400E;
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 .penalty-rank.silver {
-  background: #F1F5F9;
-  color: #475569;
+  background: var(--surface-3);
+  color: var(--ink-2);
 }
 
 .penalty-rank.bronze {
-  background: #FED7AA;
-  color: #9A3412;
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 /* ─── Driver cell ─── */
@@ -401,7 +401,7 @@
 }
 
 .penalty-streak-bar .fill.gold {
-  background: linear-gradient(90deg, var(--accent), #FCD34D);
+  background: linear-gradient(90deg, var(--accent), var(--brass-3));
 }
 
 /* ─── Violation count indicator ─── */
@@ -482,25 +482,25 @@
 .penalty-grade.a-plus {
   background: var(--accent-soft);
   color: var(--accent-ink);
-  border: 1px solid rgba(0, 177, 79, 0.15);
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .penalty-grade.a {
   background: var(--info-soft);
   color: var(--info);
-  border: 1px solid rgba(30, 91, 184, 0.15);
+  border: 1px solid color-mix(in srgb, var(--info) 15%, transparent);
 }
 
 .penalty-grade.b {
   background: var(--warning-soft);
   color: var(--warning-text);
-  border: 1px solid rgba(245, 166, 35, 0.2);
+  border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
 }
 
 .penalty-grade.c {
   background: var(--danger-soft);
   color: var(--danger-text);
-  border: 1px solid rgba(227, 36, 52, 0.15);
+  border: 1px solid color-mix(in srgb, var(--danger) 15%, transparent);
 }
 
 /* ─── Row action buttons ─── */
@@ -523,13 +523,79 @@
   color: var(--ink-2);
 }
 
+.penalty-row-act--danger {
+  color: var(--danger);
+}
+
 .penalty-row-act.primary:hover {
   background: var(--accent-soft);
   color: var(--accent-2);
-  border-color: rgba(0, 177, 79, 0.15);
+  border-color: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 /* ─── Filter chips ─── */
+
+.penalty-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+}
+
+.penalty-loading--padded {
+  padding: 48px;
+  text-align: center;
+}
+
+.penalty-spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--line-2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+}
+
+.penalty-foot-value {
+  font-family: var(--font-data);
+  color: var(--ink);
+}
+
+.penalty-foot-sep {
+  opacity: 0.5;
+}
+
+.penalty-page-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.penalty-scoreboard-col-center {
+  text-align: center;
+}
+
+.penalty-scoreboard-col-rank {
+  width: 54px;
+  text-align: center;
+}
+
+.penalty-scoreboard-col-action {
+  width: 44px;
+}
+
+.penalty-scoreboard-row {
+  cursor: pointer;
+}
+
+.penalty-vio-type-list {
+  display: flex;
+  flex-direction: column;
+}
 
 .penalty-chip {
   display: inline-flex;
@@ -569,6 +635,6 @@
 }
 
 .penalty-chip.active .count {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, white 20%, transparent);
   color: var(--fg-on-brand);
 }

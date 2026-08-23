@@ -88,7 +88,7 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
             <div className="metric">
               <div className="metric-label">
                 Tổng giá trị lệnh{' '}
-                <span style={{ fontWeight: 500, fontSize: 'var(--fs-xs)', lineHeight: 1.35, opacity: 0.75 }}>
+                <span className="metric-label-hint">
                   (tất cả trạng thái)
                 </span>
               </div>

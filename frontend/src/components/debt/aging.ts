@@ -10,7 +10,7 @@ import type { AgingBucket } from '@tingting/shared';
 export const AGING_RANGES = [
   { label: '0–30 NGÀY',  dotColor: 'var(--accent)',  index: 0 },
   { label: '31–60 NGÀY', dotColor: 'var(--warning)', index: 1 },
-  { label: '61–90 NGÀY', dotColor: '#D97706',        index: 2 },
+  { label: '61–90 NGÀY', dotColor: 'var(--warning-deep, #D97706)', index: 2 },
   { label: 'TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
 ] as const;
 

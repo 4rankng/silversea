@@ -1,7 +1,9 @@
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, ClipboardCheck, WalletCards } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowUpRight } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { Tabs } from '../design-system';
+import type { TabItem } from '../design-system';
 import AdminAdvancesPage from './AdminAdvancesPage';
 import AdminAdvanceSettlementsPage from './AdminAdvanceSettlementsPage';
 import './AdvanceWorkspacePage.css';
@@ -25,7 +27,17 @@ export function buildAdvanceWorkspaceSearch(
 
 export default function AdvanceWorkspacePage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const activeView = resolveAdvanceWorkspaceView(searchParams.get('view'));
+
+  const tabs: TabItem[] = [
+    { id: 'requests', label: 'Yêu cầu tạm ứng' },
+    { id: 'settlements', label: 'Phiếu hoàn ứng' },
+  ];
+
+  const handleTabChange = (id: string) => {
+    navigate(buildAdvanceWorkspaceSearch(searchParams, id as AdvanceWorkspaceView));
+  };
 
   return (
     <div className="advance-workspace">
@@ -49,24 +61,14 @@ export default function AdvanceWorkspacePage() {
         </Link>
       </div>
 
-      <nav className="advance-workspace__views" aria-label="Tạm ứng và hoàn ứng">
-        <Link
-          className={activeView === 'requests' ? 'is-active' : ''}
-          aria-current={activeView === 'requests' ? 'page' : undefined}
-          to={buildAdvanceWorkspaceSearch(searchParams, 'requests')}
-        >
-          <WalletCards size={18} aria-hidden="true" />
-          <span>Yêu cầu tạm ứng</span>
-        </Link>
-        <Link
-          className={activeView === 'settlements' ? 'is-active' : ''}
-          aria-current={activeView === 'settlements' ? 'page' : undefined}
-          to={buildAdvanceWorkspaceSearch(searchParams, 'settlements')}
-        >
-          <ClipboardCheck size={18} aria-hidden="true" />
-          <span>Phiếu hoàn ứng</span>
-        </Link>
-      </nav>
+      <Tabs
+        className="advance-workspace__views"
+        tabs={tabs}
+        value={activeView}
+        onChange={handleTabChange}
+        variant="bordered"
+        ariaLabel="Tạm ứng và hoàn ứng"
+      />
 
       <section
         className="advance-workspace__content"

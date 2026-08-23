@@ -63,9 +63,9 @@ export default function TripDetailPage() {
   if (page.error && !page.trip) {
     return (
       <div className="fade-up">
-        <div className="card" style={{ padding: 24 }}>
-          <p style={{ color: 'var(--danger)', fontSize: 14 }}>{page.error}</p>
-          <button className="btn btn--secondary btn--sm" style={{ marginTop: 12 }} onClick={() => page.refetchTrip()}>
+        <div className="card tdp-error-card">
+          <p className="tdp-error-text">{page.error}</p>
+          <button className="btn btn--secondary btn--sm tdp-error-retry" onClick={() => page.refetchTrip()}>
             Thử lại
           </button>
         </div>
@@ -106,7 +106,7 @@ export default function TripDetailPage() {
           { label: trip.tripCode || 'Chuyến chưa có mã' },
         ]}
         renderLink={(to, children) => (
-          <a onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>{children}</a>
+          <a onClick={() => navigate(to)} className="tdp-crumb-link">{children}</a>
         )}
       />
       <TripHeader
@@ -130,7 +130,7 @@ export default function TripDetailPage() {
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
-      <fieldset disabled={Boolean(accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset disabled={Boolean(accountingLock)} className="tdp-fieldset-reset">
 
       <Modal
         isOpen={governanceIntent !== null}
@@ -164,9 +164,9 @@ export default function TripDetailPage() {
           </>
         }
       >
-        <label style={{ display: 'grid', gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            Lý do <span style={{ color: 'var(--danger)' }}>*</span>
+        <label className="tdp-governance-label">
+          <span className="tdp-governance-label-text">
+            Lý do <span className="tdp-governance-asterisk">*</span>
           </span>
           <textarea
             aria-label="Lý do đề nghị"
@@ -238,7 +238,7 @@ export default function TripDetailPage() {
                   </div>
                 )}
                 {trip.instructions.notes && (
-                  <p className="tdp-notes-body" style={{ marginTop: 8 }}>{trip.instructions.notes}</p>
+                  <p className="tdp-notes-body tdp-instructions-notes">{trip.instructions.notes}</p>
                 )}
               </div>
             </section>
@@ -314,12 +314,12 @@ export default function TripDetailPage() {
             {ui.reassignError}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div className="tdp-reassign-toggle-group">
           <button
             type="button"
             onClick={() => page.setReassignCarrierType('OWN')}
             aria-pressed={ui.reassignCarrierType === 'OWN'}
-            style={{ flex: 1, padding: '6px', fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: ui.reassignCarrierType === 'OWN' ? 'var(--brand-soft)' : '#fff', color: ui.reassignCarrierType === 'OWN' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+            className="tdp-reassign-toggle-btn"
           >
             Xe nhà
           </button>
@@ -327,7 +327,7 @@ export default function TripDetailPage() {
             type="button"
             onClick={() => page.setReassignCarrierType('EXTERNAL')}
             aria-pressed={ui.reassignCarrierType === 'EXTERNAL'}
-            style={{ flex: 1, padding: '6px', fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: ui.reassignCarrierType === 'EXTERNAL' ? 'var(--brand-soft)' : '#fff', color: ui.reassignCarrierType === 'EXTERNAL' ? 'var(--brand-dark)' : 'var(--text-2)' }}
+            className="tdp-reassign-toggle-btn"
           >
             Xe ngoài
           </button>

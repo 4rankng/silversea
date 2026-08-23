@@ -405,7 +405,7 @@ export default function DebtDetailPage() {
           <div className="dd-name-row" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1>{customer.name}</h1>
             {customer.isCarrier && (
-              <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '3px 7px', letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <span className="dd-carrier-badge">
                 <Truck size={12} aria-hidden="true" /> Xe ngoài
               </span>
             )}

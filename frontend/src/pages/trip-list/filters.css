@@ -174,7 +174,7 @@
   min-width: 0;
   transition: background .16s ease, border-color .16s ease;
 }
-.trip-list-page .filter-pill:hover { background: #FCFDFD; border-color: #D8DEDB; }
+.trip-list-page .filter-pill:hover { background: var(--surface); border-color: var(--line-2); }
 .trip-list-page .filter-pill:focus-within {
   background: var(--surface);
   border-color: var(--fc-green);
@@ -207,6 +207,54 @@
   overflow: visible;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/*
+ * UuiSelectField inside a filter-pill: the pill already provides the chrome
+ * (border, background, chevron). The UUI trigger button (rounded border +
+ * white background + own chevron) was rendering as a nested box on top of
+ * the pill chrome, producing a "box-in-a-box" visual with a duplicate
+ * chevron. Strip the trigger's own chrome so the pill is the single visual
+ * unit, and hide the UUI's built-in chevron because the custom `.filter-chev`
+ * at the end of the pill (which already has a `has-value` color state) is
+ * the established visual.
+ */
+.trip-list-page .filter-pill .ds-uui-select {
+  display: contents;
+}
+.trip-list-page .filter-pill .ds-uui-select__control,
+.trip-list-page .filter-pill .ds-uui-select__control > button {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  color: inherit;
+  font: inherit;
+  font-size: var(--filter-control-font-size);
+  font-weight: 600;
+  line-height: var(--filter-control-line-height);
+  transition: none;
+}
+.trip-list-page .filter-pill .ds-uui-select__control > button:focus,
+.trip-list-page .filter-pill .ds-uui-select__control > button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.trip-list-page .filter-pill .ds-uui-select__control > button > span {
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+  gap: 6px;
+}
+.trip-list-page .filter-pill .ds-uui-select__control svg[aria-hidden='true'] {
+  display: none;
 }
 
 @media (max-width: 1180px) {

@@ -146,12 +146,12 @@
   text-transform: uppercase;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 2%, transparent);
 }
-.penalty-grade-badge.a-plus { background: #ECFDF5; color: #047857; border: 1px solid rgba(16, 185, 129, 0.2); }
-.penalty-grade-badge.a { background: #EFF6FF; color: #1E40AF; border: 1px solid rgba(59, 130, 246, 0.2); }
-.penalty-grade-badge.b { background: #FFFBEB; color: #92400E; border: 1px solid rgba(245, 158, 11, 0.2); }
-.penalty-grade-badge.c { background: #FEF2F2; color: #991B1B; border: 1px solid rgba(239, 68, 68, 0.2); }
+.penalty-grade-badge.a-plus { background: var(--accent-soft); color: var(--success-text); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); }
+.penalty-grade-badge.a { background: var(--info-soft); color: var(--info-text); border: 1px solid color-mix(in srgb, var(--info) 20%, transparent); }
+.penalty-grade-badge.b { background: var(--warning-soft); color: var(--warning-text); border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent); }
+.penalty-grade-badge.c { background: var(--danger-soft); color: var(--danger-text); border: 1px solid color-mix(in srgb, var(--danger) 20%, transparent); }
 
 .penalty-m-card__meta {
   display: grid;
@@ -234,7 +234,7 @@
     width: 36px;
     height: 36px;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--accent-soft) 0%, rgba(0,177,79,0.05) 100%);
+    background: linear-gradient(135deg, var(--accent-soft) 0%, color-mix(in srgb, var(--accent) 5%, transparent) 100%);
   }
 
   .penalty-page .penalty-card-title {

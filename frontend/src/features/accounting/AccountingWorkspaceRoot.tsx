@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
+import { Tabs } from '../../design-system/Tabs';
 import { AccountingOverview } from './AccountingOverview';
 import { AccountingTransportRegister } from './AccountingTransportRegister';
 import { AccountingWorkInbox } from './AccountingWorkInbox';
+import type { AccountingView } from './accountingWorkspaceTypes';
 import { buildTransportSelectionScopeKey, displayBusinessDate } from './accountingWorkspaceUtils';
 import { useAccountingWorkspaceQueries } from './useAccountingWorkspaceQueries';
 import { useAccountingWorkspaceUrlState } from './useAccountingWorkspaceUrlState';
@@ -13,6 +14,7 @@ export function AccountingWorkspaceRoot() {
     state,
     setFrom,
     setTo,
+    setView,
     viewHref,
     setTransportSearch,
     setTransportFilter,
@@ -70,26 +72,18 @@ export function AccountingWorkspaceRoot() {
         </div>
       </section>}
 
-      <nav className="accounting-tabs" aria-label="Không gian kế toán">
-        <Link
-          to={viewHref('work')}
-          aria-current={state.activeView === 'work' ? 'page' : undefined}
-        >
-          Công việc
-        </Link>
-        <Link
-          to={viewHref('overview')}
-          aria-current={state.activeView === 'overview' ? 'page' : undefined}
-        >
-          Tổng quan
-        </Link>
-        <Link
-          to={viewHref('transport')}
-          aria-current={state.activeView === 'transport' ? 'page' : undefined}
-        >
-          Đối chiếu vận tải
-        </Link>
-      </nav>
+      <Tabs
+        ariaLabel="Không gian kế toán"
+        variant="boxed"
+        value={state.activeView}
+        onChange={(id) => setView(id as AccountingView)}
+        className="accounting-tabs"
+        tabs={[
+          { id: 'work', label: 'Công việc' },
+          { id: 'overview', label: 'Tổng quan' },
+          { id: 'transport', label: 'Đối chiếu vận tải' },
+        ]}
+      />
 
       {state.activeView === 'overview' && queries.hasOverviewError && (
         <div className="accounting-alert" role="alert">

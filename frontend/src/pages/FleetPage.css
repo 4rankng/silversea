@@ -4,6 +4,14 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+
+  /* Fleet-scoped color tokens — keeps gradient/border stops themeable
+     without polluting the global token sheet. */
+  --fleet-glow: #00B14F;
+  --fleet-green-end: #DDF7E8;
+  --fleet-blue-start: #EFF6FF;
+  --fleet-blue-mid: #E6F0FF;
+  --fleet-blue-border: #DBEAFE;
 }
 
 .fleet-page .kpi {
@@ -11,8 +19,8 @@
   padding: 16px 18px;
   background:
     radial-gradient(96px 64px at 96% 42%, color-mix(in srgb, var(--stat-rail) 8%, transparent), transparent 76%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 252, 251, 0.94));
-  border-color: rgba(203, 211, 206, 0.82);
+    linear-gradient(180deg, color-mix(in srgb, white 99%, transparent), color-mix(in srgb, var(--surface-2) 94%, transparent));
+  border-color: color-mix(in srgb, var(--line-2) 82%, transparent);
 }
 
 .fleet-page .kpi-grid {
@@ -65,7 +73,47 @@
 }
 
 .fleet-page .fleet-kpi-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
+}
+
+.fleet-page .fleet-kpi-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.fleet-page .fleet-kpi-dot--success {
+  background: var(--success);
+}
+
+.fleet-page .fleet-kpi-dot--warn {
+  background: var(--warning);
+}
+
+.fleet-page .fleet-kpi-meta__good {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.fleet-page .fleet-kpi-meta__warn {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.fleet-page .fleet-kpi-meta__sep {
+  opacity: 0.4;
+}
+
+.fleet-page .fleet-kpi-meta__mono {
+  font-family: var(--font-data);
+}
+
+.fleet-page .fleet-action-row {
+  display: flex;
+  gap: 8px;
 }
 
 /* Two-column layout for trucks + trailers */
@@ -96,12 +144,12 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
+  background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
   color: var(--accent-2);
   display: grid;
   place-items: center;
-  border: 1px solid rgba(0, 177, 79, 0.22);
-  box-shadow: 0 8px 18px -12px rgba(0, 90, 45, 0.45);
+  border: 1px solid color-mix(in srgb, var(--fleet-glow) 22%, transparent);
+  box-shadow: 0 8px 18px -12px color-mix(in srgb, var(--accent-2) 45%, transparent);
   flex-shrink: 0;
 }
 
@@ -209,15 +257,15 @@
 }
 
 .fleet-page .fleet-type-chip.ft40 {
-  background: linear-gradient(180deg, #EFF6FF, #E6F0FF);
+  background: linear-gradient(180deg, var(--fleet-blue-start), var(--fleet-blue-mid));
   color: var(--info);
-  border-color: #DBEAFE;
+  border-color: var(--fleet-blue-border);
 }
 
 .fleet-page .fleet-type-chip.ft20 {
-  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
+  background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
   color: var(--accent-2);
-  border-color: rgba(0, 177, 79, 0.15);
+  border-color: color-mix(in srgb, var(--fleet-glow) 15%, transparent);
 }
 
 /* Truck+trailer pair display */
@@ -248,9 +296,9 @@
   width: fit-content;
   min-height: var(--control-compact-h);
   padding: 6px 11px 6px 7px;
-  border: 1px solid rgba(0, 177, 79, 0.18);
+  border: 1px solid color-mix(in srgb, var(--fleet-glow) 18%, transparent);
   border-radius: 8px;
-  background: rgba(230, 247, 237, 0.65);
+  background: color-mix(in srgb, var(--fleet-green-end) 65%, transparent);
   color: var(--accent-2);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -260,8 +308,8 @@
 
 .fleet-page .fleet-tire-link:hover,
 .fleet-detail .fleet-tire-link:hover {
-  border-color: rgba(0, 177, 79, 0.34);
-  background: rgba(221, 247, 232, 0.95);
+  border-color: color-mix(in srgb, var(--fleet-glow) 34%, transparent);
+  background: color-mix(in srgb, var(--fleet-green-end) 95%, transparent);
   color: var(--accent);
   transform: translateY(-1px);
 }
@@ -278,7 +326,7 @@
   font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 800;
-  box-shadow: inset 0 0 0 1px rgba(203, 211, 206, 0.8);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-2) 80%, transparent);
 }
 
 .fleet-page .fleet-tire-link--empty,
@@ -537,6 +585,13 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+
+  /* Mirror fleet-scoped tokens for portaled detail modal */
+  --fleet-glow: #00B14F;
+  --fleet-green-end: #DDF7E8;
+  --fleet-blue-start: #EFF6FF;
+  --fleet-blue-mid: #E6F0FF;
+  --fleet-blue-border: #DBEAFE;
 }
 
 .fleet-detail__hero {
@@ -545,11 +600,11 @@
   align-items: center;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(203, 211, 206, 0.86);
+  border: 1px solid color-mix(in srgb, var(--line-2) 86%, transparent);
   border-radius: 12px;
   background:
-    radial-gradient(140px 80px at 100% 0%, rgba(0, 177, 79, 0.09), transparent 72%),
-    linear-gradient(180deg, rgba(250, 252, 251, 0.98), rgba(246, 249, 247, 0.9));
+    radial-gradient(140px 80px at 100% 0%, color-mix(in srgb, var(--fleet-glow) 9%, transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 98%, transparent), color-mix(in srgb, var(--surface-2) 90%, transparent));
 }
 
 .fleet-detail__identity,
@@ -674,14 +729,14 @@
 }
 
 .fleet-detail .fleet-type-chip.ft40 {
-  background: linear-gradient(180deg, #EFF6FF, #E6F0FF);
-  border-color: #DBEAFE;
+  background: linear-gradient(180deg, var(--fleet-blue-start), var(--fleet-blue-mid));
+  border-color: var(--fleet-blue-border);
   color: var(--info);
 }
 
 .fleet-detail .fleet-type-chip.ft20 {
-  background: linear-gradient(180deg, var(--accent-soft), #DDF7E8);
-  border-color: rgba(0, 177, 79, 0.15);
+  background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
+  border-color: color-mix(in srgb, var(--fleet-glow) 15%, transparent);
   color: var(--accent-2);
 }
 
@@ -717,7 +772,7 @@
   gap: 12px;
   min-height: 42px;
   padding: 8px 10px;
-  border: 1px solid rgba(203, 211, 206, 0.72);
+  border: 1px solid color-mix(in srgb, var(--line-2) 72%, transparent);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -785,10 +840,10 @@
 }
 
 .fleet-form__section--identity {
-  border-color: rgba(203, 211, 206, 0.9);
+  border-color: color-mix(in srgb, var(--line-2) 90%, transparent);
   background:
-    radial-gradient(160px 96px at 100% 0%, rgba(0, 177, 79, 0.08), transparent 72%),
-    linear-gradient(180deg, rgba(250, 252, 251, 0.98), rgba(247, 250, 248, 0.92));
+    radial-gradient(160px 96px at 100% 0%, color-mix(in srgb, var(--fleet-glow) 8%, transparent), transparent 72%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 98%, transparent), color-mix(in srgb, var(--surface-2) 92%, transparent));
 }
 
 .fleet-form__section-head {
@@ -900,9 +955,9 @@
 
 .fleet-form__note {
   padding: 11px 13px;
-  border: 1px solid rgba(203, 211, 206, 0.82);
+  border: 1px solid color-mix(in srgb, var(--line-2) 82%, transparent);
   border-radius: 10px;
-  background: rgba(247, 250, 248, 0.88);
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
   color: var(--ink-3);
   font-size: var(--fs-xs);
   line-height: 1.5;

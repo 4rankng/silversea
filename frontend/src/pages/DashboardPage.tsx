@@ -11,7 +11,7 @@ import { EmptyState as DsEmptyState } from '../design-system/EmptyState';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { AssetIcon } from '../components/AssetIcon';
 import { useDashboardData } from '../features/dashboard/hooks/useDashboardData';
-import { styles, fmtMoM } from '../features/dashboard/utils';
+import { fmtMoM } from '../features/dashboard/utils';
 import { useMonth } from '../hooks/useMonth';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
 import { AuditLogWidget } from '../features/dashboard/components/AuditLogWidget';
@@ -309,7 +309,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="dash-wf fade-up">
-        <div className="wf-head"><div><SkeletonLine width="240px" /><div style={styles.thinBar} /><SkeletonLine width="320px" /></div></div>
+        <div className="wf-head"><div><SkeletonLine width="240px" /><div className="wf-thin-bar" /><SkeletonLine width="320px" /></div></div>
         <SkeletonKPIs count={4} />
       </div>
     );
@@ -523,8 +523,8 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="wf-legend">
-              <span className="li"><span className="sw" style={{ background: 'var(--wf-green)' }} />Doanh thu</span>
-              <span className="li"><span className="sw" style={{ background: 'var(--wf-blue)' }} />Lợi nhuận gộp</span>
+              <span className="li"><span className="sw sw--revenue" />Doanh thu</span>
+              <span className="li"><span className="sw sw--gross" />Lợi nhuận gộp</span>
             </div>
             <div className="body">
               {(() => {
@@ -570,10 +570,10 @@ export default function DashboardPage() {
             </div>
             <div className="body">
               <div className="wf-fstats">
-                <div className="wf-fstat"><div className="v"><span className="pip" style={{ background: 'var(--wf-green-500)' }} />{fleet.ready}</div><div className="k">Sẵn sàng</div></div>
-                <div className="wf-fstat"><div className="v"><span className="pip" style={{ background: 'var(--wf-green)' }} />{fleet.inTransit}</div><div className="k">Đang chạy</div></div>
-                <div className="wf-fstat"><div className="v"><span className="pip" style={{ background: 'var(--wf-amber)' }} />{fleet.maintenance}</div><div className="k">Bảo dưỡng</div></div>
-                <div className="wf-fstat"><div className="v"><span className="pip" style={{ background: 'var(--wf-ink-3)' }} />{fleet.idle}</div><div className="k">Ngừng</div></div>
+                <div className="wf-fstat"><div className="v"><span className="pip pip--ready" />{fleet.ready}</div><div className="k">Sẵn sàng</div></div>
+                <div className="wf-fstat"><div className="v"><span className="pip pip--transit" />{fleet.inTransit}</div><div className="k">Đang chạy</div></div>
+                <div className="wf-fstat"><div className="v"><span className="pip pip--maintenance" />{fleet.maintenance}</div><div className="k">Bảo dưỡng</div></div>
+                <div className="wf-fstat"><div className="v"><span className="pip pip--idle" />{fleet.idle}</div><div className="k">Ngừng</div></div>
               </div>
               {fleet.utilization != null && (
                 <div className="wf-util">

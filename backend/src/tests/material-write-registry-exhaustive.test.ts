@@ -38,6 +38,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
   ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
   ['shipments/core.routes.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
+  ['shipments/core.routes.ts|PATCH|/operational-sites/:id', 'Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'],
 ]);
 
 const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {

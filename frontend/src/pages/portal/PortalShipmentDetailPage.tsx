@@ -228,8 +228,8 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Lịch sử trạng thái</h2>
           {statusHistory.map((h) => (
-            <div key={h.id} className="portal-list__meta" style={{ padding: '7px 0' }}>
-              <span style={{ fontWeight: 600 }}>{SHIPMENT_STATUS_LABELS[h.toStatus as keyof typeof SHIPMENT_STATUS_LABELS] ?? h.toStatus}</span>
+            <div key={h.id} className="portal-list__meta portal-history-row">
+              <span className="portal-history-label">{SHIPMENT_STATUS_LABELS[h.toStatus as keyof typeof SHIPMENT_STATUS_LABELS] ?? h.toStatus}</span>
               <span>{new Date(h.changedAt).toLocaleString('vi-VN')}</span>
             </div>
           ))}

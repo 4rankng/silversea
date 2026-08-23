@@ -49,8 +49,8 @@
   height: 44px;
   border-radius: 12px;
   flex-shrink: 0;
-  background: #fff;
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, rgba(17, 24, 39, 0.08));
   display: grid;
   place-items: center;
   box-shadow: 0 10px 22px -16px rgba(15, 23, 42, 0.22);
@@ -119,6 +119,21 @@
   height: 7px;
   border-radius: 50%;
   background: currentColor;
+}
+
+.dd-carrier-badge {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--info-text);
+  background: var(--info-soft);
+  border: 1px solid color-mix(in srgb, var(--info) 22%, transparent);
+  border-radius: 4px;
+  padding: 3px 7px;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .dd-actions {
@@ -302,7 +317,7 @@
 }
 .dd-seg-0 { background: var(--accent); }
 .dd-seg-1 { background: var(--warning); }
-.dd-seg-2 { background: #D97706; }
+.dd-seg-2 { background: var(--warning-deep, #D97706); }
 .dd-seg-3 { background: var(--danger); }
 
 /* ─── Aging Grid ────────────────────────────────────────────────────────────── */
@@ -400,7 +415,7 @@
   gap: 18px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAF9 100%);
+  background: linear-gradient(180deg, var(--surface, #FFFFFF) 0%, var(--surface-2, #F8FAF9) 100%);
 }
 
 .dd-workspace-head h2 {
@@ -718,7 +733,7 @@
   align-items: start;
   padding: 18px 20px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAF9 100%);
+  background: linear-gradient(180deg, var(--surface, #FFFFFF) 0%, var(--surface-2, #F8FAF9) 100%);
 }
 
 .dd-route-card-head h3 {
@@ -807,7 +822,7 @@
   font-family: var(--font-data);
   font-size: var(--fs-xs);
   font-weight: 700;
-  color: #00803a;
+  color: var(--success, #00803a);
 }
 
 .dd-route-containers {
@@ -837,7 +852,7 @@
 
 .dd-accounting-row--head {
   min-height: 34px;
-  background: #F6F8F7;
+  background: var(--surface-2, #F6F8F7);
   color: var(--ink-3);
   font-size: var(--fs-xs);
   font-weight: 850;
@@ -845,9 +860,9 @@
 }
 
 .dd-accounting-row--container {
-  background: #F0FAF4;
+  background: var(--success-soft, #F0FAF4);
   border-top: 1px solid var(--line);
-  box-shadow: inset 3px 0 0 #12A150;
+  box-shadow: inset 3px 0 0 var(--success, #12A150);
 }
 
 .dd-accounting-row--head + .dd-accounting-row--container {
@@ -871,7 +886,7 @@
 }
 
 .dd-accounting-row--container span:nth-child(3) {
-  color: #087F3B;
+  color: var(--success-text, #087F3B);
   font-size: var(--fs-xs);
   font-weight: 800;
 }
@@ -926,7 +941,7 @@
 }
 
 .dd-accounting-row--container strong {
-  color: #064E2A;
+  color: var(--accent-2, #064E2A);
   font-weight: 900;
 }
 
@@ -943,7 +958,7 @@
   gap: 12px;
   align-items: start;
   padding: 10px 12px;
-  background: #FCFDFD;
+  background: var(--surface-2, #FCFDFD);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1062,9 +1077,9 @@
   display: grid;
   margin: 10px 0 0 104px;
   overflow: hidden;
-  border: 1px solid #D7EBDD;
+  border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
   border-radius: 8px;
-  background: #FBFFFC;
+  background: var(--success-soft, #FBFFFC);
 }
 
 .dd-fee-line {
@@ -1074,7 +1089,7 @@
   gap: 12px;
   min-height: 32px;
   padding: 6px 10px;
-  border-bottom: 1px solid #E1F0E6;
+  border-bottom: 1px solid color-mix(in srgb, var(--success) 18%, transparent);
 }
 
 .dd-fee-line:last-child {
@@ -1083,12 +1098,12 @@
 
 .dd-fee-line--head {
   min-height: 28px;
-  background: #F1FAF4;
+  background: var(--success-soft, #F1FAF4);
 }
 
 .dd-fee-line span {
   font-size: var(--fs-xs);
-  color: #24613E;
+  color: var(--success-text, #24613E);
   font-weight: 750;
   min-width: 0;
 }
@@ -1154,15 +1169,15 @@
 }
 
 .dd-single-credit {
-  color: #00803a;
+  color: var(--success, #00803a);
 }
 
 .dd-breakdown-section--service-fees .dd-breakdown-head {
-  background: #F3FBF6;
+  background: var(--success-soft, #F3FBF6);
 }
 
 .dd-breakdown-section--freight .dd-breakdown-head {
-  background: #F6FAFF;
+  background: var(--info-soft, #F6FAFF);
 }
 
 @media (max-width: 900px) {
@@ -1502,13 +1517,13 @@
   text-align: center;
 }
 .dd-ledger-group-row {
-  background: #F8FFFB;
+  background: var(--success-soft, #F8FFFB);
 }
 .dd-ledger-group-row td {
   font-weight: 650;
 }
 .dd-ledger-detail-row {
-  background: #FAFBFA;
+  background: var(--surface-2, #FAFBFA);
 }
 .dd-ledger-detail-row td {
   color: var(--ink-2);
@@ -1570,7 +1585,7 @@
 
 .dd-txn-pill--pay {
   background: var(--accent-soft);
-  color: #00803a;
+  color: var(--success, #00803a);
 }
 .dd-txn-pill--adj {
   background: var(--warning-soft);
@@ -1581,8 +1596,8 @@
   color: var(--info-text);
 }
 .dd-txn-pill--fee {
-  background: #EAF6ED;
-  color: #00702F;
+  background: var(--success-soft, #EAF6ED);
+  color: var(--success-text, #00702F);
 }
 .dd-txn-pill--pen {
   background: var(--danger-soft);
@@ -1608,9 +1623,9 @@
   min-height: 26px;
   padding: 4px 9px;
   border-radius: 8px;
-  background: #EEF7F1;
-  color: #0B6B38;
-  border: 1px solid #D7EBDD;
+  background: var(--success-soft, #EEF7F1);
+  color: var(--success-text, #0B6B38);
+  border: 1px solid color-mix(in srgb, var(--success) 22%, transparent);
   font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
@@ -1631,7 +1646,7 @@
   font-size: var(--fs-sm);
 }
 .dd-num--debit { color: var(--ink); }
-.dd-num--credit { color: #00803a; }
+.dd-num--credit { color: var(--success, #00803a); }
 .dd-num--bal { color: var(--danger); font-weight: 700; }
 .dd-num--dash { color: var(--ink-3); font-weight: 400; }
 
@@ -1928,16 +1943,16 @@
   background: var(--bg-1, #f9fafb);
 }
 .dd-credit-strip.dd-credit--ok {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+  background: var(--success-soft, #f0fdf4);
+  border-color: color-mix(in srgb, var(--success) 35%, transparent);
 }
 .dd-credit-strip.dd-credit--warning {
-  background: #fffbeb;
-  border-color: #fcd34d;
+  background: var(--warning-soft, #fffbeb);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
 }
 .dd-credit-strip.dd-credit--exceeded {
-  background: #fef2f2;
-  border-color: #fca5a5;
+  background: var(--danger-soft, #fef2f2);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .dd-credit__info {
   display: flex;
@@ -1975,16 +1990,16 @@
   white-space: nowrap;
 }
 .dd-credit__badge--ok {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-soft, #dcfce7);
+  color: var(--success-text, #166534);
 }
 .dd-credit__badge--warning {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-soft, #fef3c7);
+  color: var(--warning-text, #92400e);
 }
 .dd-credit__badge--exceeded {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--danger-soft, #fee2e2);
+  color: var(--danger-text, #991b1b);
 }
 @media (max-width: 640px) {
   .dd-credit-strip { gap: 12px; }

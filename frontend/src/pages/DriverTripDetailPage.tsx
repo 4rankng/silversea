@@ -563,7 +563,7 @@ export default function DriverTripDetailPage() {
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
-      <fieldset disabled={Boolean(accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
@@ -618,16 +618,10 @@ export default function DriverTripDetailPage() {
           <span>Bốn mốc thực hiện</span>
         </div>
         <div
-          style={{
-            marginBottom: 12,
-            padding: '12px 14px',
-            borderRadius: 12,
-            border: '1px solid var(--border-1)',
-            background: paperOrderReady ? 'var(--bg-2)' : 'rgba(245, 158, 11, 0.08)',
-          }}
+          className={`driver-task-paper-order${paperOrderReady ? ' driver-task-paper-order--ready' : ''}`}
         >
-          <strong style={{ display: 'block', marginBottom: 4, color: 'var(--fg-1)' }}>Bước 1 cần Ops bàn giao lệnh gốc</strong>
-          <span style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+          <strong className="driver-task-paper-order__title">Bước 1 cần Ops bàn giao lệnh gốc</strong>
+          <span className="driver-task-paper-order__desc">
             {paperOrderReady
               ? `${trip.paperOrderCollectedByName || 'Ops'} đã xác nhận bàn giao lúc ${formatDateTime(trip.paperOrderCollectedAt)}.`
               : 'Ops chưa xác nhận bàn giao lệnh gốc, nên bạn chưa thể bấm “Đã nhận lệnh gốc”.'}
@@ -695,27 +689,18 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Ảnh nhiên liệu</span>
         </div>
-        <div style={{ display: 'grid', gap: 14 }}>
-          <div
-            style={{
-              border: '1px solid var(--border-1)',
-              borderRadius: 14,
-              padding: 14,
-              background: 'var(--bg-2)',
-              display: 'grid',
-              gap: 12,
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="driver-task-fuel-section">
+          <div className="driver-task-fuel-card">
+            <div className="driver-task-fuel-header">
               <div>
-                <strong style={{ display: 'block', marginBottom: 4 }}>Chụp màn hình bơm gần nhất</strong>
-                <div style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+                <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
+                <div className="driver-task-fuel-subtitle">
                   {latestFuelEvidence
                     ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
                     : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
                 </div>
               </div>
-              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading' : ''}`} style={{ cursor: uploadingFuelEvidence ? 'wait' : 'pointer' }}>
+              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
                 <Camera size={16} />
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
                 <input
@@ -734,20 +719,20 @@ export default function DriverTripDetailPage() {
             </div>
 
             {!online && (
-              <div style={{ fontSize: 13, color: 'var(--warn, #b45309)' }}>
+              <div className="driver-task-fuel-offline">
                 Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
               </div>
             )}
 
             {latestFuelEvidence && (
-              <div style={{ display: 'grid', gap: 12 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div className="driver-task-fuel-details">
+                <div className="driver-task-fuel-grid">
                   <img
                     src={latestFuelEvidence.photoUrl}
                     alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
-                    style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
+                    className="driver-task-fuel-img"
                   />
-                  <div style={{ display: 'grid', gap: 8, fontSize: 13 }}>
+                  <div className="driver-task-fuel-facts">
                     <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
                     <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
                     <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
@@ -757,7 +742,7 @@ export default function DriverTripDetailPage() {
                   </div>
                 </div>
                 {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
-                  <div style={{ padding: 12, borderRadius: 12, background: 'rgba(15, 23, 42, 0.04)', fontSize: 13, color: 'var(--fg-2)' }}>
+                  <div className="driver-task-fuel-notes">
                     {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
                     {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
                     {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}

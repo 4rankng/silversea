@@ -98,6 +98,7 @@ export function useAccountingWorkspaceUrlState() {
     setFrom: (value: string) => applyUrlState({ from: value, page: null }),
     setTo: (value: string) => applyUrlState({ to: value, page: null }),
     viewHref: (view: AccountingView) => buildAccountingViewHref(searchParams, view),
+    setView: (view: AccountingView) => applyUrlState({ view: view === 'work' ? null : view, page: null }),
     setTransportSearch,
     setTransportFilter: (key: AccountingTransportFilterKey, value: string) =>
       applyUrlState({ [key]: value || null, page: null }),

@@ -61,7 +61,7 @@
 .role-work-inbox__button.is-primary {
   border-color: var(--primary);
   background: var(--primary);
-  color: white;
+  color: var(--fg-on-brand);
 }
 
 .role-work-inbox__button.is-danger {

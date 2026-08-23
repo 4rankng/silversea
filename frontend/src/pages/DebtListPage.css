@@ -193,8 +193,8 @@
 
 .debt-filter-bar .filter-pill.is-active {
   background: var(--ink);
-  border-color: #101814;
-  color: #f7fbf8;
+  border-color: var(--ink, #101814);
+  color: var(--fg-inverse, #f7fbf8);
 }
 
 .debt-filter-bar .filter-pill__count {
@@ -204,7 +204,7 @@
 
 .debt-filter-bar .filter-pill.is-active .filter-pill__count {
   background: rgba(255, 255, 255, 0.16);
-  color: #f7fbf8;
+  color: var(--fg-inverse, #f7fbf8);
 }
 
 .debt-filter-spacer {
@@ -226,7 +226,7 @@
 }
 
 .debt-filter-search:focus-within {
-  background: #ffffff;
+  background: var(--surface, #ffffff);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }

@@ -13,7 +13,7 @@ import { TrailerType } from "@tingting/shared";
 import type { Truck as TruckType, Driver } from "@tingting/shared";
 
 // Extracted form modals + shared fleet constants
-import { TRUCK_STATUS, fleetStyles as styles } from "../features/fleet";
+import { TRUCK_STATUS } from "../features/fleet";
 
 import "./FleetPage.css";
 
@@ -82,7 +82,7 @@ export default function FleetPage() {
         iconName="tractor-head"
         description="Quản lý xe đầu kéo, rơ-moóc và lái xe trong một trang"
         action={
-          <div style={styles.actionRow}>
+          <div className="fleet-action-row">
             <Btn
               variant="secondary"
               size="sm"
@@ -114,16 +114,16 @@ export default function FleetPage() {
           assetIconName="tractor-head"
           variant="success"
           meta={
-            <span className="fleet-kpi-meta" style={styles.metaRow}>
-              <span className="fleet-kpi-dot fleet-kpi-dot--success" style={styles.dotSuccess} />
-              <span className="fleet-kpi-meta__good" style={styles.textSuccess}>
+            <span className="fleet-kpi-meta">
+              <span className="fleet-kpi-dot fleet-kpi-dot--success" />
+              <span className="fleet-kpi-meta__good">
                 {activeTrucks} hoạt động
               </span>
-              <span className="fleet-kpi-meta__sep" style={styles.textMuted}>
+              <span className="fleet-kpi-meta__sep">
                 ·
               </span>
-              <span className="fleet-kpi-dot fleet-kpi-dot--warn" style={styles.dotWarning} />
-              <span className="fleet-kpi-meta__warn" style={styles.textWarning}>
+              <span className="fleet-kpi-dot fleet-kpi-dot--warn" />
+              <span className="fleet-kpi-meta__warn">
                 {maintTrucks} bảo trì
               </span>
             </span>
@@ -137,14 +137,14 @@ export default function FleetPage() {
           assetIconName="semi-trailer"
           variant="info"
           meta={
-            <span className="fleet-kpi-meta" style={styles.metaRow}>
-              <span className="fleet-kpi-meta__mono" style={styles.fontMono}>
+            <span className="fleet-kpi-meta">
+              <span className="fleet-kpi-meta__mono">
                 {ft40}×40FT
               </span>
-              <span className="fleet-kpi-meta__sep" style={styles.textMuted}>
+              <span className="fleet-kpi-meta__sep">
                 ·
               </span>
-              <span className="fleet-kpi-meta__mono" style={styles.fontMono}>
+              <span className="fleet-kpi-meta__mono">
                 {ft20}×20FT
               </span>
             </span>
@@ -158,12 +158,12 @@ export default function FleetPage() {
           assetIconName="driver"
           variant="warn"
           meta={
-            <span className="fleet-kpi-meta" style={styles.metaRow}>
-              <span className="fleet-kpi-dot fleet-kpi-dot--success" style={styles.dotSuccess} />
-              <span className="fleet-kpi-meta__good" style={styles.textSuccess}>
+            <span className="fleet-kpi-meta">
+              <span className="fleet-kpi-dot fleet-kpi-dot--success" />
+              <span className="fleet-kpi-meta__good">
                 {activeDrivers} đang làm
               </span>
-              <span className="fleet-kpi-meta__sep" style={styles.textMuted}>
+              <span className="fleet-kpi-meta__sep">
                 ·
               </span>
               <span>
@@ -180,18 +180,18 @@ export default function FleetPage() {
           assetIconName="checklist"
           variant="default"
           meta={
-            <span className="fleet-kpi-meta" style={styles.metaRow}>
+            <span className="fleet-kpi-meta">
               {readyToRun >= activeTrucks ? (
-                <span className="fleet-kpi-meta__good" style={styles.textSuccess}>
+                <span className="fleet-kpi-meta__good">
                   Đủ xe + lái xe
                 </span>
               ) : (
                 <>
                   <span>{readyToRun} sẵn sàng</span>
-                  <span className="fleet-kpi-meta__sep" style={styles.textMuted}>
+                  <span className="fleet-kpi-meta__sep">
                     ·
                   </span>
-                  <span className="fleet-kpi-meta__warn" style={styles.textWarning}>
+                  <span className="fleet-kpi-meta__warn">
                     {activeTrucks - readyToRun} cần phân xe
                   </span>
                 </>

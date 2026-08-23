@@ -406,14 +406,14 @@ export default function TripListPage() {
   }, []);
 
   return (
-    <div ref={rootRef} className={`trip-list-page${quickEdit ? ' quick-edit-mode' : ''}`} style={{ paddingBottom: 40 }}>
+    <div ref={rootRef} className={`trip-list-page${quickEdit ? ' quick-edit-mode' : ''}`}>
       <Breadcrumbs
         className="trip-list-page__crumbs"
         items={[
           { label: 'Tổng quan', to: '/dashboard' },
           { label: 'Sổ chuyến đi' },
         ]}
-        renderLink={(to, children) => <a onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>{children}</a>}
+        renderLink={(to, children) => <a onClick={() => navigate(to)}>{children}</a>}
       />
       <TripListHero statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
 
@@ -470,8 +470,8 @@ export default function TripListPage() {
             </button>
           </div>
           {hasCompletedQuickEdits && (
-            <label style={{ display: 'grid', gap: 4, minWidth: 280 }}>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>Lý do thay đổi chuyến đã hoàn thành</span>
+            <label className="quick-governance-label">
+              <span>Lý do thay đổi chuyến đã hoàn thành</span>
               <textarea
                 aria-label="Lý do thay đổi chuyến đã hoàn thành"
                 className="input"
@@ -514,7 +514,7 @@ export default function TripListPage() {
             ) : table.rows.length === 0 ? (
               <>
                 {(searching || statusFilter || truckFilter || customerFilter) && (
-                  <div style={{ margin: '12px 16px 0' }}>
+                  <div className="filter-alert-wrap">
                     <Alert
                       variant="warning"
                       style="soft"
@@ -552,8 +552,8 @@ export default function TripListPage() {
           {table.isLoading ? (
             <div className="table-empty">Đang tải…</div>
           ) : table.rows.length === 0 ? (
-            <div className="table-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '32px 16px' }}>
-              <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" style={{ width: 160, height: 132, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <div className="table-empty mobile-empty-state">
+              <img src={resolveEmptyIllustration('empty-trips')} alt="" aria-hidden="true" className="mobile-empty-state__img" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               Không tìm thấy chuyến đi nào.
             </div>
           ) : (

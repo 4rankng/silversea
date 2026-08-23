@@ -6,14 +6,6 @@
  * ========================================================================== */
 
 .trip-list-page {
-  --d-charcoal-1: #14181A;
-  --d-charcoal-2: #1A2220;
-  --d-charcoal-3: #1F2D27;
-  --d-green-50:   #F0FDF4;
-  --d-green-100:  #DCFCE7;
-  --d-green-500:  #16A34A;
-  --d-green-700:  #007038;
-  --d-green-800:  #005A2D;
   --d-amber:      var(--warning-text);
   --d-amber-bg:   var(--warning-soft);
   --d-amber-dot:  var(--warning);
@@ -112,6 +104,12 @@
   text-transform: uppercase;
   margin-bottom: 8px;
   overflow-wrap: anywhere;
+}
+.trip-list-page .metric-label-hint {
+  font-weight: 500;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  opacity: 0.75;
 }
 .trip-list-page .metric-value {
   max-width: 100%;

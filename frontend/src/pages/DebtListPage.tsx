@@ -92,9 +92,9 @@ const AGING_BUCKETS: AgingBucket[] = [
   // so the accountant sees the AR workflow state (current vs overdue) at a
   // glance instead of having to translate day ranges into a status.
   { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #00B14F)', filterMode: 'current' },
-  { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: '#F5A623', filterMode: 'd30' },
-  { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: '#DD5A1F', filterMode: 'd60' },
-  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: '#E32434', filterMode: 'over90' },
+  { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+  { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: 'var(--danger, #E32434)', filterMode: 'over90' },
 ];
 
 /* Map bucket → lucide icon (semantic progression: on-time → critical) */

@@ -9,20 +9,20 @@
   gap: 16px;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, rgba(248,250,252,0.5) 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 50%, transparent) 100%);
 }
 
 .penalty-empty-icon-wrap {
   width: 80px;
   height: 80px;
   border-radius: 24px;
-  background: linear-gradient(135deg, rgba(0, 177, 79, 0.15), rgba(0, 177, 79, 0.05));
-  border: 1px solid rgba(0, 177, 79, 0.2);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   display: grid;
   place-items: center;
   color: var(--accent);
   margin-bottom: 8px;
-  box-shadow: 0 12px 24px rgba(0, 177, 79, 0.1), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 2px 4px color-mix(in srgb, white 50%, transparent);
   position: relative;
 }
 
@@ -31,7 +31,7 @@
   position: absolute;
   inset: -12px;
   border-radius: 32px;
-  border: 1px dashed rgba(0, 177, 79, 0.25);
+  border: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
   animation: penalty-spin 10s linear infinite;
 }
 
@@ -60,11 +60,11 @@
   gap: 16px;
   margin-top: 12px;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent);
   border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 3%, transparent);
 }
 
 .penalty-empty-stat {
@@ -106,7 +106,7 @@
 .penalty-empty-divider {
   width: 1px;
   height: 32px;
-  background: rgba(0,0,0,0.08);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .penalty-empty-actions {

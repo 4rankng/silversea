@@ -122,7 +122,7 @@ export function PenaltyTable({
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <PageHeader
         title={
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span className="penalty-page-header-title">
             Kỷ luật
             <span className="penalty-month-pill">
               <span className="dot" />
@@ -146,7 +146,7 @@ export function PenaltyTable({
 
       {/* ── Summary rail (server-computed) ─────────────────────────────── */}
       {insightsLoading ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '24px 0', color: 'var(--fg-3)', fontSize: 13 }}>
+        <div className="penalty-loading">
           <Loader2 size={16} className="spin" />
           Đang tải dữ liệu kỳ lương...
         </div>
@@ -241,8 +241,8 @@ export function PenaltyTable({
           </div>
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>TB: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
-              <span style={{ opacity: 0.5 }}>·</span>
+              <span>TB: <span className="penalty-foot-value">{avgStreak} ngày</span></span>
+              <span className="penalty-foot-sep">·</span>
               <span>{driversOver90} đạt 90 ngày</span>
             </div>
           </div>
@@ -252,12 +252,12 @@ export function PenaltyTable({
             <table className="record-table ops-table penalty-scoreboard-table">
               <thead>
                 <tr>
-                  <th style={{ width: 54, textAlign: 'center' }}>STT</th>
+                  <th className="penalty-scoreboard-col-rank">STT</th>
                   <th>Lái xe</th>
                   <th>Chuỗi an toàn</th>
                   <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
                   <th>Phạt YTD</th>
-                  <th style={{ textAlign: 'center' }}>Mức</th>
+                  <th className="penalty-scoreboard-col-center">Mức</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,8 +268,8 @@ export function PenaltyTable({
                   const moneyClass = d.fineYtd === 0 ? 'zero' : '';
                   const gc = getGradeClass(d.grade);
                   return (
-                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} style={{ cursor: 'pointer' }}>
-                      <td data-label="" style={{ textAlign: 'center' }}>
+                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} className="penalty-scoreboard-row">
+                      <td data-label="" className="penalty-scoreboard-col-center">
                         <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
                       </td>
                       <td data-label="Lái xe">
@@ -309,7 +309,7 @@ export function PenaltyTable({
                           {d.fineYtd > 0 ? formatCurrency(d.fineYtd) : `0`}<span className="unit">đ</span>
                         </span>
                       </td>
-                      <td data-label="Mức" style={{ textAlign: 'center' }}>
+                      <td data-label="Mức" className="penalty-scoreboard-col-center">
                         <span className={`penalty-grade ${gc}`}>{d.grade}</span>
                       </td>
                     </tr>
@@ -320,10 +320,10 @@ export function PenaltyTable({
           </div>
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>TB chuỗi an toàn: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{avgStreak} ngày</strong></span>
-              <span style={{ opacity: 0.5 }}>·</span>
+              <span>TB chuỗi an toàn: <span className="penalty-foot-value">{avgStreak} ngày</span></span>
+              <span className="penalty-foot-sep">·</span>
               <span>{driversOver90} lái xe đạt mốc 90 ngày</span>
-              <span style={{ opacity: 0.5 }}>·</span>
+              <span className="penalty-foot-sep">·</span>
               <span>{driversOver6m} lái xe vượt 6 tháng</span>
             </div>
             <span>Hiển thị {scoreboardRows.length}/{scoreboardRows.length}</span>
@@ -405,8 +405,8 @@ export function PenaltyTable({
           </div>
 
           {listLoading ? (
-            <div style={{ padding: 48, textAlign: 'center' }}>
-              <div className="spin" style={{ display: 'inline-block', width: 24, height: 24, border: '3px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+            <div className="penalty-loading penalty-loading--padded">
+              <div className="penalty-spinner spin" />
             </div>
           ) : rows.length === 0 ? (
             <div className="penalty-empty-log">
@@ -451,7 +451,7 @@ export function PenaltyTable({
                       <SortHeader label="Ngày" sortKey="date" sort={sort} onSortChange={onSortChange} />
                       <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
                       <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={onSortChange} numeric />
-                      {canCancel && <th style={{ width: 44 }}></th>}
+                      {canCancel && <th className="penalty-scoreboard-col-action"></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -485,8 +485,7 @@ export function PenaltyTable({
                             <td data-label="" className="record-table__action">
                               {!canceled && (
                                 <button
-                                  className="penalty-row-act"
-                                  style={{ color: 'var(--danger)' }}
+                                  className="penalty-row-act penalty-row-act--danger"
                                   aria-label="Hủy kỷ luật"
                                   title="Hủy kỷ luật"
                                   onClick={() => onCancelPenalty(p)}
@@ -549,7 +548,7 @@ export function PenaltyTable({
               </Btn>
             </div>
           ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="penalty-vio-type-list">
             {reasons.map((r, idx) => {
               const amount = Number(r.defaultAmount);
               const sev = getSeverity(amount);
@@ -577,7 +576,7 @@ export function PenaltyTable({
           )}
           <div className="penalty-table-foot">
             <div className="legend">
-              <span>Cập nhật lần cuối: <strong style={{ fontFamily: 'var(--font-data)', color: 'var(--ink)' }}>{formatDate(new Date().toISOString().slice(0, 10))}</strong></span>
+              <span>Cập nhật lần cuối: <span className="penalty-foot-value">{formatDate(new Date().toISOString().slice(0, 10))}</span></span>
             </div>
             <a
               href="/config/penalty-reasons"

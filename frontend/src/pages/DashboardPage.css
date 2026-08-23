@@ -160,7 +160,7 @@
 .aging-bar__seg { height: 100%; transition: width 0.3s ease; }
 .aging-bar__seg--ok { background: var(--accent); }
 .aging-bar__seg--t1 { background: var(--warning); }
-.aging-bar__seg--t2 { background: #D97706; }
+.aging-bar__seg--t2 { background: var(--wf-amber-mid, #D97706); }
 .aging-bar__seg--t3 { background: var(--warning-deep); }
 .aging-bar__seg--t4 { background: var(--danger); }
 
@@ -186,6 +186,9 @@
   --wf-amber: #C2780B;
   --wf-amber-soft: #FBF1DE;
   --wf-red: #C7372F;
+  --wf-red-soft: #FBE5E3;
+  --wf-purple: #7c3aed;
+  --wf-amber-mid: #D97706;
   --wf-radius: 14px;
   display: flex;
   flex-direction: column;
@@ -284,6 +287,7 @@
   color: var(--wf-ink-2);
 }
 
+.dash-wf .wf-thin-bar { height: 4px; }
 .dash-wf .wf-head { display: flex; flex-direction: column; gap: 12px; }
 .dash-wf .wf-head h1 { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: 0; line-height: 1.22; margin: 0; overflow-wrap: anywhere; }
 .dash-wf .wf-head .wf-sum { margin-top: 6px; color: var(--wf-ink-2); font-size: var(--fs-sm); max-width: 640px; }
@@ -396,7 +400,7 @@
   white-space: nowrap;
 }
 .dash-wf .wf-kpi .delta.up { color: var(--wf-green-700); background: var(--wf-green-soft); }
-.dash-wf .wf-kpi .delta.down { color: var(--wf-red); background: #FBE5E3; }
+.dash-wf .wf-kpi .delta.down { color: var(--wf-red); background: var(--wf-red-soft); }
 .dash-wf .wf-kpi .delta.flat { color: var(--wf-ink-2); background: var(--wf-bg); }
 .dash-wf .wf-kpi .delta.warn { color: var(--wf-amber); background: var(--wf-amber-soft); }
 .dash-wf .wf-kpi .val { font-family: var(--font-data); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 0; margin-top: 9px; line-height: 1.35; }
@@ -495,6 +499,8 @@
   border-radius: 2px;
   display: inline-block;
 }
+.dash-wf .wf-legend .sw--revenue { background: var(--wf-green); }
+.dash-wf .wf-legend .sw--gross   { background: var(--wf-blue); }
 .dash-wf .wf-chart .body svg { display: block; width: 100%; height: 100%; }
 
 /* Lợi nhuận theo xe + Top tuyến sinh lời stack vertically inside the left
@@ -542,6 +548,10 @@
 .dash-wf .wf-fstat { padding: 9px 10px; border: 1px solid var(--wf-border); border-radius: 10px; background: var(--wf-card); }
 .dash-wf .wf-fstat .v { font-family: var(--font-data); font-size: var(--fs-xl); font-weight: 700; line-height: 1.35; display: flex; align-items: center; gap: 6px; }
 .dash-wf .wf-fstat .v .pip { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.dash-wf .wf-fstat .pip--ready       { background: var(--wf-green-500); }
+.dash-wf .wf-fstat .pip--transit     { background: var(--wf-green); }
+.dash-wf .wf-fstat .pip--maintenance { background: var(--wf-amber); }
+.dash-wf .wf-fstat .pip--idle        { background: var(--wf-ink-3); }
 .dash-wf .wf-fstat .k { font-family: var(--font-data); text-transform: uppercase; letter-spacing: 0.06em; font-size: var(--fs-2xs); font-weight: 600; color: var(--wf-ink-3); margin-top: 6px; }
 .dash-wf .wf-util { display: flex; align-items: center; gap: 11px; margin-top: 13px; }
 .dash-wf .wf-util .track { flex: 1; height: 8px; border-radius: 5px; background: var(--wf-bg); overflow: hidden; }
@@ -745,7 +755,7 @@
   flex: 0 0 auto;
 }
 .dash-wf .wf-arow .ic img { width: 18px; height: 18px; object-fit: contain; }
-.dash-wf .wf-ic-critical { background: #FBE5E3; color: var(--wf-red); }
+.dash-wf .wf-ic-critical { background: var(--wf-red-soft); color: var(--wf-red); }
 .dash-wf .wf-ic-warning { background: var(--wf-amber-soft); color: var(--wf-amber); }
 .dash-wf .wf-ic-info { background: var(--wf-blue-soft); color: var(--wf-blue); }
 .dash-wf .wf-ic-success { background: var(--wf-green-soft); color: var(--wf-green-700); }
@@ -772,7 +782,7 @@
   font-weight: 700;
   white-space: nowrap;
 }
-.dash-wf .wf-severity--critical { color: var(--wf-red); background: #FBE5E3; }
+.dash-wf .wf-severity--critical { color: var(--wf-red); background: var(--wf-red-soft); }
 .dash-wf .wf-severity--warning { color: var(--wf-amber); background: var(--wf-amber-soft); }
 .dash-wf .wf-severity--info { color: var(--wf-blue); background: var(--wf-blue-soft); }
 .dash-wf .wf-severity--success { color: var(--wf-green-700); background: var(--wf-green-soft); }
@@ -915,13 +925,13 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 2px solid #fff;
+  border: 2px solid var(--wf-card, #fff);
   border: 1px solid var(--wf-border-2);
 }
 .dash-wf .audit-dot--create   { background: var(--wf-green); }
 .dash-wf .audit-dot--update   { background: var(--wf-blue); }
 .dash-wf .audit-dot--delete   { background: var(--wf-red); }
-.dash-wf .audit-dot--trip     { background: #7c3aed; }
+.dash-wf .audit-dot--trip     { background: var(--wf-purple); }
 .dash-wf .audit-dot--finance  { background: var(--wf-amber); }
 .dash-wf .audit-dot--auth     { background: var(--wf-ink-3); }
 

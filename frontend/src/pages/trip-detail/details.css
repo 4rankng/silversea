@@ -191,3 +191,68 @@ a.tdp-instructions-value:hover {
   border-color: #F3C6C6;
   box-shadow: none;
 }
+
+/* ── Error state card (loading/error guard) ── */
+.tdp-error-card {
+  padding: 24px;
+}
+.tdp-error-text {
+  color: var(--danger);
+  font-size: 14px;
+}
+.tdp-error-retry {
+  margin-top: 12px;
+}
+
+/* ── Breadcrumb link cursor ── */
+.tdp-crumb-link {
+  cursor: pointer;
+}
+
+/* ── Fieldset reset (accounting lock wrapper) ── */
+.tdp-fieldset-reset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+/* ── Governance modal label ── */
+.tdp-governance-label {
+  display: grid;
+  gap: 6px;
+}
+.tdp-governance-label-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tdp-governance-asterisk {
+  color: var(--danger);
+}
+
+/* ── Instructions notes margin ── */
+.tdp-instructions-notes {
+  margin-top: 8px;
+}
+
+/* ── Reassign modal toggle buttons ── */
+.tdp-reassign-toggle-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tdp-reassign-toggle-btn {
+  flex: 1;
+  padding: 6px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tdp-reassign-toggle-btn[aria-pressed="true"] {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
