@@ -184,16 +184,6 @@
   border: 0;
   background: transparent;
 }
-.expense-filter-bar__select > button {
-  height: var(--filter-control-h);
-  min-height: var(--filter-control-h);
-  width: 100%;
-  padding: 0 32px 0 12px;
-  border-radius: 10px;
-  background: var(--surface-2);
-  font-size: var(--filter-control-font-size);
-  line-height: var(--filter-control-line-height);
-}
 .expense-filter-bar__date {
   padding: 0 12px;
   font-size: var(--filter-control-font-size);
@@ -570,11 +560,6 @@
   }
   .expense-list-page .expense-filter-bar__date {
     padding-right: 10px;
-  }
-  .expense-list-page .expense-filter-bar__select > button {
-    padding: 0 28px 0 11px;
-    background-size: 14px 14px;
-    background-position: right 8px center;
   }
   .expense-list-page .expense-filter-bar__reset {
     min-height: var(--filter-control-h);

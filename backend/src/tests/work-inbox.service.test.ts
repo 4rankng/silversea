@@ -5,7 +5,7 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { adminHealth, customerWorkInbox, financialWorkInbox, managerDecisionInbox, operationsWorkInbox, pageWorkInboxItems } from '../services/work-inbox.service';
 import { resolveCustomerDeliveryDispute } from '../services/customer-delivery-response.service';
-import { Role, type WorkInboxItemBase } from '@tingting/shared';
+import { Role, type ManagerWorkInboxItem, type WorkInboxItemBase } from '@tingting/shared';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const customerIds: number[] = [];
@@ -196,6 +196,56 @@ describe('work inbox projection', () => {
     // The explicit sort follows the sliced page: page 2 under title asc.
     const paged = pageWorkInboxItems(rows, { view: 'ACTION', page: 2, limit: 2, sortBy: 'title', sortDir: 'asc' });
     assert.deepEqual(paged.items.map((row) => row.id), ['c']);
+  });
+
+  test('manager-lane keys sort by owner label, age, and impact with absent values last', () => {
+    const managerRows: ManagerWorkInboxItem[] = [
+      {
+        ...item({ id: 'm3', title: 'Quá hạn bàn giao', priority: 96 }),
+        owner: { code: 'OPS', label: 'Bàn giao lệnh gốc', ownerRole: 'OPS', ownerLabel: 'Vận hành' },
+        ageHours: 30,
+        impact: 'Tài xế có thể không đủ chứng từ.',
+      },
+      {
+        ...item({ id: 'm1', title: 'Tranh chấp giao hàng', priority: 100 }),
+        owner: { code: 'MANAGER', label: 'Cần quyết định', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' },
+        ageHours: 10,
+        impact: 'Ảnh hưởng quan hệ khách hàng.',
+      },
+      {
+        ...item({ id: 'm2', title: 'Quá hạn cut-off', priority: 94 }),
+        owner: { code: 'DISPATCHER', label: 'Xử lý ngoại lệ SLA', ownerRole: 'DISPATCHER', ownerLabel: 'Điều vận' },
+        ageHours: 20,
+        impact: 'Nguy cơ lưu bãi.',
+      },
+    ];
+    // A non-manager item mixed into the same sort: no owner/age/impact fields.
+    const plain = item({ id: 'plain', title: 'Plain lane row', priority: 1 });
+
+    // ageHours asc: 10 < 20 < 30, then the field-less row last (both dirs).
+    assert.deepEqual(
+      pageWorkInboxItems([...managerRows, plain], { view: 'ACTION', page: 1, limit: 10, sortBy: 'ageHours', sortDir: 'asc' }).items.map((row) => row.id),
+      ['m1', 'm2', 'm3', 'plain'],
+    );
+    assert.deepEqual(
+      pageWorkInboxItems([...managerRows, plain], { view: 'ACTION', page: 1, limit: 10, sortBy: 'ageHours', sortDir: 'desc' }).items.map((row) => row.id),
+      ['m3', 'm2', 'm1', 'plain'],
+    );
+
+    // ownerLabel asc by code unit: 'Quản lý' (Q=81) < 'Vận hành' (V=86) <
+    // 'Điều vận' (Đ=U+0110), field-less row last.
+    assert.deepEqual(
+      pageWorkInboxItems([...managerRows, plain], { view: 'ACTION', page: 1, limit: 10, sortBy: 'ownerLabel', sortDir: 'asc' }).items.map((row) => row.id),
+      ['m1', 'm3', 'm2', 'plain'],
+    );
+
+    // impact asc/desc are exact mirrors with the field-less row last.
+    const impactAsc = pageWorkInboxItems([...managerRows, plain], { view: 'ACTION', page: 1, limit: 10, sortBy: 'impact', sortDir: 'asc' }).items.map((row) => row.id);
+    assert.deepEqual(impactAsc.slice(3), ['plain']);
+    assert.deepEqual(
+      pageWorkInboxItems([...managerRows, plain], { view: 'ACTION', page: 1, limit: 10, sortBy: 'impact', sortDir: 'desc' }).items.map((row) => row.id),
+      [...impactAsc.slice(0, 3).reverse(), 'plain'],
+    );
   });
 
   test('customer dispute stays advisory and does not block financially ready work', async () => {

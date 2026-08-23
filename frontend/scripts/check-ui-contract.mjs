@@ -134,7 +134,7 @@ const driverPenaltyCss = await readFile(
   new URL('../src/pages/DriverPenaltyPage.css', import.meta.url),
   'utf8',
 );
-if (!/select\.penalty-month-select\s*\{[^}]*min-height:\s*44px/i
+if (!/\.penalty-month-select\s*\{[^}]*min-height:\s*44px/i
   .test(driverPenaltyCss)) {
   failures.push('pages/DriverPenaltyPage.css: mobile month select must remain at least 44px');
 }

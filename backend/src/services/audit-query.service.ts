@@ -23,7 +23,7 @@ interface AuditQueryParams {
 export const AUDIT_LOG_SORT_KEYS = ['timestamp', 'userName', 'message'] as const;
 export type AuditLogSortKey = (typeof AUDIT_LOG_SORT_KEYS)[number];
 
-const AUDIT_USER_NAME_SQL = sql`coalesce(${s.auditLogs.actorName}, ${s.users.fullName}, ${s.users.username})`;
+const AUDIT_USER_NAME_SQL = sql<string | null>`coalesce(${s.auditLogs.actorName}, ${s.users.fullName}, ${s.users.username})`;
 
 const AUDIT_SORT_SQL: Record<AuditLogSortKey, SQL> = {
   timestamp: sql`${s.auditLogs.timestamp}`,

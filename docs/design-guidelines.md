@@ -295,6 +295,13 @@ the chrome; feature dialogs own only their field grid.
   never renders — so the two systems drift in radius, height, and label
   metrics. Build the form from one family, or scope a local conformance skin
   (label + trigger metrics) to the form, as the CUS quick-edit modal does.
+- **`controlClassName` lands on the trigger button:** `UuiSelectField`
+  forwards it to the vendored Select's real trigger (`triggerClassName`) —
+  the element that owns the visible boundary. Style the class directly;
+  `.your-select > button` child rules and `select.your-class` element
+  selectors match nothing (the trigger is a `<button>`, and no native
+  `<select>` renders), and `frontend/src/components/control-density.styles.test.ts`
+  rejects both patterns.
 - **Secondary actions:** Cancel (Hủy) in dialog and drawer footers is a
   bordered `secondary` button, never a ghost. Ghost styling is reserved for
   icon-only and low-emphasis row actions; the primary action is the only

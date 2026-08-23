@@ -76,7 +76,6 @@
 .accounting-register__divider { width: 1px; height: var(--filter-control-h); background: var(--border-1); }
 .accounting-register__toolbar .ds-uui-select { flex: 0 1 auto; min-width: 0; }
 .accounting-register__select { min-height: var(--filter-control-h); background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; color: var(--ink); font-family: var(--font-body); cursor: pointer; }
-.accounting-register__select > button { height: var(--filter-control-h); min-height: var(--filter-control-h); padding: 0 32px 0 12px; border-radius: 10px; background: var(--surface-2); }
 .accounting-register__select:hover { background: var(--surface); border-color: var(--line-2); }
 .accounting-register__reset { display: inline-flex; align-items: center; gap: 5px; min-height: var(--filter-control-h); padding: 0 11px; border: 1px solid var(--border-2); border-radius: 8px; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--filter-control-font-size); font-weight: 700; cursor: pointer; }
 .accounting-register__reset:hover { color: var(--fg-1); background: var(--bg-2); }

@@ -23,10 +23,8 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
   const [page, setPage] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
   const [resolutionDrafts, setResolutionDrafts] = useState<Record<string, string>>({});
-  // Server-side sort rides the inbox endpoint's sortBy/sortDir params. Only
-  // `title` is wired today: the lane's other columns (owner, age, impact) have
-  // no WORK_INBOX_SORT_KEYS entries yet — the key set lives in the accounting
-  // wave's work-inbox.service.ts, so extending it belongs to that workstream.
+  // Server-side sort rides the inbox endpoint's sortBy/sortDir params; the
+  // keys mirror the manager-lane entries in WORK_INBOX_SORT_KEYS.
   const [sort, setSort] = useState<TableSortState | null>(null);
   const query = useQuery({
     // Sort fields ride the key (composed, not bare) so each order caches apart.
@@ -98,7 +96,7 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
       ) : (
         <div className="manager-decision-inbox__table-wrap">
           <table>
-            <thead><tr><SortHeader label="Vấn đề" sortKey="title" sort={sort} onSortChange={applySort} /><th>Chủ sở hữu</th><th>Tuổi việc</th><th>Ảnh hưởng</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+            <thead><tr><SortHeader label="Vấn đề" sortKey="title" sort={sort} onSortChange={applySort} /><SortHeader label="Chủ sở hữu" sortKey="ownerLabel" sort={sort} onSortChange={applySort} /><SortHeader label="Tuổi việc" sortKey="ageHours" sort={sort} onSortChange={applySort} /><SortHeader label="Ảnh hưởng" sortKey="impact" sort={sort} onSortChange={applySort} /><th><span className="sr-only">Hành động</span></th></tr></thead>
             <tbody>{query.data.items.map((item) => (
               <tr key={item.id}>
                 <td data-label="Vấn đề"><strong>{item.title}</strong><small>{item.subtitle}</small></td>

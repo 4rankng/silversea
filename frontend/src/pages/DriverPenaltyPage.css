@@ -177,20 +177,6 @@
   color: var(--ink-3);
   line-height: var(--lh-snug);
 }
-.driver-penalty-page select.penalty-month-select {
-  flex: 0 0 auto;
-  width: 158px;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 34px 0 12px;
-  border-radius: 9px;
-  font-size: var(--driver-penalty-muted);
-  font-weight: 600;
-  line-height: 1.25;
-  color: var(--ink);
-  background-position: right 12px center;
-  background-size: 14px 14px;
-}
 
 /* Violation rows */
 .penalty-violation-list {
@@ -359,12 +345,10 @@
   .penalty-data-card__header {
     padding: 14px 16px 12px;
   }
-  .driver-penalty-page select.penalty-month-select {
-    width: 150px;
-    height: 44px;
+  /* Month select = UuiSelectField trigger (class lands on the button);
+     touch floor per docs/design-guidelines.md. */
+  .penalty-month-select {
     min-height: 44px;
-    padding-inline: 11px 32px;
-    font-size: var(--driver-penalty-muted);
   }
 }
 
@@ -373,9 +357,5 @@
     align-items: center;
     flex-direction: row;
     gap: 10px;
-  }
-  .driver-penalty-page select.penalty-month-select {
-    width: 150px;
-    min-height: 44px;
   }
 }

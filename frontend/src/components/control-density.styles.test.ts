@@ -3,11 +3,12 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
-const cssFilesUnder = (directory: string): string[] => readdirSync(resolve(process.cwd(), directory), { withFileTypes: true }).flatMap((entry) => {
+const filesUnder = (directory: string, extension: string): string[] => readdirSync(resolve(process.cwd(), directory), { withFileTypes: true }).flatMap((entry) => {
   const relativePath = join(directory, entry.name);
-  if (entry.isDirectory()) return cssFilesUnder(relativePath);
-  return entry.isFile() && entry.name.endsWith('.css') ? [relativePath] : [];
+  if (entry.isDirectory()) return filesUnder(relativePath, extension);
+  return entry.isFile() && entry.name.endsWith(extension) ? [relativePath] : [];
 });
+const cssFilesUnder = (directory: string) => filesUnder(directory, '.css');
 
 describe('shared control density', () => {
   it('defines compact, default, and touch-safe control tokens', () => {
@@ -95,6 +96,34 @@ describe('shared control density', () => {
         const ownsDimensions = /(?:^|;)\s*(?:height|min-height|font(?:-size)?|line-height)\s*:/.test(declarations);
         return targetsUuiField && ownsDimensions && !isSanctioned(selector) ? [`${path}: ${selector.trim()}`] : [];
       });
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it('keeps controlClassName selectors honest — the class sits on the trigger button itself', () => {
+    // UuiSelectField forwards controlClassName to the vendored Select's real
+    // trigger <button> (triggerClassName), and no native <select> renders
+    // anywhere (the ESLint guard bans it). A page selector like
+    // `.foo > button` or `select.foo` therefore matches nothing — CSS that
+    // lies about its own structure. Style the class directly.
+    const controlClasses = new Set<string>();
+    for (const path of filesUnder('src', '.tsx').filter((path) => !path.includes('.test.'))) {
+      for (const match of read(path).matchAll(/controlClassName="([^"]+)"/g)) {
+        for (const token of match[1].split(/\s+/)) controlClasses.add(token);
+      }
+    }
+    expect(controlClasses.size).toBeGreaterThan(0);
+
+    const stylesButtonElement = (selector: string) => /(?:^|[^.\w-])button(?![\w-])/.test(selector);
+    const violations = cssFilesUnder('src/pages').concat(cssFilesUnder('src/features'), cssFilesUnder('src/components')).flatMap((path) => {
+      const blocks = [...read(path).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+      return blocks.flatMap(([, selector]) =>
+        selector.split(',').map((part) => part.trim()).filter((part) => {
+          const controlClass = [...controlClasses].find((token) => new RegExp(`\\.${token}(?![\\w-])`).test(part));
+          if (!controlClass) return false;
+          return stylesButtonElement(part) || new RegExp(`(?:^|[\\s>+~])select\\.${controlClass}(?![\\w-])`).test(part);
+        }).map((part) => `${path}: ${part}`));
     });
 
     expect(violations).toEqual([]);

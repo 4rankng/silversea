@@ -75,12 +75,22 @@ describe('ManagerDecisionInbox server-side sort header', () => {
     });
   });
 
-  it('leaves the columns without backend sort keys as plain headers', async () => {
+  it('maps every lane data column to its backend sort key', async () => {
     renderInbox();
     expect(await screen.findAllByText('Quá hạn bàn giao')).toBeTruthy();
-    // No sortable buttons on the not-yet-keyed lane columns.
-    expect(screen.queryByRole('button', { name: 'Chủ sở hữu' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tuổi việc' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Ảnh hưởng' })).toBeNull();
+
+    const sortKeys: Array<[string, string]> = [
+      ['Chủ sở hữu', 'ownerLabel'],
+      ['Tuổi việc', 'ageHours'],
+      ['Ảnh hưởng', 'impact'],
+    ];
+    for (const [label, key] of sortKeys) {
+      // The table unmounts between refetches (no placeholderData), so each
+      // successive header is awaited before clicking.
+      // eslint-disable-next-line no-await-in-loop -- sequential clicks each await their own request
+      fireEvent.click(await screen.findByRole('button', { name: label }));
+      // eslint-disable-next-line no-await-in-loop -- sequential clicks each await their own request
+      await waitFor(() => expect(lastGetUrl()).toContain(`sortBy=${key}`));
+    }
   });
 });
