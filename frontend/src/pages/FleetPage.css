@@ -862,10 +862,6 @@
   min-width: 0;
 }
 
-.fleet-form__interval {
-  min-width: 0;
-}
-
 /* Match the compact Điều vận controls exactly: direct inputs and the UUI
    trigger use one 34px boundary, 12px operational type, and 8px label gap. */
 .fleet-form .input {
@@ -1106,47 +1102,80 @@
   min-width: 0;
 }
 
+/* Oil helper — one flat line under the date matrix: inline label + date +
+   cycle select + effect hint. No border/padding ceremony; it stays visually
+   subordinate to the three date fields above it. */
 .truck-alert-field--oil-calculator {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: end;
-  column-gap: var(--fleet-form-column-gap);
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 8px;
 }
 
-.truck-alert-field__copy {
-  grid-column: span 1;
+.truck-alert-field--oil-calculator .truck-alert-field__label {
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
-.truck-alert-field--oil-calculator .fleet-form__inline {
-  grid-column: span 2;
+.truck-oil-helper__controls {
+  flex: 1 1 340px;
+  max-width: 420px;
 }
 
-.truck-alert-field__copy p {
-  margin: 0;
+.truck-oil-helper__hint {
   color: var(--ink-3);
   font-size: var(--fs-xs);
   line-height: 1.35;
+  white-space: nowrap;
+}
+
+/* Truck dialog column rhythm: 4 columns on wide canvases, 2 columns ≤960px
+   (dense-dialog contract), 1 column ≤640px. The generic .fleet-form__grid
+   (trailer/driver dialogs) keeps its own 760px single-column handoff. */
+@media (max-width: 960px) {
+  .fleet-form__grid--truck {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fleet-form__grid--truck .fleet-form__field--wide {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 760px) {
-  .fleet-form__grid,
-  .fleet-form__grid--truck,
+  .fleet-form__grid {
+    grid-template-columns: 1fr;
+  }
+
   .truck-alert-fields {
     grid-template-columns: 1fr;
   }
 
-  .fleet-form__field--wide,
-  .fleet-form__grid--truck .fleet-form__field--wide,
-  .truck-alert-field--oil-calculator {
+  .fleet-form__field--wide {
     grid-column: auto;
   }
 
   .truck-alert-field--oil-calculator {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     align-items: stretch;
+  }
+
+  .truck-oil-helper__controls {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fleet-form__grid--truck {
+    grid-template-columns: 1fr;
+  }
+
+  .fleet-form__grid--truck .fleet-form__field--wide {
+    grid-column: auto;
   }
 }
 

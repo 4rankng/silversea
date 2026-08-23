@@ -59,6 +59,14 @@
   min-height: calc(var(--control-compact-h) - 2px);
 }
 
+/* The UUI value carries its own Tailwind text utility, so sizing the trigger
+   alone is not enough. Keep the selected value on the same operational type
+   scale as the native input immediately beside it. */
+.ds-uui-select--operational .ds-uui-select__control > button > span p {
+  font-size: var(--control-compact-font-size);
+  line-height: var(--control-compact-line-height);
+}
+
 /* Dialogs have one scroll owner: the body. Header and actions remain stable,
    so long or fully-expanded forms never hide the title or the primary action. */
 .modal--operational-density .modal__content {
@@ -144,5 +152,10 @@
 
   .ds-uui-select--operational .ds-uui-select__control > button > span {
     min-height: calc(var(--control-touch-h) - 2px);
+  }
+
+  .ds-uui-select--operational .ds-uui-select__control > button > span p {
+    font-size: var(--control-compact-touch-font-size);
+    line-height: var(--control-compact-touch-line-height);
   }
 }

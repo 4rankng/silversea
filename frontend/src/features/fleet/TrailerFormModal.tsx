@@ -3,6 +3,9 @@ import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { TrailerType, TRAILER_TYPE_LABELS } from '@tingting/shared';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+// Own stylesheet — see TruckFormModal: keeps the dialog styled on any route
+// that renders it without the /fleet page chunk.
+import '../../pages/FleetPage.css';
 
 /**
  * Modal for creating/editing a trailer (rơ-moóc).
