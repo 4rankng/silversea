@@ -15,6 +15,7 @@ import { TextAreaBase } from '../../components/untitled-ui/base/textarea/textare
 import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, type TableSortState } from '../../lib/table-sort';
+import { RECOVERABLE_COST_SORT_KEYS, type RecoverableCostSortKey } from '@tingting/shared';
 import { ApiError } from '../../lib/api';
 import { formatCurrency, formatDate } from '../../lib/format';
 import {
@@ -236,7 +237,11 @@ export function RecoverableCostsWorkspace() {
         page,
         limit: PAGE_SIZE,
         approvalStatus: status || undefined,
-        sortBy,
+        // Runtime-guarded narrowing: handleSortChange only feeds keys from
+        // the SortHeader whitelist, so this guards the typed client param.
+        sortBy: sortBy && (RECOVERABLE_COST_SORT_KEYS as readonly string[]).includes(sortBy)
+          ? (sortBy as RecoverableCostSortKey)
+          : undefined,
         sortDir,
       }));
     } catch (loadError) {

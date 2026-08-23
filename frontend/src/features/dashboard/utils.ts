@@ -27,6 +27,17 @@ export function fmtMoM(current: number, previous: number | undefined | null): st
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
 }
 
+/**
+ * The calendar month before `month`/`year`, with January rolling back to
+ * December of the prior year. Month-over-month pills must compare against
+ * this period — comparing against `(month, year - 1)` silently queries the
+ * same month a year ago and renders every delta as "Mới" whenever that
+ * month has no data.
+ */
+export function previousPeriodOf(month: number, year: number): { month: number; year: number } {
+  return month === 1 ? { month: 12, year: year - 1 } : { month: month - 1, year };
+}
+
 export interface PieSlice {
   label: string;
   value: number;

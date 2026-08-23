@@ -123,7 +123,7 @@ describe('PenaltyPage', () => {
 
     // KPI strip comes from the insights payload (month figures, comparison).
     expect((await screen.findAllByText(/1\.250\.000/)).length).toBeGreaterThan(0);
-    expect(screen.getByText('Giảm 56% so với 07/26')).toBeTruthy();
+    expect(screen.getByText('9 vụ')).toBeTruthy(); // insights.month.incidentCount in the rail
     // Status chips come from the list envelope's full-set statusCounts.
     expect(chip('Tất cả')?.textContent).toContain('7');
     expect(chip('Chờ duyệt')?.textContent).toContain('5');

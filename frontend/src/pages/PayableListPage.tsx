@@ -2,7 +2,8 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
-import { Search, ChevronRight, Gift, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, ChevronRight, Gift } from 'lucide-react';
+import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { AssetIcon } from '../components/AssetIcon';
@@ -47,42 +48,6 @@ const CATEGORY_CHIPS: Array<{ value: PayablesCategory | undefined; label: string
   { value: 'commission', label: 'Hoa hồng' },
   { value: 'carrier', label: 'Vận chuyển thuê ngoài' },
 ];
-
-/* ─── Sort headers ────────────────────────────────────────────────────────── */
-
-/**
- * The shared sort-header skin (styles/table-sort.css) on this page's
- * hand-rolled table — same markup/aria contract as DataTable's `sortKey`
- * columns, without redesigning the table onto DataTable.
- */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-  className,
-}: {
-  label: string;
-  sortKey: string;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-  className?: string;
-}) {
-  const active = sort != null && sort.by === sortKey;
-  const ariaSort = !active ? 'none' : sort!.dir === 'asc' ? 'ascending' : 'descending';
-  return (
-    <th className={className} aria-sort={ariaSort}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
 
 /* ─── Commission modal ────────────────────────────────────────────────────── */
 

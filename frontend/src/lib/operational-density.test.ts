@@ -10,20 +10,27 @@ describe('operational density surface boundary', () => {
     '/dispatch',
     '/dispatch-detail',
     '/dispatch/plan/42',
-  ])
-  ('keeps the approved CUS and Dispatcher surface unchanged: %s', (pathname) => {
+  ])('keeps the approved CUS and Dispatcher surface unchanged: %s', (pathname) => {
     expect(isFrozenOperationalSurface(pathname)).toBe(true);
     expect(hasOperationalDensity(pathname)).toBe(false);
   });
 
-  it.each(['/dashboard', '/accounting', '/fleet', '/suppliers', '/config/routes', '/payables'])
-  ('applies the density contract to an operational screen: %s', (pathname) => {
+  it.each([
+    '/dashboard',
+    '/accounting',
+    '/fleet',
+    '/suppliers',
+    '/config/routes',
+    '/payables',
+  ])('applies the density contract to an operational screen: %s', (pathname) => {
     expect(isFrozenOperationalSurface(pathname)).toBe(false);
     expect(hasOperationalDensity(pathname)).toBe(true);
   });
 
-  it.each(['/dispatching', '/shipments-detail-old'])
-  ('does not freeze a similarly named route: %s', (pathname) => {
+  it.each([
+    '/dispatching',
+    '/shipments-detail-old',
+  ])('does not freeze a similarly named route: %s', (pathname) => {
     expect(isFrozenOperationalSurface(pathname)).toBe(false);
     expect(hasOperationalDensity(pathname)).toBe(true);
   });

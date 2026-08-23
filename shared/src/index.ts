@@ -156,6 +156,7 @@ export {
   portalDebitNoteDecisionSchema, directMoneyTreasurySchema,
   profitabilityReportQuerySchema, CUSTOMER_VISIBLE_EVENT_TYPES,
   PROFITABILITY_DIMENSIONS, accountingTransportRegisterQuerySchema,
+  ACCOUNTING_TRANSPORT_SORT_KEYS, RECOVERABLE_COST_SORT_KEYS,
   accountingTransportRegisterRowSchema, accountingTransportRegisterResponseSchema,
   ACCOUNTING_TRANSPORT_OWNERSHIP, ACCOUNTING_TRANSPORT_READINESS,
 } from './schemas';
@@ -283,6 +284,7 @@ export type {
   PortalDebitNoteDecisionInput, DirectMoneyTreasuryInput,
   ProfitabilityDimension, ProfitabilityReportQuery,
   AccountingTransportOwnership, AccountingTransportReadiness,
+  AccountingTransportSortKey, RecoverableCostSortKey,
   AccountingTransportRegisterQuery, AccountingTransportRegisterRow,
   AccountingTransportRegisterResponse,
 } from './schemas';
@@ -361,6 +363,7 @@ export {
   GOVERNANCE_ACTION_STATUSES,
   GOVERNANCE_CAPABILITIES,
   GOVERNANCE_ALLOWED_ACTIONS,
+  GOVERNANCE_ACTION_SORT_KEYS,
   governanceActionVersionSchema,
   governanceActionDecisionSchema,
   governanceActionListQuerySchema,
@@ -369,6 +372,7 @@ export type {
   GovernanceSubjectType,
   GovernanceActionKind,
   GovernanceActionStatus,
+  GovernanceActionSortKey,
   GovernanceCapability,
   GovernanceAllowedAction,
   GovernanceActionVersionInput,

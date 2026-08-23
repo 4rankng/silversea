@@ -8,18 +8,25 @@ import '../../styles/table-sort.css';
  * contract from table-sort.css with `aria-sort` on the cell. The key is the
  * caller's stable sort identifier — the backend sortBy enum for server-sorted
  * lists, or a local accessor key for `sortClientSide` full-set tables.
+ * `numeric` merges the record-table `num` alignment class into the cell.
  */
-export function SortHeader({ label, sortKey, sort, onSortChange, style, className }: {
+export function SortHeader({ label, sortKey, sort, onSortChange, style, className, numeric = false }: {
   label: ReactNode;
   sortKey: string;
   sort: TableSortState | null;
   onSortChange: (key: string) => void;
   style?: CSSProperties;
   className?: string;
+  numeric?: boolean;
 }) {
   const active = sort?.by === sortKey;
   return (
-    <th style={style} className={className} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th
+      scope="col"
+      style={style}
+      className={numeric ? ['num', className].filter(Boolean).join(' ') : className}
+      aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
       <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
         {label}
         {active

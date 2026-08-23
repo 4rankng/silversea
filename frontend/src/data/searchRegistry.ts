@@ -117,6 +117,12 @@ const FORWARDER_ITEMS: SearchItem[] = [
   { id: 'my-settlements',     type: 'page', label: 'Phiếu thanh toán',  path: '/my-settlements',     iconName: 'settlement' },
 ];
 
+// Config cards reachable by ACCOUNTANT. Most /config/* routes are adminOnly;
+// the officeStaffOnly exceptions below (plus pricing-tables, opened for
+// reconciliation lookups) are the only ones the palette may offer — anything
+// else recreates the dead-link bug the route guards already prevent.
+const ACCOUNTANT_CONFIG_IDS = new Set(['company-info', 'tire-positions', 'debit-note-templates', 'pricing-tables']);
+
 export function getSearchItems(role: string, capabilities: readonly string[] = []): SearchItem[] {
   const normRole = String(role || '').toUpperCase();
   const hasCapability = (capability: string) => capabilities.includes(capability);
@@ -148,10 +154,11 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
       return [
         { id: 'accounting', type: 'page', label: 'Tổng Quan', path: '/accounting', iconName: 'overview' },
         ...officeBaseItems
-          .filter(item => item.id !== 'dispatch' && item.id !== 'dashboard'),
+          // /config hub is adminOnly — offering it to accountants is a dead link.
+          .filter(item => item.id !== 'dispatch' && item.id !== 'dashboard' && item.id !== 'config'),
         { id: 'users', type: 'page', label: 'Người dùng', path: '/users', iconName: 'users-hr' },
         { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
-        ...CONFIG_ITEMS.filter(i => !i.adminOnly),
+        ...CONFIG_ITEMS.filter(i => ACCOUNTANT_CONFIG_IDS.has(String(i.id))),
       ];
     case 'DRIVER':
       return DRIVER_ITEMS;

@@ -30,7 +30,7 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
   const [sort, setSort] = useState<TableSortState | null>(null);
   const query = useQuery({
     // Sort fields ride the key (composed, not bare) so each order caches apart.
-    queryKey: [...qk.dashboard.decisionInbox(page), sort?.by ?? null, sort?.dir ?? null],
+    queryKey: qk.dashboard.decisionInbox(page, sort?.by, sort?.dir),
     queryFn: () => api.get<WorkInboxResponseOf<ManagerWorkInboxItem>>(
       `${WORKSPACES.DECISION_INBOX}?view=ACTION&page=${page}&limit=100`
       + (sort ? `&sortBy=${encodeURIComponent(sort.by)}&sortDir=${sort.dir}` : ''),
@@ -58,7 +58,7 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
         next.delete('disputeId');
         setSearchParams(next, { replace: true });
       }
-      await client.invalidateQueries({ queryKey: ['dashboard', 'decision-inbox'] });
+      await client.invalidateQueries({ queryKey: qk.dashboard.decisionInboxAll });
     },
   });
 

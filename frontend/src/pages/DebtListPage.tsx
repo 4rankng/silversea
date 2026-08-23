@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
+import { SortHeader } from '../components/shared/SortHeader';
 import {
   Search,
   Users,
@@ -13,9 +14,6 @@ import {
   Building2,
   Phone,
   Loader2,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { Pagination } from '../design-system';
@@ -99,44 +97,6 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
   d60: Hourglass,
   over90: AlertOctagon,
 };
-
-/* ─── Sort headers ────────────────────────────────────────────────────────── */
-
-/**
- * The shared sort-header skin (styles/table-sort.css) on this page's
- * hand-rolled table — same markup/aria contract as DataTable's `sortKey`
- * columns, without redesigning the table onto DataTable.
- */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-  className,
-  style,
-}: {
-  label: string;
-  sortKey: string;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const active = sort != null && sort.by === sortKey;
-  const ariaSort = !active ? 'none' : sort!.dir === 'asc' ? 'ascending' : 'descending';
-  return (
-    <th className={className} style={style} aria-sort={ariaSort}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 

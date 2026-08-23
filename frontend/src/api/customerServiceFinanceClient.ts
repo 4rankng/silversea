@@ -4,6 +4,8 @@ import type {
   AccountingTransportOwnership,
   AccountingTransportReadiness,
   AccountingTransportRegisterResponse,
+  AccountingTransportSortKey,
+  RecoverableCostSortKey,
 } from '@tingting/shared';
 
 export type RecoverableEligibilityState = 'READY_FOR_REVIEW' | 'ELIGIBLE' | 'BLOCKED' | 'ALREADY_CLAIMED' | 'ADJUSTMENT_REQUIRED';
@@ -77,7 +79,7 @@ export const customerServiceFinanceClient = {
     carrierId?: number;
     ownership?: AccountingTransportOwnership;
     readiness?: AccountingTransportReadiness;
-    sortBy?: string;
+    sortBy?: AccountingTransportSortKey;
     sortDir?: 'asc' | 'desc';
   }) {
     const query = new URLSearchParams({
@@ -97,7 +99,7 @@ export const customerServiceFinanceClient = {
       `/finance/billing-documents/transport-register?${query}`,
     );
   },
-  listRecoverableCosts(params: { page: number; limit: number; approvalStatus?: string; sortBy?: string; sortDir?: 'asc' | 'desc' }) {
+  listRecoverableCosts(params: { page: number; limit: number; approvalStatus?: string; sortBy?: RecoverableCostSortKey; sortDir?: 'asc' | 'desc' }) {
     const query = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
     if (params.approvalStatus) query.set('approvalStatus', params.approvalStatus);
     if (params.sortBy) query.set('sortBy', params.sortBy);

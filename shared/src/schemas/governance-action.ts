@@ -115,6 +115,19 @@ export const governanceActionDecisionSchema = governanceActionVersionSchema.exte
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
 
+// Sortable governance-card columns. Single source for the query enum, the
+// backend orderBy whitelist, and the client's sortBy typing.
+export const GOVERNANCE_ACTION_SORT_KEYS = [
+  'actionKind',
+  'status',
+  'subjectKey',
+  'makerRole',
+  'version',
+  'createdAt',
+  'reason',
+] as const;
+export type GovernanceActionSortKey = typeof GOVERNANCE_ACTION_SORT_KEYS[number];
+
 export const governanceActionListQuerySchema = z.object({
   status: z.enum(GOVERNANCE_ACTION_STATUSES).optional(),
   actionKind: z.enum(GOVERNANCE_ACTION_KINDS).optional(),
@@ -124,15 +137,7 @@ export const governanceActionListQuerySchema = z.object({
   // Column sorting: sortBy picks a whitelisted card field, sortDir flips it.
   // Keep the frontend sort keys and the service's orderBy whitelist in sync
   // with this enum.
-  sortBy: z.enum([
-    'actionKind',
-    'status',
-    'subjectKey',
-    'makerRole',
-    'version',
-    'createdAt',
-    'reason',
-  ]).optional(),
+  sortBy: z.enum(GOVERNANCE_ACTION_SORT_KEYS).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
   // When both page and offset are present, page wins: the route derives
   // offset = (page - 1) * limit and ignores the explicit offset.

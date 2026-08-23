@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, UserCheck, Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2,
-  ArrowDown, ArrowUp, ArrowUpDown,
 } from 'lucide-react';
 import { useConfirm } from '../components/UI';
 import { api } from '../lib/api';
 import { labelStyle } from '../utils/formStyles';
 import { downloadCSV } from '../lib/csv';
-import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
+import { nextTableSort, readTableSort } from '../lib/table-sort';
+import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, KPI, StatusPill, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
@@ -40,27 +40,6 @@ type SupplierTableFilters = {
  * header property (padding, background, case, tracking, sticky pinning) is the
  * shared record-table base. */
 const thMoneyStyle: CSSProperties = { textAlign: 'right' };
-
-/** Sortable header cell — the shared table-sort button contract (table-sort.css),
- * so this bespoke table matches the DataTable/record-table sort affordance. */
-function SortHeader({ label, sortKey, sort, onSortChange, style }: {
-  label: ReactNode; sortKey: string; sort: TableSortState | null;
-  onSortChange: (key: string) => void; style?: CSSProperties;
-}) {
-  const active = sort?.by === sortKey;
-  return (
-    <th style={style} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Hoạt động',

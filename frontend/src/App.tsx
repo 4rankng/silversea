@@ -166,9 +166,19 @@ export function AppRoutes() {
   const driverOnly = (el: ReactElement) => (isDriver ? el : <Navigate to={homeRedirect} replace />);
   const opsOnly = (el: ReactElement) => (isOps ? el : <Navigate to={homeRedirect} replace />); // formerly forwarderOnly
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
-  // Accountant cannot access dispatch pages
+  // Accountant cannot access dispatch pages (PRD NP-07: no /dispatch,
+  // no /dispatch-detail for ACCOUNTANT)
   const dispatchOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || isDispatcher
+      ? el
+      : <Navigate to={homeRedirect} replace />
+  );
+  // Trip drill-down is shared by dispatch planning and office audit. The
+  // PRD pins "Vận hành liên quan" (fleet/trips/shipments) as visible — and
+  // therefore reachable — for ACCOUNTANT, and backend Casbin already grants
+  // accountant trips read; only edit/create routes stay adminOnly.
+  const tripDetailOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT
       ? el
       : <Navigate to={homeRedirect} replace />
   );
@@ -233,12 +243,12 @@ export function AppRoutes() {
               dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
           <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />
           <Route path="/fleet/drivers" element={dispatchOnly(page(<FleetDriversPage />))} />
-          <Route path="/fleet" element={adminOnly(page(<FleetPage />))} />
+          <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
-          <Route path="/trips" element={adminOnly(page(<TripListPage />))} />
+          <Route path="/trips" element={officeStaffOnly(page(<TripListPage />))} />
           <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />
-          <Route path="/trips/:id" element={dispatchOnly(page(<TripDetailPage />))} />
+          <Route path="/trips/:id" element={tripDetailOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={financeReaderOnly(page(<FinancePage />))} />
           <Route path="/accounting" element={officeStaffOnly(page(<AccountingWorkspacePage />))} />
@@ -249,7 +259,7 @@ export function AppRoutes() {
           <Route path="/debt" element={financeReaderOnly(page(<DebtListPage />))} />
           <Route path="/debt/:id" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/debt/:id/billing/new" element={financeReaderOnly(page(<DebtDetailPage />))} />
-          <Route path="/penalties" element={adminOnly(page(<PenaltyPage />))} />
+          <Route path="/penalties" element={officeStaffOnly(page(<PenaltyPage />))} />
           <Route path="/advances" element={financeReaderOnly(page(<AdvanceWorkspacePage />))} />
           <Route
             path="/admin/advance-settlements"
@@ -257,8 +267,8 @@ export function AppRoutes() {
           />
 
           <Route path="/my-penalties" element={driverOnly(page(<DriverPenaltyPage />))} />
-          <Route path="/customers" element={adminOnly(page(<CustomersPage />))} />
-          <Route path="/customers/:id" element={adminOnly(page(<DebtDetailPage />))} />
+          <Route path="/customers" element={officeStaffOnly(page(<CustomersPage />))} />
+          <Route path="/customers/:id" element={financeReaderOnly(page(<DebtDetailPage />))} />
           <Route path="/customers/:id/billing/new" element={adminOnly(page(<DebtDetailPage />))} />
           {/* Shipment list/detail mirrors the backend read policy, including
               Dispatcher read access. Mutation routes remain separately gated. */}
@@ -280,7 +290,7 @@ export function AppRoutes() {
           <Route path="/config/routes" element={adminOnly(page(<RoutesConfigPage />))} />
           <Route path="/config/business-calendar" element={strictAdminOnly(page(<BusinessCalendarConfigPage />))} />
           <Route path="/config/cargo-types" element={adminOnly(page(<CargoTypesConfigPage />))} />
-          <Route path="/config/pricing-tables" element={adminOnly(page(<PricingTablesConfigPage />))} />
+          <Route path="/config/pricing-tables" element={officeStaffOnly(page(<PricingTablesConfigPage />))} />
           <Route path="/config/road-allowances" element={adminOnly(page(<RoadAllowancesConfigPage />))} />
           <Route path="/config/penalty-reasons" element={adminOnly(page(<PenaltyReasonsConfigPage />))} />
           <Route path="/config/fuel" element={adminOnly(page(<FuelConfigPage />))} />
@@ -314,16 +324,16 @@ export function AppRoutes() {
             element={
               isDispatcher
                 ? dispatchOnly(page(<DispatchSuppliersPage />))
-                : adminOnly(page(<SupplierListPage />))
+                : officeStaffOnly(page(<SupplierListPage />))
             }
           />
-          <Route path="/suppliers/:id" element={adminOnly(page(<PayableDetailPage />))} />
+          <Route path="/suppliers/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/expenses" element={financeReaderOnly(page(<ExpenseListPage />))} />
           <Route path="/expenses/new" element={adminOnly(page(<ExpenseEntryPage />))} />
           <Route path="/expenses/:id/edit" element={adminOnly(page(<ExpenseEntryPage />))} />
           <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
-          <Route path="/salary" element={adminOnly(page(<SalaryAttendancePage />))} />
+          <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
           <Route path="/credit-overrides" element={officeStaffOnly(page(<CreditOverrideQueuePage />))} />
           <Route path="/governance-actions" element={officeStaffOnly(page(<GovernanceActionsPage />))} />
           <Route path="/users" element={officeStaffOnly(page(<UsersPage />))} />

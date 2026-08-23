@@ -497,24 +497,27 @@ def main() -> bool:
                 "() => new URLSearchParams(location.search).get('dispatchStatus') === 'UNASSIGNED'",
                 timeout=5_000,
             )
-            page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
-            warning = page.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn").first
-            warning.wait_for(state="visible", timeout=10_000)
             active_filter_visible = status_select.input_value() == "UNASSIGNED"
-            warning_visible = warning.is_visible()
-            check(
-                results,
-                "TC-1821",
-                "Bộ lọc Trạng thái (chưa điều xe) nằm trong URL, giữ lựa chọn và hiển thị dòng cảnh báo trường thiếu",
-                active_filter_visible and warning_visible,
-                f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
-            )
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)
             # The responsive ledger keeps a second semantic table in the DOM;
             # interact with the rendered row instead of its hidden counterpart.
             container_row = page.locator(".shipment-container-ledger tbody tr:visible").filter(has_text="MSKU1234565")
             container_row.wait_for(timeout=10_000)
+            # The fixture row (still missing its appointment) must render the
+            # server-derived "Chưa cập nhật" warning with the Lịch hẹn field —
+            # asserted unfiltered, since the dispatch-status filter above only
+            # proves the filter contract, not the row's completeness state.
+            warning = container_row.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn")
+            warning.first.wait_for(state="visible", timeout=10_000)
+            warning_visible = warning.first.is_visible()
+            check(
+                results,
+                "TC-1821",
+                "Bộ lọc Trạng thái (chưa điều xe) nằm trong URL, giữ lựa chọn và dòng cảnh báo trường thiếu hiển thị",
+                active_filter_visible and warning_visible,
+                f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
+            )
             all_cells_open = True
             full_coverage = True
             focus_restored = True

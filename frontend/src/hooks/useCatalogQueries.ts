@@ -73,7 +73,7 @@ export function useTrucksAndDrivers(options?: { enabled?: boolean }) {
 export function useSuppliers(page?: number, search?: string, sort?: TableSortState | null) {
   return useQuery({
     // Sort fields ride the key (composed, not bare) so each order caches apart.
-    queryKey: [...qk.catalogs.suppliers(page, search), sort?.by ?? null, sort?.dir ?? null],
+    queryKey: qk.catalogs.suppliers(page, search, sort?.by, sort?.dir),
     queryFn: () => configClient.getSuppliers(page, search, sort),
   });
 }

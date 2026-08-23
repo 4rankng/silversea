@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   ChevronRight,
   Download,
   FileLock2,
@@ -48,6 +45,7 @@ import {
 } from '../api/shipmentClient';
 import { downloadCSV } from '../lib/csv';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
+import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
 import { FinanceEvidence, WorkflowBadge, ShipmentSignals } from '../features/shipments/cus/CusBadges';
@@ -73,34 +71,6 @@ import {
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
-
-/** Sortable grouped header for the overview ledger — same shared button and
- * key whitelist contract as the container workboard (ShipmentsDetailPage). */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-}: {
-  label: string;
-  sortKey: string;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-}) {
-  const active = sort?.by === sortKey;
-  return (
-    <th scope="col" aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
 
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;

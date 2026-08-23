@@ -187,9 +187,11 @@ function validatePricingSelector<T extends { containerTypeId?: number | null; ra
 // value is the column or a correlated scalar subquery — exactly one value per
 // row, so pagination counts never fan out. The two balance keys replicate the
 // pages' displayed projections:
-// - customers `debt` mirrors buildCustomerDebtMap: the CUSTOMER ledger sum
-//   (debit − credit) with carrier-payable postings excluded (same filter shape
-//   as aging.service's excludeCarrierPayables projection).
+// - customers `debt` mirrors buildCustomerDebtMap's carrier-payable exclusion
+//   with aging's SQL semantics: a NULL note makes the UNLOCK_REVERSAL
+//   predicate evaluate NULL, so such rows are excluded here while the page's
+//   JS (`note?.startsWith`) keeps them — an accepted sort-order-only
+//   divergence for the rare all-NULL-note customer.
 // - suppliers `payable` mirrors the vendor payables summary total (VENDOR
 //   ledger, credit − debit), clamped at 0 because the summary drops entities
 //   with non-positive outstanding and the page renders those as 0.

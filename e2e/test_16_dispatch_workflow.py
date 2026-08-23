@@ -39,7 +39,7 @@ def assert_control_box(
     results: TestResults,
     tc_id: str,
     context: str,
-    min_size: int | None = None,
+    min_size=None,
 ):
     # 44px is the phone touch floor (responsive.css ≤640px universal rule).
     # Desktop/tablet controls ride the sizing contract's --control-default-h

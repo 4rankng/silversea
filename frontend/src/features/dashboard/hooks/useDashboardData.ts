@@ -16,7 +16,7 @@ import {
   useRenewalReminders,
   type PnlReport,
 } from '../../../hooks/useQueries';
-import { CATEGORY_COLORS, FALLBACK_COLORS, buildPieSlices } from '../utils';
+import { CATEGORY_COLORS, FALLBACK_COLORS, buildPieSlices, previousPeriodOf } from '../utils';
 
 const EMPTY_TRIPS: TripDetail[] = [];
 const EMPTY_CREATED: TripDetail[] = [];
@@ -70,7 +70,11 @@ export function useDashboardData(currentMonth: number, currentYear: number) {
 
   const { data: stats, isLoading: loading } = useDashboardStats();
   const { data: pnlReport } = usePnlReport(currentMonth, currentYear);
-  const { data: prevPnlReport } = usePnlReport(currentMonth, currentYear - 1);
+  // Month-over-month comparisons need the previous calendar month (Jan rolls
+  // back to Dec of the prior year), not the same month a year ago — the old
+  // `(currentMonth, currentYear - 1)` query made every KPI pill read "Mới".
+  const prevPeriod = previousPeriodOf(currentMonth, currentYear);
+  const { data: prevPnlReport } = usePnlReport(prevPeriod.month, prevPeriod.year);
   const { data: allTrips = EMPTY_TRIPS } = useMonthlyTrips(currentYear, currentMonth);
   const { data: createdTrips = EMPTY_CREATED } = useCreatedTrips();
   const { data: fuelConfig } = useFuelConfig();

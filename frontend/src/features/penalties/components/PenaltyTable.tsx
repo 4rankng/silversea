@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ShieldCheck, Download, Plus, FileText, Zap, Trophy, Users, DollarSign, XCircle, Loader2, UserRound, Search, X, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { Panel, Btn, KPI, PageHeader } from '../../../components/UI';
-import { Pagination, UuiSelectField } from '../../../design-system';
+import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, Search, X } from 'lucide-react';
+import { Panel, Btn, PageHeader } from '../../../components/UI';
+import { Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
 import { formatCurrency, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
@@ -12,7 +12,7 @@ import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
-import type { TableSortState } from '../../../lib/table-sort';
+import { SortHeader } from '../../../components/shared/SortHeader';
 import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
@@ -36,38 +36,9 @@ function violationsInWindow(row: PenaltyInsightsScoreboardRow, window: PenaltySc
   return row.violationsYtd;
 }
 
-/** Sortable header for the violation log — shared table-sort button so the
- * record-table typography contract stays authoritative. */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-  numeric = false,
-}: {
-  label: string;
-  sortKey: string;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-  numeric?: boolean;
-}) {
-  const active = sort?.by === sortKey;
-  return (
-    <th className={numeric ? 'num' : undefined} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
-
 export function PenaltyTable({
-  rows,  total,
+  rows,
+  total,
   page,
   pageSize,
   totalPages,
@@ -103,7 +74,6 @@ export function PenaltyTable({
   const ytdTotal = insights?.ytd.total ?? 0;
   const teamSize = insights?.driverTotal ?? 0;
   const safeCount = insights?.safeDriverCount ?? 0;
-  const comparisonLabel = insights?.month.comparisonLabel || '';
 
   // ── Status chips (full-set counts from the list envelope) ──────────────
   const chipCounts: Record<PenaltyStatusFilter, number> = {
@@ -114,7 +84,6 @@ export function PenaltyTable({
 
   // ── Safe-streak KPI (whole-history streaks, window-independent) ────────
   const longestStreak = insights?.longestStreak ?? 0;
-  const streakLeader = insights?.streakLeader || '—';
 
   // ── Scoreboard (insights rows + catalog tenure) ────────────────────────
   const tenureByDriver = new Map(drivers.map(d => [d.id, d.createdAt] as const));
@@ -175,73 +144,22 @@ export function PenaltyTable({
         }
       />
 
-      {/* ── KPI strip (4 cards, server-computed) ────────────────────────── */}
+      {/* ── Summary rail (server-computed) ─────────────────────────────── */}
       {insightsLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '24px 0', color: 'var(--fg-3)', fontSize: 13 }}>
           <Loader2 size={16} className="spin" />
           Đang tải dữ liệu kỳ lương...
         </div>
       ) : (
-      <div className="kpi-grid">
-        <KPI
-          label={`Vi phạm ${monthLabel}`}
-          value={incidentCount}
-          unit="vụ"
-          icon={Shield}
-          assetIconName="alert"
-          variant="success"
-          meta={
-            <span className="penalty-kpi-meta">
-              <span className="dot" />
-              <span className="pos">{comparisonLabel || 'Không có so sánh'}</span>
-            </span>
-          }
-        />
-        <KPI
-          label={`Tổng phạt ${monthLabel}`}
-          value={formatCurrency(totalMonthAmount)}
-          icon={DollarSign}
-          assetIconName="unpaid"
-          meta={
-            <span className="penalty-kpi-meta">
-              <span>Khấu trừ vào bảng lương</span>
-              <span className="sep">·</span>
-              <span style={{ fontFamily: 'var(--font-data)', color: 'var(--ink-2)' }}>YTD {formatCurrency(ytdTotal)}</span>
-            </span>
-          }
-        />
-        <KPI
-          label="Lái xe đạt chuẩn"
-          value={safeCount}
-          unit={`/${teamSize} lái xe`}
-          icon={Users}
-          assetIconName="driver"
-          variant="info"
-          meta={
-            <span className="penalty-kpi-meta">
-              <span className="dot" />
-              <span className="pos">{teamSize > 0 ? Math.round(safeCount / teamSize * 100) : 0}% toàn đội</span>
-              <span className="sep">·</span>
-              <span>{teamSize - safeCount} cần nhắc nhở</span>
-            </span>
-          }
-        />
-        <KPI
-          label="Chuỗi an toàn"
-          value={longestStreak}
-          unit="ngày"
-          icon={Zap}
-          assetIconName="checklist"
-          variant="warn"
-          meta={
-            <span className="penalty-kpi-meta">
-              {longestStreak > 0
-                ? <span>{streakLeader} dẫn đầu</span>
-                : <span style={{ opacity: 0.7 }}>Chưa có dữ liệu chuỗi an toàn</span>}
-            </span>
-          }
-        />
-      </div>
+      <SummaryRail
+        ariaLabel="Tóm tắt kỷ luật tháng"
+        items={[
+          { label: `Vi phạm · ${monthLabel}`, value: `${incidentCount} vụ`, tone: incidentCount > 0 ? 'warning' : undefined },
+          { label: `Tổng phạt · YTD ${formatCurrency(ytdTotal)}`, value: formatCurrency(totalMonthAmount) },
+          { label: 'Lái xe đạt chuẩn', value: `${safeCount}/${teamSize}` },
+          { label: 'Chuỗi an toàn', value: `${longestStreak} ngày` },
+        ]}
+      />
       )}
 
       {/* ── Driver scoreboard ────────────────────────────────────────────── */}

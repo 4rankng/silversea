@@ -50,8 +50,8 @@ export const qk = {
     fuelConfig: ['fuel-config'],
     salaryPeriod: (month: number, year: number) =>
       ['salary-period', month, year] as const,
-    suppliers: (page?: number, search?: string) =>
-      ['suppliers', page, search] as const,
+    suppliers: (page?: number, search?: string, sortBy?: string, sortDir?: string) =>
+      ['suppliers', page, search, sortBy ?? '', sortDir ?? ''] as const,
     /** Base key for useTableQueryState-driven supplier list pages. */
     suppliersTable: ['suppliers'],
     expenseCategories: (page?: number, search?: string) =>
@@ -244,7 +244,10 @@ export const qk = {
     distributionHistory: ['distribution-history'],
     receivablesSummary: ['receivables-summary'],
     auditRecent: ['dashboard-audit-recent'],
-    decisionInbox: (page: number) => ['dashboard', 'decision-inbox', page] as const,
+    decisionInbox: (page: number, sortBy?: string, sortDir?: string) =>
+      ['dashboard', 'decision-inbox', page, sortBy ?? '', sortDir ?? ''] as const,
+    /** Broad prefix — matches every decision-inbox query regardless of page/sort. */
+    decisionInboxAll: ['dashboard', 'decision-inbox'] as const,
     approvalQueue: (role: string | undefined, userId: number | undefined) =>
       ['approval-queue', role, userId] as const,
   },

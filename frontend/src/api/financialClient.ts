@@ -3,6 +3,7 @@ import { toQuery } from '../lib/http/query';
 import { fetchAllPaginated } from '../lib/http/paginate';
 import { FINANCIAL, REPORTS, WORKSPACES } from '@tingting/shared';
 import type {
+  GovernanceActionSortKey,
   AccountantWorkInboxItem,
   GovernanceActionStatus,
   GovernanceAllowedAction,
@@ -67,7 +68,7 @@ export interface GovernanceActionFilters {
   page?: number;
   limit?: number;
   offset?: number;
-  sortBy?: 'actionKind' | 'status' | 'subjectKey' | 'makerRole' | 'version' | 'createdAt' | 'reason';
+  sortBy?: GovernanceActionSortKey;
   sortDir?: 'asc' | 'desc';
 }
 

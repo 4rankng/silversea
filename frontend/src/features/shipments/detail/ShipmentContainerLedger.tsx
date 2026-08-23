@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
-import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, CalendarOff, Clock3 } from 'lucide-react';
+import { AlertTriangle, CalendarOff, Clock3 } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
@@ -16,6 +16,7 @@ import { SearchableSelect, DateInput, SummaryRail } from '../../../design-system
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
+import { SortHeader } from '../../../components/shared/SortHeader';
 import '../../../styles/table-sort.css';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
@@ -123,35 +124,6 @@ function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {
 
 function fallback(value: string | null, label: string) {
   return value || <span className="shipment-container-ledger__missing">{label}</span>;
-}
-
-/** Sortable grouped header — one per ledger column, keyed to the backend's
- * sortBy whitelist (see SHIPMENT_CUS_CONTAINER_SORT_KEYS). Uses the shared
- * table-sort button so styling follows the record-table contract. */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-}: {
-  label: string;
-  sortKey: string;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-}) {
-  const active = sort?.by === sortKey;
-  return (
-    <th scope="col" aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
 }
 
 function EditActions({

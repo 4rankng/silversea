@@ -137,9 +137,8 @@ describe('PenaltyTable', () => {
     renderTable({ rows: [row()], total: 1, insights: insights(), statusCounts: statusCounts() });
 
     expect(screen.getAllByText(/1\.250\.000/).length).toBeGreaterThan(0); // insights.month.totalAmount
-    expect(screen.getByText('Giảm 43% so với 07/26')).toBeTruthy(); // comparisonLabel verbatim
-    expect(screen.getByText('/3 lái xe')).toBeTruthy(); // driverTotal from insights
-    expect(screen.getByText(/% toàn đội/).textContent).toContain('33'); // safeDriverCount 1/3
+    expect(screen.getByText(/YTD 3\.400\.000/, { selector: '.summary-rail dt' })).toBeTruthy(); // ytd total folded into the rail label
+    expect(screen.getByText('1/3')).toBeTruthy(); // safeDriverCount / driverTotal from insights
     const chip = (label: string) =>
       Array.from(document.querySelectorAll<HTMLButtonElement>('button.penalty-chip'))
         .find(b => b.textContent?.startsWith(label));
@@ -160,7 +159,7 @@ describe('PenaltyTable', () => {
     // Default window: violations90d (3 for Nguyễn Văn A), server grade B.
     expect(within(desktopTable).getAllByText('3 vụ').length).toBeGreaterThan(0);
     expect(within(desktopTable).getAllByText('B').length).toBeGreaterThan(0);
-    expect(screen.getByText('Trần An Toàn dẫn đầu')).toBeTruthy(); // insights.streakLeader
+    expect(screen.getAllByText('Trần An Toàn').length).toBeGreaterThan(0); // insights.streakLeader leads the scoreboard
   });
 
   it('switches scoreboard windows client-side from the same insights payload', () => {
@@ -183,7 +182,7 @@ describe('PenaltyTable', () => {
       insights: insights(),
     });
     expect(document.querySelector('tr.penalty-log-row--canceled')).not.toBeNull();
-    expect(screen.getAllByText('210').length).toBeGreaterThan(0); // insights.longestStreak
+    expect(screen.getAllByText('210 ngày').length).toBeGreaterThan(0); // insights.longestStreak
   });
 
   it('forwards chip and pagination interactions', () => {

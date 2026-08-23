@@ -274,10 +274,9 @@ async function checkPageFontSizeDrift(directoryUrl) {
     if (FROZEN_CSS_PREFIXES.some((p) => displayPath.startsWith(p))) continue;
 
     const css = await readFile(entryUrl, 'utf8');
-    const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
-    for (const match of text.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)) {
+    for (const match of css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/gi)) {
       if (!PAGE_FONT_TOKEN_VALUES.has(Number(match[1]))) {
-        const line = text.slice(0, match.index).split('\n').length;
+        const line = css.slice(0, match.index).split('\n').length;
         failures.push(
           `${displayPath}:${line}: raw font-size ${match[1]}px matches no type token (assign a role, then use the token value — see docs/design-guidelines.md)`,
         );

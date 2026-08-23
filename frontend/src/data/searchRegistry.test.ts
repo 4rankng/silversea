@@ -75,6 +75,30 @@ describe('role-aware search destinations', () => {
     expect(items.filter(item => item.id === 'accounting')).toHaveLength(1);
   });
 
+  it('offers accountants only config routes their role can reach', () => {
+    const items = getSearchItems('ACCOUNTANT', ['treasury.read']);
+    const configPaths = items
+      .filter(item => item.path.startsWith('/config'))
+      .map(item => item.path)
+      .sort();
+    // /config hub and most sub-routes stay adminOnly; the officeStaffOnly
+    // exceptions are the only config cards accountants may be offered.
+    expect(configPaths).toEqual([
+      '/config/company-info',
+      '/config/debit-note-templates',
+      '/config/pricing-tables',
+      '/config/tire-positions',
+    ]);
+    expect(items.some(item => item.path === '/config')).toBe(false);
+  });
+
+  it('keeps the spec accountant surface (ops/HR/master-data) reachable from the palette', () => {
+    const items = getSearchItems('ACCOUNTANT', ['treasury.read']);
+    for (const path of ['/fleet', '/trips', '/salary', '/penalties', '/customers', '/suppliers', '/shipments']) {
+      expect(items.some(item => item.path === path)).toBe(true);
+    }
+  });
+
   it('gives dispatchers their five nav destinations instead of an empty palette', () => {
     const items = getSearchItems('DISPATCHER');
     expect(items.map(item => item.path)).toEqual([
