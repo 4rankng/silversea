@@ -2,6 +2,7 @@ import {
   Plus, Pencil, Trash2,
   Loader2, KeyRound, Mail, Phone, Search, UserX, MoreVertical, X,
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
+  Users, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDate } from '../../../lib/format';

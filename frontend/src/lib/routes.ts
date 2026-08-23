@@ -181,6 +181,13 @@ type TitleRule = {
   title: string | ((pathname: string) => string);
 };
 
+// Per-role overrides for paths whose audience has more than one mental model.
+// The default `titleForPath` ignores role; pass a `role` to `titleForPath` to
+// receive the role-branched variant for the rules below.
+const ROLE_BRANCHED_TITLES: Record<string, (role: string) => string> = {
+  [routes.recoverableCosts]: (role) => role === 'CUS' ? 'Chi phí thu hộ cần đối soát' : 'Chi phí cần kiểm tra',
+};
+
 // Order is load-bearing precedence (first match wins). The title strings are
 // sourced from PAGE_CATALOG so they can't drift from the agent descriptions /
 // sidebar; only the generic `/config/*` fallback ("Cấu hình") stays a literal
@@ -246,7 +253,14 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.salary), title: PAGE_CATALOG.salary.title },
 ];
 
-export function titleForPath(pathname: string): string {
+export function titleForPath(pathname: string, role?: string | null): string {
+  // Role-branched overrides (paths where one URL serves two audiences with
+  // different page framings). Only the topbar title is role-branched here;
+  // the page body can branch its own <h1> via useAuth as needed.
+  if (role) {
+    const branchEntry = Object.entries(ROLE_BRANCHED_TITLES).find(([prefix]) => pathname.startsWith(prefix));
+    if (branchEntry) return branchEntry[1](role);
+  }
   const match = titleRules.find(rule => rule.test(pathname));
   if (!match) return BRAND.name;
   return typeof match.title === 'function' ? match.title(pathname) : match.title;

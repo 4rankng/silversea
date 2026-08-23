@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS, Role } from '@tingting/shared';
+import { useAuth } from '../../hooks/useAuth';
+import { getModernRole } from '../../lib/role-helpers';
 import {
   AlertCircle,
   CheckCircle2,
@@ -207,6 +209,21 @@ function MobileRecords({ items, onReview, footer }: { items: RecoverableCost[]; 
 }
 
 export function RecoverableCostsWorkspace() {
+  // Role-branched framing per P0-W4: the same `/recoverable-costs` page serves
+  // two audiences. CUS views it as the per-shipment collection list
+  // ("chi phí thu hộ cần đối soát" — what the customer owes back to us).
+  // Accountant / Admin / Manager view it as the per-record ledger
+  // ("chi phí cần kiểm tra" — the financial verification gate before approval).
+  // When the auth context is missing (unit tests) we fall back to the
+  // accountant framing so existing tests stay green.
+  const user = useAuth()?.user;
+  const currentRole = user ? getModernRole(user.role) : null;
+  const isCus = currentRole === Role.CUS;
+  const headerEyebrow = isCus ? 'Đối soát chi phí thu hộ' : 'Đối soát chi phí lô hàng';
+  const headerTitle = isCus ? 'Chi phí thu hộ cần đối soát' : 'Chi phí cần kiểm tra';
+  const headerSubtitle = isCus
+    ? 'Theo dõi các khoản chi phát sinh trên chuyến cần thu hồi từ khách hàng, theo từng lô hàng.'
+    : 'Kiểm tra tiền chi hộ, phí dịch vụ và chứng từ trước khi lập Giấy báo nợ.';
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [sort, setSort] = useState<TableSortState | null>(null);
@@ -308,9 +325,9 @@ export function RecoverableCostsWorkspace() {
     <main className="recoverable-costs" aria-labelledby="recoverable-costs-title">
       <header className="recoverable-costs__header">
         <div>
-          <p className="recoverable-costs__eyebrow">Đối soát chi phí lô hàng</p>
-          <h1 id="recoverable-costs-title">Chi phí cần kiểm tra</h1>
-          <p>Kiểm tra tiền chi hộ, phí dịch vụ và chứng từ trước khi lập Giấy báo nợ.</p>
+          <p className="recoverable-costs__eyebrow">{headerEyebrow}</p>
+          <h1 id="recoverable-costs-title">{headerTitle}</h1>
+          <p>{headerSubtitle}</p>
         </div>
         <Btn
           variant="secondary"

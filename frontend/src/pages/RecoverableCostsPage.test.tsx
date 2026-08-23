@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RecoverableCost } from '../api/customerServiceFinanceClient';
 import RecoverableCostsPage from './RecoverableCostsPage';
@@ -55,8 +56,47 @@ function renderPage() {
   return render(<MemoryRouter><RecoverableCostsPage /></MemoryRouter>);
 }
 
+const { activeRole } = vi.hoisted(() => ({ activeRole: { value: null as string | null } }));
+
+vi.mock('../hooks/useAuth', async () => {
+  const actual = await vi.importActual<typeof import('../hooks/useAuth')>('../hooks/useAuth');
+  return {
+    ...actual,
+    useAuth: () => activeRole.value === null
+      ? null
+      : {
+          user: {
+            userId: 1,
+            id: 1,
+            username: 'tester',
+            email: null,
+            phone: null,
+            fullName: 'Test',
+            role: activeRole.value,
+            capabilities: [],
+          },
+          isAuthenticated: true,
+          loading: false,
+          sessionExpired: false,
+        },
+  };
+});
+
+function renderPageWithRole(role: 'CUS' | 'ACCOUNTANT' | 'ADMIN' | 'MANAGER' | null) {
+  activeRole.value = role;
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <RecoverableCostsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 describe('RecoverableCostsPage', () => {
   beforeEach(() => {
+    activeRole.value = null;
     listRecoverableCostsMock.mockReset();
     requestRecoverableCostMock.mockReset();
     listRecoverableCostsMock.mockResolvedValue({ items: [makeCost()], total: 1, page: 1, limit: 25 });
@@ -254,5 +294,28 @@ describe('RecoverableCostsPage', () => {
     fireEvent.click(within(ledger).getByRole('button', { name: 'Trạng thái' }));
     await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: 'eligibility', sortDir: 'asc' }));
     expect(within(ledger).getByRole('columnheader', { name: 'Trạng thái' }).getAttribute('aria-sort')).toBe('ascending');
+  });
+
+  // P0-W4: per-role page framing. CUS sees the per-shipment collection list
+  // ("Chi phí thu hộ cần đối soát"); Accountant/Admin/Manager see the
+  // per-record verification ledger ("Chi phí cần kiểm tra"). The same
+  // component renders both; only the header eyebrow + H1 + subtitle branch.
+  it('branches the header to the CUS collection framing when the signed-in user is CUS', async () => {
+    renderPageWithRole('CUS');
+    expect(await screen.findByRole('heading', { name: 'Chi phí thu hộ cần đối soát' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Chi phí cần kiểm tra' })).toBeNull();
+    expect(screen.getByText('Đối soát chi phí thu hộ')).toBeTruthy();
+  });
+
+  it('keeps the accountant verification framing for non-CUS office roles', async () => {
+    renderPageWithRole('ACCOUNTANT');
+    expect(await screen.findByRole('heading', { name: 'Chi phí cần kiểm tra' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Chi phí thu hộ cần đối soát' })).toBeNull();
+    expect(screen.getByText('Đối soát chi phí lô hàng')).toBeTruthy();
+  });
+
+  it('falls back to the accountant framing when no auth context is present (test default)', async () => {
+    renderPage();
+    expect(await screen.findByRole('heading', { name: 'Chi phí cần kiểm tra' })).toBeTruthy();
   });
 });

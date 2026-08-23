@@ -372,7 +372,7 @@ export function getPageTitle(pathname: string, role?: Role | string): string {
   if (pathname.startsWith(routes.suppliers) && role && getModernRole(role) === Role.DISPATCHER) {
     return 'Nhà thầu phụ';
   }
-  return titleForPath(pathname);
+  return titleForPath(pathname, role ? getModernRole(role) : undefined);
 }
 
 // ─── Layout component ─────────────────────────────────────────────────────
