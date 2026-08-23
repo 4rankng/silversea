@@ -278,7 +278,7 @@ export function LeafletMap({
         zIndex: 1,
         width: '100%',
         height,
-        borderRadius: 'var(--radius-lg, 12px)',
+        borderRadius: 'var(--app-radius-lg, 12px)',
         overflow: 'hidden',
         border: '1px solid var(--border-2, #E5E7EB)',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',

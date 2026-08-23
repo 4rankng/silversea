@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
+import type { TableSortState } from '../lib/table-sort';
 import type {
   Truck as TruckType,
   Driver as DriverType,
@@ -69,10 +70,11 @@ export function useTrucksAndDrivers(options?: { enabled?: boolean }) {
   });
 }
 
-export function useSuppliers(page?: number, search?: string) {
+export function useSuppliers(page?: number, search?: string, sort?: TableSortState | null) {
   return useQuery({
-    queryKey: qk.catalogs.suppliers(page, search),
-    queryFn: () => configClient.getSuppliers(page, search),
+    // Sort fields ride the key (composed, not bare) so each order caches apart.
+    queryKey: [...qk.catalogs.suppliers(page, search), sort?.by ?? null, sort?.dir ?? null],
+    queryFn: () => configClient.getSuppliers(page, search, sort),
   });
 }
 

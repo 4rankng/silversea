@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, Landmark, RotateCcw } from 'lucide-react';
 import { PageHeader, StatusPill } from '../components/UI';
+import { SortHeader } from '../components/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { customerServiceFinanceClient, type TreasuryPosition } from '../api/customerServiceFinanceClient';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -16,8 +18,18 @@ export default function TreasuryPositionPage() {
   const [data, setData] = useState<TreasuryPosition | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async () => { setLoading(true); setError(null); try { setData(await customerServiceFinanceClient.getTreasuryPosition()); } catch (err) { setError(err instanceof Error ? err.message : 'Không thể tải số dư ghi sổ.'); } finally { setLoading(false); } }, []);
+  // Server-side column sort; primitives ride the load callback so changing the
+  // sort refetches without any object-identity dep (the infinite-refetch trap).
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const load = useCallback(async () => { setLoading(true); setError(null); try { setData(await customerServiceFinanceClient.getTreasuryPosition(sortBy ? { sortBy, sortDir } : undefined)); } catch (err) { setError(err instanceof Error ? err.message : 'Không thể tải số dư ghi sổ.'); } finally { setLoading(false); } }, [sortBy, sortDir]);
   useEffect(() => { void load(); }, [load]);
+  const sort = useMemo<TableSortState | null>(() => (sortBy ? { by: sortBy, dir: sortDir } : null), [sortBy, sortDir]);
+  const handleSortChange = useCallback((key: string) => {
+    const next = nextTableSort(sort, key);
+    setSortBy(next.by);
+    setSortDir(next.dir);
+  }, [sort]);
   const totals = useMemo(() => data?.accounts.reduce((acc, account) => { acc[account.type] += account.bookBalance; return acc; }, { CASH: 0, BANK: 0 }) ?? { CASH: 0, BANK: 0 }, [data]);
   return <div className="treasury-page">
     <Breadcrumbs items={[{ label: 'Tài chính', to: '/finance' }, { label: 'Sổ quỹ / ngân hàng' }]} />

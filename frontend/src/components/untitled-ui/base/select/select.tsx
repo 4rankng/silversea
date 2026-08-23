@@ -19,6 +19,8 @@ export { SelectContext, sizes, type CommonProps, type SelectItemType } from "./s
 export interface SelectProps extends Omit<AriaSelectProps<SelectItemType>, "children" | "items">, RefAttributes<HTMLDivElement>, CommonProps {
     items?: SelectItemType[];
     popoverClassName?: string;
+    /** Extra classes for the trigger button — the element that actually renders the visible boundary. */
+    triggerClassName?: string;
     icon?: FC | ReactNode;
     children: ReactNode | ((item: SelectItemType) => ReactNode);
 }
@@ -30,15 +32,17 @@ interface SelectValueProps {
     isDisabled: boolean;
     placeholder?: string;
     icon?: FC | ReactNode;
+    triggerClassName?: string;
 }
 
-const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon }: SelectValueProps) => {
+const SelectValue = ({ isOpen, isFocused, isDisabled, size, placeholder, icon, triggerClassName }: SelectValueProps) => {
     return (
         <AriaButton
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear",
                 (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",
                 isDisabled && "cursor-not-allowed opacity-50",
+                triggerClassName,
             )}
         >
             <AriaSelectValue<SelectItemType>
@@ -105,7 +109,7 @@ const Select = ({ placeholder = "Select", icon, size = "md", children, items, la
                             </Label>
                         )}
 
-                        <SelectValue {...state} {...{ size, placeholder }} icon={icon} />
+                        <SelectValue {...state} {...{ size, placeholder }} icon={icon} triggerClassName={rest.triggerClassName} />
 
                         <Popover size={size} triggerRef={triggerRef} className={rest.popoverClassName}>
                             <AriaListBox items={items} className="size-full outline-hidden">

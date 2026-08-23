@@ -10,7 +10,7 @@
 .photo-thumb {
   width: 72px;
   height: 72px;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   border: 1px solid var(--border-1);
   position: relative;
   overflow: hidden;
@@ -34,7 +34,7 @@
   background: rgba(0, 0, 0, 0.5);
   color: white;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -54,7 +54,7 @@
   width: 72px;
   height: 72px;
   border: 1px dashed var(--fg-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;

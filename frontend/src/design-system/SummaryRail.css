@@ -1,0 +1,107 @@
+/*
+ * Summary rail — the /shipments workboard's summary anatomy, extracted as the
+ * app-wide standard for operational list summaries (docs/design-guidelines.md
+ * §"Workboard table & summary rail"). A decision rail, not cards: it gives the
+ * operator a quiet count of the work that needs attention before scanning rows.
+ *
+ * Visual source of truth: ShipmentsPage.css `.cus-workspace-summary` (frozen
+ * customer-approved surface — never edit that page to restyle the rail; change
+ * it here and keep the two visually identical). Lays out as one ruled row via
+ * flex so any item count works; the leading total column reads slightly wider
+ * (1.35 grow ≈ the source grid's 1.35fr first track).
+ */
+
+.summary-rail {
+  margin: 12px 16px 0;
+  border-block: 1px solid var(--line);
+}
+
+.summary-rail dl {
+  display: flex;
+  margin: 0;
+}
+
+.summary-rail__item {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.summary-rail__item:first-child {
+  flex-grow: 1.35;
+  padding-left: 0;
+}
+
+.summary-rail__item:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.summary-rail dt {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+
+.summary-rail dd {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+}
+
+/* Tones color the number only — never a filled container (amber means
+   "needs attention"; a filled card reads as decoration once counts grow). */
+.summary-rail__item--warning dd { color: var(--warning-text); }
+.summary-rail__item--info dd { color: var(--info-text); }
+
+/* Narrow canvases: wrap two-up, then stack — the workboard rail's 700px/380px
+   collapse expressed without its 4-item nth-child ladder. */
+@media (max-width: 700px) {
+  .summary-rail {
+    margin: 12px 12px 0;
+    border-bottom: 0;
+  }
+
+  .summary-rail dl {
+    flex-wrap: wrap;
+  }
+
+  .summary-rail__item {
+    flex-basis: 50%;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .summary-rail__item:nth-child(even) {
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .summary-rail__item:nth-child(odd) { padding-left: 0; }
+  .summary-rail__item:nth-child(n + 3) { border-top: 1px solid var(--line); }
+}
+
+@media (max-width: 380px) {
+  .summary-rail__item {
+    flex-basis: 100%;
+  }
+
+  .summary-rail__item:nth-child(even) {
+    padding-right: 14px;
+    border-right: 1px solid var(--line);
+  }
+
+  .summary-rail__item:nth-child(n + 2) { border-top: 1px solid var(--line); }
+  .summary-rail__item:last-child { border-bottom: 0; }
+}

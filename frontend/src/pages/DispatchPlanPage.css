@@ -102,7 +102,7 @@
   }
 
   .dispatch-plan-page__workspace {
-    border-radius: var(--radius-md);
+    border-radius: var(--app-radius-md);
     padding: 12px;
   }
 

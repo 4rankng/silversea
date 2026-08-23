@@ -21,7 +21,7 @@
   padding: 10px 14px;
   background: var(--danger-soft);
   color: var(--danger-text);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--app-radius-md, 10px);
   font-size: 13px;
   margin-bottom: 16px;
   border: 1px solid rgba(220, 38, 38, 0.12);

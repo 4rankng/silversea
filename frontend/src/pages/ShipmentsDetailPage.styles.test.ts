@@ -6,6 +6,7 @@ const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.c
 const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsDetailPage.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/ShipmentContainerLedger.tsx'), 'utf8');
+const railCss = readFileSync(resolve(process.cwd(), 'src/design-system/SummaryRail.css'), 'utf8');
 
 describe('shipment detail workboard styling', () => {
   it('keeps an ultrawide operational canvas bounded without a card shell', () => {
@@ -16,20 +17,22 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toContain('.shipments-detail-workspace__intro');
     expect(css).not.toContain('.shipments-detail-eyebrow');
     expect(css).toMatch(/\.shipments-detail-filter \[data-label\]\s*\{[^}]*margin-bottom:\s*0;[^}]*font-weight:\s*var\(--fw-semibold\);/);
-    expect(css).toMatch(/\.shipments-detail-filter:not\(\[data-input-wrapper\]\) > label\[data-label\]\s*\{[^}]*margin-bottom:\s*5px;[^}]*font-weight:\s*var\(--fw-semibold\);/);
     expect(css).toMatch(/\.shipments-detail-filter\s*\{[^}]*gap:\s*4px;/);
     expect(css).toMatch(/\.shipments-detail-filter \[data-input-wrapper\]\s*\{[^}]*gap:\s*4px;/);
     expect(css).toMatch(/\.shipments-detail-filter--search input\s*\{[^}]*padding-left:\s*30px;/);
     expect(css).not.toMatch(/\.shipments-detail-filter input::placeholder\s*\{[^}]*font-size\s*:/);
     expect(css).not.toContain('.shipments-detail-filters__actions');
-    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UUINativeSelect label="Trạng thái"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
+    expect(source).toMatch(/<div className="shipments-detail-filters">[\s\S]*?<UuiSelectField label="Trạng thái"[\s\S]*?<div className="shipments-detail-filters__footer">[\s\S]*?shipments-detail-filters__date-actions[\s\S]*?>Xóa bộ lọc<\/UUIButton>/);
     expect(source).not.toContain('shipments-detail-filters__meta');
     expect(source).not.toContain('Đang lọc');
     expect(css).toMatch(/\.shipments-detail-filters__footer\s*\{[^}]*display:\s*flex;[^}]*grid-column:\s*2\s*\/\s*-1;[^}]*align-items:\s*end;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
-    expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*20px;/);
+    expect(ledgerSource).toMatch(/<SummaryRail\s/);
+    expect(ledgerSource).not.toContain('shipment-container-summary');
+    expect(railCss).toMatch(/\.summary-rail dd\s*\{[^}]*font-size:\s*20px;/);
+    expect(railCss).toMatch(/\.summary-rail__item--warning dd\s*\{\s*color:\s*var\(--warning-text\);/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*var\(--ops-table-header-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);/);
   });
@@ -38,10 +41,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filters\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:/);
     const filterToolbar = css.match(/\.shipments-detail-filters\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(filterToolbar).not.toMatch(/(?:padding|border|border-radius|background|box-shadow)\s*:/);
-    expect(css).toMatch(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*box-shadow:\s*none;/);
+    expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*box-shadow:\s*none;/);
     expect(css).toMatch(/\.shipments-detail-filter input\s*\{[^}]*background:\s*transparent;/);
-    expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
+    expect(css).not.toContain('.shipments-detail-filter select');
+    expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;[^}]*max-width:\s*none;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters__group--selects\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
@@ -52,12 +55,13 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   });
 
-  it('uses a divider-led workband rather than an outer card around the filters and ledger', () => {
+  it('uses a borderless workband rather than an outer card or ruled lines around the filters and ledger', () => {
     const workspace = css.match(/\.shipments-detail-workspace\s*\{([^}]*)\}/)?.[1] ?? '';
     const header = css.match(/\.shipments-detail-workspace__header\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(workspace).toMatch(/background:\s*transparent;/);
     expect(workspace).not.toMatch(/(?:border|border-radius|box-shadow)\s*:/);
-    expect(header).toMatch(/border-block:\s*1px solid var\(--line\);/);
+    expect(header).toMatch(/border-block:\s*0;/);
+    expect(header).toMatch(/padding:\s*16px 18px 0;/);
     expect(header).toMatch(/background:\s*transparent;/);
     expect(css).not.toMatch(/\.shipments-detail-workspace\s*\{[^}]*box-shadow:/);
   });

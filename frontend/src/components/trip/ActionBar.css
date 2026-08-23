@@ -3,7 +3,7 @@
 /* Form error alert */
 .form-alert {
   padding: 10px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   font-size: var(--fs-sm);
   margin-bottom: 16px;
 }

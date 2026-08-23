@@ -60,6 +60,23 @@ const completionBusinessDate = sql<string>`to_char(
   'YYYY-MM-DD'
 )`;
 
+// Sort whitelist — one key per register data column, mapped to a real SQL
+// expression over the joins the item query already applies (no row-multiplying
+// joins). OWN trips carry no carrier name, so the carrier column falls back to
+// the literal label the cell renders ('Xe nhà'); readiness ranks via a
+// case-rank (READY = 0). NULLs last in both directions comes from the wrapper
+// at the orderBy call site.
+type TransportSortKey = NonNullable<AccountingTransportRegisterQuery['sortBy']>;
+const TRANSPORT_SORT_SQL: Record<TransportSortKey, SQL> = {
+  tripCode: sql`${s.trips.tripCode}`,
+  customerName: sql`${operationalName(s.customers.shortName, s.customers.name)}`,
+  carrierName: sql`coalesce(${operationalName(carrier.shortName, carrier.name)}, N'Xe nhà')`,
+  revenue: sql`${s.profitabilitySnapshots.revenue}`,
+  directCost: sql`${s.profitabilitySnapshots.directCost}`,
+  profit: sql`${s.profitabilitySnapshots.profit}`,
+  readiness: sql`case when ${s.profitabilitySnapshots.id} is null then 1 else 0 end`,
+};
+
 function canonicalFilter(input: AccountingTransportRegisterQuery) {
   return {
     from: input.from,
@@ -201,7 +218,15 @@ export async function listAccountingTransportRows(
       eq(carrierPayableProjection.financialPostingId, s.tripFinancialPostings.id),
     )
     .where(and(...conditions))
-    .orderBy(desc(completionBusinessDate), desc(s.trips.id))
+    .orderBy(...(
+      input.sortBy
+        ? [
+            sql`${TRANSPORT_SORT_SQL[input.sortBy]} ${input.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+            desc(completionBusinessDate),
+            desc(s.trips.id),
+          ]
+        : [desc(completionBusinessDate), desc(s.trips.id)]
+    ))
     .limit(input.limit)
     .offset(offset);
 

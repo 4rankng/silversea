@@ -4,11 +4,14 @@ import type {
   AccountingTransportOwnership,
   AccountingTransportReadiness,
 } from '@tingting/shared';
+import { nextTableSort, readTableSort, type TableSortState } from '../../lib/table-sort';
 import type {
   AccountingTransportFilterKey,
+  AccountingTransportSortKey,
   AccountingView,
   AccountingWorkspaceUrlState,
 } from './accountingWorkspaceTypes';
+import { ACCOUNTING_TRANSPORT_SORT_KEYS } from './accountingWorkspaceTypes';
 import {
   buildAccountingViewHref,
   updateAccountingSearchParams,
@@ -60,6 +63,13 @@ export function useAccountingWorkspaceUrlState() {
   const carrierId = readPositiveId(searchParams.get('carrierId'));
   const ownership = readOwnership(searchParams.get('ownership'));
   const readiness = readReadiness(searchParams.get('readiness'));
+  const rawSortBy = searchParams.get('sortBy');
+  const transportSortBy = rawSortBy != null && (ACCOUNTING_TRANSPORT_SORT_KEYS as readonly string[]).includes(rawSortBy)
+    ? rawSortBy as AccountingTransportSortKey
+    : undefined;
+  const transportSort = transportSortBy
+    ? readTableSort(transportSortBy, searchParams.get('sortDir'))
+    : null;
 
   const state: AccountingWorkspaceUrlState = {
     activeView,
@@ -75,6 +85,8 @@ export function useAccountingWorkspaceUrlState() {
     carrierId,
     ownership,
     readiness,
+    transportSortBy: transportSort?.by as AccountingTransportSortKey | undefined,
+    transportSortDir: transportSort?.dir,
   };
 
   const applyUrlState = (updates: Record<string, string | null>) => {
@@ -95,6 +107,16 @@ export function useAccountingWorkspaceUrlState() {
     },
     setTransportPage: (page: number) => {
       applyUrlState({ page: page === 1 ? null : String(page) });
+    },
+    // Both sort params are written in one setSearchParams pass (never two-phase)
+    // so no intermediate render pairs a new sortBy with a stale sortDir; the
+    // page param clears in the same pass so a sort always restarts on page 1.
+    setTransportSort: (key: string) => {
+      const next: TableSortState = nextTableSort(
+        transportSortBy ? { by: transportSortBy, dir: searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc' } : null,
+        key,
+      );
+      applyUrlState({ sortBy: next.by, sortDir: next.dir, page: null });
     },
     resetTransportSearch: () => {
       setTransportSearch('');

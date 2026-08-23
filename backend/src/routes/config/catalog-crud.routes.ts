@@ -640,6 +640,10 @@ router.use('/suppliers', createCrudRouter(s.suppliers, supplierSchema, {
     taxCode: s.suppliers.taxCode,
     linkedCustomer: supplierLinkedCustomerNameSortSql,
     payable: supplierPayableSortSql,
+    // Dispatch catalog "Loại"/"Trạng thái" columns. Empty-string guard folds an
+    // empty types array into NULL so both sit in the nulls-last bucket.
+    types: sql`nullif(array_to_string(${s.suppliers.types}, ', '), '')`,
+    status: s.suppliers.status,
   },
   // Dispatchers allocate external capacity from this catalog; they may add
   // subcontractors (casbin route-scoped POST allowance) while updates/deletes

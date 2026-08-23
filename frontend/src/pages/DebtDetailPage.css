@@ -100,7 +100,7 @@
   align-items: center;
   gap: 6px;
   padding: 5px 11px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   font-size: var(--fs-xs);
   font-weight: 700;
   letter-spacing: .01em;
@@ -291,7 +291,7 @@
 .dd-aging-bar {
   display: flex;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   overflow: hidden;
   margin: 16px 0 12px;
   background: var(--bg-3);

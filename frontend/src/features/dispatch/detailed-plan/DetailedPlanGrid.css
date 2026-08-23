@@ -854,7 +854,7 @@
   color: var(--text-secondary, #475467);
   background: var(--surface-white, #fff);
   border: 1px solid var(--border-medium, #d0d5dd);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--app-radius-sm, 8px);
   cursor: pointer;
   transition: border-color 120ms ease, color 120ms ease;
 }
@@ -887,7 +887,7 @@
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--border-subtle, #eaecf0);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--app-radius-md, 10px);
   background: var(--surface-white, #fff);
 }
 

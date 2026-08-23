@@ -184,7 +184,7 @@ export function LocationAutocomplete({
             listStyle: 'none',
             background: 'var(--bg-1, #fff)',
             border: '1px solid var(--border-2, var(--line))',
-            borderRadius: 'var(--radius-md, 10px)',
+            borderRadius: 'var(--app-radius-md, 10px)',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             zIndex: 100,
             maxHeight: 240,

@@ -8,10 +8,11 @@ import type {
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
+import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
-import { SearchableSelect, DateInput } from '../../../design-system';
+import { SearchableSelect, DateInput, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
@@ -78,6 +79,17 @@ const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' 
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },
   IN_TRANSIT: { label: 'Đang vận chuyển', color: 'purple' },
   COMPLETED: { label: 'Hoàn thành', color: 'success' },
+};
+
+/* Row markers follow the status-signal contract: semantic tones only, mirroring
+   the workboard's StatusStrip lane — the badge column carries the precise
+   five-state label. */
+const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
+  UNASSIGNED: 'var(--warning)',
+  PLANNED: 'var(--info)',
+  CREATED: 'var(--info)',
+  IN_TRANSIT: 'var(--info)',
+  COMPLETED: 'var(--success)',
 };
 
 function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
@@ -565,12 +577,15 @@ export function ShipmentContainerLedger({
 
   return (
     <>
-      <dl className="shipment-container-summary" aria-label="Tóm tắt container trên trang">
-        <div><dt>Container trên trang</dt><dd>{rows.length.toLocaleString('vi-VN')}</dd></div>
-        <div><dt>Tổng container phù hợp</dt><dd>{totalContainers.toLocaleString('vi-VN')}</dd></div>
-        <div className={missingDateCount ? 'shipment-container-summary__attention' : ''}><dt>Thiếu ngày vận chuyển</dt><dd>{missingDateCount.toLocaleString('vi-VN')}</dd></div>
-        <div className={missingVehicleTodayCount ? 'shipment-container-summary__attention' : ''}><dt>Hôm nay chờ phân xe</dt><dd>{missingVehicleTodayCount.toLocaleString('vi-VN')}</dd></div>
-      </dl>
+      <SummaryRail
+        ariaLabel="Tóm tắt container trên trang"
+        items={[
+          { label: 'Container trên trang', value: rows.length },
+          { label: 'Tổng container phù hợp', value: totalContainers },
+          { label: 'Thiếu ngày vận chuyển', value: missingDateCount, tone: missingDateCount > 0 ? 'warning' : undefined },
+          { label: 'Hôm nay chờ phân xe', value: missingVehicleTodayCount, tone: missingVehicleTodayCount > 0 ? 'warning' : undefined },
+        ]}
+      />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
         <table>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
@@ -614,6 +629,7 @@ export function ShipmentContainerLedger({
               return (
                 <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
                   <th scope="row" data-label="Khách hàng & lộ trình" className={cellClassName(identityEditable, 'identity')}>
+                    <StatusStrip color={DISPATCH_STRIP_COLORS[row.dispatchStatus]} />
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>

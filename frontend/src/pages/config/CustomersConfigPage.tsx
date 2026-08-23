@@ -17,6 +17,8 @@ import {
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { Customer, TripDetail, DebitNoteTemplate } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import './config-page.css';
@@ -181,6 +183,11 @@ export default function CustomersConfigPage() {
   useBackShortcut(handleBack);
   const [customerFilter, setCustomerFilter] = useState<'all' | 'high-risk' | 'active' | 'locked'>('all');
   const [search, setSearch] = useState('');
+  // Client-side column sort — the catalog is a full in-memory array (and the
+  // month trip/revenue columns are derived client-side), so there is no
+  // server sort to call; null keeps the fetch order.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
 
   const { data, refetch } = useQuery({
     queryKey: qk.tripForm.customersConfig(search),
@@ -244,12 +251,25 @@ export default function CustomersConfigPage() {
     });
     // Server-side search via fetchAllPaginated already filters by name.
     // Client-side filter only adds taxCode matching (server only checks name).
-    if (!search) return byStatus;
-    const q = search.toLowerCase();
-    return byStatus.filter(c =>
-      c.name.toLowerCase().includes(q) || (c.taxCode || '').toLowerCase().includes(q)
-    );
-  }, [customers, customerFilter, search]);
+    let result = byStatus;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(c =>
+        c.name.toLowerCase().includes(q) || (c.taxCode || '').toLowerCase().includes(q)
+      );
+    }
+    return sortClientSide(result, sort, {
+      name: c => c.name,
+      contact: c => c.contactPerson || c.phone || c.contactInfo || null,
+      monthTrips: c => customerTripStats.get(c.id)?.trips ?? null,
+      monthRevenue: c => customerTripStats.get(c.id)?.revenue ?? null,
+      creditLimit: c => {
+        const limit = parseFloat(c.creditLimit || '0');
+        return limit > 0 ? limit : null;
+      },
+      status: c => c.status,
+    }, (a, b) => b.id - a.id);
+  }, [customers, customerFilter, search, sort, customerTripStats]);
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--customers">
@@ -352,8 +372,12 @@ export default function CustomersConfigPage() {
           <table className="cfg-customer-table">
             <thead>
               <tr>
-                <th>Khách hàng</th><th>Liên hệ</th><th className="num">Chuyến {monthLabel}</th>
-                <th className="num">Doanh thu {monthLabel}</th><th className="num">Hạn mức TD</th><th>Trạng thái</th>
+                <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Liên hệ" sortKey="contact" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label={`Chuyến ${monthLabel}`} sortKey="monthTrips" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label={`Doanh thu ${monthLabel}`} sortKey="monthRevenue" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Hạn mức TD" sortKey="creditLimit" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={handleSort} />
               </tr>
             </thead>
             <tbody>

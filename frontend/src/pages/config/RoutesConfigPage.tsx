@@ -12,6 +12,8 @@ import { calculateRoute } from '../../lib/maps';
 import { LeafletMap } from '../../components/shared/LeafletMap';
 import { useCRUD } from '../../hooks/useCRUD';
 import { qk } from '../../api/keys';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { Route as RouteType, RoadAllowance } from '@tingting/shared';
 import './config-page.css';
 import { RouteFormModal } from './route-form-modal';
@@ -24,6 +26,11 @@ export default function RoutesConfigPage() {
   useBackShortcut(handleBack);
   const [routeFilter, setRouteFilter] = useState<'all' | 'plain' | 'mountain'>('all');
   const [search, setSearch] = useState('');
+  // Client-side column sort — full in-memory catalog plus derived columns
+  // (month usage from trips, 20/40ft prices from road allowances); null keeps
+  // the fetch order.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [selectedRouteLegs, setSelectedRouteLegs] = useState<Array<{ origin: string; destination: string; km: number; loadingType: string; polylinePath: string | null }>>([]);
 
@@ -117,11 +124,25 @@ export default function RoutesConfigPage() {
   let popularCount = 0;
   routes.forEach(r => { const c = routeTripStats.get(r.id) || 0; if (c > popularCount) { popularCount = c; popularRoute = r; } });
 
-  const filtered = routes.filter(r => {
-    if (routeFilter === 'plain') return !r.isMountain;
-    if (routeFilter === 'mountain') return r.isMountain;
-    return true;
-  });
+  const filtered = useMemo(() => sortClientSide(
+    routes.filter(r => {
+      if (routeFilter === 'plain') return !r.isMountain;
+      if (routeFilter === 'mountain') return r.isMountain;
+      return true;
+    }),
+    sort,
+    {
+      name: r => r.shortName || r.name,
+      distanceKm: r => r.distanceKm,
+      terrain: r => (r.isMountain ? 'mountain' : 'plain'),
+      tollsStations: r => r.tollsStations,
+      driverSalary: r => (r.driverSalary != null ? Number(r.driverSalary) : null),
+      price20ft: r => routePriceMap.get(r.id)?.ft20 ?? null,
+      price40ft: r => routePriceMap.get(r.id)?.ft40 ?? null,
+      monthUsage: r => routeTripStats.get(r.id) ?? 0,
+    },
+    (a, b) => b.id - a.id,
+  ), [routes, routeFilter, sort, routePriceMap, routeTripStats]);
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--routes routes-config-page">
@@ -212,10 +233,14 @@ export default function RoutesConfigPage() {
             <table className="routes-table">
               <thead>
                 <tr>
-                  <th>Tuyến đường</th><th className="num">KM</th><th>Loại</th>
-                  <th className="num">Trạm thu phí</th><th className="num">Tiền KH</th>
-                  <th className="num">Chuẩn 20ft</th>
-                  <th className="num">Chuẩn 40ft</th><th className="num">Sử dụng {monthLabel}</th>
+                  <SortHeader label="Tuyến đường" sortKey="name" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="KM" sortKey="distanceKm" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="Loại" sortKey="terrain" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="Trạm thu phí" sortKey="tollsStations" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="Tiền KH" sortKey="driverSalary" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="Chuẩn 20ft" sortKey="price20ft" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label="Chuẩn 40ft" sortKey="price40ft" sort={sort} onSortChange={handleSort} />
+                  <SortHeader className="num" label={`Sử dụng ${monthLabel}`} sortKey="monthUsage" sort={sort} onSortChange={handleSort} />
                 </tr>
               </thead>
               <tbody>
@@ -269,7 +294,7 @@ export default function RoutesConfigPage() {
             top: '20px',
             background: 'var(--bg-1)',
             border: '1px solid var(--line)',
-            borderRadius: 'var(--radius-lg)',
+            borderRadius: 'var(--app-radius-lg)',
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
@@ -345,7 +370,7 @@ export default function RoutesConfigPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: 'var(--bg-2)',
-                  borderRadius: 'var(--radius-lg)',
+                  borderRadius: 'var(--app-radius-lg)',
                   border: '1px dashed var(--line)',
                   color: 'var(--fg-3)',
                   fontSize: '13px'
@@ -356,7 +381,7 @@ export default function RoutesConfigPage() {
             </div>
 
             {/* Configuration default values */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-2)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--bg-2)', padding: '12px', borderRadius: 'var(--app-radius-md)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--fg-3)' }}>Định mức dầu:</span>
                 <strong style={{ color: 'var(--fg-1)' }}>
@@ -393,7 +418,7 @@ export default function RoutesConfigPage() {
                       gap: '4px',
                       background: 'var(--bg-2)',
                       padding: '8px 10px',
-                      borderRadius: 'var(--radius-sm)'
+                      borderRadius: 'var(--app-radius-sm)'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-2)' }}>Chặng {i + 1}</span>

@@ -33,7 +33,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
     <div style={{ marginBottom: 0 }}>
       <div style={{
         border: "1px solid var(--border-2)",
-        borderRadius: "var(--radius-md)",
+        borderRadius: "var(--app-radius-md)",
         padding: 14,
         background: "var(--bg-1)",
       }}>
@@ -43,7 +43,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
           {photoUrls.map((url, i) => (
-            <div key={url} style={{ width: 64, height: 64, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-1)", position: "relative", overflow: "hidden" }}>
+            <div key={url} style={{ width: 64, height: 64, borderRadius: "var(--app-radius-sm)", border: "1px solid var(--border-1)", position: "relative", overflow: "hidden" }}>
               <img src={getAuthenticatedPhotoUrl(url)} alt={`Ảnh ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               <button type="button" onClick={() => removePhoto(i)} style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, background: "rgba(0,0,0,0.6)", color: "white", border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                 <X size={8} />
@@ -52,7 +52,7 @@ export function PhotoUploader({ tripId }: PhotoUploaderProps) {
           ))}
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44, border: "1px dashed var(--fg-3)", borderRadius: "var(--radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 44, border: "1px dashed var(--fg-3)", borderRadius: "var(--app-radius-sm)", background: "var(--bg-2)", cursor: uploading.OTHER ? "wait" : "pointer", color: "var(--fg-2)", fontSize: 12 }}>
           {uploading.OTHER ? (
             <Loader2 size={16} className="spin" />
           ) : (

@@ -8,7 +8,7 @@
   margin-bottom: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 10px);
+  border-radius: var(--app-radius-md, 10px);
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
@@ -19,7 +19,7 @@
   width: 40px;
   height: 40px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--app-radius-sm, 8px);
   background: var(--bg);
   color: var(--fg-1);
   cursor: pointer;

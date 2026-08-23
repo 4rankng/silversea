@@ -62,6 +62,8 @@ import {
   requestTreasuryAccountSetup,
   requestTreasuryCutover,
   requestTreasuryMovementReversal,
+  sortTreasuryPositions,
+  TREASURY_SORT_KEYS,
 } from '../../services/treasury.service';
 
 const PAYABLES_CATEGORIES = new Set<string>(['fuel', 'ancillary', 'commission', 'carrier']);
@@ -616,7 +618,21 @@ router.post('/drivers/:driverId/payouts', requireRoles(Role.ADMIN, Role.MANAGER,
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
-router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
+// Sort params for the treasury position table — optional; absent params keep
+// the account-query order. Keys mirror TREASURY_SORT_KEYS in the service.
+const treasuryPositionSortQuerySchema = z.object({
+  sortBy: z.enum(TREASURY_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
+router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const parsedSort = treasuryPositionSortQuerySchema.safeParse({
+    sortBy: req.query.sortBy,
+    sortDir: req.query.sortDir,
+  });
+  if (!parsedSort.success) {
+    throw new ApiError(400, 'Tham số sắp xếp không hợp lệ');
+  }
   const positions = await db.transaction(async (tx) => {
     const accounts = await tx.select({ id: s.treasuryAccounts.id })
       .from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE'));
@@ -628,7 +644,7 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
     coverage: positions.length === 0
       ? 'UNAVAILABLE'
       : positions.some(position => position.completeness === 'PARTIAL') ? 'PARTIAL' : 'COMPLETE',
-    accounts: positions,
+    accounts: sortTreasuryPositions(positions, parsedSort.data.sortBy, parsedSort.data.sortDir),
   });
 }));
 

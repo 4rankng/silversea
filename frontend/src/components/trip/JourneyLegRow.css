@@ -3,7 +3,7 @@
 .leg-card {
   background: var(--bg-1);
   border: 1px solid var(--border-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   padding: 12px 14px;
   transition: border-color var(--t-fast), background var(--t-fast);
 }
@@ -21,7 +21,7 @@
 .leg-card__seq {
   width: 22px;
   height: 22px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--brand-soft);
   color: var(--brand);
   display: inline-flex;

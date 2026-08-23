@@ -16,11 +16,14 @@
   background: transparent;
 }
 
+/* Borderless workband, matching the golden toolbar (`.cus-worksheet-toolbar`
+   sets border-bottom: 0): the summary rail carries the only ruled lines, so no
+   horizontal divider runs under the filters. */
 .shipments-detail-workspace__header {
   display: grid;
   gap: 10px;
-  padding: 16px 18px;
-  border-block: 1px solid var(--line);
+  padding: 16px 18px 0;
+  border-block: 0;
   background: transparent;
 }
 .shipments-detail-filters {
@@ -42,6 +45,12 @@
 .shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
 .shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
 .shipments-detail-filter input { box-shadow: none; background: transparent; }
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger owns its own Tailwind sizing (min-h-[34px]) since
+   UuiSelectField.css's boundary selectors don't reach it, so its 36px
+   border-box sits 2px taller than the text-input wrapper's 34px. Trim the
+   inner value span to 32px so both control families share one row line. */
+.shipments-detail-filters .ds-uui-select__control button > span { min-height: 32px; }
 .shipments-detail-filter--search input { padding-left: 30px; }
 .shipments-detail-filter--search input { text-transform: uppercase; }
 .shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
@@ -56,15 +65,8 @@
 
 .shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
 
-/* Summary reads as a KPI rail of stat cards (20px number over 12px label per
-   the global sizing contract), not as ledger-adjacent inline text. Amber is
-   reserved for the two genuinely attention-seeking counters. */
-.shipment-container-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 18px 16px; }
-.shipment-container-summary > div { display: grid; min-width: 0; align-content: start; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
-.shipment-container-summary dt { color: var(--ink-3); font-size: 12px; font-weight: var(--fw-semibold); line-height: 1.3; }
-.shipment-container-summary dd { margin: 0; color: var(--ink); font-family: var(--font-data); font-size: 20px; font-weight: var(--fw-bold); line-height: 1.2; }
-.shipment-container-summary__attention { border-color: color-mix(in srgb, var(--warning) 32%, var(--line)); background: var(--warning-soft); }
-.shipment-container-summary__attention dd { color: var(--warning-text); }
+/* Summary = the shared workboard summary rail (design-system/SummaryRail.css),
+   the app-wide standard for operational list summaries. */
 
 .shipment-container-ledger { position: relative; min-width: 0; background: var(--surface); }
 .shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -91,9 +93,13 @@
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
    through the gap between the topbar and this pinned header. */
-.shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 2; padding: 8px 9px; border-bottom: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); letter-spacing: .025em; line-height: var(--ops-table-header-line-height); text-align: left; text-transform: uppercase; overflow-wrap: anywhere; white-space: normal; }
+/* Workboard-standard thead (docs/design-guidelines.md §"Workboard table &
+   summary rail"): --ink-2 header text on surface-2 with a 1px --line-strong
+   underline, 10×12 padding — computed-identical to the /shipments table
+   (header case/tracking come from the shared table base, as on /shipments). */
+.shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; overflow-wrap: anywhere; white-space: normal; }
 .shipment-container-ledger tbody > tr > th,
-.shipment-container-ledger tbody > tr > td { min-width: 0; overflow: hidden; padding: 10px 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
 .shipment-container-ledger tbody > tr:last-child > * { border-bottom: 0; }
 .shipment-container-ledger tbody > tr:hover > * { background: var(--surface-2); }

@@ -77,6 +77,8 @@ export const customerServiceFinanceClient = {
     carrierId?: number;
     ownership?: AccountingTransportOwnership;
     readiness?: AccountingTransportReadiness;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
   }) {
     const query = new URLSearchParams({
       from: params.from,
@@ -89,6 +91,8 @@ export const customerServiceFinanceClient = {
     if (params.carrierId) query.set('carrierId', String(params.carrierId));
     if (params.ownership) query.set('ownership', params.ownership);
     if (params.readiness) query.set('readiness', params.readiness);
+    if (params.sortBy) query.set('sortBy', params.sortBy);
+    if (params.sortDir) query.set('sortDir', params.sortDir);
     return api.get<AccountingTransportRegisterResponse>(
       `/finance/billing-documents/transport-register?${query}`,
     );
@@ -104,7 +108,13 @@ export const customerServiceFinanceClient = {
   }, idempotencyKey: string) {
     return api.post(`/recoverable-costs/${id}/request`, body, { headers: { 'Idempotency-Key': idempotencyKey } });
   },
-  getTreasuryPosition: () => api.get<TreasuryPosition>('/finance/treasury/position'),
+  getTreasuryPosition: (params?: { sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
+    const query = new URLSearchParams();
+    if (params?.sortBy) query.set('sortBy', params.sortBy);
+    if (params?.sortDir) query.set('sortDir', params.sortDir);
+    const qs = query.toString();
+    return api.get<TreasuryPosition>(`/finance/treasury/position${qs ? `?${qs}` : ''}`);
+  },
   getProfitability(params: { month: number; year: number; dimension: ProfitabilityDimension; page?: number; lowMarginOnly?: boolean }) {
     const query = new URLSearchParams({
       month: String(params.month), year: String(params.year), dimension: params.dimension,

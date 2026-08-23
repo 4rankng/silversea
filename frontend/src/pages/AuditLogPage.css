@@ -79,7 +79,7 @@
   flex-shrink: 0;
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--surface-2);
   color: var(--ink-2);
   font-family: var(--font-data);
@@ -147,7 +147,7 @@
   height: 100dvh;
   max-height: 100dvh;
   padding: 0;
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  border-radius: var(--app-radius-lg) 0 0 var(--app-radius-lg);
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--sh-drawer);
@@ -307,7 +307,7 @@
     width: 36px;
     height: 36px;
     justify-content: center;
-    border-radius: var(--radius-full);
+    border-radius: var(--app-radius-full);
     background: var(--surface-3);
     opacity: 1;
     transform: none;
@@ -318,7 +318,7 @@
     width: 100vw;
     height: min(88dvh, 760px);
     max-height: 88dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--app-radius-lg) var(--app-radius-lg) 0 0;
   }
   .audit-detail-modal__header { padding: 18px 18px 14px; }
   .audit-detail-modal__body {

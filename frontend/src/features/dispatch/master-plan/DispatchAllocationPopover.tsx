@@ -168,7 +168,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     const nextIndex = rows.length;
     window.requestAnimationFrame(() => {
       dialogRef.current
-        ?.querySelector<HTMLSelectElement>(`[data-allocation-row="${nextIndex}"] select`)
+        ?.querySelector<HTMLButtonElement>(`[data-allocation-row="${nextIndex}"] .dispatch-allocation-popover__fields button`)
         ?.focus();
     });
   };
@@ -179,7 +179,7 @@ export function DispatchAllocationPopover({ shipment, onClose, onSaved, returnFo
     const nextIndex = Math.max(0, Math.min(index, rows.length - 2));
     window.requestAnimationFrame(() => {
       dialogRef.current
-        ?.querySelector<HTMLSelectElement>(`[data-allocation-row="${nextIndex}"] select`)
+        ?.querySelector<HTMLButtonElement>(`[data-allocation-row="${nextIndex}"] .dispatch-allocation-popover__fields button`)
         ?.focus();
     });
   };

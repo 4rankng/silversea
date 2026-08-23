@@ -108,7 +108,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 6px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--surface-3);
   color: var(--ink-3);
   font-size: var(--fs-2xs);

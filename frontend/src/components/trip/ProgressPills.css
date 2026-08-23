@@ -7,7 +7,7 @@
   background: var(--surface);
   border: 1px solid var(--border-1);
   padding: 6px 10px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   font-size: var(--fs-xs);
   color: var(--fg-2);
   white-space: nowrap;

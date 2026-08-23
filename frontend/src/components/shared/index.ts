@@ -20,3 +20,5 @@ export type { BannerProps, BannerVariant } from './Banner';
 // T4 (Tailkit a-c-command-palettes-07 retokenized — Cmd/Ctrl+K palette).
 export { CommandPalette, useCommandHotkey } from './CommandPalette';
 export type { CommandPaletteProps, CommandItem } from './CommandPalette';
+// Sortable <th> for record-table/ops-table custom markup (server-side sort).
+export { SortHeader } from './SortHeader';

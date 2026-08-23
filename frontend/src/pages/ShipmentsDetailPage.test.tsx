@@ -422,7 +422,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter initialEntries={['/?transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT&searchSuffix=abcde']}><ShipmentsDetailPage /></MemoryRouter>);
 
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=ABCDE&transportDateFrom=2026-08-01&transportDateTo=2026-08-31&customerId=7&direction=IMPORT'));
-    expect(await screen.findByRole('option', { name: 'Công ty Silver Sea' })).toBeTruthy();
+    await screen.findByText('CONT-001');
+    const selectsGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
+    expect(within(selectsGroup).getByRole('button', { name: /Khách hàng/i })).toHaveTextContent('Công ty Silver Sea');
   });
 
   it('ignores malformed or inverted URL filters instead of sending an invalid API query', async () => {
@@ -441,11 +443,12 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.change(screen.getByLabelText('Từ ngày vận chuyển'), { target: { value: '2026-08-15' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/i }));
+    const selectsGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
+    fireEvent.click(within(selectsGroup).getByRole('button', { name: /Khách hàng/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Công ty Silver Sea' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Nhập \/ Xuất/i }));
+    fireEvent.click(within(selectsGroup).getByRole('button', { name: /Nhập \/ Xuất/i }));
     fireEvent.click(screen.getByRole('option', { name: 'Nhập' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&customerId=7&direction=IMPORT'));
 

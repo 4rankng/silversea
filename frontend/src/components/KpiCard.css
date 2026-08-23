@@ -272,7 +272,7 @@
   font-weight: var(--fw-semibold);
 
   padding: 2px 6px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   line-height: 1;
 }
 .kpi__trend-badge--up {

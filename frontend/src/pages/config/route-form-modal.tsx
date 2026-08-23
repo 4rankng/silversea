@@ -186,7 +186,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
                 <label style={{
                   display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
                   padding: '9px 12px', border: '1px solid var(--line)',
-                  borderRadius: 'var(--radius-md)', background: isMountain ? 'var(--warning-soft, #fef3c7)' : 'transparent',
+                  borderRadius: 'var(--app-radius-md)', background: isMountain ? 'var(--warning-soft, #fef3c7)' : 'transparent',
                 }}>
                   <input
                     type="checkbox"
@@ -265,7 +265,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {defaultLegs.length === 0 ? (
-              <div style={{ padding: '16px', textAlign: 'center', background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--line)' }}>
+              <div style={{ padding: '16px', textAlign: 'center', background: 'var(--bg-2)', borderRadius: 'var(--app-radius-md)', border: '1px dashed var(--line)' }}>
                 <span style={{ color: 'var(--fg-3)', fontSize: 13 }}>Chưa có chặng mặc định</span>
               </div>
             ) : defaultLegs.map((leg) => (
@@ -320,7 +320,7 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: 'var(--bg-2)',
-                borderRadius: 'var(--radius-lg, 12px)',
+                borderRadius: 'var(--app-radius-lg, 12px)',
                 border: '1px dashed var(--line)',
                 color: 'var(--fg-3)',
                 fontSize: '13px'

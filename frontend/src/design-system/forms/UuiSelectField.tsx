@@ -94,7 +94,8 @@ export function UuiSelectField({
         isInvalid={invalid ?? Boolean(error)}
         hideRequiredIndicator={!required}
         popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
-        className={`ds-uui-select__control ds-uui-boundary${controlClassName ? ` ${controlClassName}` : ''}`}
+        className="ds-uui-select__control"
+        triggerClassName={controlClassName}
       >
         {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
       </UUISelect>

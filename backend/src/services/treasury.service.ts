@@ -38,6 +38,50 @@ export interface TreasuryPosition {
   cutoverAt: string | null;
 }
 
+// Server-side sort keys for the treasury position table — one per data column.
+// Applied in-memory over the computed positions (the endpoint's unit is the
+// account aggregate, not a SQL row); accountId stays the stable tiebreaker and
+// absent params keep the account-query order untouched.
+export const TREASURY_SORT_KEYS = [
+  'name',
+  'openingBalance',
+  'totalIn',
+  'totalOut',
+  'bookBalance',
+  'completeness',
+] as const;
+export type TreasurySortKey = (typeof TREASURY_SORT_KEYS)[number];
+
+const TREASURY_COMPLETENESS_RANK: Record<TreasuryPosition['completeness'], number> = {
+  COMPLETE: 0,
+  PARTIAL: 1,
+};
+
+export function sortTreasuryPositions(
+  positions: TreasuryPosition[],
+  sortBy?: TreasurySortKey,
+  sortDir?: 'asc' | 'desc',
+): TreasuryPosition[] {
+  if (!sortBy) return positions;
+  const direction = sortDir === 'desc' ? -1 : 1;
+  const valueOf = (position: TreasuryPosition): string | number => {
+    switch (sortBy) {
+      case 'name': return position.name;
+      case 'openingBalance': return position.openingBalance;
+      case 'totalIn': return position.totalIn;
+      case 'totalOut': return position.totalOut;
+      case 'bookBalance': return position.bookBalance;
+      case 'completeness': return TREASURY_COMPLETENESS_RANK[position.completeness];
+    }
+  };
+  return [...positions].sort((a, b) => {
+    const left = valueOf(a);
+    const right = valueOf(b);
+    if (left === right) return a.accountId - b.accountId;
+    return (left < right ? -1 : 1) * direction;
+  });
+}
+
 export function calculateTreasuryBookBalance(
   openingBalance: number,
   totalIn: number,

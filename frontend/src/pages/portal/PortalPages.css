@@ -77,7 +77,7 @@
 .portal-panel {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--surface);
 }
 
@@ -254,7 +254,7 @@ a.portal-list__row:focus-visible {
   min-height: 28px;
   align-items: center;
   padding: 0 9px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--surface-3);
   color: var(--ink-2);
   font-size: var(--fs-status-pill);
@@ -348,7 +348,7 @@ a.portal-list__row:focus-visible {
   gap: 7px;
   padding: 0 12px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink-2);
   font: inherit;
@@ -396,7 +396,7 @@ a.portal-list__row:focus-visible {
   margin-bottom: 12px;
   padding: 11px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
 }
@@ -539,7 +539,7 @@ a.portal-list__row:focus-visible {
   min-height: var(--filter-control-h);
   padding: 0 10px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -598,7 +598,7 @@ a.portal-list__row:focus-visible {
   margin: 16px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--line));
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
 }
 
 .portal-due-list__heading {
@@ -749,7 +749,7 @@ a.portal-list__row:focus-visible {
     gap: 2px 12px;
     padding: 11px 12px;
     border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
+    border-radius: var(--app-radius-sm);
     background: var(--surface);
     text-align: left;
   }

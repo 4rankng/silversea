@@ -28,6 +28,8 @@ import { useBackShortcut } from '../../hooks/useBackShortcut';
 import type { TruckCapEntry, PaginatedResponse, Truck } from '@tingting/shared';
 import { TruckCapRole, TRUCK_CAP_ROLE_LABELS } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import './config-page.css';
 
 const ENDPOINT = '/truck-cap';
@@ -104,6 +106,11 @@ export default function TruckOwnersConfigPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Client-side column sort — the backend /truck-cap CRUD is a flat,
+  // non-paginated list filtered to this truck in memory; null keeps the
+  // effectiveDate-desc default order below.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
 
   // Truck catalog (for the header plate).
   const { data: truck } = useQuery<Truck | undefined>({
@@ -128,10 +135,18 @@ export default function TruckOwnersConfigPage() {
   const items = all.filter(r => r.truckId === id);
   const activeIds = computeActiveIds(items);
 
-  const sorted = [...items].sort((a, b) => {
-    if (a.effectiveDate !== b.effectiveDate) return a.effectiveDate < b.effectiveDate ? 1 : -1;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  const sorted = sort
+    ? sortClientSide(items, sort, {
+      partnerName: r => r.partnerName,
+      percentage: r => parseFloat(r.percentage),
+      role: r => r.role ?? null,
+      effectiveDate: r => r.effectiveDate,
+    }, (a, b) => b.id - a.id)
+    : [...items].sort((a, b) => {
+      // Default: newest effectiveDate first, newest createdAt within a date.
+      if (a.effectiveDate !== b.effectiveDate) return a.effectiveDate < b.effectiveDate ? 1 : -1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const refresh = useCallback(async () => { await refetch(); }, [refetch]);
 
@@ -212,10 +227,10 @@ export default function TruckOwnersConfigPage() {
         <table className="cfg-table" style={{ width: '100%', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-2)', color: 'var(--fg-3)' }}>
-              <th style={{ textAlign: 'left', padding: '8px 16px' }}>Đối tác</th>
-              <th style={{ textAlign: 'right', padding: '8px 16px' }}>Tỷ lệ (%)</th>
-              <th style={{ textAlign: 'left', padding: '8px 16px' }}>Vai trò</th>
-              <th style={{ textAlign: 'left', padding: '8px 16px' }}>Ngày hiệu lực</th>
+              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Đối tác" sortKey="partnerName" sort={sort} onSortChange={handleSort} />
+              <SortHeader style={{ textAlign: 'right', padding: '8px 16px' }} label="Tỷ lệ (%)" sortKey="percentage" sort={sort} onSortChange={handleSort} />
+              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Vai trò" sortKey="role" sort={sort} onSortChange={handleSort} />
+              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Ngày hiệu lực" sortKey="effectiveDate" sort={sort} onSortChange={handleSort} />
               <th style={{ textAlign: 'right', padding: '8px 16px' }}></th>
             </tr>
           </thead>

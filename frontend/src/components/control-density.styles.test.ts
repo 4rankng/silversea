@@ -41,7 +41,7 @@ describe('shared control density', () => {
   it('leaves dimensions to shared primitives instead of shipment page overrides', () => {
     const overview = read('src/pages/ShipmentsPage.css');
     const detail = read('src/pages/ShipmentsDetailPage.css');
-    const detailControlBlocks = [...detail.matchAll(/\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{([^}]*)\}/g)]
+    const detailControlBlocks = [...detail.matchAll(/\.shipments-detail-filter input\s*\{([^}]*)\}/g)]
       .map((match) => match[1]);
 
     expect(overview).not.toMatch(/\.shipment-uui-control__input\s*\{[^}]*(?:height|min-height):/);
@@ -81,6 +81,7 @@ describe('shared control density', () => {
     // a bare `.ds-uui-*` selector is never allowed here.
     const sanctionedConformanceScopes = [
       '.cus-quick-edit-modal__fields .ds-uui-select',
+      '.shipments-detail-filters .ds-uui-select',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 

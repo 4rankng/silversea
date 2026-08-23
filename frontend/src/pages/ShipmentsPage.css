@@ -354,7 +354,7 @@
 
 .cus-drawer-uui-control,
 .cus-drawer-uui-select {
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--surface);
   box-shadow: none;
 }
@@ -366,7 +366,7 @@
 
 .cus-drawer-save-date {
   width: auto;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   box-shadow: none;
 }
 
@@ -418,7 +418,7 @@
 .cus-drawer-primary-action {
   min-width: max-content;
   min-height: 34px;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   box-shadow: none;
 }
 
@@ -1062,7 +1062,7 @@
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--surface);
 }
 
@@ -1101,7 +1101,7 @@
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink-3);
 }
@@ -1129,7 +1129,7 @@
   min-height: 44px;
   padding: 9px 11px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -1148,7 +1148,7 @@
   height: 36px;
   flex: 0 0 36px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
@@ -1479,7 +1479,7 @@
 }
 
 .cus-container-edit-action {
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   box-shadow: none;
 }
 
@@ -1610,7 +1610,7 @@
   min-width: 0;
   min-height: 34px;
   padding-inline: 7px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   font-size: 11px;
   line-height: 1.35;
 }
@@ -1637,7 +1637,7 @@
   min-height: 36px;
   padding: 7px 9px;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink-2);
   font: inherit;
@@ -1700,7 +1700,7 @@
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--line));
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--warning-soft);
   color: var(--warning-text);
   font-size: var(--fs-xs);
@@ -1920,7 +1920,7 @@
   .cus-container-edit-action {
     min-width: 96px;
     min-height: 44px;
-    border-radius: var(--radius-md);
+    border-radius: var(--app-radius-md);
     box-shadow: none;
   }
 }

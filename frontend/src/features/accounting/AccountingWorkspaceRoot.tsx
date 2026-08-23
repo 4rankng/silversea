@@ -18,6 +18,7 @@ export function AccountingWorkspaceRoot() {
     setTransportFilter,
     applyTransportSearch,
     setTransportPage,
+    setTransportSort,
     resetTransportSearch,
   } = useAccountingWorkspaceUrlState();
   const queries = useAccountingWorkspaceQueries(state);
@@ -124,6 +125,8 @@ export function AccountingWorkspaceRoot() {
           selectionScopeKey={buildTransportSelectionScopeKey(state)}
           loading={queries.transportRegister.isLoading}
           error={queries.transportRegister.isError}
+          sort={state.transportSortBy ? { by: state.transportSortBy, dir: state.transportSortDir ?? 'asc' } : null}
+          onSortChange={setTransportSort}
           onSearchChange={setTransportSearch}
           onFilterChange={setTransportFilter}
           onSearch={applyTransportSearch}

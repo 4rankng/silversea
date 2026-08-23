@@ -55,11 +55,15 @@
   font-size: var(--ops-table-header-size, 11px);
   font-weight: var(--ops-table-header-weight, 600);
   line-height: var(--ops-table-header-line-height, 1.35);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--fg-3);
+  /* Workboard standard (docs/design-guidelines.md §"Workboard table & summary
+     rail"): --ink-2 header text on surface-2 with a 1px --line-strong
+     underline — matching the /shipments table exactly. Header case and
+     tracking are intentionally NOT declared here: both /shipments and
+     record-table surfaces render uppercase via the shared table base, which
+     stays the single owner of that decision. */
+  color: var(--ink-2);
   background: var(--surface-2);
-  border-bottom: 2px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -130,7 +134,7 @@
     display: block;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: var(--radius-md, var(--r, 12px));
+    border-radius: var(--app-radius-md, var(--r, 12px));
     background: var(--surface);
   }
 

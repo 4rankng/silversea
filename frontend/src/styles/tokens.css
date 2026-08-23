@@ -173,11 +173,11 @@
   --r-lg: 18px;
   --r-xl: 24px;
   /* aliases */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
-  --radius-full: 9999px;
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-radius-lg: 16px;
+  --app-radius-xl: 22px;
+  --app-radius-full: 9999px;
 
   /* --- Spacing scale --- */
   --space-xs: 4px;

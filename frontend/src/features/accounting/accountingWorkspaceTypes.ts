@@ -42,6 +42,20 @@ export interface ProfitabilitySummary {
 export type AccountingView = 'work' | 'overview' | 'transport';
 export type AccountingTransportFilterKey = 'customerId' | 'carrierId' | 'ownership' | 'readiness';
 
+// Sort keys accepted by the transport register endpoint (mirrors
+// ACCOUNTING_TRANSPORT_SORT_KEYS in shared). The frontend list is a plain
+// string whitelist for URL-param validation.
+export const ACCOUNTING_TRANSPORT_SORT_KEYS = [
+  'tripCode',
+  'customerName',
+  'carrierName',
+  'revenue',
+  'directCost',
+  'profit',
+  'readiness',
+] as const;
+export type AccountingTransportSortKey = (typeof ACCOUNTING_TRANSPORT_SORT_KEYS)[number];
+
 export interface AccountingWorkspaceUrlState {
   activeView: AccountingView;
   today: string;
@@ -56,4 +70,6 @@ export interface AccountingWorkspaceUrlState {
   carrierId?: number;
   ownership?: AccountingTransportOwnership;
   readiness?: AccountingTransportReadiness;
+  transportSortBy?: AccountingTransportSortKey;
+  transportSortDir?: 'asc' | 'desc';
 }

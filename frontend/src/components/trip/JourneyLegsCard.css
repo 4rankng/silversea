@@ -4,7 +4,7 @@
 .form-summary {
   background: var(--bg-1);
   padding: 12px 16px;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   font-size: var(--fs-sm);
   display: flex;
   flex-direction: column;

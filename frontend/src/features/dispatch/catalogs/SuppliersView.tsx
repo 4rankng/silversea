@@ -9,11 +9,13 @@ import { Store } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useSuppliers, useAllCustomers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
+import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
 import { SupplierFormModal } from '../../../pages/SupplierListPage';
 import { CatalogTableShell } from './CatalogTableShell';
 import { Pagination } from '../../../design-system';
@@ -26,11 +28,12 @@ export function SuppliersView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const create = useCatalogCreate('/suppliers');
   const { data: customers = [] } = useAllCustomers();
 
-  // Server-side pagination + search (same contract as the admin page);
-  // typing resets to page 1 after a short debounce.
+  // Server-side pagination + search + sort (same contract as the admin page);
+  // typing resets to page 1 after a short debounce, sorting resets immediately.
   useEffect(() => {
     if (search === '') {
       setPage(1);
@@ -40,7 +43,11 @@ export function SuppliersView() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, search);
+  const { data: suppliersData, isLoading: loading, error } = useSuppliers(page, search, sort);
+  const applySort = (key: string) => {
+    setPage(1);
+    setSort((current) => nextTableSort(current, key));
+  };
   const suppliers = useMemo(() => suppliersData?.items ?? [], [suppliersData]);
   const total = suppliersData?.total ?? 0;
   const activeCount = useMemo(() => suppliers.filter((s) => s.status === 'ACTIVE').length, [suppliers]);
@@ -83,11 +90,11 @@ export function SuppliersView() {
             <table className="dispatch-catalogs__table">
               <thead>
                 <tr>
-                  <th>Tên</th>
-                  <th>Liên hệ</th>
-                  <th>SĐT</th>
-                  <th>Loại</th>
-                  <th>Trạng thái</th>
+                  <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Liên hệ" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="SĐT" sortKey="phone" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Loại" sortKey="types" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr>
               </thead>
               <tbody>

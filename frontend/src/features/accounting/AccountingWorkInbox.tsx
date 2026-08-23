@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import type { AccountantWorkInboxItem } from '@tingting/shared';
 import { financialClient } from '../../api/financialClient';
 import { qk } from '../../api/keys';
+import { SortHeader } from '../../components/shared';
+import { nextTableSort, type TableSortState } from '../../lib/table-sort';
 import './AccountingWorkInbox.css';
 
 type InboxView = 'ACTION' | 'WAITING';
@@ -45,12 +47,19 @@ function InboxLane({
   description: string;
 }) {
   const [page, setPage] = useState(1);
+  // Server-side column sort; a new sort always restarts the lane from page 1.
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const query = useQuery({
-    queryKey: qk.accounting.workInbox(view, page),
-    queryFn: () => financialClient.getWorkInbox(view, page),
+    queryKey: qk.accounting.workInbox(view, page, sort?.by, sort?.dir),
+    queryFn: () => financialClient.getWorkInbox(view, page, { sortBy: sort?.by, sortDir: sort?.dir }),
   });
   const data = query.data;
   const stale = data ? Date.now() - new Date(data.asOf).getTime() > STALE_AFTER_MS : false;
+
+  const handleSortChange = (key: string) => {
+    setSort((current) => nextTableSort(current, key));
+    setPage(1);
+  };
 
   return (
     <section className={`accounting-work-inbox__lane is-${view.toLowerCase()}`} aria-labelledby={`accounting-${view.toLowerCase()}-title`}>
@@ -72,7 +81,13 @@ function InboxLane({
       ) : (
         <div className="record-table-wrap accounting-work-inbox__table-wrap">
           <table className="record-table ops-table accounting-work-inbox__table">
-            <thead><tr><th>Hồ sơ</th><th>Điều kiện tài chính</th><th>Trở ngại / ngoại lệ</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+            <thead><tr>
+              <SortHeader label="Hồ sơ" sortKey="title" sort={sort} onSortChange={handleSortChange} />
+              <SortHeader label="Điều kiện tài chính" sortKey="readiness" sort={sort} onSortChange={handleSortChange} />
+              <SortHeader label="Trở ngại / ngoại lệ" sortKey="blockers" sort={sort} onSortChange={handleSortChange} />
+              <SortHeader label="Cập nhật" sortKey="freshness" sort={sort} onSortChange={handleSortChange} />
+              <th scope="col"><span className="sr-only">Hành động</span></th>
+            </tr></thead>
             <tbody>{data.items.map((item) => (
               <tr key={item.id}>
                 <td data-label="Hồ sơ"><strong>{item.title}</strong><small>{item.subtitle}</small></td>

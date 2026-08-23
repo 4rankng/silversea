@@ -88,7 +88,8 @@ describe('RecoverableCostsPage', () => {
     fireEvent.click(within(screen.getByTestId('recoverable-cost-ledger')).getByRole('button', { name: '2' }));
     await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 2, limit: 25, approvalStatus: undefined }));
 
-    fireEvent.change(screen.getByLabelText('Trạng thái phê duyệt'), { target: { value: 'APPROVED' } });
+    fireEvent.click(screen.getByRole('button', { name: /Trạng thái phê duyệt/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Đã duyệt' }));
     await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenCalledWith({ page: 1, limit: 25, approvalStatus: 'APPROVED' }));
   });
 

@@ -16,9 +16,16 @@
   width: 100%;
 }
 
-.ds-uui-select > label {
+/*
+ * React Aria's Select renders its label as a `<span data-label="true">`
+ * nested inside the control wrapper, not a direct `<label>` child — target
+ * the attribute so this actually matches, and size it to the same 12px the
+ * text-input adapters get from their own `data-input-size="sm"` state
+ * (Select never sets that attribute, so it can't reuse that mechanism).
+ */
+.ds-uui-select [data-label] {
   color: var(--fg-1);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
 }
 

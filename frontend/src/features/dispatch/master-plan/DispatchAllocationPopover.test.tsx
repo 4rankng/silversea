@@ -161,7 +161,8 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhà xe/ }));
     // Second row auto-picks the first unused option (EXTERNAL:77); force it to
     // OWN so it collides with row 1.
-    fireEvent.change(screen.getByLabelText(/Nhà xe dòng 2/), { target: { value: 'OWN' } });
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 2/));
+    fireEvent.click(screen.getByRole('option', { name: 'Đội xe nội bộ SilverSea' }));
     fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
     fireEvent.change(screen.getByLabelText("Số container 40' dòng 2"), { target: { value: '1' } });
 
@@ -209,6 +210,7 @@ describe('DispatchAllocationPopover', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
 
     await waitFor(() => expect(screen.queryByText(/Không tải được danh sách nhà xe ngoài/)).toBeNull());
+    fireEvent.click(screen.getByLabelText(/Nhà xe dòng 1/));
     expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
   });
 });

@@ -10,7 +10,7 @@
 }
 .driver-trip-card__icon {
   width: 42px; height: 42px;
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--brand-soft);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;

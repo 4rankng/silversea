@@ -10,7 +10,7 @@
   box-sizing: border-box;
   max-width: 100%;
   overflow: hidden;
-  border-radius: var(--radius-lg, 16px);
+  border-radius: var(--app-radius-lg, 16px);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0)),
     transparent;
@@ -52,7 +52,7 @@
 .ds-empty-state__icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--accent-soft);
   color: var(--accent-2);
   display: flex;
@@ -139,7 +139,7 @@
 .ds-empty-state__preview-avatar {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--line-2);
 }
 
@@ -156,7 +156,7 @@
 
 .ds-empty-state__preview-line {
   height: 6px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--line);
 }
 .ds-empty-state__preview-line--w10 { width: 10%; background: var(--line-2); }

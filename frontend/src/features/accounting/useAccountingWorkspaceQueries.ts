@@ -45,6 +45,8 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
       carrierId: state.carrierId ?? null,
       ownership: state.ownership ?? '',
       readiness: state.readiness ?? '',
+      sortBy: state.transportSortBy ?? '',
+      sortDir: state.transportSortDir ?? '',
     }),
     queryFn: () =>
       customerServiceFinanceClient.getAccountingTransportRegister({
@@ -57,6 +59,8 @@ export function useAccountingWorkspaceQueries(state: AccountingWorkspaceUrlState
         carrierId: state.carrierId,
         ownership: state.ownership,
         readiness: state.readiness,
+        sortBy: state.transportSortBy,
+        sortDir: state.transportSortDir,
       }),
     enabled: state.activeView === 'transport',
   });

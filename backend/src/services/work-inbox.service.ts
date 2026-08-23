@@ -16,7 +16,15 @@ import { getApprovalQueue } from './approval-queue.service';
 import { COMPANY_INFO_SETTING_KEYS } from './company-info.service';
 import { ApiError } from '../errors';
 
-export type InboxQuery = { view?: string; search?: string; page: number; limit: number };
+export type InboxQuery = { view?: string; search?: string; page: number; limit: number; sortBy?: WorkInboxSortKey; sortDir?: 'asc' | 'desc' };
+
+// Server-side sort keys for inbox lanes — one per lane table data column (the
+// action column is decorative). Applied in pageWorkInboxItems before slicing,
+// so pagination follows the requested order. Absent params keep the historical
+// priority → due-date → id order untouched.
+export const WORK_INBOX_SORT_KEYS = ['title', 'readiness', 'blockers', 'freshness'] as const;
+export type WorkInboxSortKey = (typeof WORK_INBOX_SORT_KEYS)[number];
+
 const emptyParty = [] as WorkInboxItemBase['blockers'];
 const iso = (value: Date | null | undefined) => value?.toISOString() ?? null;
 const MAX_INBOX_CANDIDATES = 2_000;
@@ -26,11 +34,42 @@ function assertCompleteCandidateScan(rows: readonly unknown[]) {
   }
 }
 
+type InboxSortValue = string | number | null;
+function inboxSortValue<T extends WorkInboxItemBase>(item: T, key: WorkInboxSortKey): InboxSortValue {
+  switch (key) {
+    case 'title': return item.title;
+    case 'readiness': return item.blockers.length;
+    case 'blockers': return item.blockers.length + item.advisories.length;
+    case 'freshness': return item.freshnessAt;
+  }
+}
+
 export function pageWorkInboxItems<T extends WorkInboxItemBase>(items: T[], query: InboxQuery): WorkInboxResponseOf<T> {
   const selected = query.view && ['ACTION', 'WAITING', 'DONE'].includes(query.view.toUpperCase()) ? query.view.toUpperCase() : undefined;
   const term = query.search?.trim().toLocaleLowerCase('vi-VN');
-  const filtered = items.filter((item) => (!selected || item.state === selected) && (!term || `${item.title} ${item.subtitle ?? ''}`.toLocaleLowerCase('vi-VN').includes(term)))
-    .sort((a, b) => b.priority - a.priority || (a.dueAt == null ? 1 : b.dueAt == null ? -1 : a.dueAt.localeCompare(b.dueAt)) || a.id.localeCompare(b.id));
+  // Default lane order: priority desc, due date asc (nulls last), stable id.
+  const defaultOrder = (a: T, b: T) =>
+    b.priority - a.priority
+    || (a.dueAt == null ? 1 : b.dueAt == null ? -1 : a.dueAt.localeCompare(b.dueAt))
+    || a.id.localeCompare(b.id);
+  const filtered = items.filter((item) => (!selected || item.state === selected) && (!term || `${item.title} ${item.subtitle ?? ''}`.toLocaleLowerCase('vi-VN').includes(term)));
+  if (query.sortBy) {
+    const key = query.sortBy;
+    const direction = query.sortDir === 'desc' ? -1 : 1;
+    // Explicit sort: nulls/absent values stay last in both directions, and the
+    // default order chain remains the tiebreaker so pages stay deterministic.
+    filtered.sort((a, b) => {
+      const left = inboxSortValue(a, key);
+      const right = inboxSortValue(b, key);
+      if (left == null && right == null) return defaultOrder(a, b);
+      if (left == null) return 1;
+      if (right == null) return -1;
+      if (left === right) return defaultOrder(a, b);
+      return (left < right ? -1 : 1) * direction;
+    });
+  } else {
+    filtered.sort(defaultOrder);
+  }
   const counts = { action: items.filter((item) => item.state === 'ACTION').length, waiting: items.filter((item) => item.state === 'WAITING').length, done: items.filter((item) => item.state === 'DONE').length };
   return { asOf: new Date().toISOString(), timezone: 'Asia/Ho_Chi_Minh', counts, page: query.page, limit: query.limit, total: filtered.length, totalPages: Math.ceil(filtered.length / query.limit), items: filtered.slice((query.page - 1) * query.limit, query.page * query.limit) };
 }

@@ -167,9 +167,9 @@ export interface CustomerAgingResponse {
 }
 
 export const financialClient = {
-  getWorkInbox: (view: 'ACTION' | 'WAITING', page = 1) =>
+  getWorkInbox: (view: 'ACTION' | 'WAITING', page = 1, sort?: { sortBy?: string; sortDir?: 'asc' | 'desc' }) =>
     api.get<WorkInboxResponseOf<AccountantWorkInboxItem>>(
-      `${WORKSPACES.FINANCIAL_INBOX}${toQuery({ view, page, limit: 100 })}`,
+      `${WORKSPACES.FINANCIAL_INBOX}${toQuery({ view, page, limit: 100, sortBy: sort?.sortBy, sortDir: sort?.sortDir })}`,
     ),
 
   getGovernanceActions: (filters?: GovernanceActionFilters) =>

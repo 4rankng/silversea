@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, AlertTriangle, X, Loader2, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { formatNumber, formatDate } from '../lib/format';
@@ -12,6 +12,7 @@ import { AssetIcon } from '../components/AssetIcon';
 import { EmptyState, Pagination, DateInput, UuiSelectField, useTableQueryState } from '../design-system';
 import { Money } from '../components/shared/Money';
 import { StatusStrip } from '../components/shared/StatusStrip';
+import { SortHeader } from '../components/shared/SortHeader';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useQuery } from '@tanstack/react-query';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
@@ -44,41 +45,6 @@ type ExpenseTableFilters = {
   sortBy?: 'expenseDate' | 'supplierName' | 'categoryName' | 'vehiclePlate' | 'vehicleComponent' | 'amount' | 'paymentStatus';
   sortDir?: 'asc' | 'desc';
 };
-
-/** Sortable header for the record-table markup — mirrors the ledger's
- * SortHeader (ShipmentContainerLedger) so both table systems share the
- * table-sort-button contract. */
-function SortHeader({
-  label,
-  sortKey,
-  sort,
-  onSortChange,
-  numeric = false,
-}: {
-  label: string;
-  sortKey: NonNullable<ExpenseTableFilters['sortBy']>;
-  sort: TableSortState | null;
-  onSortChange: (key: string) => void;
-  numeric?: boolean;
-}) {
-  const active = sort?.by === sortKey;
-  return (
-    <th
-      scope="col"
-      className={numeric ? 'num' : undefined}
-      aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
-        {active
-          ? (sort!.dir === 'asc'
-            ? <ArrowUp size={13} aria-hidden="true" />
-            : <ArrowDown size={13} aria-hidden="true" />)
-          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
-      </button>
-    </th>
-  );
-}
 
 export default function ExpenseListPage() {
   const navigate = useNavigate();

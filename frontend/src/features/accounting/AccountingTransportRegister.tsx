@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import type { AccountingTransportRegisterRow } from '@tingting/shared';
+import type { TableSortState } from '../../lib/table-sort';
+import { SortHeader } from '../../components/shared';
 import { formatCurrency } from '../../lib/format';
 import { routes } from '../../lib/routes';
 import {
@@ -28,6 +30,9 @@ type AccountingTransportRegisterProps = {
   selectionScopeKey: string;
   loading: boolean;
   error: boolean;
+  /** Server-side column sort; the parent owns the URL params. */
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
   onSearchChange: (value: string) => void;
   onFilterChange: (key: AccountingTransportFilterKey, value: string) => void;
   onSearch: () => void;
@@ -52,6 +57,8 @@ export function AccountingTransportRegister({
   selectionScopeKey,
   loading,
   error,
+  sort,
+  onSortChange,
   onSearchChange,
   onFilterChange,
   onSearch,
@@ -217,14 +224,14 @@ export function AccountingTransportRegister({
           <table className="record-table ops-table accounting-register__table">
             <thead>
               <tr>
-                <th>Chuyến</th>
-                <th>Khách hàng</th>
-                <th>Nhà xe</th>
-                <th className="num">Doanh thu</th>
-                <th className="num">Chi phí</th>
-                <th className="num">Lợi nhuận</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+                <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
+                <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
+                <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} numeric />
+                <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} numeric />
+                <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} numeric />
+                <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />
+                <th scope="col">Thao tác</th>
               </tr>
             </thead>
             <tbody>

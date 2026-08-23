@@ -9,11 +9,27 @@ interface AuditQueryParams {
   limit: number;
   category?: string;
   search?: string;
+  sortBy?: AuditLogSortKey;
+  sortDir?: 'asc' | 'desc';
   viewer: {
     userId: number;
     role: Role;
   };
 }
+
+// Server-side sort keys for the audit log table — one per data column (STT is
+// a row index). userName re-uses the coalesce expression the select projects;
+// NULLs last in both directions comes from the wrapper at the orderBy site.
+export const AUDIT_LOG_SORT_KEYS = ['timestamp', 'userName', 'message'] as const;
+export type AuditLogSortKey = (typeof AUDIT_LOG_SORT_KEYS)[number];
+
+const AUDIT_USER_NAME_SQL = sql`coalesce(${s.auditLogs.actorName}, ${s.users.fullName}, ${s.users.username})`;
+
+const AUDIT_SORT_SQL: Record<AuditLogSortKey, SQL> = {
+  timestamp: sql`${s.auditLogs.timestamp}`,
+  userName: AUDIT_USER_NAME_SQL,
+  message: sql`${s.auditLogs.message}`,
+};
 
 type AuditCategory = 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
 
@@ -314,7 +330,7 @@ function assertViewer(viewer: AuditQueryParams['viewer']) {
 }
 
 export async function queryAuditLogs(params: AuditQueryParams) {
-  const { page, limit, category, search, viewer } = params;
+  const { page, limit, category, search, sortBy, sortDir, viewer } = params;
   assertViewer(viewer);
 
   const conditions: SQL[] = [
@@ -339,7 +355,7 @@ export async function queryAuditLogs(params: AuditQueryParams) {
     id: s.auditLogs.id,
     timestamp: s.auditLogs.timestamp,
     userId: s.auditLogs.userId,
-    userName: sql`COALESCE(${s.auditLogs.actorName}, ${s.users.fullName}, ${s.users.username})`,
+    userName: AUDIT_USER_NAME_SQL,
     username: s.users.username,
     userDeletedAt: s.users.deletedAt,
     userIdExists: s.users.id,
@@ -350,7 +366,14 @@ export async function queryAuditLogs(params: AuditQueryParams) {
   }).from(s.auditLogs)
     .leftJoin(s.users, eq(s.auditLogs.userId, s.users.id))
     .where(and(...conditions))
-    .orderBy(desc(s.auditLogs.id))
+    .orderBy(...(
+      sortBy
+        ? [
+            sql`${AUDIT_SORT_SQL[sortBy]} ${sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+            desc(s.auditLogs.id),
+          ]
+        : [desc(s.auditLogs.id)]
+    ))
     .limit(limit).offset((page - 1) * limit);
 
   const [countRow] = await db.select({ count: sql<number>`count(*)` })

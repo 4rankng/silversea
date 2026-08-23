@@ -39,7 +39,7 @@
   gap: 8px;
   min-height: var(--control-h);
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -76,7 +76,7 @@
   display: grid;
   grid-template-columns: minmax(260px, 1.45fr) repeat(3, minmax(120px, 0.65fr));
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--line);
   gap: 1px;
   overflow: hidden;
@@ -148,7 +148,7 @@
 .governance-actions__queue {
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--app-radius-md);
   background: var(--surface);
   overflow: hidden;
 }
@@ -198,7 +198,7 @@
   height: 20px;
   place-items: center;
   padding: 0 5px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--surface-3);
   color: var(--ink-3);
   font-family: var(--font-data);
@@ -329,7 +329,7 @@
   align-items: center;
   min-height: 22px;
   padding: 2px 7px;
-  border-radius: var(--radius-full);
+  border-radius: var(--app-radius-full);
   background: var(--surface-3);
   color: var(--ink-2);
   font-size: var(--fs-status-pill);
@@ -447,7 +447,7 @@
   box-sizing: border-box;
   padding: 0 10px;
   border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   color: var(--ink);
   font: inherit;
@@ -530,7 +530,7 @@
 
 .governance-actions__action-error {
   padding: 11px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   font-size: var(--fs-xs);
 }
 

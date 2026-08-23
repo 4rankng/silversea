@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  border-radius: var(--app-radius-md) var(--app-radius-md) 0 0;
 }
 .fuel-alloc-card__icon {
   color: var(--brand);

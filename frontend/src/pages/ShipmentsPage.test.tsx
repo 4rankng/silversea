@@ -497,7 +497,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('sends the direction filter and keeps the grouped dashboard columns fixed', async () => {
     renderPage();
     await screen.findByRole('table');
-    fireEvent.change(screen.getByLabelText('Xuất / Nhập'), { target: { value: 'EXPORT' } });
+    fireEvent.click(screen.getByRole('button', { name: /Xuất \/ Nhập/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
     expect(within(screen.getByRole('table')).getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     expect(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3')).toBeNull();
@@ -959,9 +960,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
     expect(within(dialog).queryByText('Hành động tiếp theo')).toBeNull();
     expect(within(dialog).getByText('Kế toán xác nhận')).toBeTruthy();
-    const custodySelect = within(dialog).getByRole('combobox', { name: 'Phơi phiếu' });
-    expect(custodySelect).toBeTruthy();
-    expect((within(custodySelect).getByRole('option', { name: 'Chưa xác định' }) as HTMLOptionElement).disabled).toBe(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: /Phơi phiếu/i }));
+    expect(screen.getByRole('option', { name: 'Chưa xác định' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
   });
 
@@ -1376,8 +1377,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-workspace\.cus-workspace--worksheet\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;[^}]*background:\s*transparent;/);
     expect(source).toContain('inputClassName="shipment-uui-control__input shipment-uui-control__input--search"');
     expect(source).not.toContain('className="cus-filter-field shipment-uui-field"');
-    for (const label of ['Bill/Book hoặc tờ khai', 'Xuất / Nhập', 'Từ ngày giao', 'Đến ngày giao', 'Kế hoạch']) {
+    for (const label of ['Bill/Book hoặc tờ khai', 'Từ ngày giao', 'Đến ngày giao']) {
       expect(source).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+size="sm"`));
+    }
+    for (const label of ['Xuất / Nhập', 'Kế hoạch']) {
+      expect(source).toMatch(new RegExp(`label="${label.replace('/', '\\/')}"\\s+value=`));
     }
     expect(css).not.toMatch(/\.cus-worksheet-toolbar \.shipment-uui-field \[data-label\]\s*\{[^}]*margin-bottom:/);
     expect(css).toMatch(/\.shipment-uui-control__input--search\s*\{[^}]*padding-left:\s*32px;/);

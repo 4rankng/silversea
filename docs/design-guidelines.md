@@ -136,6 +136,49 @@ per-route style. Authority: `frontend/src/styles/operational-table-typography.cs
 - KPI/decision rails: numbers 20px bold with 12px labels (hero display numbers
   may use 24/28px). Status pills stay 11px.
 
+## Workboard table & summary rail (golden standard)
+
+`/shipments` (CUS container workboard) is the golden standard for every
+full-page data table and operational list summary. Authority:
+`frontend/src/styles/record-table.css` (shared table skin, aligned to the
+workboard thead) + `frontend/src/design-system/SummaryRail.tsx` (rail).
+The workboard itself (`ShipmentsPage.css` `.cus-dashboard-table` /
+`.cus-workspace-summary`) is the frozen visual source of truth — keep the
+shared layers visually identical to it; never fork a per-route variant.
+
+**Summary rail** — the standard for operational list summaries. A decision
+rail, not cards: one ruled row (`border-block` + `border-right` dividers, no
+card boxes, no border-radius, no filled backgrounds), label (12px semibold
+`--ink-2`) left of the value (20px bold `--font-data` `--ink`) on a shared
+baseline. Tones (`warning`/`info`) color **the number only**; amber never
+fills the container. Collapses two-up ≤700px and stacks ≤380px. Adopt
+`SummaryRail` where a list screen already shows a summary — do not invent
+metrics for screens without one, and do not convert hero-KPI surfaces
+(`ForwarderSettlementsPage`, dashboard tiles): 24/28px hero display numbers
+are their sanctioned contract.
+
+**Table skin** — every full-page data table renders the workboard treatment:
+sticky thead on `--sticky-thead-top` with `--surface-2` background,
+`--ink-2` header text at `--ops-table-header-*` tokens (11px/600), padding
+10px 12px, and a `1px solid var(--line-strong)` underline. Header case and
+tracking are owned by the shared table base (rendered uppercase, exactly as
+`/shipments` displays) — pages never re-declare `text-transform` or
+`letter-spacing` on a thead; a conformed table's computed thead matches the
+workboard's property for property. Body cells: padding 10px 12px,
+`--line` right/bottom hairlines (last column drops the right border),
+`vertical-align: top`, multiline stacks with the primary line at
+`--ops-table-primary-size`. Row hover is a neutral `--surface-2` wash (keep
+the fine-pointer gate from record-table.css — invisible on desktop, correct
+on touch). Rows carrying a bucket/status classification wear a full-height
+`StatusStrip` marker on the identity cell. Row height is content-driven; a
+72px floor applies only to multiline stacked-cell ledgers. Warning tint
+stays cell-scoped to the owning cell. Adopt via the record-table recipe
+(imports + `record-table ops-table` classes + `<colgroup>` proportions +
+`data-label` on every cell for the card collapse); delete superseded
+per-page table skins instead of re-declaring their values. The mobile
+card-collapse eyebrow keeps uppercase — it is a card label, not a desktop
+thead.
+
 ## Filter toolbars (CUS + điều vận)
 
 **Current state is inconsistent — this section is the target contract, not a

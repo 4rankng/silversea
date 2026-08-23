@@ -312,8 +312,8 @@ export const qk = {
   },
 
   accounting: {
-    workInbox: (view: 'ACTION' | 'WAITING', page: number) =>
-      ['accounting', 'work-inbox', view, page] as const,
+    workInbox: (view: 'ACTION' | 'WAITING', page: number, sortBy?: string, sortDir?: string) =>
+      ['accounting', 'work-inbox', view, page, sortBy ?? '', sortDir ?? ''] as const,
     receivables: (asOf: string) => ['accounting', 'receivables', asOf] as const,
     payables: (asOf: string) => ['accounting', 'payables', asOf] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
@@ -326,6 +326,8 @@ export const qk = {
       carrierId: number | null;
       ownership: string;
       readiness: string;
+      sortBy: string;
+      sortDir: string;
     }) =>
       ['accounting', 'transport-register', params] as const,
   },
@@ -398,8 +400,8 @@ export const qk = {
   /* ── Audit logs ─────────────────────────────────────────────────────── */
 
   auditLogs: {
-    list: (pageSize: number, filter: unknown, search: string) =>
-      ['audit-logs', pageSize, filter, search] as const,
+    list: (pageSize: number, filter: unknown, search: string, sortBy?: string, sortDir?: string) =>
+      ['audit-logs', pageSize, filter, search, sortBy ?? '', sortDir ?? ''] as const,
   },
 
   /* ── Admin LLM provider settings (MiniMax / OpenRouter) ─────────────── */

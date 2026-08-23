@@ -17,6 +17,9 @@ export * from './hooks/useBufferedDateValue';
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';
 export { DataTable } from './DataTable';
+
+export { SummaryRail } from './SummaryRail';
+export type { SummaryRailItem, SummaryRailTone } from './SummaryRail';
 export type { DataTableProps, DataTableColumn } from './DataTable';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps, EmptyStatePreview } from './EmptyState';

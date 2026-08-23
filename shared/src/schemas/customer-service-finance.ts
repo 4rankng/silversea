@@ -98,6 +98,18 @@ export const ACCOUNTING_TRANSPORT_READINESS = [
   'READY',
   'MISSING_PROFITABILITY_SNAPSHOT',
 ] as const;
+// Server-side sort keys for the transport register (one per data column; the
+// action column is decorative). Mirrors TRANSPORT_SORT_SQL in the backend
+// accounting-transport-register service.
+export const ACCOUNTING_TRANSPORT_SORT_KEYS = [
+  'tripCode',
+  'customerName',
+  'carrierName',
+  'revenue',
+  'directCost',
+  'profit',
+  'readiness',
+] as const;
 
 export const accountingTransportRegisterQuerySchema = z.object({
   from: z.string().date(),
@@ -107,6 +119,8 @@ export const accountingTransportRegisterQuerySchema = z.object({
   ownership: z.enum(ACCOUNTING_TRANSPORT_OWNERSHIP).optional(),
   readiness: z.enum(ACCOUNTING_TRANSPORT_READINESS).optional(),
   search: z.string().trim().min(1).max(100).optional(),
+  sortBy: z.enum(ACCOUNTING_TRANSPORT_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 }).strict().refine((input) => input.from <= input.to, {

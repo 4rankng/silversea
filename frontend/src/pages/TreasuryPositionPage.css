@@ -21,7 +21,7 @@
   margin: 0 0 14px;
   padding: 10px 14px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface-2);
   font-size: var(--ops-table-supporting-size);
   line-height: var(--ops-table-supporting-line-height);
@@ -70,7 +70,7 @@
   row-gap: 2px;
   padding: 12px 16px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
 }
 

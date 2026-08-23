@@ -31,3 +31,35 @@ export function readTableSort(
   if (!by) return null;
   return { by, dir: dir === 'desc' ? 'desc' : 'asc' };
 }
+
+/**
+ * Client-side comparator for small, non-paginated tables whose full row set is
+ * already loaded (fleet catalogs, portal sub-tables, import previews). Mirrors
+ * the server contract: null/undefined/empty values sort last in both
+ * directions, then the caller's stable tiebreaker decides.
+ */
+export function sortClientSide<T>(
+  rows: readonly T[],
+  sort: TableSortState | null | undefined,
+  accessors: Record<string, (row: T) => string | number | null | undefined>,
+  tiebreaker: (a: T, b: T) => number,
+): T[] {
+  const accessor = sort ? accessors[sort.by] : undefined;
+  if (!sort || !accessor) return [...rows];
+  const direction = sort.dir === 'desc' ? -1 : 1;
+  const isEmpty = (value: string | number | null | undefined) => value == null || value === '';
+  return [...rows].sort((a, b) => {
+    const left = accessor(a);
+    const right = accessor(b);
+    if (isEmpty(left) && isEmpty(right)) return tiebreaker(a, b);
+    if (isEmpty(left)) return 1;
+    if (isEmpty(right)) return -1;
+    if (left === right) return tiebreaker(a, b);
+    // String pairs use Vietnamese collation so names like "Ánh Minh" sort as
+    // "Anh", not after "Zeta" by codepoint; everything else compares ordinally.
+    const cmp = typeof left === 'string' && typeof right === 'string'
+      ? left.localeCompare(right, 'vi')
+      : left < right ? -1 : 1;
+    return cmp * direction;
+  });
+}
