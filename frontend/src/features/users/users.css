@@ -12,10 +12,6 @@
   min-width: 0;
 }
 
-.users-admin-page .users-kpi-grid {
-  margin-bottom: 24px;
-}
-
 .users-admin-page .page-title {
   font-size: var(--fs-2xl);
   line-height: 1.35;

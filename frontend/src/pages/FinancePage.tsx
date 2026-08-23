@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef, useEffect, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatNumber } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
@@ -7,12 +7,11 @@ import { EmptyIllustration } from '../components/shared';
 import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
-import { AssetIcon } from '../components/AssetIcon';
 import { SortHeader } from '../components/shared/SortHeader';
 import { usePnlReport, useYearlyPnl, useMonthlyTrips, useCapTable } from '../hooks/useQueries';
 import { useMonth } from '../hooks/useMonth';
-import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { usePageAnimations } from '../hooks/animations';
+import { SummaryRail } from '../design-system';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
 import { compactNum, EMPTY_CAP, EMPTY_TRIPS, EMPTY_YEARLY, marginPct, useFinanceDerived, yoyClass, yoyPct } from './finance-derived';
 import { groupFinanceTripDetails, type FinanceTripDetail } from './finance-trip-details';
@@ -78,9 +77,6 @@ export default function FinancePage() {
   const { data: report, isLoading: loading, error: queryError } = usePnlReport(month, year);
   const { rootRef } = usePageAnimations({ ready: !loading });
 
-  const kpiRefs = useRef<{ revenue: HTMLSpanElement | null; gross: HTMLSpanElement | null; net: HTMLSpanElement | null; margin: HTMLSpanElement | null }>({ revenue: null, gross: null, net: null, margin: null });
-  const prefersReduced = usePrefersReducedMotion();
-
   const { data: prevReport } = usePnlReport(month, year - 1);
 
   const { data: allTrips = EMPTY_TRIPS } = useMonthlyTrips(year, month); const { data: capTableRaw = EMPTY_CAP } = useCapTable();
@@ -140,20 +136,6 @@ export default function FinancePage() {
   };
 
 
-  // ── KPI counter animation ──
-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 100 });
-
-  useEffect(() => {
-    if (loading || !report || prefersReduced) return;
-
-    animateCounters([
-      { el: kpiRefs.current.revenue, value: totalRevenue },
-      { el: kpiRefs.current.gross, value: grossProfit },
-      { el: kpiRefs.current.net, value: netProfit },
-      { el: kpiRefs.current.margin, value: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0, format: (val) => val.toFixed(1) },
-    ]);
-  }, [report, loading, totalRevenue, grossProfit, netProfit, prefersReduced, animateCounters]);
-
   return (
     <div ref={rootRef} style={{ paddingBottom: 40 }}>
       <Breadcrumbs
@@ -204,46 +186,16 @@ export default function FinancePage() {
         }
       />
 
-      {/* ── KPI Hero Strip ──────────────────────────────────── */}
-      <div className="pnl-kpi-strip fade-up-2" data-tour-id="finance-kpis">
-        <div className="pnl-kpi">
-          <div className="pnl-kpi__label">Tổng doanh thu</div>
-          <div className="pnl-kpi__value"><span ref={(el) => { kpiRefs.current.revenue = el; }}>{formatNumber(totalRevenue)}</span><span className="pnl-kpi__unit">₫</span></div>
-          {prevReport
-            ? <div className={`pnl-kpi__delta ${totalRevenue >= totalRevenueLY ? 'pnl-kpi__delta--up' : 'pnl-kpi__delta--down'}`}>{yoyPct(totalRevenue, totalRevenueLY)} so cùng kỳ</div>
-            : <div className="pnl-kpi__delta pnl-kpi__delta--neutral">—</div>
-          }
-          <AssetIcon name="cashflow" size={54} className="pnl-kpi__asset" />
-        </div>
-        <div className="pnl-kpi pnl-kpi--profit">
-          <div className="pnl-kpi__label">Lợi nhuận gộp</div>
-          <div className="pnl-kpi__value"><span ref={(el) => { kpiRefs.current.gross = el; }}>{formatNumber(grossProfit)}</span><span className="pnl-kpi__unit">₫</span></div>
-          {prevReport
-            ? <div className={`pnl-kpi__delta ${grossProfit >= grossProfitLY ? 'pnl-kpi__delta--up' : 'pnl-kpi__delta--down'}`}>{yoyPct(grossProfit, grossProfitLY)} so cùng kỳ</div>
-            : <div className="pnl-kpi__delta pnl-kpi__delta--neutral">—</div>
-          }
-          <AssetIcon name="profit" size={54} className="pnl-kpi__asset" />
-        </div>
-        <div className="pnl-kpi">
-          <div className="pnl-kpi__label">Biên lợi nhuận gộp</div>
-          <div className="pnl-kpi__value"><span ref={(el) => { kpiRefs.current.margin = el; }}>{marginPct(grossProfit, totalRevenue)}</span><span className="pnl-kpi__unit">%</span></div>
-          <div className="pnl-kpi__delta pnl-kpi__delta--neutral"
-            title="Chốt sổ: chuyến đã chuyển trạng thái 'Hoàn thành' trong kỳ — doanh thu và chi phí được ghi nhận vào sổ kế toán"
-          >
-            {report?.tripCount ?? '—'} chuyến đã hoàn thành
-          </div>
-          <AssetIcon name="gross-margin" size={54} className="pnl-kpi__asset" />
-        </div>
-        <div className="pnl-kpi pnl-kpi--net">
-          <div className="pnl-kpi__label">Lợi nhuận ròng</div>
-          <div className="pnl-kpi__value"><span ref={(el) => { kpiRefs.current.net = el; }}>{formatNumber(netProfit)}</span><span className="pnl-kpi__unit">₫</span></div>
-          {prevReport
-            ? <div className={`pnl-kpi__delta ${netProfit >= netProfitLY ? 'pnl-kpi__delta--up' : 'pnl-kpi__delta--down'}`}>{yoyPct(netProfit, netProfitLY)} so cùng kỳ</div>
-            : <div className="pnl-kpi__delta pnl-kpi__delta--neutral">—</div>
-          }
-          <AssetIcon name="paid" size={54} className="pnl-kpi__asset" />
-        </div>
-      </div>
+      {/* ── Summary rail ──────────────────────────────────── */}
+      <SummaryRail
+        ariaLabel="Tóm tắt báo cáo lãi lỗ"
+        items={[
+          { label: 'Tổng doanh thu', value: `${formatNumber(totalRevenue)} ₫` },
+          { label: 'Lợi nhuận gộp', value: `${formatNumber(grossProfit)} ₫` },
+          { label: 'Biên lợi nhuận gộp', value: `${marginPct(grossProfit, totalRevenue)} %` },
+          { label: 'Lợi nhuận ròng', value: `${formatNumber(netProfit)} ₫` },
+        ]}
+      />
 
       {error && (
         <Alert variant="error" style="soft" icon={<AlertTriangle size={16} />} className="mb-5">

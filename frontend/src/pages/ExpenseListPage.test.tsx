@@ -147,7 +147,7 @@ describe('ExpenseListPage', () => {
     });
   });
 
-  it('drives the KPI strip from the envelope summary, not page math', async () => {
+  it('drives the summary rail from the envelope summary, not page math', async () => {
     apiGet.mockResolvedValue({
       ...envelope(rows, 43),
       summary: {
@@ -162,8 +162,8 @@ describe('ExpenseListPage', () => {
     await screen.findByText('Garage Auto 123');
 
     // Server full-set figures — unreachable from the two-row page fixture.
-    expect(screen.getByText('11.111.000')).toBeTruthy();
-    expect(screen.getByText('87.654.000')).toBeTruthy();
+    expect(screen.getByText('11.111.000 ₫')).toBeTruthy();
+    expect(screen.getByText('87.654.000 ₫')).toBeTruthy();
   });
 
   it('sorts server-side: header click sends sortBy/sortDir and resets the page', async () => {

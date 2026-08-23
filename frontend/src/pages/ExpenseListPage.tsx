@@ -4,12 +4,11 @@ import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { formatNumber, formatDate } from '../lib/format';
-import { splitKpi } from '../features/dashboard/utils';
 import { PageHeader } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
-import { AssetIcon } from '../components/AssetIcon';
-import { EmptyState, Pagination, DateInput, UuiSelectField, useTableQueryState } from '../design-system';
+
+import { EmptyState, Pagination, DateInput, SummaryRail, UuiSelectField, useTableQueryState } from '../design-system';
 import { Money } from '../components/shared/Money';
 import { StatusStrip } from '../components/shared/StatusStrip';
 import { SortHeader } from '../components/shared/SortHeader';
@@ -136,7 +135,6 @@ export default function ExpenseListPage() {
   }, [envelopeSummary, expenses]);
 
   const hasFilters = Object.keys(filters).length > 0;
-  const kpiTotal = splitKpi(stats.totalAmount);
 
   const renderStatusBadge = (status: string) => status === 'PAID' ? (
     <span className="expense-status expense-status--paid">
@@ -185,50 +183,15 @@ export default function ExpenseListPage() {
         }
       />
 
-      {/* ── KPI Cards ────────────────────────────────────────────────── */}
-      <div className="expense-kpi-grid">
-        <div className="expense-kpi-card expense-kpi-card--total">
-          <div className="expense-kpi-label">
-            <span className="expense-kpi-label__icon">
-              <AssetIcon name="cashflow" size={22} />
-            </span>
-            Tổng chi phí
-          </div>
-          <div className="expense-kpi-value">
-            {kpiTotal.num}
-            {kpiTotal.suffix && <span className="expense-kpi-value-unit">{kpiTotal.suffix} ₫</span>}
-            {!kpiTotal.suffix && <span className="expense-kpi-value-unit">₫</span>}
-          </div>
-        </div>
-
-        <div className="expense-kpi-card expense-kpi-card--unpaid">
-          <div className="expense-kpi-label">
-            <span className="expense-kpi-label__icon">
-              <AssetIcon name="unpaid" size={22} />
-            </span>
-            Chưa thanh toán
-          </div>
-          <div className="expense-kpi-value">
-            {stats.unpaidCount}
-            <span className="expense-kpi-value-unit">phiếu</span>
-          </div>
-          <div className="expense-kpi-meta">{formatNumber(stats.unpaidAmount)}</div>
-        </div>
-
-        <div className="expense-kpi-card expense-kpi-card--paid">
-          <div className="expense-kpi-label">
-            <span className="expense-kpi-label__icon">
-              <AssetIcon name="paid" size={22} />
-            </span>
-            Đã thanh toán
-          </div>
-          <div className="expense-kpi-value">
-            {stats.paidCount}
-            <span className="expense-kpi-value-unit">phiếu</span>
-          </div>
-          <div className="expense-kpi-meta">{formatNumber(stats.paidAmount)}</div>
-        </div>
-      </div>
+      {/* ── Summary rail ─────────────────────────────────────────────── */}
+      <SummaryRail
+        ariaLabel="Tóm tắt chi phí"
+        items={[
+          { label: 'Tổng chi phí', value: `${formatNumber(stats.totalAmount)} ₫` },
+          { label: `Chưa thanh toán · ${stats.unpaidCount} phiếu`, value: `${formatNumber(stats.unpaidAmount)} ₫`, tone: stats.unpaidCount > 0 ? 'warning' : undefined },
+          { label: `Đã thanh toán · ${stats.paidCount} phiếu`, value: `${formatNumber(stats.paidAmount)} ₫` },
+        ]}
+      />
 
       {/* ── Filter Bar ───────────────────────────────────────────────── */}
       <div className="expense-filter-bar">

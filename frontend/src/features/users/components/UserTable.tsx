@@ -1,5 +1,5 @@
 import {
-  Users, ShieldCheck, UserCog, Lock, Plus, Pencil, Trash2,
+  Plus, Pencil, Trash2,
   Loader2, KeyRound, Mail, Phone, Search, UserX, MoreVertical, X,
   ArrowUpDown, ArrowUp, ArrowDown, Building2,
 } from 'lucide-react';
@@ -10,8 +10,7 @@ import type { UserRow } from '../utils';
 import { StatusStrip, StatusSwatch } from '../../../components/shared/StatusStrip';
 import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
-import { AssetIcon } from '../../../components/AssetIcon';
-import { Pagination } from '../../../design-system';
+import { Pagination, SummaryRail } from '../../../design-system';
 import '../../../styles/record-table.css';
 import '../../../styles/operational-table-typography.css';
 
@@ -166,67 +165,16 @@ export function UserTable({
         }
       />
 
-      {/* ── KPI grid ────────────────────────────────────────────────────── */}
-      <div className="kpi-grid users-kpi-grid">
-        <div className="kpi">
-          <div className="kpi__top">
-            <span className="kpi__label">Tổng tài khoản</span>
-          </div>
-          <div className="kpi__value">{total}</div>
-          <div className="kpi__meta">
-            <span className="kpi__meta-pill kpi__meta--up">
-              +0 mới
-            </span>
-            <span className="kpi__meta-note">Đang hoạt động tốt</span>
-          </div>
-          <div className="kpi__watermark" aria-hidden="true"><Users size={72} /></div>
-        </div>
-        <div className="kpi kpi--warn">
-          <div className="kpi__top">
-            <span className="kpi__label">Nhân sự văn phòng</span>
-          </div>
-          <div className="kpi__value">{staffCount}</div>
-          <div className="kpi__meta">
-            <span className="kpi__meta-pill kpi__meta-pill--warn">
-              Văn phòng
-            </span>
-            <span className="kpi__meta-note">Admin · Quản lý · Kế toán</span>
-          </div>
-          <div className="kpi__watermark" aria-hidden="true"><UserCog size={72} /></div>
-        </div>
-        <div className="kpi kpi--success">
-          <div className="kpi__top">
-            <span className="kpi__label">Lái xe</span>
-          </div>
-          <div className="kpi__value">{driverCount}</div>
-          <div className="kpi__meta">
-            <span className="kpi__meta-pill kpi__meta-pill--success">
-              Hiện trường
-            </span>
-            <span className="kpi__meta-note">Có quyền app lái xe</span>
-          </div>
-          <div className="kpi__watermark" aria-hidden="true"><AssetIcon name="driver" size={72} /></div>
-        </div>
-        <div className="kpi kpi--danger">
-          <div className="kpi__top">
-            <span className="kpi__label">Bị khoá / Ngưng</span>
-          </div>
-          <div className="kpi__value">{inactiveCount}</div>
-          <div className="kpi__meta">
-            {inactiveCount > 0 ? (
-              <span className="kpi__meta-pill kpi__meta-pill--danger">
-                Cần kiểm tra
-              </span>
-            ) : (
-              <span className="kpi__meta-pill kpi__meta-pill--neutral">
-                An toàn
-              </span>
-            )}
-            <span className="kpi__meta-note">Không thể truy cập</span>
-          </div>
-          <div className="kpi__watermark" aria-hidden="true"><Lock size={72} /></div>
-        </div>
-      </div>
+      {/* ── Summary rail ─────────────────────────────────────────────────── */}
+      <SummaryRail
+        ariaLabel="Tóm tắt tài khoản"
+        items={[
+          { label: 'Tổng tài khoản', value: total },
+          { label: 'Nhân sự văn phòng', value: staffCount },
+          { label: 'Lái xe', value: driverCount },
+          { label: 'Bị khoá / Ngưng', value: inactiveCount, tone: inactiveCount > 0 ? 'warning' : undefined },
+        ]}
+      />
 
       {/* ── Unified panel: toolbar + table + footer ─────────────────────── */}
       <div className="users-table-panel" data-tour-id="users-table">
