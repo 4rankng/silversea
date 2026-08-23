@@ -36,3 +36,24 @@ customer content.
   keep their own behavior and must not trigger the row action.
 - Fixed-layout tables wrap long values and switch to cards before they require
   page-level horizontal scrolling.
+
+## Global sizing contract (table type + control density)
+
+The `/shipments` (CUS + điều vận) sizing philosophy is app-wide default, not a
+per-route style. Authority: `frontend/src/styles/operational-table-typography.css`
+(tokens on `:root` + zero-specificity table base) and `frontend/src/components/Table.css`
+(global base table). `pnpm --dir frontend check:ui` enforces the table scale.
+
+- Table type scale: headers 11px (weight 600 on record-table surfaces; the
+  legacy bare-table base keeps 700), supporting text 12px, bold primary values
+  13px, cell padding 10×12. Pages override per-grid only to map these same
+  `--ops-table-*` tokens — never to invent a per-route font scale. Raw ≥14px
+  (or `--fs-sm`+) fonts in desktop `td`/`th` rules fail `check:ui`.
+- Control density: filter/toolbar controls consume `--filter-control-h`
+  (34px desktop, 44px ≤767px with 12px/16px fonts). General form controls are
+  40px (`--control-default-h`); in-card and row actions are 34px
+  (`--control-compact-h`). Phones get ≥44px everywhere via `responsive.css`'s
+  universal rule — never hardcode a desktop 44px control.
+- KPI/decision rails: numbers 20px bold with 12px labels (hero display numbers
+  may use 24/28px). Status pills stay 11px.
+
