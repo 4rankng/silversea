@@ -17,7 +17,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { Role, shipmentCusContainerQuerySchema } from '@tingting/shared';
+import { Role, shipmentCusContainerQuerySchema, shipmentCusWorkspaceQuerySchema } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
 import { ApiError } from '../errors';
@@ -661,6 +661,30 @@ describe('CUS container-flat projection', () => {
     assert.equal(row.shipmentNotesEditable, false);
     assert.equal(row.customerAppointmentEditable, false);
     assert.equal(row.vehicleReadOnlyReason, 'Vai trò hiện tại chỉ được xem dữ liệu container.');
+  });
+
+  test('sorts the overview by workspace column keys server-side', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const later = await seedShipment({ blNumber: `OVS-A-${marker}`, expectedDeliveryDate: '2026-08-02' });
+    const earlier = await seedShipment({ blNumber: `OVS-B-${marker}`, expectedDeliveryDate: '2026-08-01' });
+
+    const asc = await listCusShipmentWorkspace(
+      { page: 1, limit: 20, searchSuffix: marker, sortBy: 'transportDate', sortDir: 'asc' },
+      cusActor,
+    );
+    const desc = await listCusShipmentWorkspace(
+      { page: 1, limit: 20, searchSuffix: marker, sortBy: 'transportDate', sortDir: 'desc' },
+      cusActor,
+    );
+
+    assert.deepEqual(asc.items.map((item) => item.id), [earlier.id, later.id]);
+    assert.deepEqual(desc.items.map((item) => item.id), [later.id, earlier.id]);
+  });
+
+  test('overview query schema whitelists its own sort keys, disjoint from the container enum', () => {
+    assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({ sortBy: 'transportDate' }).success, true);
+    assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({ sortBy: 'containerNumber' }).success, false);
+    assert.equal(shipmentCusWorkspaceQuerySchema.safeParse({ sortDir: 'up' }).success, false);
   });
 
   test('rejects a CUS write to a same-customer shipment outside the assigned business unit', async () => {
