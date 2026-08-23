@@ -99,9 +99,9 @@ describe('PenaltyTable', () => {
     const sortable = headers.filter((th) => th.querySelector('button.table-sort-button'));
     // Lái xe / Lý do / Ngày / Chuyến / Số tiền — the cancel column stays decorative.
     expect(sortable).toHaveLength(5);
-    expect(headers.every((th) => th.getAttribute('aria-sort') === 'none')).toBe(true);
+    expect(sortable.every((th) => th.getAttribute('aria-sort') === 'none')).toBe(true);
 
-    fireEvent.click(within(sortable[4]).getByRole('button'));
+    fireEvent.click(within(sortable[4] as HTMLElement).getByRole('button'));
     expect(onSortChange).toHaveBeenCalledWith('amount');
 
     rerender(

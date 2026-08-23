@@ -221,6 +221,36 @@ describe('GET /api/penalties (paginated)', () => {
     assert.equal((await request('/penalties?status=BOGUS')).status, 400);
     assert.equal((await request('/penalties?dateFrom=31-12-2026')).status, 400);
     assert.equal((await request('/penalties?dateFrom=2026-09-01&dateTo=2026-08-01')).status, 400);
+    assert.equal((await request('/penalties?sortBy=nope')).status, 400);
+    assert.equal((await request('/penalties?sortDir=up')).status, 400);
+  });
+
+  test('sorts by amount server-side in both directions', async () => {
+    // The unique suffix only appears in the two seeded drivers' names, so the
+    // search scope isolates exactly this suite's five rows.
+    const scope = `search=${encodeURIComponent(suffix)}`;
+    const asc = await request(`/penalties?${scope}&sortBy=amount&sortDir=asc&limit=100`);
+    assert.equal(asc.status, 200);
+    assert.equal(asc.body.total, 5);
+    assert.deepEqual(
+      asc.body.items.map((item: { amount: string }) => Number(item.amount)),
+      [50_000, 100_000, 200_000, 300_000, 400_000],
+    );
+
+    const desc = await request(`/penalties?${scope}&sortBy=amount&sortDir=desc&limit=100`);
+    assert.deepEqual(
+      desc.body.items.map((item: { amount: string }) => Number(item.amount)),
+      [400_000, 300_000, 200_000, 100_000, 50_000],
+    );
+  });
+
+  test('sorts by driver name, clustering each driver\'s rows', async () => {
+    const scope = `search=${encodeURIComponent(suffix)}`;
+    const byDriver = await request(`/penalties?${scope}&sortBy=driverName&sortDir=asc&limit=100`);
+    assert.equal(byDriver.status, 200);
+    const driverSequence = byDriver.body.items.map((item: { driverId: number }) => item.driverId);
+    // "list A …" sorts before "list B …", so A's two rows precede B's three.
+    assert.deepEqual(driverSequence, [driverA.id, driverA.id, driverB.id, driverB.id, driverB.id]);
   });
 });
 
