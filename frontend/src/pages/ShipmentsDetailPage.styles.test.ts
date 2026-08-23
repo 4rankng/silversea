@@ -29,9 +29,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filters__date-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;/);
     expect(css).toMatch(/\.shipments-detail-filters__date-actions button:hover,[\s\S]*?\[data-hovered\]\s*\{[^}]*border-color:\s*var\(--ink-4\);[^}]*background:\s*var\(--surface-2\);/);
     expect(css).not.toContain('.shipments-detail-filters__meta');
-    expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*var\(--fs-sm\);/);
-    expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*10px;/);
-    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-summary dd\s*\{[^}]*font-size:\s*20px;/);
+    expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*font-size:\s*var\(--ops-table-header-size\);/);
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);/);
   });
 
   it('keeps filter controls in a flat responsive toolbar inside the workboard', () => {
@@ -43,11 +43,11 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipments-detail-filter select\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).toMatch(/\.shipments-detail-filter > \*,\s*\.shipments-detail-filter input,\s*\.shipments-detail-filter select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*1fr 1fr;[^}]*max-width:\s*none;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filter:nth-child\(5\)\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filter:nth-child\(6\)\s*\{[^}]*grid-column:\s*1;/);
-    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*2;[^}]*align-self:\s*end;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(220px, 1\.25fr\) minmax\(120px, 0\.6fr\) minmax\(135px, 0\.7fr\) minmax\(350px, 1fr\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters__group--selects\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__group--selects\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters\s*\{[^}]*grid-template-columns:\s*minmax\(220px, 1\.1fr\) minmax\(260px, 1\.3fr\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1300px\)[\s\S]*?\.shipments-detail-filters__date-actions\s*\{[^}]*flex-wrap:\s*nowrap;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipments-detail-filters__footer\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;/);
   });
@@ -77,7 +77,7 @@ describe('shipment detail workboard styling', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
     expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*14%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*8%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*10px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*11px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {
@@ -163,20 +163,41 @@ describe('shipment detail workboard styling', () => {
 
   it('uses a distinct, non-destructive pending state when today still needs vehicle allocation', () => {
     expect(css).toMatch(/shipment-container-ledger__row--missing-date/);
+    // Amber is an attention signal scoped to the schedule cell, never a full-row fill.
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr\.shipment-container-ledger__row--missing-date > td\[data-label='Lịch trình'\]\s*\{[^}]*background:/);
+    expect(css).not.toMatch(/__row--missing-date > th,/);
+    expect(css).not.toMatch(/__row--missing-date > td\s*\{/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-pending/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-state/);
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(css).toMatch(/shipment-container-ledger__vehicle-guidance/);
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
-    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
-    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*display:\s*grid;[^}]*width:\s*100%;[^}]*grid-template-columns:\s*13px minmax\(0, 1fr\);[^}]*align-items:\s*start;[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-text\s*\{[^}]*display:\s*grid;[^}]*min-width:\s*0;[^}]*gap:\s*2px;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*color:\s*var\(--warning-text\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*flex;[^}]*min-width:\s*0;[^}]*flex-direction:\s*column;[^}]*color:\s*var\(--ink-2\);/);
-    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span\s*\{[^}]*display:\s*block;[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 13px;/);
     expect(css).toMatch(/shipment-container-ledger__multiline > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__vehicle-state\)/);
-    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*white-space:\s*nowrap;/);
+    // Status chips are UUI badges: the component owns fill, ring, and geometry;
+    // page CSS only tunes type so a chip can never read as a button.
+    expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*11px;/);
+    expect(css).not.toMatch(/__plate--missing\s*\{[^}]*border/);
+    expect(css).toMatch(/\.shipment-container-ledger__vehicle-state\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*11px;/);
+    expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*color:\s*var\(--warning-text\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*margin-right:\s*4px;/);
+    expect(ledgerSource).toMatch(/<BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">/);
+    expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state">/);
+    expect(ledgerSource).toMatch(/<Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap">/);
+    expect(css).toMatch(/\.shipment-container-ledger__schedule-gap\s*\{[^}]*width:\s*fit-content;[^}]*font-size:\s*11px;/);
+    // The triage list is one compact amber chip whose labels flow inline with
+    // CSS-generated "·" separators — the DOM text stays comma-free.
+    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\s*\{[^}]*display:\s*inline-flex;[^}]*background:\s*var\(--warning-soft\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__row-warning\.shipment-container-ledger__missing-fields\s*\{[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-text\s*\{[^}]*display:\s*inline;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-label\s*\{[^}]*color:\s*var\(--warning-text\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list\s*\{[^}]*display:\s*inline;[^}]*color:\s*var\(--ink-2\);/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span\s*\{[^}]*display:\s*inline;/);
+    expect(css).toMatch(/\.shipment-container-ledger__missing-fields-list > span \+ span::before\s*\{[^}]*content:\s*'·';/);
+    expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 12px;/);
+    // Structural classification chips stay neutral — accent fills are state-only.
+    expect(css).toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*background:\s*var\(--surface-3\);[^}]*color:\s*var\(--ink-2\);/);
+    expect(css).not.toMatch(/__direction--import\s*\{[^}]*var\(--info/);
+    expect(css).not.toMatch(/__direction--export\s*\{[^}]*var\(--brand/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-guidance\s*\{[^}]*var\(--danger\)/);
   });

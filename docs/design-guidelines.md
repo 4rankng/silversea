@@ -57,6 +57,35 @@ per-route style. Authority: `frontend/src/styles/operational-table-typography.cs
 - KPI/decision rails: numbers 20px bold with 12px labels (hero display numbers
   may use 24/28px). Status pills stay 11px.
 
+## Status signals in dense ledgers
+
+Two lanes, no third:
+
+- **Status / attention** → the UUI badge family (`Badge` / `BadgeWithDot`,
+  `frontend/src/components/untitled-ui/base/badges/badges.tsx`) with semantic
+  tones only (gray = neutral, blue-family = informational, warning = needs
+  action, success = complete). The badge component owns fill, ring, radius,
+  and height; page CSS tunes type and in-cell containment only (font-size,
+  line-height, white-space, fit-content width) — never border, padding, or
+  control geometry — so a status chip can never read as a button. A chip that
+  opens a flow is a real button and must be styled as one instead.
+  **Cascade trap:** Tailwind's text utilities are `@layer`-scoped, so an
+  unlayered page rule like `.ledger > span { color: … }` beats the badge's
+  text color regardless of specificity. When embedding a badge inside such a
+  scoped cell, declare the semantic ink explicitly on the chip class
+  (`color: var(--warning-text)` etc.) — gray text on an amber fill is the
+  symptom of forgetting this.
+- **Structural classification** (direction Nhập/Xuất, combined-loading,
+  cargo-mode) → neutral token chips (`--surface-3` fill, `--ink-2` text),
+  matching the CUS overview treatment; accent fills are reserved for state.
+
+Amber (`--warning-*`) means "needs attention" exclusively. Never use it for
+row striping or decoration; when a row-level gap must be flagged, tint the
+single owning cell (e.g. the schedule cell for a missing transport date) and
+let an in-cell warning chip explain it — a full-row amber fill reads as
+striping once such rows dominate a view. Warning text uses `--warning-text`
+(#6F3C10, ≈9:1 on white) so small sizes stay AA-compliant.
+
 ## Dense dialogs & forms
 
 Modal dialogs are the canonical dense-form container. The shared `Modal` owns

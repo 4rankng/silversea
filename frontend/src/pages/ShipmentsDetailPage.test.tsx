@@ -149,7 +149,9 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(within(documentsTableCell!).getAllByRole('button')).toEqual([documentsCell]);
     expect(screen.getByText('Đóng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
-    expect(screen.getByText('Thiếu ngày vận chuyển')).toBeTruthy();
+    // The date gap is consolidated into the schedule column: the attention
+    // stat and the missing-transport-date chip both carry the same label.
+    expect(screen.getAllByText('Thiếu ngày vận chuyển').length).toBeGreaterThanOrEqual(2);
     const identityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-001/ });
     expect(identityCell.textContent).toContain('Công ty Silver Sea');
     const missingDateIdentityCell = screen.getByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
@@ -272,6 +274,11 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
     expect(pendingVehicleCell?.textContent).toContain('Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.');
+    // "Chưa gán biển số" is a status label, not an action: it renders as a
+    // badge span with no button chrome of its own.
+    const plateChip = screen.getByText('Chưa gán biển số');
+    expect(plateChip.tagName).toBe('SPAN');
+    expect(plateChip.className).not.toContain('button');
   });
 
   it('explains why a trip-bound vehicle cell is read-only', async () => {

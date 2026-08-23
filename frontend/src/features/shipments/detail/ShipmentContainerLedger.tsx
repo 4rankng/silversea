@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Save01, XClose } from '@untitledui/icons';
-import { AlertTriangle, Clock3 } from 'lucide-react';
+import { AlertTriangle, CalendarOff, Clock3 } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
+import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect, DateInput } from '../../../design-system';
@@ -620,15 +620,17 @@ export function ShipmentContainerLedger({
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>
                   <td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
-                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule"><strong>{appointmentInput ? formatDate(appointmentInput.slice(0, 10)) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${scheduleTime} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
+                    {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule">
+                      {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
+                      <strong>{appointmentInput ? formatDate(appointmentInput.slice(0, 10)) : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? `${scheduleTime ? `${scheduleTime} · ` : ''}${row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng'}` : 'Cập nhật theo từng container'}</span></div>)}
                   </td>
                   <td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
-                      {missingVehicleToday && <span className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" /> Chờ phân xe</span>}
+                      {missingVehicleToday && <Badge size="sm" color="warning" className="shipment-container-ledger__vehicle-state"><Clock3 aria-hidden="true" />Chờ phân xe</Badge>}
                       <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
                       {row.plateNumber
                         ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
-                        : <span className="shipment-container-ledger__plate shipment-container-ledger__plate--missing">Chưa gán biển số</span>}
+                        : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>}
                       {missingVehicleToday && <small className="shipment-container-ledger__vehicle-guidance">Phối hợp Điều vận hoặc tự phân xe trước giờ chạy.</small>}
                       {!vehicleEditable && row.vehicleReadOnlyReason && (
                         <small className="shipment-container-ledger__read-only-reason">{row.vehicleReadOnlyReason}</small>
