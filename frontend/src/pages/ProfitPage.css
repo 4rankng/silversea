@@ -240,11 +240,17 @@
   letter-spacing: var(--tracking-wide);
   margin: var(--space-sm) 0 var(--space-xs);
 }
+.profit-settlement__trucks {
+  margin-top: var(--space-sm);
+}
 .profit-settlement__truck {
   margin-bottom: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-1);
   border-radius: var(--r-sm);
+}
+.profit-settlement__truck:last-child {
+  margin-bottom: 0;
 }
 .profit-settlement__truck-head {
   font-size: var(--fs-xs);
@@ -308,6 +314,13 @@
   color: var(--brand);
   font-weight: var(--fw-semibold);
 }
+
+/* In-card preview table — the record-table ops-table skin already supplies
+   the workboard type scale; these classes only carry the per-cell ink +
+   weight intent (name = primary, pct = supporting, amount = brand accent). */
+.profit-table__name { font-weight: var(--fw-semibold); }
+.profit-table__pct { color: var(--fg-3); }
+.profit-table__amount { color: var(--brand); font-weight: var(--fw-bold); }
 
 /* Compact driver-contributor role tag — pill, 999px radius is intentional
    (no token encodes a full-pill radius; keep raw). */

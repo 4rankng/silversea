@@ -437,25 +437,28 @@ export default function ProfitPage() {
               </div>
 
               {preview && !distributionRequest && (
-                <div style={{ marginTop: 16, padding: 16, background: 'var(--bg-2)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 13.5, fontWeight: 700, color: 'var(--fg-1)' }}>📋 Dự kiến phân phối Quý {preview.quarter} / {preview.year}</h4>
-                  <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--fg-2)' }}>
+                <div className="profit-settlement__preview">
+                  <h4 className="profit-settlement__preview-title">
+                    <span aria-hidden="true">📋</span>
+                    <span>Dự kiến phân phối Quý <strong>{preview.quarter} / {preview.year}</strong></span>
+                  </h4>
+                  <p className="profit-settlement__preview-summary">
                     Lợi nhuận ròng từ <strong>{preview.tripCount ?? '?'} chuyến</strong>: <strong>{formatVND(preview.netProfit)}</strong>
                   </p>
 
                   {(preview.undistributedProfit ?? 0) > 0 && (
-                    <div style={{ marginBottom: 10, padding: 10, background: 'var(--warn-soft)', color: 'var(--warn)', borderRadius: 6, fontSize: 12.5 }}>
-                      ⚠️ <strong>{formatVND(preview.undistributedProfit ?? 0)}</strong> lợi nhuận từ xe chưa cấu hình đối tác sở hữu sẽ <strong>không được phân phối</strong>. Cài đặt tại <a href="/config/trucks" style={{ color: 'var(--warn)', fontWeight: 700 }}>Cấu hình → Xe → Sở hữu</a>.
+                    <div className="profit-settlement__preview-warning">
+                      <strong>⚠️ {formatVND(preview.undistributedProfit ?? 0)}</strong> lợi nhuận từ xe chưa cấu hình đối tác sở hữu sẽ <strong>không được phân phối</strong>. Cài đặt tại <a href="/config/trucks">Cấu hình → Xe → Sở hữu</a>.
                     </div>
                   )}
 
                   {previewEmptyMessage ? (
-                    <div style={{ padding: 12, background: 'var(--bg-1)', borderRadius: 6, color: 'var(--fg-3)', fontSize: 12.5, fontWeight: 600 }}>
+                    <div className="profit-settlement__preview-empty">
                       {previewEmptyMessage}
                     </div>
                   ) : preview.entity && preview.entity.length > 0 ? (
                     <>
-                      <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: 'var(--fg-3)', letterSpacing: '0.04em', margin: '8px 0 4px' }}>TỔNG CÔNG TY (Σ các xe)</div>
+                      <div className="profit-settlement__group-label">TỔNG CÔNG TY (Σ các xe)</div>
                       {/* In-card summary table: shares the record-table skin
                           (typography, hairlines, hover) without the collapse
                           wrapper — a bento span-8 card sits permanently under
@@ -470,8 +473,8 @@ export default function ProfitPage() {
                         <tbody>
                           {preview.entity.map((d, idx) => (
                             <tr key={idx}>
-                              <td data-label="Đối tác" style={{ fontWeight: 600 }}>{d.partnerName}</td>
-                              <td data-label="Số tiền nhận" className="num" style={{ color: 'var(--brand)', fontWeight: 700 }}>{formatVND(d.amount)}</td>
+                              <td data-label="Đối tác" className="profit-table__name">{d.partnerName}</td>
+                              <td data-label="Số tiền nhận" className="num profit-table__amount">{formatVND(d.amount)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -489,9 +492,9 @@ export default function ProfitPage() {
                       <tbody>
                         {preview.distributions.map((d, idx) => (
                           <tr key={idx}>
-                            <td data-label="Đối tác" style={{ fontWeight: 600 }}>{d.partnerName}<RoleTag role={d.role} /></td>
-                            <td data-label="Tỷ lệ" className="num" style={{ color: 'var(--fg-3)' }}>{d.percentage ?? '—'}%</td>
-                            <td data-label="Số tiền nhận" className="num" style={{ color: 'var(--brand)', fontWeight: 700 }}>{formatVND(Number(d.amount))}</td>
+                            <td data-label="Đối tác" className="profit-table__name">{d.partnerName}<RoleTag role={d.role} /></td>
+                            <td data-label="Tỷ lệ" className="num profit-table__pct">{d.percentage ?? '—'}%</td>
+                            <td data-label="Số tiền nhận" className="num profit-table__amount">{formatVND(Number(d.amount))}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -499,17 +502,17 @@ export default function ProfitPage() {
                   )}
 
                   {preview.perTruck && preview.perTruck.filter(t => t.partners.length > 0).length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: 'var(--fg-3)', letterSpacing: '0.04em', marginBottom: 6 }}>CHI TIẾT THEO XE</div>
+                    <div className="profit-settlement__trucks">
+                      <div className="profit-settlement__group-label">CHI TIẾT THEO XE</div>
                       {preview.perTruck.filter(t => t.partners.length > 0).map(t => (
-                        <div key={t.truckId} style={{ marginBottom: 8, padding: '8px 10px', background: 'var(--bg-1)', borderRadius: 6 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 6 }}>
-                            Xe {t.licensePlate ?? '(không rõ biển số)'} · Lợi nhuận: <span style={{ color: 'var(--brand)' }}>{formatVND(t.profit)}</span>
+                        <div key={t.truckId} className="profit-settlement__truck">
+                          <div className="profit-settlement__truck-head">
+                            Xe {t.licensePlate ?? '(không rõ biển số)'} · Lợi nhuận: <strong>{formatVND(t.profit)}</strong>
                           </div>
                           {t.partners.map((p, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--fg-3)', padding: '3px 0' }}>
+                            <div key={i} className="profit-settlement__truck-partner">
                               <span>{p.partnerName} ({p.percentage}%)<RoleTag role={p.role} /></span>
-                              <span style={{ fontWeight: 600, color: 'var(--fg-1)', whiteSpace: 'nowrap' }}>{formatVND(p.amount)}</span>
+                              <strong>{formatVND(p.amount)}</strong>
                             </div>
                           ))}
                         </div>
@@ -520,11 +523,11 @@ export default function ProfitPage() {
               )}
 
               {distributionRequest && (
-                <div style={{ marginTop: 16, padding: 16, background: 'var(--brand-soft)', borderRadius: 8, border: '1px dashed var(--brand)' }}>
-                  <h4 style={{ margin: '0 0 10px', fontSize: 13.5, fontWeight: 700, color: 'var(--brand)' }}>
+                <div className="profit-settlement__request">
+                  <h4 className="profit-settlement__request-title">
                     Đã gửi yêu cầu phân chia Quý {distributionRequest.afterSnapshot.quarter} / {distributionRequest.afterSnapshot.year}
                   </h4>
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--fg-2)' }}>
+                  <p className="profit-settlement__request-body">
                     Yêu cầu phân chia lợi nhuận đang chờ kiểm tra. Chưa có khoản lợi nhuận nào được phân phối; một người kiểm tra và một người phê duyệt độc lập phải hoàn tất trước khi hệ thống ghi nhận.
                   </p>
                 </div>
