@@ -7,6 +7,7 @@
 @import "./styles/globals.css";    /* Untitled UI v8 theme + plugins + utilities — MUST follow tokens.css (daisyUI) */
 @import "./styles/base.css";
 @import "./styles/typography.css";
+@import "./styles/operational-table-typography.css"; /* global table type base — golden-standard scale on :root */
 @import "./styles/utilities.css";
 @import "./styles/animations.css";
 @import "./components/Layout.css";

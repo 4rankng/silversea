@@ -1,10 +1,34 @@
 /*
  * Operational table typography contract.
  *
- * Use `ops-table` on data-dense comparison grids. Page CSS maps each grid's
- * existing primary/supporting/meta/note roles to these tokens instead of
- * inventing a new font scale per route.
+ * The scale below is the /shipments + điều vận golden standard, promoted to
+ * :root so EVERY table in the app inherits it (see the global base rules at
+ * the bottom). `ops-table` remains the semantic marker for grids that map
+ * their primary/supporting/meta/note roles explicitly.
+ *
+ * Sizes are compact by design: headers 11px, primary values 13px, supporting
+ * text 12px, metadata 11px. Pages must consume these tokens instead of
+ * inventing per-route font scales.
  */
+:root {
+  --ops-table-header-size: 11px;
+  --ops-table-header-line-height: 1.35;
+  --ops-table-header-weight: var(--fw-semibold, 600);
+  --ops-table-primary-size: 13px;
+  --ops-table-primary-line-height: 1.35;
+  --ops-table-primary-weight: var(--fw-semibold, 600);
+  --ops-table-supporting-size: 12px;
+  --ops-table-supporting-line-height: 1.4;
+  --ops-table-meta-size: 11px;
+  --ops-table-meta-line-height: 1.4;
+  --ops-table-note-size: 12px;
+  --ops-table-note-line-height: 1.4;
+  --ops-table-note-weight: var(--fw-medium, 500);
+}
+
+/* Semantic marker for grids that explicitly map the full role scale. With the
+   tokens on :root the class no longer carries them; keep it as the adoption
+   signal used by the dispatch grids and the CUS worksheet. */
 .ops-table {
   --ops-table-header-size: 11px;
   --ops-table-header-line-height: 1.35;
@@ -19,4 +43,28 @@
   --ops-table-note-size: 12px;
   --ops-table-note-line-height: 1.4;
   --ops-table-note-weight: var(--fw-medium, 500);
+}
+
+/*
+ * Global table type base. Tables without their own class-level typography
+ * inherit the operational scale instead of the 14px reading size. :where()
+ * keeps specificity at zero, so every deliberate page rule — frozen CUS and
+ * dispatch surfaces included — keeps winning unchanged.
+ */
+:where(table thead th) {
+  font-size: var(--ops-table-header-size);
+  font-weight: var(--ops-table-header-weight);
+  line-height: var(--ops-table-header-line-height);
+  color: var(--fg-3);
+}
+
+:where(table tbody td) {
+  font-size: var(--ops-table-supporting-size);
+}
+
+/* Bold values are the primary line of a dense cell (record-table primary).
+   Size only — weight/line-height stay inherited so pages with their own
+   rhythm (e.g. the frozen CUS dashboard cells) are untouched. */
+:where(table tbody strong) {
+  font-size: var(--ops-table-primary-size);
 }

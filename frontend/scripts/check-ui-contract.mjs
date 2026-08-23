@@ -163,6 +163,87 @@ for (const file of sharedColorFiles) {
   }
 }
 
+// --- Global table type-scale contract -------------------------------------
+// The /shipments golden standard runs table text at 11/12/13px (see
+// styles/operational-table-typography.css). Raw ≥14px font sizes inside
+// td/th rules reintroduce per-route airier scales, so they are banned on
+// desktop-width contexts. Narrow-viewport blocks (@media max-width /
+// @container) are exempt — touch layouts may legitimately bump text.
+const TABLE_CELL_SCALE_EXEMPT_PREFIXES = [
+  // Frozen CUS + dispatch surfaces and print documents render unchanged.
+  'pages/ShipmentsPage.css',
+  'pages/ShipmentsDetailPage.css',
+  'pages/ShipmentDetailPage.css',
+  'pages/clerk/',
+  'features/dispatch/',
+  'pages/SettlementPrintPage.css',
+];
+// Files still carrying legacy oversize table text; shrinks to zero as the
+// sizing-philosophy wave lands. MUST be empty before the wave closes.
+const TABLE_CELL_SCALE_PENDING = new Set([
+  'src/pages/DebtDetailPage.css',
+]);
+
+/** Innermost rules with their enclosing at-query conditions. */
+function collectTableRules(css) {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [];
+  const stack = [];
+  let buf = '';
+  for (const ch of text) {
+    if (ch === '{') {
+      stack.push({ header: buf.trim(), body: '' });
+      buf = '';
+    } else if (ch === '}') {
+      const block = stack.pop();
+      if (block && !block.header.startsWith('@')) {
+        rules.push({
+          selector: block.header,
+          body: block.body,
+          conditions: stack.map((s) => s.header).filter((h) => h.startsWith('@')),
+        });
+      }
+      buf = '';
+    } else if (stack.length) {
+      stack[stack.length - 1].body += ch;
+    } else {
+      buf += ch;
+    }
+  }
+  return rules;
+}
+
+async function checkTableTypeScale(directoryUrl) {
+  const entries = await readdir(directoryUrl, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryUrl = new URL(entry.name, directoryUrl);
+    if (entry.isDirectory()) {
+      await checkTableTypeScale(new URL(`${entry.name}/`, directoryUrl));
+      continue;
+    }
+    if (extname(entry.name) !== '.css') continue;
+
+    const displayPath = relative(new URL('..', sourceRoot).pathname, entryUrl.pathname);
+    if (TABLE_CELL_SCALE_EXEMPT_PREFIXES.some((p) => displayPath.startsWith(p))) continue;
+
+    const css = await readFile(entryUrl, 'utf8');
+    for (const rule of collectTableRules(css)) {
+      if (!/\b(td|th)\b/.test(rule.selector)) continue;
+      if (rule.conditions.some((c) => /max-width|@container/.test(c))) continue;
+      const rawPx = rule.body.match(/font-size:\s*(\d+(?:\.\d+)?)px/);
+      const oversizeToken = /font-size:\s*var\(--fs-(sm|md|lg|xl|2xl|display)\)/.test(rule.body);
+      if (oversizeToken || (rawPx && Number(rawPx[1]) >= 14)) {
+        const label = TABLE_CELL_SCALE_PENDING.has(displayPath)
+          ? `${displayPath} (pending)`
+          : displayPath;
+        failures.push(`${label}: ≥14px font in table-cell rule "${rule.selector.split('\n')[0].trim().slice(0, 60)}"`);
+      }
+    }
+  }
+}
+
+await checkTableTypeScale(sourceRoot);
+
 async function checkInlineTouchTargets(directoryUrl) {
   const entries = await readdir(directoryUrl, { withFileTypes: true });
   for (const entry of entries) {
