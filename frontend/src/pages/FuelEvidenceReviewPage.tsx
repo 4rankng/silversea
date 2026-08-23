@@ -82,11 +82,14 @@ export default function FuelEvidenceReviewPage() {
         }
         .fuel-evidence-review__select {
           /* Use min/max rather than width so the global .ds-uui-select
-           * (width: 100% inside a flex container) can't squeeze the H1
-           * toolbar to zero width. Cap and floor both at 220px so the
-           * select always renders as a fixed-width control. */
-          min-width: 220px;
-          max-width: 220px;
+           * (width: 100% inside a flex container) and the
+           * --operational variant can't squeeze the H1 toolbar to zero
+           * width. Cap and floor both at 220px so the select always
+           * renders as a fixed-width control — the !important is required
+           * because the .ds-uui-select--operational variant loads after
+           * this inline style and overrides max-width. */
+          min-width: 220px !important;
+          max-width: 220px !important;
           min-height: 44px;
         }
         .fuel-evidence-review__card {

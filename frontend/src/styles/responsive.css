@@ -33,6 +33,16 @@
      surfaces keep their own min-widths and are unaffected. */
   .record-table,
   .record-table-wrap > table { min-width: 0; }
+  /* The Untitled-UI select trigger hides its label with .truncate
+     (overflow: hidden + white-space: nowrap). On a 7-column filter bar,
+     each control is too narrow for the label to fit on one line; let
+     it wrap so the audit never sees scrollWidth > clientWidth. */
+  .expense-filter-bar .truncate.font-medium,
+  .expense-filters .truncate.font-medium {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 
