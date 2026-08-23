@@ -45,10 +45,6 @@
   min-height: 44px;
 }
 
-.page-actions .btn {
-  min-height: 44px;
-}
-
 /* Route identity lives in the sidebar and browser title. Keep only controls
  * that users need at the top of a workspace; headings remain available to AT. */
 .page-header--actions-only {

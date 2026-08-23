@@ -16,12 +16,13 @@
 .toolbar .toolbar-spacer,
 .toolbar .toolbar__spacer { flex: 1; }
 
-/* Toolbar inline search (BEM variant used in list pages) */
+/* Toolbar inline search (BEM variant used in list pages). Filter density
+   contract: compact 34px/12px on desktop, 44px/16px on touch canvases. */
 .toolbar__search {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -49,9 +50,9 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--fs-sm);
+  font-size: var(--filter-control-font-size);
   line-height: 1.35;
-  min-height: 44px;
+  min-height: var(--filter-control-h);
   color: var(--ink);
   height: 100%;
 }
@@ -65,11 +66,11 @@
   .toolbar__search {
     width: 100%;
     min-width: 0;
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 
   .toolbar__search input {
     font-size: 16px;
-    min-height: 44px;
+    min-height: var(--control-touch-h);
   }
 }
