@@ -15,6 +15,7 @@ import {
   getCreditOverrideRequest,
   listCreditOverrideRequests,
   rejectCreditOverrideRequest,
+  CREDIT_OVERRIDE_SORT_KEYS,
 } from '../../services/credit-limit.service';
 
 const createCreditOverrideSchema = z.object({
@@ -48,6 +49,8 @@ const listSchema = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELED']).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   cursor: z.string().trim().min(1).max(500).optional(),
+  sortBy: z.enum(CREDIT_OVERRIDE_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
 });
 
 function parseRequestId(rawId: string | string[]): number {

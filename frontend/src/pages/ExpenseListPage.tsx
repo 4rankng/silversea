@@ -322,7 +322,7 @@ export default function ExpenseListPage() {
               <SortHeader label="Hạng mục" sortKey="categoryName" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Xe" sortKey="vehiclePlate" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Thành phần" sortKey="vehicleComponent" sort={sort} onSortChange={handleSort} />
-              <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={handleSort} numeric />
+              <SortHeader className="num" label="Số tiền" sortKey="amount" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Trạng thái" sortKey="paymentStatus" sort={sort} onSortChange={handleSort} />
               <th style={{ width: 40 }}></th>
             </tr>

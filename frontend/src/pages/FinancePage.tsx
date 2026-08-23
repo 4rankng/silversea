@@ -8,16 +8,19 @@ import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { AssetIcon } from '../components/AssetIcon';
+import { SortHeader } from '../components/shared/SortHeader';
 import { usePnlReport, useYearlyPnl, useMonthlyTrips, useCapTable } from '../hooks/useQueries';
 import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
 import { compactNum, EMPTY_CAP, EMPTY_TRIPS, EMPTY_YEARLY, marginPct, useFinanceDerived, yoyClass, yoyPct } from './finance-derived';
-import { groupFinanceTripDetails } from './finance-trip-details';
+import { groupFinanceTripDetails, type FinanceTripDetail } from './finance-trip-details';
+import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import type { PnlMaintenanceItem, PnlTruck } from '@tingting/shared';
 import type { PnlAllocationReasonCode } from '@tingting/shared/src/types';
 import './FinancePage.css';
+import '../styles/table-sort.css';
 
 const ALLOCATION_REASON_LABELS: Record<PnlAllocationReasonCode, string> = {
   UNCONFIGURED_POLICY: 'Chưa có chính sách phân bổ hiệu lực',
@@ -38,10 +41,38 @@ function allocationSummaryForTruck(truck: Pick<PnlTruck, 'allocationReasonCodes'
   };
 }
 
+/* ─── Client-side column sorts ─────────────────────────────────────────────── */
+
+// These report tables render the full computed set (no pagination), so sorting
+// happens in-page via sortClientSide; the default order (profit desc, and the
+// service's grouping for trips) stays byte-identical until a header is used.
+
+/** Sort accessors for the per-trip ledger inside an expanded truck row. */
+const TRIP_SORT_ACCESSORS = {
+  tripCode: (d: FinanceTripDetail) => d.tripCode,
+  revenue: (d: FinanceTripDetail) => d.revenue,
+  customerCommission: (d: FinanceTripDetail) => d.customerCommission,
+  fuelOrHireCost: (d: FinanceTripDetail) => d.fuelOrHireCost,
+  roadAllowance: (d: FinanceTripDetail) => d.roadAllowance,
+  tollAndCompanyTickets: (d: FinanceTripDetail) => d.tollAndCompanyTickets,
+  driverAndAllowances: (d: FinanceTripDetail) => d.driverAndAllowances,
+  allocatedFleetFixedCost: (d: FinanceTripDetail) => d.allocatedFleetFixedCost,
+  totalCost: (d: FinanceTripDetail) => d.totalCost,
+  netProfitAfterFleetFixedCost: (d: FinanceTripDetail) => d.netProfitAfterFleetFixedCost,
+} as const;
+
+const TRIP_TIEBREAKER = (a: FinanceTripDetail, b: FinanceTripDetail) => a.id - b.id;
+
 export default function FinancePage() {
   const { month, year } = useMonth();
   const [chartView, setChartView] = useState<'day' | 'month'>('day');
   const [expandedTruckIds, setExpandedTruckIds] = useState<Set<number>>(() => new Set());
+  const [truckSort, setTruckSort] = useState<TableSortState | null>(null);
+  const [tripSort, setTripSort] = useState<TableSortState | null>(null);
+  const [categorySort, setCategorySort] = useState<TableSortState | null>(null);
+  const handleTruckSort = (key: string) => setTruckSort(current => nextTableSort(current, key));
+  const handleTripSort = (key: string) => setTripSort(current => nextTableSort(current, key));
+  const handleCategorySort = (key: string) => setCategorySort(current => nextTableSort(current, key));
   const { data: report, isLoading: loading, error: queryError } = usePnlReport(month, year);
   const { rootRef } = usePageAnimations({ ready: !loading });
 
@@ -71,6 +102,31 @@ export default function FinancePage() {
   const tripDetailsByTruck = useMemo(() => {
     return groupFinanceTripDetails(allTrips, report?.tripDetails);
   }, [allTrips, report?.tripDetails]);
+
+  // Sorted views of the three report tables. The truck accessors close over
+  // `report` (maintenance-by-component lives there), so they rebuild with it.
+  const sortedTruckBreakdown = useMemo(() => sortClientSide(truckBreakdown, truckSort, {
+    plate: (t: PnlTruck) => t.plate,
+    trips: (t: PnlTruck) => t.trips,
+    revenue: (t: PnlTruck) => t.revenue,
+    costs: (t: PnlTruck) => t.costs,
+    monthlyFleetCost: (t: PnlTruck) => t.monthlyDepreciation + t.monthlyFixedCost,
+    unallocatedFleetFixedCost: (t: PnlTruck) => t.unallocatedFleetFixedCost,
+    maintTruck: (t: PnlTruck) => report?.maintenanceByComponent?.[t.id]?.truck ?? null,
+    maintTrailer: (t: PnlTruck) => report?.maintenanceByComponent?.[t.id]?.trailer ?? null,
+    profit: (t: PnlTruck) => t.profit,
+  }, (a: PnlTruck, b: PnlTruck) => a.id - b.id), [truckBreakdown, truckSort, report]);
+
+  const categoryGrandTotal = useMemo(
+    () => categoryBreakdown.reduce((sum, c) => sum + c.total, 0) || 1,
+    [categoryBreakdown],
+  );
+  const sortedCategoryBreakdown = useMemo(() => sortClientSide(categoryBreakdown, categorySort, {
+    categoryName: (c: { categoryName: string; total: number }) => c.categoryName,
+    total: (c: { categoryName: string; total: number }) => c.total,
+    share: (c: { categoryName: string; total: number }) => (c.total / categoryGrandTotal) * 100,
+  }, (a: { categoryName: string }, b: { categoryName: string }) => a.categoryName.localeCompare(b.categoryName, 'vi')),
+    [categoryBreakdown, categorySort, categoryGrandTotal]);
 
   const toggleTruck = (truckId: number) => {
     setExpandedTruckIds((current) => {
@@ -601,7 +657,7 @@ export default function FinancePage() {
               {/* ── Mobile card list (≤640px) ──────────────────────────────── */}
               <div className="mobile-only">
                 <div className="truck-card-list">
-                  {truckBreakdown.map(t => {
+                  {sortedTruckBreakdown.map(t => {
                     const margin = t.revenue > 0 ? ((t.profit / t.revenue) * 100).toFixed(1) : '0.0';
                     const barPct = t.revenue > 0 ? Math.min(100, Math.max(0, (t.profit / t.revenue) * 100)) : 0;
                     const maintComp = report?.maintenanceByComponent?.[t.id] ?? { truck: 0, trailer: 0 };
@@ -728,27 +784,27 @@ export default function FinancePage() {
                   <table>
                     <thead>
                       <tr>
-                        <th>Biển số xe</th>
-                        <th className="num">Lệnh</th>
-                        <th className="num">Doanh thu chặng</th>
-                        <th className="num">Tổng chi phí</th>
+                        <SortHeader label="Biển số xe" sortKey="plate" sort={truckSort} onSortChange={handleTruckSort} />
+                        <SortHeader label="Lệnh" sortKey="trips" sort={truckSort} onSortChange={handleTruckSort} className="num" />
+                        <SortHeader label="Doanh thu chặng" sortKey="revenue" sort={truckSort} onSortChange={handleTruckSort} className="num" />
+                        <SortHeader label="Tổng chi phí" sortKey="costs" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                         {showFleetCostColumns && (
                           <>
-                            <th className="num">Khấu hao + cố định</th>
-                            <th className="num">Chưa phân bổ</th>
+                            <SortHeader label="Khấu hao + cố định" sortKey="monthlyFleetCost" sort={truckSort} onSortChange={handleTruckSort} className="num" />
+                            <SortHeader label="Chưa phân bổ" sortKey="unallocatedFleetFixedCost" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                           </>
                         )}
                         {maintenanceCost > 0 && (
                           <>
-                            <th className="num">BD đầu kéo</th>
-                            <th className="num">BD rơ-mooc</th>
+                            <SortHeader label="BD đầu kéo" sortKey="maintTruck" sort={truckSort} onSortChange={handleTruckSort} className="num" />
+                            <SortHeader label="BD rơ-mooc" sortKey="maintTrailer" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                           </>
                         )}
-                        <th className="num">Lợi nhuận gộp</th>
+                        <SortHeader label="Lợi nhuận gộp" sortKey="profit" sort={truckSort} onSortChange={handleTruckSort} className="num" />
                       </tr>
                     </thead>
                     <tbody>
-                      {truckBreakdown.map(t => {
+                      {sortedTruckBreakdown.map(t => {
                         const maintComp = report?.maintenanceByComponent?.[t.id] ?? { truck: 0, trailer: 0 };
                         const isExpanded = expandedTruckIds.has(t.id);
                         const tripDetails = tripDetailsByTruck.get(t.id) ?? [];
@@ -810,21 +866,22 @@ export default function FinancePage() {
                                       <table className="truck-trip-table">
                                         <thead>
                                           <tr>
-                                            <th>Lệnh / tuyến</th>
-                                            <th className="num">Doanh thu ghi nhận</th>
-                                            <th className="num">Hoa hồng KH</th>
-                                            <th className="num">Nhiên liệu / thuê xe</th>
-                                            <th className="num">Đi đường</th>
-                                            <th className="num">Phí trạm / vé CT</th>
-                                            <th className="num">Lương & phụ cấp</th>
-                                            <th className="num">PB đội xe</th>
-                                            <th className="num">Biến phí</th>
-                                            <th className="num">LN sau PB</th>
+                                            <SortHeader label="Lệnh / tuyến" sortKey="tripCode" sort={tripSort} onSortChange={handleTripSort} />
+                                            <SortHeader label="Doanh thu ghi nhận" sortKey="revenue" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Hoa hồng KH" sortKey="customerCommission" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Nhiên liệu / thuê xe" sortKey="fuelOrHireCost" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Đi đường" sortKey="roadAllowance" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Phí trạm / vé CT" sortKey="tollAndCompanyTickets" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Lương & phụ cấp" sortKey="driverAndAllowances" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="PB đội xe" sortKey="allocatedFleetFixedCost" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="Biến phí" sortKey="totalCost" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            <SortHeader label="LN sau PB" sortKey="netProfitAfterFleetFixedCost" sort={tripSort} onSortChange={handleTripSort} className="num" />
+                                            {/* Đối chiếu is a validation badge, not a data column */}
                                             <th>Đối chiếu</th>
                                           </tr>
                                         </thead>
                                         <tbody>
-                                          {tripDetails.map(detail => (
+                                          {sortClientSide(tripDetails, tripSort, TRIP_SORT_ACCESSORS, TRIP_TIEBREAKER).map(detail => (
                                             <tr key={detail.id}>
                                               <td>
                                                 <Link to={`/trips/${detail.id}`} className="truck-trip-link">
@@ -878,16 +935,15 @@ export default function FinancePage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Hạng mục</th>
-                      <th className="num" style={{ width: 200 }}>Tổng chi phí</th>
-                      <th style={{ width: 200 }}>Tỷ trọng</th>
+                      <SortHeader label="Hạng mục" sortKey="categoryName" sort={categorySort} onSortChange={handleCategorySort} />
+                      <SortHeader label="Tổng chi phí" sortKey="total" sort={categorySort} onSortChange={handleCategorySort} className="num" style={{ width: 200 }} />
+                      <SortHeader label="Tỷ trọng" sortKey="share" sort={categorySort} onSortChange={handleCategorySort} style={{ width: 200 }} />
                     </tr>
                   </thead>
                   <tbody>
                     {(() => {
-                      const grandTotal = categoryBreakdown.reduce((s, c) => s + c.total, 0) || 1;
-                      return categoryBreakdown.map((cat, i) => {
-                        const pct = (cat.total / grandTotal) * 100;
+                      return sortedCategoryBreakdown.map((cat, i) => {
+                        const pct = (cat.total / categoryGrandTotal) * 100;
                         return (
                           <tr key={i}>
                             <td data-label="Hạng mục" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>

@@ -18,7 +18,10 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAgentOpenable } from '../hooks/useAgentOpenable';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { qk } from '../api/keys';
+import { SortHeader } from '../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import './DebtDetailPage.css';
+import '../styles/table-sort.css';
 import { money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
 import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
@@ -75,6 +78,22 @@ export function DualEntityLookupError({ onRetry }: { onRetry: () => void }) {
 
 // ── Ledger filter type ─────────────────────────────────────────────────────
 
+/** Sort accessors for the AR ledger — the statement is a full-set, non-paginated
+ * fetch, so column sorting happens client-side; the server's chronological
+ * order stays until a header is used. Money accessors read the numeric value,
+ * never the formatted string. */
+const AR_LEDGER_SORT_ACCESSORS = {
+  timestamp: (row: LedgerEntry) => row.timestamp,
+  reference: (row: LedgerEntry) => row.tripCode ?? row.receiptId ?? row.note ?? null,
+  content: (row: LedgerEntry) => row.routeName || row.serviceFeeLabel || row.note || null,
+  txnType: (row: LedgerEntry) => rowTypeLabel(row),
+  debit: (row: LedgerEntry) => parseFloat(row.debit) || 0,
+  credit: (row: LedgerEntry) => parseFloat(row.credit) || 0,
+  balance: (row: LedgerEntry) => parseFloat(row.balance) || 0,
+} as const;
+
+const LEDGER_TIEBREAKER = (a: LedgerEntry, b: LedgerEntry) => a.id - b.id;
+
 export default function DebtDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -118,6 +137,8 @@ export default function DebtDetailPage() {
   useBackShortcut(handleBack);
 
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all');
+  const [ledgerSort, setLedgerSort] = useState<TableSortState | null>(null);
+  const handleLedgerSort = (key: string) => setLedgerSort(current => nextTableSort(current, key));
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(() =>
     isCreatingBillingDocument ? 'debit-note' : 'ledger',
   );
@@ -242,6 +263,11 @@ export default function DebtDetailPage() {
     }
     return statement.ledgerRows.filter(r => r.txnType === ledgerFilter);
   }, [statement, ledgerFilter]);
+
+  const sortedLedgerRows = useMemo(
+    () => sortClientSide(filteredRows, ledgerSort, AR_LEDGER_SORT_ACCESSORS, LEDGER_TIEBREAKER),
+    [filteredRows, ledgerSort],
+  );
 
   const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
 
@@ -733,17 +759,17 @@ export default function DebtDetailPage() {
                   <table className="dd-table dd-detail-table">
                     <thead>
                       <tr>
-                        <th>NGÀY</th>
-                        <th>CHUYẾN / ĐỐI CHIẾU</th>
-                        <th>NỘI DUNG</th>
-                        <th>LOẠI</th>
-                        <th className="dd-r">PHÁT SINH PHẢI THU</th>
-                        <th className="dd-r">ĐÃ THU</th>
-                        <th className="dd-r">SỐ DƯ</th>
+                        <SortHeader label="NGÀY" sortKey="timestamp" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                        <SortHeader label="CHUYẾN / ĐỐI CHIẾU" sortKey="reference" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                        <SortHeader label="NỘI DUNG" sortKey="content" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                        <SortHeader label="LOẠI" sortKey="txnType" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                        <SortHeader label="PHÁT SINH PHẢI THU" sortKey="debit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                        <SortHeader label="ĐÃ THU" sortKey="credit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                        <SortHeader label="SỐ DƯ" sortKey="balance" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRows.map(row => (
+                      {sortedLedgerRows.map(row => (
                         <ReceivableLedgerRow key={row.id} row={row} />
                       ))}
                       {filteredRows.length === 0 && (
@@ -966,6 +992,17 @@ function payableRowDetails(row: LedgerEntry) {
   };
 }
 
+/** Sort accessors for the linked-supplier AP ledger (full-set, client-side). */
+const AP_LEDGER_SORT_ACCESSORS = {
+  timestamp: (row: LedgerEntry) => row.timestamp,
+  reference: (row: LedgerEntry) => payableRowDetails(row).reference,
+  txnType: (row: LedgerEntry) => (PAYABLE_TXN_META[row.txnType] ?? DEFAULT_PAYABLE_TXN_META).label,
+  payable: (row: LedgerEntry) => parseFloat(row.credit) || 0,
+  paid: (row: LedgerEntry) => parseFloat(row.debit) || 0,
+  balance: (row: LedgerEntry) => parseFloat(row.balance) || 0,
+  note: (row: LedgerEntry) => row.note || null,
+} as const;
+
 function LinkedSupplierPayableRow({ row }: { row: LedgerEntry }) {
   const { meta, reference, payable, paid, balance } = payableRowDetails(row);
 
@@ -1044,6 +1081,14 @@ export function LinkedSupplierPayableLedger({
   arBalance,
   apBalance,
 }: LinkedSupplierPayableLedgerProps) {
+  // Full-set, non-paginated statement rows — sorted in-page; chronological
+  // server order stays until a header is used.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSortChange = (key: string) => setSort(current => nextTableSort(current, key));
+  const sortedRows = useMemo(
+    () => sortClientSide(rows, sort, AP_LEDGER_SORT_ACCESSORS, LEDGER_TIEBREAKER),
+    [rows, sort],
+  );
   const emptyMessage = isLoading
     ? 'Đang tải giao dịch công nợ phải trả...'
     : 'Chưa có giao dịch công nợ phải trả';

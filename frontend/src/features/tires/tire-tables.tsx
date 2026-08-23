@@ -1,9 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpToLine, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import type { Tire } from "@tingting/shared";
 import type { Supplier } from "@tingting/shared";
 import { StatusStrip } from "../../components/shared/StatusStrip";
+import { SortHeader } from "../../components/shared/SortHeader";
+import { nextTableSort, sortClientSide, type TableSortState } from "../../lib/table-sort";
 import { daysBetween, displayTirePosition, supplierName, tireAgeDays } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -33,6 +35,20 @@ export function TireTable({
   ontransfer?: (tire: Tire) => void;
 }) {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  // Client-side column sort — per-vehicle lists the page already holds in
+  // memory; null keeps the page's handed-in order.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
+  const sorted = useMemo(() => sortClientSide(tires, sort, {
+    serial: t => t.serial,
+    position: t => displayTirePosition(t),
+    size: t => t.size,
+    installedAt: t => t.installedAt,
+    daysInService: t => daysInService(t.installedAt, t.removedAt),
+    purchasedAt: t => t.purchasedAt,
+    age: t => tireAgeDays(t.purchasedAt),
+    supplier: t => supplierName(suppliers, t.supplierId),
+  }, (a, b) => b.id - a.id), [tires, sort, suppliers]);
 
   // Only one row menu open at a time; close on outside click / Escape.
   useEffect(() => {
@@ -81,19 +97,19 @@ export function TireTable({
         </colgroup>
         <thead>
           <tr>
-            <th>Serial</th>
-            <th>Vị trí</th>
-            <th>Kích cỡ</th>
-            <th>Ngày lắp</th>
-            <th>Số ngày chạy</th>
-            <th>Ngày mua</th>
-            <th>Tuổi lốp</th>
-            <th>Nhà cung cấp</th>
+            <SortHeader label="Serial" sortKey="serial" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Vị trí" sortKey="position" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Kích cỡ" sortKey="size" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Ngày lắp" sortKey="installedAt" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Số ngày chạy" sortKey="daysInService" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Ngày mua" sortKey="purchasedAt" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Tuổi lốp" sortKey="age" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Nhà cung cấp" sortKey="supplier" sort={sort} onSortChange={handleSort} />
             <th className="ttp-actions-heading" aria-label="Tác vụ"></th>
           </tr>
         </thead>
         <tbody>
-          {tires.map((t, index) => {
+          {sorted.map((t, index) => {
             const days = daysInService(t.installedAt, t.removedAt);
             const age = tireAgeDays(t.purchasedAt);
             return (
@@ -112,7 +128,7 @@ export function TireTable({
                   {supplierName(suppliers, t.supplierId)}
                 </td>
                 <td className="ttp-row-actions">
-                  <TireRowActions tire={t} index={index} total={tires.length} open={openMenuId === t.id} onOpenChange={(o) => setOpenMenuId(o ? t.id : null)} busy={busy} oninstall={oninstall} ontransfer={ontransfer} onunmount={onunmount} onedit={onedit} ondelete={ondelete} />
+                  <TireRowActions tire={t} index={index} total={sorted.length} open={openMenuId === t.id} onOpenChange={(o) => setOpenMenuId(o ? t.id : null)} busy={busy} oninstall={oninstall} ontransfer={ontransfer} onunmount={onunmount} onedit={onedit} ondelete={ondelete} />
                 </td>
               </tr>
             );
@@ -245,6 +261,17 @@ function TireRowActions({
 /** Mount a spare (IN_STOCK) tire onto this vehicle. Position optional but blocked
  *  if another IN_USE tire already fills it. */
 export function DisposedTireTable({ tires, suppliers }: { tires: Tire[]; suppliers: Supplier[] }) {
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSort = (key: string) => setSort(current => nextTableSort(current, key));
+  const sorted = useMemo(() => sortClientSide(tires, sort, {
+    serial: t => t.serial,
+    size: t => t.size,
+    purchasedAt: t => t.purchasedAt,
+    age: t => daysBetween(t.purchasedAt, t.disposalDate),
+    supplier: t => supplierName(suppliers, t.supplierId),
+    disposalReason: t => t.disposalReason,
+    disposalDate: t => t.disposalDate,
+  }, (a, b) => b.id - a.id), [tires, sort, suppliers]);
   return (
     <div className="ttp-table-wrap">
       <table className="ttp-table ttp-table--disposed">
@@ -259,17 +286,17 @@ export function DisposedTireTable({ tires, suppliers }: { tires: Tire[]; supplie
         </colgroup>
         <thead>
           <tr>
-            <th>Serial</th>
-            <th>Kích cỡ</th>
-            <th>Ngày mua</th>
-            <th>Tuổi lốp</th>
-            <th>Nhà cung cấp</th>
-            <th>Lý do thanh lý</th>
-            <th>Ngày thanh lý</th>
+            <SortHeader label="Serial" sortKey="serial" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Kích cỡ" sortKey="size" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Ngày mua" sortKey="purchasedAt" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Tuổi lốp" sortKey="age" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Nhà cung cấp" sortKey="supplier" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Lý do thanh lý" sortKey="disposalReason" sort={sort} onSortChange={handleSort} />
+            <SortHeader label="Ngày thanh lý" sortKey="disposalDate" sort={sort} onSortChange={handleSort} />
           </tr>
         </thead>
         <tbody>
-          {tires.map((t) => {
+          {sorted.map((t) => {
             // Age frozen at disposal — a scrapped tire's age shouldn't keep climbing daily.
             const age = daysBetween(t.purchasedAt, t.disposalDate);
             return (

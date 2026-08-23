@@ -39,12 +39,12 @@ export default function TreasuryPositionPage() {
     {error ? <div className="treasury-notice treasury-notice--error" role="alert">{error}<button className="btn btn--ghost" onClick={() => void load()}><RotateCcw size={16}/> Thử lại</button></div> : !loading && data?.accounts.length === 0 ? <EmptyState icon={Landmark} title="Chưa có tài khoản ghi sổ" description="Số dư sẽ xuất hiện sau khi tài khoản được thiết lập và chuyển đổi." /> : data ? <div className="record-table-wrap">
       <table className="record-table ops-table treasury-table">
         <thead><tr>
-          <th>Tài khoản</th>
-          <th className="num">Đầu kỳ</th>
-          <th className="num">Thu</th>
-          <th className="num">Chi</th>
-          <th className="num">Số dư ghi sổ</th>
-          <th>Trạng thái</th>
+          <SortHeader label="Tài khoản" sortKey="name" sort={sort} onSortChange={handleSortChange} />
+          <SortHeader label="Đầu kỳ" sortKey="openingBalance" sort={sort} onSortChange={handleSortChange} className="num" />
+          <SortHeader label="Thu" sortKey="totalIn" sort={sort} onSortChange={handleSortChange} className="num" />
+          <SortHeader label="Chi" sortKey="totalOut" sort={sort} onSortChange={handleSortChange} className="num" />
+          <SortHeader label="Số dư ghi sổ" sortKey="bookBalance" sort={sort} onSortChange={handleSortChange} className="num" />
+          <SortHeader label="Trạng thái" sortKey="completeness" sort={sort} onSortChange={handleSortChange} />
         </tr></thead>
         <tbody>{data?.accounts.map((account) => <tr key={account.accountId}>
           <td data-label="Tài khoản" className="treasury-table__account"><strong>{account.name}</strong><span>{account.code} · {account.type === 'CASH' ? 'Tiền mặt' : 'Ngân hàng'}</span><small>{account.cutoverAt ? `Chuyển đổi: ${formatDateTimeVN(account.cutoverAt)}` : 'Chưa chuyển đổi đầy đủ'}</small></td>

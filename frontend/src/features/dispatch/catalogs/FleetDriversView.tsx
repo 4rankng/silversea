@@ -10,10 +10,12 @@ import { Users, UserCheck, Truck as TruckIcon } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
 import { DRIVER_STATUS } from '../../fleet';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
@@ -25,6 +27,7 @@ import './catalogs.css';
 export function FleetDriversView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   const create = useCatalogCreate('/drivers');
   const saveDriver = (body: Record<string, unknown>) => {
@@ -53,6 +56,19 @@ export function FleetDriversView() {
         (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) ?? '' : '').toLowerCase().includes(needle),
     );
   }, [drivers, needle, plateByTruck]);
+
+  // Full catalog is already client-side (unpaginated lookup table), so sorting
+  // happens locally with the shared contract: empty cells last, id tiebreaker.
+  const rows = useMemo(
+    () => sortClientSide(filtered, sort, {
+      name: (d) => d.name,
+      phone: (d) => d.phone,
+      assignedPlate: (d) => (d.assignedTruckId ? plateByTruck.get(d.assignedTruckId) : null),
+      status: (d) => d.status,
+    }, (a, b) => a.id - b.id),
+    [filtered, sort, plateByTruck],
+  );
+  const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
   return (
     <div ref={rootRef}>
@@ -91,14 +107,14 @@ export function FleetDriversView() {
           <table className="dispatch-catalogs__table">
             <thead>
               <tr>
-                <th>Họ tên</th>
-                <th>Số điện thoại</th>
-                <th>Xe đang gán</th>
-                <th>Trạng thái</th>
+                <SortHeader label="Họ tên" sortKey="name" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Xe đang gán" sortKey="assignedPlate" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((d) => (
+              {rows.map((d) => (
                 <tr key={d.id}>
                   <td data-label="Họ tên" style={{ fontWeight: 600 }}>{d.name}</td>
                   <td data-label="Số điện thoại">{d.phone ?? '—'}</td>

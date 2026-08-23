@@ -7,10 +7,12 @@ import {
 } from 'lucide-react';
 import { Panel, KPI } from '../components/UI';
 import { AssetIcon } from '../components/AssetIcon';
+import { SortHeader } from '../components/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useAuditLogs, type AuditEntry, type Category } from '../hooks/useAuditLogs';
 import { useAuth } from '../hooks/useAuth';
 import { usePageAnimations } from '../hooks/animations';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-helpers';
 import './AuditLogPage.css';
 import '../styles/operational-table-typography.css';
@@ -97,17 +99,23 @@ export default function AuditLogPage() {
   const [selectedEntry, setSelectedEntry] = useState<NormalizedEntry | null>(null);
   const [copied, setCopied] = useState(false);
   const detailDialogRef = useRef<HTMLDialogElement>(null);
+  // Server-side column sort; the query key carries it so a new sort refetches
+  // the infinite list from page 1 automatically.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSortChange = useCallback((key: string) => {
+    setSort((current) => nextTableSort(current, key));
+  }, []);
 
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
 
-  const { 
-    data, 
+  const {
+    data,
     isLoading: loading,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage
-  } = useAuditLogs(PAGE_SIZE, filter, search);
+  } = useAuditLogs(PAGE_SIZE, filter, search, sort?.by, sort?.dir);
 
   const { rootRef } = usePageAnimations({ ready: !loading });
    
@@ -419,9 +427,9 @@ fontSize: 13,
               <thead>
                 <tr>
                   <th style={{ width: 54 }}>STT</th>
-                  <th style={{ width: 140 }}>Thời gian</th>
-                  <th style={{ width: 180 }}>Người dùng</th>
-                  <th>Nội dung</th>
+                  <SortHeader label="Thời gian" sortKey="timestamp" sort={sort} onSortChange={handleSortChange} />
+                  <SortHeader label="Người dùng" sortKey="userName" sort={sort} onSortChange={handleSortChange} />
+                  <SortHeader label="Nội dung" sortKey="message" sort={sort} onSortChange={handleSortChange} />
                 </tr>
               </thead>
               <tbody>

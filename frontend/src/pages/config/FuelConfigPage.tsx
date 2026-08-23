@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { useNavigate } from 'react-router-dom';
 import { Save, Loader2 } from 'lucide-react';
 import { configClient } from '../../api/configClient';
 import { useFuelConfig, useSaveFuelConfig } from '../../hooks/useCatalogQueries';
 import { PageHeader, Panel } from '../../components/UI';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { FuelPriceHistory } from '@tingting/shared';
 import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
@@ -24,6 +26,17 @@ export default function FuelConfigPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [history, setHistory] = useState<FuelPriceHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  // Client-side column sort for the price-history table — a small full-set
+  // list fetched in one array; null keeps the backend's order. "Người thay
+  // đổi" renders a constant placeholder (the API has no author field yet), so
+  // it stays a plain decorative header.
+  const [historySort, setHistorySort] = useState<TableSortState | null>(null);
+  const handleHistorySort = (key: string) => setHistorySort(current => nextTableSort(current, key));
+  const sortedHistory = useMemo(() => sortClientSide(history, historySort, {
+    effectiveDate: row => row.effectiveDate,
+    unitPrice: row => Number(row.unitPrice),
+    note: row => row.note,
+  }, (a, b) => b.id - a.id), [history, historySort]);
 
   useEffect(() => {
     if (fuelConfig) {
@@ -156,14 +169,14 @@ export default function FuelConfigPage() {
             <table className="tt-table">
               <thead>
                 <tr>
-                  <th>Ngày hiệu lực</th>
-                  <th className="num">Đơn giá (₫/lít)</th>
+                  <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={historySort} onSortChange={handleHistorySort} />
+                  <SortHeader className="num" label="Đơn giá (₫/lít)" sortKey="unitPrice" sort={historySort} onSortChange={handleHistorySort} />
                   <th>Người thay đổi</th>
-                  <th>Ghi chú</th>
+                  <SortHeader label="Ghi chú" sortKey="note" sort={historySort} onSortChange={handleHistorySort} />
                 </tr>
               </thead>
               <tbody>
-                {history.map((row) => (
+                {sortedHistory.map((row) => (
                   <tr key={row.id}>
                     <td style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                     <td className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>

@@ -18,13 +18,15 @@ export interface AuditEntry {
 
 export type Category = 'all' | 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
 
-export function useAuditLogs(pageSize: number, filter: Category, search: string) {
+export function useAuditLogs(pageSize: number, filter: Category, search: string, sortBy?: string, sortDir?: 'asc' | 'desc') {
   return useInfiniteQuery<{ items: AuditEntry[]; total: number }>({
-    queryKey: qk.auditLogs.list(pageSize, filter, search),
+    queryKey: qk.auditLogs.list(pageSize, filter, search, sortBy, sortDir),
     queryFn: async ({ pageParam = 1 }) => {
       const params = new URLSearchParams({ page: String(pageParam), limit: String(pageSize) });
       if (filter !== 'all') params.set('category', filter);
       if (search.trim()) params.set('search', search.trim());
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortDir) params.set('sortDir', sortDir);
       return api.get<{ items: AuditEntry[]; total: number }>(`/audit-logs?${params}`);
     },
     getNextPageParam: (lastPage, allPages) => {

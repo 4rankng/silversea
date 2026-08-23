@@ -156,6 +156,48 @@ describe('work inbox projection', () => {
     assert.deepEqual(result.counts, { action: 3, waiting: 0, done: 0 });
   });
 
+  test('explicit sortBy orders the lane before paging with the default chain as tiebreaker', () => {
+    const rows = [
+      item({ id: 'c', title: 'Gamma', priority: 90, freshnessAt: '2026-08-21T00:00:00.000Z', blockers: [{ code: 'POD', label: 'Thiếu POD', ownerRole: 'OPS', ownerLabel: 'Vận hành' }] }),
+      item({ id: 'a', title: 'Alpha', priority: 50, freshnessAt: '2026-08-23T00:00:00.000Z' }),
+      item({ id: 'b', title: 'Beta', priority: 70, freshnessAt: '2026-08-22T00:00:00.000Z', blockers: [{ code: 'POD', label: 'Thiếu POD', ownerRole: 'OPS', ownerLabel: 'Vận hành' }, { code: 'SETTLEMENT', label: 'Chưa quyết toán', ownerRole: 'OPS', ownerLabel: 'Vận hành' }] }),
+    ];
+
+    // title asc/desc
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'title', sortDir: 'asc' }).items.map((row) => row.id),
+      ['a', 'b', 'c'],
+    );
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'title', sortDir: 'desc' }).items.map((row) => row.id),
+      ['c', 'b', 'a'],
+    );
+
+    // freshness (newest last on asc, first on desc)
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'freshness', sortDir: 'asc' }).items.map((row) => row.id),
+      ['c', 'b', 'a'],
+    );
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'freshness', sortDir: 'desc' }).items.map((row) => row.id),
+      ['a', 'b', 'c'],
+    );
+
+    // readiness = blocker count (a=0, c=1, b=2; fewest blockers first on asc)
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'readiness', sortDir: 'asc' }).items.map((row) => row.id),
+      ['a', 'c', 'b'],
+    );
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: 'ACTION', page: 1, limit: 10, sortBy: 'readiness', sortDir: 'desc' }).items.map((row) => row.id),
+      ['b', 'c', 'a'],
+    );
+
+    // The explicit sort follows the sliced page: page 2 under title asc.
+    const paged = pageWorkInboxItems(rows, { view: 'ACTION', page: 2, limit: 2, sortBy: 'title', sortDir: 'asc' });
+    assert.deepEqual(paged.items.map((row) => row.id), ['c']);
+  });
+
   test('customer dispute stays advisory and does not block financially ready work', async () => {
     const result = await financialWorkInbox({ search: readyTripCode, page: 1, limit: 25 });
     const row = result.items.find((candidate) => candidate.tripId === readyTripId);

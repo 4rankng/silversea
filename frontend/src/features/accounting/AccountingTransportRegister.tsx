@@ -227,9 +227,9 @@ export function AccountingTransportRegister({
                 <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
                 <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
                 <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-                <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} numeric />
-                <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} numeric />
-                <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} numeric />
+                <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} className="num" />
+                <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} className="num" />
+                <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} className="num" />
                 <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />
                 <th scope="col">Thao tác</th>
               </tr>

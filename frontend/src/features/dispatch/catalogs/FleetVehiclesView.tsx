@@ -8,10 +8,12 @@ import { Truck } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
 import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
@@ -23,6 +25,7 @@ import type { Truck as TruckType } from '@tingting/shared';
 export function FleetVehiclesView() {
   const { rootRef } = usePageAnimations({ ready: true });
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const { data: fleetData, isLoading: loading, error } = useTrucksAndDrivers();
   // Trailer plate/type shown alongside each tractor (same source as FleetPage).
   const { data: trailers = [] } = useTrailers();
@@ -54,6 +57,19 @@ export function FleetVehiclesView() {
       );
     });
   }, [trucks, needle, driverByTruck, trailerById]);
+
+  // Full catalog is already client-side (unpaginated lookup table), so sorting
+  // happens locally with the shared contract: empty cells last, id tiebreaker.
+  const rows = useMemo(
+    () => sortClientSide(filtered, sort, {
+      licensePlate: (t) => t.licensePlate,
+      trailerPlate: (t) => (t.currentTrailerId ? trailerById.get(t.currentTrailerId)?.licensePlate ?? null : null),
+      driverName: (t) => driverByTruck.get(t.id) ?? null,
+      status: (t) => t.status,
+    }, (a, b) => a.id - b.id),
+    [filtered, sort, driverByTruck, trailerById],
+  );
+  const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
   return (
     <div ref={rootRef}>
@@ -92,14 +108,14 @@ export function FleetVehiclesView() {
           <table className="dispatch-catalogs__table">
             <thead>
               <tr>
-                <th>Biển số</th>
-                <th>Rơ-moóc đang nối</th>
-                <th>Tài xế được gán</th>
-                <th>Trạng thái</th>
+                <SortHeader label="Biển số" sortKey="licensePlate" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Tài xế được gán" sortKey="driverName" sort={sort} onSortChange={applySort} />
+                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t: TruckType) => {
+              {rows.map((t: TruckType) => {
                 const trailer = t.currentTrailerId ? trailerById.get(t.currentTrailerId) : undefined;
                 return (
                   <tr key={t.id}>

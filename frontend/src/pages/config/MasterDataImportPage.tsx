@@ -3,6 +3,8 @@ import { ArrowLeft, CheckCircle2, Download, FileSpreadsheet, RotateCcw, Upload, 
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/UI';
 import { TextField } from '../../design-system';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import {
   analyzeMasterData,
   applyMasterData,
@@ -26,13 +28,24 @@ export default function MasterDataImportPage() {
   const [busy, setBusy] = useState<'ANALYZE' | 'APPLY' | 'REJECT' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const blockedCount = batch?.summary.BLOCKED ?? batch?.rows.filter((row) => row.classification === 'BLOCKED').length ?? 0;
+  // The preview rows are an in-memory batch result (never paginated), so each
+  // sheet's table sorts client-side under one shared sort state — every sheet
+  // orders by the same clicked column, empty cells last, row id tiebreaker.
   const groups = useMemo(() => {
     if (!batch) return [];
+    const sorted = sortClientSide(batch.rows, sort, {
+      rowNumber: (row) => row.rowNumber,
+      entityType: (row) => row.entityType,
+      classification: (row) => classificationLabels[row.classification],
+      reason: (row) => row.redactedReason,
+    }, (a, b) => a.rowNumber - b.rowNumber);
     const grouped = new Map<string, typeof batch.rows>();
-    for (const row of batch.rows) grouped.set(row.sheetName, [...(grouped.get(row.sheetName) ?? []), row]);
+    for (const row of sorted) grouped.set(row.sheetName, [...(grouped.get(row.sheetName) ?? []), row]);
     return [...grouped.entries()];
-  }, [batch]);
+  }, [batch, sort]);
+  const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
 
   async function analyze() {
     if (!file) { setError('Vui lòng chọn tệp Excel (.xlsx)'); return; }
@@ -124,7 +137,7 @@ export default function MasterDataImportPage() {
             {groups.map(([sheetName, rows]) => (
               <details key={sheetName} open={rows.some((row) => row.classification === 'BLOCKED')} style={{ borderBottom: '1px solid var(--border-2)' }}>
                 <summary style={{ minHeight: 48, padding: '12px 14px', cursor: 'pointer', fontWeight: 700 }}>{sheetName} · {rows.length} dòng</summary>
-                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 14 }}><thead><tr><th style={{ textAlign: 'left', padding: 10 }}>Dòng</th><th style={{ textAlign: 'left', padding: 10 }}>Nhóm dữ liệu</th><th style={{ textAlign: 'left', padding: 10 }}>Kết quả</th><th style={{ textAlign: 'left', padding: 10 }}>Lý do</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} style={{ borderTop: '1px solid var(--border-2)' }}><td style={{ padding: 10 }}>{row.rowNumber}</td><td style={{ padding: 10 }}>{row.entityType}</td><td style={{ padding: 10, color: classificationColors[row.classification], fontWeight: 700 }}>{classificationLabels[row.classification]}</td><td style={{ padding: 10, overflowWrap: 'anywhere' }}>{row.redactedReason ?? '—'}</td></tr>)}</tbody></table></div>
+                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 14 }}><thead><tr><SortHeader label="Dòng" sortKey="rowNumber" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Nhóm dữ liệu" sortKey="entityType" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Kết quả" sortKey="classification" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /></tr></thead><tbody>{rows.map((row) => <tr key={row.id} style={{ borderTop: '1px solid var(--border-2)' }}><td style={{ padding: 10 }}>{row.rowNumber}</td><td style={{ padding: 10 }}>{row.entityType}</td><td style={{ padding: 10, color: classificationColors[row.classification], fontWeight: 700 }}>{classificationLabels[row.classification]}</td><td style={{ padding: 10, overflowWrap: 'anywhere' }}>{row.redactedReason ?? '—'}</td></tr>)}</tbody></table></div>
               </details>
             ))}
           </div>

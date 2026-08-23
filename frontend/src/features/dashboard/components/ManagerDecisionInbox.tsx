@@ -6,6 +6,8 @@ import type { ManagerWorkInboxItem, WorkInboxResponseOf } from '@tingting/shared
 import { WORKSPACES } from '@tingting/shared';
 import { qk } from '../../../api/keys';
 import { api } from '../../../lib/api';
+import { SortHeader } from '../../../components/shared/SortHeader';
+import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
 import './ManagerDecisionInbox.css';
 
 const STALE_AFTER_MS = 5 * 60 * 1000;
@@ -21,10 +23,17 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
   const [page, setPage] = useState(1);
   const [searchParams, setSearchParams] = useSearchParams();
   const [resolutionDrafts, setResolutionDrafts] = useState<Record<string, string>>({});
+  // Server-side sort rides the inbox endpoint's sortBy/sortDir params. Only
+  // `title` is wired today: the lane's other columns (owner, age, impact) have
+  // no WORK_INBOX_SORT_KEYS entries yet — the key set lives in the accounting
+  // wave's work-inbox.service.ts, so extending it belongs to that workstream.
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const query = useQuery({
-    queryKey: qk.dashboard.decisionInbox(page),
+    // Sort fields ride the key (composed, not bare) so each order caches apart.
+    queryKey: [...qk.dashboard.decisionInbox(page), sort?.by ?? null, sort?.dir ?? null],
     queryFn: () => api.get<WorkInboxResponseOf<ManagerWorkInboxItem>>(
-      `${WORKSPACES.DECISION_INBOX}?view=ACTION&page=${page}&limit=100`,
+      `${WORKSPACES.DECISION_INBOX}?view=ACTION&page=${page}&limit=100`
+      + (sort ? `&sortBy=${encodeURIComponent(sort.by)}&sortDir=${sort.dir}` : ''),
     ),
     enabled,
   });
@@ -60,6 +69,10 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
   }, [page, query.data]);
 
   if (!enabled) return null;
+  const applySort = (key: string) => {
+    setPage(1);
+    setSort((current) => nextTableSort(current, key));
+  };
   const stale = query.data
     ? Date.now() - new Date(query.data.asOf).getTime() > STALE_AFTER_MS
     : false;
@@ -85,7 +98,7 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
       ) : (
         <div className="manager-decision-inbox__table-wrap">
           <table>
-            <thead><tr><th>Vấn đề</th><th>Chủ sở hữu</th><th>Tuổi việc</th><th>Ảnh hưởng</th><th><span className="sr-only">Hành động</span></th></tr></thead>
+            <thead><tr><SortHeader label="Vấn đề" sortKey="title" sort={sort} onSortChange={applySort} /><th>Chủ sở hữu</th><th>Tuổi việc</th><th>Ảnh hưởng</th><th><span className="sr-only">Hành động</span></th></tr></thead>
             <tbody>{query.data.items.map((item) => (
               <tr key={item.id}>
                 <td data-label="Vấn đề"><strong>{item.title}</strong><small>{item.subtitle}</small></td>

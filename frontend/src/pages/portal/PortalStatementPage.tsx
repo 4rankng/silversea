@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, Landmark, Printer } from 'lucide-react';
 import type { CustomerStatement } from '@tingting/shared';
 import { api } from '../../lib/api';
 import { EmptyState, DateInput } from '../../design-system';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { useCustomerPortalScope } from './CustomerPortalScope';
 import './PortalPages.css';
 
@@ -35,6 +37,7 @@ export default function PortalStatementPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedRange, setAppliedRange] = useState({ dateFrom: '', dateTo: '' });
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const [data, setData] = useState<CustomerStatement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +80,19 @@ export default function PortalStatementPage() {
   };
 
   const summary = data?.periodSummary;
-  const rows = data?.ledgerRows ?? [];
+  // Full statement arrives in one unpaginated response, so sorting happens
+  // client-side. Only Ngày and Nội dung are sortable: the money columns and
+  // Số dư are a running ledger — reordering rows by amount would strip the
+  // balance column of its meaning. Empty sort state keeps the server's
+  // chronological order (newest-first statement rows) untouched.
+  const rows = useMemo(
+    () => sortClientSide(data?.ledgerRows ?? [], sort, {
+      timestamp: (row) => row.timestamp,
+      note: (row) => row.note || row.tripCode || row.txnType,
+    }, (a, b) => a.id - b.id),
+    [data?.ledgerRows, sort],
+  );
+  const applySort = (key: string) => setSort((current) => nextTableSort(current, key));
   const openingBalance = Number(summary?.openingBalance ?? 0);
   const periodActivity = Number(summary?.periodActivity ?? data?.totalOutstanding ?? 0);
   const closingBalance = Number(summary?.closingBalance ?? data?.totalOutstanding ?? 0);
@@ -177,7 +192,7 @@ export default function PortalStatementPage() {
                 </div>
                 <div className="portal-table-wrap">
                   <table className="portal-table">
-                    <thead><tr><th>Ngày</th><th>Nội dung</th><th className="portal-table__number">Ghi nợ</th><th className="portal-table__number">Thanh toán</th><th className="portal-table__number">Số dư</th></tr></thead>
+                    <thead><tr><SortHeader label="Ngày" sortKey="timestamp" sort={sort} onSortChange={applySort} /><SortHeader label="Nội dung" sortKey="note" sort={sort} onSortChange={applySort} /><th className="portal-table__number">Ghi nợ</th><th className="portal-table__number">Thanh toán</th><th className="portal-table__number">Số dư</th></tr></thead>
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.id}>

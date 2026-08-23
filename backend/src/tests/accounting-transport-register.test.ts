@@ -322,5 +322,38 @@ describe('accounting transport register service', () => {
       headers: { 'X-Test-Role': Role.ACCOUNTANT },
     });
     assert.equal(hostile.status, 400);
+
+    const badSort = await fetch(`${baseUrl}${path}&sortBy=revenue;drop`, {
+      headers: { 'X-Test-Role': Role.ACCOUNTANT },
+    });
+    assert.equal(badSort.status, 400, 'sort keys outside the whitelist must 400');
+  });
+
+  test('explicit sorts order rows server-side with NULLs last; absent params keep the default order', async () => {
+    const base = { from: '2042-01-01', to: '2042-01-31', page: 1, limit: 25 } as const;
+
+    // Default order stays completionDate desc (no sort params) — the ready trip
+    // completed Jan 20, the missing-snapshot trip Jan 19.
+    const unsorted = await listAccountingTransportRows(base);
+    assert.deepEqual(unsorted.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+
+    // Revenue: the READY row carries a snapshot value; the other has none, so
+    // NULLs must land last in BOTH directions.
+    const revenueAsc = await listAccountingTransportRows({ ...base, sortBy: 'revenue', sortDir: 'asc' });
+    assert.deepEqual(revenueAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    const revenueDesc = await listAccountingTransportRows({ ...base, sortBy: 'revenue', sortDir: 'desc' });
+    assert.deepEqual(revenueDesc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+
+    // Readiness ranks via case-rank (READY = 0 before MISSING = 1).
+    const readinessAsc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'asc' });
+    assert.deepEqual(readinessAsc.items.map((item) => item.tripId), [readyTripId, missingSnapshotTripId]);
+    const readinessDesc = await listAccountingTransportRows({ ...base, sortBy: 'readiness', sortDir: 'desc' });
+    assert.deepEqual(readinessDesc.items.map((item) => item.tripId), [missingSnapshotTripId, readyTripId]);
+
+    // tripCode asc/desc are exact mirrors of each other.
+    const codeAsc = await listAccountingTransportRows({ ...base, sortBy: 'tripCode', sortDir: 'asc' });
+    const codeDesc = await listAccountingTransportRows({ ...base, sortBy: 'tripCode', sortDir: 'desc' });
+    const ascIds = codeAsc.items.map((item) => item.tripId);
+    assert.deepEqual(codeDesc.items.map((item) => item.tripId), [...ascIds].reverse());
   });
 });

@@ -8,6 +8,8 @@ import { tripClient } from '../api/tripClient';
 import { formatCurrency, formatDate, formatNumber } from '../lib/format';
 import { Panel, Modal } from '../components/UI';
 import { SearchableSelect, DateInput, UuiSelectField } from '../design-system';
+import { SortHeader } from '../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import { useAuth } from '../hooks/useAuth';
 import { useAllSuppliers } from '../hooks/useCatalogQueries';
 import {
@@ -25,6 +27,7 @@ import type {
   FuelInvoiceStatus,
 } from '../api/financialClient';
 import './payables-fuel-invoices.css';
+import '../styles/table-sort.css';
 
 type FuelInvoiceFormRow = {
   localId: string;
@@ -628,6 +631,10 @@ export function FuelInvoicesPanel() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<FuelInvoiceStatus | ''>('');
   const [supplierFilter, setSupplierFilter] = useState('');
+  // Full set is already loaded client-side (cursor fetch), so column sorting
+  // happens in-page; the server's newest-first order stays until a header is used.
+  const [sort, setSort] = useState<TableSortState | null>(null);
+  const handleSortChange = (key: string) => setSort(current => nextTableSort(current, key));
   const [detailInvoiceId, setDetailInvoiceId] = useState<number | null>(null);
   const [editorState, setEditorState] = useState<{ mode: 'create' | 'edit'; invoiceId: number | null } | null>(null);
   const [form, setForm] = useState<FuelInvoiceFormState>(emptyForm);
@@ -666,6 +673,16 @@ export function FuelInvoicesPanel() {
       invoiceMatchesSearch(invoice, supplierNameFor(invoice, suppliersById), search)),
     [invoicesQuery.data, search, suppliersById],
   );
+
+  const sortedInvoices = useMemo(() => sortClientSide(filteredInvoices, sort, {
+    invoiceNumber: (invoice: FuelInvoice) => invoice.invoiceNumber,
+    supplierName: (invoice: FuelInvoice) => suppliersById.get(invoice.supplierId) ?? null,
+    status: (invoice: FuelInvoice) => STATUS_META[invoice.approvalStatus].label,
+    totalLiters: (invoice: FuelInvoice) => computeCompletion(invoice.totalLiters, invoice.unitPrice, invoice.allocations ?? []).totalLiters,
+    allocatedLiters: (invoice: FuelInvoice) => computeCompletion(invoice.totalLiters, invoice.unitPrice, invoice.allocations ?? []).allocatedLiters,
+    unitPrice: (invoice: FuelInvoice) => Number(invoice.unitPrice),
+    totalAmount: (invoice: FuelInvoice) => Number(invoice.totalAmount),
+  }, (a: FuelInvoice, b: FuelInvoice) => a.id - b.id), [filteredInvoices, sort, suppliersById]);
 
   const summary = useMemo(() => {
     const invoices = invoicesQuery.data ?? [];
@@ -883,18 +900,18 @@ export function FuelInvoicesPanel() {
                 <table className="fuel-invoices-table">
                   <thead>
                     <tr>
-                      <th>Hóa đơn</th>
-                      <th>Nhà cung cấp</th>
-                      <th>Trạng thái</th>
-                      <th className="num">Tổng lít</th>
-                      <th className="num">Đã phân bổ</th>
-                      <th className="num">Đơn giá</th>
-                      <th className="num">Thành tiền</th>
+                      <SortHeader label="Hóa đơn" sortKey="invoiceNumber" sort={sort} onSortChange={handleSortChange} />
+                      <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sort} onSortChange={handleSortChange} />
+                      <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={handleSortChange} />
+                      <SortHeader label="Tổng lít" sortKey="totalLiters" sort={sort} onSortChange={handleSortChange} className="num" />
+                      <SortHeader label="Đã phân bổ" sortKey="allocatedLiters" sort={sort} onSortChange={handleSortChange} className="num" />
+                      <SortHeader label="Đơn giá" sortKey="unitPrice" sort={sort} onSortChange={handleSortChange} className="num" />
+                      <SortHeader label="Thành tiền" sortKey="totalAmount" sort={sort} onSortChange={handleSortChange} className="num" />
                       <th />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredInvoices.map((invoice) => {
+                    {sortedInvoices.map((invoice) => {
                       const completion = computeCompletion(invoice.totalLiters, invoice.unitPrice, invoice.allocations ?? []);
                       return (
                         <tr key={invoice.id}>
@@ -936,10 +953,10 @@ export function FuelInvoicesPanel() {
             </div>
 
             <div className="mobile-only fuel-invoice-card-list">
-              {filteredInvoices.length === 0 ? (
+              {sortedInvoices.length === 0 ? (
                 <div className="fuel-invoice-empty">Chưa có hóa đơn nhiên liệu phù hợp với bộ lọc hiện tại.</div>
               ) : (
-                filteredInvoices.map((invoice) => {
+                sortedInvoices.map((invoice) => {
                   const completion = computeCompletion(invoice.totalLiters, invoice.unitPrice, invoice.allocations ?? []);
                   return (
                     <button

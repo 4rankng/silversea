@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import { ROLE_LABELS, Role, TripStatus } from '@tingting/shared';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
@@ -47,6 +47,12 @@ export interface CreditOverrideListResult {
 type CreditOverrideCursor = {
   createdAt: Date;
   id: number;
+  /** Present only when paginating an engaged column sort: the sort identity
+   * (key + dir) plus the last row's serialized sort value for keyset
+   * continuation. Absent on default-order cursors, which stay byte-identical. */
+  sortKey?: string;
+  sortDir?: 'asc' | 'desc';
+  sortValue?: string | null;
 };
 
 function decodeCreditOverrideCursor(raw: string): CreditOverrideCursor {
@@ -54,12 +60,19 @@ function decodeCreditOverrideCursor(raw: string): CreditOverrideCursor {
     const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
       createdAt?: unknown;
       id?: unknown;
+      sortKey?: unknown;
+      sortDir?: unknown;
+      sortValue?: unknown;
     };
     const createdAt = typeof parsed.createdAt === 'string' ? new Date(parsed.createdAt) : new Date(Number.NaN);
     if (!Number.isFinite(createdAt.getTime()) || !Number.isInteger(parsed.id) || Number(parsed.id) <= 0) {
       throw new Error('invalid cursor');
     }
-    return { createdAt, id: Number(parsed.id) };
+    const sortKey = typeof parsed.sortKey === 'string' ? parsed.sortKey : undefined;
+    const sortDir = parsed.sortDir === 'asc' || parsed.sortDir === 'desc' ? parsed.sortDir : undefined;
+    if ((sortKey == null) !== (sortDir == null)) throw new Error('invalid cursor');
+    const sortValue = parsed.sortValue == null || typeof parsed.sortValue === 'string' ? parsed.sortValue : undefined;
+    return { createdAt, id: Number(parsed.id), ...(sortKey && sortDir ? { sortKey, sortDir, sortValue: sortValue ?? null } : {}) };
   } catch {
     throw new ApiError(400, 'Vị trí trang danh sách không hợp lệ');
   }
@@ -69,6 +82,24 @@ function encodeCreditOverrideCursor(row: CreditOverrideRow): string {
   return Buffer.from(JSON.stringify({
     createdAt: row.createdAt.toISOString(),
     id: row.id,
+  }), 'utf8').toString('base64url');
+}
+
+function encodeCreditOverrideSortCursor(
+  row: CreditOverrideRow,
+  sortKey: CreditOverrideSortKey,
+  sortDir: 'asc' | 'desc',
+  sortValue: unknown,
+): string {
+  const serialized = sortValue == null
+    ? null
+    : sortValue instanceof Date ? sortValue.toISOString() : String(sortValue);
+  return Buffer.from(JSON.stringify({
+    createdAt: row.createdAt.toISOString(),
+    id: row.id,
+    sortKey,
+    sortDir,
+    sortValue: serialized,
   }), 'utf8').toString('base64url');
 }
 
@@ -682,20 +713,176 @@ export async function rejectCreditOverrideRequest(
   return runInTx(transaction, execute);
 }
 
+/** Sortable columns of the credit-override queue (URL-facing sortBy vocabulary). */
+export const CREDIT_OVERRIDE_SORT_KEYS = [
+  'createdAt',
+  'customerName',
+  'status',
+  'requestedByName',
+  'proposedAmount',
+  'outstandingAmount',
+  'creditLimit',
+  'overLimitAmount',
+  'expiresAt',
+  'reason',
+] as const;
+export type CreditOverrideSortKey = typeof CREDIT_OVERRIDE_SORT_KEYS[number];
+
+// Column-sort whitelist for the queue. Money/limit columns are snapshotted on
+// the request row itself (numeric), so they sort directly; customer and
+// requester names are attached post-query by enrichCreditOverrideViews, so
+// they sort via correlated scalar subqueries — one value per row, no join
+// fan-out. status ranks attention-first (PENDING before decided). `cast` is
+// how a cursor's serialized sort value is typed back for keyset comparison.
+type CreditOverrideSortSpec = { expr: SQL; cast: 'numeric' | 'timestamptz' | 'text' };
+const CREDIT_OVERRIDE_SORT_SQL: Record<CreditOverrideSortKey, CreditOverrideSortSpec> = {
+  createdAt: {
+    expr: sql`${s.creditOverrideRequests.createdAt}`,
+    cast: 'timestamptz',
+  },
+  customerName: {
+    expr: sql`(
+      select ${s.customers.name}
+      from ${s.customers}
+      where ${s.customers.id} = ${s.creditOverrideRequests.customerId}
+    )`,
+    cast: 'text',
+  },
+  status: {
+    expr: sql`case
+      when ${s.creditOverrideRequests.status} = 'PENDING' then 0
+      when ${s.creditOverrideRequests.status} = 'APPROVED' then 1
+      when ${s.creditOverrideRequests.status} = 'REJECTED' then 2
+      else 3
+    end`,
+    cast: 'numeric',
+  },
+  requestedByName: {
+    expr: sql`(
+      select ${s.users.fullName}
+      from ${s.users}
+      where ${s.users.id} = ${s.creditOverrideRequests.requestedBy}
+    )`,
+    cast: 'text',
+  },
+  proposedAmount: { expr: sql`${s.creditOverrideRequests.proposedAmount}`, cast: 'numeric' },
+  outstandingAmount: { expr: sql`${s.creditOverrideRequests.outstandingAmount}`, cast: 'numeric' },
+  creditLimit: { expr: sql`${s.creditOverrideRequests.creditLimit}`, cast: 'numeric' },
+  overLimitAmount: { expr: sql`${s.creditOverrideRequests.overLimitAmount}`, cast: 'numeric' },
+  expiresAt: { expr: sql`${s.creditOverrideRequests.expiresAt}`, cast: 'timestamptz' },
+  reason: { expr: sql`${s.creditOverrideRequests.reason}`, cast: 'text' },
+};
+
+/**
+ * Keyset continuation for an engaged column sort: rows that come AFTER the
+ * cursor row under (`expr dir nulls last`, `id desc`). With nulls last, a
+ * non-null cursor value is followed by the remaining non-null rows in sort
+ * direction plus every NULL row; a NULL cursor value is followed only by NULL
+ * rows with a smaller id.
+ */
+function creditOverrideSortContinuation(
+  spec: CreditOverrideSortSpec,
+  dir: 'asc' | 'desc',
+  cursor: { id: number; sortValue: string | null },
+): SQL {
+  const idCol = s.creditOverrideRequests.id;
+  if (cursor.sortValue == null) {
+    return sql`(${spec.expr}) is null and ${idCol} < ${cursor.id}`;
+  }
+  const castValue = sql`cast(${cursor.sortValue} as ${sql.raw(spec.cast)})`;
+  const after = dir === 'asc' ? sql`<` : sql`>`;
+  return sql`(
+    ((${spec.expr}) is not null and (
+      (${spec.expr}) ${after} ${castValue}
+      or ((${spec.expr}) = ${castValue} and ${idCol} < ${cursor.id})
+    ))
+    or (${spec.expr}) is null
+  )`;
+}
+
 export async function listCreditOverrideRequests(filters: {
   customerId?: number;
   status?: CreditOverrideRow['status'];
   limit?: number;
   cursor?: string;
+  sortBy?: CreditOverrideSortKey;
+  sortDir?: 'asc' | 'desc';
 } = {}, requesterRole: Role = Role.ACCOUNTANT): Promise<CreditOverrideListResult> {
+  const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
   const cursor = filters.cursor ? decodeCreditOverrideCursor(filters.cursor) : null;
-  const conditions = [
+  if (cursor?.sortKey != null) {
+    // A sorted cursor can only continue the exact sort it was built from.
+    if (cursor.sortKey !== filters.sortBy
+      || cursor.sortDir !== (filters.sortDir ?? 'asc')) {
+      throw new ApiError(400, 'Thứ tự sắp xếp không khớp với vị trí trang');
+    }
+  }
+  if (cursor != null && cursor.sortKey == null && filters.sortBy != null) {
+    // Default-order cursor reused on a sorted request: the continuation
+    // tuple would describe a different ordering — reject instead of paging wrong.
+    throw new ApiError(400, 'Thứ tự sắp xếp không khớp với vị trí trang');
+  }
+
+  const baseConditions = [
     filters.customerId != null
       ? eq(s.creditOverrideRequests.customerId, filters.customerId)
       : undefined,
     filters.status != null
       ? eq(s.creditOverrideRequests.status, filters.status)
       : undefined,
+  ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
+
+  const hasMoreResults = (rows: unknown[]) => rows.length > limit;
+  const buildResult = async (
+    requests: CreditOverrideRow[],
+    hasMore: boolean,
+    nextCursor: string | null,
+  ): Promise<CreditOverrideListResult> => {
+    const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
+    const items = await enrichCreditOverrideViews(
+      requests.map((request) => toCreditOverrideView(request, decisions.get(request.id))),
+      requesterRole,
+    );
+    return { items, limit, hasMore, nextCursor };
+  };
+
+  // Engaged column sort: keyset pagination follows the sort column, so both
+  // the WHERE continuation and the encoded cursor carry the sort value.
+  if (filters.sortBy != null) {
+    const spec = CREDIT_OVERRIDE_SORT_SQL[filters.sortBy];
+    const dir: 'asc' | 'desc' = filters.sortDir === 'desc' ? 'desc' : 'asc';
+    const continuation = cursor?.sortKey != null
+      ? creditOverrideSortContinuation(spec, dir, { id: cursor.id, sortValue: cursor.sortValue ?? null })
+      : undefined;
+    const where = [...baseConditions, continuation]
+      .filter((condition): condition is NonNullable<typeof condition> => condition != null);
+    const rows = await db.select({ request: s.creditOverrideRequests, sortValue: spec.expr })
+      .from(s.creditOverrideRequests)
+      .where(where.length > 0 ? and(...where) : undefined)
+      .orderBy(
+        sql`${spec.expr} ${dir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        desc(s.creditOverrideRequests.id),
+      )
+      .limit(limit + 1);
+    const hasMore = hasMoreResults(rows);
+    const page = rows.slice(0, limit);
+    return buildResult(
+      page.map((row) => row.request),
+      hasMore,
+      hasMore && page.length > 0
+        ? encodeCreditOverrideSortCursor(
+          page[page.length - 1].request,
+          filters.sortBy,
+          dir,
+          page[page.length - 1].sortValue,
+        )
+        : null,
+    );
+  }
+
+  // Default order (newest first) — unchanged behavior and cursor encoding.
+  const conditions = [
+    ...baseConditions,
     cursor
       ? or(
         lt(s.creditOverrideRequests.createdAt, cursor.createdAt),
@@ -706,29 +893,20 @@ export async function listCreditOverrideRequests(filters: {
       )
       : undefined,
   ].filter((condition): condition is NonNullable<typeof condition> => condition != null);
-
-  const limit = Math.min(Math.max(filters.limit ?? 25, 1), 100);
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
   const rows = await db.select()
     .from(s.creditOverrideRequests)
-    .where(where)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(s.creditOverrideRequests.createdAt), desc(s.creditOverrideRequests.id))
     .limit(limit + 1);
-  const hasMore = rows.length > limit;
+  const hasMore = hasMoreResults(rows);
   const requests = rows.slice(0, limit);
-  const decisions = await findCreditOverrideDecisions(db, requests.map((request) => request.id));
-  const items = await enrichCreditOverrideViews(
-    requests.map((request) => toCreditOverrideView(request, decisions.get(request.id))),
-    requesterRole,
-  );
-  return {
-    items,
-    limit,
+  return buildResult(
+    requests,
     hasMore,
-    nextCursor: hasMore && requests.length > 0
+    hasMore && requests.length > 0
       ? encodeCreditOverrideCursor(requests[requests.length - 1])
       : null,
-  };
+  );
 }
 
 export async function getCreditOverrideRequest(

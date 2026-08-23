@@ -101,6 +101,14 @@
 }
 
 .cus-worksheet-toolbar .shipment-uui-select { font-weight: var(--fw-medium); }
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger's inner value span keeps its own min-h-[34px],
+   2px taller than the text-input/date min-h-[32px]. With the filter row's
+   align-items: end, that extra height pushes the whole select block (label
+   + control) upward relative to its neighbors instead of just growing the
+   control downward. Trim it to 32px so every field in the row shares one
+   box height and one label baseline. */
+.cus-worksheet-toolbar .ds-uui-select__control button > span { min-height: 32px; }
 
 .cus-search-field {
   position: relative;

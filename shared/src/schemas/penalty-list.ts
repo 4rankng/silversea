@@ -8,6 +8,9 @@ import { PenaltyStatus } from '../constants';
  * the frontend paginated and aggregated client-side. Dates are ISO
  * (YYYY-MM-DD), inclusive on both ends, and scope `penalties.date`.
  */
+export const PENALTY_LIST_SORT_KEYS = ['driverName', 'reason', 'date', 'tripCode', 'amount'] as const;
+export type PenaltyListSortKey = typeof PENALTY_LIST_SORT_KEYS[number];
+
 export const penaltyListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -16,6 +19,8 @@ export const penaltyListQuerySchema = z.object({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   status: z.nativeEnum(PenaltyStatus).optional(),
+  sortBy: z.enum(PENALTY_LIST_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
 }).strict().refine((q) => !q.dateFrom || !q.dateTo || q.dateFrom <= q.dateTo, {
   message: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc',
   path: ['dateTo'],

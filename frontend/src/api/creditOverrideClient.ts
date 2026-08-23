@@ -73,6 +73,8 @@ export interface CreditOverrideListFilters {
   customerId?: number;
   limit?: number;
   cursor?: string;
+  sortBy?: 'createdAt' | 'customerName' | 'status' | 'requestedByName' | 'proposedAmount' | 'outstandingAmount' | 'creditLimit' | 'overLimitAmount' | 'expiresAt' | 'reason';
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface CreditOverrideListResult {
@@ -89,6 +91,8 @@ function toQuery(filters?: CreditOverrideListFilters): string {
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.limit != null) query.set('limit', String(filters.limit));
   if (filters.cursor) query.set('cursor', filters.cursor);
+  if (filters.sortBy) query.set('sortBy', filters.sortBy);
+  if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';
 }

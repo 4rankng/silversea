@@ -24,6 +24,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { Pagination, UuiSelectField } from '../design-system';
 import { Money } from '../components/shared/Money';
+import { SortHeader } from '../components/shared/SortHeader';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { canCheckCreditOverride, canDecideCreditOverride } from '../lib/credit-override-permissions';
 import { formatCurrency, formatDateTimeVN } from '../lib/format';
 import '../styles/record-table.css';
@@ -153,9 +155,17 @@ export default function CreditOverrideQueuePage() {
   const catalogs = useCatalogs();
   const [statusFilter, setStatusFilter] = React.useState<QueueFilterStatus>('PENDING');
   const [selectedCustomerId, setSelectedCustomerId] = React.useState('');
+  const [sort, setSort] = React.useState<TableSortState | null>(null);
   const [pageCursors, setPageCursors] = React.useState<Array<string | null>>([null]);
   const [rejectReasons, setRejectReasons] = React.useState<Record<number, string>>({});
   const [actionErrors, setActionErrors] = React.useState<Record<number, string | null>>({});
+
+  // Server-side column sort on a cursor-paginated queue: cursors are keyed to
+  // the active sort, so every sort change restarts pagination from page 1.
+  const handleSort = (key: string) => {
+    setSort(current => nextTableSort(current, key));
+    setPageCursors([null]);
+  };
 
   const filters = React.useMemo(
     () => ({
@@ -163,8 +173,9 @@ export default function CreditOverrideQueuePage() {
       customerId: selectedCustomerId ? Number(selectedCustomerId) : undefined,
       limit: 25,
       cursor: pageCursors[pageCursors.length - 1] ?? undefined,
+      ...(sort ? { sortBy: sort.by as 'createdAt' | 'customerName' | 'status' | 'requestedByName' | 'proposedAmount' | 'outstandingAmount' | 'creditLimit' | 'overLimitAmount' | 'expiresAt' | 'reason', sortDir: sort.dir } : {}),
     }),
-    [pageCursors, selectedCustomerId, statusFilter],
+    [pageCursors, selectedCustomerId, statusFilter, sort],
   );
 
   const queue = useCreditOverrideQueue(filters, true);
@@ -406,15 +417,15 @@ export default function CreditOverrideQueuePage() {
           >
             <thead>
               <tr>
-                <th>Khách hàng</th>
-                <th>Trạng thái</th>
-                <th>Người tạo</th>
-                <th>Giá trị đề nghị</th>
-                <th>Dư nợ hiện tại</th>
-                <th>Hạn mức công nợ</th>
-                <th>Mức vượt</th>
-                <th>Hiệu lực đến</th>
-                <th>Lý do</th>
+                <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Người tạo" sortKey="requestedByName" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Giá trị đề nghị" sortKey="proposedAmount" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Dư nợ hiện tại" sortKey="outstandingAmount" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Hạn mức công nợ" sortKey="creditLimit" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Mức vượt" sortKey="overLimitAmount" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Hiệu lực đến" sortKey="expiresAt" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={handleSort} />
                 <th className="record-table__action">Thao tác</th>
               </tr>
             </thead>

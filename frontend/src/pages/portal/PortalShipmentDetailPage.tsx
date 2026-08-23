@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -11,6 +11,8 @@ import {
   ShipmentStatus,
 } from '@tingting/shared';
 import { EmptyState } from '../../design-system';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { routes } from '../../lib/routes';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
 import './PortalPages.css';
@@ -63,6 +65,7 @@ export default function PortalShipmentDetailPage() {
   const [acknowledgedIds, setAcknowledgedIds] = useState<Set<number>>(new Set());
   const [selectedEvent, setSelectedEvent] = useState<CustomerVisibleEvent | null>(null);
   const [acknowledging, setAcknowledging] = useState(false);
+  const [containerSort, setContainerSort] = useState<TableSortState | null>(null);
 
   useEffect(() => {
     if (!customerScopeReady) return;
@@ -103,7 +106,21 @@ export default function PortalShipmentDetailPage() {
     </div>
   );
 
-  const { shipment, containers, documents, declarations, statusHistory } = data;
+  const { shipment, documents, declarations, statusHistory } = data;
+  // Containers are a small unpaginated sub-list inside one shipment, so the
+  // full set is already client-side; sorting happens locally (empty cells
+  // last, id tiebreaker). The documents/declarations/status-history sections
+  // are headerless lists, so no sort surface exists for them.
+  const containers = useMemo(
+    () => sortClientSide(data.containers, containerSort, {
+      containerNumber: (c) => c.containerNumber,
+      sealNumber: (c) => c.sealNumber,
+      appointmentAt: (c) => c.customerAppointmentAt,
+      cargoWeightKg: (c) => (c.cargoWeightKg == null ? null : Number(c.cargoWeightKg)),
+    }, (a, b) => a.id - b.id),
+    [data.containers, containerSort],
+  );
+  const applyContainerSort = (key: string) => setContainerSort((current) => nextTableSort(current, key));
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
   const bookingNumber = shipment.bookingRef?.trim() || null;
   const billNumber = shipment.blNumber?.trim() || null;
@@ -157,7 +174,7 @@ export default function PortalShipmentDetailPage() {
         <section className="portal-section">
           <h2>Containers ({containers.length})</h2>
           <div className="portal-table-wrap"><table className="portal-table">
-            <thead><tr><th>Số container</th><th>Seal</th><th>Lịch giao</th><th>Trọng lượng (kg)</th></tr></thead>
+            <thead><tr><SortHeader label="Số container" sortKey="containerNumber" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Seal" sortKey="sealNumber" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Lịch giao" sortKey="appointmentAt" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Trọng lượng (kg)" sortKey="cargoWeightKg" sort={containerSort} onSortChange={applyContainerSort} /></tr></thead>
             <tbody>
               {containers.map((c) => (
                 <tr key={c.id}><td>{c.containerNumber ?? '—'}</td><td>{c.sealNumber ?? '—'}</td><td>{fmt(c.customerAppointmentAt)}</td><td>{c.cargoWeightKg ?? '—'}</td></tr>
