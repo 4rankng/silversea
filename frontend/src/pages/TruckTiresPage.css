@@ -599,9 +599,9 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(10, 10, 10, 0.44);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(10, 10, 10, 0.56);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
 .ttp-dialog {
@@ -952,6 +952,83 @@
   color: var(--ink-3, var(--fg-3));
   font-size: 12px;
   line-height: 1.45;
+}
+
+/* ============================================================================
+ * Operational canvas (≤1500px) — the fixed 1390px tire worksheet cannot fit
+ * the ~1112px canvas a 1440px viewport leaves inside the desktop shell. Hand
+ * both tire tables to labelled cards before the wrapper starts scrolling
+ * horizontally. Mirrors the debt/payable/finance 1500px handoff.
+ * ========================================================================== */
+@media (max-width: 1500px) {
+  .ttp-table-wrap {
+    overflow: visible;
+  }
+
+  .ttp-table {
+    min-width: 0;
+  }
+
+  .ttp-table colgroup,
+  .ttp-table thead {
+    display: none;
+  }
+
+  .ttp-table tbody {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    background: var(--bg-2, #f8f9fa);
+  }
+
+  .ttp-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-1);
+    border-radius: 10px;
+    background: var(--surface, #fff);
+  }
+
+  .ttp-table tbody td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    border-bottom: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ttp-table tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    color: var(--fg-3);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Serial leads each card as its title row. */
+  .ttp-table tbody td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-1);
+    margin-bottom: 4px;
+    font-weight: 650;
+  }
+
+  .ttp-table tbody td:first-child::before,
+  .ttp-table tbody td.ttp-row-actions::before {
+    content: none;
+  }
+
+  .ttp-table tbody td.ttp-row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
 }
 
 @media (max-width: 1180px) {

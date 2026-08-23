@@ -57,3 +57,38 @@ per-route style. Authority: `frontend/src/styles/operational-table-typography.cs
 - KPI/decision rails: numbers 20px bold with 12px labels (hero display numbers
   may use 24/28px). Status pills stay 11px.
 
+## Dense dialogs & forms
+
+Modal dialogs are the canonical dense-form container. The shared `Modal` owns
+the chrome; feature dialogs own only their field grid.
+
+- **Scroll model:** header and action footer stay pinned; only the body
+  scrolls. Never reintroduce a body `max-height` cap or let the whole dialog
+  scroll its title away.
+- **Backdrop:** every overlay family — modal, confirm, drawer, and feature
+  dialogs with bespoke overlays — uses `rgba(10, 10, 10, 0.56)` with a 2px
+  desktop blur so background content never stays readable enough to compete.
+  `frontend/src/styles/dialog-density-contract.styles.test.ts` guards the
+  owned overlay files against drift.
+- **One control per field:** `UuiSelectField` renders its own accessible label
+  and its own boundary. Never wrap it in an outer `.field` label or add
+  `wrapperClassName="input"` — that produces a duplicated label and a second
+  empty border. When the surrounding field already shows a label, pass
+  `hideLabel` so the control stays announced exactly once.
+- **Secondary actions:** Cancel (Hủy) in dialog and drawer footers is a
+  bordered `secondary` button, never a ghost. Ghost styling is reserved for
+  icon-only and low-emphasis row actions; the primary action is the only
+  filled button on the screen.
+- **Grid & rhythm:** wide dialogs (900px+ canvas) use a 4-column field grid;
+  collapse to 2 columns ≤960px and 1 column ≤640px. Column gap 12px, row gap
+  24px, section gap 32px, label→input 7–8px. The grid gap owns vertical
+  rhythm — no per-field bottom margins inside a grid group.
+- **Empty vs filled:** placeholders are examples (`Ví dụ: …`) in muted
+  `--ink-3`; entered values are full-contrast `--ink` (the `Input.css`
+  contract). Never style a placeholder to read like a value.
+- **Dense ledgers:** multi-column tables hand off to labelled cards below the
+  1500px operational-canvas threshold instead of scrolling internally (see
+  `responsive.css` plus the debt/payable/finance/tires/debt-detail handoffs).
+  Cards read `data-label` attributes — every new ledger table must emit them
+  on its cells.
+

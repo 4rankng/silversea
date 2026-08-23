@@ -1327,7 +1327,11 @@
   }
 }
 
-@media (max-width: 1023px) {
+/* Operational canvas (≤1500px): the desktop shell leaves less room than the
+   1040px detail-ledger table needs at a 1440px viewport. Hand off to the
+   labelled-card ledger that already ships for mobile instead of keeping an
+   internal horizontal scroll. Mirrors the debt/payable list handoff. */
+@media (max-width: 1500px) {
   .debt-detail-page .dd-ledger > .table-scroll {
     display: none;
   }

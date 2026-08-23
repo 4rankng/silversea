@@ -6,7 +6,9 @@
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 10, 10, 0.45);
+  background: rgba(10, 10, 10, 0.56);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   /* anime.js handles opacity animation */
   opacity: 1;
   z-index: var(--z-overlay);

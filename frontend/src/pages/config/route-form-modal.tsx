@@ -142,10 +142,10 @@ export function RouteFormModal({ isOpen, saving, item, onsave, oncancel }: {
       onConfirm={handleSave}
       footer={
         <>
-          <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim() || !shortName.trim()} onClick={handleSave}>
+          <button type="button" className="btn btn--primary btn--sm" disabled={saving || !name.trim() || !shortName.trim()} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm tuyến'}
           </button>
