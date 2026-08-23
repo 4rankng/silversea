@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
-import { Search, ChevronRight, Gift } from 'lucide-react';
+import { Search, ChevronRight, Gift, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { AssetIcon } from '../components/AssetIcon';
@@ -12,6 +12,7 @@ import { financialClient } from '../api/financialClient';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useAuth } from '../hooks/useAuth';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import {
   usePageAnimations,
   useCounterAnimation,
@@ -20,6 +21,7 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { FuelInvoicesPanel } from './payables-fuel-invoices';
 import './PayableListPage.css';
 import '../components/shared/HeroKpiRow.css';
+import '../styles/table-sort.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
@@ -43,6 +45,42 @@ const CATEGORY_CHIPS: Array<{ value: PayablesCategory | undefined; label: string
   { value: 'commission', label: 'Hoa hồng' },
   { value: 'carrier', label: 'Vận chuyển thuê ngoài' },
 ];
+
+/* ─── Sort headers ────────────────────────────────────────────────────────── */
+
+/**
+ * The shared sort-header skin (styles/table-sort.css) on this page's
+ * hand-rolled table — same markup/aria contract as DataTable's `sortKey`
+ * columns, without redesigning the table onto DataTable.
+ */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+  className,
+}: {
+  label: string;
+  sortKey: string;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+  className?: string;
+}) {
+  const active = sort != null && sort.by === sortKey;
+  const ariaSort = !active ? 'none' : sort!.dir === 'asc' ? 'ascending' : 'descending';
+  return (
+    <th className={className} aria-sort={ariaSort}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
 
 /* ─── Commission modal ────────────────────────────────────────────────────── */
 
@@ -206,15 +244,30 @@ export function CommissionModal({
 type PayablesSummaryEnvelope = Awaited<ReturnType<typeof financialClient.getPayablesSummary>>;
 
 export default function PayableListPage() {
-  // Server-side search + pagination; headline numbers and totals are full-set.
-  // Search input, page-reset-on-filter and caching live in the table hook.
-  const table = useTableQueryState<PayableSummary, { category?: PayablesCategory }, PayablesSummaryEnvelope>({
+  // Server-side search + pagination + column sort; headline numbers and totals
+  // are full-set. Search input, page-reset-on-filter and caching live in the
+  // table hook.
+  const table = useTableQueryState<
+    PayableSummary,
+    { category?: PayablesCategory; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    PayablesSummaryEnvelope
+  >({
     endpoint: (params) => financialClient.getPayablesSummary(params),
     queryKey: qk.financial.payablesSummaryAll,
     defaultPageSize: 25,
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const category = table.filters.category as PayablesCategory | undefined;
+  // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
+  // the queryKey stays keyed on the primitive param values (no refetch loops).
+  const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
+    ? { by: table.filters.sortBy, dir: table.filters.sortDir }
+    : null;
+  const handleSortChange = (key: string) => {
+    const next = nextTableSort(sortState, key);
+    table.setFilter('sortBy', next.by);
+    table.setFilter('sortDir', next.dir);
+  };
   const data = query.data;
   const loading = table.isLoading;
   const queryError = query.error;
@@ -582,12 +635,12 @@ export default function PayableListPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Nhà cung cấp</th>
-                      <th className="num">Tổng nợ</th>
-                      <th>0-30 ngày</th>
-                      <th>31-60 ngày</th>
-                      <th>61-90 ngày</th>
-                      <th>&gt;90 ngày</th>
+                      <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
+                      <SortHeader label="0-30 ngày" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="31-60 ngày" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label="61-90 ngày" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
+                      <SortHeader label=">90 ngày" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
                       <th style={{ width: 48 }}></th>
                     </tr>
                   </thead>

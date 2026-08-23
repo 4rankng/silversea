@@ -8,9 +8,10 @@ import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribu
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
-import { getCustomerAgingList } from '../../services/aging.service';
+import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
+import { throwValidation } from '../../lib/validation';
 import { exportReceivablesAgingXlsx, attachmentDisposition } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -111,7 +112,11 @@ router.get('/reports/receivables-aging', requireRoles(Role.ADMIN, Role.MANAGER, 
   const bucket = rawBucket && ['current', 'd30', 'd60', 'over90'].includes(rawBucket)
     ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90')
     : 'all';
-  res.json(await getCustomerAgingList({ search, asOfDate, page, limit, bucket }));
+  // Sort params are whitelist-validated separately so the rest of this route's
+  // hand-parsed query surface (search/asOfDate/bucket) stays untouched.
+  const sort = customerAgingSortQuerySchema.safeParse(req.query);
+  if (!sort.success) throwValidation(sort.error);
+  res.json(await getCustomerAgingList({ search, asOfDate, page, limit, bucket, ...sort.data }));
 }));
 
 router.get('/reports/receivables-aging/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {

@@ -67,6 +67,8 @@ export interface GovernanceActionFilters {
   page?: number;
   limit?: number;
   offset?: number;
+  sortBy?: 'actionKind' | 'status' | 'subjectKey' | 'makerRole' | 'version' | 'createdAt' | 'reason';
+  sortDir?: 'asc' | 'desc';
 }
 
 /** GET /governance-actions envelope: page-scoped items plus full-set counts. */
@@ -177,6 +179,8 @@ export const financialClient = {
         page: filters?.page,
         limit: filters?.limit,
         offset: filters?.offset,
+        sortBy: filters?.sortBy,
+        sortDir: filters?.sortDir,
       })}`,
     ),
 
@@ -247,6 +251,8 @@ export const financialClient = {
     search?: string;
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortDir?: 'asc' | 'desc';
   }) =>
     api.get<{
       items: PayableSummary[];
@@ -299,10 +305,10 @@ export const financialClient = {
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),
 
-  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' }) => {
+  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90'; sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
     const search = params?.search?.trim() || undefined;
     return api.get<CustomerAgingResponse>(
-      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined })}`,
+      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined, sortBy: params?.sortBy, sortDir: params?.sortDir })}`,
     );
   },
 

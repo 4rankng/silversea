@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { PayableSummary, Supplier } from '@tingting/shared';
-import { mergePayablesSummaries } from '../services/aging.service';
+import { mergePayablesSummaries, paginatePayablesSummary } from '../services/aging.service';
 
 function supplier(id: number, name: string): Supplier {
   return {
@@ -56,5 +56,33 @@ describe('mergePayablesSummaries', () => {
     assert.equal(merged.totalSuppliers, 2);
     assert.equal(merged.overdueSuppliers, 1);
     assert.deepEqual(merged.items.map(row => row.kind), ['carrier', 'vendor']);
+  });
+});
+
+describe('paginatePayablesSummary sortBy/sortDir (GET /reports/payables-summary)', () => {
+  function result(items: PayableSummary[]) {
+    return {
+      items,
+      totalOutstanding: items.reduce((sum, r) => sum + r.totalOutstanding, 0),
+      totalSuppliers: items.length,
+      overdueSuppliers: 0,
+    };
+  }
+
+  // The rest of the sort contract (defaults, collation, numeric keys, kind
+  // tiebreakers, whitelist rejection) lives in aging-sort.test.ts.
+  test('keeps null supplier names last in both directions', () => {
+    const rows = [
+      item(3, 'NCC Việt Nhật', 25_000_000, 'vendor'),
+      item(1, 'NCC Ánh Dương', 80_000_000, 'vendor'),
+    ];
+    const nullName = { ...item(5, 'NCC Không Tên', 10_000_000, 'vendor'), supplier: supplier(5, null as unknown as string) };
+    const withNull = [...rows, nullName];
+
+    const asc = paginatePayablesSummary(result(withNull), { sortBy: 'supplierName', sortDir: 'asc', page: 1, limit: 10 });
+    assert.equal(asc.items[asc.items.length - 1]!.supplier.name, null);
+
+    const desc = paginatePayablesSummary(result(withNull), { sortBy: 'supplierName', sortDir: 'desc', page: 1, limit: 10 });
+    assert.equal(desc.items[desc.items.length - 1]!.supplier.name, null);
   });
 });

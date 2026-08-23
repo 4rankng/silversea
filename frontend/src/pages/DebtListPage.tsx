@@ -13,6 +13,9 @@ import {
   Building2,
   Phone,
   Loader2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { Pagination } from '../design-system';
@@ -22,6 +25,7 @@ import type { CustomerAging } from '../hooks/useQueries';
 import { financialClient, type CustomerAgingResponse } from '../api/financialClient';
 import { qk } from '../api/keys';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import {
   usePageAnimations,
   useListAnimations,
@@ -31,6 +35,7 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { AssetIcon } from '../components/AssetIcon';
 import './DebtListPage.css';
 import '../components/shared/HeroKpiRow.css';
+import '../styles/table-sort.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 interface CustomerDebtInfo {
@@ -93,6 +98,44 @@ const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
   over90: AlertOctagon,
 };
 
+/* ─── Sort headers ────────────────────────────────────────────────────────── */
+
+/**
+ * The shared sort-header skin (styles/table-sort.css) on this page's
+ * hand-rolled table — same markup/aria contract as DataTable's `sortKey`
+ * columns, without redesigning the table onto DataTable.
+ */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+  className,
+  style,
+}: {
+  label: string;
+  sortKey: string;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const active = sort != null && sort.by === sortKey;
+  const ariaSort = !active ? 'none' : sort!.dir === 'asc' ? 'ascending' : 'descending';
+  return (
+    <th className={className} style={style} aria-sort={ariaSort}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
+
 /* ─── Component ──────────────────────────────────────────────────────────── */
 
 export default function DebtListPage() {
@@ -104,11 +147,12 @@ export default function DebtListPage() {
     : searchParams.get('filter') === 'd60' ? 'd60'
     : searchParams.get('filter') === 'over90' ? 'over90'
     : undefined;
-  // Server-side pagination + bucket filter + debounced search; totals are
-  // full-set. Search input, page-reset-on-filter and caching live in the hook.
+  // Server-side pagination + bucket filter + debounced search + column sort;
+  // totals are full-set. Search input, page-reset-on-filter and caching live in
+  // the hook.
   const table = useTableQueryState<
     CustomerAging,
-    { bucket?: 'current' | 'd30' | 'd60' | 'over90' },
+    { bucket?: 'current' | 'd30' | 'd60' | 'over90'; sortBy?: string; sortDir?: 'asc' | 'desc' },
     CustomerAgingResponse & { items: CustomerAging[] }
   >({
     endpoint: async (params) => {
@@ -121,6 +165,16 @@ export default function DebtListPage() {
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
   const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';
+  // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
+  // the queryKey stays keyed on the primitive param values (no refetch loops).
+  const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
+    ? { by: table.filters.sortBy, dir: table.filters.sortDir }
+    : null;
+  const handleSortChange = (key: string) => {
+    const next = nextTableSort(sortState, key);
+    table.setFilter('sortBy', next.by);
+    table.setFilter('sortDir', next.dir);
+  };
   const data = query.data;
   const loading = table.isLoading;
   const queryError = query.error;
@@ -486,10 +540,10 @@ export default function DebtListPage() {
                 <table className="debt-list-table">
                     <thead>
                       <tr>
-                        <th>Khách hàng</th>
-                        <th className="num">Tổng nợ</th>
-                        <th className="num">Net công nợ</th>
-                        <th className="num" style={{ textAlign: 'center' }}>Quá hạn</th>
+                        <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
+                        <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
+                        <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
+                        <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
                       </tr>
                     </thead>
                     <tbody>

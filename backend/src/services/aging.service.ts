@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { z } from 'zod';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
@@ -140,6 +141,126 @@ export function filterAgingByBucket<
   if (bucket === 'all') return rows;
   const hasBucket = (r: T) => r.totalOutstanding > 0 && r.aging[bucket] > 0;
   return rows.filter(hasBucket);
+}
+
+// ─── Column sorting (server-side, pre-pagination) ────────────────────────────
+//
+// Both list endpoints materialize their rows in the service (FIFO aging over
+// the ledger, cached per day) rather than a plain SQL projection, so the sort
+// whitelist maps URL keys to row readers instead of SQL expressions. The
+// contract matches the SQL whitelist pattern elsewhere: absent params keep the
+// historical default order, numeric money columns compare numerically, null
+// cells sort last in both directions, and a stable id tiebreaker keeps pages
+// deterministic for equal keys.
+
+/** Sortable columns of GET /reports/receivables-aging (the /debt list). */
+export const CUSTOMER_AGING_SORT_KEYS = [
+  'customerName',
+  'totalOutstanding',
+  'netBalance',
+  'maxOverdueDays',
+] as const;
+export type CustomerAgingSortKey = typeof CUSTOMER_AGING_SORT_KEYS[number];
+
+/** Sortable columns of GET /reports/payables-summary (the /payables list). */
+export const PAYABLES_SUMMARY_SORT_KEYS = [
+  'supplierName',
+  'totalOutstanding',
+  'current',
+  'd30',
+  'd60',
+  'over90',
+] as const;
+export type PayablesSummarySortKey = typeof PAYABLES_SUMMARY_SORT_KEYS[number];
+
+export type AgingSortDir = 'asc' | 'desc';
+
+/** Query params both sort schemas accept; routes safeParse req.query. */
+export const customerAgingSortQuerySchema = z.object({
+  sortBy: z.enum(CUSTOMER_AGING_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
+export const payablesSummarySortQuerySchema = z.object({
+  sortBy: z.enum(PAYABLES_SUMMARY_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
+/** Each reader yields one value per row; within a key the value type is
+ * homogeneous (string for names, number for money/day counts). */
+const CUSTOMER_AGING_SORT_READERS: Record<CustomerAgingSortKey, (row: CustomerAgingListItem) => string | number | null> = {
+  customerName: r => r.customerName,
+  totalOutstanding: r => r.totalOutstanding,
+  netBalance: r => r.netBalance,
+  maxOverdueDays: r => r.maxOverdueDays,
+};
+
+const PAYABLES_SORT_READERS: Record<PayablesSummarySortKey, (row: PayableSummary) => string | number | null> = {
+  supplierName: r => r.supplier?.name ?? null,
+  totalOutstanding: r => r.totalOutstanding,
+  current: r => r.aging?.current,
+  d30: r => r.aging?.d30,
+  d60: r => r.aging?.d60,
+  over90: r => r.aging?.over90,
+};
+
+function compareSortValues(
+  a: string | number | null,
+  b: string | number | null,
+  dir: 1 | -1,
+): number {
+  // Nulls last in both directions (the JS mirror of `nulls last`).
+  if (a == null || b == null) {
+    if (a == null && b == null) return 0;
+    return a == null ? 1 : -1;
+  }
+  const cmp = typeof a === 'string'
+    ? a.localeCompare(b as string, 'vi')
+    : (a as number) - (b as number);
+  return cmp * dir;
+}
+
+/** Stable tiebreaker: customer id ascending, independent of sort direction. */
+export function sortCustomerAgingRows(
+  rows: CustomerAgingListItem[],
+  sortBy?: CustomerAgingSortKey,
+  sortDir: AgingSortDir = 'asc',
+): CustomerAgingListItem[] {
+  if (!sortBy) {
+    // Historical default order — byte-identical to the pre-sort-param behavior.
+    rows.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
+    return rows;
+  }
+  const read = CUSTOMER_AGING_SORT_READERS[sortBy];
+  const dir = sortDir === 'desc' ? -1 : 1;
+  rows.sort((a, b) => {
+    const primary = compareSortValues(read(a), read(b), dir);
+    return primary !== 0 ? primary : a.customerId - b.customerId;
+  });
+  return rows;
+}
+
+/**
+ * Sorts a payables list in place. Tiebreaker: vendor rows before carrier rows
+ * for the same key value, then supplier id ascending — the same composite the
+ * mobile/desktop row keys (`${kind}-${supplier.id}`) use for identity.
+ */
+export function sortPayablesRows(
+  items: PayableSummary[],
+  sortBy?: PayablesSummarySortKey,
+  sortDir: AgingSortDir = 'asc',
+): PayableSummary[] {
+  if (!sortBy) return items;
+  const read = PAYABLES_SORT_READERS[sortBy];
+  const dir = sortDir === 'desc' ? -1 : 1;
+  const kindRank = (d: PayableSummary) => (d.kind === 'carrier' ? 1 : 0);
+  items.sort((a, b) => {
+    const primary = compareSortValues(read(a), read(b), dir);
+    return primary !== 0
+      ? primary
+      : (kindRank(a) - kindRank(b)) || (a.supplier.id - b.supplier.id);
+  });
+  return items;
 }
 
 // ─── Core computation ────────────────────────────────────────────────────────
@@ -434,7 +555,7 @@ export async function getTopOverdueCustomer(): Promise<{ name: string; balance: 
   };
 }
 
-export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number; bucket?: AgingBucketFilter } = {}): Promise<CustomerAgingListResult> {
+export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number; bucket?: AgingBucketFilter; sortBy?: CustomerAgingSortKey; sortDir?: AgingSortDir } = {}): Promise<CustomerAgingListResult> {
   // Container-number / name search: if provided, narrow customer IDs to those
   // whose customer name OR linked trips' containers (trip_containers or
   // trip_expenses.container_number) match the query. Matches the test guide's
@@ -502,7 +623,10 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
     };
   });
 
-  mapped.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
+  // Column sort (or the historical outstanding-desc default) lands before the
+  // totals/bucket/pagination steps: totals are sums (order-independent), the
+  // bucket filter is order-preserving, and pagination slices the sorted list.
+  sortCustomerAgingRows(mapped, opts.sortBy, opts.sortDir);
   // Totals describe the whole (search-scoped) result set, independent of the
   // bucket filter and page window, so the KPI strip stays stable while the
   // user pages or narrows to one aging bucket.
@@ -688,7 +812,7 @@ export function summarizePayablesTotals(items: PayableSummary[]): PayablesListTo
 
 export function paginatePayablesSummary(
   result: PayablesSummaryResult,
-  opts: { search?: string; page?: number; limit?: number } = {},
+  opts: { search?: string; page?: number; limit?: number; sortBy?: PayablesSummarySortKey; sortDir?: AgingSortDir } = {},
 ): PaginatedPayablesSummary {
   const q = opts.search?.trim().toLowerCase();
   const filtered = q
@@ -696,6 +820,10 @@ export function paginatePayablesSummary(
         d.supplier.name.toLowerCase().includes(q)
         || (d.supplier.phone && d.supplier.phone.toLowerCase().includes(q)))
     : result.items;
+  // Without sort params the items keep the merge order (outstanding desc) —
+  // the pre-sort-param default. With them, sorting applies to the searched
+  // set before pagination so every page window is consistent.
+  sortPayablesRows(filtered, opts.sortBy, opts.sortDir);
   const totals = summarizePayablesTotals(filtered);
   const page = paginateAgingRows(filtered, opts);
   return {

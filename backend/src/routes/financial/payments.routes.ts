@@ -30,8 +30,9 @@ import {
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
 import { cacheInvalidatePattern, invalidateReportCaches } from '../../lib/redis';
-import { getPayablesSummary, paginatePayablesSummary } from '../../services/aging.service';
+import { getPayablesSummary, paginatePayablesSummary, payablesSummarySortQuerySchema } from '../../services/aging.service';
 import { parsePagination } from '../utils/pagination';
+import { throwValidation } from '../../lib/validation';
 import { requestCommissionGovernance } from '../../services/commission.service';
 import {
   requestPaymentReceiptGovernance,
@@ -527,8 +528,12 @@ router.get('/reports/payables-summary', asyncHandler(async (req: Request, res: R
     rawCategory && PAYABLES_CATEGORIES.has(rawCategory) ? (rawCategory as PayablesCategory) : undefined;
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
   const { page, limit } = parsePagination(req, { limit: 500, maxLimit: 500 });
+  // Sort params are whitelist-validated separately so the rest of this route's
+  // hand-parsed query surface (asOfDate/category/search) stays untouched.
+  const sort = payablesSummarySortQuerySchema.safeParse(req.query);
+  if (!sort.success) throwValidation(sort.error);
   const summary = await getPayablesSummary({ asOfDate, category });
-  res.json(paginatePayablesSummary(summary, { search, page, limit }));
+  res.json(paginatePayablesSummary(summary, { search, page, limit, ...sort.data }));
 }));
 
 // ─── Commission (manual posting) ────────────────────────────────────────────
