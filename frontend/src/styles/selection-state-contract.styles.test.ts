@@ -66,7 +66,12 @@ describe('selection-state contract', () => {
   });
 
   it('keeps driver selection touch-safe and exposes salary when it is visible', () => {
-    expect(read('src/pages/salary-attendance/calendar.css')).toContain('  min-height: 44px;');
+    // The selector chip consumes the filter density token; touch safety comes
+    // from the phone override that flips that token to the 44px minimum.
+    expect(read('src/pages/salary-attendance/calendar.css')).toContain('  min-height: var(--filter-control-h);');
+    expect(read('src/styles/tokens.css')).toMatch(
+      /@media \(max-width: 767px\)\s*\{[\s\S]*?--filter-control-h:\s*var\(--control-touch-h\);/,
+    );
     expect(read('src/pages/SalaryAttendancePage.tsx')).toContain('aria-label={`Xem bảng công của ${d.name}${salaryLabel}`}');
   });
 });

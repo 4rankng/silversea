@@ -55,7 +55,6 @@
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   line-height: var(--ops-table-header-line-height);
-  color: var(--fg-3);
 }
 
 :where(table tbody td) {

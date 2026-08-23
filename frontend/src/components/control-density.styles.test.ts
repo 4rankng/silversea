@@ -18,7 +18,8 @@ describe('shared control density', () => {
     expect(tokens).toMatch(/--control-touch-h:\s*44px;/);
     expect(tokens).toMatch(/--control-compact-font-size:\s*var\(--fs-xs\);/);
     expect(tokens).toMatch(/--control-compact-line-height:\s*18px;/);
-    expect(tokens).toMatch(/--control-compact-touch-font-size:\s*var\(--fs-sm\);/);
+    // Touch font is 16px so iOS Safari never focus-zooms compact controls.
+    expect(tokens).toMatch(/--control-compact-touch-font-size:\s*var\(--fs-md\);/);
     expect(tokens).toMatch(/--control-compact-touch-line-height:\s*20px;/);
   });
 

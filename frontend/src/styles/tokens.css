@@ -205,7 +205,8 @@
   --control-touch-h: 44px;
   --control-compact-font-size: var(--fs-xs);
   --control-compact-line-height: 18px;
-  --control-compact-touch-font-size: var(--fs-sm);
+  /* 16px on touch so iOS Safari never focus-zooms compact controls. */
+  --control-compact-touch-font-size: var(--fs-md);
   --control-compact-touch-line-height: 20px;
   --control-h: 44px;
 

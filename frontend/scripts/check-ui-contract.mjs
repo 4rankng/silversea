@@ -171,18 +171,17 @@ for (const file of sharedColorFiles) {
 // @container) are exempt — touch layouts may legitimately bump text.
 const TABLE_CELL_SCALE_EXEMPT_PREFIXES = [
   // Frozen CUS + dispatch surfaces and print documents render unchanged.
-  'pages/ShipmentsPage.css',
-  'pages/ShipmentsDetailPage.css',
-  'pages/ShipmentDetailPage.css',
-  'pages/clerk/',
-  'features/dispatch/',
-  'pages/SettlementPrintPage.css',
+  // Paths are relative to frontend/ (see sourceRoot), hence the src/ prefix.
+  'src/pages/ShipmentsPage.css',
+  'src/pages/ShipmentsDetailPage.css',
+  'src/pages/ShipmentDetailPage.css',
+  'src/pages/clerk/',
+  'src/features/dispatch/',
+  'src/pages/SettlementPrintPage.css',
 ];
 // Files still carrying legacy oversize table text; shrinks to zero as the
 // sizing-philosophy wave lands. MUST be empty before the wave closes.
-const TABLE_CELL_SCALE_PENDING = new Set([
-  'src/pages/DebtDetailPage.css',
-]);
+const TABLE_CELL_SCALE_PENDING = new Set();
 
 /** Innermost rules with their enclosing at-query conditions. */
 function collectTableRules(css) {
