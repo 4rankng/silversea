@@ -21,6 +21,8 @@ import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { Customer, TripDetail, DebitNoteTemplate } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './config-page.css';
 
 function toThresholdPercent(value: string | null | undefined): string {
@@ -369,7 +371,8 @@ export default function CustomersConfigPage() {
           Nhấn vào một hàng để xem chi tiết và chỉnh sửa khách hàng
         </div>
         <div className="table-scroll">
-          <table className="cfg-customer-table">
+          <div className="record-table-wrap">
+          <table className="record-table ops-table cfg-customer-table">
             <thead>
               <tr>
                 <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
@@ -381,7 +384,7 @@ export default function CustomersConfigPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={6} style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
+              {filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={6} data-label="" style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--ink-3)' }}>Chưa có dữ liệu</td></tr>}
               {filtered.map(c => {
                 const risk = getRiskLevel(c);
                 const stats = customerTripStats.get(c.id);
@@ -419,6 +422,7 @@ export default function CustomersConfigPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
         <div className="table-foot">
           <span>Đang hiển thị <strong style={{ fontFamily: 'var(--font-data)' }}>{filtered.length}</strong> trên <strong style={{ fontFamily: 'var(--font-data)' }}>{totalCount}</strong> khách hàng</span>

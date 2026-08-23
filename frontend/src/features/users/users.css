@@ -218,25 +218,11 @@
   max-width: 100%;
 }
 
-/* Override .tt-table for users — no row cursor (non-clickable rows) */
-.users-table-panel .tt-table tbody tr {
+/* Non-clickable rows keep the default cursor; the table skin itself
+   (thead/td padding, hover wash, card collapse) is the shared record-table
+   base pulled in by UserTable. */
+.users-table-panel .record-table tbody tr {
   cursor: default;
-}
-
-.users-table-panel .tt-table tbody tr:hover {
-  background: rgba(0, 177, 79, 0.03);
-  transform: none;
-}
-
-/* Better row spacing inside the panel */
-.users-table-panel .tt-table thead th {
-  padding: 12px 16px;
-  color: var(--ink-3);
-  font-family: var(--font-body);
-  font-size: var(--fs-xs);
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  line-height: 1.35;
 }
 
 /* UsersPage keeps only the full-cell hit-area geometry; the visual skin
@@ -246,12 +232,6 @@
   width: 100%;
   min-height: 44px;
   text-align: left;
-}
-
-.users-table-panel .tt-table tbody td {
-  padding: 13px 16px;
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 /* Table footer inside panel */

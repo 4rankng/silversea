@@ -21,6 +21,8 @@ import type { PnlMaintenanceItem, PnlTruck } from '@tingting/shared';
 import type { PnlAllocationReasonCode } from '@tingting/shared/src/types';
 import './FinancePage.css';
 import '../styles/table-sort.css';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 
 const ALLOCATION_REASON_LABELS: Record<PnlAllocationReasonCode, string> = {
   UNCONFIGURED_POLICY: 'Chưa có chính sách phân bổ hiệu lực',
@@ -778,10 +780,11 @@ export default function FinancePage() {
                 </div>
               </div>
 
-              {/* ── Desktop table (>640px) ─────────────────────────────────── */}
+              {/* ── Desktop table (>640px) — record-table base owns the thead
+                  skin, neutral gated hover and the card collapse. ── */}
               <div className="desktop-only">
-                <div className="table-scroll">
-                  <table>
+                <div className="record-table-wrap">
+                  <table className="record-table ops-table">
                     <thead>
                       <tr>
                         <SortHeader label="Biển số xe" sortKey="plate" sort={truckSort} onSortChange={handleTruckSort} />
@@ -812,7 +815,7 @@ export default function FinancePage() {
                         return (
                           <Fragment key={t.id}>
                             <tr className={`truck-summary-row${isExpanded ? ' is-expanded' : ''}`}>
-                              <td style={{ fontWeight: 600, color: t.id === 0 ? 'var(--fg-3)' : 'var(--fg-1)', fontStyle: t.id === 0 ? 'italic' : 'normal' }}>
+                              <td data-label="Biển số xe" style={{ fontWeight: 600, color: t.id === 0 ? 'var(--fg-3)' : 'var(--fg-1)', fontStyle: t.id === 0 ? 'italic' : 'normal' }}>
                                 <button
                                   type="button"
                                   className="truck-row-toggle"
@@ -825,28 +828,28 @@ export default function FinancePage() {
                                   <span className="truck-row-toggle__hint">{isExpanded ? 'Thu gọn' : 'Xem chi tiết'}</span>
                                 </button>
                               </td>
-                              <td className="num">{t.trips}</td>
-                              <td className="num">{formatNumber(t.revenue)}</td>
-                              <td className="num">{formatNumber(t.costs)}</td>
+                              <td data-label="Lệnh" className="num">{t.trips}</td>
+                              <td data-label="Doanh thu chặng" className="num">{formatNumber(t.revenue)}</td>
+                              <td data-label="Tổng chi phí" className="num">{formatNumber(t.costs)}</td>
                               {showFleetCostColumns && (
                                 <>
-                                  <td className="num">{allocation.monthlyFleetCost > 0 ? formatNumber(allocation.monthlyFleetCost) : '—'}</td>
-                                  <td className="num">{t.unallocatedFleetFixedCost > 0 ? formatNumber(t.unallocatedFleetFixedCost) : '—'}</td>
+                                  <td data-label="Khấu hao + cố định" className="num">{allocation.monthlyFleetCost > 0 ? formatNumber(allocation.monthlyFleetCost) : '—'}</td>
+                                  <td data-label="Chưa phân bổ" className="num">{t.unallocatedFleetFixedCost > 0 ? formatNumber(t.unallocatedFleetFixedCost) : '—'}</td>
                                 </>
                               )}
                               {maintenanceCost > 0 && (
                                 <>
-                                  <td className="num">{maintComp.truck > 0 ? formatNumber(maintComp.truck) : '—'}</td>
-                                  <td className="num">{maintComp.trailer > 0 ? formatNumber(maintComp.trailer) : '—'}</td>
+                                  <td data-label="BD đầu kéo" className="num">{maintComp.truck > 0 ? formatNumber(maintComp.truck) : '—'}</td>
+                                  <td data-label="BD rơ-mooc" className="num">{maintComp.trailer > 0 ? formatNumber(maintComp.trailer) : '—'}</td>
                                 </>
                               )}
-                              <td className="num" style={{ color: t.profit >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>
+                              <td data-label="Lợi nhuận gộp" className="num" style={{ color: t.profit >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>
                                 {formatNumber(t.profit)}
                               </td>
                             </tr>
                             {isExpanded && (
                               <tr id={`truck-details-${t.id}`} className="truck-details-row">
-                                <td colSpan={(maintenanceCost > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
+                                <td data-label="" colSpan={(maintenanceCost > 0 ? 7 : 5) + (showFleetCostColumns ? 2 : 0)}>
                                   <div className="truck-details-panel">
                                     <div className="truck-details-panel__intro">
                                       <span><strong>{tripDetails.length}/{t.trips}</strong> lệnh trong kỳ</span>
@@ -862,8 +865,12 @@ export default function FinancePage() {
                                       )}
                                       {allocation.reasonText && <div>{allocation.reasonText}</div>}
                                     </div>
+                                    {/* Nested per-trip sub-ledger: inside the page's
+                                        inner scroller with its own mobile handoff
+                                        (truck trip cards), so it takes the shared
+                                        skin classes without the collapse wrapper. */}
                                     <div className="truck-trip-table-wrap">
-                                      <table className="truck-trip-table">
+                                      <table className="record-table ops-table truck-trip-table">
                                         <thead>
                                           <tr>
                                             <SortHeader label="Lệnh / tuyến" sortKey="tripCode" sort={tripSort} onSortChange={handleTripSort} />
@@ -883,22 +890,22 @@ export default function FinancePage() {
                                         <tbody>
                                           {sortClientSide(tripDetails, tripSort, TRIP_SORT_ACCESSORS, TRIP_TIEBREAKER).map(detail => (
                                             <tr key={detail.id}>
-                                              <td>
+                                              <td data-label="Lệnh / tuyến">
                                                 <Link to={`/trips/${detail.id}`} className="truck-trip-link">
                                                   {detail.tripCode}<ExternalLink size={12} aria-hidden="true" />
                                                 </Link>
                                                 <div className="truck-trip-route">{detail.routeName} · {new Date(detail.departureDate).toLocaleDateString('vi-VN')}</div>
                                               </td>
-                                              <td className="num">{formatNumber(detail.revenue)}</td>
-                                              <td className="num">{detail.customerCommission ? formatNumber(detail.customerCommission) : '—'}</td>
-                                              <td className="num">{formatNumber(detail.fuelOrHireCost)}</td>
-                                              <td className="num">{detail.roadAllowance ? formatNumber(detail.roadAllowance) : '—'}</td>
-                                              <td className="num">{detail.tollAndCompanyTickets ? formatNumber(detail.tollAndCompanyTickets) : '—'}</td>
-                                              <td className="num">{detail.driverAndAllowances ? formatNumber(detail.driverAndAllowances) : '—'}</td>
-                                              <td className="num">{detail.allocatedFleetFixedCost ? formatNumber(detail.allocatedFleetFixedCost) : '—'}</td>
-                                              <td className="num"><strong>{formatNumber(detail.totalCost)}</strong></td>
-                                              <td className="num" style={{ color: detail.netProfitAfterFleetFixedCost >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>{formatNumber(detail.netProfitAfterFleetFixedCost)}</td>
-                                              <td><CostCheck matches={detail.costMatches} difference={detail.costDifference} /></td>
+                                              <td data-label="Doanh thu ghi nhận" className="num">{formatNumber(detail.revenue)}</td>
+                                              <td data-label="Hoa hồng KH" className="num">{detail.customerCommission ? formatNumber(detail.customerCommission) : '—'}</td>
+                                              <td data-label="Nhiên liệu / thuê xe" className="num">{formatNumber(detail.fuelOrHireCost)}</td>
+                                              <td data-label="Đi đường" className="num">{detail.roadAllowance ? formatNumber(detail.roadAllowance) : '—'}</td>
+                                              <td data-label="Phí trạm / vé CT" className="num">{detail.tollAndCompanyTickets ? formatNumber(detail.tollAndCompanyTickets) : '—'}</td>
+                                              <td data-label="Lương & phụ cấp" className="num">{detail.driverAndAllowances ? formatNumber(detail.driverAndAllowances) : '—'}</td>
+                                              <td data-label="PB đội xe" className="num">{detail.allocatedFleetFixedCost ? formatNumber(detail.allocatedFleetFixedCost) : '—'}</td>
+                                              <td data-label="Biến phí" className="num"><strong>{formatNumber(detail.totalCost)}</strong></td>
+                                              <td data-label="LN sau PB" className="num" style={{ color: detail.netProfitAfterFleetFixedCost >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>{formatNumber(detail.netProfitAfterFleetFixedCost)}</td>
+                                              <td data-label="Đối chiếu"><CostCheck matches={detail.costMatches} difference={detail.costDifference} /></td>
                                             </tr>
                                           ))}
                                         </tbody>
@@ -932,7 +939,8 @@ export default function FinancePage() {
               flush
             >
               <div className="table-scroll finance-category-breakdown__scroll">
-                <table>
+                <div className="record-table-wrap">
+                <table className="record-table ops-table">
                   <thead>
                     <tr>
                       <SortHeader label="Hạng mục" sortKey="categoryName" sort={categorySort} onSortChange={handleCategorySort} />
@@ -964,6 +972,7 @@ export default function FinancePage() {
                     })()}
                   </tbody>
                 </table>
+                </div>
               </div>
             </Panel>
           )}

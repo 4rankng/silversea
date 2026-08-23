@@ -15,6 +15,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../lib/audit-helpers';
 import './AuditLogPage.css';
+import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
@@ -422,8 +423,8 @@ fontSize: 13,
           </div>
           <span className="audit-list-panel__count">{total.toLocaleString('vi-VN')} bản ghi</span>
         </div>
-          <div className="table-scroll" data-tour-id="audit-table">
-            <table className="table-hover ops-table">
+          <div className="record-table-wrap" data-tour-id="audit-table">
+            <table className="record-table ops-table table-hover">
               <thead>
                 <tr>
                   <th style={{ width: 54 }}>STT</th>
@@ -435,13 +436,13 @@ fontSize: 13,
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: 48, color: 'var(--ink-3)' }}>
+                    <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: 48, color: 'var(--ink-3)' }}>
                       Đang truy vấn dữ liệu nhật ký...
                     </td>
                   </tr>
                 ) : entries.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '24px 48px', color: 'var(--ink-3)' }}>
+                    <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 48px', color: 'var(--ink-3)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                         <img src={resolveEmptyIllustration('empty-audit')} alt="" aria-hidden="true" style={{ width: 140, height: 116, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         Không tìm thấy bản ghi nào khớp bộ lọc hiện tại.
@@ -466,8 +467,8 @@ fontSize: 13,
                         tabIndex={0}
                         aria-label={`Xem chi tiết hoạt động của ${entry.userName}: ${entry.message}`}
                       >
-                        <td className="num">{idx + 1}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
+                        <td className="num" data-label="STT">{idx + 1}</td>
+                        <td data-label="Thời gian" style={{ whiteSpace: 'nowrap' }}>
                           <div style={{ fontSize: 12, color: 'var(--ink)', fontWeight: 500 }}>
                             {formatTimeShort(entry.timestamp)}
                           </div>
@@ -475,7 +476,7 @@ fontSize: 13,
                             {formatExactTime(entry.timestamp).split(' ')[0]}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Người dùng">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div className={`avatar-ring ${avatarColor(entry.userName)}`} style={{ width: 26, height: 26, fontSize: 12 }}>
                               <Users size={13} aria-hidden="true" />
@@ -487,7 +488,7 @@ fontSize: 13,
                             </div>
                           </div>
                         </td>
-                        <td style={{ minWidth: 0 }}>
+                        <td data-label="Nội dung" style={{ minWidth: 0 }}>
                           <div className="audit-row-content">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
                               <div className="audit-event-tag">
@@ -513,7 +514,7 @@ fontSize: 13,
                 )}
                 {isFetchingNextPage && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: 16, color: 'var(--ink-3)' }}>
+                    <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: 16, color: 'var(--ink-3)' }}>
                       Đang tải thêm...
                     </td>
                   </tr>

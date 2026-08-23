@@ -30,6 +30,8 @@ import { TruckCapRole, TRUCK_CAP_ROLE_LABELS } from '@tingting/shared';
 import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './config-page.css';
 
 const ENDPOINT = '/truck-cap';
@@ -224,61 +226,63 @@ export default function TruckOwnersConfigPage() {
           )}
         </div>
 
-        <table className="cfg-table" style={{ width: '100%', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-2)', color: 'var(--fg-3)' }}>
-              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Đối tác" sortKey="partnerName" sort={sort} onSortChange={handleSort} />
-              <SortHeader style={{ textAlign: 'right', padding: '8px 16px' }} label="Tỷ lệ (%)" sortKey="percentage" sort={sort} onSortChange={handleSort} />
-              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Vai trò" sortKey="role" sort={sort} onSortChange={handleSort} />
-              <SortHeader style={{ textAlign: 'left', padding: '8px 16px' }} label="Ngày hiệu lực" sortKey="effectiveDate" sort={sort} onSortChange={handleSort} />
-              <th style={{ textAlign: 'right', padding: '8px 16px' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {showAddForm && (
-              <tr><td colSpan={5} style={{ padding: 0 }}>
-                <TruckOwnerForm saving={saving} onsave={doCreate} oncancel={() => setShowAddForm(false)} />
-              </td></tr>
-            )}
-            {sorted.map((r) => {
-              const isActive = activeIds.has(r.id);
-              if (editingId === r.id) {
+        <div className="record-table-wrap">
+          <table className="record-table ops-table cfg-table">
+            <thead>
+              <tr>
+                <SortHeader label="Đối tác" sortKey="partnerName" sort={sort} onSortChange={handleSort} />
+                <SortHeader className="num" label="Tỷ lệ (%)" sortKey="percentage" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Vai trò" sortKey="role" sort={sort} onSortChange={handleSort} />
+                <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={sort} onSortChange={handleSort} />
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {showAddForm && (
+                <tr><td colSpan={5} data-label="" style={{ padding: 0 }}>
+                  <TruckOwnerForm saving={saving} onsave={doCreate} oncancel={() => setShowAddForm(false)} />
+                </td></tr>
+              )}
+              {sorted.map((r) => {
+                const isActive = activeIds.has(r.id);
+                if (editingId === r.id) {
+                  return (
+                    <tr key={r.id} className="cfg-row"><td colSpan={5} data-label="" style={{ padding: 0 }}>
+                      <TruckOwnerForm saving={saving} item={r} onsave={(d) => doUpdate(r.id, d)} oncancel={() => setEditingId(null)} />
+                    </td></tr>
+                  );
+                }
+                const isDriver = (r.role ?? TruckCapRole.INVESTOR) === TruckCapRole.DRIVER;
                 return (
-                  <tr key={r.id} className="cfg-row"><td colSpan={5} style={{ padding: 0 }}>
-                    <TruckOwnerForm saving={saving} item={r} onsave={(d) => doUpdate(r.id, d)} oncancel={() => setEditingId(null)} />
-                  </td></tr>
+                  <tr key={r.id} className="cfg-row" style={{ opacity: isActive ? 1 : 0.55 }}>
+                    <td data-label="Đối tác" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>
+                      <span style={{ marginRight: 8 }}>{r.partnerName}</span>
+                      {isActive && <StatusPill variant="success">HIỆN TẠI</StatusPill>}
+                    </td>
+                    <td data-label="Tỷ lệ (%)" className="num" style={{ fontWeight: 600, color: isActive ? 'var(--brand)' : 'var(--fg-2)' }}>
+                      {parseFloat(r.percentage).toFixed(2)}%
+                    </td>
+                    <td data-label="Vai trò">
+                      <StatusPill variant={isDriver ? 'warn' : 'neutral'}>
+                        {TRUCK_CAP_ROLE_LABELS[r.role ?? TruckCapRole.INVESTOR]}
+                      </StatusPill>
+                    </td>
+                    <td data-label="Ngày hiệu lực">{new Date(r.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td data-label="" className="record-table__action">
+                      <button className="btn btn--secondary" style={{ padding: '0 12px', marginRight: 6 }} onClick={() => setEditingId(r.id)}>Sửa</button>
+                      <button className="btn btn--danger" style={{ padding: '0 12px' }} onClick={() => doDelete(r.id)}>Xóa</button>
+                    </td>
+                  </tr>
                 );
-              }
-              const isDriver = (r.role ?? TruckCapRole.INVESTOR) === TruckCapRole.DRIVER;
-              return (
-                <tr key={r.id} className="cfg-row" style={{ borderBottom: '1px solid var(--border-3)', opacity: isActive ? 1 : 0.55 }}>
-                  <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--fg-1)' }}>
-                    <span style={{ marginRight: 8 }}>{r.partnerName}</span>
-                    {isActive && <StatusPill variant="success">HIỆN TẠI</StatusPill>}
-                  </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: isActive ? 'var(--brand)' : 'var(--fg-2)' }}>
-                    {parseFloat(r.percentage).toFixed(2)}%
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>
-                    <StatusPill variant={isDriver ? 'warn' : 'neutral'}>
-                      {TRUCK_CAP_ROLE_LABELS[r.role ?? TruckCapRole.INVESTOR]}
-                    </StatusPill>
-                  </td>
-                  <td style={{ padding: '10px 16px' }}>{new Date(r.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                    <button className="btn btn--secondary" style={{ padding: '0 12px', marginRight: 6 }} onClick={() => setEditingId(r.id)}>Sửa</button>
-                    <button className="btn btn--danger" style={{ padding: '0 12px' }} onClick={() => doDelete(r.id)}>Xóa</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {sorted.length === 0 && !showAddForm && (
-              <tr><td colSpan={5} style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>
-                Chưa có đối tác sở hữu cho xe này. Thêm đối tác để bắt đầu phân chia lợi nhuận theo xe.
-              </td></tr>
-            )}
-          </tbody>
-        </table>
+              })}
+              {sorted.length === 0 && !showAddForm && (
+                <tr><td colSpan={5} data-label="" style={{ padding: 32, textAlign: 'center', color: 'var(--fg-3)' }}>
+                  Chưa có đối tác sở hữu cho xe này. Thêm đối tác để bắt đầu phân chia lợi nhuận theo xe.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Panel>
       {dialog}
     </div>

@@ -8,6 +8,8 @@ import { qk } from '../../../api/keys';
 import { api } from '../../../lib/api';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
+import '../../../styles/record-table.css';
+import '../../../styles/operational-table-typography.css';
 import './ManagerDecisionInbox.css';
 
 const STALE_AFTER_MS = 5 * 60 * 1000;
@@ -94,8 +96,8 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
       ) : !query.data?.items.length ? (
         <div className="manager-decision-inbox__state"><CheckCircle2 size={18} /> Không có ngoại lệ cần quyết định.</div>
       ) : (
-        <div className="manager-decision-inbox__table-wrap">
-          <table>
+        <div className="record-table-wrap manager-decision-inbox__table-wrap">
+          <table className="record-table ops-table">
             <thead><tr><SortHeader label="Vấn đề" sortKey="title" sort={sort} onSortChange={applySort} /><SortHeader label="Chủ sở hữu" sortKey="ownerLabel" sort={sort} onSortChange={applySort} /><SortHeader label="Tuổi việc" sortKey="ageHours" sort={sort} onSortChange={applySort} /><SortHeader label="Ảnh hưởng" sortKey="impact" sort={sort} onSortChange={applySort} /><th><span className="sr-only">Hành động</span></th></tr></thead>
             <tbody>{query.data.items.map((item) => (
               <tr key={item.id}>
@@ -103,7 +105,7 @@ export function ManagerDecisionInbox({ enabled }: { enabled: boolean }) {
                 <td data-label="Chủ sở hữu"><strong>{item.owner?.ownerLabel ?? 'Chưa xác định'}</strong><small>{item.owner?.label ?? 'Cần phân công'}</small></td>
                 <td data-label="Tuổi việc"><strong>{ageLabel(item.ageHours)}</strong>{item.dueAt && <small>Hạn {new Date(item.dueAt).toLocaleString('vi-VN')}</small>}</td>
                 <td data-label="Ảnh hưởng">{item.impact}</td>
-                <td data-label="Hành động">{item.entityType === 'delivery_response' ? (
+                <td data-label="" className="record-table__action">{item.entityType === 'delivery_response' ? (
                   <button
                     type="button"
                     onClick={() => {

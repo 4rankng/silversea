@@ -36,6 +36,8 @@ import { AssetIcon } from '../components/AssetIcon';
 import './DebtListPage.css';
 import '../components/shared/HeroKpiRow.css';
 import '../styles/table-sort.css';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
 interface CustomerDebtInfo {
@@ -534,10 +536,11 @@ export default function DebtListPage() {
               </div>
             </div>
 
-            {/* ── Desktop table (>640px) ── */}
-            <div className="desktop-only table-wrap">
-              <div className="table-scroll">
-                <table className="debt-list-table">
+            {/* ── Desktop table (>640px) — record-table base owns the thead
+                  skin, neutral gated hover and the card collapse. ── */}
+            <div className="desktop-only">
+              <div className="record-table-wrap">
+                <table className="record-table ops-table debt-list-table">
                     <thead>
                       <tr>
                         <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
@@ -562,7 +565,7 @@ export default function DebtListPage() {
                               }
                             }}
                           >
-                          <td className="debt-list-table__customer">
+                          <td data-label="Khách hàng" className="debt-list-table__customer">
                             <div className="debt-list-table__customer-main">
                               <span className={`risk-dot risk-dot--${d.riskClass}`} />
                               <Building2 size={14} aria-hidden="true" style={{ color: 'var(--fg-3)', flex: '0 0 auto' }} />
@@ -580,14 +583,14 @@ export default function DebtListPage() {
                             </div>
                           </td>
 
-                          <td className="num typo-mono" style={{
+                          <td data-label="Tổng nợ" className="num typo-mono" style={{
                             fontWeight: 700,
                             color: d.totalOutstanding > 0 ? 'var(--danger)' : 'var(--success)'
                           }}>
                             {formatCurrency(d.totalOutstanding)}
                           </td>
 
-                          <td className="num typo-mono" style={{
+                          <td data-label="Net công nợ" className="num typo-mono" style={{
                             fontWeight: 600,
                             color: d.linkedSupplierId == null
                               ? 'var(--fg-3)'
@@ -598,7 +601,7 @@ export default function DebtListPage() {
                               : formatCurrency(d.netBalance)}
                           </td>
 
-                          <td className="num" style={{ textAlign: 'center', fontWeight: 600 }}>
+                          <td data-label="Quá hạn" className="num" style={{ textAlign: 'center', fontWeight: 600 }}>
                             {d.maxOverdueDays > 0 ? (
                               <span style={{ color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
                                 {d.maxOverdueDays} ngày
@@ -614,7 +617,7 @@ export default function DebtListPage() {
 
                     {debts.length === 0 && (
                       <tr>
-                        <td colSpan={4} style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
+                        <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                             <img src={resolveEmptyIllustration('empty-debts')} alt="" aria-hidden="true" style={{ width: 130, height: 108, objectFit: 'contain' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                             Không tìm thấy dữ liệu công nợ thỏa mãn bộ lọc.

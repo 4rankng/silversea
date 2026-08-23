@@ -361,6 +361,17 @@ function containerDispatchRankSql(): SQL {
   )`;
 }
 
+/** Rank per record-status filter value — mirrors the case arms above so a
+ * dispatchStatus filter selects exactly the rows whose ledger badge shows
+ * that status. UNASSIGNED needs no entry: the carrier-presence split already
+ * selects it. */
+const CONTAINER_DISPATCH_RANKS = {
+  PLANNED: 1,
+  CREATED: 2,
+  IN_TRANSIT: 3,
+  COMPLETED: 4,
+} as const;
+
 /** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed
  * SilverSea label; otherwise the executed trip's carrier wins over the plan. */
 function containerCarrierNameSql(): SQL {
@@ -1730,10 +1741,15 @@ async function buildShipmentPageConditions(
   }
   // Detail-only dispatch triage: ASSIGNED = the container line has any active
   // carrier (trip first, planned as fallback), UNASSIGNED is its complement —
-  // exactly the rows the ledger badges "Chưa điều xe".
+  // exactly the rows the ledger badges "Chưa điều xe". Every other value is a
+  // record status and filters on the badge derivation itself (the same rank
+  // expression that orders the Trạng thái column).
   if (searchMode === 'container' && 'dispatchStatus' in query) {
     if (query.dispatchStatus === 'ASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is not null`);
-    if (query.dispatchStatus === 'UNASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is null`);
+    else if (query.dispatchStatus === 'UNASSIGNED') conditions.push(sql`${activeCarrierTypeSql()} is null`);
+    else if (query.dispatchStatus) {
+      conditions.push(sql`${containerDispatchRankSql()} = ${CONTAINER_DISPATCH_RANKS[query.dispatchStatus]}`);
+    }
   }
 
   return conditions;

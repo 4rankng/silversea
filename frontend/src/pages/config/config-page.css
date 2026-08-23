@@ -502,61 +502,9 @@
     margin-top: 4px;
   }
 
-  .cfg-page--customers .table-scroll {
-    overflow: visible;
-  }
-  .cfg-page--customers .cfg-customer-table,
-  .cfg-page--customers .cfg-customer-table tbody,
-  .cfg-page--customers .cfg-customer-table tr,
-  .cfg-page--customers .cfg-customer-table td {
-    display: block;
-    width: 100%;
-  }
-  .cfg-page--customers .cfg-customer-table {
-    min-width: 0;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-  .cfg-page--customers .cfg-customer-table thead {
-    display: none;
-  }
-  .cfg-page--customers .cfg-customer-table tbody {
-    display: grid;
-    gap: 10px;
-    padding: 10px 12px;
-  }
-  .cfg-page--customers .cfg-customer-table tbody tr {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    overflow: hidden;
-  }
-  .cfg-page--customers .cfg-customer-table tbody tr:not(.cfg-empty-row) td {
-    display: grid;
-    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
-    gap: 10px;
-    align-items: start;
-    padding: 9px 14px;
-    border-bottom: 1px solid var(--line);
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-  .cfg-page--customers .cfg-customer-table tbody tr:not(.cfg-empty-row) td:last-child {
-    border-bottom: 0;
-  }
-  .cfg-page--customers .cfg-customer-table tbody td[data-label]::before {
-    content: attr(data-label);
-    color: var(--ink-3);
-    font-size: var(--fs-xs);
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    line-height: 1.45;
-    text-transform: uppercase;
-  }
-  .cfg-page--customers .cfg-customer-table .row-strong {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
+  /* The customers table is a record-table: its narrow-canvas card collapse
+     comes from the shared base (frontend/src/styles/record-table.css), not a
+     page-private copy. */
 }
 
 /* ── Desktop: routes-table layout ────────────────────────────────────
@@ -592,13 +540,31 @@
   white-space: nowrap;
 }
 
+/* When the shared record-table base collapses rows to labelled cards
+   (container ≤1100px), release the desktop-only fixed-layout geometry so the
+   cards follow the container width instead of the 980px column floor. */
+@container (max-width: 1100px) {
+  .routes-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+  .routes-table tbody td {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+  .routes-table tbody td:first-child .row-strong {
+    display: block;
+    overflow: visible;
+  }
+}
+
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 1500px) {
   /* ── Routes config page — Mobile Pass 1 (2026-06-02) ──
-     - Cards replace the cramped 8-col table
-     - First cell becomes the headline (no redundant "TUYẾN ĐƯỜNG:" prefix)
-     - Other cells become inline chips with light bg
-     - Watermarks hidden on KPI tiles to free up space */
+     The 8-column routes table is a record-table now: its narrow-canvas card
+     collapse comes from the shared base (frontend/src/styles/record-table.css).
+     Only the page layout (grid, KPI tiles, footer) is handled here. */
   .routes-config-grid { grid-template-columns: 1fr; gap: 12px; }
   .routes-config-grid > .sticky-card { display: none; }
 
@@ -606,83 +572,6 @@
   .routes-config-page .table-wrap { background: transparent; border: none; box-shadow: none; }
   .routes-config-page .table-scroll { overflow-x: visible; }
   .routes-config-page .table-scroll::after { display: none; }
-
-  /* Drop table layout entirely on mobile so the row widths follow the viewport
-     instead of the sum of column widths (table layout sized rows to ~900px). */
-  .routes-table { display: block; width: 100%; min-width: 0; }
-  .routes-table thead { display: none; }
-  .routes-table tbody { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-
-  .routes-table tbody tr {
-    display: block;
-    width: 100%;
-    background: var(--bg-1, #fff);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px 16px;
-    transition: background 160ms var(--ease, ease), border-color 160ms var(--ease, ease);
-  }
-  .routes-table tbody tr:hover {
-    border-color: var(--brand, var(--primary));
-  }
-
-  /* Data cells — inline chips. Defined FIRST so the more-specific
-     :first-child rule below can override display:inline-flex. */
-  .routes-table tbody td[data-label] {
-    display: inline-flex; align-items: center;
-    gap: 4px; padding: 4px 8px;
-    margin: 3px 6px 3px 0;
-    font-size: var(--fs-xs);
-    color: var(--fg-2, var(--ink-2));
-    background: var(--bg-2, rgba(15, 23, 42, 0.04));
-    border-radius: 8px;
-    white-space: nowrap;
-  }
-  .routes-table tbody td[data-label]::before {
-    content: attr(data-label) ":";
-    font-size: var(--fs-2xs);
-    font-weight: 600;
-    color: var(--fg-3, var(--ink-3));
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-  .routes-table tbody td[data-label].num {
-
-  }
-
-  /* First cell (route name) is the card headline.
-     td:first-child[data-label] has higher specificity than td[data-label]
-     AND comes later, so it wins on both counts. */
-  .routes-table tbody td:first-child[data-label] {
-    display: block;
-    padding: 0 0 10px 0;
-    margin: 0 0 10px 0;
-    border: none;
-    border-bottom: 1px solid var(--line-2, rgba(15, 23, 42, 0.06));
-    border-radius: 0;
-    background: transparent;
-    width: 100%;
-    white-space: normal;
-  }
-  .routes-table tbody td:first-child[data-label]::before {
-    content: none;
-  }
-  .routes-table tbody td:first-child[data-label] .row-strong {
-    font-size: var(--ops-table-primary-size);
-    font-weight: 600;
-    line-height: 1.35;
-    color: var(--fg-1, var(--ink));
-    word-break: keep-all;
-    overflow-wrap: anywhere;
-    display: block;
-  }
-  .routes-table tbody td:first-child[data-label] .row-meta {
-    font-size: var(--fs-xs);
-    color: var(--fg-3, var(--ink-3));
-    margin-top: 4px;
-    line-height: 1.4;
-  }
 
   /* Keep KPI watermark icons visible on mobile, but quiet enough not to crowd values. */
   .routes-config-page .kpi {

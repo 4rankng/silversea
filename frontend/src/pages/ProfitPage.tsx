@@ -22,6 +22,8 @@ import { usePageAnimations, useCounterAnimation } from '../hooks/animations';
 import { TruckCapRole, TRUCK_CAP_ROLE_LABELS } from '@tingting/shared';
 import './ProfitPage.css';
 import './WorkflowFinance.css';
+import '../styles/record-table.css';
+import '../styles/operational-table-typography.css';
 import { ProfitabilityReportPanel } from '../components/finance/ProfitabilityReportPanel';
 import { useAuth } from '../hooks/useAuth';
 import { UuiSelectField } from '../design-system';
@@ -469,38 +471,42 @@ export default function ProfitPage() {
                   ) : preview.entity && preview.entity.length > 0 ? (
                     <>
                       <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: 'var(--fg-3)', letterSpacing: '0.04em', margin: '8px 0 4px' }}>TỔNG CÔNG TY (Σ các xe)</div>
-                      <table style={{ width: '100%', fontSize: 12.5 }}>
+                      {/* In-card summary table: shares the record-table skin
+                          (typography, hairlines, hover) without the collapse
+                          wrapper — a bento span-8 card sits permanently under
+                          the shared 1100px container threshold. */}
+                      <table className="record-table ops-table">
                         <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-2)', color: 'var(--fg-3)' }}>
-                            <th style={{ textAlign: 'left', paddingBottom: 6 }}>Đối tác</th>
-                            <th style={{ textAlign: 'right', paddingBottom: 6 }}>Số tiền nhận</th>
+                          <tr>
+                            <th>Đối tác</th>
+                            <th className="num">Số tiền nhận</th>
                           </tr>
                         </thead>
                         <tbody>
                           {preview.entity.map((d, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-3)' }}>
-                              <td style={{ padding: '6px 0', fontWeight: 600 }}>{d.partnerName}</td>
-                              <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--brand)', fontWeight: 700 }}>{formatVND(d.amount)}</td>
+                            <tr key={idx}>
+                              <td data-label="Đối tác" style={{ fontWeight: 600 }}>{d.partnerName}</td>
+                              <td data-label="Số tiền nhận" className="num" style={{ color: 'var(--brand)', fontWeight: 700 }}>{formatVND(d.amount)}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </>
                   ) : (
-                    <table style={{ width: '100%', fontSize: 12.5 }}>
+                    <table className="record-table ops-table">
                       <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-2)', color: 'var(--fg-3)' }}>
-                          <th style={{ textAlign: 'left', paddingBottom: 6 }}>Đối tác</th>
-                          <th style={{ textAlign: 'right', paddingBottom: 6 }}>Tỷ lệ</th>
-                          <th style={{ textAlign: 'right', paddingBottom: 6 }}>Số tiền nhận</th>
+                        <tr>
+                          <th>Đối tác</th>
+                          <th className="num">Tỷ lệ</th>
+                          <th className="num">Số tiền nhận</th>
                         </tr>
                       </thead>
                       <tbody>
                         {preview.distributions.map((d, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-3)' }}>
-                            <td style={{ padding: '6px 0', fontWeight: 600 }}>{d.partnerName}<RoleTag role={d.role} /></td>
-                            <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--fg-3)' }}>{d.percentage ?? '—'}%</td>
-                            <td style={{ padding: '6px 0', textAlign: 'right', color: 'var(--brand)', fontWeight: 700 }}>{formatVND(Number(d.amount))}</td>
+                          <tr key={idx}>
+                            <td data-label="Đối tác" style={{ fontWeight: 600 }}>{d.partnerName}<RoleTag role={d.role} /></td>
+                            <td data-label="Tỷ lệ" className="num" style={{ color: 'var(--fg-3)' }}>{d.percentage ?? '—'}%</td>
+                            <td data-label="Số tiền nhận" className="num" style={{ color: 'var(--brand)', fontWeight: 700 }}>{formatVND(Number(d.amount))}</td>
                           </tr>
                         ))}
                       </tbody>

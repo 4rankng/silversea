@@ -133,24 +133,12 @@
   background: var(--bg-2, #f8f9fa);
 }
 
-.ttp-table-wrap {
-  width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  outline: none;
-}
-
-.ttp-table-wrap:focus-visible {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, #00B14F) 42%, transparent);
-}
-
+/* Tire tables ride the shared record-table base (record-table-wrap +
+   `record-table ops-table` classes in tire-tables.tsx): sticky thead,
+   10x12 padding, hairlines, and the container-query record cards. The page
+   owns only the fixed column proportions below. */
 .ttp-table {
-  width: 100%;
-  min-width: 1390px;
   table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 12px;
 }
 
 .ttp-col-serial { width: 170px; }
@@ -166,43 +154,13 @@
 .ttp-col-actions { width: 70px; }
 
 .ttp-table thead th.ttp-actions-heading {
-  position: sticky;
-  right: 0;
-  z-index: 2;
   text-align: right;
-  padding-left: 8px;
-  padding-right: 18px;
-  box-shadow: -10px 0 16px -16px rgba(15, 23, 42, 0.35);
-}
-
-.ttp-supplier {
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.ttp-table thead th {
-  text-align: left;
-  font-weight: 600;
-  color: var(--fg-2);
-  background: var(--bg-2, #f8f9fa);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-2);
-  font-size: var(--fs-xs);
-  line-height: 1.35;
-  white-space: nowrap;
 }
 
 .ttp-table tbody td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border-1);
-  color: var(--fg-1);
-  vertical-align: middle;
-  white-space: nowrap;
-  overflow-wrap: normal;
-}
-
-.ttp-table tbody tr:last-child td {
-  border-bottom: none;
+  /* The global tbody rule (Table.css) keeps cells nowrap; the workboard
+     standard wraps long values so squeezed columns never overlap. */
+  white-space: normal;
 }
 
 .ttp-serial {
@@ -443,15 +401,9 @@
   align-items: center;
 }
 
-.ttp-row-actions {
-  position: sticky;
-  right: 0;
-  z-index: 1;
+.ttp-table td.ttp-row-actions {
   text-align: right;
-  padding-left: 8px;
-  padding-right: 18px;
-  background: var(--bg-1, #fff);
-  box-shadow: -10px 0 16px -16px rgba(15, 23, 42, 0.35);
+  white-space: nowrap;
 }
 
 .ttp-icon-actions {
@@ -954,86 +906,8 @@
   line-height: 1.45;
 }
 
-/* ============================================================================
- * Operational canvas (≤1500px) — the fixed 1390px tire worksheet cannot fit
- * the ~1112px canvas a 1440px viewport leaves inside the desktop shell. Hand
- * both tire tables to labelled cards before the wrapper starts scrolling
- * horizontally. Mirrors the debt/payable/finance 1500px handoff.
- * ========================================================================== */
-@media (max-width: 1500px) {
-  .ttp-table-wrap {
-    overflow: visible;
-  }
-
-  .ttp-table {
-    min-width: 0;
-  }
-
-  .ttp-table colgroup,
-  .ttp-table thead {
-    display: none;
-  }
-
-  .ttp-table tbody {
-    display: grid;
-    gap: 8px;
-    padding: 8px;
-    background: var(--bg-2, #f8f9fa);
-  }
-
-  .ttp-table tr {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 14px;
-    padding: 10px 12px;
-    border: 1px solid var(--border-1);
-    border-radius: 10px;
-    background: var(--surface, #fff);
-  }
-
-  .ttp-table tbody td {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 4px 0;
-    border-bottom: none;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-
-  .ttp-table tbody td::before {
-    content: attr(data-label);
-    flex-shrink: 0;
-    color: var(--fg-3);
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  /* Serial leads each card as its title row. */
-  .ttp-table tbody td:first-child {
-    grid-column: 1 / -1;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-1);
-    margin-bottom: 4px;
-    font-weight: 650;
-  }
-
-  .ttp-table tbody td:first-child::before,
-  .ttp-table tbody td.ttp-row-actions::before {
-    content: none;
-  }
-
-  .ttp-table tbody td.ttp-row-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-end;
-    padding-top: 8px;
-    /* Card rows must not keep the desktop table's sticky action-cell chrome. */
-    position: static;
-    background: transparent;
-    box-shadow: none;
-  }
-}
+/* Narrow-canvas record cards for both tire tables are owned by the shared
+   record-table container queries (1100/640/360px) — no per-page handoff. */
 
 @media (max-width: 1180px) {
   .ttp-add {
@@ -1103,78 +977,6 @@
 
   .ttp-empty {
     min-height: 144px;
-  }
-
-  .ttp-table-wrap {
-    overflow-x: visible;
-  }
-
-  .ttp-table-wrap:focus-visible {
-    box-shadow: none;
-  }
-
-  .ttp-table,
-  .ttp-table thead,
-  .ttp-table tbody,
-  .ttp-table tr,
-  .ttp-table th,
-  .ttp-table td {
-    display: block;
-  }
-
-  .ttp-table {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .ttp-table colgroup,
-  .ttp-table thead {
-    display: none;
-  }
-
-  .ttp-table tbody tr {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border-1);
-  }
-
-  .ttp-table tbody tr:last-child {
-    border-bottom: none;
-  }
-
-  .ttp-table tbody td {
-    display: grid;
-    grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
-    gap: 10px;
-    align-items: center;
-    padding: 7px 0;
-    border-bottom: none;
-  }
-
-  .ttp-table tbody td::before {
-    content: attr(data-label);
-    color: var(--fg-2);
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    line-height: 1.35;
-  }
-
-  .ttp-row-actions {
-    position: static;
-    z-index: auto;
-    display: flex;
-    justify-content: flex-start;
-    text-align: left;
-    padding: 7px 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .ttp-table tbody td.ttp-row-actions::before {
-    display: none;
-  }
-
-  .ttp-icon-actions {
-    justify-content: flex-start;
   }
 
   .ttp-dialog-overlay {

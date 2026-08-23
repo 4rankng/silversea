@@ -12,7 +12,8 @@ import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
 import { AssetIcon } from '../../../components/AssetIcon';
 import { Pagination } from '../../../design-system';
-import '../../../styles/table-sort.css';
+import '../../../styles/record-table.css';
+import '../../../styles/operational-table-typography.css';
 
 interface UserTableProps {
   paginated: UserRow[];
@@ -387,8 +388,8 @@ function DesktopTable({
 
   return (
     <div className="desktop-only">
-      <div className="table-scroll">
-        <table className="tt-table" style={{ minWidth: 880 }}>
+      <div className="record-table-wrap">
+        <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
               <th aria-sort={sortBy === 'name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
@@ -416,7 +417,7 @@ function DesktopTable({
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={5} data-label="">
                   <div className="users-empty">
                     <img src={resolveEmptyIllustration('empty-users')} alt="" aria-hidden="true" className="users-empty__illustration" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     <p className="users-empty__title">Không tìm thấy tài khoản</p>
@@ -447,7 +448,7 @@ function DesktopTable({
                   tabIndex={editable ? 0 : undefined}
                   style={{ cursor: editable ? 'pointer' : 'default' }}
                 >
-                  <td style={{ position: 'relative' }}>
+                  <td data-label="Tài khoản" style={{ position: 'relative' }}>
                     <StatusStrip status={u.status} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <RoleAvatar role={u.role} />
@@ -460,7 +461,7 @@ function DesktopTable({
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Liên hệ">
                     <div className="user-contact">
                       {u.email && (
                         <div className="user-contact__row">
@@ -477,7 +478,7 @@ function DesktopTable({
                       {!u.email && !u.phone && <span style={{ color: 'var(--ink-3)' }}>—</span>}
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Vai trò">
                     <span className={pill.cls}><span className="dot" />{pill.label}</span>
                     {customerScope && (
                       <div className="user-customer-scope-label" title={customerScope}>
@@ -492,12 +493,12 @@ function DesktopTable({
                       </div>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Xe">
                     {plate
                       ? <span className="user-truck-plate">{plate}</span>
                       : <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
-                  <td style={{ color: 'var(--ink-3)', fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                  <td data-label="Ngày tạo" style={{ color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
                     {formatDate(u.createdAt)}
                   </td>
                 </tr>

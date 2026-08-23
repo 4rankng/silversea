@@ -493,6 +493,21 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
+  it('offers every ledger badge status in the Trạng thái filter and sends the selected value', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-001');
+    const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
+    fireEvent.click(within(filtersGroup).getByRole('button', { name: /Trạng thái/i }));
+    for (const label of ['Chưa điều xe', 'Đã phân xe', 'Đã tạo chuyến', 'Đang vận chuyển', 'Hoàn thành']) {
+      expect(screen.getByRole('option', { name: label })).toBeTruthy();
+    }
+
+    fireEvent.click(screen.getByRole('option', { name: 'Hoàn thành' }));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}&dispatchStatus=COMPLETED`));
+  });
+
   it('rejects an invalid suffix without issuing a filtered request', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);

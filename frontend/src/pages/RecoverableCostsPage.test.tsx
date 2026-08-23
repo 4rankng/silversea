@@ -223,4 +223,36 @@ describe('RecoverableCostsPage', () => {
     // Money cells stay nowrap — VND figures must not wrap.
     expect(ledgerStyles).toMatch(/__ledger td\.num,\.recoverable-costs__ledger td \.recoverable-costs__money\{white-space:nowrap\}/);
   });
+
+  it('sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1', async () => {
+    listRecoverableCostsMock.mockResolvedValue({
+      items: Array.from({ length: 25 }, (_, index) => makeCost({ id: index + 1 })),
+      total: 30,
+      page: 1,
+      limit: 25,
+    });
+    renderPage();
+    await screen.findAllByText('Công ty Long Minh');
+
+    // Initial load carries no sort params.
+    expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: undefined, sortDir: undefined });
+
+    const ledger = screen.getByTestId('recoverable-cost-ledger');
+    const varianceHeader = within(ledger).getByRole('columnheader', { name: 'Chênh lệch thu/chi' });
+    fireEvent.click(within(ledger).getByRole('button', { name: 'Chênh lệch thu/chi' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: 'variance', sortDir: 'asc' }));
+    expect(varianceHeader.getAttribute('aria-sort')).toBe('ascending');
+
+    fireEvent.click(within(ledger).getByRole('button', { name: 'Chênh lệch thu/chi' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: 'variance', sortDir: 'desc' }));
+    expect(varianceHeader.getAttribute('aria-sort')).toBe('descending');
+
+    // A fresh column starts ascending; engaging it from page 2 restarts at 1.
+    fireEvent.click(within(ledger).getByRole('button', { name: '2' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 2, limit: 25, approvalStatus: undefined, sortBy: 'variance', sortDir: 'desc' }));
+
+    fireEvent.click(within(ledger).getByRole('button', { name: 'Trạng thái' }));
+    await waitFor(() => expect(listRecoverableCostsMock).toHaveBeenLastCalledWith({ page: 1, limit: 25, approvalStatus: undefined, sortBy: 'eligibility', sortDir: 'asc' }));
+    expect(within(ledger).getByRole('columnheader', { name: 'Trạng thái' }).getAttribute('aria-sort')).toBe('ascending');
+  });
 });

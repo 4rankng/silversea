@@ -78,15 +78,16 @@ export const SHIPMENT_CUS_CONTAINER_SORT_KEYS = [
 ] as const;
 export type ShipmentCusContainerSortKey = typeof SHIPMENT_CUS_CONTAINER_SORT_KEYS[number];
 
-// Container-workboard-only query. `informationStatus=MISSING` selects the
-// server-derived "Chưa cập nhật" triage queue and `dispatchStatus` the
-// binary "Đã/Chưa điều xe" vehicle-assignment split; the overview schema
-// above rejects both parameters by design so a detail-only filter can never
-// silently no-op on the overview endpoint.
+// Container-workspace-only query. `informationStatus=MISSING` selects the
+// server-derived "Chưa cập nhật" triage queue. `dispatchStatus` accepts the
+// ledger badge vocabulary (UNASSIGNED, PLANNED, CREATED, IN_TRANSIT,
+// COMPLETED) plus the legacy coarse ASSIGNED carrier-presence split; the
+// overview schema above rejects both parameters by design so a detail-only
+// filter can never silently no-op on the overview endpoint.
 export const shipmentCusContainerQuerySchema = z.object({
   ...shipmentCusWorkspaceQueryShape,
   informationStatus: z.enum(['MISSING']).optional(),
-  dispatchStatus: z.enum(['ASSIGNED', 'UNASSIGNED']).optional(),
+  dispatchStatus: z.enum(['ASSIGNED', 'UNASSIGNED', 'PLANNED', 'CREATED', 'IN_TRANSIT', 'COMPLETED']).optional(),
   sortBy: z.enum(SHIPMENT_CUS_CONTAINER_SORT_KEYS).optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
 })

@@ -117,7 +117,9 @@ describe('shared control density', () => {
 
     const stylesButtonElement = (selector: string) => /(?:^|[^.\w-])button(?![\w-])/.test(selector);
     const violations = cssFilesUnder('src/pages').concat(cssFilesUnder('src/features'), cssFilesUnder('src/components')).flatMap((path) => {
-      const blocks = [...read(path).matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+      // Strip comments first: a selector capture would otherwise include the
+      // comment text, and prose like "…lands on the button" false-positives.
+      const blocks = [...read(path).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)];
       return blocks.flatMap(([, selector]) =>
         selector.split(',').map((part) => part.trim()).filter((part) => {
           const controlClass = [...controlClasses].find((token) => new RegExp(`\\.${token}(?![\\w-])`).test(part));

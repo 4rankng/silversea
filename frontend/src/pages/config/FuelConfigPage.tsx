@@ -8,6 +8,8 @@ import { PageHeader, Panel } from '../../components/UI';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import type { FuelPriceHistory } from '@tingting/shared';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import { resolveEmptyIllustration } from '../../lib/emptyIllustrations';
 import { isGovernancePendingResponse } from '../../lib/governance';
@@ -166,7 +168,8 @@ export default function FuelConfigPage() {
           </div>
         ) : (
           <div className="table-scroll">
-            <table className="tt-table">
+            <div className="record-table-wrap">
+            <table className="record-table ops-table">
               <thead>
                 <tr>
                   <SortHeader label="Ngày hiệu lực" sortKey="effectiveDate" sort={historySort} onSortChange={handleHistorySort} />
@@ -178,14 +181,15 @@ export default function FuelConfigPage() {
               <tbody>
                 {sortedHistory.map((row) => (
                   <tr key={row.id}>
-                    <td style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
-                    <td className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>
-                    <td style={{ color: 'var(--ink-3)' }}>—</td>
-                    <td style={{ color: 'var(--ink-3)', fontSize: 12 }}>{row.note || '—'}</td>
+                    <td data-label="Ngày hiệu lực" style={{ whiteSpace: 'nowrap' }}>{new Date(row.effectiveDate).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
+                    <td data-label="Đơn giá (₫/lít)" className="num" style={{ fontWeight: 600 }}>{Number(row.unitPrice).toLocaleString('vi-VN')}</td>
+                    <td data-label="Người thay đổi" style={{ color: 'var(--ink-3)' }}>—</td>
+                    <td data-label="Ghi chú" style={{ color: 'var(--ink-3)' }}>{row.note || '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </Panel>

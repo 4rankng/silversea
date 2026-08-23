@@ -73,7 +73,8 @@ export interface ShipmentNotesDraft {
 }
 
 type DispatchStatus = ShipmentCusContainerFlatRow['dispatchStatus'];
-const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
+// eslint-disable-next-line react-refresh/only-export-components -- shared badge vocabulary consumed by the page's Trạng thái filter
+export const DISPATCH_STATUS: Record<DispatchStatus, { label: string; color: 'warning' | 'brand' | 'blue' | 'indigo' | 'purple' | 'success' }> = {
   UNASSIGNED: { label: 'Chưa điều xe', color: 'warning' },
   PLANNED: { label: 'Đã phân xe', color: 'blue' },
   CREATED: { label: 'Đã tạo chuyến', color: 'indigo' },

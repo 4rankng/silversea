@@ -24,6 +24,8 @@ import PortalStatementPage from './PortalStatementPage';
 import { CustomerPortalScopeProvider } from './CustomerPortalScope';
 
 const portalPagesCss = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalPages.css'), 'utf8');
+const portalStatementSource = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalStatementPage.tsx'), 'utf8');
+const portalShipmentDetailSource = readFileSync(resolve(process.cwd(), 'src/pages/portal/PortalShipmentDetailPage.tsx'), 'utf8');
 
 function portalInbox(items: Array<Record<string, unknown>>) {
   return {
@@ -46,10 +48,14 @@ describe('customer portal pages', () => {
     apiGetForText.mockReset();
   });
 
-  it('keeps the mobile ledger conversion scoped away from shipment detail tables', () => {
-    expect(portalPagesCss).toContain('.portal-ledger .portal-table thead');
-    expect(portalPagesCss).toContain('.portal-ledger .portal-table td::before');
+  it('conforms portal tables to the shared record-table base instead of a portal-private skin', () => {
+    // The thead/td geometry, hover and card collapse are owned by
+    // frontend/src/styles/record-table.css — no portal-private copy may
+    // re-declare them (which previously leaked between ledger and detail).
+    expect(portalPagesCss).not.toMatch(/\.portal-table\s+(thead|tbody|tr\b|td\b|th\b)/);
     expect(portalPagesCss).not.toMatch(/(^|\n)\s*\.portal-table thead\s*\{\s*display:\s*none/m);
+    expect(portalStatementSource).toContain('record-table ops-table portal-table');
+    expect(portalShipmentDetailSource).toContain('record-table ops-table portal-table');
   });
 
   it('collapses numeric pagination controls at customer-portal mobile widths', () => {

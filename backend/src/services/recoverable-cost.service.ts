@@ -1,5 +1,6 @@
-import { and, count, desc, eq, isNull, type SQL } from 'drizzle-orm';
-import { Role } from '@tingting/shared';
+import { and, asc, count, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { Role, OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema } from '@tingting/shared';
+import type { z } from 'zod';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -12,6 +13,12 @@ import {
   loadClerkShipmentScope,
 } from './clerk-shipment-scope.service';
 import type { Tx } from './trip-shared';
+
+/** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
+ * in the shared query schema — keep the two lists in sync). */
+export type RecoverableCostSortKey = NonNullable<
+  z.infer<typeof recoverableCostListQuerySchema>['sortBy']
+>;
 
 export type RecoverableEligibilityState =
   | 'READY_FOR_REVIEW'
@@ -42,6 +49,107 @@ export interface RecoverableCostFilters {
   limit: number;
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   customerId?: number;
+  sortBy?: RecoverableCostSortKey;
+  sortDir?: 'asc' | 'desc';
+}
+
+// ─── Server-side column sorting ──────────────────────────────────────────────
+//
+// One expression per sortable column; all are single-valued per expense row
+// (no row-multiplying joins — claim/type joins are already 1:1 in the base
+// query). NULLs sort last in both directions via the `nulls last` wrapper at
+// the call site, with the expense id as the stable tiebreaker.
+
+/** Mirrors the page's expenseLabel(): catalog name → shared OPS default name
+ * (generated from the same shared map) → fixed fallback. */
+function expenseNameSortSql(): SQL {
+  const fallbacks = Object.entries(OPS_EXPENSE_TYPE_DEFAULTS).map(
+    ([code, def]) => sql`when ${s.tripExpenses.expenseType} = ${code} then ${def.name}`,
+  );
+  return sql`coalesce(
+    nullif(btrim(${s.forwarderExpenseTypes.name}), ''),
+    case ${sql.join(fallbacks, sql` `)} end,
+    'Khoản chi khác'
+  )`;
+}
+
+/** Mirrors the page's variance(): sell − buy, computed numerically in SQL. */
+const varianceSortSql = sql`(${s.tripExpenses.sellAmount} - ${s.tripExpenses.buyAmount})`;
+
+/** Mirrors the page's evidenceLabel(): invoice > substitute evidence > none. */
+const evidenceRankSql = sql`case
+  when nullif(btrim(${s.tripExpenses.invoiceNumber}), '') is not null then 2
+  when jsonb_array_length(${s.tripExpenses.noInvoiceEvidenceTypes}) > 0 then 1
+  else 0
+end`;
+
+/**
+ * Mirrors currentExpenseSourceVersion() exactly: the JS builder stringifies the
+ * driver-parsed Date via toISOString(). The driver reads the naive `updated_at`
+ * column in the Node process timezone, so the SQL counterpart shifts the
+ * stored UTC wall time by the same live offset before formatting. Microseconds
+ * are truncated to milliseconds because JS Dates carry millisecond precision.
+ * numeric(15,0)::text matches Number() stringification at this scale.
+ */
+function currentSourceVersionSortSql(): SQL {
+  const offsetMinutesEast = -new Date().getTimezoneOffset();
+  return sql`'expense:' || to_char(
+    (date_trunc('milliseconds', ${s.tripExpenses.updatedAt}) - (${offsetMinutesEast} * interval '1 minute'))
+      at time zone 'UTC' at time zone 'UTC',
+    'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'
+  ) || ':' || ${s.tripExpenses.approvalStatus} || ':' || ${s.tripExpenses.sellAmount}::text`;
+}
+
+/**
+ * Eligibility rank as SQL, replicating evaluateRecoverableEligibility's branch
+ * order over the same inputs. Rank = the frontend state order
+ * (READY_FOR_REVIEW 0, ELIGIBLE 1, BLOCKED 2, ALREADY_CLAIMED 3,
+ * ADJUSTMENT_REQUIRED 4) so asc puts the review queue first. A recoverable-cost
+ * test asserts SQL and JS agree on every branch, including the version-string
+ * comparison.
+ */
+function eligibilityRankSortSql(): SQL {
+  const claimed = s.billingDocumentRecoverableClaims;
+  return sql`case
+    when ${claimed.expenseId} is not null then case
+      when coalesce(${s.billingDocuments.debitNoteStatus}, '') <> 'DRAFT'
+        and ${claimed.sourceVersion} is distinct from ${currentSourceVersionSortSql()}
+        then 4
+      else 3
+    end
+    when ${s.tripExpenses.approvalStatus} = 'PENDING' then 0
+    when ${s.tripExpenses.approvalStatus} <> 'APPROVED' then 2
+    when ${s.tripExpenses.sellAmount} <= 0 then 2
+    when ${s.tripExpenses.recoverablePrincipalAmount} is null
+      or ${s.tripExpenses.serviceFeeAmount} is null then 2
+    when (${s.tripExpenses.recoverablePrincipalAmount} + ${s.tripExpenses.serviceFeeAmount}) <> ${s.tripExpenses.sellAmount} then 2
+    when ${s.tripExpenses.expenseDate} is null then 2
+    when coalesce(${s.forwarderExpenseTypes.requiresInvoice}, false)
+      and (nullif(btrim(${s.tripExpenses.invoiceNumber}), '') is null or ${s.tripExpenses.invoiceDate} is null) then 2
+    when not coalesce(${s.forwarderExpenseTypes.requiresInvoice}, false)
+      and nullif(btrim(${s.tripExpenses.invoiceNumber}), '') is null
+      and (not coalesce(${s.forwarderExpenseTypes.substituteEvidenceAllowed}, true)
+        or jsonb_array_length(${s.tripExpenses.noInvoiceEvidenceTypes}) = 0) then 2
+    else 1
+  end`;
+}
+
+/** Sort expression whitelist; keys mirror RECOVERABLE_COST_SORT_KEYS in the
+ * shared query schema. */
+function recoverableSortSql(key: RecoverableCostSortKey): SQL {
+  switch (key) {
+    case 'customerName': return sql`${s.customers.name}`;
+    case 'shipmentCode': return sql`${s.shipments.shipmentCode}`;
+    case 'tripCode': return sql`${s.trips.tripCode}`;
+    case 'expenseName': return expenseNameSortSql();
+    case 'buyAmount': return sql`${s.tripExpenses.buyAmount}`;
+    case 'recoverablePrincipalAmount': return sql`${s.tripExpenses.recoverablePrincipalAmount}`;
+    case 'serviceFeeAmount': return sql`${s.tripExpenses.serviceFeeAmount}`;
+    case 'sellAmount': return sql`${s.tripExpenses.sellAmount}`;
+    case 'variance': return varianceSortSql;
+    case 'evidence': return evidenceRankSql;
+    case 'eligibility': return eligibilityRankSortSql();
+  }
 }
 
 export function evaluateRecoverableEligibility(
@@ -267,10 +375,17 @@ export async function listRecoverableCosts(
   filters: RecoverableCostFilters,
 ) {
   const conditions = await recoverableConditions(actor, filters);
+  // Absent sort params keep the historical newest-first order exactly.
+  const sortOrder = filters.sortBy
+    ? [
+        sql`${recoverableSortSql(filters.sortBy)} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        asc(s.tripExpenses.id),
+      ]
+    : [desc(s.tripExpenses.updatedAt), desc(s.tripExpenses.id)];
   const [rows, totalRows] = await Promise.all([
     baseRecoverableQuery()
       .where(and(...conditions))
-      .orderBy(desc(s.tripExpenses.updatedAt), desc(s.tripExpenses.id))
+      .orderBy(...sortOrder)
       .limit(filters.limit)
       .offset((filters.page - 1) * filters.limit),
     db.select({ value: count() })

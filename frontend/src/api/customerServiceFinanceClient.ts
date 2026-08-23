@@ -97,9 +97,11 @@ export const customerServiceFinanceClient = {
       `/finance/billing-documents/transport-register?${query}`,
     );
   },
-  listRecoverableCosts(params: { page: number; limit: number; approvalStatus?: string }) {
+  listRecoverableCosts(params: { page: number; limit: number; approvalStatus?: string; sortBy?: string; sortDir?: 'asc' | 'desc' }) {
     const query = new URLSearchParams({ page: String(params.page), limit: String(params.limit) });
     if (params.approvalStatus) query.set('approvalStatus', params.approvalStatus);
+    if (params.sortBy) query.set('sortBy', params.sortBy);
+    if (params.sortDir) query.set('sortDir', params.sortDir);
     return api.get<{ items: RecoverableCost[]; total: number; page: number; limit: number }>(`/recoverable-costs?${query}`);
   },
   requestRecoverableCost(id: number, body: {

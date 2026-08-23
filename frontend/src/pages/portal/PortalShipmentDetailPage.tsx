@@ -15,6 +15,8 @@ import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { routes } from '../../lib/routes';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
 
 interface PortalShipmentDetail {
@@ -175,11 +177,11 @@ export default function PortalShipmentDetailPage() {
       {containers?.length > 0 && (
         <section className="portal-section">
           <h2>Containers ({containers.length})</h2>
-          <div className="portal-table-wrap"><table className="portal-table">
+          <div className="record-table-wrap"><table className="record-table ops-table portal-table">
             <thead><tr><SortHeader label="Số container" sortKey="containerNumber" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Seal" sortKey="sealNumber" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Lịch giao" sortKey="appointmentAt" sort={containerSort} onSortChange={applyContainerSort} /><SortHeader label="Trọng lượng (kg)" sortKey="cargoWeightKg" sort={containerSort} onSortChange={applyContainerSort} /></tr></thead>
             <tbody>
               {containers.map((c) => (
-                <tr key={c.id}><td>{c.containerNumber ?? '—'}</td><td>{c.sealNumber ?? '—'}</td><td>{fmt(c.customerAppointmentAt)}</td><td>{c.cargoWeightKg ?? '—'}</td></tr>
+                <tr key={c.id}><td data-label="Số container">{c.containerNumber ?? '—'}</td><td data-label="Seal">{c.sealNumber ?? '—'}</td><td data-label="Lịch giao">{fmt(c.customerAppointmentAt)}</td><td data-label="Trọng lượng (kg)">{c.cargoWeightKg ?? '—'}</td></tr>
               ))}
             </tbody>
           </table></div>

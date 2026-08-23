@@ -28,9 +28,28 @@ export const acknowledgeCustomerEventSchema = z.object({
   kind: z.enum(['SEEN', 'ACKNOWLEDGED']).default('ACKNOWLEDGED'),
 }).strict();
 
+// Server-side sort keys for the recoverable-costs ledger (one per data
+// column; the Thao tác column is decorative). Mirrors RECOVERABLE_SORT_SQL in
+// the backend recoverable-cost service — keep the two lists in sync.
+export const RECOVERABLE_COST_SORT_KEYS = [
+  'customerName',
+  'shipmentCode',
+  'tripCode',
+  'expenseName',
+  'buyAmount',
+  'recoverablePrincipalAmount',
+  'serviceFeeAmount',
+  'sellAmount',
+  'variance',
+  'evidence',
+  'eligibility',
+] as const;
+
 export const recoverableCostListQuerySchema = z.object({
   customerId: z.coerce.number().int().positive().optional(),
   approvalStatus: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+  sortBy: z.enum(RECOVERABLE_COST_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 }).strict();

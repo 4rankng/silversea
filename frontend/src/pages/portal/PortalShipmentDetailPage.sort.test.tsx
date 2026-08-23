@@ -33,11 +33,11 @@ function renderPage() {
   );
 }
 
-/** The portal containers table uses plain <td>s (no data-label contract), so
- * columns are read positionally: 0=Số container, 1=Seal, 3=Trọng lượng. */
-function columnIndex(index: number): string[] {
+/** The containers table is a record-table: each cell carries its column's
+ * data-label, so columns are read by label. */
+function columnByLabel(label: string): string[] {
   return screen.getAllByRole('row').slice(1).map((row) =>
-    (row.querySelectorAll('td')[index]?.textContent ?? '').trim());
+    (row.querySelector(`td[data-label="${label}"]`)?.textContent ?? '').trim());
 }
 
 describe('PortalShipmentDetailPage containers sort headers', () => {
@@ -64,13 +64,13 @@ describe('PortalShipmentDetailPage containers sort headers', () => {
   it('keeps the server order first, then sorts container number asc → desc', async () => {
     renderPage();
     expect(await screen.findAllByText('TCLU-300')).toBeTruthy();
-    expect(columnIndex(0)).toEqual(['TCLU-300', 'ABCU-100', 'MSKU-200']);
+    expect(columnByLabel('Số container')).toEqual(['TCLU-300', 'ABCU-100', 'MSKU-200']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
-    expect(columnIndex(0)).toEqual(['ABCU-100', 'MSKU-200', 'TCLU-300']);
+    expect(columnByLabel('Số container')).toEqual(['ABCU-100', 'MSKU-200', 'TCLU-300']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Số container' }));
-    expect(columnIndex(0)).toEqual(['TCLU-300', 'MSKU-200', 'ABCU-100']);
+    expect(columnByLabel('Số container')).toEqual(['TCLU-300', 'MSKU-200', 'ABCU-100']);
   });
 
   it('sorts seal and weight numerically where applicable, empties last', async () => {
@@ -78,9 +78,9 @@ describe('PortalShipmentDetailPage containers sort headers', () => {
     expect(await screen.findAllByText('TCLU-300')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Seal' }));
-    expect(columnIndex(1)).toEqual(['SL-2', 'SL-3', '—']);
+    expect(columnByLabel('Seal')).toEqual(['SL-2', 'SL-3', '—']);
 
     fireEvent.click(screen.getByRole('button', { name: 'Trọng lượng (kg)' }));
-    expect(columnIndex(3)).toEqual(['1000', '3000', '—']);
+    expect(columnByLabel('Trọng lượng (kg)')).toEqual(['1000', '3000', '—']);
   });
 });

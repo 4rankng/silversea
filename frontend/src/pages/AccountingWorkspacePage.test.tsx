@@ -188,14 +188,19 @@ describe('AccountingWorkspacePage', () => {
   it('opens the bounded transport register inside the dedicated workspace', async () => {
     renderPage('/?view=transport');
 
+    // The filter triggers share their names with the register's new sort
+    // headers — disambiguate by the listbox popup hint only the filters carry.
+    const popoverTrigger = (name: RegExp) => screen.getAllByRole('button', { name })
+      .find((el) => el.getAttribute('aria-haspopup') === 'listbox')!;
+
     expect(await screen.findByRole('heading', { name: 'Sổ đối chiếu vận tải' })).toBeTruthy();
     expect((await screen.findAllByText('C-009')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Sẵn sàng').length).toBeGreaterThan(0);
     // Options live in the UUI popover — open each filter to list its options.
-    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/ }));
+    fireEvent.click(popoverTrigger(/Khách hàng/));
     expect(await screen.findByRole('option', { name: 'Silver Sea' })).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: /Nhà xe/ }));
+    fireEvent.click(popoverTrigger(/Nhà xe/));
     expect(await screen.findByRole('option', { name: 'Nhà xe Minh Phát' })).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape', code: 'Escape' });
     expect(screen.getAllByRole('link', { name: /Công nợ|Mở công nợ/ })[0].getAttribute('href')).toBe('/debt/5');
@@ -206,7 +211,7 @@ describe('AccountingWorkspacePage', () => {
     expect(screen.getByRole('link', { name: 'Tạo bản nháp giấy báo nợ' }).getAttribute('href'))
       .toBe('/debt/5/billing/new?selectedTripIds=9&from=2026-08-01&to=2026-08-01');
 
-    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/ }));
+    fireEvent.click(popoverTrigger(/Khách hàng/));
     fireEvent.click(await screen.findByRole('option', { name: 'Silver Sea' }));
     await waitFor(() => expect(getMock).toHaveBeenCalledWith(expect.stringContaining('customerId=5')));
   });

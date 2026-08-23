@@ -5,6 +5,8 @@ import { PageHeader } from '../../components/UI';
 import { TextField } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import {
   analyzeMasterData,
   applyMasterData,
@@ -137,7 +139,30 @@ export default function MasterDataImportPage() {
             {groups.map(([sheetName, rows]) => (
               <details key={sheetName} open={rows.some((row) => row.classification === 'BLOCKED')} style={{ borderBottom: '1px solid var(--border-2)' }}>
                 <summary style={{ minHeight: 48, padding: '12px 14px', cursor: 'pointer', fontWeight: 700 }}>{sheetName} · {rows.length} dòng</summary>
-                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse', fontSize: 14 }}><thead><tr><SortHeader label="Dòng" sortKey="rowNumber" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Nhóm dữ liệu" sortKey="entityType" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Kết quả" sortKey="classification" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /><SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={applySort} style={{ textAlign: 'left', padding: 10 }} /></tr></thead><tbody>{rows.map((row) => <tr key={row.id} style={{ borderTop: '1px solid var(--border-2)' }}><td style={{ padding: 10 }}>{row.rowNumber}</td><td style={{ padding: 10 }}>{row.entityType}</td><td style={{ padding: 10, color: classificationColors[row.classification], fontWeight: 700 }}>{classificationLabels[row.classification]}</td><td style={{ padding: 10, overflowWrap: 'anywhere' }}>{row.redactedReason ?? '—'}</td></tr>)}</tbody></table></div>
+                <div style={{ overflowX: 'auto' }}>
+                  <div className="record-table-wrap">
+                    <table className="record-table ops-table">
+                      <thead>
+                        <tr>
+                          <SortHeader label="Dòng" sortKey="rowNumber" sort={sort} onSortChange={applySort} />
+                          <SortHeader label="Nhóm dữ liệu" sortKey="entityType" sort={sort} onSortChange={applySort} />
+                          <SortHeader label="Kết quả" sortKey="classification" sort={sort} onSortChange={applySort} />
+                          <SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={applySort} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => (
+                          <tr key={row.id}>
+                            <td data-label="Dòng">{row.rowNumber}</td>
+                            <td data-label="Nhóm dữ liệu">{row.entityType}</td>
+                            <td data-label="Kết quả" style={{ color: classificationColors[row.classification], fontWeight: 700 }}>{classificationLabels[row.classification]}</td>
+                            <td data-label="Lý do">{row.redactedReason ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </details>
             ))}
           </div>

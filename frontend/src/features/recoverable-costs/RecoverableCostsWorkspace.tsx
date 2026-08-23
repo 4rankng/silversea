@@ -13,6 +13,8 @@ import { Btn, Modal, StatusPill, type PillVariant } from '../../components/UI';
 import { RadioButton, RadioGroup } from '../../components/untitled-ui/base/radio-buttons/radio-buttons';
 import { TextAreaBase } from '../../components/untitled-ui/base/textarea/textarea';
 import { EmptyState, Pagination, UuiSelectField } from '../../design-system';
+import { SortHeader } from '../../components/shared/SortHeader';
+import { nextTableSort, type TableSortState } from '../../lib/table-sort';
 import { ApiError } from '../../lib/api';
 import { formatCurrency, formatDate } from '../../lib/format';
 import {
@@ -20,8 +22,11 @@ import {
   type RecoverableCost,
   type RecoverableEligibilityState,
 } from '../../api/customerServiceFinanceClient';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './RecoverableCostsWorkspace.css';
 import './RecoverableCostsPagination.css';
+import '../../styles/table-sort.css';
 
 const PAGE_SIZE = 25;
 
@@ -100,10 +105,16 @@ function ReviewAction({ item, onReview }: ReviewActionProps) {
   return <Btn variant="primary" size="sm" onClick={() => onReview(item)}>Kiểm tra</Btn>;
 }
 
-function DesktopLedger({ items, onReview, footer }: { items: RecoverableCost[]; onReview: ReviewActionProps['onReview']; footer?: ReactNode }) {
+function DesktopLedger({ items, onReview, footer, sort, onSortChange }: {
+  items: RecoverableCost[];
+  onReview: ReviewActionProps['onReview'];
+  footer?: ReactNode;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+}) {
   return (
-    <div className="recoverable-costs__ledger" data-testid="recoverable-cost-ledger">
-      <table>
+    <div className="record-table-wrap recoverable-costs__ledger" data-testid="recoverable-cost-ledger">
+      <table className="record-table ops-table">
         <thead>
           <tr className="recoverable-costs__group-head">
             <th colSpan={4}>Lô hàng và chi phí</th>
@@ -112,17 +123,17 @@ function DesktopLedger({ items, onReview, footer }: { items: RecoverableCost[]; 
             <th colSpan={2}>Kiểm tra</th>
           </tr>
           <tr>
-            <th>Khách hàng</th>
-            <th>Lô hàng</th>
-            <th>Chuyến</th>
-            <th>Khoản chi</th>
-            <th className="num">Chi thực tế</th>
-            <th className="num">Chi hộ</th>
-            <th className="num">Phí dịch vụ</th>
-            <th className="num">Thu khách</th>
-            <th className="num">Chênh lệch thu/chi</th>
-            <th>Hóa đơn / chứng từ</th>
-            <th>Trạng thái</th>
+            <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Lô hàng" sortKey="shipmentCode" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Khoản chi" sortKey="expenseName" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Chi thực tế" sortKey="buyAmount" sort={sort} onSortChange={onSortChange} className="num" />
+            <SortHeader label="Chi hộ" sortKey="recoverablePrincipalAmount" sort={sort} onSortChange={onSortChange} className="num" />
+            <SortHeader label="Phí dịch vụ" sortKey="serviceFeeAmount" sort={sort} onSortChange={onSortChange} className="num" />
+            <SortHeader label="Thu khách" sortKey="sellAmount" sort={sort} onSortChange={onSortChange} className="num" />
+            <SortHeader label="Chênh lệch thu/chi" sortKey="variance" sort={sort} onSortChange={onSortChange} className="num" />
+            <SortHeader label="Hóa đơn / chứng từ" sortKey="evidence" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Trạng thái" sortKey="eligibility" sort={sort} onSortChange={onSortChange} />
             <th aria-label="Thao tác" />
           </tr>
         </thead>
@@ -131,23 +142,23 @@ function DesktopLedger({ items, onReview, footer }: { items: RecoverableCost[]; 
             const difference = variance(item);
             return (
               <tr key={item.id}>
-                <td className="recoverable-costs__customer"><strong>{item.customerName}</strong></td>
-                <td><strong>{item.shipmentCode ?? 'Chưa có mã lô'}</strong></td>
-                <td>{item.tripCode ?? 'Chưa có mã chuyến'}</td>
-                <td>
+                <td className="recoverable-costs__customer" data-label="Khách hàng"><strong>{item.customerName}</strong></td>
+                <td data-label="Lô hàng"><strong>{item.shipmentCode ?? 'Chưa có mã lô'}</strong></td>
+                <td data-label="Chuyến">{item.tripCode ?? 'Chưa có mã chuyến'}</td>
+                <td data-label="Khoản chi">
                   <div className="recoverable-costs__expense">
                     <strong>{expenseLabel(item)}</strong>
                     <small>{formatDate(item.expenseDate)} · {APPROVAL_LABELS[item.approvalStatus]}</small>
                   </div>
                 </td>
-                <td className="num"><Money value={item.buyAmount} /></td>
-                <td className="num"><Money value={item.recoverablePrincipalAmount} /></td>
-                <td className="num"><Money value={item.serviceFeeAmount} /></td>
-                <td className="num"><Money value={item.sellAmount} /></td>
-                <td className="num"><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></td>
-                <td><Evidence item={item} /></td>
-                <td><Eligibility item={item} /></td>
-                <td className="recoverable-costs__action"><ReviewAction item={item} onReview={onReview} /></td>
+                <td className="num" data-label="Chi thực tế"><Money value={item.buyAmount} /></td>
+                <td className="num" data-label="Chi hộ"><Money value={item.recoverablePrincipalAmount} /></td>
+                <td className="num" data-label="Phí dịch vụ"><Money value={item.serviceFeeAmount} /></td>
+                <td className="num" data-label="Thu khách"><Money value={item.sellAmount} /></td>
+                <td className="num" data-label="Chênh lệch thu/chi"><Money value={difference} tone={difference < 0 ? 'negative' : 'positive'} /></td>
+                <td data-label="Hóa đơn / chứng từ"><Evidence item={item} /></td>
+                <td data-label="Trạng thái"><Eligibility item={item} /></td>
+                <td className="recoverable-costs__action record-table__action" data-label=""><ReviewAction item={item} onReview={onReview} /></td>
               </tr>
             );
           })}
@@ -197,6 +208,7 @@ function MobileRecords({ items, onReview, footer }: { items: RecoverableCost[]; 
 export function RecoverableCostsWorkspace() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const [data, setData] = useState<{ items: RecoverableCost[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -206,6 +218,16 @@ export function RecoverableCostsWorkspace() {
   const [saving, setSaving] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  const handleSortChange = (key: string) => {
+    setSort(current => nextTableSort(current, key));
+    setPage(1);
+  };
+
+  // Primitive deps only: the load callback must not depend on the `sort`
+  // object (a fresh object each toggle would retrigger the effect endlessly).
+  const sortBy = sort?.by;
+  const sortDir = sort?.dir;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -214,13 +236,15 @@ export function RecoverableCostsWorkspace() {
         page,
         limit: PAGE_SIZE,
         approvalStatus: status || undefined,
+        sortBy,
+        sortDir,
       }));
     } catch (loadError) {
       setError(loadError instanceof ApiError ? loadError.message : 'Không thể tải danh sách chi phí cần kiểm tra.');
     } finally {
       setLoading(false);
     }
-  }, [page, status]);
+  }, [page, status, sortBy, sortDir]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -343,7 +367,7 @@ export function RecoverableCostsWorkspace() {
       ) : data && data.items.length > 0 ? (
         <section className="recoverable-costs__workspace" aria-busy={loading}>
           <MobileRecords items={data.items} onReview={openReview} footer={pagination} />
-          <DesktopLedger items={data.items} onReview={openReview} footer={pagination} />
+          <DesktopLedger items={data.items} onReview={openReview} footer={pagination} sort={sort} onSortChange={handleSortChange} />
         </section>
       ) : null}
 

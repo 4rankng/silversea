@@ -1381,6 +1381,61 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(assignedResponse.items.every((row) => row.dispatchStatus !== 'UNASSIGNED'));
   });
 
+  test('dispatchStatus record statuses filter by the badge derivation', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+
+    // COMPLETED badge: an executed trip that finished.
+    const done = await seedShipment({ blNumber: `HT-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const doneContainer = await seedContainer(done.id, { containerNumber: `HT-${marker}`.slice(0, 50) });
+    const doneFulfillment = await seedFulfillment(done.id, doneContainer.id);
+    const [doneTrip] = await db.insert(s.trips).values({
+      fulfillmentId: doneFulfillment.id,
+      customerId,
+      routeId: (await seedRoute()).id,
+      status: 'COMPLETED',
+      carrierType: 'OWN',
+      departureDate: '2026-08-20',
+    }).returning();
+    createdTripIds.push(doneTrip.id);
+
+    // PLANNED badge: carrier assigned, trip not yet created.
+    const planned = await seedShipment({ blNumber: `PX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    const plannedContainer = await seedContainer(planned.id, { containerNumber: `PX-${marker}`.slice(0, 50) });
+    await seedFulfillment(planned.id, plannedContainer.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-777.77',
+    });
+
+    // UNASSIGNED badge: no carrier, no trip.
+    const unassigned = await seedShipment({ blNumber: `CX-${marker}`, cargoMode: 'FCL', expectedDeliveryDate: '2026-08-20' });
+    await seedContainer(unassigned.id, { containerNumber: `CX-${marker}`.slice(0, 50) });
+
+    const completedResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'COMPLETED',
+    }, cusActor);
+    assert.ok(completedResponse.items.some((row) => row.shipmentId === done.id));
+    assert.equal(completedResponse.items.some((row) => row.shipmentId === planned.id), false);
+    assert.equal(completedResponse.items.some((row) => row.shipmentId === unassigned.id), false);
+    assert.equal(completedResponse.total, completedResponse.items.length, 'count query agrees with item query');
+    assert.ok(completedResponse.items.every((row) => row.dispatchStatus === 'COMPLETED'));
+
+    // PLANNED must exclude the COMPLETED row even though both carry an active
+    // carrier — record-status granularity goes beyond the ASSIGNED split.
+    const plannedResponse = await listCusShipmentContainers({
+      page: 1,
+      limit: 100,
+      searchSuffix: marker,
+      dispatchStatus: 'PLANNED',
+    }, cusActor);
+    assert.ok(plannedResponse.items.some((row) => row.shipmentId === planned.id));
+    assert.equal(plannedResponse.items.some((row) => row.shipmentId === done.id), false);
+    assert.equal(plannedResponse.total, plannedResponse.items.length, 'count query agrees with item query');
+    assert.ok(plannedResponse.items.every((row) => row.dispatchStatus === 'PLANNED'));
+  });
+
   test('FCL carrier readiness follows the container appointment, not the shipment date', async () => {
     // The container appointment exists, while the shipment-level date does
     // not. FCL therefore requires the carrier and must not flag the root date.

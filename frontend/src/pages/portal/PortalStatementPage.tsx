@@ -6,6 +6,8 @@ import { EmptyState, DateInput } from '../../design-system';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
 import { useCustomerPortalScope } from './CustomerPortalScope';
+import '../../styles/record-table.css';
+import '../../styles/operational-table-typography.css';
 import './PortalPages.css';
 
 function queryFor(dateFrom: string, dateTo: string, format?: 'xlsx' | 'pdf', customerId?: number | null) {
@@ -190,9 +192,9 @@ export default function PortalStatementPage() {
                   <div><span>Chi tiết giao dịch</span><h2 id="portal-ledger-title">Phát sinh công nợ</h2></div>
                   <strong>{rows.length} dòng</strong>
                 </div>
-                <div className="portal-table-wrap">
-                  <table className="portal-table">
-                    <thead><tr><SortHeader label="Ngày" sortKey="timestamp" sort={sort} onSortChange={applySort} /><SortHeader label="Nội dung" sortKey="note" sort={sort} onSortChange={applySort} /><th className="portal-table__number">Ghi nợ</th><th className="portal-table__number">Thanh toán</th><th className="portal-table__number">Số dư</th></tr></thead>
+                <div className="record-table-wrap">
+                  <table className="record-table ops-table portal-table">
+                    <thead><tr><SortHeader label="Ngày" sortKey="timestamp" sort={sort} onSortChange={applySort} /><SortHeader label="Nội dung" sortKey="note" sort={sort} onSortChange={applySort} /><th className="num">Ghi nợ</th><th className="num">Thanh toán</th><th className="num">Số dư</th></tr></thead>
                     <tbody>
                       {rows.map((row) => (
                         <tr key={row.id}>

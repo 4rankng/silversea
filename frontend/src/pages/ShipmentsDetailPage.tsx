@@ -24,6 +24,7 @@ import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
 import { PageHeader } from '../components/UI';
 import {
+  DISPATCH_STATUS,
   ShipmentContainerLedger,
   type ActiveShipmentDetailEdit,
   type ShipmentDetailEditMode,
@@ -42,6 +43,11 @@ import './ShipmentsDetailPage.css';
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+/** URL-legal Trạng thái values: the five badge states the ledger displays
+ * plus the legacy coarse ASSIGNED carrier split, so older links keep
+ * filtering. */
+type DispatchStatusFilter = 'ASSIGNED' | keyof typeof DISPATCH_STATUS;
+const DISPATCH_STATUS_VALUES: readonly DispatchStatusFilter[] = ['ASSIGNED', ...(Object.keys(DISPATCH_STATUS) as DispatchStatusFilter[])];
 
 function isOptimisticShipmentConflict(error: unknown): error is ApiError {
   if (!(error instanceof ApiError) || error.status !== 409) return false;
@@ -111,7 +117,9 @@ export default function ShipmentsDetailPage() {
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
   // Detail-only server-derived dispatch filter; the overview endpoint rejects it.
   const rawDispatchStatus = searchParams.get('dispatchStatus');
-  const dispatchStatus = rawDispatchStatus === 'ASSIGNED' || rawDispatchStatus === 'UNASSIGNED' ? rawDispatchStatus : '';
+  const dispatchStatus = rawDispatchStatus && DISPATCH_STATUS_VALUES.includes(rawDispatchStatus as DispatchStatusFilter)
+    ? rawDispatchStatus as DispatchStatusFilter
+    : '';
   // Column sort lives in the URL like every other workboard param, so a sorted
   // view is shareable and survives reload. Unknown keys fall back to the
   // backend's default order instead of erroring the page.
@@ -526,7 +534,7 @@ export default function ShipmentsDetailPage() {
             <div className="shipments-detail-filters__group shipments-detail-filters__group--selects">
               <UuiSelectField label="Khách hàng" value={customerId ? String(customerId) : ''} onChange={(event) => updateParam('customerId', event.target.value || null)} options={[{ value: '', label: 'Tất cả khách hàng' }, ...customers.map((customer) => ({ value: String(customer.id), label: customer.name }))]} wrapperClassName="shipments-detail-filter" />
               <UuiSelectField label="Nhập / Xuất" value={direction} onChange={(event) => updateParam('direction', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]} wrapperClassName="shipments-detail-filter" />
-              <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, { value: 'ASSIGNED', label: 'Đã phân xe' }, { value: 'UNASSIGNED', label: 'Chưa điều xe' }]} wrapperClassName="shipments-detail-filter" />
+              <UuiSelectField label="Trạng thái" value={dispatchStatus} onChange={(event) => updateParam('dispatchStatus', event.target.value || null)} options={[{ value: '', label: 'Tất cả' }, ...Object.entries(DISPATCH_STATUS).map(([value, meta]) => ({ value, label: meta.label }))]} wrapperClassName="shipments-detail-filter" />
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">

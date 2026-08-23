@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { CSSProperties } from "react";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpToLine, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import type { Tire } from "@tingting/shared";
 import type { Supplier } from "@tingting/shared";
@@ -7,6 +7,8 @@ import { StatusStrip } from "../../components/shared/StatusStrip";
 import { SortHeader } from "../../components/shared/SortHeader";
 import { nextTableSort, sortClientSide, type TableSortState } from "../../lib/table-sort";
 import { daysBetween, displayTirePosition, supplierName, tireAgeDays } from "../../features/tires/tireUtils";
+import "../../styles/record-table.css";
+import "../../styles/operational-table-typography.css";
 import "../../pages/TruckTiresPage.css";
 
 const TIRE_STATUS_COLORS: Record<Tire['status'], string> = { IN_USE: '#16A34A', IN_STOCK: '#2563EB', DISPOSED: '#9CA3AF' };
@@ -68,22 +70,12 @@ export function TireTable({
     };
   }, [openMenuId]);
 
-  const handleTableKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    e.currentTarget.scrollBy({
-      left: e.key === "ArrowRight" ? 220 : -220,
-      behavior: "smooth",
-    });
-  };
-
   if (loading) return <div className="ttp-empty">Đang tải…</div>;
   if (tires.length === 0) return <div className="ttp-empty">{emptyHint}</div>;
 
   return (
-    <div className="ttp-table-wrap" tabIndex={0} role="region" aria-label="Bảng lốp" onKeyDown={handleTableKeyDown}>
-      <table className="ttp-table">
+    <div className="record-table-wrap ttp-table-wrap">
+      <table className="ttp-table record-table ops-table">
         <colgroup>
           <col className="ttp-col-serial" />
           <col className="ttp-col-position" />
@@ -127,7 +119,7 @@ export function TireTable({
                 <td className="ttp-supplier" data-label="Nhà cung cấp">
                   {supplierName(suppliers, t.supplierId)}
                 </td>
-                <td className="ttp-row-actions">
+                <td className="ttp-row-actions record-table__action" data-label="">
                   <TireRowActions tire={t} index={index} total={sorted.length} open={openMenuId === t.id} onOpenChange={(o) => setOpenMenuId(o ? t.id : null)} busy={busy} oninstall={oninstall} ontransfer={ontransfer} onunmount={onunmount} onedit={onedit} ondelete={ondelete} />
                 </td>
               </tr>
@@ -273,8 +265,8 @@ export function DisposedTireTable({ tires, suppliers }: { tires: Tire[]; supplie
     disposalDate: t => t.disposalDate,
   }, (a, b) => b.id - a.id), [tires, sort, suppliers]);
   return (
-    <div className="ttp-table-wrap">
-      <table className="ttp-table ttp-table--disposed">
+    <div className="record-table-wrap ttp-table-wrap">
+      <table className="ttp-table ttp-table--disposed record-table ops-table">
         <colgroup>
           <col className="ttp-col-serial" />
           <col className="ttp-col-size" />

@@ -61,10 +61,13 @@
 
 /* The UUI value carries its own Tailwind text utility, so sizing the trigger
    alone is not enough. Keep the selected value on the same operational type
-   scale as the native input immediately beside it. */
+   scale as the native input immediately beside it. The value is single-line
+   by design (the vendored `truncate` intent): a narrow trigger column must
+   ellipsize, not wrap the row taller. */
 .ds-uui-select--operational .ds-uui-select__control > button > span p {
   font-size: var(--control-compact-font-size);
   line-height: var(--control-compact-line-height);
+  white-space: nowrap;
 }
 
 /* Dialogs have one scroll owner: the body. Header and actions remain stable,
