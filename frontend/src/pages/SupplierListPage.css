@@ -3,6 +3,12 @@
   gap: 12px;
 }
 
+/* Grid gap owns vertical rhythm; the shared .field bottom margin would
+   re-introduce a dead 16px row under every field inside each group. */
+.supplier-form .field {
+  margin-bottom: 0;
+}
+
 .supplier-form__identity,
 .supplier-form__details,
 .supplier-form__terms,
@@ -26,10 +32,6 @@
 
 .supplier-form__reporting {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
-.supplier-form__services {
-  margin-bottom: 0;
 }
 
 .supplier-form__service-grid {

@@ -28,16 +28,26 @@ describe('SupplierListPage dispatch worksheet styling', () => {
   it('uses the available desktop dialog canvas before introducing an internal scrollbar', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
+    const rule = (selector: string) => css.match(new RegExp(`${selector.replace(/\./g, '\\.')} \\{([\\s\\S]*?)\\n\\}`))?.[1] ?? '';
 
     expect(page).toContain('maxWidth={960}');
     expect(page).toContain('className="supplier-form__identity"');
     expect(page).toContain('className="supplier-form__details"');
     expect(page).toContain('className="supplier-form__terms"');
     expect(page).toContain('className="supplier-form__service-grid"');
-    expect(css).toContain('.supplier-form__details {');
-    expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
-    expect(css).toContain('.supplier-form__terms {');
-    expect(css).toContain('minmax(0, 1.5fr)');
-    expect(css).toContain('@media (max-width: 640px)');
+
+    // Scoped to the __details rule: the bare string also matches the service grid.
+    expect(rule('.supplier-form__details')).toContain('repeat(4, minmax(0, 1fr))');
+    expect(rule('.supplier-form__terms')).toContain('minmax(0, 1.5fr)');
+    // Grid gap owns vertical rhythm — no per-field bottom margin inside the groups.
+    expect(rule('.supplier-form .field')).toContain('margin-bottom: 0');
+
+    // Collapse ladder: <=960px two columns, <=640px single column + touch targets.
+    const tabletBlock = css.match(/@media \(max-width: 960px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const phoneBlock = css.match(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(tabletBlock).toContain('repeat(2, minmax(0, 1fr))');
+    expect(phoneBlock).toContain('grid-template-columns: minmax(0, 1fr)');
+    expect(phoneBlock).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(css).toContain('min-height: var(--control-touch-h)');
   });
 });
