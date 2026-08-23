@@ -51,7 +51,7 @@
   .trip-list-page .table-row .col-total-cost { display: none; }
 }
 
-/* The sidebar leaves less than 1180px for records at common desktop widths.
+/* The sidebar leaves ~1112px for records at a 1440px viewport.
    Switch to the established two-column operational cards before the grid
    requires horizontal scrolling beneath the shell. */
 @media (max-width: 1500px) {
@@ -136,7 +136,7 @@
     gap: 6px;
   }
 
-  /* Desktop table is hidden and mobile cards shown by the (max-width: 1180px)
+  /* Desktop table is hidden and mobile cards shown by the (max-width: 1500px)
      block above, which already covers this narrower breakpoint. */
   .trip-list-page .infinite-sentinel {
     background: var(--surface);
