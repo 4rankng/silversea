@@ -334,7 +334,14 @@ export function ShipmentCreateWorkspace() {
 
   return (
     <div className="csc-page">
-      <h1 className="sr-only">Tạo lô hàng</h1>
+      {/* The H1 used to be class="sr-only" (1x1px absolute, Tailwind's
+       * accessibility hide). Some Chromium versions refused to paint
+       * any sibling of an absolutely-positioned 1x1px element when the
+       * surrounding .app shell had a different role, so admin landed on
+       * a fully blank page while CUS rendered fine. Render the H1
+       * inline in the breadcrumb area instead — keeps a11y (text is
+       * reachable) and removes the layout-side effect. */}
+      <h1 className="csc-page__title">Tạo lô hàng</h1>
       <form onSubmit={(event) => { event.preventDefault(); void save('DRAFT'); }} className="csc-workspace">
         <div className="csc-form">
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">

@@ -6,6 +6,7 @@
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
 .csc-page { width: 100%; margin: 0; padding: 12px 0 28px; min-width: 0; }
+.csc-page__title { margin: 0 0 14px; font-size: 24px; line-height: 1.2; color: var(--fg-1, #101510); font-weight: 700; }
 /* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }

@@ -424,6 +424,14 @@ export const PAGE_CATALOG = {
     pathPattern: '/my-trips/:id',
     requiresParams: ['id'],
   },
+  myTwoOrders: {
+    title: 'Hành trình · Hai lệnh',
+    path: '/my-trips/two-orders',
+  },
+  myPayslips: {
+    title: 'Phiếu lương',
+    path: '/my-payslips',
+  },
   myEarnings: {
     title: 'Thu nhập',
     path: '/my-earnings',

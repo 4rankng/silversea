@@ -94,6 +94,8 @@ export const routes = {
 
   myTrips: PAGE_CATALOG.myTrips.path,
   myTripDetail: (id: number | string) => PAGE_CATALOG.myTripDetail.path({ id }),
+  myTwoOrders: PAGE_CATALOG.myTwoOrders.path,
+  myPayslips: PAGE_CATALOG.myPayslips.path,
   myEarnings: PAGE_CATALOG.myEarnings.path,
   myPenalties: PAGE_CATALOG.myPenalties.path,
 
@@ -224,7 +226,9 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.portalShipments), title: 'Lô hàng của tôi' },
   { test: p => p.startsWith(routes.portalDebitNotes), title: 'Giấy báo nợ' },
   { test: p => p.startsWith(routes.portalStatement), title: 'Sao kê công nợ' },
+  { test: p => p === routes.myTwoOrders, title: PAGE_CATALOG.myTwoOrders.title },
   { test: p => p.startsWith(routes.myTrips), title: PAGE_CATALOG.myTrips.title },
+  { test: p => p.startsWith(routes.myPayslips), title: PAGE_CATALOG.myPayslips.title },
   { test: p => p.startsWith(routes.myEarnings), title: PAGE_CATALOG.myEarnings.title },
   { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },
   { test: p => p.startsWith(routes.myForwarderTrips), title: PAGE_CATALOG.myForwarderTrips.title },

@@ -42,15 +42,26 @@ export async function customerWorkInbox(customerId: number, query: InboxQuery) {
     status: s.shipments.status,
     due: s.shipments.expectedDeliveryDate,
     updatedAt: s.shipments.updatedAt,
-    containerSummary: sql<string | null>`(
-      select string_agg(sc.container_number, ', ' order by sc.id)
-      from shipment_containers sc
-      where sc.shipment_id = ${s.shipments.id}
-        and sc.container_number is not null
-    )`,
   }).from(s.shipments).where(and(eq(s.shipments.customerId, customerId), isNull(s.shipments.deletedAt), notInArray(s.shipments.status, ['NEW', 'PENDING_DATE', 'CANCELED']), query.search?.trim() ? ilike(s.shipments.shipmentCode, `%${query.search.trim()}%`) : undefined)).orderBy(desc(s.shipments.updatedAt)).limit(MAX_INBOX_CANDIDATES + 1);
   assertCompleteCandidateScan(shipments);
+  // Resolve container numbers in a single in-clause query and bucket them
+  // per shipment. The previous correlated subquery on `shipment_containers`
+  // returned the same string for every shipment (Drizzle template rendered
+  // the outer `s.shipments.id` reference into a constant), so the inbox
+  // always showed three identical shared containers.
   const shipmentIds = shipments.map((shipment) => shipment.id);
+  const containerRows = shipmentIds.length === 0 ? [] : await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    containerNumber: s.shipmentContainers.containerNumber,
+  }).from(s.shipmentContainers)
+    .where(and(inArray(s.shipmentContainers.shipmentId, shipmentIds), isNotNull(s.shipmentContainers.containerNumber)))
+    .orderBy(s.shipmentContainers.id);
+  const containerSummaryByShipment = new Map<number, string>();
+  for (const row of containerRows) {
+    if (row.shipmentId == null || row.containerNumber == null) continue;
+    const prev = containerSummaryByShipment.get(row.shipmentId) ?? '';
+    containerSummaryByShipment.set(row.shipmentId, prev ? `${prev}, ${row.containerNumber}` : row.containerNumber);
+  }
   const deliveries = shipmentIds.length === 0 ? [] : await db.select({ shipmentId: s.deliveryAttempts.shipmentId, tripId: s.deliveryAttempts.tripId, eventId: s.deliveryAttempts.customerVisibleEventId, eventVersion: s.customerVisibleEvents.contentVersion, occurredAt: s.deliveryAttempts.occurredAt }).from(s.deliveryAttempts).innerJoin(s.customerVisibleEvents, eq(s.customerVisibleEvents.id, s.deliveryAttempts.customerVisibleEventId)).where(inArray(s.deliveryAttempts.shipmentId, shipmentIds)).orderBy(desc(s.deliveryAttempts.occurredAt));
   const deliveryEventIds = deliveries.flatMap((delivery) => delivery.eventId == null ? [] : [delivery.eventId]);
   const supersedingEvents = deliveryEventIds.length === 0 ? [] : await db.select({ supersedesEventId: s.customerVisibleEvents.supersedesEventId }).from(s.customerVisibleEvents).where(inArray(s.customerVisibleEvents.supersedesEventId, deliveryEventIds));
@@ -70,7 +81,7 @@ export async function customerWorkInbox(customerId: number, query: InboxQuery) {
     const needsResponse = Boolean(delivery && !hasResponse);
     const done = shipment.status === 'COMPLETED' && hasResponse;
     const acceptedPod = delivery?.tripId != null && latestPodByTrip.get(delivery.tripId)?.status === 'ACCEPTED';
-    items.push({ id: `shipment:${shipment.id}`, entityType: 'shipment', entityId: shipment.id, title: shipment.code ?? `Lô hàng #${shipment.id}`, subtitle: done ? 'Đã hoàn tất và đã phản hồi giao hàng' : needsResponse ? 'Tài xế đã báo giao; đang chờ phản hồi của khách hàng' : 'Đang theo dõi vận chuyển', state: done ? 'DONE' : needsResponse ? 'ACTION' : 'WAITING', priority: needsResponse ? 100 : done ? 0 : 30, dueAt: shipment.due ? new Date(`${shipment.due}T00:00:00.000Z`).toISOString() : null, freshnessAt: (delivery?.occurredAt ?? shipment.updatedAt).toISOString(), blockers: emptyParty, advisories: emptyParty, nextAction: needsResponse && delivery?.eventId ? { label: 'Phản hồi giao hàng', targetRoute: `/portal/shipments/${shipment.id}` } : null, targetRoute: `/portal/shipments/${shipment.id}`, shipmentId: shipment.id, containerSummary: shipment.containerSummary, deliveryTruth: acceptedPod ? 'POD_ACCEPTED' : delivery ? 'DRIVER_REPORTED' : 'IN_TRANSIT', deliveryResponseRequired: needsResponse, deliveryEventId: delivery?.eventId ?? null, deliveryEventVersion: delivery?.eventVersion ?? null });
+    items.push({ id: `shipment:${shipment.id}`, entityType: 'shipment', entityId: shipment.id, title: shipment.code ?? `Lô hàng #${shipment.id}`, subtitle: done ? 'Đã hoàn tất và đã phản hồi giao hàng' : needsResponse ? 'Tài xế đã báo giao; đang chờ phản hồi của khách hàng' : 'Đang theo dõi vận chuyển', state: done ? 'DONE' : needsResponse ? 'ACTION' : 'WAITING', priority: needsResponse ? 100 : done ? 0 : 30, dueAt: shipment.due ? new Date(`${shipment.due}T00:00:00.000Z`).toISOString() : null, freshnessAt: (delivery?.occurredAt ?? shipment.updatedAt).toISOString(), blockers: emptyParty, advisories: emptyParty, nextAction: needsResponse && delivery?.eventId ? { label: 'Phản hồi giao hàng', targetRoute: `/portal/shipments/${shipment.id}` } : null, targetRoute: `/portal/shipments/${shipment.id}`, shipmentId: shipment.id, containerSummary: containerSummaryByShipment.get(shipment.id) ?? null, deliveryTruth: acceptedPod ? 'POD_ACCEPTED' : delivery ? 'DRIVER_REPORTED' : 'IN_TRANSIT', deliveryResponseRequired: needsResponse, deliveryEventId: delivery?.eventId ?? null, deliveryEventVersion: delivery?.eventVersion ?? null });
   }
   return pageWorkInboxItems(items, query);
 }
