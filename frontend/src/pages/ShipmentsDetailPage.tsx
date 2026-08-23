@@ -206,7 +206,7 @@ export default function ShipmentsDetailPage() {
         direction: direction || undefined,
         dispatchStatus: dispatchStatus || undefined,
         sortBy: sortKey ?? undefined,
-        sortDir: sort?.dir,
+        sortDir,
       });
       if (requestId === requestSequence.current) setData(response);
     } catch (loadError) {
@@ -214,7 +214,7 @@ export default function ShipmentsDetailPage() {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, dateFrom, dateTo, direction, dispatchStatus, page, sort, sortKey, suffixParam]);
+  }, [customerId, dateFrom, dateTo, direction, dispatchStatus, page, sortDir, sortKey, suffixParam]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 
