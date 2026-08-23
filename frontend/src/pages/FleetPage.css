@@ -887,6 +887,17 @@
   opacity: 1;
 }
 
+/* The app-wide ≤900px safety rule raises native inputs to 44px while the UUI
+   select triggers keep their compact boundary, splitting row heights inside
+   these dialogs. Like the supplier form, the fleet dialogs stay dense
+   desktop/tablet workspaces until the phone sheet at 640px. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .fleet-form .input:not(textarea) {
+    min-height: var(--control-compact-h) !important;
+    height: var(--control-compact-h) !important;
+  }
+}
+
 .fleet-form__note {
   padding: 11px 13px;
   border: 1px solid rgba(203, 211, 206, 0.82);

@@ -47,6 +47,12 @@ describe("TruckFormModal desktop density", () => {
     expect(operationalStyles).toContain(
       ".ds-uui-select--operational .ds-uui-select__control > button",
     );
+    // The app-wide ≤900px rule would raise native inputs to 44px while the
+    // UUI selects stay compact — the 641–900px band must counter it so every
+    // control in a row shares one boundary until the 640px phone sheet.
+    expect(styles).toMatch(
+      /@media \(min-width: 641px\) and \(max-width: 900px\)\s*\{[\s\S]*?\.fleet-form \.input:not\(textarea\)\s*\{[\s\S]*?height:\s*var\(--control-compact-h\) !important/,
+    );
     expect(source).toContain("btn btn--secondary btn--sm");
   });
 
