@@ -21,8 +21,18 @@ export type InboxQuery = { view?: string; search?: string; page: number; limit: 
 // Server-side sort keys for inbox lanes — one per lane table data column (the
 // action column is decorative). Applied in pageWorkInboxItems before slicing,
 // so pagination follows the requested order. Absent params keep the historical
-// priority → due-date → id order untouched.
-export const WORK_INBOX_SORT_KEYS = ['title', 'readiness', 'blockers', 'freshness'] as const;
+// priority → due-date → id order untouched. The last three keys are manager-lane
+// columns; the whitelist is a superset of what any single lane renders, and
+// items without those fields sort last via the nulls-last wrapper.
+export const WORK_INBOX_SORT_KEYS = [
+  'title',
+  'readiness',
+  'blockers',
+  'freshness',
+  'ownerLabel',
+  'ageHours',
+  'impact',
+] as const;
 export type WorkInboxSortKey = (typeof WORK_INBOX_SORT_KEYS)[number];
 
 const emptyParty = [] as WorkInboxItemBase['blockers'];
@@ -41,6 +51,11 @@ function inboxSortValue<T extends WorkInboxItemBase>(item: T, key: WorkInboxSort
     case 'readiness': return item.blockers.length;
     case 'blockers': return item.blockers.length + item.advisories.length;
     case 'freshness': return item.freshnessAt;
+    // Manager-lane columns: fields exist only on ManagerWorkInboxItem; on any
+    // other lane's items they are absent → null → sorts last (nulls-last).
+    case 'ownerLabel': return (item as Partial<ManagerWorkInboxItem>).owner?.ownerLabel ?? null;
+    case 'ageHours': return (item as Partial<ManagerWorkInboxItem>).ageHours ?? null;
+    case 'impact': return (item as Partial<ManagerWorkInboxItem>).impact ?? null;
   }
 }
 

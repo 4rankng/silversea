@@ -267,6 +267,14 @@
   text-align: right;
 }
 
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger's inner value span keeps its own min-h-[34px],
+   2px taller than the adjacent UUIInput min-h-[32px]. With the fields
+   grid's align-items: start, the select's control box overhangs its
+   row-mates by 2px and drags the hint line down with it. Trim it to 32px
+   so all three fields in the row share one control height. */
+.dispatch-allocation-popover__fields .ds-uui-select__control button > span { min-height: 32px; }
+
 .dispatch-allocation-popover__carrier select[aria-invalid='true'] {
   border-color: var(--danger);
   outline-color: var(--danger);

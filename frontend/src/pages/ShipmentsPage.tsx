@@ -134,7 +134,7 @@ export default function ShipmentsPage() {
     ? rawSortBy as ShipmentCusWorkspaceSortKey
     : null;
   const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
-  const sort = sortKey ? { by: sortKey, dir: sortDir } : null;
+  const sort: TableSortState | null = sortKey ? { by: sortKey, dir: sortDir } : null;
 
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);

@@ -70,6 +70,14 @@
   min-width: 180px;
 }
 
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger's inner value span keeps its own min-h-[34px],
+   2px taller than the search box's --filter-control-h (34px). With the
+   filter bar's align-items: center, that extra height lifts the select
+   above its search/reset neighbors. Trim it to 32px so every control in
+   the row shares one height. */
+.penalty-filter-bar .ds-uui-select__control button > span { min-height: 32px; }
+
 .penalty-filter-bar__reset {
   display: inline-flex;
   align-items: center;

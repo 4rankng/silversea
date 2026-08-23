@@ -855,8 +855,9 @@ export interface ShipmentCusWorkspaceFilters {
 }
 
 // Container-workboard-only filters. Both are detail-only parameters the
-// overview endpoint rejects; never add them to overview calls.
-export interface ShipmentCusContainerFilters extends ShipmentCusWorkspaceFilters {
+// overview endpoint rejects; never add them to overview calls. The sort keys
+// are this workboard's own enum, so they replace (not extend) the overview's.
+export interface ShipmentCusContainerFilters extends Omit<ShipmentCusWorkspaceFilters, 'sortBy' | 'sortDir'> {
   informationStatus?: 'MISSING';
   dispatchStatus?: 'ASSIGNED' | 'UNASSIGNED';
   sortBy?: ShipmentCusContainerSortKey;

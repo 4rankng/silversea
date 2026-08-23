@@ -83,6 +83,8 @@ describe('shared control density', () => {
       '.cus-quick-edit-modal__fields .ds-uui-select',
       '.shipments-detail-filters .ds-uui-select',
       '.cus-worksheet-toolbar .ds-uui-select',
+      '.penalty-filter-bar .ds-uui-select',
+      '.dispatch-allocation-popover__fields .ds-uui-select',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 
