@@ -276,7 +276,7 @@ describe('GET /api/penalties/insights', () => {
         grade: legacyGetViolationGrade(violations90d),
         truckPlate: d.assignedTruckId ? truckMap.get(d.assignedTruckId) ?? null : null,
       };
-    }).sort((a, b) => b.streakDays - a.streakDays || a.violations90d - b.violations90d);
+    }).sort((a, b) => b.streakDays - a.streakDays || a.violations90d - b.violations90d || a.driverId - b.driverId);
     // ── end transplant ────────────────────────────────────────────────────
 
     assert.equal(body.month.incidentCount, incidentCount);

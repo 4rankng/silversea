@@ -249,7 +249,7 @@ export async function getPenaltyInsights(input: { month?: number; year?: number 
       grade: penaltyViolationGrade(violations90d),
       truckPlate: driver.plate ?? null,
     };
-  }).sort((a, b) => b.streakDays - a.streakDays || a.violations90d - b.violations90d);
+  }).sort((a, b) => b.streakDays - a.streakDays || a.violations90d - b.violations90d || a.driverId - b.driverId);
 
   return {
     month: { incidentCount, totalAmount, prevMonthCount, comparisonLabel },
