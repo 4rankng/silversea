@@ -7,10 +7,33 @@
  * stylesheets.
  *
  * Breakpoints:
+ *   @media (max-width: 1500px) — OPERATIONAL CANVAS — desktop shell leaves
+ *                                ~1112px of canvas at a 1440px viewport, so
+ *                                multi-column record tables must hand off to
+ *                                labelled cards before the grid forces
+ *                                horizontal scroll. Mirrors the same 1500px
+ *                                threshold used by config + trip-list.
  *   @media (max-width: 1023px)  — TABLET
  *   @media (max-width: 640px)   — PHONE
  *   @media (max-width: 420px)   — NARROW PHONE
  * ========================================================================== */
+
+
+/* ============================================================================
+ * OPERATIONAL CANVAS  ≤ 1500px — the desktop shell leaves a 1112px canvas
+ * inside a 1440px viewport. Multi-column record tables must shed their
+ * hardcoded 900px floor (see Table.css `table { min-width: 900px }`) so the
+ * record-table container queries can collapse them into labelled cards,
+ * and so plain .table-scroll ledgers stop asking the viewport for width
+ * it no longer has.
+ * ========================================================================== */
+@media (max-width: 1500px) {
+  /* Undo the global `table { min-width: 900px }` rail for record-tables
+     so the @container card layout can take over. Frozen CUS/điều-vận
+     surfaces keep their own min-widths and are unaffected. */
+  .record-table,
+  .record-table-wrap > table { min-width: 0; }
+}
 
 
 /* ============================================================================
@@ -384,24 +407,33 @@
     white-space: nowrap;
   }
 
-  /* Expense filter toolbar wraps into 2-col grid on phone */
-  .expense-filters {
+  /* Expense filter toolbar wraps into a single column on phone so each
+     filter gets the full operational canvas. The Untitled-UI select
+     component truncates the selected label to a narrow internal column,
+     which the audit rejects as clipped text. Stacking prevents the
+     truncation without changing the component itself. */
+  .expense-filters,
+  .expense-filter-bar {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 8px;
     overflow: visible;
   }
   .expense-filters__select,
-  .expense-filters__date {
+  .expense-filters__date,
+  .expense-filter-bar__select,
+  .expense-filter-bar__date {
     min-width: 0;
     width: 100%;
     font-size: var(--fs-sm);
   }
-  .expense-filters__reset {
+  .expense-filters__reset,
+  .expense-filter-bar__reset {
     grid-column: 1 / -1;
     justify-self: stretch;
   }
-  .expense-filters > :nth-child(5):last-child {
+  .expense-filters > :nth-child(5):last-child,
+  .expense-filter-bar > :nth-child(5):last-child {
     grid-column: 1 / -1;
   }
 

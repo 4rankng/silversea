@@ -102,8 +102,13 @@
   box-shadow: inset 3px 0 0 var(--ink);
 }
 
-/* Tablet / narrow desktop: each row becomes a labelled record card. */
-@container (max-width: 900px) {
+/* Tablet / narrow desktop: each row becomes a labelled record card. The
+   900px threshold is too high — the desktop shell leaves less than 1100px
+   of operational canvas at common desktop widths, and 8-column record
+   tables (e.g. the expense ledger) run to ~1080px naturally. Raise the
+   threshold to 1100px so the card layout fires before the table forces
+   horizontal scroll at 1280×800 and 1024×768. */
+@container (max-width: 1100px) {
   .record-table {
     display: block;
     font-size: var(--ops-table-supporting-size, 12px);

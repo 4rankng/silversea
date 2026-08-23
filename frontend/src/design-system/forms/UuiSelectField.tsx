@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Select as UUISelect } from '../../components/untitled-ui/base/select/select';
+import { currentPathname, hasOperationalDensity } from '../../lib/operational-density';
 import './UuiSelectField.css';
 
 /**
@@ -66,6 +67,7 @@ export function UuiSelectField({
 }: UuiSelectFieldProps) {
   const classes = [
     'ds-uui-select',
+    hasOperationalDensity(currentPathname()) ? 'ds-uui-select--operational' : '',
     inline ? 'ds-uui-select--inline' : '',
     width === 'content' ? 'ds-uui-select--content' : '',
     wrapperClassName ?? '',

@@ -26,6 +26,19 @@
   font-size: var(--fs-sm);
 }
 
+/* Non-frozen workspaces are comparison surfaces: columns stay bounded and
+   long Vietnamese values wrap inside their own cell instead of widening the
+   entire table into a horizontal scroll rail. */
+.ds-table--operational {
+  table-layout: fixed;
+}
+
+.ds-table--operational th,
+.ds-table--operational td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .ds-table thead th {
   text-align: left;
   font-size: 13px;

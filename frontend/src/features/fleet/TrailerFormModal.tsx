@@ -46,10 +46,10 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
       maxWidth={600}
       footer={
         <div className="fleet-form-actions">
-          <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button className="btn btn--primary btn--sm" disabled={saving || !plate.trim()} onClick={handleSave}>
+          <button type="button" className="btn btn--primary btn--sm" disabled={saving || !plate.trim()} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm rơ-moóc'}
           </button>
@@ -78,19 +78,16 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
                 autoFocus
               />
             </div>
-            <div className="field fleet-form__field">
-              <label htmlFor="trailer-type-input">Loại rơ-moóc</label>
+            <div className="fleet-form__field">
               <UuiSelectField
                 id="trailer-type-input"
                 label="Loại rơ-moóc"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 options={Object.entries(TRAILER_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
-                wrapperClassName="input"
               />
             </div>
-            <div className="field fleet-form__field">
-              <label htmlFor="trailer-status-input">Trạng thái</label>
+            <div className="fleet-form__field">
               <UuiSelectField
                 id="trailer-status-input"
                 label="Trạng thái"
@@ -101,7 +98,6 @@ export function TrailerFormModal({ saving, item, onsave, oncancel, isOpen }: {
                   { value: 'MAINTENANCE', label: 'Bảo trì' },
                   { value: 'INACTIVE', label: 'Ngưng' },
                 ]}
-                wrapperClassName="input"
               />
             </div>
           </div>

@@ -25,7 +25,7 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(cellRule).toContain('white-space: normal !important');
   });
 
-  it('uses a four-column form grid, clear value/placeholder contrast, and a bounded note field', () => {
+  it('uses a four-column form grid with the Dispatch compact control contract', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
     const rule = (selector: string) => css.match(new RegExp(`${selector.replace(/\./g, '\\.')} \\{([\\s\\S]*?)\\n\\}`))?.[1] ?? '';
@@ -45,6 +45,11 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     // Grid gap owns vertical rhythm — no per-field bottom margin inside the groups.
     expect(rule('.supplier-form .field')).toContain('margin-bottom: 0');
     expect(rule('.supplier-form .field > label')).toContain('margin-bottom: 8px');
+    expect(rule('.supplier-form .input')).toContain('min-height: var(--control-compact-h)');
+    expect(rule('.supplier-form .input')).toContain('font-size: var(--control-compact-font-size)');
+    expect(page).toContain('<UuiSelectField');
+    expect(rule('.supplier-form__service-option')).toContain('min-height: var(--control-compact-h)');
+    expect(rule('.supplier-form__service-option')).toContain('height: var(--control-compact-h)');
     expect(css).toContain('--supplier-form-row-gap: 24px');
     expect(css).toContain('--supplier-form-section-gap: 32px');
     expect(page).toContain('placeholder="Ví dụ: 0312…"');
@@ -61,5 +66,9 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(phoneBlock).toContain('grid-template-columns: minmax(0, 1fr)');
     expect(phoneBlock).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
     expect(css).toContain('min-height: var(--control-touch-h)');
+    expect(phoneBlock).toContain('height: var(--control-touch-h)');
+    expect(phoneBlock).toContain('border-radius: var(--r)');
+    expect(css).toContain('@media (min-width: 641px) and (max-width: 900px)');
+    expect(css).toContain('min-height: var(--control-compact-h) !important');
   });
 });

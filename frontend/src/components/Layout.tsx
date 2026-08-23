@@ -45,6 +45,7 @@ import type { NavItem, NavSection, SectionName } from './layout/types';
 import { useBottomNavAnimations } from '../hooks/useBottomNavAnimations';
 import { routes, titleForPath } from '../lib/routes';
 import { getModernRole } from '../lib/role-helpers';
+import { hasOperationalDensity } from '../lib/operational-density';
 import { BRAND } from '../brand';
 
 // ─── Navigation config ────────────────────────────────────────────────────
@@ -669,7 +670,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${isDriver ? 'is-driver' : ''}`}>
+    <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${isDriver ? 'is-driver' : ''} ${hasOperationalDensity(location.pathname) ? 'app--operational-density' : 'app--frozen-operational-surface'}`}>
       <a href="#main-content" className="skip-link">Bỏ qua đến nội dung chính</a>
       {/* M8.1 — global offline banner (slow-network state) */}
       <OfflineBanner />

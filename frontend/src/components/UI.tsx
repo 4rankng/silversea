@@ -6,6 +6,7 @@ import { AssetIcon, type AssetIconName } from './AssetIcon';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Tooltip } from './shared/Tooltip';
+import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
 import { Sparkline } from '../design-system/Sparkline';
 import { Button as UIButton, type ButtonProps as UIButtonProps } from './untitled-ui/base/buttons/button';
 import { Badge as UIBadge, BadgeWithDot as UIBadgeWithDot } from './untitled-ui/base/badges/badges';
@@ -481,11 +482,12 @@ export function Modal({ isOpen, title, onClose, children, footer, onConfirm, max
 
   // Forward maxWidth via CSS variable so mobile overrides (max-width: 100%) win.
   const cssVars = { '--modal-max-w': typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth } as React.CSSProperties;
+  const densityClass = hasOperationalDensity(currentPathname()) ? ' modal--operational-density' : '';
   return createPortal(
     visible ? (
       <div
         ref={overlayRef}
-        className="modal"
+        className={`modal${densityClass}`}
         onClick={handleClose}
         role="dialog"
         aria-modal="true"
@@ -579,6 +581,8 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
 
   if (!portalTarget) return null;
 
+  const densityClass = hasOperationalDensity(currentPathname()) ? ' drawer--operational-density' : '';
+
   return createPortal(
     visible ? (
       <>
@@ -590,7 +594,7 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
         />
         <aside
           ref={asideRef}
-          className={`drawer ${className}`.trim()}
+          className={`drawer${densityClass} ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}

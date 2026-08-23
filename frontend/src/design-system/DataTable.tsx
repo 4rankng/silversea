@@ -1,6 +1,7 @@
 import type { ReactNode, CSSProperties } from 'react';
 import { Pagination, type PaginationProps } from './Pagination';
 import { EmptyState } from './EmptyState';
+import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
 import './DataTable.css';
 
 export interface DataTableColumn<T> {
@@ -50,12 +51,13 @@ export function DataTable<T extends { id?: number | string }>({
 }: DataTableProps<T>) {
   const rows = data ?? [];
   const isLoading = loading && rows.length === 0;
+  const densityClass = hasOperationalDensity(currentPathname()) ? ' ds-table--operational' : '';
 
   if (isLoading) {
     return (
       <div className="ds-table-wrap" aria-busy="true">
         <div className="ds-table-scroll">
-          <table className="ds-table">
+          <table className={`ds-table${densityClass}`}>
             <thead>
               <tr>
                 {columns.map((c) => (
@@ -88,7 +90,7 @@ export function DataTable<T extends { id?: number | string }>({
     <>
       <div className="ds-table-wrap ds-table-wrap--desktop">
         <div className="ds-table-scroll">
-          <table className="ds-table">
+          <table className={`ds-table${densityClass}`}>
             <thead>
               <tr>
                 {columns.map((c) => (

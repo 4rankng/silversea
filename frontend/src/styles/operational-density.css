@@ -1,0 +1,148 @@
+/*
+ * Data-dense operational surface contract.
+ *
+ * This stylesheet is deliberately gated by `.app--operational-density` and
+ * the matching portal classes. The approved CUS shipment and Dispatcher
+ * planning surfaces keep their established presentation unchanged.
+ */
+
+.app--operational-density {
+  --ops-form-column-gap: 12px;
+  --ops-form-row-gap: 24px;
+  --ops-form-section-gap: 32px;
+  --ops-dialog-padding: 20px;
+}
+
+/* A form's field rhythm is owned by its grid or stack, never by accumulated
+   per-field margins. Individual forms opt in with this semantic class. */
+.app--operational-density .ops-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--ops-form-column-gap);
+  row-gap: var(--ops-form-row-gap);
+}
+
+.app--operational-density .ops-form-grid > .ops-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.app--operational-density .ops-form-grid > .field,
+.app--operational-density .ops-form-grid > .ds-uui-select {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+/* Keep the UI Select label on the same quiet, scannable hierarchy as a
+   legacy field label. The default adapter remains untouched for frozen pages. */
+.ds-uui-select--operational {
+  gap: 6px;
+}
+
+.ds-uui-select.ds-uui-select--operational > label {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+
+/* The adapter owns its complete compact-control geometry. Keeping this out of
+   individual dialogs prevents a field wrapper from adding a second boundary
+   or drifting away from the native input beside it. */
+.ds-uui-select--operational .ds-uui-select__control > button {
+  min-height: var(--control-compact-h);
+  border-radius: var(--r-sm);
+  font-size: var(--control-compact-font-size);
+  line-height: var(--control-compact-line-height);
+}
+
+.ds-uui-select--operational .ds-uui-select__control > button > span {
+  min-height: calc(var(--control-compact-h) - 2px);
+}
+
+/* Dialogs have one scroll owner: the body. Header and actions remain stable,
+   so long or fully-expanded forms never hide the title or the primary action. */
+.modal--operational-density .modal__content {
+  max-width: min(var(--modal-max-w, 480px), calc(100vw - 48px));
+}
+
+.modal--operational-density .modal__head {
+  min-height: 60px;
+  padding: 12px var(--ops-dialog-padding, 20px);
+}
+
+.modal--operational-density .modal__title {
+  font-size: var(--fs-md);
+  line-height: var(--lh-snug);
+}
+
+.modal--operational-density .modal__body {
+  padding: var(--ops-dialog-padding, 20px);
+  scrollbar-gutter: stable;
+}
+
+.modal--operational-density .modal__foot {
+  padding: 12px var(--ops-dialog-padding, 20px);
+}
+
+.drawer--operational-density .drawer__head,
+.drawer--operational-density .drawer__foot {
+  padding-inline: 20px;
+}
+
+.drawer--operational-density .drawer__body {
+  padding: 20px;
+  scrollbar-gutter: stable;
+}
+
+/* Compact money-entry dialogs use a repeatable two-column grid on desktop:
+   P0 party/amount stay prominent, while the optional contextual note takes a
+   full row. They intentionally become a one-column touch sheet on phone. */
+.modal--operational-density .commission-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--ops-form-column-gap, 12px);
+  row-gap: var(--ops-form-row-gap, 24px);
+}
+
+.modal--operational-density .commission-form > .field,
+.modal--operational-density .commission-form > .ds-uui-select {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.modal--operational-density .commission-form > .commission-form__field--full,
+.modal--operational-density .commission-form > .commission-form__error {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .app--operational-density .ops-form-grid,
+  .modal--operational-density .commission-form {
+    grid-template-columns: 1fr;
+  }
+
+  .app--operational-density .ops-form-grid > .ops-form-grid__full,
+  .modal--operational-density .commission-form > .commission-form__field--full,
+  .modal--operational-density .commission-form > .commission-form__error {
+    grid-column: auto;
+  }
+
+  .modal--operational-density .modal__head,
+  .modal--operational-density .modal__body,
+  .modal--operational-density .modal__foot,
+  .drawer--operational-density .drawer__head,
+  .drawer--operational-density .drawer__foot,
+  .drawer--operational-density .drawer__body {
+    padding-inline: 16px;
+  }
+
+  .ds-uui-select--operational .ds-uui-select__control > button {
+    min-height: var(--control-touch-h);
+    font-size: var(--control-compact-touch-font-size);
+    line-height: var(--control-compact-touch-line-height);
+  }
+
+  .ds-uui-select--operational .ds-uui-select__control > button > span {
+    min-height: calc(var(--control-touch-h) - 2px);
+  }
+}

@@ -114,7 +114,7 @@ export function PenaltyFormDrawer({
       onConfirm={handleSubmit}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="secondary" onClick={onClose}>Hủy</Btn>
           <Btn
             variant="primary"
             icon={submitting ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
@@ -142,7 +142,6 @@ export function PenaltyFormDrawer({
               { value: '', label: '-- Chọn lái xe --' },
               ...drivers.map((d) => ({ value: String(d.id), label: d.name })),
             ]}
-            wrapperClassName="input"
           />
         </FormGroup>
         <FormGroup label="Chuyến liên quan (tùy chọn)">
@@ -170,7 +169,6 @@ export function PenaltyFormDrawer({
                 label: `${r.reasonText} (${formatCurrency(Number(r.defaultAmount))})`,
               })),
             ]}
-            wrapperClassName="input"
           />
         </FormGroup>
         <FormGroup label="Lý do chi tiết khác">

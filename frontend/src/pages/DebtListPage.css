@@ -399,6 +399,23 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
+ *  Operational canvas (≤1500px) — the desktop shell leaves less than the
+ *  table's natural width for the debt ledger at 1440px viewport, and even
+ *  less at tablet widths. Hand off to the established mobile card list
+ *  before the table forces horizontal scroll. Mirrors the same 1500px
+ *  threshold the config + trip-list polish uses.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1500px) {
+  .debt-list-page .desktop-only { display: none !important; }
+  .debt-list-page .mobile-only { display: block; }
+  .debt-list-page .m-card { padding: 12px 14px; }
+  .debt-list-page .m-card__title { font-size: 14px; }
+  .debt-list-page .m-card-list { gap: 8px; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
  *  Mobile overrides (≤640px)
  * ════════════════════════════════════════════════════════════════════════════ */
 

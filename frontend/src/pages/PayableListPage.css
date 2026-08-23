@@ -177,6 +177,22 @@
 }
 
 /* ============================================================================
+ * Operational canvas (<=1500px) — the desktop shell leaves less than the
+ * payable ledger's natural width for the 5+ column table at 1440px
+ * viewport, and even less at tablet widths. Hand off to the established
+ * mobile card list before the table forces horizontal scroll. Mirrors
+ * the same 1500px threshold the config + trip-list polish uses.
+ * ========================================================================== */
+@media (max-width: 1500px) {
+  .payables-page .desktop-only { display: none !important; }
+  .payables-page .mobile-only { display: block; }
+  .payables-page .m-card { padding: 12px 14px; }
+  .payables-page .m-card__title { font-size: 14px; }
+  .payables-page .m-card-list { gap: 8px; }
+}
+
+
+/* ============================================================================
  * Responsive — Tablet (<=1023px)
  * ========================================================================== */
 @media (max-width: 1023px) {

@@ -83,10 +83,13 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
       title={item ? `Sửa xe ${item.licensePlate}` : 'Thêm xe đầu kéo'}
       onClose={oncancel}
       onConfirm={handleSave}
-      maxWidth={680}
+      // Keep the three operational identity fields and the reminder matrix on
+      // screen together on a standard desktop canvas. On narrow canvases the
+      // shared modal switches to its existing single-column bottom sheet.
+      maxWidth={920}
       footer={
         <div className="fleet-form-actions">
-          <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+          <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
           <button className="btn btn--primary btn--sm" disabled={saving || !plate.trim()} onClick={handleSave}>
@@ -132,7 +135,7 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                     label: `${t.licensePlate} (${TRAILER_TYPE_LABELS[t.type as TrailerType] || t.type})`,
                   })),
                 ]}
-                wrapperClassName="input"
+                hideLabel
               />
             </div>
             <div className="field fleet-form__field">
@@ -143,7 +146,7 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 options={Object.entries(TRUCK_STATUS).map(([k, v]) => ({ value: k, label: v }))}
-                wrapperClassName="input"
+                hideLabel
               />
             </div>
           </div>
@@ -183,10 +186,13 @@ export function TruckFormModal({ saving, item, trailers, onsave, oncancel, isOpe
             {/* Oil next-due can also be DERIVED from a last-change date + an
                 interval (months). Selecting both writes the computed next-due
                 into the field above; nothing extra is persisted. */}
-            <div className="field truck-alert-field truck-alert-field--wide">
-              <label htmlFor="truck-oil-last" className="truck-alert-field__label">
-                Tính từ lần thay dầu gần nhất
-              </label>
+            <div className="field truck-alert-field truck-alert-field--oil-calculator">
+              <div className="truck-alert-field__copy">
+                <label htmlFor="truck-oil-last" className="truck-alert-field__label">
+                  Tính hạn thay dầu
+                </label>
+                <p>Từ lần thay gần nhất và chu kỳ (tùy chọn).</p>
+              </div>
               <div className="fleet-form__inline">
                 <DateInput
                   id="truck-oil-last"

@@ -874,7 +874,7 @@ export default function FinancePage() {
               style={{ marginTop: 20 }}
               flush
             >
-              <div className="table-scroll">
+              <div className="table-scroll finance-category-breakdown__scroll">
                 <table>
                   <thead>
                     <tr>
@@ -890,9 +890,9 @@ export default function FinancePage() {
                         const pct = (cat.total / grandTotal) * 100;
                         return (
                           <tr key={i}>
-                            <td style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>
-                            <td className="num">{formatNumber(cat.total)} ₫</td>
-                            <td>
+                            <td data-label="Hạng mục" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>
+                            <td data-label="Tổng chi phí" className="num">{formatNumber(cat.total)} ₫</td>
+                            <td data-label="Tỷ trọng">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--border)', overflow: 'hidden' }}>
                                   <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />

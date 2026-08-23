@@ -187,6 +187,7 @@
 .expense-filter-bar__select > button {
   height: var(--filter-control-h);
   min-height: var(--filter-control-h);
+  width: 100%;
   padding: 0 32px 0 12px;
   border-radius: 10px;
   background: var(--surface-2);

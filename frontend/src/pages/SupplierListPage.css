@@ -16,6 +16,18 @@
   margin-bottom: 8px !important;
 }
 
+/* Keep every desktop field on the compact Điều vận / CUS cadence. The
+   Untitled select is the reference here: direct inputs, its visible label,
+   and the trigger must share the same 12px/34px geometry. */
+.supplier-form .input {
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--control-compact-font-size);
+  line-height: var(--control-compact-line-height);
+}
+
 .supplier-form__identity,
 .supplier-form__details,
 .supplier-form__terms,
@@ -61,8 +73,9 @@
 /* Preserve the grid's baseline while allowing the operational note to wrap. */
 .supplier-form__reporting textarea.input {
   min-width: 0;
-  min-height: 84px;
+  min-height: 76px;
   max-width: 100%;
+  padding: 8px 10px;
   overflow-wrap: anywhere;
 }
 
@@ -88,14 +101,18 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  min-height: var(--control-default-h);
-  padding: 8px 10px;
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
+  box-sizing: border-box;
+  margin-bottom: 0 !important;
+  padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-xs);
+  line-height: var(--control-compact-line-height);
   font-weight: 600;
 }
 
@@ -245,6 +262,17 @@
   }
 }
 
+/* The app-wide ≤900px safety rule raises native inputs to 44px. This modal
+   intentionally remains a dense desktop/tablet workspace until the actual
+   phone sheet at 640px, so apply the same compact size to every control type. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .supplier-form .input:not(textarea),
+  .supplier-form__service-option {
+    min-height: var(--control-compact-h) !important;
+    height: var(--control-compact-h) !important;
+  }
+}
+
 @media (max-width: 640px) {
   .supplier-form__identity,
   .supplier-form__details,
@@ -268,5 +296,15 @@
 
   .supplier-form__service-option {
     min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
+    line-height: var(--control-compact-touch-line-height);
   }
+
+  .supplier-form .input:not(textarea) {
+    min-height: var(--control-touch-h) !important;
+    height: var(--control-touch-h) !important;
+    font-size: var(--control-compact-touch-font-size) !important;
+    line-height: var(--control-compact-touch-line-height);
+  }
+
 }

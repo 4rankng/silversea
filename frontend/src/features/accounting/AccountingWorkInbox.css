@@ -33,6 +33,8 @@
 .accounting-work-inbox__facts dd { margin: 1px 0 0; color: var(--fg-1); font-weight: 700; }
 .accounting-work-inbox__issues,
 .accounting-work-inbox__advisories { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.accounting-work-inbox__advisories li,
+.accounting-work-inbox__issues li { min-width: 0; overflow-wrap: anywhere; }
 /* Canonical centered 3x20 status strip instead of a full-height left border. */
 .accounting-work-inbox__issues li { position: relative; padding-left: 12px; }
 .accounting-work-inbox__issues li::before { content: ''; position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--danger); transform: translateY(-50%); }
@@ -48,15 +50,14 @@
 .accounting-work-inbox__pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: 12px; }
 .accounting-work-inbox__pagination button:disabled { opacity: .45; }
 
-@media (max-width: 767px) {
-  .accounting-work-inbox__shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .accounting-work-inbox__shortcuts a,
-  .accounting-work-inbox__action,
-  .accounting-work-inbox__state button,
-  .accounting-work-inbox__pagination button { min-height: var(--control-touch-h, 44px); font-size: 14px; }
-  .accounting-work-inbox__lane > header { align-items: start; padding: 12px; }
-  .accounting-work-inbox__lane > header button { width: 44px; height: 44px; }
+/* The desktop shell leaves less than 980px of operational canvas for the
+   5-column inbox at 1440px viewport, and even less at tablet widths. Switch
+   the inbox to the labelled-card layout before the hardcoded 980px min-width
+   forces the table to overflow the viewport. Mirrors the same 1500px
+   threshold the config + trip-list polish uses. */
+@media (max-width: 1500px) {
   .accounting-work-inbox__table-wrap { overflow: visible; }
+  .accounting-work-inbox table { min-width: 0; }
   .accounting-work-inbox table,
   .accounting-work-inbox tbody,
   .accounting-work-inbox tr,
@@ -70,5 +71,15 @@
   .accounting-work-inbox td:first-child::before { display: none; }
   .accounting-work-inbox td:last-child { display: block; text-align: left; }
   .accounting-work-inbox td:last-child::before { display: none; }
+}
+
+@media (max-width: 767px) {
+  .accounting-work-inbox__shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .accounting-work-inbox__shortcuts a,
+  .accounting-work-inbox__action,
+  .accounting-work-inbox__state button,
+  .accounting-work-inbox__pagination button { min-height: var(--control-touch-h, 44px); font-size: 14px; }
+  .accounting-work-inbox__lane > header { align-items: start; padding: 12px; }
+  .accounting-work-inbox__lane > header button { width: 44px; height: 44px; }
   .accounting-work-inbox__action { width: 100%; }
 }

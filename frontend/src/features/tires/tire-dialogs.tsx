@@ -180,7 +180,6 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               options={TIRE_DISPOSAL_REASONS.map((r) => ({ value: r, label: r }))}
-              wrapperClassName="input"
             />
             {reason === "Khác" && <input className="input ttp-unmount-reason-custom" value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Ghi lý do khác" maxLength={120} autoFocus />}
           </div>
@@ -390,7 +389,6 @@ export function TransferTireDialog({
                     label: `Rơ-moóc: ${v.label}`,
                   })),
               ]}
-              wrapperClassName="input"
             />
           </div>
           <div className="ttp-field">

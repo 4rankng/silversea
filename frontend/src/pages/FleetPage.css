@@ -771,11 +771,14 @@
 .fleet-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  --fleet-form-column-gap: 12px;
+  --fleet-form-row-gap: 24px;
+  --fleet-form-section-gap: 24px;
+  gap: var(--fleet-form-section-gap);
 }
 
 .fleet-form__section {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface-2);
@@ -793,7 +796,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .fleet-form__section-head h4 {
@@ -813,12 +816,13 @@
 
 .fleet-form__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--fleet-form-column-gap);
+  row-gap: var(--fleet-form-row-gap);
 }
 
 .fleet-form__grid--truck {
-  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 1fr) minmax(140px, 0.8fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .fleet-form__field {
@@ -830,8 +834,8 @@
   grid-column: span 2;
 }
 
-.fleet-form__grid--truck .fleet-form__field--wide {
-  grid-column: auto;
+.fleet-form .field {
+  margin-bottom: 0;
 }
 
 .fleet-form__field label,
@@ -840,7 +844,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   color: var(--ink-2);
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -852,13 +856,31 @@
 }
 
 .fleet-form__inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--fleet-form-column-gap);
+  min-width: 0;
 }
 
 .fleet-form__interval {
-  flex: 0 0 130px;
+  min-width: 0;
+}
+
+/* Match the compact Điều vận controls exactly: direct inputs and the UUI
+   trigger use one 34px boundary, 12px operational type, and 8px label gap. */
+.fleet-form .input {
+  min-height: var(--control-compact-h);
+  height: var(--control-compact-h);
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-size: var(--control-compact-font-size);
+  line-height: var(--control-compact-line-height);
+}
+
+.fleet-form .input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
 }
 
 .fleet-form__note {
@@ -875,7 +897,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -1051,15 +1073,16 @@
 .truck-alert-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  column-gap: var(--fleet-form-column-gap);
+  row-gap: var(--fleet-form-row-gap);
 }
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .truck-alert-fields {
     grid-template-columns: 1fr;
   }
 }
 .truck-alert-field__label {
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 .truck-alert-badge {
   font-size: var(--fs-xs);
@@ -1083,8 +1106,29 @@
   min-width: 0;
 }
 
-.truck-alert-field--wide {
+.truck-alert-field--oil-calculator {
   grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  column-gap: var(--fleet-form-column-gap);
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.truck-alert-field__copy {
+  grid-column: span 1;
+}
+
+.truck-alert-field--oil-calculator .fleet-form__inline {
+  grid-column: span 2;
+}
+
+.truck-alert-field__copy p {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
 }
 
 @media (max-width: 760px) {
@@ -1096,8 +1140,13 @@
 
   .fleet-form__field--wide,
   .fleet-form__grid--truck .fleet-form__field--wide,
-  .truck-alert-field--wide {
+  .truck-alert-field--oil-calculator {
     grid-column: auto;
+  }
+
+  .truck-alert-field--oil-calculator {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 }
 
@@ -1106,13 +1155,32 @@
     padding: 12px;
   }
 
-  .fleet-form__inline {
-    align-items: stretch;
-    flex-direction: column;
+  .fleet-form {
+    gap: 16px;
   }
 
-  .fleet-form__interval {
-    flex-basis: auto;
+  .fleet-form__section-head {
+    margin-bottom: 12px;
+  }
+
+  .fleet-form .input {
+    min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
+    font-size: var(--control-compact-touch-font-size);
+    line-height: var(--control-compact-touch-line-height);
+  }
+
+  /* The generic mobile modal rule targets `.field .input` at 48px. This
+     dialog deliberately follows the 44px UUI touch-control contract instead. */
+  .modal__body .fleet-form .field .input {
+    min-height: var(--control-touch-h);
+    height: var(--control-touch-h);
+    font-size: var(--control-compact-touch-font-size);
+    line-height: var(--control-compact-touch-line-height);
+  }
+
+  .fleet-form__inline {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .fleet-form-actions .btn {

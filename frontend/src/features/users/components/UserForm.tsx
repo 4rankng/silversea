@@ -83,7 +83,6 @@ function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssigne
                   label: t.licensePlate,
                 })),
               ]}
-              wrapperClassName="input"
             />
           </FormGroup>
         </div>
@@ -421,7 +420,7 @@ export function EditPanel({
       onConfirm={handleSubmit}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="secondary" onClick={onClose}>Hủy</Btn>
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
@@ -499,7 +498,6 @@ export function EditPanel({
             disabled={roleSelectDisabled}
             onChange={(e) => setRole(e.target.value as Role)}
             options={roleOptions.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
-            wrapperClassName="input"
           />
         </FormGroup>
         <FormGroup label="Trạng thái">
@@ -513,7 +511,6 @@ export function EditPanel({
               { value: 'ACTIVE', label: 'Hoạt động' },
               { value: 'INACTIVE', label: 'Bị khoá' },
             ]}
-            wrapperClassName="input"
           />
         </FormGroup>
       </div>
@@ -560,7 +557,6 @@ export function EditPanel({
                   { value: CustomerAccountType.CORPORATE_GROUP, label: 'Nhóm công ty' },
                   { value: CustomerAccountType.AGENCY, label: 'Đại lý' },
                 ]}
-                wrapperClassName="input"
               />
             </FormGroup>
           )}
@@ -818,7 +814,7 @@ export function AddPanel({
       onConfirm={handleSubmit}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>Hủy</Btn>
+          <Btn variant="secondary" onClick={onClose}>Hủy</Btn>
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Plus size={13} />}
@@ -893,7 +889,6 @@ export function AddPanel({
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
             options={roleOptions.map((r) => ({ value: r, label: ROLE_LABELS[r] }))}
-            wrapperClassName="input"
           />
         </FormGroup>
         <FormGroup
@@ -965,7 +960,6 @@ export function AddPanel({
                   { value: CustomerAccountType.CORPORATE_GROUP, label: 'Nhóm công ty' },
                   { value: CustomerAccountType.AGENCY, label: 'Đại lý' },
                 ]}
-                wrapperClassName="input"
               />
             </FormGroup>
           )}

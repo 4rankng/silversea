@@ -707,7 +707,7 @@ export function DriverPayoutModal({
           value={form.driverId === null || form.driverId === undefined ? '' : String(form.driverId)}
           onChange={e => setForm(f => ({ ...f, driverId: e.target.value === '' ? '' : Number(e.target.value) }))}
           options={[{ value: '', label: '— Chọn lái xe —' }, ...sortedDrivers.map(d => ({ value: String(d.id), label: d.name }))]}
-          wrapperClassName="field"
+          wrapperClassName="field commission-form__field--full"
         />
         <div className="field">
           <label htmlFor="payout-amount">Số tiền <span className="req" aria-hidden="true">*</span></label>

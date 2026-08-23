@@ -8,6 +8,7 @@
 @import "./styles/base.css";
 @import "./styles/typography.css";
 @import "./styles/operational-table-typography.css"; /* global table type base — golden-standard scale on :root */
+@import "./styles/operational-density.css"; /* scoped non-CUS/non-Dispatcher form, dialog, and table rhythm */
 @import "./styles/utilities.css";
 @import "./styles/animations.css";
 @import "./components/Layout.css";

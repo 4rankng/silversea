@@ -109,8 +109,7 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
             </div>
           </div>
           <div className="fleet-form__grid">
-            <div className="field fleet-form__field">
-              <label htmlFor="driver-truck">Xe phân công</label>
+            <div className="fleet-form__field">
               <UuiSelectField
                 id="driver-truck"
                 label="Xe phân công"
@@ -120,18 +119,15 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
                   { value: '0', label: '— Chưa phân —' },
                   ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
                 ]}
-                wrapperClassName="input"
               />
             </div>
-            <div className="field fleet-form__field">
-              <label htmlFor="driver-status">Trạng thái</label>
+            <div className="fleet-form__field">
               <UuiSelectField
                 id="driver-status"
                 label="Trạng thái"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
-                wrapperClassName="input"
               />
             </div>
           </div>

@@ -152,6 +152,7 @@ export function CommissionModal({
             { value: '', label: '— Chọn nhà cung cấp —' },
             ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
           ]}
+          wrapperClassName="commission-form__field--full"
         />
         <div className="field">
           <label htmlFor="commission-amount">Số tiền hoa hồng <span className="req" aria-hidden="true">*</span></label>
@@ -183,7 +184,7 @@ export function CommissionModal({
             searchPlaceholder="Tìm theo mã chuyến, khách hàng hoặc tuyến…"
           />
         </div>
-        <div className="field">
+        <div className="field commission-form__field--full">
           <label htmlFor="commission-note">Ghi chú (tuỳ chọn)</label>
           <input
             id="commission-note"
