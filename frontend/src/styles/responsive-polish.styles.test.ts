@@ -28,6 +28,7 @@ const payableListCss = readFileSync(
   'utf8',
 );
 const financeCss = readFileSync(resolve(process.cwd(), 'src/pages/FinancePage.css'), 'utf8');
+void financeCss;
 
 /**
  * Whole-app overflow polish — the customer signed off on /shipments* and
