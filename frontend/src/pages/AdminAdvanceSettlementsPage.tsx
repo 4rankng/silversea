@@ -83,9 +83,9 @@ function statusFilterParam(filter: StatusFilter): string | undefined {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#D97706',
+  PENDING: 'var(--warning, #D97706)',
   CHECKED_BY_ACCOUNTANT: '#2563EB',
-  APPROVED: '#059669',
+  APPROVED: 'var(--success, #059669)',
   REVERSED: '#64748B',
   REJECTED: '#DC2626',
 };

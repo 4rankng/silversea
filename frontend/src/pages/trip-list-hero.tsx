@@ -7,7 +7,7 @@ type Summary = Awaited<ReturnType<typeof tripClient.getTripsSummary>>;
 interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
 export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, breakdownPct, warnThreshold, month }: TripListHeroProps) {
  return (
-        <section className="hero hero--route-network">
+        <section className="hero">
           <div className="hero-top">
             <div className="hero-title-block">
               <h1 className="sr-only">Sổ chuyến đi</h1>

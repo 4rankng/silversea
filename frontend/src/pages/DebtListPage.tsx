@@ -19,6 +19,7 @@ import { PageHeader } from '../components/UI';
 import { Pagination, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
+import { Badge } from '../components/shared/Badge';
 import type { CustomerAging } from '../hooks/useQueries';
 import { financialClient, type CustomerAgingResponse } from '../api/financialClient';
 import { qk } from '../api/keys';
@@ -90,7 +91,7 @@ const AGING_BUCKETS: AgingBucket[] = [
   // lanes — "Trong hạn" / "Quá hạn 31–60" / "Quá hạn 61–90" / "Quá hạn >90" —
   // so the accountant sees the AR workflow state (current vs overdue) at a
   // glance instead of having to translate day ranges into a status.
-  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: '#00B14F', filterMode: 'current' },
+  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #00B14F)', filterMode: 'current' },
   { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: '#F5A623', filterMode: 'd30' },
   { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: '#DD5A1F', filterMode: 'd60' },
   { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: '#E32434', filterMode: 'over90' },
@@ -412,9 +413,7 @@ export default function DebtListPage() {
                             <Building2 size={15} aria-hidden="true" style={{ color: 'var(--ink-3)', flex: '0 0 auto' }} />
                             {d.customerName}
                             {d.linkedSupplierId != null && (
-                              <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle' }}>
-                                2 chiều
-                              </span>
+                              <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
                             )}
                           </span>
                           <span className={`m-card__row-value${d.totalOutstanding > 0 ? '--danger' : '--success'} m-card__row-value debt-list-page__amount`}>
@@ -484,9 +483,7 @@ export default function DebtListPage() {
                               <Building2 size={14} aria-hidden="true" style={{ color: 'var(--fg-3)', flex: '0 0 auto' }} />
                               <span className="debt-list-table__customer-name">{d.customerName}</span>
                               {d.linkedSupplierId != null && (
-                                <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '3px 7px', letterSpacing: '0.02em' }}>
-                                  2 chiều
-                                </span>
+                                <Badge variant="success">2 chiều</Badge>
                               )}
                             </div>
                             <div style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>

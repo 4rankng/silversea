@@ -27,6 +27,7 @@ import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePageAnimations } from '../hooks/animations';
 import { ClickableCard } from '../components/shared/ClickableCard';
+import { Badge } from '../components/shared/Badge';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { Money } from '../components/shared/Money';
 import { EmptyIllustration } from '../components/shared';
@@ -491,7 +492,7 @@ export default function CustomersPage() {
       <div className="toolbar">
         <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả · {total}</FilterPill>
         <FilterPill active={filter === 'risk'} onClick={() => setFilter('risk')}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#D97706', display: 'inline-block', marginRight: 4 }} />
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--warning, #D97706)', display: 'inline-block', marginRight: 4 }} />
           Rủi ro cao
         </FilterPill>
         <FilterPill active={filter === 'active'} onClick={() => setFilter('active')}>
@@ -538,11 +539,8 @@ export default function CustomersPage() {
                     <span className={`risk-dot risk-dot--${riskDot(debtMap.get(c.id) ?? 0, Number(c.creditLimit || 0))}`} />
                     {c.shortName || c.name}
                     {c.linkedSupplierId && (
-                      <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle' }}>
-                        2 chiều
-                      </span>
+                      <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
                     )}
-                    {/* TODO: extract a shared <Badge> component for "2 chiều" / "Xe ngoài" */}
                     {c.isCarrier && (
                       <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', verticalAlign: 'middle', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Truck size={11} aria-hidden="true" /> Xe ngoài
@@ -642,9 +640,7 @@ export default function CustomersPage() {
                           {c.shortName || c.name}
                         </span>
                         {c.linkedSupplierId && (
-                          <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', marginTop: 1 }}>
-                            2 chiều
-                          </span>
+                          <Badge variant="success" style={{ flexShrink: 0, marginTop: 1 }}>2 chiều</Badge>
                         )}
                         {c.isCarrier && (
                           <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--info-text)', background: 'var(--info-soft)', border: '1px solid color-mix(in srgb, var(--info) 22%, transparent)', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', marginTop: 1, display: 'inline-flex', alignItems: 'center', gap: 3 }}>

@@ -47,6 +47,7 @@ export interface DerivedData {
   prevRevenue: number;
   prevCosts: number;
   prevGross: number;
+  prevNet: number;
 }
 
 export interface ReceivablesSummary {
@@ -233,13 +234,14 @@ export function useDashboardData(currentMonth: number, currentYear: number) {
     const prevRevenue = prevPnlReport?.totalRevenue ?? 0;
     const prevCosts = prevPnlReport?.totalCosts ?? 0;
     const prevGross = prevPnlReport?.grossProfit ?? 0;
+    const prevNet = prevPnlReport?.netProfit ?? 0;
 
     return {
       revenue, costs, grossProfit, netProfit,
       displayTrucks, maxTruckProfit, displayRoutes,
       fuelCost, roadCost, driverCost,
       slicesWithPct, conicGradient, totalPie,
-      prevRevenue, prevCosts, prevGross,
+      prevRevenue, prevCosts, prevGross, prevNet,
     };
   }, [stats, pnlReport, prevPnlReport, allTrips]);
 

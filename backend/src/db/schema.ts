@@ -1806,6 +1806,10 @@ export const advanceRequests = pgTable('advance_requests', {
   id: serial('id').primaryKey(),
   version: integer('version').default(1).notNull(),
   requesterId: integer('requester_id').notNull(),
+  // Durable display snapshot of the requester's full name at creation. The
+  // live users join disappears once the account is removed, but a completed
+  // financial approval must keep showing who requested it.
+  requesterNameSnapshot: text('requester_name_snapshot'),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   reason: text('reason').notNull(),
   status: advanceRequestStatusEnum('status').default('PENDING').notNull(),

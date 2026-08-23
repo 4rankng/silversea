@@ -192,6 +192,7 @@
 }
 
 .trip-list-page .trip-col {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -226,7 +227,14 @@
   white-space: nowrap;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease;
 }
+/* Overlay on hover instead of reserving its own row — the button sits on
+   top of the trip code/date line (left edge of the cell) rather than
+   pushing the customer name and missing-indicators down when hidden. */
 .trip-list-page .table-row .trip-copy-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
   opacity: 0;
   pointer-events: none;
   transform: translateY(-2px);

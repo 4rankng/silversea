@@ -502,7 +502,7 @@ export default function GovernanceActionsPage() {
                 <dl className="governance-actions__facts">
                   <div>
                     <dt>Đối tượng</dt>
-                    <dd>{action.subjectKey || SUBJECT_TYPE_LABELS[action.subjectType] || 'Nghiệp vụ liên quan'}</dd>
+                    <dd>{action.subjectLabel || action.subjectKey || SUBJECT_TYPE_LABELS[action.subjectType] || 'Nghiệp vụ liên quan'}</dd>
                   </div>
                   <div>
                     <dt>Người tạo</dt>

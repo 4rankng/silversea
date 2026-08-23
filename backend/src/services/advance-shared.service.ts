@@ -68,6 +68,8 @@ export type EnrichableRow = {
   approvedBy?: number | null;
   forwarderId?: number | null;
   checkedBy?: number | null;
+  /** Durable name captured at creation; used when the live user row is gone. */
+  requesterNameSnapshot?: string | null;
 };
 
 export type EnrichedWithNames<T> = T & {
@@ -95,7 +97,9 @@ export async function enrichWithNames<T extends EnrichableRow>(
   const nameMap = new Map<number | null | undefined, string | null>(users.map(u => [u.id, u.fullName]));
   return rows.map(r => ({
     ...r,
-    requesterName: nameMap.get(r.requesterId) ?? null,
+    // Live name wins while the account exists (renames stay visible); the
+    // creation-time snapshot keeps completed approvals legible after removal.
+    requesterName: nameMap.get(r.requesterId) ?? r.requesterNameSnapshot ?? null,
     approverName: nameMap.get(r.approvedBy) ?? null,
     forwarderName: nameMap.get(r.forwarderId) ?? null,
     checkerName: nameMap.get(r.checkedBy) ?? null,

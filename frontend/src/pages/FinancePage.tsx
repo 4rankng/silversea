@@ -312,7 +312,7 @@ export default function FinancePage() {
                     <>
                       <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                         <svg viewBox="0 0 200 200" width={140} height={140} style={{ flexShrink: 0 }} role="img" aria-label={`Cơ cấu chi phí tháng ${month}/${year}`}>
-                          {arcs.map((a, i) => <path key={i} d={a.path} fill={a.fill} stroke="#FFFFFF" strokeWidth={2.5} />)}
+                          {arcs.map((a, i) => <path key={i} d={a.path} fill={a.fill} stroke="var(--white, #FFFFFF)" strokeWidth={2.5} />)}
                           <text x={cx} y={cy - 7} textAnchor="middle" fontSize="12" fill="var(--ink-2)" fontFamily="var(--font-sans)">Tổng chi phí</text>
                           <text x={cx} y={cy + 11} textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-data)">{compactNum(total)}</text>
                         </svg>
@@ -371,7 +371,7 @@ export default function FinancePage() {
                       const isNegative = val < 0;
                       const w = Math.max(2, (Math.abs(val) / totalRange) * barTrackW);
                       const barX = isNegative ? zeroX - w : zeroX;
-                      const fill = isNegative ? 'var(--danger)' : '#059669';
+                      const fill = isNegative ? 'var(--danger)' : 'var(--success, #059669)';
                       return (
                         <g key={i} transform={`translate(0, ${i * 32})`}>
                           <text x={0} y={15} fontSize="12" fontFamily="var(--font-data)" fontWeight={600} fill="var(--ink-2)" textAnchor="start">{t.name}</text>

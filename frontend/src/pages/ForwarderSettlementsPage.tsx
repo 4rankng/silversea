@@ -23,9 +23,9 @@ function advanceRequestCode(id: number): string {
 
 /** Status strip colors matching ForwarderTripsPage pattern */
 const STATUS_STRIP: Record<AdvanceSettlementStatus, string> = {
-  PENDING: '#D97706',
+  PENDING: 'var(--warning, #D97706)',
   CHECKED_BY_ACCOUNTANT: '#2563EB',
-  APPROVED: '#059669',
+  APPROVED: 'var(--success, #059669)',
   REJECTED: '#DC2626',
   REVERSED: '#64748B',
 };

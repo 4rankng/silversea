@@ -29,8 +29,8 @@ import './ExpenseListRecordTable.css';
 const PAGE_SIZE = 20;
 
 const EXPENSE_STATUS_COLORS: Record<string, string> = {
-  PAID: '#059669',
-  UNPAID: '#D97706',
+  PAID: 'var(--success, #059669)',
+  UNPAID: 'var(--warning, #D97706)',
 };
 
 /** Filter bag for GET /api/expenses (server-paginated; no search param yet).
@@ -163,8 +163,6 @@ export default function ExpenseListPage() {
 
   return (
     <div ref={rootRef} className="expense-list-page">
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } .spin { animation: spin 0.8s linear infinite; }`}</style>
-
       <Breadcrumbs
         className="expense-list-page__crumbs"
         items={[

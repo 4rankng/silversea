@@ -285,7 +285,7 @@ export default function PayableDetailPage() {
         <button className="dd-back" aria-label="Quay lại" onClick={handleBack}>
           <ArrowLeft size={20} />
         </button>
-        <div className="dd-avatar" style={{ background: 'var(--warning)', color: '#fff' }}>
+        <div className="dd-avatar" style={{ background: 'var(--warning)', color: 'var(--white, #fff)' }}>
           {supplier.name.charAt(0)}
         </div>
         <div className="dd-meta">
@@ -330,11 +330,11 @@ export default function PayableDetailPage() {
                   zIndex: 50, minWidth: 180, overflow: 'hidden',
                 }}>
                   <button className="dd-export-btn" onClick={() => downloadExport('xlsx')}>
-                    <FileSpreadsheet size={14} style={{ color: '#16a34a' }} />
+                    <FileSpreadsheet size={14} style={{ color: 'var(--success, #16a34a)' }} />
                     Excel (.xlsx)
                   </button>
                   <button className="dd-export-btn" onClick={() => downloadExport('pdf')}>
-                    <FileText size={14} style={{ color: '#dc2626' }} />
+                    <FileText size={14} style={{ color: 'var(--danger, #dc2626)' }} />
                     PDF (In)
                   </button>
                 </div>

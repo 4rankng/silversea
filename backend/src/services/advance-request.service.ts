@@ -22,8 +22,15 @@ export async function createAdvanceRequest(
   transaction?: Tx,
 ) {
   const executor = transaction ?? db;
+  // Snapshot the requester's name up front so the approval trail survives
+  // later account removal (enrichWithNames falls back to this snapshot).
+  const [requester] = await executor.select({ fullName: s.users.fullName })
+    .from(s.users)
+    .where(eq(s.users.id, requesterId))
+    .limit(1);
   const [inserted] = await executor.insert(s.advanceRequests).values({
     requesterId,
+    requesterNameSnapshot: requester?.fullName?.trim() || null,
     amount: String(data.amount),
     reason: data.reason,
     status: 'PENDING',

@@ -117,11 +117,12 @@ export default function DashboardPage() {
   const prevRevenue = d?.prevRevenue ?? 0;
   const prevCosts = d?.prevCosts ?? 0;
   const prevGross = d?.prevGross ?? 0;
+  const prevNet = d?.prevNet ?? 0;
 
   const revenueMoM = fmtMoM(revenue, prevRevenue);
   const costsMoM = fmtMoM(costs, prevCosts);
   const grossMoM = fmtMoM(grossProfit, prevGross);
-  const netMoM = fmtMoM(netProfit, prevGross); // approx vs prev gross when prevPnl unavailable
+  const netMoM = fmtMoM(netProfit, prevNet);
 
   const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
   const costRatio = revenue > 0 ? (costs / revenue) * 100 : 0;

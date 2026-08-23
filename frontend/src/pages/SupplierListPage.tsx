@@ -21,6 +21,7 @@ import { useCatalogs } from '../hooks/useCatalogs';
 import { usePayablesSummary } from '../hooks/useFinancialQueries';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Money } from '../components/shared/Money';
+import { Badge } from '../components/shared/Badge';
 import { StatusStrip, StatusDot } from '../components/shared/StatusStrip';
 import { usePageAnimations } from '../hooks/animations';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
@@ -559,7 +560,7 @@ export default function SupplierListPage() {
                     <td className="suppliers-page__cell suppliers-page__cell--linked" data-label="KH liên kết">
                       {s.linkedCustomerId ? (
                         <span style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
-                          <span style={{ flexShrink: 0, color: '#16a34a', fontWeight: 700, background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 4, padding: '1px 5px', letterSpacing: '0.02em', fontSize: 12 }}>2 chiều</span>
+                          <Badge variant="success" style={{ flexShrink: 0 }}>2 chiều</Badge>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {customerLookup.get(s.linkedCustomerId) ?? 'Khách hàng không còn trong danh mục'}
                           </span>

@@ -61,13 +61,6 @@
   overflow: hidden;
   container-type: inline-size;
 }
-.trip-list-page .hero.hero--route-network {
-  background-image: url("/assets/illustrations/hero-route-network.svg");
-  background-color: var(--surface);
-  background-repeat: no-repeat;
-  background-position: right 24px bottom 10px;
-  background-size: min(260px, 24vw) auto;
-}
 .trip-list-page .hero::before {
   content: none;
 }
@@ -89,38 +82,29 @@
    system (components/Button.css). The page-scoped .btn-d* recipes were
    retired during CTA unification. */
 
-/* ── Metric bento grid ─────────────────────────────────────────────────
-   Layout: featured card spans 2 rows on the left, 4 tiles in 2×2 on the right.
-   gap: 1px with rgba background creates hairline dividers (same pattern as before). */
+/* ── KPI rail ───────────────────────────────────────────────────────────
+   One bordered ledger strip, cells separated by hairline dividers rather
+   than gapped cards — reads as a single summary row, not a stack of tiles.
+   Falls back to the previous gapped-card bento at narrower widths, where
+   divider math across a wrapping grid gets fragile (see @container below). */
 .trip-list-page .metrics {
   margin-top: 18px;
   display: grid;
   grid-template-columns: minmax(260px, 1.35fr) repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  background: transparent;
-  border-radius: 0;
-  overflow: visible;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
   position: relative;
 }
 .trip-list-page .metric {
   min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  padding: 14px 16px;
-  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+  padding: 16px 18px;
+  border-right: 1px solid var(--line);
 }
-.trip-list-page .metric:hover {
-  border-color: color-mix(in srgb, var(--accent) 18%, var(--line-2));
-  background: var(--surface-2);
+.trip-list-page .metric:last-child {
+  border-right: 0;
 }
-.trip-list-page .metric.featured {
-  grid-row: auto;
-  grid-column: auto;
-  background: var(--brand-soft);
-  border-color: rgba(0, 177, 79, 0.18);
-}
-.trip-list-page .metric.featured .metric-label { color: var(--accent-ink); }
 .trip-list-page .metric-label {
   font-size: var(--fs-xs); letter-spacing: 1px;
   color: var(--ink-3);
@@ -173,9 +157,32 @@
 .trip-list-page .legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .trip-list-page .legend-dot { width: 7px; height: 7px; border-radius: 2px; }
 
+/* Below this width the strip wraps into multiple rows, where a single
+   border-right per cell no longer lines up into clean columns — fall back
+   to the original gapped-card bento instead of chasing wrap-aware dividers. */
 @container (max-width: 1180px) {
   .trip-list-page .metrics {
     grid-template-columns: minmax(280px, 1.15fr) repeat(2, minmax(190px, 1fr));
+    gap: 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .trip-list-page .metric {
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    transition: background 160ms var(--ease), border-color 160ms var(--ease);
+  }
+  /* Base rule's `.metric:last-child { border-right: 0 }` outranks a plain
+     `.metric` selector on specificity alone regardless of source order —
+     restore the right edge here so the last fallback card isn't left open. */
+  .trip-list-page .metric:last-child {
+    border-right: 1px solid var(--line);
+  }
+  .trip-list-page .metric:hover {
+    border-color: color-mix(in srgb, var(--accent) 18%, var(--line-2));
+    background: var(--surface-2);
   }
 
   .trip-list-page .metric.featured {

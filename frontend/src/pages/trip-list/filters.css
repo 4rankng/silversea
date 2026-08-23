@@ -28,12 +28,16 @@
 .trip-list-page .status-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   flex-wrap: wrap;
   overflow-x: visible;
   scrollbar-width: none;
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--fc-radius-pill);
+  padding: 3px;
 }
 .trip-list-page .status-tabs::-webkit-scrollbar { display: none; }
 
@@ -41,11 +45,11 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: var(--filter-control-h);
+  min-height: calc(var(--filter-control-h) - 6px);
   padding: 0 12px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: var(--fc-radius-pill);
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-sm);
   cursor: pointer;
   white-space: nowrap;
   color: var(--ink-2);
@@ -55,7 +59,7 @@
   font-family: var(--font-body);
   transition: background .16s ease, border-color .16s ease, color .16s ease;
 }
-.trip-list-page .stab-pill:hover { border-color: #D8DEDB; background: #FCFDFD; }
+.trip-list-page .stab-pill:hover { background: var(--surface); }
 .trip-list-page .stab-pill .stab-dot {
   width: 7px; height: 7px; border-radius: 50%;
   flex: none;

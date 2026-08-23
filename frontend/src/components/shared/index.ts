@@ -22,3 +22,5 @@ export { CommandPalette, useCommandHotkey } from './CommandPalette';
 export type { CommandPaletteProps, CommandItem } from './CommandPalette';
 // Sortable <th> for record-table/ops-table custom markup (server-side sort).
 export { SortHeader } from './SortHeader';
+// Semantic badge pill for status indicators, tags, and labels.
+export { Badge } from './Badge';

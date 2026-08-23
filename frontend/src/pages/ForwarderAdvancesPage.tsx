@@ -12,9 +12,9 @@ import './ForwarderAdvancesPage.css';
 import '../components/shared/HeroKpiRow.css';
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#D97706',
+  PENDING: 'var(--warning, #D97706)',
   CHECKED_BY_ACCOUNTANT: '#2563EB',
-  APPROVED: '#059669',
+  APPROVED: 'var(--success, #059669)',
   REJECTED: '#DC2626',
 };
 

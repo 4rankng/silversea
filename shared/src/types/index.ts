@@ -907,6 +907,8 @@ export interface AdvanceRequest {
   id: number;
   version: number;
   requesterId: number;
+  /** Durable name captured at creation; displayed when the user row is gone. */
+  requesterNameSnapshot?: string | null;
   amount: string;
   reason: string;
   status: AdvanceRequestStatus;

@@ -17,6 +17,7 @@ import {
   approveGovernanceActionWithAdapter,
   type GovernanceActionRow,
 } from './governance-action-core.service';
+import { attachSubjectLabels } from './governance-subject-labels.service';
 // Re-export the approval core so existing importers (domain governance
 // services + tests) keep one stable path; the core itself stays a leaf so the
 // adjustment-governance → hub edge (and the services-graph cycle it closed)
@@ -52,6 +53,8 @@ import { applyTreasuryGovernanceAction } from './treasury.service';
 
 export type GovernanceActionView = GovernanceActionRow & {
   allowedActions: GovernanceAllowedAction[];
+  /** Human-readable subject resolved server-side; null → show raw subjectKey. */
+  subjectLabel?: string | null;
 };
 
 const DIRECT_MONEY_ACTION_KINDS = new Set([
@@ -148,10 +151,11 @@ export async function getGovernanceAction(input: {
     .where(eq(s.governanceActions.id, input.actionId))
     .limit(1);
   if (!action) throw new ApiError(404, 'Không tìm thấy yêu cầu điều chỉnh');
-  return withAllowedActions(action, {
+  const [withSubject] = await attachSubjectLabels([withAllowedActions(action, {
     actorId: input.actorId,
     actorRole: input.actorRole,
-  });
+  })]);
+  return withSubject;
 }
 
 export type GovernanceActionListResult = PaginatedResponse<GovernanceActionView> & {
@@ -237,7 +241,7 @@ export async function listGovernanceActions(input: {
   }
   const actor = { actorId: input.actorId, actorRole: input.actorRole };
   return {
-    items: rows.map(action => withAllowedActions(action, actor)),
+    items: await attachSubjectLabels(rows.map(action => withAllowedActions(action, actor))),
     total: Number(countRow?.count ?? 0),
     page: Math.floor(offset / limit) + 1,
     pageSize: limit,

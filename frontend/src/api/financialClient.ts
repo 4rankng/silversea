@@ -30,6 +30,8 @@ export interface GovernanceActionRecord {
   subjectType: string;
   subjectId: number | null;
   subjectKey: string | null;
+  /** Human-readable subject resolved server-side; falls back to subjectKey. */
+  subjectLabel?: string | null;
   actionKind: string;
   status: GovernanceActionStatus;
   reason: string;
