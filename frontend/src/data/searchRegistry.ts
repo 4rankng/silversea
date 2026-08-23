@@ -127,6 +127,7 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
     case 'ADMIN':
       return [
         ...officeBaseItems,
+        { id: 'admin-center', type: 'page', label: 'Trung tâm quản trị', path: '/admin-center', iconName: 'analytics' },
         { id: 'users',      type: 'page', label: 'Người dùng',         path: '/users',      iconName: 'users-hr' },
         { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
         ...CONFIG_ITEMS,

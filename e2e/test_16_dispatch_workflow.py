@@ -39,8 +39,15 @@ def assert_control_box(
     results: TestResults,
     tc_id: str,
     context: str,
-    min_size: int = CONTROL_MIN_SIZE,
+    min_size: int | None = None,
 ):
+    # 44px is the phone touch floor (responsive.css ≤640px universal rule).
+    # Desktop/tablet controls ride the sizing contract's --control-default-h
+    # (40px) — docs/design-guidelines.md §Global sizing contract — so the
+    # desktop floor is 40, not the phone floor.
+    if min_size is None:
+        width = (page.viewport_size or {}).get("width", 1440)
+        min_size = 44 if width <= 640 else 40
     try:
         locator.wait_for(state="visible", timeout=5000)
         if not locator.is_visible():

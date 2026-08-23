@@ -70,6 +70,7 @@ export const AGENT_ROUTE_KEYS = [
   'configSalaryPeriods',
   'configDebitNoteTemplates',
   // Admin
+  'adminCenter',
   'users',
   'auditLogs',
 ] as const;

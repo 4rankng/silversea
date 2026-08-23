@@ -36,6 +36,7 @@ describe('getNavItems', () => {
       ['Nhà máy', '/config/factories'],
       ['Cảng / Bãi & Biểu phí', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
+      ['Trung tâm quản trị', '/admin-center'],
       ['Quản lý Người dùng', '/users'],
       ['Nhật ký hệ thống', '/audit-logs'],
       ['Cài đặt ứng dụng', '/config/app-settings'],

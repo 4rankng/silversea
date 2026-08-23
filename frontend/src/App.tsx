@@ -40,6 +40,7 @@ const DebtListPage = lazy(() => import('./pages/DebtListPage'));
 const DebtDetailPage = lazy(() => import('./pages/DebtDetailPage'));
 const PenaltyPage = lazy(() => import('./pages/PenaltyPage'));
 const ConfigPage = lazy(() => import('./pages/ConfigPage'));
+const AdminCenterPage = lazy(() => import('./pages/AdminCenterPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 // Wave 0: minimal shipment (lô hàng) list + detail. Read-only — full CUS UI
 // ships in Wave 2.
@@ -269,6 +270,9 @@ export function AppRoutes() {
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />
           <Route path="/trailers" element={<Navigate to="/config/trailers" replace />} />
+          {/* Trung tâm quản trị — strict-ADMIN health hub (mirrors the
+              /system/admin-health work-inbox RBAC). Kept separate from /config. */}
+          <Route path="/admin-center" element={strictAdminOnly(page(<AdminCenterPage />))} />
           <Route path="/config" element={adminOnly(page(<ConfigPage />))} />
           <Route path="/config/trailers" element={adminOnly(page(<TrailersConfigPage />))} />
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />

@@ -475,36 +475,37 @@ def main() -> bool:
             ctx.login_as("clerk", page)
             page.goto(f"{BASE_URL}/shipments-detail?dateScope=all&searchSuffix={BOOK_SUFFIX_QUERY}")
             wait_for_page_ready(page)
-            # URL-backed Chưa cập nhật filter: applying it updates the URL
-            # (replaceState) and keeps the select visibly active. The fixture's
-            # warning line is asserted via the API in TC-1816/1817; here the
-            # fixture row (still missing its appointment) must render the
-            # server-derived warning after the filter is applied.
+            # URL-backed Trạng thái (điều xe) filter: applying it updates the
+            # URL (replaceState) and keeps the select visibly active. The
+            # fixture's warning line is asserted via the API in TC-1816/1817;
+            # here the fixture row (undispatched, still missing its
+            # appointment) must render the server-derived warning after the
+            # filter surfaces it.
             fixture_warning = page.locator(f"text=BLCUS{BOOK_SUFFIX_STORED}")
             fixture_warning.first.wait_for(timeout=10_000)
-            info_select = page.locator("select", has=page.locator("option[value='MISSING']")).first
+            status_select = page.locator("select", has=page.locator("option[value='UNASSIGNED']")).first
             with page.expect_response(
                 lambda response: (
                     "/api/shipments/cus-workspace/containers?" in response.url
-                    and "informationStatus=MISSING" in response.url
+                    and "dispatchStatus=UNASSIGNED" in response.url
                     and response.status == 200
                 ),
                 timeout=10_000,
             ):
-                info_select.select_option("MISSING")
+                status_select.select_option("UNASSIGNED")
             page.wait_for_function(
-                "() => new URLSearchParams(location.search).get('informationStatus') === 'MISSING'",
+                "() => new URLSearchParams(location.search).get('dispatchStatus') === 'UNASSIGNED'",
                 timeout=5_000,
             )
             page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
             warning = page.locator(".shipment-container-ledger__missing-fields", has_text="Lịch hẹn").first
             warning.wait_for(state="visible", timeout=10_000)
-            active_filter_visible = info_select.input_value() == "MISSING"
+            active_filter_visible = status_select.input_value() == "UNASSIGNED"
             warning_visible = warning.is_visible()
             check(
                 results,
                 "TC-1821",
-                "Bộ lọc Chưa cập nhật nằm trong URL, giữ lựa chọn và hiển thị dòng cảnh báo trường thiếu",
+                "Bộ lọc Trạng thái (chưa điều xe) nằm trong URL, giữ lựa chọn và hiển thị dòng cảnh báo trường thiếu",
                 active_filter_visible and warning_visible,
                 f"url={page.url}, activeFilter={active_filter_visible}, warning={warning_visible}",
             )

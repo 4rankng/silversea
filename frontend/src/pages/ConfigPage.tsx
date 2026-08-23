@@ -11,7 +11,6 @@ import { usePageAnimations } from '../hooks/animations';
 import { qk } from '../api/keys';
 import { isCompanyInfoConfigured, Role } from '@tingting/shared';
 import type { CompanyInfo } from '@tingting/shared';
-import { AdminHealthWorkspace } from '../features/config/AdminHealthWorkspace';
 import './ConfigPage.css';
 
 const CHEVRON = <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
@@ -157,8 +156,6 @@ export default function ConfigPage() {
         iconName="settings"
         description="Quản lý định mức, quy tắc tính toán, người dùng & tích hợp hệ thống"
       />
-
-      {isAdmin && <AdminHealthWorkspace />}
 
       {searchQuery.trim() && (
         <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--fg-3)', display: 'flex', alignItems: 'center', gap: 6 }}>

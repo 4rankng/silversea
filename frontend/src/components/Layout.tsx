@@ -31,6 +31,7 @@ import {
   Calculator,
   Anchor,
   Container,
+  Activity,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
@@ -129,6 +130,7 @@ export function getNavItems(
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
         // Hệ thống (System) per spec
+        { key: 'admin-center', label: 'Trung tâm quản trị', path: routes.adminCenter, icon: Activity, section: 'system' as SectionName },
         { key: 'users', label: 'Quản lý Người dùng', path: routes.users, icon: Users, section: 'system' as SectionName },
         { key: 'audit-logs', label: 'Nhật ký hệ thống', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
         { key: 'app-settings', label: 'Cài đặt ứng dụng', path: '/config/app-settings', icon: SlidersHorizontal, section: 'system' as SectionName },

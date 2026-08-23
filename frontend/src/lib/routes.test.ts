@@ -145,7 +145,7 @@ describe('agent route-key set parity (catalog ↔ AGENT_ROUTE_KEYS)', () => {
     }
   });
 
-  it('agent set includes all 38 navigable office destinations', () => {
-    expect(AGENT_ROUTE_KEYS).toHaveLength(38);
+  it('agent set includes all 39 navigable office destinations', () => {
+    expect(AGENT_ROUTE_KEYS).toHaveLength(39);
   });
 });

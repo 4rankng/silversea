@@ -290,6 +290,17 @@ export const PAGE_CATALOG = {
     path: '/login',
   },
 
+  /* ── System administration ──────────────────────────────────────────── */
+
+  adminCenter: {
+    // ADMIN-only health & readiness hub (server-email, setup, RBAC counts,
+    // operational catalogs, database). Backs the /admin-center page.
+    title: 'Trung tâm quản trị',
+    path: '/admin-center',
+    section: 'system',
+    agent: { description: 'Trung tâm quản trị — sức khỏe và mức độ sẵn sàng hệ thống.' },
+  },
+
   /* ── Config (catalog admin) ─────────────────────────────────────────── */
 
   config: {
