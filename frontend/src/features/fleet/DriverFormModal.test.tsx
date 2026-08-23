@@ -35,4 +35,35 @@ describe('DriverFormModal', () => {
     expect(screen.getByRole('button', { name: '— Chưa phân — Xe phân công' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hoạt động Trạng thái' })).toBeTruthy();
   });
+
+  it('renders one flat field grid — no boxed sections or prose headers', () => {
+    render(
+      <DriverFormModal
+        isOpen
+        saving={false}
+        trucks={trucks}
+        onsave={vi.fn()}
+        oncancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('Hồ sơ lái xe')).toBeNull();
+    expect(screen.queryByText('Phân công')).toBeNull();
+    expect(document.querySelector('.fleet-form__section')).toBeNull();
+    expect(document.querySelectorAll('.fleet-form__grid')).toHaveLength(1);
+  });
+
+  it('cancels with the bordered secondary action, never a ghost', () => {
+    render(
+      <DriverFormModal
+        isOpen
+        saving={false}
+        trucks={trucks}
+        onsave={vi.fn()}
+        oncancel={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Hủy/ }).className).toContain('btn--secondary');
+  });
 });

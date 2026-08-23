@@ -4,6 +4,10 @@ import { Modal } from '../../components/UI';
 import type { Truck as TruckType, Driver } from '@tingting/shared';
 import { DRIVER_STATUS } from './constants';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+// Own stylesheet: this modal also renders on /fleet/drivers (dispatch
+// catalogs), whose route chunk never loads the /fleet page cards that
+// normally pull FleetPage.css in.
+import '../../pages/FleetPage.css';
 
 export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen, showSalary = true }: {
   saving: boolean; item?: Driver; trucks: TruckType[]; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -45,7 +49,7 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
       maxWidth={620}
       footer={
         <div className="fleet-form-actions">
-          <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+          <button className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
           <button className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
@@ -55,83 +59,67 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
         </div>
       }
     >
+      {/* Five fields, one flat grid — no boxed sections or prose headers. The
+          grid gap owns the rhythm; row 1 is the profile (name spans 2), row 2
+          the assignment pair, so no column slot sits empty on the wide rows. */}
       <div className="fleet-form">
-        <section className="fleet-form__section fleet-form__section--identity">
-          <div className="fleet-form__section-head">
-            <div>
-              <h4>Hồ sơ lái xe</h4>
-              <p>Thông tin liên hệ, lương cơ bản và trạng thái làm việc.</p>
-            </div>
+        <div className="fleet-form__grid">
+          <div className="field fleet-form__field fleet-form__field--wide">
+            <label htmlFor="driver-name">
+              Họ và tên <span>*</span>
+            </label>
+            <input
+              id="driver-name"
+              className="input"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Ví dụ: Nguyễn Văn A"
+              autoFocus
+            />
           </div>
-          <div className="fleet-form__grid">
-            <div className="field fleet-form__field fleet-form__field--wide">
-              <label htmlFor="driver-name">
-                Họ và tên <span>*</span>
-              </label>
-              <input
-                id="driver-name"
-                className="input"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Ví dụ: Nguyễn Văn A"
-                autoFocus
-              />
-            </div>
-            <div className="field fleet-form__field">
-              <label htmlFor="driver-phone">Số điện thoại</label>
-              <input
-                id="driver-phone"
-                className="input"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="0912..."
-              />
-            </div>
-            {showSalary && <div className="field fleet-form__field">
-              <label htmlFor="driver-salary">Lương cơ bản (đ)</label>
-              <input
-                id="driver-salary"
-                className="input"
-                type="number"
-                value={baseSalary}
-                onChange={e => setBaseSalary(e.target.value)}
-                placeholder="0"
-              />
-            </div>}
+          <div className="field fleet-form__field">
+            <label htmlFor="driver-phone">Số điện thoại</label>
+            <input
+              id="driver-phone"
+              className="input"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="0912..."
+            />
           </div>
-        </section>
-
-        <section className="fleet-form__section">
-          <div className="fleet-form__section-head">
-            <div>
-              <h4>Phân công</h4>
-              <p>Gán lái xe vào một đầu kéo đang hoạt động.</p>
-            </div>
+          {showSalary && <div className="field fleet-form__field">
+            <label htmlFor="driver-salary">Lương cơ bản (đ)</label>
+            <input
+              id="driver-salary"
+              className="input"
+              type="number"
+              value={baseSalary}
+              onChange={e => setBaseSalary(e.target.value)}
+              placeholder="0"
+            />
+          </div>}
+          <div className="fleet-form__field fleet-form__field--wide">
+            <UuiSelectField
+              id="driver-truck"
+              label="Xe phân công"
+              value={String(truckId)}
+              onChange={(e) => setTruckId(Number(e.target.value))}
+              options={[
+                { value: '0', label: '— Chưa phân —' },
+                ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
+              ]}
+            />
           </div>
-          <div className="fleet-form__grid">
-            <div className="fleet-form__field">
-              <UuiSelectField
-                id="driver-truck"
-                label="Xe phân công"
-                value={String(truckId)}
-                onChange={(e) => setTruckId(Number(e.target.value))}
-                options={[
-                  { value: '0', label: '— Chưa phân —' },
-                  ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
-                ]}
-              />
-            </div>
-            <div className="fleet-form__field">
-              <UuiSelectField
-                id="driver-status"
-                label="Trạng thái"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
-              />
-            </div>
+          <div className="fleet-form__field fleet-form__field--wide">
+            <UuiSelectField
+              id="driver-status"
+              label="Trạng thái"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              options={Object.entries(DRIVER_STATUS).map(([k, v]) => ({ value: k, label: v }))}
+            />
           </div>
-        </section>
+        </div>
       </div>
     </Modal>
   );
