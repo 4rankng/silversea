@@ -238,11 +238,7 @@ export default function TripCreatePage() {
               <ArrowLeft size={18} />
             </button>
             <div className="tc-hero-title-block">
-              <div className="tc-hero-eyebrow">Tạo lệnh mới</div>
-              <h1 className="tc-hero-h1" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 36, height: 36, flexShrink: 0 }} />
-                Tạo lệnh vận chuyển mới
-              </h1>
+              <h1 className="sr-only">Tạo lệnh vận chuyển mới</h1>
               <p className="tc-hero-sub">
                 Điền các trường bắt buộc để tạo lệnh. Chọn tuyến đường để tự động điền trạm thu phí, định mức dầu và lương sản lượng.
               </p>

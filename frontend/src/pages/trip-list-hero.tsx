@@ -4,17 +4,13 @@ import { formatMoney, type StatusCounts } from '../features/trips';
 import type { tripClient } from '../api/tripClient';
 
 type Summary = Awaited<ReturnType<typeof tripClient.getTripsSummary>>;
-interface TripListHeroProps { todayLabel: string; statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
-export function TripListHero({ todayLabel, statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, breakdownPct, warnThreshold, month }: TripListHeroProps) {
+interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
+export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, breakdownPct, warnThreshold, month }: TripListHeroProps) {
  return (
         <section className="hero hero--route-network">
           <div className="hero-top">
             <div className="hero-title-block">
-              <div className="hero-eyebrow">Sổ chuyến · {todayLabel}</div>
-              <h1 className="hero-h1" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
-                Sổ chuyến đi
-              </h1>
+              <h1 className="sr-only">Sổ chuyến đi</h1>
               <div className="hero-sub">
                 {statusCounts.all} chuyến đã ghi nhận
                 {statusCounts[TripStatus.COMPLETED] > 0 && (

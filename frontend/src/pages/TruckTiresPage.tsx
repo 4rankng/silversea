@@ -3,7 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Settings2 } from "lucide-react";
 import type { Tire } from "@tingting/shared";
 import { ConfirmDialog } from "../components/UI";
-import { AssetIcon } from "../components/AssetIcon";
 import { StatusSwatch } from "../components/shared/StatusStrip";
 import { useToast } from "../components/shared/Toast";
 import { formatErrorMessage } from "../lib/api";
@@ -164,10 +163,7 @@ export default function TruckTiresPage({ vehicle = "truck" }: { vehicle?: Vehicl
             <ArrowLeft size={14} />
             Quay lại đội xe
           </Link>
-          <h1 style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <AssetIcon name="tire" size={32} />
-            {vehicleLabel}
-          </h1>
+          <h1 className="sr-only">{vehicleLabel}</h1>
           <div className="ttp-sub">Theo dõi serial lốp, vị trí lắp, ngày mua, tuổi lốp, nhà cung cấp và thanh lý lốp cũ.</div>
         </div>
       </div>

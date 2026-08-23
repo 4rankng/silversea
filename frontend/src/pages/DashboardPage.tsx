@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
 import { formatNumber } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
 import type { DashboardDecisionItem, Role, TripDetail } from '@tingting/shared';
@@ -349,13 +349,7 @@ export default function DashboardPage() {
       {/* ── page head ── */}
       <header className="wf-head">
         <div className="wf-head__copy">
-          <div className="wf-eyebrow">
-            <span className="d-badge d-badge-success d-badge-soft d-badge-sm">
-              <Activity size={12} aria-hidden="true" /> Đang hoạt động
-            </span>
-            <span>Trung tâm điều hành · {String(currentMonth).padStart(2, '0')}/{currentYear}</span>
-          </div>
-          <h1>Tổng quan vận hành</h1>
+          <h1 className="sr-only">Tổng quan vận hành</h1>
           <div className="wf-sum">
             {greeting()}, {user?.fullName || (user?.role && ROLE_LABELS[user.role as Role]) || user?.username || 'bạn'}. Tháng {currentMonth}/{currentYear} có doanh thu{' '}
             {prevPnlReport ? (

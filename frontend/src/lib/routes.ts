@@ -193,6 +193,10 @@ const titleRules: TitleRule[] = [
   // catalog pages don't inherit the admin "Đội xe" title.
   { test: p => p === routes.fleetVehicles, title: PAGE_CATALOG.fleetVehicles.title },
   { test: p => p === routes.fleetDrivers, title: PAGE_CATALOG.fleetDrivers.title },
+  // Tires sub-pages before the /fleet startsWith catch-all so the topbar shows
+  // the tire catalog title, not the generic "Đội xe".
+  { test: p => /^\/fleet\/trailers\/[^/]+\/tires$/.test(p), title: PAGE_CATALOG.fleetTrailerTires.title },
+  { test: p => /^\/fleet\/\d+\/tires$/.test(p), title: PAGE_CATALOG.fleetTires.title },
   { test: p => p.startsWith(routes.fleet), title: PAGE_CATALOG.fleet.title },
   { test: p => /^\/trips\/(\d+)(?:\/edit)?$/.test(p), title: p => p.endsWith('/edit') ? PAGE_CATALOG.tripEdit.title : PAGE_CATALOG.tripDetail.title },
   { test: p => p === routes.tripNew, title: PAGE_CATALOG.tripNew.title },

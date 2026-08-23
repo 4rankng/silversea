@@ -133,7 +133,7 @@ export default function FuelEvidenceReviewPage() {
           <ArrowLeft size={18} />
         </button>
         <div className="fuel-evidence-review__toolbar-main">
-          <h1 style={{ margin: 0, fontSize: 24 }}>Soát OCR màn hình bơm</h1>
+          <h1 className="sr-only">Soát OCR màn hình bơm</h1>
           <p style={{ margin: '4px 0 0', color: 'var(--fg-3)' }}>
             OCR chỉ là gợi ý. Kế toán phải xác nhận hoặc từ chối từng ảnh nhiên liệu.
           </p>

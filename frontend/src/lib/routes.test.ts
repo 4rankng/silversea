@@ -14,7 +14,8 @@ describe('titleForPath (catalog-sourced, parity with pre-refactor behavior)', ()
     '/dispatch': 'Kế hoạch Tổng quát',
     '/dispatch-detail': 'Kế hoạch Chi tiết Xe', // exact-match rule must beat the /dispatch startsWith rule
     '/fleet': 'Đội xe',
-    '/fleet/5/tires': 'Đội xe',
+    '/fleet/5/tires': 'Lốp xe đầu kéo',
+    '/fleet/trailers/7/tires': 'Lốp rơ-moóc',
     '/trips': 'Lệnh vận chuyển',
     '/trips/new': 'Tạo lệnh vận chuyển',
     '/trips/123': 'Chi tiết lệnh vận chuyển',

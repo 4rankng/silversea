@@ -5,8 +5,7 @@ import {
   Truck, Settings, DollarSign, LogIn,
   Globe, Terminal, Copy, Check, Info, Eye, X,
 } from 'lucide-react';
-import { Panel, KPI } from '../components/UI';
-import { AssetIcon } from '../components/AssetIcon';
+import { Panel, KPI, PageHeader } from '../components/UI';
 import { SortHeader } from '../components/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { useAuditLogs, type AuditEntry, type Category } from '../hooks/useAuditLogs';
@@ -289,17 +288,9 @@ fontSize: 13,
         ]}
       />
       {/* ── Page Header ── */}
-      <header className="page-header">
-        <div className="page-header-main">
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <AssetIcon name="audit-log" size={32} />
-            Nhật ký người dùng
-          </h1>
-          <p className="page-subtitle">
-            Hệ thống giám sát và ghi nhận hoạt động vận hành thời gian thực
-          </p>
-        </div>
-        <div className="page-actions">
+      <PageHeader
+        title="Nhật ký người dùng"
+        action={
           <button
             className="btn btn--secondary"
             disabled={entries.length === 0}
@@ -331,8 +322,8 @@ fontSize: 13,
             <Download size={14} />
             Xuất Excel
           </button>
-        </div>
-      </header>
+        }
+      />
 
       {/* ── KPI Strip ── */}
       <div className="kpi-grid">

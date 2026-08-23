@@ -164,17 +164,17 @@ export default function TripEditPage() {
             <ArrowLeft size={18} />
           </button>
           <div className="tc-title-wrap">
-            <h1 className="tc-page-title" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <img src="/assets/icons/03-trip-log-so-chuyen-chuyen-xe.png" alt="" style={{ width: 32, height: 32, flexShrink: 0 }} />
-              {trip.tripCode || 'Cập nhật số liệu'}
+            <h1 className="sr-only">{trip.tripCode || 'Cập nhật số liệu'}</h1>
+            <p className="tc-page-sub" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <strong style={{ fontSize: 14 }}>{trip.tripCode || 'Cập nhật số liệu'}</strong>
               <span
                 className={`tc-status-pill tc-status-pill--${trip.status === TripStatus.IN_TRANSIT ? 'in-transit' : trip.status === TripStatus.COMPLETED ? 'completed' : 'draft'}`}
                 aria-label={`Trạng thái: ${trip.status}`}
               >
                 {TRIP_STATUS_LABELS[trip.status]}
               </span>
-            </h1>
-            <p className="tc-page-sub">{trip.customer?.name ?? ''} · {trip.route?.name ?? ''}</p>
+              <span>{trip.customer?.name ?? ''} · {trip.route?.name ?? ''}</span>
+            </p>
           </div>
         </header>
 

@@ -405,8 +405,6 @@ export default function TripListPage() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  const todayLabel = `Tháng ${month}/${year}`;
-
   return (
     <div ref={rootRef} className={`trip-list-page${quickEdit ? ' quick-edit-mode' : ''}`} style={{ paddingBottom: 40 }}>
       <Breadcrumbs
@@ -417,7 +415,7 @@ export default function TripListPage() {
         ]}
         renderLink={(to, children) => <a onClick={() => navigate(to)} style={{ cursor: 'pointer' }}>{children}</a>}
       />
-      <TripListHero todayLabel={todayLabel} statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
+      <TripListHero statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
 
       <TripFiltersBar
         statusCounts={statusCounts}
