@@ -70,7 +70,10 @@ Full workflow entities (shipments, advances, billing…):
 3. Route file thin over the service; zod schemas near the route or in `shared/src/schemas`
    when the frontend consumes them too.
 4. Backend pagination always — never return unbounded arrays (list helpers:
-   `list-pagination-helpers` unit test shows the envelope pattern).
+   `list-pagination-helpers` unit test shows the envelope pattern). KPI/tab
+   counts ride the envelope as full-set aggregates (`statusCounts`,
+   `statusAmounts`, `summary` — computed over the same where-clause minus the
+   page window); they must never be derived client-side from one page.
 5. Frontend wiring is out of this doc's scope; see the frontend conventions in
    `docs/design-guidelines.md` for UI work.
 
