@@ -172,7 +172,7 @@ describe('AccountingWorkspacePage', () => {
     await waitFor(() => expect(screen.getAllByText('15.000.000 ₫').length).toBeGreaterThan(0));
     expect(screen.getByText('3.000.000 ₫')).toBeTruthy();
     expect(screen.getByText('8.000.000 ₫')).toBeTruthy();
-    const amounts = Array.from(document.querySelectorAll('.accounting-kpi strong'))
+    const amounts = Array.from(document.querySelectorAll('.summary-rail dd'))
       .map((node) => node.textContent ?? '');
     expect(amounts.every((amount) => !/\d\s*(?:tr|tỷ|M|B)\b/.test(amount))).toBe(true);
   });

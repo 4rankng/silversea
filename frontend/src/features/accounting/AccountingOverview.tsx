@@ -1,7 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import {
   ArrowRight,
-  CalendarDays,
   ChartNoAxesCombined,
   CircleDollarSign,
   Fuel,
@@ -14,6 +13,7 @@ import {
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '../../lib/format';
 import { routes } from '../../lib/routes';
+import { SummaryRail, type SummaryRailItem } from '../../design-system';
 import type {
   PayablesSummary,
   ProfitabilitySummary,
@@ -36,48 +36,53 @@ export function AccountingOverview({
   payables,
   profitability,
 }: AccountingOverviewProps) {
+  // Rail values degrade to an em dash while loading or when an authority
+  // fails — the workspace banner already names the failing source.
+  const dash = '—';
+  const overdueAmount = receivables.data?.overdueAmount ?? 0;
+  const summaryItems: SummaryRailItem[] = [
+    {
+      label: 'Phải thu',
+      value: receivables.isLoading || receivables.isError
+        ? dash
+        : formatCurrency(receivables.data?.totalOutstanding ?? 0),
+    },
+    {
+      label: 'Khách hàng',
+      value: receivables.isLoading || receivables.isError
+        ? dash
+        : (receivables.data?.totalCustomers ?? 0),
+    },
+    {
+      label: 'Quá hạn',
+      value: receivables.isLoading || receivables.isError
+        ? dash
+        : formatCurrency(overdueAmount),
+      tone: overdueAmount > 0 ? 'warning' : undefined,
+    },
+    {
+      label: 'Phải trả',
+      value: payables.isLoading || payables.isError
+        ? dash
+        : formatCurrency(Number(payables.data?.totalOutstanding ?? 0)),
+    },
+    {
+      label: 'Nhà cung cấp / nhà xe',
+      value: payables.isLoading || payables.isError
+        ? dash
+        : (payables.data?.totalSuppliers ?? 0),
+    },
+    {
+      label: 'Lợi nhuận kỳ',
+      value: profitability.isLoading || profitability.isError
+        ? dash
+        : formatCurrency(profitability.data?.totals.profit ?? 0),
+    },
+  ];
+
   return (
     <>
-      <section className="accounting-kpis" aria-label="Chỉ số kế toán">
-        <Kpi
-          label="Phải thu"
-          value={formatCurrency(receivables.data?.totalOutstanding ?? 0)}
-          meta={`${receivables.data?.totalCustomers ?? 0} khách hàng`}
-          icon={ReceiptText}
-          loading={receivables.isLoading}
-          unavailable={receivables.isError}
-        />
-        <Kpi
-          label="Quá hạn"
-          value={formatCurrency(receivables.data?.overdueAmount ?? 0)}
-          meta={`${receivables.data?.overdueCustomers ?? 0} khách cần xử lý`}
-          icon={CalendarDays}
-          loading={receivables.isLoading}
-          unavailable={receivables.isError}
-          tone="danger"
-        />
-        <Kpi
-          label="Phải trả"
-          value={formatCurrency(Number(payables.data?.totalOutstanding ?? 0))}
-          meta={`${payables.data?.totalSuppliers ?? 0} nhà cung cấp / nhà xe`}
-          icon={WalletCards}
-          loading={payables.isLoading}
-          unavailable={payables.isError}
-        />
-        <Kpi
-          label="Lợi nhuận kỳ"
-          value={formatCurrency(profitability.data?.totals.profit ?? 0)}
-          meta={
-            profitability.data?.reconciliation.status === 'RECONCILED'
-              ? 'Đã đối chiếu nguồn'
-              : 'Còn nguồn cần bổ sung'
-          }
-          icon={ChartNoAxesCombined}
-          loading={profitability.isLoading}
-          unavailable={profitability.isError}
-          tone="positive"
-        />
-      </section>
+      <SummaryRail ariaLabel="Chỉ số kế toán" items={summaryItems} />
 
       <p className="accounting-provenance">
         Kỳ dữ liệu đến {displayBusinessDate(to)} · Tổng hợp từ công nợ phải thu, công nợ phải trả
@@ -152,35 +157,6 @@ export function AccountingOverview({
         />
       </section>
     </>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  meta,
-  icon: Icon,
-  loading,
-  unavailable,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: string;
-  meta: string;
-  icon: LucideIcon;
-  loading: boolean;
-  unavailable?: boolean;
-  tone?: 'neutral' | 'positive' | 'danger';
-}) {
-  return (
-    <article className={`accounting-kpi accounting-kpi--${tone}`} aria-busy={loading}>
-      <div className="accounting-kpi__head">
-        <span>{label}</span>
-        <Icon aria-hidden="true" size={19} />
-      </div>
-      <strong>{loading ? 'Đang tải…' : unavailable ? 'Không khả dụng' : value}</strong>
-      <small>{meta}</small>
-    </article>
   );
 }
 

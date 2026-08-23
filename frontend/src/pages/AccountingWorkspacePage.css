@@ -32,13 +32,6 @@
 .accounting-tabs a[aria-current="page"] { background: var(--bg-3); color: var(--fg-1); }
 .accounting-tabs a:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 32%, transparent); outline-offset: 1px; }
 
-.accounting-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.accounting-kpi { display: grid; gap: 10px; min-width: 0; padding: 16px; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
-.accounting-kpi__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-3); font-size: var(--fs-xs); font-weight: 700; }
-.accounting-kpi strong { overflow-wrap: anywhere; color: var(--fg-1); font-size: clamp(var(--fs-lg), 1.6vw, var(--fs-2xl)); line-height: var(--lh-tight); }
-.accounting-kpi small { color: var(--fg-3); font-size: 12px; }
-.accounting-kpi--positive .accounting-kpi__head { color: var(--success); }
-.accounting-kpi--danger .accounting-kpi__head { color: var(--danger); }
 .accounting-provenance { margin: -8px 0 0; color: var(--fg-3); font-size: 12px; line-height: 1.5; }
 
 .accounting-workflows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--border-1); border-radius: 12px; background: var(--bg-1); }
@@ -115,16 +108,11 @@
 .accounting-register__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; color: var(--fg-3); }
 .accounting-register__footer small { font-size: 12px; }
 
-@media (max-width: 1023px) {
-  .accounting-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 @media (max-width: 700px) {
   .accounting-page { gap: 14px; }
   .accounting-period { align-items: stretch; flex-direction: column; padding: 14px; }
   .accounting-period__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .accounting-period input { width: 100%; min-width: 0; }
-  .accounting-kpis { grid-template-columns: 1fr; }
   .accounting-workflows { grid-template-columns: 1fr; }
   .accounting-workflow,
   .accounting-workflow:nth-child(odd),
