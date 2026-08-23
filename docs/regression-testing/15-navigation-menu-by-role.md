@@ -120,7 +120,6 @@ Các nguyên tắc sau đây là **điểm kiểm soát** PRD yêu cầu — m�
 | Danh mục            | Khách hàng                         | `/customers`               |
 |                     | Nhà cung cấp / Nhà xe              | `/suppliers`               |
 |                     | Tuyến đường                        | `/config/routes`           |
-|                     | Nhà máy                            | `/config/factories`        |
 |                     | Cảng / Bãi & Biểu phí             | `/config/ports`            |
 |                     | Bảng giá cước                      | `/config/pricing-tables`   |
 | Hệ thống            | Quản lý Người dùng                 | `/users`                   |
@@ -258,24 +257,17 @@ Cấu trúc giống ADMIN nhưng:
 - **Không nhìn thấy** "Tổng quan" Ban điều hành (`/dashboard`).
 - **Không nhìn thấy** "Phân xe" (`/dispatch`).
 - **Không nhìn thấy** "Cài đặt ứng dụng" (`/config/app-settings`), "Giám sát Chatbot" (`/chatbot-monitoring`).
-- Nhóm "Vận hành liên quan" **không có** "Phân xe" (chỉ Đội xe, Sổ chuyến đi, Lô hàng).
+- Nhóm "Vận hành liên quan" **chỉ còn Lô hàng** — Sổ chuyến đi / Đội xe cùng mọi mục Nhân sự + Danh mục đã bị loại vì route của chúng (`adminOnly`) đẩy Kế toán về `/accounting` (dead link ẩn).
 
 | Nhóm                    | Mục                | Đường dẫn            | Ghi chú                |
 | ----------------------- | ------------------ | -------------------- | ---------------------- |
 | Trang bắt đầu           | Tổng Quan          | `/accounting`        | duy nhất, không /dashboard |
 | Công nợ & Dòng tiền     | (như ADMIN)        | `/debt` … `/advances` | Sổ quỹ cq              |
 | Báo cáo & Phê duyệt     | (như ADMIN)        | `/profit` … `/governance-actions` |            |
-| Vận hành liên quan      | Đội xe             | `/fleet`             |                        |
-|                         | Sổ chuyến đi       | `/trips`             |                        |
-|                         | Lô hàng            | `/shipments`         |                        |
-| Nhân sự                 | Lương & Chấm công  | `/salary`            |                        |
-|                         | Kỷ luật            | `/penalties`         |                        |
-| Danh mục                | Khách hàng         | `/customers`         |                        |
-|                         | Nhà cung cấp       | `/suppliers`         |                        |
-|                         | Tuyến đường        | `/config/routes`     |                        |
-| Hệ thống                | Người dùng         | `/users`             |                        |
-|                         | Nhật ký người dùng | `/audit-logs`        |                        |
-|                         | Cấu hình           | `/config`            |                        |
+| Vận hành liên quan      | Lô hàng            | `/shipments`         |                        |
+| Hệ thống                | Nhật ký người dùng | `/audit-logs`        |                        |
+
+> Bảng trên đồng bộ với nav-matrix test trong `frontend/src/components/Layout.test.ts` — nguồn chuẩn duy nhất cho `getNavItems`.
 
 ### TC-NAV-ACC-01 — Trang bắt đầu là `/accounting`, không phải `/dashboard` (NP-06)
 
@@ -325,13 +317,13 @@ Cấu trúc giống ADMIN nhưng:
   - 2 mục ẩn; URL trực tiếp → redirect/403.
 - **Bằng chứng:** ảnh menu + DevTools 403.
 
-### TC-NAV-ACC-05 — Nhóm "Vận hành liên quan" đúng 3 mục
+### TC-NAV-ACC-05 — Nhóm "Vận hành liên quan" chỉ còn Lô hàng
 
 - **Mã PRD:** ACCOUNTANT — Vận hành liên quan
 - **Vai trò:** `ketoan`
-- **Các bước:** kiểm tra nhóm "Vận hành liên quan" có đúng Đội xe / Sổ chuyến đi / Lô hàng.
-- **Kết quả mong đợi (Pass):** đúng 3 mục, không có "Phân xe", thứ tự đúng.
-- **Bằng chứng:** ảnh nhóm.
+- **Các bước:** kiểm tra nhóm "Vận hành liên quan"; thử URL trực tiếp `/trips`, `/fleet`, `/salary`, `/customers`.
+- **Kết quả mong đợi (Pass):** nhóm chỉ có "Tổng quan lô hàng" (1 mục), không có "Phân xe"; các URL trực tiếp trên redirect về `/accounting` (route `adminOnly`).
+- **Bằng chứng:** ảnh nhóm + ảnh redirect.
 
 ---
 
