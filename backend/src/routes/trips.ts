@@ -3,6 +3,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { TripStatus, NotificationType, Role, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema, createAdjustmentSchema, tripReopenRequestSchema, tripContainerBatchSchema, tripExpenseSchema, tripExpensePatchSchema, upsertTripInstructionsSchema } from '@tingting/shared';
 import * as tripService from '../services/trip.service';
+import { TRIP_LIST_SORT_KEYS } from '../services/trip-queries.service';
 import { getTripStatusOr404, markTripPodRecovered } from '../services/trip-mutations.service';
 import * as gpsService from '../services/gps.service';
 import * as financialService from '../services/financial.service';
@@ -87,6 +88,14 @@ const tripExpenseDecisionRequestSchema = z.object({
   }),
 });
 
+// Sort params for the trips list — optional; absent params keep the default
+// departureDate-desc order. Keys must match TRIP_LIST_SORT_SQL in
+// trip-queries.service.ts (the server-side whitelist).
+const tripListSortQuerySchema = z.object({
+  sortBy: z.enum(TRIP_LIST_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
 async function invalidateReportCaches(invalidatePnl?: boolean) {
   await Promise.all([
     cacheInvalidate('reports:dashboard'),
@@ -106,6 +115,14 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const dateToVal = (req.query.dateTo || req.query.date_to) as string;
   const searchVal = (req.query.search || req.query.q) as string;
 
+  const parsedSort = tripListSortQuerySchema.safeParse({
+    sortBy: req.query.sortBy,
+    sortDir: req.query.sortDir,
+  });
+  if (!parsedSort.success) {
+    throw new ApiError(400, 'Tham số sắp xếp không hợp lệ');
+  }
+
   const { page, limit } = parsePagination(req);
   res.json(await tripService.getTrips({
     page,
@@ -117,6 +134,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     dateFrom: dateFromVal,
     dateTo: dateToVal,
     search: searchVal || undefined,
+    sortBy: parsedSort.data.sortBy,
+    sortDir: parsedSort.data.sortDir,
   }));
 }));
 

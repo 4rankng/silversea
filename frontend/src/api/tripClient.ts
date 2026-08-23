@@ -1,5 +1,6 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
+import type { TableSortDir } from '../lib/table-sort';
 import { TRIPS, CATALOGS, TRACKING } from '@tingting/shared';
 import type {
   Trip,
@@ -63,6 +64,9 @@ type ListTripsParams = {
   truckId?: number;
   driverId?: number;
   customerId?: number;
+  /** Server-side sort (GET /api/trips whitelist); absent = default order. */
+  sortBy?: string;
+  sortDir?: TableSortDir;
 };
 
 export const tripClient = {

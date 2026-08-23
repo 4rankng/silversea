@@ -13,7 +13,8 @@ import { useMonth } from '../hooks/useMonth';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Breadcrumbs, Alert } from '../components/shared';
 import { useDebouncedValue, useTableQueryState, EmptyState, Pagination } from '../design-system';
-import { buildTripColumns, tripRowStyle, TripMobileCard, TripFiltersBar, breakdownPctFromCounts, defaultStatusCounts, DEFAULT_WARN_THRESHOLD, PAGE_SIZE, formatMoney, STATUS_PILL_CLASS, type StatusFilter, type StatusCounts, type TripQuickEditDraft, buildTripCode, getTripDistance, getTripDisplayGrossProfit } from '../features/trips';
+import { nextTableSort, type TableSortDir, type TableSortState } from '../lib/table-sort';
+import { buildTripColumns, tripColumnAriaSort, tripRowStyle, TripMobileCard, TripFiltersBar, breakdownPctFromCounts, defaultStatusCounts, DEFAULT_WARN_THRESHOLD, PAGE_SIZE, formatMoney, STATUS_PILL_CLASS, type StatusFilter, type StatusCounts, type TripQuickEditDraft, buildTripCode, getTripDistance, getTripDisplayGrossProfit } from '../features/trips';
 import { columnClass, draftChanged, figuresPayloadFromDraft, isEditableInQuickMode, quickDraftFromTrip } from './trip-list-helpers';
 import { TripListHero } from './trip-list-hero';
 import { useTripListAnimations } from './use-trip-list-animations';
@@ -41,6 +42,9 @@ export default function TripListPage() {
   const [truckFilter, setTruckFilter] = useState<number | ''>('');
   const [customerFilter, setCustomerFilter] = useState<number | ''>('');
   const [searchInput, setSearchInput] = useState('');
+  // Server-side column sort. Lives in page state and rides the table hook's
+  // filters bag so every sort change refetches from page 1 (setFilters resets).
+  const [sort, setSort] = useState<TableSortState | null>(null);
   const [quickEdit, setQuickEdit] = useState(false);
   const [quickDrafts, setQuickDrafts] = useState<Record<number, TripQuickEditDraft>>({});
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
@@ -69,6 +73,8 @@ export default function TripListPage() {
     customerId?: number;
     dateFrom?: string;
     dateTo?: string;
+    sortBy?: string;
+    sortDir?: TableSortDir;
   }>({
     endpoint: (params) => tripClient.listTrips({
       page: params.page,
@@ -79,6 +85,8 @@ export default function TripListPage() {
       search: params.search,
       dateFrom: params.dateFrom,
       dateTo: params.dateTo,
+      sortBy: params.sortBy,
+      sortDir: params.sortDir,
     }),
     queryKey: qk.trips.all,
     defaultPageSize: PAGE_SIZE,
@@ -86,7 +94,12 @@ export default function TripListPage() {
   });
   // Apply the form-state filters and search into the table hook. We do
   // this via a one-way assignment so the table hook stays the source of
-  // truth for query execution.
+  // truth for query execution. Sort rides the same bag so a filter change
+  // can never drop it; `sort` is a state object, so it only re-triggers
+  // this effect when the user actually toggles a column.
+  const handleSortChange = useCallback((key: string) => {
+    setSort((current) => nextTableSort(current, key));
+  }, []);
   useEffect(() => {
     table.setSearch(debouncedSearch);
   // table omitted from deps: setSearch is a stable useCallback ref inside useTableQueryState
@@ -99,10 +112,12 @@ export default function TripListPage() {
       customerId: customerFilter || undefined,
       dateFrom: listDateFrom,
       dateTo: listDateTo,
+      sortBy: sort?.by,
+      sortDir: sort?.dir,
     });
   // table omitted from deps: setFilters is a stable useCallback ref inside useTableQueryState
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, truckFilter, customerFilter, listDateFrom, listDateTo]);
+  }, [statusFilter, truckFilter, customerFilter, listDateFrom, listDateTo, sort]);
 
   // ── Summary query ──
   const { data: summary } = useQuery({
@@ -359,7 +374,10 @@ export default function TripListPage() {
   }, {
     copyingPlanId,
     onCopyPlan: canCopyPlan ? handleCopyPlan : undefined,
-  }), [canCopyPlan, copyingPlanId, handleCopyPlan, handleDraftChange, handleToggleSelect, quickDrafts, quickEdit, quickErrors, selectedIds, warnThreshold]);
+  }, {
+    sort,
+    onSortChange: handleSortChange,
+  }), [canCopyPlan, copyingPlanId, handleCopyPlan, handleDraftChange, handleToggleSelect, quickDrafts, quickEdit, quickErrors, selectedIds, sort, handleSortChange, warnThreshold]);
   const tableInstance = useReactTable({
     data: table.rows,
     columns,
@@ -479,7 +497,12 @@ export default function TripListPage() {
                 <React.Fragment key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     return (
-                      <div key={header.id} className={columnClass(header.column.id)}>
+                      <div
+                        key={header.id}
+                        className={columnClass(header.column.id)}
+                        role="columnheader"
+                        aria-sort={tripColumnAriaSort(header.column.id, sort)}
+                      >
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </div>
                     );

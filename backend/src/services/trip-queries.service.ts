@@ -85,7 +85,49 @@ export interface TripListFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  sortBy?: TripListSortKey;
+  sortDir?: 'asc' | 'desc';
 }
+
+/** Sort keys accepted by GET /api/trips (mirrors the trip-list column ids). */
+export const TRIP_LIST_SORT_KEYS = [
+  'tripCode', 'truck', 'route', 'container', 'consumption', 'road',
+  'revenue', 'driverSalary', 'totalCost', 'grossProfit', 'status',
+] as const;
+export type TripListSortKey = (typeof TRIP_LIST_SORT_KEYS)[number];
+
+// Whitelist mapping each sortable column key to its sort expression. The truck
+// and route expressions reuse the joins the list query already applies; the
+// container key resolves the page's first container via a scalar subquery so no
+// row-multiplying join is introduced. The gross-profit expression mirrors the
+// frontend's getTripDisplayGrossProfit (external trips recompute ex-VAT).
+// NULLs sort last in both directions via the `nulls last` wrapper at the call
+// site; trips.id stays the stable tiebreaker.
+const TRIP_LIST_SORT_SQL: Record<TripListSortKey, SQL> = {
+  tripCode: sql`${s.trips.tripCode}`,
+  truck: sql`coalesce(${s.trucks.licensePlate}, ${s.trips.externalPlateNumber})`,
+  route: sql`${ROUTE_OPERATIONAL_NAME}`,
+  container: sql`(
+    select tc.container_number from ${s.tripContainers} tc
+    where tc.trip_id = ${s.trips.id}
+    order by tc.id
+    limit 1
+  )`,
+  consumption: sql`${s.trips.fuelLiters}`,
+  road: sql`coalesce(${s.trips.totalRoadAllowance}, 0) + coalesce(${s.trips.tollCost}, 0)`,
+  revenue: sql`${s.trips.revenue}`,
+  driverSalary: sql`${s.trips.driverSalary}`,
+  totalCost: sql`${s.trips.totalCost}`,
+  grossProfit: sql`case
+    when ${s.trips.carrierType} = 'EXTERNAL'
+      and coalesce(${s.trips.revenue}, 0) <> 0
+      and coalesce(${s.trips.externalFreightCost}, 0) <> 0
+    then round(${s.trips.revenue} / (1 + coalesce(${s.trips.vatRate}, 0.08)))
+       - round(${s.trips.externalFreightCost} / (1 + coalesce(${s.trips.vatRate}, 0.08)))
+    else ${s.trips.grossProfit}
+  end`,
+  status: sql`${s.trips.status}`,
+};
 
 function normalizedContainerSql(column: unknown): SQL {
   return sql`upper(regexp_replace(${column}, '[[:space:]-]', '', 'g'))`;
@@ -210,6 +252,16 @@ export async function getTrips(filters: TripListFilters) {
     );
   }
 
+  // Explicit sort (server-side): `nulls last` keeps empty cells at the bottom in
+  // both directions, with trips.id desc as the stable tiebreaker. Absent sort
+  // params keep the historical default (departureDate desc, id desc) unchanged.
+  const sortOrder: SQL[] = filters.sortBy
+    ? [
+        sql`${TRIP_LIST_SORT_SQL[filters.sortBy]} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        desc(s.trips.id),
+      ]
+    : [desc(s.trips.departureDate), desc(s.trips.id)];
+
   const items = await TRIP_RELATION_JOINS(db.select({
     id: s.trips.id, tripCode: s.trips.tripCode, version: s.trips.version,
     customerId: s.trips.customerId, customerReference: s.trips.customerReference,
@@ -253,7 +305,7 @@ export async function getTrips(filters: TripListFilters) {
     ...TRIP_RELATION_FIELDS,
   }).from(s.trips))
     .where(and(...conditions))
-    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
+    .orderBy(...sortOrder)
     .limit(limit).offset((page - 1) * limit);
 
   // Count uses the simpler ILIKE-only conditions (no relation joins needed

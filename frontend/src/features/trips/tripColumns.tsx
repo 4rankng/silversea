@@ -1,10 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
-import { ArrowRight, AlertCircle, Copy, X as XIcon } from 'lucide-react';
+import { ArrowRight, AlertCircle, Copy, X as XIcon, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   TripStatus, TRIP_STATUS_LABELS, DATA_COMPLETENESS_COLORS, TRIP_STATUS_COLORS,
   type TripDetail,
 } from '@tingting/shared';
+import type { TableSortState } from '../../lib/table-sort';
 import { splitRoute } from '../../lib/route';
 import { formatDayMonth } from '../../lib/date';
 import { formatCurrency } from '../../lib/format';
@@ -14,6 +15,7 @@ import {
   getTripDistance, getTripDisplayGrossProfit,
 } from './tripHelpers';
 import { XeNgoaiBadge } from './XeNgoaiBadge';
+import '../../styles/table-sort.css';
 
 const formatMoney = (n: number): string =>
   formatCurrency(n).replace(' ₫', '').replace('₫', '').trim();
@@ -37,6 +39,40 @@ export interface TripQuickEditOptions {
 export interface TripRowActions {
   copyingPlanId?: number | null;
   onCopyPlan?: (tripId: number) => void;
+}
+
+/** Server-side sort wiring handed to buildTripColumns by the list page. */
+export interface TripColumnSortOptions {
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+}
+
+// Sortable column ids → GET /api/trips sortBy keys (the backend whitelist in
+// trip-queries.service.ts). Every data column is sortable; the quick-edit
+// select column is decorative and stays out.
+const TRIP_COLUMN_SORT_KEYS: Partial<Record<string, string>> = {
+  trip: 'tripCode',
+  truck: 'truck',
+  route: 'route',
+  container: 'container',
+  consumption: 'consumption',
+  road: 'road',
+  revenue: 'revenue',
+  driverSalary: 'driverSalary',
+  totalCost: 'totalCost',
+  grossProfit: 'grossProfit',
+  status: 'status',
+};
+
+/** aria-sort value for a header cell; undefined when the column never sorts. */
+export function tripColumnAriaSort(
+  columnId: string,
+  sort: TableSortState | null,
+): 'ascending' | 'descending' | 'none' | undefined {
+  if (!TRIP_COLUMN_SORT_KEYS[columnId]) return undefined;
+  return sort?.by === TRIP_COLUMN_SORT_KEYS[columnId]
+    ? (sort.dir === 'asc' ? 'ascending' : 'descending')
+    : 'none';
 }
 
 function isQuickEditable(trip: TripDetail): boolean {
@@ -98,7 +134,31 @@ export function buildTripColumns(
   warnThreshold: number,
   quickEdit?: TripQuickEditOptions,
   actions?: TripRowActions,
+  sortOpts?: TripColumnSortOptions,
 ): ColumnDef<TripDetail>[] {
+  // Shared sort-header button (table-sort.css owns layout + hit area; type,
+  // colour, and alignment inherit from the header cell). Server-side sort:
+  // the click only reports the column key, the page owns the query params.
+  // TanStack `header` takes a string or a render function — the button is
+  // returned as a thunk so the type union stays assignable.
+  const sortHeader = (label: string, columnId: string) => {
+    const key = TRIP_COLUMN_SORT_KEYS[columnId];
+    if (!sortOpts || !key) return label;
+    return () => {
+      const active = sortOpts.sort?.by === key;
+      return (
+        <button type="button" className="table-sort-button" onClick={() => sortOpts.onSortChange(key)}>
+          {label}
+          {active
+            ? (sortOpts.sort!.dir === 'asc'
+              ? <ArrowUp size={13} aria-hidden="true" />
+              : <ArrowDown size={13} aria-hidden="true" />)
+            : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+        </button>
+      );
+    };
+  };
+
   const quickColumns: ColumnDef<TripDetail>[] = quickEdit?.enabled ? [
     {
       id: 'select',
@@ -125,7 +185,7 @@ export function buildTripColumns(
   const columns: ColumnDef<TripDetail>[] = [
     {
       id: 'trip',
-      header: 'Chuyến · Mã',
+      header: sortHeader('Chuyến · Mã', 'trip'),
       accessorFn: (row) => row.customer?.name ?? '',
       cell: ({ row }) => {
         const trip = row.original;
@@ -183,7 +243,7 @@ export function buildTripColumns(
     },
     {
       id: 'truck',
-      header: 'Xe',
+      header: sortHeader('Xe', 'truck'),
       accessorFn: (row) => row.carrierType === 'EXTERNAL' ? (row.externalPlateNumber ?? '') : (row.truck?.licensePlate ?? ''),
       cell: ({ row }) => {
         const trip = row.original;
@@ -202,7 +262,7 @@ export function buildTripColumns(
     },
     {
       id: 'route',
-      header: 'Tuyến',
+      header: sortHeader('Tuyến', 'route'),
       accessorFn: (row) => row.route?.name ?? '',
       cell: ({ row }) => {
         const trip = row.original;
@@ -236,8 +296,7 @@ export function buildTripColumns(
     },
     {
       id: 'container',
-      header: 'Container',
-      enableSorting: false,
+      header: sortHeader('Container', 'container'),
       cell: ({ row }) => {
         const trip = row.original;
         const containers: TripListContainer[] = (trip as TripListRow).containers ?? [];
@@ -272,8 +331,7 @@ export function buildTripColumns(
     },
     {
       id: 'consumption',
-      header: 'Tiêu hao',
-      enableSorting: false,
+      header: sortHeader('Tiêu hao', 'consumption'),
       cell: ({ row }) => {
         const trip = row.original;
         const cons = calcConsumption(trip);
@@ -341,7 +399,7 @@ export function buildTripColumns(
     },
     {
       id: 'road',
-      header: 'Tổng đi đường',
+      header: sortHeader('Tổng đi đường', 'road'),
       accessorFn: (row) => Number(row.totalRoadAllowance ?? 0) + Number(row.tollCost ?? 0),
       cell: ({ row }) => {
         const trip = row.original;
@@ -364,7 +422,7 @@ export function buildTripColumns(
     },
     {
       id: 'revenue',
-      header: 'Doanh thu',
+      header: sortHeader('Doanh thu', 'revenue'),
       accessorFn: (row) => Number(row.revenue ?? 0),
       cell: ({ row }) => {
         const trip = row.original;
@@ -387,7 +445,7 @@ export function buildTripColumns(
     },
     ...(quickEdit?.enabled ? [{
       id: 'driverSalary',
-      header: 'Lương chuyến',
+      header: sortHeader('Lương chuyến', 'driverSalary'),
       accessorFn: (row: TripDetail) => Number(row.driverSalary ?? 0),
       cell: ({ row }) => {
         const trip = row.original;
@@ -406,13 +464,13 @@ export function buildTripColumns(
     } satisfies ColumnDef<TripDetail>] : []),
     {
       id: 'totalCost',
-      header: 'Tổng chi phí',
+      header: sortHeader('Tổng chi phí', 'totalCost'),
       accessorFn: (row) => Number(row.totalCost ?? 0),
       cell: ({ row }) => moneyCell(Number(row.original.totalCost ?? 0)),
     },
     {
       id: 'grossProfit',
-      header: 'LN gộp',
+      header: sortHeader('LN gộp', 'grossProfit'),
       accessorFn: (row) => getTripDisplayGrossProfit(row),
       cell: ({ row }) => {
         const grossProfit = getTripDisplayGrossProfit(row.original);
@@ -421,7 +479,7 @@ export function buildTripColumns(
     },
     {
       id: 'status',
-      header: 'Trạng thái',
+      header: sortHeader('Trạng thái', 'status'),
       accessorFn: (row) => row.status,
       cell: ({ row }) => {
         const trip = row.original;
