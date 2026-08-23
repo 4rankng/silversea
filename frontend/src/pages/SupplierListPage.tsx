@@ -117,7 +117,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
       }
     >
       <div className="supplier-form">
-        <div className="supplier-form__identity">
+        <div className="supplier-form__profile">
           <div className="field">
             <label htmlFor="supp-name" style={labelStyle}>
               Tên nhà cung cấp <span style={{ color: 'var(--danger)' }}>*</span>
@@ -136,8 +136,6 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
               placeholder="Để trống sẽ dùng tên đầy đủ"
             />
           </div>
-        </div>
-        <div className="supplier-form__details">
           <div className="field">
             <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
             <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Ví dụ: 0312…" />
@@ -157,6 +155,32 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
           <div className="field">
             <label htmlFor="supp-phone" style={labelStyle}>Điện thoại</label>
             <input id="supp-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Ví dụ: 0912…" />
+          </div>
+          <UuiSelectField
+            id="supp-linked-customer"
+            label="Khách hàng liên quan"
+            value={linkedCustomerId === null || linkedCustomerId === undefined ? '' : String(linkedCustomerId)}
+            onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
+            options={[{ value: '', label: '-- Không liên kết --' }, ...customers.map(c => ({ value: String(c.id), label: c.name }))]}
+            wrapperClassName="field"
+          />
+        </div>
+        <div className="supplier-form__services field">
+          <label style={labelStyle}>Nhóm dịch vụ</label>
+          <div className="supplier-form__service-grid">
+            {SUPPLIER_TYPES.map((type) => (
+              <label
+                key={type}
+                className="supplier-form__service-option"
+              >
+                <input
+                  type="checkbox"
+                  checked={types.includes(type)}
+                  onChange={() => toggleType(type)}
+                />
+                <span>{SUPPLIER_TYPE_LABELS[type]}</span>
+              </label>
+            ))}
           </div>
         </div>
         <div className="supplier-form__terms">
@@ -187,38 +211,6 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             />
           </div>
           <UuiSelectField
-            id="supp-linked-customer"
-            label="Khách hàng liên quan"
-            value={linkedCustomerId === null || linkedCustomerId === undefined ? '' : String(linkedCustomerId)}
-            onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
-            options={[{ value: '', label: '-- Không liên kết --' }, ...customers.map(c => ({ value: String(c.id), label: c.name }))]}
-            wrapperClassName="field"
-          />
-        </div>
-        <div className="supplier-form__services field">
-          <label style={labelStyle}>Nhóm dịch vụ</label>
-          <div className="supplier-form__service-grid">
-            {SUPPLIER_TYPES.map((type) => (
-              <label
-                key={type}
-                className="supplier-form__service-option"
-              >
-                <input
-                  type="checkbox"
-                  checked={types.includes(type)}
-                  onChange={() => toggleType(type)}
-                />
-                <span>{SUPPLIER_TYPE_LABELS[type]}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="supplier-form__reporting">
-          <div className="field">
-            <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
-            <textarea id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
-          </div>
-          <UuiSelectField
             id="supp-primary-type"
             label="Nhóm chính cho báo cáo"
             value={primaryType}
@@ -228,6 +220,10 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             hint="Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế."
             wrapperClassName="field"
           />
+          <div className="field">
+            <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
+            <textarea id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
+          </div>
         </div>
       </div>
     </Modal>

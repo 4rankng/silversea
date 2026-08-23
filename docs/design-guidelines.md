@@ -87,6 +87,18 @@ the chrome; feature dialogs own only their field grid.
 - **Empty vs filled:** placeholders are examples (`Ví dụ: …`) in muted
   `--ink-3`; entered values are full-contrast `--ink` (the `Input.css`
   contract). Never style a placeholder to read like a value.
+- **Checkbox chips:** a taxonomy chip is a flex row — draw the checkbox
+  yourself (`appearance: none`, 16px box, 4px radius, `--accent` fill with a
+  white check when checked) and give the label `line-height: 18px` with
+  `white-space: nowrap`. Native checkbox glyphs sit ~3px low against 12px
+  labels, which reads as a permanent misalignment. If the chip is a `<label>`
+  inside a `.field` section, the shared `.field label { display: block }`
+  rule (UI.css) blockifies it out of flex flow — scope chip selectors to the
+  owning form so the flex geometry wins on specificity.
+- **Taxonomy strips:** a short fixed vocabulary (≤8 canonical groups) reads
+  best as one full-width chip row on the wide canvas. Fold the strip to four
+  columns before the dialog canvas can squeeze labels (1024px for a 960px
+  dialog), and to two columns at the phone sheet.
 - **Dense ledgers:** multi-column tables hand off to labelled cards below the
   1500px operational-canvas threshold instead of scrolling internally (see
   `responsive.css` plus the debt/payable/finance/tires/debt-detail handoffs).
