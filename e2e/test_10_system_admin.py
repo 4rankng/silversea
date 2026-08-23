@@ -44,7 +44,7 @@ def test_system_admin(ctx: SilverseaTestContext, results: TestResults):
         page.goto(f'{BASE_URL}/users')
         page.wait_for_load_state('networkidle')
         page.wait_for_timeout(1000)
-        kpi_text = page.locator('.kpi-grid').first.inner_text()
+        kpi_text = page.locator('.summary-rail').first.inner_text()
         if str(user_count) in kpi_text:
             results.pass_('TC-1002', f'KPI cards match API count ({user_count})')
         else:

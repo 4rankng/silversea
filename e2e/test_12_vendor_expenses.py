@@ -683,7 +683,9 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
         results.fail('TC-1261', 'Payables page', f'URL={page.url}')
     page.close()
 
-    # TC-1262: Legacy suppliers route converges on the unified accounting workspace
+    # TC-1262: Accountants are office staff on /suppliers — the route now
+    # grants the payable-aware supplier workspace (App.tsx officeStaffOnly)
+    # instead of bouncing them to the accounting work inbox.
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -691,10 +693,11 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1262_suppliers_page')
-    if '/accounting' in page.url and page.get_by_role('heading', name='Công việc kế toán', exact=True).count() == 1:
-        results.pass_('TC-1262', 'Suppliers route returns Accountant to the work inbox')
+    suppliers_visible = page.locator('.summary-rail').first.is_visible()
+    if '/suppliers' in page.url and suppliers_visible:
+        results.pass_('TC-1262', 'Suppliers route renders the payable-aware workspace for Accountant')
     else:
-        results.fail('TC-1262', 'Suppliers page', f'URL={page.url}')
+        results.fail('TC-1262', 'Suppliers page', f'URL={page.url}, summaryVisible={suppliers_visible}')
     page.close()
 
     # TC-1263: Mobile expense list
