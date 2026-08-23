@@ -25,7 +25,7 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(cellRule).toContain('white-space: normal !important');
   });
 
-  it('uses the available desktop dialog canvas before introducing an internal scrollbar', () => {
+  it('uses a four-column form grid, clear value/placeholder contrast, and a bounded note field', () => {
     const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
     const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
     const rule = (selector: string) => css.match(new RegExp(`${selector.replace(/\./g, '\\.')} \\{([\\s\\S]*?)\\n\\}`))?.[1] ?? '';
@@ -37,10 +37,22 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(page).toContain('className="supplier-form__service-grid"');
 
     // Scoped to the __details rule: the bare string also matches the service grid.
+    expect(rule('.supplier-form__identity')).toContain('repeat(4, minmax(0, 1fr))');
     expect(rule('.supplier-form__details')).toContain('repeat(4, minmax(0, 1fr))');
-    expect(rule('.supplier-form__terms')).toContain('minmax(0, 1.5fr)');
+    expect(rule('.supplier-form__terms')).toContain('repeat(4, minmax(0, 1fr))');
+    expect(rule('.supplier-form__reporting')).toContain('repeat(4, minmax(0, 1fr))');
+    expect(css).toContain('grid-column: span 2');
     // Grid gap owns vertical rhythm — no per-field bottom margin inside the groups.
     expect(rule('.supplier-form .field')).toContain('margin-bottom: 0');
+    expect(rule('.supplier-form .field > label')).toContain('margin-bottom: 8px');
+    expect(css).toContain('--supplier-form-row-gap: 24px');
+    expect(css).toContain('--supplier-form-section-gap: 32px');
+    expect(page).toContain('placeholder="Ví dụ: 0312…"');
+    expect(page).toContain('placeholder="Ví dụ: 15"');
+    expect(css).toContain('.supplier-form .input::placeholder');
+    expect(page).toContain('<textarea id="supp-note"');
+    expect(css).toContain('.supplier-form__reporting textarea.input');
+    expect(page).toContain('btn btn--secondary btn--sm');
 
     // Collapse ladder: <=960px two columns, <=640px single column + touch targets.
     const tabletBlock = css.match(/@media \(max-width: 960px\) \{([\s\S]*?)\n\}/)?.[1] ?? '';

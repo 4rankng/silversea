@@ -106,10 +106,10 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
       maxWidth={960}
       footer={
         <>
-          <button className="btn btn--ghost btn--sm" onClick={oncancel}>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={oncancel}>
             <X size={14} /> Hủy
           </button>
-          <button className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
+          <button type="button" className="btn btn--primary btn--sm" disabled={saving || !name.trim()} onClick={handleSave}>
             {saving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
             {item ? 'Cập nhật' : 'Thêm nhà cung cấp'}
           </button>
@@ -140,7 +140,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
         <div className="supplier-form__details">
           <div className="field">
             <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
-            <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
+            <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="Ví dụ: 0312…" />
           </div>
           <UuiSelectField
             id="supp-status"
@@ -152,11 +152,11 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
           />
           <div className="field">
             <label htmlFor="supp-contact" style={labelStyle}>Người liên hệ</label>
-            <input id="supp-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
+            <input id="supp-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Ví dụ: Anh Tuấn · Kế toán" />
           </div>
           <div className="field">
             <label htmlFor="supp-phone" style={labelStyle}>Điện thoại</label>
-            <input id="supp-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0912…" />
+            <input id="supp-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Ví dụ: 0912…" />
           </div>
         </div>
         <div className="supplier-form__terms">
@@ -170,7 +170,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
               max={365}
               value={chiHoDueDays}
               onChange={e => setChiHoDueDays(e.target.value)}
-              placeholder="15"
+              placeholder="Ví dụ: 15"
             />
           </div>
           <div className="field">
@@ -183,7 +183,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
               max={365}
               value={cuocDueDays}
               onChange={e => setCuocDueDays(e.target.value)}
-              placeholder="30"
+              placeholder="Ví dụ: 30"
             />
           </div>
           <UuiSelectField
@@ -216,7 +216,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
         <div className="supplier-form__reporting">
           <div className="field">
             <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
-            <input id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
+            <textarea id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
           </div>
           <UuiSelectField
             id="supp-primary-type"

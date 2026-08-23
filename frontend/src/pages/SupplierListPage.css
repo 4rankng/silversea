@@ -1,6 +1,9 @@
 .supplier-form {
   display: grid;
-  gap: 12px;
+  --supplier-form-column-gap: 12px;
+  --supplier-form-row-gap: 24px;
+  --supplier-form-section-gap: 32px;
+  gap: var(--supplier-form-section-gap);
 }
 
 /* Grid gap owns vertical rhythm; the shared .field bottom margin would
@@ -9,17 +12,23 @@
   margin-bottom: 0;
 }
 
+.supplier-form .field > label {
+  margin-bottom: 8px !important;
+}
+
 .supplier-form__identity,
 .supplier-form__details,
 .supplier-form__terms,
 .supplier-form__reporting {
   display: grid;
   align-items: start;
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: var(--supplier-form-column-gap);
+  row-gap: var(--supplier-form-row-gap);
 }
 
 .supplier-form__identity {
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .supplier-form__details {
@@ -27,23 +36,57 @@
 }
 
 .supplier-form__terms {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.supplier-form__reporting {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+.supplier-form__identity,
+.supplier-form__details,
+.supplier-form__terms {
+  column-gap: var(--supplier-form-column-gap);
+  row-gap: var(--supplier-form-row-gap);
+}
+
+.supplier-form__identity > * {
+  grid-column: span 2;
+}
+
+.supplier-form__terms > :nth-child(3) {
+  grid-column: span 2;
+}
+
+.supplier-form__reporting > * {
+  grid-column: span 2;
+}
+
+/* Preserve the grid's baseline while allowing the operational note to wrap. */
+.supplier-form__reporting textarea.input {
+  min-width: 0;
+  min-height: 84px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* A user-entered value is always full contrast; only explicit "Ví dụ:" hints
+   take the supporting-text treatment. */
+.supplier-form .input {
+  color: var(--ink);
+}
+
+.supplier-form .input::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
 }
 
 .supplier-form__service-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--supplier-form-column-gap);
 }
 
 .supplier-form__service-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
   min-height: var(--control-default-h);
   padding: 8px 10px;
@@ -66,6 +109,10 @@
   height: 16px;
   margin: 0;
   cursor: pointer;
+}
+
+.supplier-form__service-option input + span {
+  min-width: 0;
 }
 
 .supplier-form__service-option span {
@@ -179,6 +226,16 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .supplier-form__identity,
+  .supplier-form__reporting {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .supplier-form__identity > *,
+  .supplier-form__reporting > * {
+    grid-column: auto;
+  }
+
   .supplier-form__terms > :last-child {
     grid-column: 1 / -1;
   }
@@ -197,6 +254,11 @@
   }
 
   .supplier-form__terms > :last-child {
+    grid-column: auto;
+  }
+
+  .supplier-form__identity > *,
+  .supplier-form__reporting > * {
     grid-column: auto;
   }
 
