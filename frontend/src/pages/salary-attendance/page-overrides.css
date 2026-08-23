@@ -1,0 +1,262 @@
+/* ============================================================================
+ * SalaryAttendancePage — extracted inline styles
+ * BEM-style classes replacing style={{…}} objects in the TSX.
+ * ========================================================================== */
+
+/* ── Search input wrapper ─────────────────────────────────────────────── */
+.salary-attendance__search-input {
+  width: 100%;
+  max-width: 340px;
+}
+
+/* ── Icon spacer (Wallet icon in hero actions) ────────────────────────── */
+.salary-attendance__icon-spacer {
+  margin-right: 6px;
+}
+
+/* ── Driver list loading state ────────────────────────────────────────── */
+.salary-attendance__driver-loading {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.salary-attendance__driver-loading-icon {
+  color: var(--fg-3);
+  margin-right: 8px;
+}
+
+.salary-attendance__driver-loading-text {
+  font-size: 13px;
+  color: var(--fg-3);
+}
+
+/* ── Empty panel text ─────────────────────────────────────────────────── */
+.salary-attendance__empty-panel-text {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* ── Calendar updating loader (absolute positioned inside container) ─── */
+.salary-attendance__calendar-updating-loader {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: var(--accent);
+  z-index: 1;
+}
+
+/* ── Centered loading spinner ─────────────────────────────────────────── */
+.salary-attendance__loading-center {
+  text-align: center;
+  padding: 32px;
+  color: var(--fg-3);
+}
+
+.salary-attendance__loading-center--ink {
+  color: var(--ink-3);
+}
+
+/* ── Legend icon (Lock / Info in calendar footer) ──────────────────────── */
+.salary-attendance__legend-icon {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+/* ── Sidebar panel content layout ─────────────────────────────────────── */
+.salary-attendance__sidebar-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Period header row ────────────────────────────────────────────────── */
+.salary-attendance__period-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* ── Period label (uppercase) ─────────────────────────────────────────── */
+.salary-attendance__period-label {
+  font-size: 12px;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Period key value ─────────────────────────────────────────────────── */
+.salary-attendance__period-key {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ── Period status badge override ─────────────────────────────────────── */
+.salary-summary-dark__status.salary-attendance__period-status {
+  color: var(--fg-1);
+  background: var(--surface-2);
+}
+
+/* ── Period overview loading ──────────────────────────────────────────── */
+.salary-attendance__period-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-3);
+}
+
+/* ── Info text (small, muted — used for blockers, pending notices) ────── */
+.salary-attendance__info-text {
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+/* ── Error text ───────────────────────────────────────────────────────── */
+.salary-attendance__error-text {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* ── Actions grid ─────────────────────────────────────────────────────── */
+.salary-attendance__actions-grid {
+  display: grid;
+  gap: 8px;
+}
+
+/* ── Form group (reopen reason section) ───────────────────────────────── */
+.salary-attendance__form-group {
+  display: grid;
+  gap: 6px;
+}
+
+/* ── Form label ───────────────────────────────────────────────────────── */
+.salary-attendance__form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+}
+
+/* ── Reopen reason textarea ───────────────────────────────────────────── */
+.salary-attendance__reopen-textarea {
+  width: 100%;
+  min-height: 88px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--fg-1);
+  padding: 10px 12px;
+}
+
+.salary-attendance__reopen-textarea--error {
+  border-color: var(--danger);
+}
+
+/* ── Full-width flex button ───────────────────────────────────────────── */
+.salary-attendance__btn-full {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.salary-attendance__btn-full--mt8 {
+  margin-top: 8px;
+}
+
+/* ── Salary summary loading state ─────────────────────────────────────── */
+.salary-attendance__salary-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+}
+
+.salary-attendance__salary-loading-spinner {
+  color: var(--fg-inverse, #fff);
+}
+
+/* ── Confirm section wrapper ──────────────────────────────────────────── */
+.salary-attendance__confirm-section {
+  margin-top: 12px;
+}
+
+/* ── Confirmed date text ──────────────────────────────────────────────── */
+.salary-attendance__confirmed-date {
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.7;
+  margin-left: auto;
+}
+
+/* ── Reopen label (margin-top) ────────────────────────────────────────── */
+.salary-attendance__reopen-label {
+  margin-top: 10px;
+}
+
+/* ── Reopen error with margin ─────────────────────────────────────────── */
+.salary-attendance__reopen-error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* ── Pending info with margin ─────────────────────────────────────────── */
+.salary-attendance__pending-info {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--fg-3);
+}
+
+/* ── Salary error state (on dark summary card) ────────────────────────── */
+.salary-attendance__salary-error {
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--fg-inverse, #fff) 60%, transparent);
+}
+
+/* ── Lock notice bar ──────────────────────────────────────────────────── */
+.salary-attendance__lock-notice {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.salary-attendance__lock-notice-icon {
+  flex-shrink: 0;
+}
+
+/* ── Adjustment panel (margin-top on Panel) ───────────────────────────── */
+.salary-attendance__adjustment-panel {
+  margin-top: 12px;
+}
+
+/* ── Adjustment header row ────────────────────────────────────────────── */
+.salary-attendance__adjustment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── Adjustment title ─────────────────────────────────────────────────── */
+.salary-attendance__adjustment-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ── Adjustment subtitle ──────────────────────────────────────────────── */
+.salary-attendance__adjustment-subtitle {
+  font-size: 12px;
+  color: var(--fg-3);
+}

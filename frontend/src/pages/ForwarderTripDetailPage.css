@@ -235,3 +235,252 @@
   .fwd-expense-group__header { align-items: flex-start; }
   .fwd-expense-group__header .btn { min-height: 44px; }
 }
+
+/* ── Back button ─────────────────────────────────────────── */
+.fwd-detail__back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+/* ── Fieldset reset ──────────────────────────────────────── */
+.fwd-detail__fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+/* ── Panel spacing modifier ──────────────────────────────── */
+.fwd-detail__panel--mb16 {
+  margin-bottom: 16px;
+}
+
+/* ── Section label (uppercase eyebrow) ───────────────────── */
+.fwd-section-label {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fwd-section-label--mb6 { margin-bottom: 6px; }
+.fwd-section-label--mb8 { margin-bottom: 8px; }
+
+/* ── Paper order section ─────────────────────────────────── */
+.fwd-paper-order {
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.fwd-paper-order__status {
+  font-size: 14px;
+  color: var(--fg-1);
+  font-weight: 600;
+}
+
+.fwd-paper-order__desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--fg-3);
+}
+
+/* ── Expenses header ─────────────────────────────────────── */
+.fwd-expenses-header {
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fwd-expenses-header__btn {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Input modifiers ─────────────────────────────────────── */
+.fwd-input--readonly {
+  background: var(--bg-3);
+  color: var(--fg-3);
+}
+
+.fwd-input--data {
+  font-family: var(--font-data);
+}
+
+/* ── Field hints & errors ────────────────────────────────── */
+.fwd-field-hint {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--fg-3);
+  display: block;
+  margin-top: 4px;
+}
+
+.fwd-field-error-inline {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--danger);
+  display: block;
+  margin-top: 2px;
+}
+
+/* ── Container display (single container) ────────────────── */
+.fwd-container-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--brand-subtle, rgba(0, 177, 79, 0.08));
+  border-color: var(--brand-border, rgba(0, 107, 63, 0.22));
+}
+
+.fwd-container-display__label {
+  font-family: var(--font-data);
+  font-weight: 700;
+}
+
+.fwd-container-display__seal {
+  color: var(--fg-3);
+  font-size: 12px;
+}
+
+/* ── No-invoice section divider ──────────────────────────── */
+.fwd-expense-no-invoice-divider {
+  border-top: 1px solid var(--border-1);
+  padding-top: 12px;
+}
+
+/* ── Full-width grid cell ────────────────────────────────── */
+.fwd-expense-grid__full-width {
+  grid-column: 1 / -1;
+}
+
+/* ── Evidence section ────────────────────────────────────── */
+.fwd-evidence-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+  margin-bottom: 8px;
+}
+
+.fwd-evidence-error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.fwd-evidence-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.fwd-evidence-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg-2);
+}
+
+.fwd-evidence-hint {
+  font-size: 12px;
+  color: var(--fg-3);
+  margin-top: 8px;
+}
+
+/* ── Submit error ────────────────────────────────────────── */
+.fwd-expense-submit-error {
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: var(--danger-soft);
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+/* ── Form actions ────────────────────────────────────────── */
+.fwd-expense-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── Empty expenses ──────────────────────────────────────── */
+.fwd-expenses-empty {
+  padding: 16px 20px;
+  color: var(--fg-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Expenses list wrapper ───────────────────────────────── */
+.fwd-expenses-list {
+  padding: 4px 0;
+}
+
+/* ── Notes panel ─────────────────────────────────────────── */
+.fwd-notes-panel__content {
+  padding: 12px 20px;
+}
+
+.fwd-notes-panel__text {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.fwd-notes-panel__empty {
+  font-size: 13px;
+  color: var(--fg-3);
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Instructions section ────────────────────────────────── */
+.fwd-instructions__row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.fwd-instructions__label {
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 60px;
+}
+
+.fwd-instructions__value {
+  color: var(--fg-1);
+  font-weight: 500;
+}
+
+.fwd-instructions__link {
+  color: var(--brand, #00B14F);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.fwd-instructions__notes {
+  font-size: 13px;
+  color: var(--fg-2);
+  margin: 8px 0 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

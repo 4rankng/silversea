@@ -125,6 +125,7 @@ export function getNavItems(
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
         { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
+        { key: 'config-factories', label: 'Nhà máy / Kho', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 
@@ -175,6 +176,7 @@ export function getNavItems(
         { key: 'customers', label: 'Khách hàng', path: routes.customers, icon: Users, section: 'master-data' as SectionName },
         { key: 'suppliers', label: 'Nhà cung cấp / Nhà xe', path: routes.suppliers, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
+        { key: 'config-factories', label: 'Nhà máy / Kho', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
         { key: 'config-ports', label: 'Cảng / Bãi & Biểu phí', path: routes.configPorts, icon: Anchor, section: 'master-data' as SectionName },
         { key: 'config-pricing', label: 'Bảng giá cước', path: routes.configPricingTables, icon: DollarSign, section: 'master-data' as SectionName },
 

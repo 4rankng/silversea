@@ -175,6 +175,7 @@
 
 .calendar-container {
   padding: 14px;
+  position: relative;
 }
 
 /* ─── Day-of-Week Header ─── */

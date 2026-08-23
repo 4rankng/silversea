@@ -18,6 +18,7 @@ import {
   submitShipmentForDispatchSchema,
   assignShipmentCarriersSchema,
   operationalSiteSchema,
+  operationalSiteUpdateSchema,
   shipmentRecoveryRecordSchema,
 } from '@tingting/shared';
 import type { Request, Response } from 'express';
@@ -35,7 +36,7 @@ import {
   transitionShipmentStatus,
   softDeleteShipment,
 } from '../../services/shipment.service';
-import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForIntake, submitShipmentForDispatch } from '../../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -379,6 +380,31 @@ coreRoutes.post(
     if (!parsed.success) throwValidation(parsed.error);
     const site = await createOperationalSiteForIntake(parsed.data, getUser(req));
     res.status(201).json(site);
+  }),
+);
+
+// Master-data management for the ADMIN/MANAGER "Nhà máy" config surface.
+// Kept on the shipment router (requireRoles guard, no Casbin policy churn)
+// because the entity ships on the intake endpoints above.
+coreRoutes.get(
+  '/operational-sites/admin',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    res.json({ items: await listOperationalSitesForAdmin(getUser(req)) });
+  }),
+);
+
+coreRoutes.patch(
+  '/operational-sites/:id',
+  requireRoles(Role.ADMIN, Role.MANAGER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const siteId = Number.parseInt(req.params.id as string, 10);
+    if (!Number.isInteger(siteId) || siteId < 1) {
+      throw new ApiError(400, 'Mã nhà máy / kho không hợp lệ.');
+    }
+    const parsed = operationalSiteUpdateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    res.json(await updateOperationalSiteForAdmin(siteId, parsed.data, getUser(req)));
   }),
 );
 

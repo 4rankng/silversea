@@ -269,26 +269,18 @@ export default function UsersPage() {
       )}
 
       {canManageBusinessUnits && (
-        <section
-          style={{
-            marginTop: 24,
-            padding: 16,
-            borderRadius: 12,
-            border: '1px solid var(--line-2)',
-            background: 'var(--panel, #fff)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <section className="business-units">
+          <div className="business-units__header">
             <div>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Đơn vị phụ trách</h2>
-              <p style={{ margin: '4px 0 0', color: 'var(--fg-3)', fontSize: 14 }}>
+              <h2 className="business-units__title">Đơn vị phụ trách</h2>
+              <p className="business-units__subtitle">
                 Ngừng sử dụng để ẩn đơn vị khỏi các lựa chọn mới. Lịch sử và các liên kết hiện có vẫn được giữ nguyên.
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: 12 }}>
-            <label style={{ display: 'grid', gap: 6 }}>
+          <div className="business-units__form-grid">
+            <label className="business-units__form-label">
               <span>Mã đơn vị</span>
               <input
                 className="input"
@@ -298,7 +290,7 @@ export default function UsersPage() {
                 disabled={savingUnit}
               />
             </label>
-            <label style={{ display: 'grid', gap: 6 }}>
+            <label className="business-units__form-label">
               <span>Tên đơn vị</span>
               <input
                 className="input"
@@ -310,7 +302,7 @@ export default function UsersPage() {
             </label>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          <div className="business-units__actions">
             <button type="button" onClick={handleSaveBusinessUnit} disabled={savingUnit} className="btn btn-primary">
               {editingUnitId != null ? 'Lưu đơn vị' : 'Tạo đơn vị'}
             </button>
@@ -332,28 +324,19 @@ export default function UsersPage() {
 
           {unitError && <div className="users-error-banner">{unitError}</div>}
 
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div className="business-units__list">
             {businessUnits.map((unit) => (
               <article
                 key={unit.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: 12,
-                  borderRadius: 10,
-                  border: '1px solid var(--line-2)',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}
+                className="business-units__card"
               >
                 <div>
                   <strong>{unit.name}</strong>
-                  <div style={{ color: 'var(--fg-3)', fontSize: 13 }}>
+                  <div className="business-units__card-meta">
                     {unit.code ? `Mã ${unit.code}` : 'Không có mã'} · {BUSINESS_UNIT_STATUS_LABELS[unit.status]}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div className="business-units__card-actions">
                   <button
                     type="button"
                     className="btn btn-ghost"

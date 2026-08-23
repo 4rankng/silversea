@@ -70,7 +70,7 @@ export default function SalaryAttendancePage() {
                 className="btn btn--primary btn--sm"
                 onClick={() => setPayoutOpen(true)}
               >
-                <Wallet size={14} style={{ marginRight: 6 }} />
+                <Wallet size={14} className="salary-attendance__icon-spacer" />
                 Ghi thanh toán
               </button>
             )}
@@ -94,7 +94,7 @@ export default function SalaryAttendancePage() {
       {/* ── Driver selector grid ── */}
       <div className="driver-select-row">
         <div className="driver-select-row__search">
-          <div className="input-icon" style={{ width: '100%', maxWidth: 340 }}>
+          <div className="input-icon salary-attendance__search-input">
             <Search size={14} />
             <input
               type="text"
@@ -108,9 +108,9 @@ export default function SalaryAttendancePage() {
           </div>
         </div>
         {listLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 24px' }}>
-            <Loader2 size={20} className="spin" style={{ color: 'var(--fg-3)', marginRight: 8 }} />
-            <span style={{ fontSize: 13, color: 'var(--fg-3)' }}>Đang tải danh sách lái xe…</span>
+          <div className="salary-attendance__driver-loading">
+            <Loader2 size={20} className="spin salary-attendance__driver-loading-icon" />
+            <span className="salary-attendance__driver-loading-text">Đang tải danh sách lái xe…</span>
           </div>
         ) : (
           <div className="driver-select-row__list">
@@ -161,15 +161,15 @@ export default function SalaryAttendancePage() {
             <Panel>
               <div className="salary-empty-panel">
                 <EmptyIllustration name="empty-salary" />
-                <p style={{ margin: 0, fontSize: 14 }}>Chọn lái xe ở trên để xem lịch chấm công</p>
+                <p className="salary-attendance__empty-panel-text">Chọn lái xe ở trên để xem lịch chấm công</p>
               </div>
             </Panel>
           ) : (
             <div className="salary-calendar-area">
               <Panel flush>
-                <div className="calendar-container" style={{ position: 'relative' }}>
+                <div className="calendar-container">
                   {isUpdating && (
-                    <Loader2 size={14} className="spin" style={{ position: 'absolute', top: 14, right: 14, color: 'var(--accent)', zIndex: 1 }} />
+                    <Loader2 size={14} className="spin salary-attendance__calendar-updating-loader" />
                   )}
                   {/* Day-of-week headers */}
                   <div className="calendar-dow-header">
@@ -182,7 +182,7 @@ export default function SalaryAttendancePage() {
 
                   {/* Calendar cells */}
                   {wdLoading ? (
-                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--fg-3)' }}>
+                    <div className="salary-attendance__loading-center">
                       <Loader2 size={20} className="spin" />
                     </div>
                   ) : (
@@ -230,7 +230,7 @@ export default function SalaryAttendancePage() {
                     <div className="calendar-legend-instruction">
                       {workdayEditLocked ? (
                         <>
-                          <Lock size={13} style={{ flexShrink: 0, opacity: 0.5 }} />
+                          <Lock size={13} className="salary-attendance__legend-icon" />
                           <span>
                             {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
                               ? 'Đã gửi snapshot xác nhận — lịch chấm công tạm khóa chờ xử lý'
@@ -239,7 +239,7 @@ export default function SalaryAttendancePage() {
                         </>
                       ) : (
                         <>
-                          <Info size={13} style={{ flexShrink: 0, opacity: 0.5 }} />
+                          <Info size={13} className="salary-attendance__legend-icon" />
                           <span>Bấm vào ngày để chuyển trạng thái: Chờ việc ⇄ Nghỉ riêng ⇄ Nghỉ tuần</span>
                         </>
                       )}
@@ -255,7 +255,7 @@ export default function SalaryAttendancePage() {
         {selectedDriverId && (
           <div className="mobile-day-list-wrapper">
             {wdLoading ? (
-              <div style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+              <div className="salary-attendance__loading-center salary-attendance__loading-center--ink">
                 <Loader2 size={20} className="spin" />
               </div>
             ) : (
@@ -275,21 +275,21 @@ export default function SalaryAttendancePage() {
         {selectedDriverId && (
           <aside className="salary-page-layout__sidebar">
             <Panel>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div className="salary-attendance__sidebar-content">
+                <div className="salary-attendance__period-header">
                   <div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <div className="salary-attendance__period-label">
                       Kỳ lương toàn kỳ
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{periodKey}</div>
+                    <div className="salary-attendance__period-key">{periodKey}</div>
                   </div>
-                  <span className={`salary-summary-dark__status ${lifecycle?.status === 'CLOSED' ? 'is-confirmed' : ''}`} style={{ color: 'var(--fg-1)', background: 'var(--surface-2)' }}>
+                  <span className={`salary-summary-dark__status salary-attendance__period-status ${lifecycle?.status === 'CLOSED' ? 'is-confirmed' : ''}`}>
                     {lifecycle?.status === 'CLOSED' ? 'Đã chốt' : lifecycle?.status === 'REOPENED' ? 'Mở lại' : 'Đang mở'}
                   </span>
                 </div>
 
                 {periodOverviewLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--fg-3)' }}>
+                  <div className="salary-attendance__period-loading">
                     <Loader2 size={16} className="spin" />
                     <span>Đang tải trạng thái hậu chốt…</span>
                   </div>
@@ -314,16 +314,16 @@ export default function SalaryAttendancePage() {
                       </div>
                     )}
                     {lifecycle?.reopenBlockers.length ? (
-                      <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                      <div className="salary-attendance__info-text">
                         {lifecycle.reopenBlockers.join(' · ')}
                       </div>
                     ) : (
-                      <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                      <div className="salary-attendance__info-text">
                         Có thể mở lại vì chưa phát hành, chưa thanh toán và chưa hạch toán chính thức.
                       </div>
                     )}
 
-                    <div style={{ display: 'grid', gap: 8 }}>
+                    <div className="salary-attendance__actions-grid">
                       {lifecycle?.status === 'OPEN' && closeGovernanceActions.length === 0 && (
                         <button
                           className="btn btn--primary btn--sm"
@@ -349,7 +349,7 @@ export default function SalaryAttendancePage() {
                         </button>
                       )}
                       {lifecycle?.status === 'OPEN' && closeGovernanceActions.length > 0 && (
-                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        <div className="salary-attendance__info-text">
                           Đang có yêu cầu chốt kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
                         </div>
                       )}
@@ -386,7 +386,7 @@ export default function SalaryAttendancePage() {
                       {lifecycle?.status === 'CLOSED'
                         && !lifecycle.payslipIssuedAt
                         && issueGovernanceActions.length > 0 && (
-                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        <div className="salary-attendance__info-text">
                           Yêu cầu phát hành phiếu lương đang chờ kiểm tra hoặc phê duyệt. Chưa có phiếu lương nào được phát hành.
                         </div>
                       )}
@@ -425,14 +425,14 @@ export default function SalaryAttendancePage() {
                         && lifecycle.payslipIssuedAt
                         && !lifecycle.officialPostedAt
                         && postGovernanceActions.length > 0 && (
-                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        <div className="salary-attendance__info-text">
                           Yêu cầu hạch toán chính thức đang chờ kiểm tra hoặc phê duyệt. Kỳ lương chưa được đánh dấu chính thức.
                         </div>
                       )}
                       {lifecycle?.status === 'CLOSED' && lifecycle.canReopen && canReopenCompanyPeriod && reopenGovernanceActions.length === 0 && (
                         <>
-                          <div style={{ display: 'grid', gap: 6 }}>
-                            <label htmlFor="salary-period-reopen-reason" style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)' }}>
+                          <div className="salary-attendance__form-group">
+                            <label htmlFor="salary-period-reopen-reason" className="salary-attendance__form-label">
                               Lý do mở lại kỳ
                             </label>
                             <textarea
@@ -446,19 +446,10 @@ export default function SalaryAttendancePage() {
                                 }
                               }}
                               placeholder="Nêu rõ vì sao cần mở lại kỳ đã chốt"
-                              style={{
-                                width: '100%',
-                                minHeight: 88,
-                                resize: 'vertical',
-                                borderRadius: 12,
-                                border: `1px solid ${reopenReasonError ? 'var(--danger)' : 'var(--border)'}`,
-                                background: 'var(--surface-1)',
-                                color: 'var(--fg-1)',
-                                padding: '10px 12px',
-                              }}
+                              className={`salary-attendance__reopen-textarea ${reopenReasonError ? 'salary-attendance__reopen-textarea--error' : ''}`}
                             />
                             {reopenReasonError && (
-                              <div role="alert" style={{ fontSize: 12, color: 'var(--danger)' }}>
+                              <div role="alert" className="salary-attendance__error-text">
                                 {reopenReasonError}
                               </div>
                             )}
@@ -502,7 +493,7 @@ export default function SalaryAttendancePage() {
                         </>
                       )}
                       {lifecycle?.status === 'CLOSED' && reopenGovernanceActions.length > 0 && (
-                        <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                        <div className="salary-attendance__info-text">
                           Đang có yêu cầu mở lại kỳ chờ xử lý bên dưới. Không thể tạo thêm yêu cầu mới cho cùng kỳ.
                         </div>
                       )}
@@ -542,28 +533,28 @@ export default function SalaryAttendancePage() {
             {/* 3. Salary Summary Card (on the Right) */}
             <div className="salary-summary-area">
               {salaryLoading ? (
-                <div className="salary-summary-dark" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 180 }}>
-                  <Loader2 size={24} className="spin" style={{ color: '#fff' }} />
+                <div className="salary-summary-dark salary-attendance__salary-loading">
+                  <Loader2 size={24} className="spin salary-attendance__salary-loading-spinner" />
                 </div>
               ) : salary ? (
                 <>
 	                  <SalarySummaryCard salary={salary} />
 	                    {/* Confirm button & status badge */}
-	                    <div style={{ marginTop: 12 }}>
+	                    <div className="salary-attendance__confirm-section">
 	                      {isConfirmed ? (
 	                        <>
                           <div className="salary-confirm-status">
                             <CheckCircle2 size={16} />
                             <span>Đã xác nhận</span>
                             {salary.confirmedAt && (
-                              <span style={{ fontSize: 12, lineHeight: 1.35, opacity: 0.7, marginLeft: 'auto' }}>
+                              <span className="salary-attendance__confirmed-date">
                                 {new Date(salary.confirmedAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                               </span>
                             )}
 	                          </div>
 	                          {canPostPayout && (
 	                            <>
-	                              <label className="input-group" style={{ marginTop: 10 }}>
+	                              <label className="input-group salary-attendance__reopen-label">
 	                                <span>Lý do mở lại bảng công và lương</span>
 	                                <textarea
 	                                  className="input"
@@ -579,18 +570,17 @@ export default function SalaryAttendancePage() {
 	                                />
 	                              </label>
 	                              {reopenReasonError && (
-	                                <div style={{ marginTop: 6, fontSize: 12, color: 'var(--danger)' }}>
+	                                <div className="salary-attendance__reopen-error">
 	                                  {reopenReasonError}
 	                                </div>
 	                              )}
 	                              {reopenSalaryGovernanceActions.length > 0 ? (
-	                                <div style={{ marginTop: 8, fontSize: 12, color: 'var(--fg-3)' }}>
+	                                <div className="salary-attendance__pending-info">
 	                                  Đang có yêu cầu mở lại bảng công và lương chờ xử lý bên dưới.
 	                                </div>
 	                              ) : (
 	                                <button
-	                                  className="btn btn--secondary btn--sm"
-	                                  style={{ width: '100%', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+	                                  className="btn btn--secondary btn--sm salary-attendance__btn-full salary-attendance__btn-full--mt8"
 	                                  disabled={unconfirmMutation.isPending}
 	                                  onClick={() => {
 	                                    const normalizedReason = reopenReason.trim();
@@ -623,13 +613,12 @@ export default function SalaryAttendancePage() {
 	                      ) : (
 	                        <>
 	                          {confirmGovernanceActions.length > 0 ? (
-	                            <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+	                            <div className="salary-attendance__info-text">
 	                              Đang có yêu cầu xác nhận bảng công và lương chờ xử lý bên dưới.
 	                            </div>
 	                          ) : (
 	                            <button
-	                              className="btn btn--primary btn--sm"
-	                              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+	                              className="btn btn--primary btn--sm salary-attendance__btn-full"
 	                              disabled={confirmMutation.isPending}
 	                              onClick={() => {
 	                                confirmMutation.mutate(undefined, {
@@ -673,7 +662,7 @@ export default function SalaryAttendancePage() {
 	                    />
 	                </>
               ) : (
-                <div className="salary-summary-dark" style={{ textAlign: 'center', padding: 24, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                <div className="salary-summary-dark salary-attendance__salary-error">
                   Không thể tải dữ liệu lương
                 </div>
               )}
@@ -681,11 +670,8 @@ export default function SalaryAttendancePage() {
 
             {/* Confirmed lock notice */}
 	            {workdayEditLocked && (
-	              <div style={{
-	                marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-	                borderRadius: 8, background: 'var(--surface-2)', fontSize: 12, color: 'var(--ink-3)',
-	              }}>
-	                <Lock size={14} style={{ flexShrink: 0 }} />
+	              <div className="salary-attendance__lock-notice">
+	                <Lock size={14} className="salary-attendance__lock-notice-icon" />
 	                <span>
 	                  {pendingSalaryConfirmationActions.some((item) => item.actionKind === 'SALARY_CONFIRMATION')
 	                    ? 'Đã gửi snapshot xác nhận — không thể chỉnh sửa ngày công cho đến khi yêu cầu được xử lý'
@@ -694,12 +680,12 @@ export default function SalaryAttendancePage() {
 	              </div>
 	            )}
 
-            <Panel style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <Panel className="salary-attendance__adjustment-panel">
+              <div className="salary-attendance__sidebar-content">
+                <div className="salary-attendance__adjustment-header">
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 700 }}>Điều chỉnh liên kỳ</div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>
+                    <div className="salary-attendance__adjustment-title">Điều chỉnh liên kỳ</div>
+                    <div className="salary-attendance__adjustment-subtitle">
                       Lịch sử được liên kết giữa kỳ nguồn và kỳ đích cho lái xe đang chọn.
                     </div>
                   </div>
@@ -743,9 +729,8 @@ export default function SalaryAttendancePage() {
             {/* Mobile back button — sticky bottom */}
             <div className="mobile-back-bar">
               <button
-                className="btn btn--secondary"
+                className="btn btn--secondary salary-attendance__btn-full"
                 onClick={handleBack}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 <ChevronLeft size={16} /> Quay lại danh sách
               </button>

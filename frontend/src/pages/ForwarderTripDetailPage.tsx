@@ -532,10 +532,9 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       <div className="fwd-detail-hero">
         {!embedded && (
           <button
-            className="btn btn--ghost btn--icon"
+            className="btn btn--ghost btn--icon fwd-detail__back-btn"
             onClick={handleBack}
             aria-label="Quay lại"
-            style={{ width: 40, height: 40, borderRadius: '50%' }}
           >
             <ArrowLeft size={20} />
           </button>
@@ -561,7 +560,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
 
       {trip.accountingLock && <AccountingLockBanner lock={trip.accountingLock} />}
 
-      <fieldset disabled={Boolean(trip.accountingLock)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset disabled={Boolean(trip.accountingLock)} className="fwd-detail__fieldset">
 
       {/* Trip Info Card */}
       <div className="panel fwd-order-panel">
@@ -615,13 +614,13 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       {/* Containers Section */}
       <ForwarderContainersSection containers={(trip.containers ?? []) as ForwarderContainer[]} show={showContainerForm} setShow={setShowContainerForm} form={containerForm} setForm={setContainerForm} onAdd={handleAddContainer} pending={createContainerMut.isPending} selectedContainerId={expenseForm.tripContainerId} onSelectContainer={(tripContainerId) => setExpenseForm(prev => ({ ...prev, tripContainerId }))} />
 
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      <div className="panel fwd-detail__panel--mb16">
+        <div className="fwd-paper-order">
           <div>
-            <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <div className="fwd-section-label fwd-section-label--mb6">
               Bàn giao lệnh gốc
             </div>
-            <div style={{ fontSize: 14, color: 'var(--fg-1)', fontWeight: 600 }}>
+            <div className="fwd-paper-order__status">
               {trip.paperOrderCollectedAt
                 ? `${trip.paperOrderCollectedByName || 'Ops'} đã giao lúc ${formatDate(trip.paperOrderCollectedAt)}`
                 : trip.orderExchangeStatus !== 'COMPLETED'
@@ -630,7 +629,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                     ? 'Chưa thể bàn giao: điều vận chưa phân xe'
                     : 'Đã đổi lệnh và phân xe; sẵn sàng bàn giao lệnh gốc'}
             </div>
-            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--fg-3)' }}>
+            <p className="fwd-paper-order__desc">
               Đổi lệnh: {trip.orderExchangeStatus === 'COMPLETED' ? 'Đã đổi lệnh' : trip.orderExchangeStatus === 'IN_PROGRESS' ? 'Đang đổi lệnh' : 'Chờ đổi lệnh'}. Tài xế chỉ được bấm “Đã nhận lệnh gốc” sau khi Ops xác nhận bàn giao.
             </p>
           </div>
@@ -645,15 +644,14 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       </div>
 
       {/* Expenses Section */}
-      <div className="panel panel--solid" style={{ marginBottom: 16 }}>
-        <div style={{ padding: '8px 20px', borderBottom: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <div className="panel panel--solid fwd-detail__panel--mb16">
+        <div className="fwd-expenses-header">
+          <span className="fwd-section-label">
             Chi phí phát sinh ({expenses.length}) · {completedScopeCount}/{totalScopeCount} nhóm đã kê xong
           </span>
           <button
-            className="btn btn--secondary btn--sm"
+            className="btn btn--secondary btn--sm fwd-expenses-header__btn"
             onClick={openExpenseForm}
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
           >
             <Plus size={12} /> Thêm
           </button>
@@ -684,7 +682,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                 label="Giá mua vào (VNĐ) *"
               >
                 <input
-                  className={`input${expenseErrors.buyAmount ? ' input--error' : ''}`}
+                  className={`input${expenseErrors.buyAmount ? ' input--error' : ''}${isLiftExpense ? ' fwd-input--readonly' : ''}`}
                   type="number"
                   value={expenseForm.buyAmount}
                   onChange={e => handleBuyAmountChange(e.target.value)}
@@ -692,12 +690,9 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                   min="1"
                   readOnly={isLiftExpense}
                   aria-readonly={isLiftExpense}
-                  style={isLiftExpense
-                    ? { background: 'var(--bg-3)', color: 'var(--fg-3)' }
-                    : undefined}
                 />
                 {expenseErrors.buyAmount && (
-                  <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--danger)', display: 'block', marginTop: 2 }}>
+                  <span className="fwd-field-error-inline">
                     {expenseErrors.buyAmount}
                   </span>
                 )}
@@ -722,18 +717,13 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                 label="Giá bán ra (VNĐ)"
               >
                 <input
-                  className="input"
+                  className={`input${!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ? ' fwd-input--readonly' : ''}`}
                   type="number"
                   value={expenseForm.sellAmount}
                   onChange={e => setExpenseForm(f => ({ ...f, sellAmount: e.target.value }))}
                   placeholder="0"
                   min="0"
                   readOnly={!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup}
-                  style={
-                    !OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup
-                      ? { background: 'var(--bg-3)', color: 'var(--fg-3)' }
-                      : undefined
-                  }
                 />
               </FormGroup>
 
@@ -835,19 +825,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
               {containers.length === 1 && selectedExpenseContainer && !selectedExpenseContainerIsSyntheticLcl && (
                 <FormGroup label="Container áp dụng">
                   <div
-                    className="input"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 10,
-                      background: 'var(--brand-subtle, rgba(0,177,79,0.08))',
-                      borderColor: 'rgba(0, 107, 63, 0.22)',
-                    }}
+                    className="input fwd-container-display"
                   >
-                    <span style={{ fontFamily: 'var(--font-data)', fontWeight: 700 }}>{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
+                    <span className="fwd-container-display__label">{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
                     {selectedExpenseContainer.sealNumber && (
-                      <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>Seal {selectedExpenseContainer.sealNumber}</span>
+                      <span className="fwd-container-display__seal">Seal {selectedExpenseContainer.sealNumber}</span>
                     )}
                   </div>
                 </FormGroup>
@@ -876,7 +858,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                       })),
                     ]}
                   />
-                  <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--fg-3)', display: 'block', marginTop: 4 }}>
+                  <span className="fwd-field-hint">
                     {containers.some((container) => isSyntheticLclContainer(container))
                       ? `Chọn ${FORWARDER_LCL_SCOPE_LABEL.toLowerCase()} hoặc container từ danh sách đã nhập, không cần gõ lại.`
                       : 'Chọn container từ danh sách đã nhập, không cần gõ lại số container.'}
@@ -891,11 +873,10 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                 <>
                   <FormGroup label="Số hóa đơn">
                     <input
-                      className="input"
+                      className="input fwd-input--data"
                       value={expenseForm.invoiceNumber}
                       onChange={e => setExpenseForm(f => ({ ...f, invoiceNumber: e.target.value }))}
                       placeholder="Số hóa đơn"
-                      style={{ fontFamily: 'var(--font-data)' }}
                     />
                   </FormGroup>
                   <FormGroup label="Ngày hóa đơn">
@@ -911,17 +892,16 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
               {expenseForm.expenseType === 'CUSTOMS' && (
                 <FormGroup label="Số tờ khai hải quan *">
                   <input
-                    className={`input${expenseErrors.declarationNumber ? ' input--error' : ''}`}
+                    className={`input fwd-input--data${expenseErrors.declarationNumber ? ' input--error' : ''}`}
                     value={expenseForm.declarationNumber}
                     onChange={e => {
                       setExpenseForm(f => ({ ...f, declarationNumber: e.target.value }));
                       if (expenseErrors.declarationNumber) setExpenseErrors(err => ({ ...err, declarationNumber: undefined }));
                     }}
                     placeholder="Số tờ khai"
-                    style={{ fontFamily: 'var(--font-data)' }}
                   />
                   {expenseErrors.declarationNumber && (
-                    <span style={{ fontSize: 12, lineHeight: 1.35, color: 'var(--danger)', display: 'block', marginTop: 2 }}>
+                    <span className="fwd-field-error-inline">
                       {expenseErrors.declarationNumber}
                     </span>
                   )}
@@ -943,7 +923,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             </div>
 
             {!expenseForm.invoiceNumber.trim() && (
-              <div className="fwd-expense-grid fwd-expense-grid--invoice" style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+              <div className="fwd-expense-grid fwd-expense-grid--invoice fwd-expense-no-invoice-divider">
                 <FormGroup label="Ngày chi *">
                   <DateInput
                     className={`input${expenseErrors.expenseDate ? ' input--error' : ''}`}
@@ -969,17 +949,17 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                   {expenseErrors.payeeName && <span className="field-error">{expenseErrors.payeeName}</span>}
                 </FormGroup>
 
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', marginBottom: 8 }}>Chứng cứ thay thế *</div>
+                <div className="fwd-expense-grid__full-width">
+                  <div className="fwd-evidence-label">Chứng cứ thay thế *</div>
                   {!noInvoiceAllowed ? (
-                    <div style={{ fontSize: 12, color: 'var(--danger)' }}>
+                    <div className="fwd-evidence-error">
                       Hạng mục này không cho phép chi không hóa đơn.
                     </div>
                   ) : (
                     <>
-                      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                      <div className="fwd-evidence-grid">
                         {allowedEvidenceTypes.map((value) => (
-                          <label key={value} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--fg-2)' }}>
+                          <label key={value} className="fwd-evidence-option">
                             <input
                               type="checkbox"
                               checked={expenseForm.noInvoiceEvidenceTypes.includes(value)}
@@ -998,7 +978,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                         ))}
                       </div>
                       {expenseErrors.evidence && <div className="field-error">{expenseErrors.evidence}</div>}
-                      <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 8 }}>
+                      <div className="fwd-evidence-hint">
                         Ngưỡng hiện tại: {Number(selectedExpenseTypeConfig?.noInvoicePerItemLimit ?? 1_000_000).toLocaleString('vi-VN')} đ/khoản,
                         {' '}{Number(selectedExpenseTypeConfig?.noInvoicePerDayLimit ?? 5_000_000).toLocaleString('vi-VN')} đ/người/ngày.
                         Nếu chọn ảnh hiện trường, hãy lưu xong rồi tải ảnh lên ngay dưới dòng chi phí.
@@ -1011,15 +991,14 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
 
             {expenseSubmitError && (
               <div
-                className="animate-shake"
+                className="animate-shake fwd-expense-submit-error"
                 role="alert"
-                style={{ marginBottom: 10, padding: '9px 12px', borderRadius: 6, background: 'var(--danger-soft)', color: 'var(--danger-text)', fontSize: 13 }}
               >
                 {expenseSubmitError}
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div className="fwd-expense-form-actions">
               <button
                 className="btn btn--ghost btn--sm"
                 onClick={() => { lastAppliedLiftSuggestionKey.current = null; setShowExpenseForm(false); setEditingExpenseId(null); setExpenseErrors({}); setExpenseSubmitError(null); }}
@@ -1039,11 +1018,11 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
         )}
 
         {expenses.length === 0 ? (
-          <div style={{ padding: '16px 20px', color: 'var(--fg-3)', fontSize: 13, textAlign: 'center' }}>
+          <div className="fwd-expenses-empty">
             Chưa có chi phí phát sinh nào
           </div>
         ) : (
-          <div style={{ padding: '4px 0' }}>
+          <div className="fwd-expenses-list">
             {expenseGroups.map(group => {
               const scope = completionScopes.find(item => item.tripContainerId === group.tripContainerId);
               const completed = scope?.status === ExpenseEntryStatus.COMPLETED;
@@ -1079,40 +1058,40 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       <TripLegsPanel legs={legs} />
 
       {/* Ghi chú */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <div style={{ padding: '12px 20px' }}>
-          <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+      <div className="panel fwd-detail__panel--mb16">
+        <div className="fwd-notes-panel__content">
+          <div className="fwd-section-label fwd-section-label--mb6">
             Ghi chú
           </div>
           {trip.notes ? (
-            <p style={{ fontSize: 13, color: 'var(--fg-2)', margin: 0, lineHeight: 1.6 }}>{trip.notes}</p>
+            <p className="fwd-notes-panel__text">{trip.notes}</p>
           ) : (
-            <p style={{ fontSize: 13, color: 'var(--fg-3)', margin: 0, fontStyle: 'italic' }}>Không có ghi chú</p>
+            <p className="fwd-notes-panel__empty">Không có ghi chú</p>
           )}
         </div>
       </div>
 
       {/* Liên hệ & hướng dẫn — manager-authored guidance for the field user */}
       {trip.instructions && (trip.instructions.contactName || trip.instructions.contactPhone || trip.instructions.notes) && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <div style={{ padding: '12px 20px' }}>
-            <div style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div className="panel fwd-detail__panel--mb16">
+          <div className="fwd-notes-panel__content">
+            <div className="fwd-section-label fwd-section-label--mb8">
               Liên hệ & hướng dẫn
             </div>
             {trip.instructions.contactName && (
-              <div style={{ display: 'flex', gap: 10, fontSize: 13, lineHeight: 1.5, marginBottom: 4 }}>
-                <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 60 }}>Liên hệ</span>
-                <span style={{ color: 'var(--fg-1)', fontWeight: 500 }}>{trip.instructions.contactName}</span>
+              <div className="fwd-instructions__row">
+                <span className="fwd-instructions__label">Liên hệ</span>
+                <span className="fwd-instructions__value">{trip.instructions.contactName}</span>
               </div>
             )}
             {trip.instructions.contactPhone && (
-              <div style={{ display: 'flex', gap: 10, fontSize: 13, lineHeight: 1.5, marginBottom: 4 }}>
-                <span style={{ fontSize: 12, lineHeight: 1.35, fontWeight: 600, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: 60 }}>SĐT</span>
-                <a href={`tel:${trip.instructions.contactPhone}`} style={{ color: 'var(--brand, #00B14F)', textDecoration: 'none', fontWeight: 500 }}>{trip.instructions.contactPhone}</a>
+              <div className="fwd-instructions__row">
+                <span className="fwd-instructions__label">SĐT</span>
+                <a href={`tel:${trip.instructions.contactPhone}`} className="fwd-instructions__link">{trip.instructions.contactPhone}</a>
               </div>
             )}
             {trip.instructions.notes && (
-              <p style={{ fontSize: 13, color: 'var(--fg-2)', margin: '8px 0 0', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{trip.instructions.notes}</p>
+              <p className="fwd-instructions__notes">{trip.instructions.notes}</p>
             )}
           </div>
         </div>

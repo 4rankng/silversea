@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, OperationalSiteType, Role } from '@tingting/shared';
-import type { OperationalSiteInput } from '@tingting/shared';
+import type { OperationalSiteInput, OperationalSiteUpdateInput } from '@tingting/shared';
 
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
@@ -332,6 +332,126 @@ export async function createOperationalSiteForIntake(
 /** Narrow the enum so the intake form only offers the two site types it understands. */
 export function isValidIntakeSiteType(value: string): value is OperationalSiteType {
   return value === OperationalSiteType.FACTORY || value === OperationalSiteType.WAREHOUSE;
+}
+
+/**
+ * Master-data view of every live customer-owned site (factory or warehouse)
+ * across all customers, for the ADMIN/MANAGER "Nhà máy" config surface.
+ * Unlike the intake projection this includes deactivated rows (flagged via
+ * isActive) so an admin can see and re-enable them — intake lists stay
+ * active-only.
+ */
+export async function listOperationalSitesForAdmin(actor: AuthUser) {
+  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
+    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được xem danh mục nhà máy.');
+  }
+  return db.select({
+    id: s.operationalSites.id,
+    customerId: s.operationalSites.customerId,
+    customerName: sql<string>`COALESCE(NULLIF(${s.customers.shortName}, ''), ${s.customers.name})`,
+    code: s.operationalSites.code,
+    name: s.operationalSites.name,
+    shortName: s.operationalSites.shortName,
+    siteType: s.operationalSites.siteType,
+    routeId: s.operationalSites.routeId,
+    routeName: s.routes.name,
+    address: s.operationalSites.address,
+    googleMapsUrl: s.operationalSites.googleMapsUrl,
+    contactName: s.operationalSites.contactName,
+    contactPhone: s.operationalSites.contactPhone,
+    liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
+    liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
+    liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
+    strictRules: s.operationalSites.strictRules,
+    isActive: s.operationalSites.isActive,
+    version: s.operationalSites.version,
+    updatedAt: s.operationalSites.updatedAt,
+  }).from(s.operationalSites)
+    .innerJoin(s.customers, eq(s.customers.id, s.operationalSites.customerId))
+    .leftJoin(s.routes, eq(s.routes.id, s.operationalSites.routeId))
+    .where(isNull(s.operationalSites.deletedAt))
+    .orderBy(s.customers.shortName, s.operationalSites.name);
+}
+
+/**
+ * Version-checked partial update of a customer-owned site from the admin
+ * config surface. Identity (customerId, code, siteType) is immutable here;
+ * deactivation is a flag toggle, never a hard delete, so historical
+ * shipments keep pointing at the row. The FACTORY↔route invariant is
+ * re-checked against the merged row because a zod schema cannot see it.
+ */
+export async function updateOperationalSiteForAdmin(
+  siteId: number,
+  input: OperationalSiteUpdateInput,
+  actor: AuthUser,
+) {
+  if (![Role.ADMIN, Role.MANAGER].includes(actor.role)) {
+    throw new ApiError(403, 'Chỉ quản trị viên hoặc giám đốc được chỉnh sửa danh mục nhà máy.');
+  }
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.operationalSites)
+      .where(and(eq(s.operationalSites.id, siteId), isNull(s.operationalSites.deletedAt)))
+      .limit(1);
+    if (!row) throw new ApiError(404, 'Không tìm thấy nhà máy / kho.');
+
+    if (row.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Dữ liệu vừa bị người khác thay đổi. Tải lại trang và thử lại.');
+    }
+
+    const merged = {
+      routeId: 'routeId' in input ? input.routeId ?? null : row.routeId,
+      name: input.name ?? row.name,
+    };
+    if (row.siteType === OperationalSiteType.FACTORY && merged.routeId == null) {
+      throw new ApiError(409, 'Nhà máy cần được liên kết với một tuyến đường.');
+    }
+    if (row.siteType === OperationalSiteType.WAREHOUSE && merged.routeId != null) {
+      throw new ApiError(409, 'Kho lấy hàng không dùng tuyến đường của nhà máy.');
+    }
+    if (merged.routeId != null && merged.routeId !== row.routeId) {
+      const [route] = await tx.select({ id: s.routes.id }).from(s.routes)
+        .where(and(eq(s.routes.id, merged.routeId), isNull(s.routes.deletedAt))).limit(1);
+      if (!route) throw new ApiError(409, 'Tuyến đường không còn hiệu lực.');
+    }
+
+    const [updated] = await tx.update(s.operationalSites).set({
+      ...(input.name != null ? { name: input.name } : {}),
+      ...(input.shortName != null ? { shortName: input.shortName } : {}),
+      ...('routeId' in input ? { routeId: merged.routeId } : {}),
+      ...(input.address != null ? { address: input.address } : {}),
+      ...(input.googleMapsUrl !== undefined ? { googleMapsUrl: input.googleMapsUrl } : {}),
+      ...(input.contactName !== undefined ? { contactName: input.contactName } : {}),
+      ...(input.contactPhone !== undefined ? { contactPhone: input.contactPhone } : {}),
+      ...(input.liftFeeInvoiceName !== undefined ? { liftFeeInvoiceName: input.liftFeeInvoiceName } : {}),
+      ...(input.liftFeeInvoiceAddress !== undefined ? { liftFeeInvoiceAddress: input.liftFeeInvoiceAddress } : {}),
+      ...(input.liftFeeTaxCode !== undefined ? { liftFeeTaxCode: input.liftFeeTaxCode } : {}),
+      ...(input.strictRules !== undefined ? { strictRules: input.strictRules } : {}),
+      ...(input.isActive != null ? { isActive: input.isActive } : {}),
+      version: sql`${s.operationalSites.version} + 1`,
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    }).where(eq(s.operationalSites.id, siteId)).returning();
+    if (!updated) throw new Error('Không thể lưu nhà máy / kho.');
+    return {
+      id: updated.id,
+      customerId: updated.customerId,
+      code: updated.code,
+      name: updated.name,
+      shortName: updated.shortName,
+      siteType: updated.siteType,
+      routeId: updated.routeId,
+      address: updated.address,
+      googleMapsUrl: updated.googleMapsUrl,
+      contactName: updated.contactName,
+      contactPhone: updated.contactPhone,
+      liftFeeInvoiceName: updated.liftFeeInvoiceName,
+      liftFeeInvoiceAddress: updated.liftFeeInvoiceAddress,
+      liftFeeTaxCode: updated.liftFeeTaxCode,
+      strictRules: updated.strictRules,
+      isActive: updated.isActive,
+      version: updated.version,
+    };
+  });
 }
 
 async function assertReferenceIsActive(

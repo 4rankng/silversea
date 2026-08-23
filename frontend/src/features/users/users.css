@@ -1172,6 +1172,82 @@
   overflow-wrap: anywhere;
 }
 
+/* ── Business Units section ─────────────────────────────────────────────── */
+
+.business-units {
+  margin-top: 24px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+}
+
+.business-units__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.business-units__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.business-units__subtitle {
+  margin: 4px 0 0;
+  color: var(--fg-3);
+  font-size: 14px;
+}
+
+.business-units__form-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 12px;
+}
+
+.business-units__form-label {
+  display: grid;
+  gap: 6px;
+}
+
+.business-units__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.business-units__list {
+  display: grid;
+  gap: 10px;
+}
+
+.business-units__card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.business-units__card-meta {
+  color: var(--fg-3);
+  font-size: 13px;
+}
+
+.business-units__card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* ── Responsive overrides (from responsive.css decomposition) ── */
 @media (max-width: 640px) {
   /* ── Users admin page — Mobile Pass 4 (2026-06-02) ──

@@ -194,7 +194,7 @@ export default function ProfitPage() {
   const fleetFixedCosts = report?.fleetMonthlyFixedCostTotal ?? 0;
 
   return (
-    <div ref={rootRef} style={{ paddingBottom: 40 }}>
+    <div ref={rootRef} className="profit-page">
       <Breadcrumbs
         className="profit-page__crumbs"
         items={[
@@ -221,7 +221,7 @@ export default function ProfitPage() {
 
       {inspectionAlerts.length > 0 && (
         <Alert variant="warning" style="soft" icon={<AlertTriangle size={16} />} className="mb-5">
-          <div style={{ display: 'grid', gap: 6 }}>
+          <div className="profit-page__alert-content">
             <strong>Cần xử lý đăng kiểm đội xe trong tháng {selectedMonth}/{selectedYear}</strong>
             <span>
               {inspectionAlerts.length} xe đang có nhắc việc đăng kiểm trên báo cáo quản trị dùng chung cho quản lý và kế toán.
@@ -243,7 +243,7 @@ export default function ProfitPage() {
 
           {/* Bento Item 1: Profit Hero */}
           <div className="profit-bento-hero">
-            <div className="profit-hero" style={{ height: '100%', marginBottom: 0 }}>
+            <div className="profit-hero profit-hero--fill">
               <div className="profit-hero__label">Lợi nhuận ròng để phân chia · T{selectedMonth} / {selectedYear}</div>
               <div className="profit-hero__value">
                 <span ref={heroValueRef}>0</span>
@@ -259,13 +259,13 @@ export default function ProfitPage() {
           <div className="profit-bento-breakdown">
             <Card
               title={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <TrendingUp size={16} style={{ color: 'var(--brand)' }} />
+                <span className="profit-page__card-title">
+                  <TrendingUp size={16} className="profit-page__card-title-icon" />
                   Diễn giải kế toán
                 </span>
               }
               subtitle={`Thực tế ghi nhận trong tháng ${selectedMonth}/${selectedYear}`}
-              style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+              className="profit-bento-breakdown__inner"
               noPadding
             >
               <div className="calc-breakdown profit-calc-breakdown">
@@ -325,7 +325,7 @@ export default function ProfitPage() {
                   </div>
                   <div className="calc-row__value calc-row__value--positive"><Money value={report?.otherIncome || 0} sign="+" /></div>
                 </div>
-                <div className="calc-row calc-row--total calc-row--final" style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                <div className="calc-row calc-row--total calc-row--final">
                   <div className="calc-row__label calc-row__label--bold">Lợi nhuận ròng chia cổ đông</div>
                   <div className="calc-row__value"><Money value={netProfit} /></div>
                 </div>
@@ -337,13 +337,13 @@ export default function ProfitPage() {
           <div className="profit-bento-shareholders">
             <Card
               title={
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Users size={16} style={{ color: 'var(--brand)' }} />
+                <span className="profit-page__card-title">
+                  <Users size={16} className="profit-page__card-title-icon" />
                   Phân chia theo tỷ lệ cổ phần
                 </span>
               }
               subtitle="Phân chia lợi nhuận ròng theo tỷ lệ góp vốn cổ đông"
-              style={{ height: '100%' }}
+              className="profit-card--fill"
             >
               <div className="partner-grid">
                 {activeCapTable.map((partner, i) => {
@@ -360,16 +360,16 @@ export default function ProfitPage() {
                           <div className="partner-card__name">
                             {partner.partnerName}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'nowrap' }}>
+                          <div className="partner-card__meta">
                             <span className="partner-card__role">{isPrimary ? 'Đối tác chính' : 'Đối tác góp vốn'}</span>
-                            <div className="partner-card__pct" style={{ marginLeft: 'auto' }}>
+                            <div className="partner-card__pct partner-card__pct--auto">
                               {partner.percentage}%
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="partner-card__amount-label">Phần lợi nhuận tháng {selectedMonth}</div>
-                      <div className="partner-card__amount" style={{ color: isPrimary ? 'var(--brand)' : 'var(--info)' }}>
+                      <div className={`partner-card__amount ${isPrimary ? 'partner-card__amount--primary' : 'partner-card__amount--secondary'}`}>
                         <Money value={partnerShare} />
                       </div>
                     </div>
@@ -395,7 +395,7 @@ export default function ProfitPage() {
           {/* Bento Item 4: Quarterly Settlement */}
           <div className={history.length === 0 ? "profit-bento-settlement profit-bento-settlement--full" : "profit-bento-settlement"}>
             <Card
-              style={{ height: '100%' }}
+              className="profit-card--fill"
               title="Quyết toán & Chốt Quý"
               subtitle="Khóa sổ kế toán và tạo bản ghi phân phối lợi nhuận chính thức."
             >
@@ -538,7 +538,7 @@ export default function ProfitPage() {
           {/* Bento Item 5: Distribution History */}
           {history.length > 0 && (
             <div className="profit-bento-history">
-              <Card title="Lịch sử phân phối" subtitle="Các lần phân chia lợi nhuận đã thực hiện" style={{ height: '100%' }}>
+              <Card title="Lịch sử phân phối" subtitle="Các lần phân chia lợi nhuận đã thực hiện" className="profit-card--fill">
                 <div className="profit-history-scroll">
                   <div className="profit-history-list">
                     {history.map((d) => (

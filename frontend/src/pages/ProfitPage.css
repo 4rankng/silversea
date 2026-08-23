@@ -12,6 +12,66 @@
  *   and 999px role tag keep their tight/pill geometry because no token
  *   encodes them.
  * ========================================================================== */
+
+/* ── Page root ── */
+.profit-page {
+  padding-bottom: 40px;
+}
+
+/* ── Alert content grid ── */
+.profit-page__alert-content {
+  display: grid;
+  gap: 6px;
+}
+
+/* ── Card title with icon (shared pattern) ── */
+.profit-page__card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profit-page__card-title-icon {
+  color: var(--brand);
+}
+
+/* ── Card fill height (shared modifier) ── */
+.profit-card--fill {
+  height: 100%;
+}
+
+/* ── Hero bento fill (overrides hero margin-bottom) ── */
+.profit-hero--fill {
+  height: 100%;
+  margin-bottom: 0;
+}
+
+/* ── Breakdown card inner (flex column fill) ── */
+.profit-bento-breakdown__inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Partner card meta row ── */
+.partner-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: nowrap;
+}
+.partner-card__pct--auto {
+  margin-left: auto;
+}
+
+/* ── Partner amount color modifiers ── */
+.partner-card__amount--primary {
+  color: var(--brand);
+}
+.partner-card__amount--secondary {
+  color: var(--info);
+}
+
 .profit-layout {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -150,6 +210,9 @@
 .calc-row--final {
   background: linear-gradient(180deg, var(--surface-accent), var(--surface));
   border-top: 2px solid var(--sb-bg);
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 .calc-row__label { font-size: var(--fs-sm); color: var(--ink-2); display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
 .calc-row__label--bold { color: var(--ink); font-weight: var(--fw-semibold); }

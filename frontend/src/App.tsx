@@ -98,6 +98,7 @@ const CompanyInfoConfigPage = lazy(() => import('./pages/config/CompanyInfoConfi
 const CapTableConfigPage = lazy(() => import('./pages/config/CapTableConfigPage'));
 const CustomersConfigPage = lazy(() => import('./pages/config/CustomersConfigPage'));
 const TrailersConfigPage = lazy(() => import('./pages/config/TrailersConfigPage'));
+const FactoriesConfigPage = lazy(() => import('./pages/config/FactoriesConfigPage'));
 const SalaryPeriodConfigPage = lazy(() => import('./pages/config/SalaryPeriodConfigPage'));
 const PortsConfigPage = lazy(() => import('./pages/config/PortsConfigPage'));
 const TripExpenseConfigPage = lazy(() => import('./pages/config/TripExpenseConfigPage'));
@@ -284,6 +285,7 @@ export function AppRoutes() {
               /system/admin-health work-inbox RBAC). Kept separate from /config. */}
           <Route path="/admin-center" element={strictAdminOnly(page(<AdminCenterPage />))} />
           <Route path="/config" element={adminOnly(page(<ConfigPage />))} />
+          <Route path="/config/factories" element={adminOnly(page(<FactoriesConfigPage />))} />
           <Route path="/config/trailers" element={adminOnly(page(<TrailersConfigPage />))} />
           <Route path="/config/trucks" element={adminOnly(page(<TrucksConfigPage />))} />
           <Route path="/config/trucks/:truckId/owners" element={adminOnly(page(<TruckOwnersConfigPage />))} />

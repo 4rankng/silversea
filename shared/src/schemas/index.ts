@@ -1591,6 +1591,29 @@ export const operationalSiteSchema = z.object({
   }
 });
 
+// Admin master-data maintenance of a customer-owned factory/warehouse.
+// Partial by design: only present fields update; identity (customerId, code,
+// siteType) is immutable here — re-owning or re-typing a site is a governance
+// decision outside this surface. The FACTORY↔route invariant is re-checked
+// against the merged row in the service (zod cannot see the stored row).
+export const operationalSiteUpdateSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive('Phiên bản không hợp lệ'),
+  name: z.string().trim().min(1, 'Tên điểm vận hành là bắt buộc').max(255).optional(),
+  shortName: z.string().trim().min(1).max(255).optional(),
+  routeId: z.coerce.number().int().positive('Tuyến đường không hợp lệ').optional().nullable(),
+  address: z.string().trim().min(1, 'Địa chỉ là bắt buộc').max(2000).optional(),
+  googleMapsUrl: z.string().url('Liên kết Google Maps không hợp lệ').max(2000).optional().nullable(),
+  contactName: z.string().trim().max(120).optional().nullable(),
+  contactPhone: z.string().trim().max(30).optional().nullable(),
+  liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
+  liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
+  liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
+  strictRules: z.string().trim().max(8000).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+
+export type OperationalSiteUpdateInput = z.infer<typeof operationalSiteUpdateSchema>;
+
 export const decomposeShipmentFulfillmentsSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
 });

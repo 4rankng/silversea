@@ -11,8 +11,10 @@ import type { AuthUser } from '../middleware/auth';
 import {
   assignShipmentCarriers,
   createOperationalSiteForIntake,
+  listOperationalSitesForAdmin,
   listOperationalSitesForIntake,
   submitShipmentForDispatch,
+  updateOperationalSiteForAdmin,
 } from '../services/shipment-intake.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -494,6 +496,75 @@ describe('shipment intake submission', () => {
     }
     const [unchanged] = await db.select().from(s.shipments).where(eq(s.shipments.id, shipment.id));
     assert.equal(unchanged.status, 'PENDING_DATE');
+  });
+});
+
+describe('operational site admin maintenance', () => {
+  test('limits the master-data list and updates to ADMIN and MANAGER', async () => {
+    const clerk = await actor(Role.CUS);
+    await assert.rejects(
+      () => listOperationalSitesForAdmin(clerk),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
+    );
+    const ref = await references();
+    await assert.rejects(
+      () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version }, clerk),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 403,
+    );
+  });
+
+  test('lists every live site with its customer, including deactivated rows', async () => {
+    const manager = await actor(Role.MANAGER);
+    const ref = await references();
+    await db.update(s.operationalSites)
+      .set({ isActive: false })
+      .where(eq(s.operationalSites.id, ref.warehouse.id));
+
+    const rows = await listOperationalSitesForAdmin(manager);
+    const factory = rows.find((row) => row.id === ref.site.id);
+    const warehouse = rows.find((row) => row.id === ref.warehouse.id);
+    assert.ok(factory);
+    assert.equal(factory.customerName, ref.customer.name);
+    assert.equal(factory.routeName, ref.route.name);
+    assert.equal(factory.isActive, true);
+    assert.ok(warehouse);
+    assert.equal(warehouse.isActive, false);
+  });
+
+  test('applies a version-checked partial update and bumps the row version', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+
+    const updated = await updateOperationalSiteForAdmin(ref.site.id, {
+      expectedVersion: ref.site.version,
+      name: 'Nhà máy mới',
+      contactPhone: '0912345678',
+      strictRules: null,
+    }, admin);
+    assert.equal(updated.name, 'Nhà máy mới');
+    assert.equal(updated.contactPhone, '0912345678');
+    assert.equal(updated.strictRules, null);
+    assert.equal(updated.version, ref.site.version + 1);
+
+    // Stale expectedVersion must conflict instead of silently overwriting.
+    await assert.rejects(
+      () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, name: 'Lần thứ hai' }, admin),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
+    );
+  });
+
+  test('keeps the FACTORY route invariant on merged updates', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+
+    await assert.rejects(
+      () => updateOperationalSiteForAdmin(ref.site.id, { expectedVersion: ref.site.version, routeId: null }, admin),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
+    );
+    await assert.rejects(
+      () => updateOperationalSiteForAdmin(ref.warehouse.id, { expectedVersion: ref.warehouse.version, routeId: ref.route.id }, admin),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 409,
+    );
   });
 });
 

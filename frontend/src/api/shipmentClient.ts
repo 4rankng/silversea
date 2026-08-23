@@ -692,6 +692,44 @@ export async function createOperationalSite(body: CreateOperationalSiteBody): Pr
   return api.post<OperationalSite>('/shipments/operational-sites', body);
 }
 
+/** Master-data row for the ADMIN/MANAGER "Nhà máy" config surface. */
+export interface AdminOperationalSite extends OperationalSite {
+  customerName: string;
+  routeName: string | null;
+  isActive: boolean;
+}
+
+/** Body for `PATCH /api/shipments/operational-sites/:id` — partial, version-checked. */
+export interface UpdateOperationalSiteBody {
+  expectedVersion: number;
+  name?: string;
+  shortName?: string;
+  routeId?: number | null;
+  address?: string;
+  googleMapsUrl?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  liftFeeInvoiceName?: string | null;
+  liftFeeInvoiceAddress?: string | null;
+  liftFeeTaxCode?: string | null;
+  strictRules?: string | null;
+  isActive?: boolean;
+}
+
+/** Every live customer-owned site across all customers (includes deactivated). */
+export async function listAdminOperationalSites(): Promise<AdminOperationalSite[]> {
+  const response = await api.get<{ items: AdminOperationalSite[] }>('/shipments/operational-sites/admin');
+  return response.items;
+}
+
+/** Version-checked partial update from the admin config surface (409 on stale). */
+export async function updateAdminOperationalSite(
+  siteId: number,
+  body: UpdateOperationalSiteBody,
+): Promise<OperationalSite> {
+  return api.patch<OperationalSite>(`/shipments/operational-sites/${siteId}`, body);
+}
+
 export async function submitShipmentForDispatch(
   id: number,
   body: {
