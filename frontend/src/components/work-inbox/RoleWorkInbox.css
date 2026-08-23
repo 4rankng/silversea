@@ -293,7 +293,9 @@
   .role-work-inbox__table thead { display: none; }
   .role-work-inbox__table tbody { display: grid; gap: 10px; }
   .role-work-inbox__table tr { overflow: hidden; border: 1px solid var(--border-1); border-radius: 10px; background: var(--bg-1); }
-  .role-work-inbox__table tr.is-priority { border-left: 3px solid var(--warning); }
+  /* Priority marker = canonical centered 3x20 strip, not a full-height left border. */
+  .role-work-inbox__table tr.is-priority { position: relative; }
+  .role-work-inbox__table tr.is-priority::before { content: ''; position: absolute; top: 50%; left: 0; z-index: 1; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning); transform: translateY(-50%); }
   .role-work-inbox__table tr.is-priority td:first-child { box-shadow: none; }
   .role-work-inbox__table td { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; border-bottom: 1px solid var(--border-1); padding: 9px 12px; }
   .role-work-inbox__table td::before { content: attr(data-label); color: var(--fg-3); font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
