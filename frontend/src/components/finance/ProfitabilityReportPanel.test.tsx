@@ -78,6 +78,7 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
     expect(await screen.findByText('20.000 ₫')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'BL-2026-101' }).getAttribute('href')).toBe('/trips/101');
     expect(screen.queryByText('Chuyến #101')).toBeNull();
+    expect(screen.queryByText('Biên lợi nhuận gồm chi phí đội xe được phân bổ.')).toBeNull();
   });
 
   it('clears an impossible low-margin filter when navigating to an unconfigured period', async () => {
@@ -104,5 +105,18 @@ describe('ProfitabilityReportPanel low-margin policy', () => {
     })));
     const checkbox = await screen.findByRole('checkbox', { name: 'Chỉ hiện nhóm biên lợi nhuận thấp' });
     expect((checkbox as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('keeps a non-comparable margin compact while retaining its full accessible meaning', async () => {
+    const configured = await getProfitabilityMock();
+    getProfitabilityMock.mockResolvedValue({
+      ...configured,
+      items: [{ ...configured.items[0], marginRatio: null, alertState: 'NORMAL' }],
+    });
+
+    renderPanel(8, 2026);
+
+    expect(await screen.findByLabelText('Không thể so sánh')).toHaveTextContent('—');
+    expect(screen.queryByText('Không thể so sánh')).toBeNull();
   });
 });
