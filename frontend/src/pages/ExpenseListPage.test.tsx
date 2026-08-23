@@ -165,4 +165,27 @@ describe('ExpenseListPage', () => {
     expect(screen.getByText('11.111.000')).toBeTruthy();
     expect(screen.getByText('87.654.000')).toBeTruthy();
   });
+
+  it('sorts server-side: header click sends sortBy/sortDir and resets the page', async () => {
+    renderPage();
+    await screen.findByText('Garage Auto 123');
+
+    // Move to page 2 first so the sort's page reset is observable.
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => {
+      expect(apiGet).toHaveBeenCalledWith('/expenses?page=2&limit=20');
+    });
+
+    // Fresh column starts ascending, on page 1.
+    fireEvent.click(screen.getByRole('button', { name: 'Số tiền' }));
+    await waitFor(() => {
+      expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&sortBy=amount&sortDir=asc');
+    });
+
+    // Same header flips to descending.
+    fireEvent.click(screen.getByRole('button', { name: 'Số tiền' }));
+    await waitFor(() => {
+      expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&sortBy=amount&sortDir=desc');
+    });
+  });
 });

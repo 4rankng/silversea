@@ -216,6 +216,52 @@
   color: var(--ink-2);
 }
 
+/* Sort bar — the card list's stand-in for sortable column headers. Buttons
+   reuse the shared table-sort-button contract inside the filter-group shell. */
+.governance-actions__sort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.governance-actions__sort > span {
+  margin-right: 6px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.governance-actions__sort button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.governance-actions__sort button:hover {
+  color: var(--ink);
+}
+
+.governance-actions__sort button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.governance-actions__sort button.is-active {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
 .governance-actions__cards {
   display: grid;
   min-width: 0;

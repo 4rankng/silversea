@@ -28,6 +28,7 @@ import {
   requestAdvanceRequestRejectionGovernance,
   requestAdvanceSettlementReversal,
 } from '../../services/advance.service';
+import { ADVANCE_REQUEST_SORT_KEYS } from '../../services/advance-request.service';
 import { throwValidation } from '../../lib/validation';
 import { formatLocalDate } from '../../lib/format';
 import { parsePagination } from '../utils/pagination';
@@ -42,6 +43,8 @@ const advanceRequestListQuerySchema = z.object({
   search: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
+  sortBy: z.enum(ADVANCE_REQUEST_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
 });
 
 // ─── Advance Requests (admin) ─────────────────────────────────────────────────
@@ -49,9 +52,9 @@ const advanceRequestListQuerySchema = z.object({
 router.get('/advance-requests', asyncHandler(async (req: Request, res: Response) => {
   const parsed = advanceRequestListQuerySchema.safeParse(req.query);
   if (!parsed.success) throwValidation(parsed.error);
-  const { status, search } = parsed.data;
+  const { status, search, sortBy, sortDir } = parsed.data;
   const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 500 });
-  res.json(await listAdvanceRequestsPaginated({ status, search, page, limit }));
+  res.json(await listAdvanceRequestsPaginated({ status, search, page, limit, sortBy, sortDir }));
 }));
 
 router.post('/advance-requests/:id/approve', requireRoles(Role.ADMIN, Role.MANAGER), asyncHandler(async (req: Request, res: Response) => {

@@ -1,10 +1,15 @@
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { eq, inArray } from 'drizzle-orm';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
+import express from 'express';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { listExpenses } from '../services/expense.service';
+import { listExpenses, EXPENSE_LIST_SORT_KEYS } from '../services/expense.service';
+import expenseRoutes from '../routes/expense';
+import { globalErrorHandler } from '../middleware/errorHandler';
 
 // List envelope carries full-set payment-status aggregates so the page's KPI
 // strip never derives headline numbers from the loaded page.
@@ -95,5 +100,47 @@ describe('listExpenses summary aggregates', () => {
     });
     assert.equal(wide.summary.unpaidCount, 3);
     assert.equal(wide.summary.unpaidAmount, 460000);
+  });
+});
+
+describe('GET /api/expenses sort params at the route boundary', () => {
+  // Service-level sort behavior (defaults, numeric ordering, status rank)
+  // lives in expense-list-sort.test.ts; this suite pins the HTTP 400 on an
+  // unwhitelisted sortBy/sortDir.
+  let server: http.Server;
+  let baseUrl: string;
+
+  before(async () => {
+    const app = express();
+    app.use('/api/expenses', expenseRoutes);
+    app.use(globalErrorHandler);
+    await new Promise<void>((resolve) => {
+      server = http.createServer(app);
+      server.listen(0, () => {
+        baseUrl = `http://localhost:${(server.address() as AddressInfo).port}`;
+        resolve();
+      });
+    });
+  });
+
+  after(async () => {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections();
+    });
+  });
+
+  test('rejects an unknown sortBy with 400 and accepts the whitelisted vocabulary', async () => {
+    const invalid = await fetch(`${baseUrl}/api/expenses?sortBy=bogus`);
+    assert.equal(invalid.status, 400);
+
+    const invalidDir = await fetch(`${baseUrl}/api/expenses?sortBy=amount&sortDir=up`);
+    assert.equal(invalidDir.status, 400);
+
+    const valid = await fetch(`${baseUrl}/api/expenses?sortBy=${EXPENSE_LIST_SORT_KEYS[0]}&sortDir=desc&limit=1`);
+    assert.equal(valid.status, 200);
+    const body = await valid.json() as { items: unknown[]; total: number };
+    assert.ok(Array.isArray(body.items));
+    assert.equal(typeof body.total, 'number');
   });
 });

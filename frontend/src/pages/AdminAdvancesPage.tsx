@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Wallet, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Wallet, CheckCircle2, XCircle, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
 import {
@@ -24,7 +24,9 @@ import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import { useAuth } from '../hooks/useAuth';
 import { Pagination, UuiSelectField } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './AdminAdvancesPage.css';
+import '../styles/table-sort.css';
 import '../styles/operational-table-typography.css';
 import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 
@@ -55,6 +57,40 @@ export function buildAdvanceDecision(
 }
 
 type StatusFilter = '' | AdvanceRequestStatus;
+
+/** Server-side sort vocabulary for the advance grid (backend whitelist keys). */
+type AdvanceSortKey = 'requesterName' | 'amount' | 'createdAt' | 'status' | 'reason';
+
+/** Sortable header cell for the div-based grid header — same button contract
+ * as the record-table/DataTable sort headers (table-sort.css). The grid is
+ * not table markup, so sort state is conveyed by the icon, not aria-sort. */
+function GridSortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+  align,
+}: {
+  label: string;
+  sortKey: AdvanceSortKey;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+  align?: 'right' | 'center';
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <div className={align === 'right' ? 'col-right' : align === 'center' ? 'col-center' : undefined}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </div>
+  );
+}
 
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
@@ -318,7 +354,12 @@ function AdvanceMobileCard({
 export default function AdminAdvancesPage({ embedded = false }: { embedded?: boolean }) {
   // Server-driven listing: page/limit/status go to the endpoint, so no silent
   // 50-row cap; counts/amounts come from the full-set envelope aggregates.
-  const table = useTableQueryState<AdvanceRequest, { status?: string }, AdvanceListEnvelope>({
+  // sortBy/sortDir ride the filters bag so every sort change resets the page.
+  const table = useTableQueryState<
+    AdvanceRequest,
+    { status?: string; sortBy?: AdvanceSortKey; sortDir?: 'asc' | 'desc' },
+    AdvanceListEnvelope
+  >({
     endpoint: forwarderClient.listAllAdvanceRequests,
     queryKey: qk.adminForwarder.advanceRequestsAll,
     defaultPageSize: 50,
@@ -333,6 +374,18 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const statusFilter = (table.filters.status ?? '') as StatusFilter;
   const setStatusFilter = (next: StatusFilter) => {
     table.setFilter('status', next === '' ? undefined : next);
+  };
+
+  const sort: TableSortState | null = table.filters.sortBy
+    ? { by: table.filters.sortBy, dir: table.filters.sortDir ?? 'asc' }
+    : null;
+  const handleSort = (key: string) => {
+    const next = nextTableSort(sort, key);
+    table.setFilters({
+      ...table.filters,
+      sortBy: next.by as AdvanceSortKey,
+      sortDir: next.dir,
+    });
   };
 
   /* ── Focus deep-link: scroll to item from ?focus=<id> ──────────────── */
@@ -460,11 +513,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           <>
             {/* Desktop: grid header + rows */}
             <div className="adv-grid-head ops-table">
-              <div>Người yêu cầu</div>
-              <div className="col-right">Số tiền</div>
-              <div className="col-center">Ngày tạo</div>
-              <div>Trạng thái</div>
-              <div>Lý do</div>
+              <GridSortHeader label="Người yêu cầu" sortKey="requesterName" sort={sort} onSortChange={handleSort} />
+              <GridSortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={handleSort} align="right" />
+              <GridSortHeader label="Ngày tạo" sortKey="createdAt" sort={sort} onSortChange={handleSort} align="center" />
+              <GridSortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={handleSort} />
+              <GridSortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={handleSort} />
               <div />
             </div>
 

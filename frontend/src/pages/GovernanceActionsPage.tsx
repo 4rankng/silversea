@@ -2,6 +2,9 @@ import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Check,
   CheckCircle2,
   Clock3,
@@ -31,11 +34,26 @@ import { formatDateTimeVN } from '../lib/format';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import { Pagination } from '../design-system';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './GovernanceActionsPage.css';
+import '../styles/table-sort.css';
 
 /** Queue scopes map 1:1 onto the server's single-status filter. */
 type QueueScope = 'PENDING_CHECK' | 'PENDING_APPROVAL' | 'ALL';
 type GovernanceMutation = ReturnType<typeof useCheckGovernanceAction>;
+
+/** Server-side sort vocabulary (backend whitelist keys) paired with the card
+ * field labels they sort — the card list's stand-in for column headers. */
+type GovernanceSortKey = 'actionKind' | 'status' | 'subjectKey' | 'makerRole' | 'version' | 'createdAt' | 'reason';
+const SORT_FIELDS: Array<{ key: GovernanceSortKey; label: string }> = [
+  { key: 'createdAt', label: 'Tạo lúc' },
+  { key: 'actionKind', label: 'Loại yêu cầu' },
+  { key: 'status', label: 'Trạng thái' },
+  { key: 'subjectKey', label: 'Đối tượng' },
+  { key: 'makerRole', label: 'Người tạo' },
+  { key: 'version', label: 'Phiên bản' },
+  { key: 'reason', label: 'Lý do' },
+];
 
 const SCOPE_TABS: Array<{ scope: QueueScope; label: string }> = [
   { scope: 'PENDING_CHECK', label: 'Chờ kiểm tra' },
@@ -223,7 +241,7 @@ export default function GovernanceActionsPage() {
   } | null>(null);
   const queue = useTableQueryState<
     GovernanceActionRecord,
-    { status?: GovernanceActionStatus },
+    { status?: GovernanceActionStatus; sortBy?: GovernanceSortKey; sortDir?: 'asc' | 'desc' },
     GovernanceActionsEnvelope
   >({
     endpoint: (params) => financialClient.getGovernanceActions(params),
@@ -233,6 +251,20 @@ export default function GovernanceActionsPage() {
   const checkMutation = useCheckGovernanceAction();
   const approveMutation = useApproveGovernanceAction();
   const rejectMutation = useRejectGovernanceAction();
+
+  // Server-side card sort: state rides the filters bag so every sort change
+  // resets the page alongside the scope switches.
+  const sort: TableSortState | null = queue.filters.sortBy
+    ? { by: queue.filters.sortBy, dir: queue.filters.sortDir ?? 'asc' }
+    : null;
+  const handleSort = (key: string) => {
+    const next = nextTableSort(sort, key);
+    queue.setFilters({
+      ...queue.filters,
+      sortBy: next.by as GovernanceSortKey,
+      sortDir: next.dir,
+    });
+  };
 
   const actions = queue.rows;
   const statusScope = queue.filters.status;
@@ -398,6 +430,30 @@ export default function GovernanceActionsPage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Card list's sort stand-in for column headers — same button contract
+            as the record-table/DataTable sort headers (table-sort.css). */}
+        <div className="governance-actions__sort" role="group" aria-label="Sắp xếp theo">
+          <span>Sắp xếp</span>
+          {SORT_FIELDS.map(({ key, label }) => {
+            const active = sort?.by === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={active ? 'is-active' : ''}
+                onClick={() => handleSort(key)}
+              >
+                {label}
+                {active
+                  ? (sort!.dir === 'asc'
+                    ? <ArrowUp size={13} aria-hidden="true" />
+                    : <ArrowDown size={13} aria-hidden="true" />)
+                  : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+              </button>
+            );
+          })}
         </div>
 
         {queue.isLoading ? (

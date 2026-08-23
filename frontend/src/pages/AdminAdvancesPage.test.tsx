@@ -168,4 +168,26 @@ describe('AdminAdvancesPage server-driven listing', () => {
       if (params.status !== undefined) expect(params.page).toBe(1);
     }
   });
+
+  it('sorts server-side: grid header click sends sortBy/sortDir and resets the page', async () => {
+    renderPage();
+    expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
+
+    // Move to page 2 first so the sort's page reset is observable.
+    const nav = screen.getByRole('navigation', { name: 'Phân trang' });
+    within(nav).getByRole('button', { name: '2' }).click();
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ page: 2 }));
+
+    // Fresh column starts ascending, on page 1.
+    screen.getByRole('button', { name: 'Số tiền' }).click();
+    await waitFor(() =>
+      expect(lastCallParams()).toMatchObject({ sortBy: 'amount', sortDir: 'asc', page: 1 }),
+    );
+
+    // Same header flips to descending.
+    screen.getByRole('button', { name: 'Số tiền' }).click();
+    await waitFor(() =>
+      expect(lastCallParams()).toMatchObject({ sortBy: 'amount', sortDir: 'desc', page: 1 }),
+    );
+  });
 });

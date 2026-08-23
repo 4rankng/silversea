@@ -110,7 +110,7 @@ function renderPage(search = '') {
   );
 }
 
-function lastCallParams(): { status?: string; page?: number; limit?: number } {
+function lastCallParams(): { status?: string; page?: number; limit?: number; sortBy?: string; sortDir?: string } {
   return getGovernanceActionsMock.mock.calls.at(-1)?.[0] ?? {};
 }
 
@@ -138,7 +138,7 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText('Kế toán')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
     expect(screen.getByText('1 yêu cầu trên trang này đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
-    expect(screen.getByText('Phiên bản').parentElement?.textContent).toContain('YC 4 · Gốc 3');
+    expect(screen.getByText('Phiên bản', { selector: 'dt' }).parentElement?.textContent).toContain('YC 4 · Gốc 3');
     expect(screen.getByText('Quyền xử lý:').parentElement?.textContent).toContain('Kiểm tra');
     expect(screen.getByPlaceholderText('Nhập lý do khi từ chối').tagName).toBe('INPUT');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Kiểm tra' }).disabled).toBe(false);
@@ -364,5 +364,36 @@ describe('GovernanceActionsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(lastCallParams().page).toBe(2));
+  });
+
+  it('sorts server-side from the sort bar and resets the page', async () => {
+    getGovernanceActionsMock.mockResolvedValue(makeEnvelope([makeAction()], { total: 60 }));
+    renderPage();
+
+    await screen.findByText('Chốt kỳ lương');
+
+    // Move to page 2 first so the sort's page reset is observable.
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(lastCallParams().page).toBe(2));
+
+    // Fresh field starts ascending, on page 1.
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lúc' }));
+    await waitFor(() =>
+      expect(getGovernanceActionsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+        sortBy: 'createdAt',
+        sortDir: 'asc',
+        page: 1,
+      })),
+    );
+
+    // Same field flips to descending.
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lúc' }));
+    await waitFor(() =>
+      expect(getGovernanceActionsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+        sortBy: 'createdAt',
+        sortDir: 'desc',
+        page: 1,
+      })),
+    );
   });
 });

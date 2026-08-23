@@ -121,6 +121,19 @@ export const governanceActionListQuerySchema = z.object({
   subjectType: z.enum(GOVERNANCE_SUBJECT_TYPES).optional(),
   subjectId: z.coerce.number().int().positive().optional(),
   subjectKey: z.string().trim().min(1).max(120).optional(),
+  // Column sorting: sortBy picks a whitelisted card field, sortDir flips it.
+  // Keep the frontend sort keys and the service's orderBy whitelist in sync
+  // with this enum.
+  sortBy: z.enum([
+    'actionKind',
+    'status',
+    'subjectKey',
+    'makerRole',
+    'version',
+    'createdAt',
+    'reason',
+  ]).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
   // When both page and offset are present, page wins: the route derives
   // offset = (page - 1) * limit and ignores the explicit offset.
   page: z.coerce.number().int().min(1).default(1),

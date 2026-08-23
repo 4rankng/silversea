@@ -6,7 +6,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, desc, inArray, notInArray, ilike, sql, count, sum } from 'drizzle-orm';
+import { eq, and, desc, inArray, notInArray, ilike, sql, count, sum, type SQL } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { AdvanceError } from './settlement-validation';
@@ -61,6 +61,48 @@ function buildAdvanceRequestConditions(filters?: {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
+/** Sortable columns of the advance-requests list (URL-facing sortBy vocabulary). */
+export const ADVANCE_REQUEST_SORT_KEYS = [
+  'requesterName',
+  'amount',
+  'createdAt',
+  'status',
+  'reason',
+] as const;
+export type AdvanceRequestSortKey = typeof ADVANCE_REQUEST_SORT_KEYS[number];
+
+// Column-sort whitelist. Requester names are attached post-query by
+// enrichWithNames, so requesterName sorts via a correlated scalar subquery
+// over users.fullName — one value per row, no row-multiplying join. status
+// ranks attention-first (PENDING before decided) instead of by the enum's
+// alphabetical order.
+const ADVANCE_REQUEST_SORT_SQL: Record<AdvanceRequestSortKey, SQL> = {
+  requesterName: sql`(
+    select ${s.users.fullName}
+    from ${s.users}
+    where ${s.users.id} = ${s.advanceRequests.requesterId}
+  )`,
+  amount: sql`${s.advanceRequests.amount}`,
+  createdAt: sql`${s.advanceRequests.createdAt}`,
+  status: sql`case
+    when ${s.advanceRequests.status} = 'PENDING' then 0
+    when ${s.advanceRequests.status} = 'APPROVED' then 1
+    else 2
+  end`,
+  reason: sql`${s.advanceRequests.reason}`,
+};
+
+function advanceRequestOrderBy(filters?: {
+  sortBy?: AdvanceRequestSortKey;
+  sortDir?: 'asc' | 'desc';
+}): SQL[] {
+  if (!filters?.sortBy) return [desc(s.advanceRequests.createdAt)];
+  return [
+    sql`${ADVANCE_REQUEST_SORT_SQL[filters.sortBy]} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+    desc(s.advanceRequests.id),
+  ];
+}
+
 export async function listAdvanceRequests(filters?: {
   requesterId?: number;
   status?: string;
@@ -68,13 +110,15 @@ export async function listAdvanceRequests(filters?: {
   excludeLinkedToActiveSettlement?: boolean;
   page?: number;
   limit?: number;
+  sortBy?: AdvanceRequestSortKey;
+  sortDir?: 'asc' | 'desc';
 }) {
   const where = buildAdvanceRequestConditions(filters);
 
   const base = db.select()
     .from(s.advanceRequests)
     .where(where)
-    .orderBy(desc(s.advanceRequests.createdAt));
+    .orderBy(...advanceRequestOrderBy(filters));
   // Pagination is applied in SQL (never a client-side slice of the full set);
   // callers that omit page/limit keep the full-array behavior.
   const rows = filters?.limit != null
@@ -110,6 +154,8 @@ export async function listAdvanceRequestsPaginated(filters: {
   excludeLinkedToActiveSettlement?: boolean;
   page?: number;
   limit?: number;
+  sortBy?: AdvanceRequestSortKey;
+  sortDir?: 'asc' | 'desc';
 }): Promise<PaginatedAdvanceRequests> {
   const { page, limit } = clampPageLimit(filters.page, filters.limit, 50);
   const where = buildAdvanceRequestConditions(filters);

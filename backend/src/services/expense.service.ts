@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, sql, desc, isNull, gte, lte, count, sum } from 'drizzle-orm';
+import { eq, and, sql, desc, isNull, gte, lte, count, sum, type SQL } from 'drizzle-orm';
 import { TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
@@ -38,6 +38,18 @@ export interface ExpenseUpdateInput {
   note?: string | null;
 }
 
+/** Sortable columns of the expense ledger (URL-facing sortBy vocabulary). */
+export const EXPENSE_LIST_SORT_KEYS = [
+  'expenseDate',
+  'supplierName',
+  'categoryName',
+  'vehiclePlate',
+  'vehicleComponent',
+  'amount',
+  'paymentStatus',
+] as const;
+export type ExpenseListSortKey = typeof EXPENSE_LIST_SORT_KEYS[number];
+
 export interface ExpenseListFilters {
   truckId?: number;
   supplierId?: number;
@@ -46,6 +58,8 @@ export interface ExpenseListFilters {
   toDate?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: ExpenseListSortKey;
+  sortDir?: 'asc' | 'desc';
 }
 
 async function lockAndValidateExpenseReferences(tx: Tx, data: Pick<
@@ -635,6 +649,31 @@ export async function getExpensePhotoList(expenseId: number) {
     .orderBy(s.expensePhotos.uploadedAt);
 }
 
+// Column-sort whitelist for the expense ledger. Every join in the page query
+// is 1:1 on a foreign key (suppliers/categories) or mutually exclusive by
+// vehicleComponent (trucks/trailers), so sorting by joined columns cannot
+// multiply rows. Payment status ranks attention-first (UNPAID before PAID)
+// instead of by the enum's alphabetical order.
+const EXPENSE_LIST_SORT_SQL: Record<ExpenseListSortKey, SQL> = {
+  expenseDate: sql`${s.expenses.expenseDate}`,
+  supplierName: sql`${s.suppliers.name}`,
+  categoryName: sql`${s.expenseCategories.name}`,
+  vehiclePlate: sql`coalesce(${s.trucks.licensePlate}, ${s.trailers.licensePlate})`,
+  vehicleComponent: sql`${s.expenses.vehicleComponent}`,
+  amount: sql`${s.expenses.amount}`,
+  paymentStatus: sql`case when ${s.expenses.paymentStatus} = 'PAID' then 1 else 0 end`,
+};
+
+function expenseListOrderBy(filters: ExpenseListFilters): SQL[] {
+  if (!filters.sortBy) {
+    return [desc(s.expenses.expenseDate), desc(s.expenses.id)];
+  }
+  return [
+    sql`${EXPENSE_LIST_SORT_SQL[filters.sortBy]} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+    desc(s.expenses.id),
+  ];
+}
+
 export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListFilters) {
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = Math.min(100, filters.pageSize ?? 20);
@@ -720,7 +759,7 @@ export async function listExpenses(dbOrTx: typeof db | Tx, filters: ExpenseListF
       .leftJoin(s.trucks, and(eq(s.expenses.truckId, s.trucks.id), eq(s.expenses.vehicleComponent, 'TRUCK')))
       .leftJoin(s.trailers, and(eq(s.expenses.truckId, s.trailers.id), eq(s.expenses.vehicleComponent, 'TRAILER')))
       .where(where)
-      .orderBy(desc(s.expenses.expenseDate), desc(s.expenses.id))
+      .orderBy(...expenseListOrderBy(filters))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
     dbOrTx.select({ count: sql<number>`count(*)` })

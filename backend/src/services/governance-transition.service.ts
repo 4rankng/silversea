@@ -160,6 +160,31 @@ export type GovernanceActionListResult = PaginatedResponse<GovernanceActionView>
   statusCounts: Record<string, number>;
 };
 
+// Column-sort whitelist for the approval-center queue. status ranks
+// attention-first (pending stages before decided ones) instead of by the
+// enum's alphabetical order; subjectKey/reason are nullable so `nulls last`
+// keeps empty cells at the bottom in both directions.
+const GOVERNANCE_ACTION_SORT_SQL: Record<
+  NonNullable<GovernanceActionListQuery['sortBy']>,
+  SQL
+> = {
+  actionKind: sql`${s.governanceActions.actionKind}`,
+  status: sql`case
+    when ${s.governanceActions.status} = 'PENDING_CHECK' then 0
+    when ${s.governanceActions.status} = 'PENDING_APPROVAL' then 1
+    when ${s.governanceActions.status} = 'RETURNED_FOR_EVIDENCE' then 2
+    when ${s.governanceActions.status} = 'APPROVED' then 3
+    when ${s.governanceActions.status} = 'REJECTED' then 4
+    when ${s.governanceActions.status} = 'CANCELED' then 5
+    else 6
+  end`,
+  subjectKey: sql`${s.governanceActions.subjectKey}`,
+  makerRole: sql`${s.governanceActions.makerRole}`,
+  version: sql`${s.governanceActions.version}`,
+  createdAt: sql`${s.governanceActions.createdAt}`,
+  reason: sql`${s.governanceActions.reason}`,
+};
+
 export async function listGovernanceActions(input: {
   actorId: number;
   actorRole: string;
@@ -184,9 +209,17 @@ export async function listGovernanceActions(input: {
   }
   const where = filters.length > 0 ? and(...filters) : undefined;
   const { limit, offset } = input.query;
+  // Absent sort params keep the default newest-first order exactly; an
+  // explicit sort adds `nulls last` plus the id tiebreaker for stability.
+  const sortOrder: SQL[] = input.query.sortBy
+    ? [
+        sql`${GOVERNANCE_ACTION_SORT_SQL[input.query.sortBy]} ${input.query.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        desc(s.governanceActions.id),
+      ]
+    : [desc(s.governanceActions.id)];
   const rows = await db.select().from(s.governanceActions)
     .where(where)
-    .orderBy(desc(s.governanceActions.id))
+    .orderBy(...sortOrder)
     .limit(limit)
     .offset(offset);
   const [countRow] = await db.select({ count: sql<number>`count(*)` })

@@ -14,6 +14,7 @@ import {
   isGovernedCompanyExpenseMutation,
   requestCompanyExpenseGovernance,
   getExpensePhotoList,
+  EXPENSE_LIST_SORT_KEYS,
 } from '../services/expense.service';
 import type { ExpenseUpdateInput } from '../services/expense.service';
 import { parsePagination } from './utils/pagination';
@@ -27,6 +28,7 @@ import { sniffImageType } from '../lib/format';
 import { getUser } from '../middleware/auth';
 import { invalidateReportCaches } from '../lib/redis';
 import { ApiError } from '../errors';
+import { throwValidation } from '../lib/validation';
 import {
   IDEMPOTENCY_ENDPOINTS,
   findIdempotencyRecord,
@@ -172,8 +174,17 @@ router.get('/reports/renewals', asyncHandler(async (_req: Request, res: Response
   res.json(reminders);
 }));
 
+// Sort params are validated separately from the numeric filters above so an
+// unknown sortBy fails loudly (zod 400) instead of silently no-oping.
+const expenseListSortQuerySchema = z.object({
+  sortBy: z.enum(EXPENSE_LIST_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
 router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = parsePagination(req);
+  const parsedSort = expenseListSortQuerySchema.safeParse(req.query);
+  if (!parsedSort.success) throwValidation(parsedSort.error);
   const filters = {
     truckId: req.query.truckId ? Number(req.query.truckId) : undefined,
     supplierId: req.query.supplierId ? Number(req.query.supplierId) : undefined,
@@ -183,6 +194,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     page,
     // Service param is `pageSize`; pagination parsing/clamping is shared.
     pageSize: limit,
+    sortBy: parsedSort.data.sortBy,
+    sortDir: parsedSort.data.sortDir,
   };
   res.json(await listExpenses(db, filters));
 }));

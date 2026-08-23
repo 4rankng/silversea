@@ -131,4 +131,34 @@ describe('forwarder advance requests list', () => {
     const unfiltered = await listAdvanceRequests({ requesterId: forwarderAId, status: 'APPROVED' });
     assert.ok(unfiltered.some(item => item.id === approvedARequestId));
   });
+
+  test('sorts server-side by whitelisted columns; absent params keep desc(createdAt)', async () => {
+    // Numeric amount ordering (50k < 100k < 200k < 300k < 500k).
+    const amountAsc = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, sortBy: 'amount', sortDir: 'asc', page: 1, limit: 5 });
+    assert.deepEqual(amountAsc.items.map(item => Number(item.amount)), [50_000, 100_000, 200_000, 300_000, 500_000]);
+    const amountDesc = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, sortBy: 'amount', sortDir: 'desc', page: 1, limit: 5 });
+    assert.deepEqual(amountDesc.items.map(item => Number(item.amount)), [500_000, 300_000, 200_000, 100_000, 50_000]);
+
+    // Status ranks attention-first: PENDING before APPROVED before REJECTED
+    // (the enum's alphabetical order would put APPROVED first).
+    const statusAsc = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, sortBy: 'status', sortDir: 'asc', page: 1, limit: 5 });
+    assert.deepEqual([...new Set(statusAsc.items.map(item => item.status))], ['PENDING', 'APPROVED', 'REJECTED']);
+
+    // requesterName sorts via the users subquery: every "ARList A" row must
+    // precede every "ARList B" row (relative order is robust to other rows).
+    const byName = await listAdvanceRequestsPaginated({ sortBy: 'requesterName', sortDir: 'asc', page: 1, limit: 500 });
+    const mine = byName.items.filter(item => ids.requests.includes(item.id));
+    const positions = new Map(mine.map(item => [item.id, mine.indexOf(item)]));
+    const maxA = Math.max(...mine.filter(item => item.requesterId === forwarderAId).map(item => positions.get(item.id)!));
+    const minB = Math.min(...mine.filter(item => item.requesterId === forwarderBId).map(item => positions.get(item.id)!));
+    assert.ok(maxA < minB, `expected all ARList A rows before ARList B rows (maxA=${maxA}, minB=${minB})`);
+
+    // Absent sort params reproduce the seeded desc(createdAt) order exactly
+    // (forwarder A's newest request is the 50k REJECTED row at base-20s).
+    const defaultOrder = await listAdvanceRequestsPaginated({ requesterId: forwarderAId, page: 1, limit: 5 });
+    assert.deepEqual(
+      defaultOrder.items.map(item => Number(item.amount)),
+      [50_000, 500_000, 300_000, 200_000, 100_000],
+    );
+  });
 });

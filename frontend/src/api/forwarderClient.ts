@@ -158,7 +158,13 @@ export const forwarderClient = {
     return api.get<{ items: TripExpenseWithSupplier[] }>(FORWARDER.UNLINKED_EXPENSES);
   },
 
-  listAllAdvanceRequests: async (params?: { status?: string; page?: number; limit?: number }) => {
+  listAllAdvanceRequests: async (params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: 'requesterName' | 'amount' | 'createdAt' | 'status' | 'reason';
+    sortDir?: 'asc' | 'desc';
+  }) => {
     return api.get<{
       items: AdvanceRequestWithRefs[];
       page: number;

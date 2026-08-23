@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Plus, ChevronRight, AlertTriangle, X, Loader2, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { api } from '../lib/api';
 import { configClient } from '../api/configClient';
 import { formatNumber, formatDate } from '../lib/format';
@@ -18,6 +18,7 @@ import { usePageAnimations, useListAnimations } from '../hooks/animations';
 import { FINANCIAL } from '@tingting/shared';
 import type { ExpenseWithRefs, PaginatedResponse } from '@tingting/shared';
 import { qk } from '../api/keys';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { resolveExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import type { ExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import '../styles/record-table.css';
@@ -32,14 +33,52 @@ const EXPENSE_STATUS_COLORS: Record<string, string> = {
   UNPAID: '#D97706',
 };
 
-/** Filter bag for GET /api/expenses (server-paginated; no search param yet). */
+/** Filter bag for GET /api/expenses (server-paginated; no search param yet).
+ * sortBy/sortDir ride the bag so every sort change resets the page too. */
 type ExpenseTableFilters = {
   supplierId?: number;
   categoryId?: number;
   truckId?: number;
   fromDate?: string;
   toDate?: string;
+  sortBy?: 'expenseDate' | 'supplierName' | 'categoryName' | 'vehiclePlate' | 'vehicleComponent' | 'amount' | 'paymentStatus';
+  sortDir?: 'asc' | 'desc';
 };
+
+/** Sortable header for the record-table markup — mirrors the ledger's
+ * SortHeader (ShipmentContainerLedger) so both table systems share the
+ * table-sort-button contract. */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+  numeric = false,
+}: {
+  label: string;
+  sortKey: NonNullable<ExpenseTableFilters['sortBy']>;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+  numeric?: boolean;
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <th
+      scope="col"
+      className={numeric ? 'num' : undefined}
+      aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
 
 export default function ExpenseListPage() {
   const navigate = useNavigate();
@@ -58,18 +97,34 @@ export default function ExpenseListPage() {
       if (params.truckId) qs.set('truckId', String(params.truckId));
       if (params.fromDate) qs.set('fromDate', params.fromDate);
       if (params.toDate) qs.set('toDate', params.toDate);
+      if (params.sortBy) qs.set('sortBy', params.sortBy);
+      if (params.sortDir) qs.set('sortDir', params.sortDir);
       return api.get<PaginatedResponse<ExpenseWithRefs>>(`${FINANCIAL.EXPENSES}?${qs}`);
     },
     queryKey: qk.financial.expensesAll,
     defaultPageSize: PAGE_SIZE,
   });
   const {
-    filters, setFilter, reset: resetFilters,
+    filters, setFilter, setFilters, reset: resetFilters,
     page, setPage, pageSize,
     rows: expenses, total, totalPages,
     isLoading, error: queryError, query,
   } = table;
   const refetch = query.refetch;
+
+  // Server-side column sort: state rides the filters bag (setFilters resets
+  // the page automatically); the endpoint speaks sortBy/sortDir.
+  const sort: TableSortState | null = filters.sortBy
+    ? { by: filters.sortBy, dir: filters.sortDir ?? 'asc' }
+    : null;
+  const handleSort = (key: string) => {
+    const next = nextTableSort(sort, key);
+    setFilters({
+      ...filters,
+      sortBy: next.by as ExpenseTableFilters['sortBy'],
+      sortDir: next.dir,
+    });
+  };
 
   const { rootRef } = usePageAnimations({ ready: !isLoading });
 
@@ -296,13 +351,13 @@ export default function ExpenseListPage() {
         <table className="record-table ops-table expense-record-table">
           <thead>
             <tr>
-              <th>Ngày phát sinh</th>
-              <th>Nhà cung cấp</th>
-              <th>Hạng mục</th>
-              <th>Xe</th>
-              <th>Thành phần</th>
-              <th className="num">Số tiền</th>
-              <th>Trạng thái</th>
+              <SortHeader label="Ngày phát sinh" sortKey="expenseDate" sort={sort} onSortChange={handleSort} />
+              <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sort} onSortChange={handleSort} />
+              <SortHeader label="Hạng mục" sortKey="categoryName" sort={sort} onSortChange={handleSort} />
+              <SortHeader label="Xe" sortKey="vehiclePlate" sort={sort} onSortChange={handleSort} />
+              <SortHeader label="Thành phần" sortKey="vehicleComponent" sort={sort} onSortChange={handleSort} />
+              <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={handleSort} numeric />
+              <SortHeader label="Trạng thái" sortKey="paymentStatus" sort={sort} onSortChange={handleSort} />
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
