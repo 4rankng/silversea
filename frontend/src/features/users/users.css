@@ -239,25 +239,13 @@
   line-height: 1.35;
 }
 
-.users-sort-button {
+/* UsersPage keeps only the full-cell hit-area geometry; the visual skin
+   (hover ink lift, focus ring, idle-arrow dimming) is the shared
+   table-sort-button contract (styles/table-sort.css). */
+.users-table-panel .table-sort-button {
   width: 100%;
   min-height: 44px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  color: inherit;
-  background: transparent;
-  font: inherit;
   text-align: left;
-  cursor: pointer;
-}
-
-.users-sort-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
 }
 
 .users-table-panel .tt-table tbody td {

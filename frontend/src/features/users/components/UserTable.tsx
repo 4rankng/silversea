@@ -12,6 +12,7 @@ import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PageHeader } from '../../../components/UI';
 import { AssetIcon } from '../../../components/AssetIcon';
 import { Pagination } from '../../../design-system';
+import '../../../styles/table-sort.css';
 
 interface UserTableProps {
   paginated: UserRow[];
@@ -391,23 +392,23 @@ function DesktopTable({
           <thead>
             <tr>
               <th aria-sort={sortBy === 'name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" className="users-sort-button" onClick={() => onSort('name')}>
+                <button type="button" className="table-sort-button" onClick={() => onSort('name')}>
                   Tài khoản
-                  {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={13} style={{ opacity: 0.4 }} />}
+                  {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
               <th>Liên hệ</th>
               <th aria-sort={sortBy === 'role' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" className="users-sort-button" onClick={() => onSort('role')}>
+                <button type="button" className="table-sort-button" onClick={() => onSort('role')}>
                   Vai trò
-                  {sortBy === 'role' ? (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={13} style={{ opacity: 0.4 }} />}
+                  {sortBy === 'role' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
               <th>Xe</th>
               <th aria-sort={sortBy === 'date' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}>
-                <button type="button" className="users-sort-button" onClick={() => onSort('date')}>
+                <button type="button" className="table-sort-button" onClick={() => onSort('date')}>
                   Ngày tạo
-                  {sortBy === 'date' ? (sortOrder === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />) : <ArrowUpDown size={13} style={{ opacity: 0.4 }} />}
+                  {sortBy === 'date' ? (sortOrder === 'asc' ? <ArrowUp size={13} aria-hidden="true" /> : <ArrowDown size={13} aria-hidden="true" />) : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
                 </button>
               </th>
             </tr>
