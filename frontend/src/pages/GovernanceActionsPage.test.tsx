@@ -115,8 +115,8 @@ function lastCallParams(): { status?: string; page?: number; limit?: number; sor
 }
 
 function summaryTileValue(label: string): string | undefined {
-  const span = screen.getByText(label, { selector: '.governance-actions__summary span' });
-  return span.parentElement?.querySelector('strong')?.textContent;
+  const dt = screen.getByText(label, { selector: '.summary-rail dt' });
+  return dt.parentElement?.querySelector('dd')?.textContent;
 }
 
 describe('GovernanceActionsPage', () => {
@@ -137,7 +137,7 @@ describe('GovernanceActionsPage', () => {
     expect(screen.getByText('Chờ kiểm tra', { selector: '.governance-actions__status' })).toBeTruthy();
     expect(screen.getByText('Kế toán')).toBeTruthy();
     expect(screen.getByText('Đã đối soát đủ bảng công và điều chỉnh.')).toBeTruthy();
-    expect(screen.getByText('1 yêu cầu trên trang này đang chờ quyết định theo quyền của bạn.')).toBeTruthy();
+    expect(summaryTileValue('Bạn có thể xử lý')).toBe('1');
     expect(screen.getByText('Phiên bản', { selector: 'dt' }).parentElement?.textContent).toContain('YC 4 · Gốc 3');
     expect(screen.getByText('Quyền xử lý:').parentElement?.textContent).toContain('Kiểm tra');
     expect(screen.getByPlaceholderText('Nhập lý do khi từ chối').tagName).toBe('INPUT');

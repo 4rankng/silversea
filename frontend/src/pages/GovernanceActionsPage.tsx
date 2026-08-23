@@ -32,7 +32,8 @@ import {
 } from '../hooks/useFinancialQueries';
 import { formatDateTimeVN } from '../lib/format';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
-import { Pagination } from '../design-system';
+import { Pagination, SummaryRail } from '../design-system';
+import { PageHeader } from '../components/UI';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './GovernanceActionsPage.css';
@@ -362,50 +363,30 @@ export default function GovernanceActionsPage() {
 
   return (
     <div className="governance-actions">
-      <header className="governance-actions__hero">
-        <div>
-          <h1>Trung tâm phê duyệt</h1>
-          <p>
-            Rà soát các thay đổi tài chính và vận hành theo đúng thẩm quyền
-            được hệ thống cấp.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="governance-actions__refresh"
-          onClick={() => queue.query.refetch()}
-          disabled={queue.isFetching}
-        >
-          {queue.isFetching ? <Loader2 size={16} className="spin" /> : <RefreshCcw size={16} />}
-          Tải lại
-        </button>
-      </header>
+      <PageHeader
+        title="Trung tâm phê duyệt"
+        action={
+          <button
+            type="button"
+            className="governance-actions__refresh"
+            onClick={() => queue.query.refetch()}
+            disabled={queue.isFetching}
+          >
+            {queue.isFetching ? <Loader2 size={16} className="spin" /> : <RefreshCcw size={16} />}
+            Tải lại
+          </button>
+        }
+      />
 
-      <section className="governance-actions__summary" aria-label="Tổng quan hàng chờ">
-        <article className="governance-actions__summary-focus">
-          <div>
-            <span>Bạn có thể xử lý</span>
-            <strong>{actionableCount}</strong>
-          </div>
-          <p>
-            {actionableCount > 0
-              ? `${actionableCount} yêu cầu trên trang này đang chờ quyết định theo quyền của bạn.`
-              : 'Không có yêu cầu nào trên trang này cần bạn xử lý.'}
-          </p>
-        </article>
-        <article>
-          <span>Đang chờ</span>
-          <strong>{pendingCount}</strong>
-        </article>
-        <article>
-          <span>Chờ kiểm tra</span>
-          <strong>{checkCount}</strong>
-        </article>
-        <article>
-          <span>Chờ phê duyệt</span>
-          <strong>{approvalCount}</strong>
-        </article>
-      </section>
+      <SummaryRail
+        ariaLabel="Tổng quan hàng chờ"
+        items={[
+          { label: 'Bạn có thể xử lý', value: actionableCount, tone: actionableCount > 0 ? 'warning' : undefined },
+          { label: 'Đang chờ', value: pendingCount },
+          { label: 'Chờ kiểm tra', value: checkCount },
+          { label: 'Chờ phê duyệt', value: approvalCount },
+        ]}
+      />
 
       <section className="governance-actions__queue" aria-labelledby="governance-queue-heading">
         <div className="governance-actions__queue-header">
