@@ -103,6 +103,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
       title={item ? `Sửa nhà cung cấp — ${item.name}` : 'Thêm nhà cung cấp'}
       onClose={oncancel}
       onConfirm={handleSave}
+      maxWidth={960}
       footer={
         <>
           <button className="btn btn--ghost btn--sm" onClick={oncancel}>
@@ -115,26 +116,28 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div className="field">
-          <label htmlFor="supp-name" style={labelStyle}>
-            Tên nhà cung cấp <span style={{ color: 'var(--danger)' }}>*</span>
-          </label>
-          <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Garage Auto 123" autoFocus />
+      <div className="supplier-form">
+        <div className="supplier-form__identity">
+          <div className="field">
+            <label htmlFor="supp-name" style={labelStyle}>
+              Tên nhà cung cấp <span style={{ color: 'var(--danger)' }}>*</span>
+            </label>
+            <input id="supp-name" className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Garage Auto 123" autoFocus />
+          </div>
+          <div className="field">
+            <label htmlFor="supp-short-name" style={labelStyle}>
+              Tên ngắn (mã nội bộ)
+            </label>
+            <input
+              id="supp-short-name"
+              className="input"
+              value={shortName}
+              onChange={e => setShortName(e.target.value)}
+              placeholder="Để trống sẽ dùng tên đầy đủ"
+            />
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="supp-short-name" style={labelStyle}>
-            Tên ngắn (mã nội bộ)
-          </label>
-          <input
-            id="supp-short-name"
-            className="input"
-            value={shortName}
-            onChange={e => setShortName(e.target.value)}
-            placeholder="Để trống sẽ dùng tên đầy đủ"
-          />
-        </div>
-        <div className="supplier-form-grid">
+        <div className="supplier-form__details">
           <div className="field">
             <label htmlFor="supp-tax" style={labelStyle}>Mã số thuế</label>
             <input id="supp-tax" className="input" value={taxCode} onChange={e => setTaxCode(e.target.value)} placeholder="0312…" />
@@ -147,8 +150,6 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             options={Object.entries(STATUS_LABELS).map(([k, v]) => ({ value: k, label: v }))}
             wrapperClassName="field"
           />
-        </div>
-        <div className="supplier-form-grid">
           <div className="field">
             <label htmlFor="supp-contact" style={labelStyle}>Người liên hệ</label>
             <input id="supp-contact" className="input" value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Anh Tuấn · Kế toán" />
@@ -158,11 +159,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
             <input id="supp-phone" className="input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0912…" />
           </div>
         </div>
-        <div className="field">
-          <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
-          <input id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
-        </div>
-        <div className="supplier-form-grid">
+        <div className="supplier-form__terms">
           <div className="field">
             <label htmlFor="supp-chiho-due" style={labelStyle}>Hạn thanh toán Chi hộ (ngày)</label>
             <input
@@ -189,54 +186,49 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, cust
               placeholder="30"
             />
           </div>
+          <UuiSelectField
+            id="supp-linked-customer"
+            label="Khách hàng liên quan"
+            value={linkedCustomerId === null || linkedCustomerId === undefined ? '' : String(linkedCustomerId)}
+            onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
+            options={[{ value: '', label: '-- Không liên kết --' }, ...customers.map(c => ({ value: String(c.id), label: c.name }))]}
+            wrapperClassName="field"
+          />
         </div>
-        <UuiSelectField
-          id="supp-linked-customer"
-          label="Khách hàng liên quan"
-          value={linkedCustomerId === null || linkedCustomerId === undefined ? '' : String(linkedCustomerId)}
-          onChange={e => setLinkedCustomerId(e.target.value ? Number(e.target.value) : null)}
-          options={[{ value: '', label: '-- Không liên kết --' }, ...customers.map(c => ({ value: String(c.id), label: c.name }))]}
-          wrapperClassName="field"
-        />
-        <div className="field">
+        <div className="supplier-form__services field">
           <label style={labelStyle}>Nhóm dịch vụ</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+          <div className="supplier-form__service-grid">
             {SUPPLIER_TYPES.map((type) => (
               <label
                 key={type}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  minHeight: 44,
-                  padding: '10px 12px',
-                  borderRadius: 12,
-                  border: '1px solid var(--line)',
-                  background: types.includes(type) ? 'var(--bg-soft)' : 'var(--card)',
-                  cursor: 'pointer',
-                }}
+                className="supplier-form__service-option"
               >
                 <input
                   type="checkbox"
                   checked={types.includes(type)}
                   onChange={() => toggleType(type)}
-                  style={{ width: 16, height: 16, cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{SUPPLIER_TYPE_LABELS[type]}</span>
+                <span>{SUPPLIER_TYPE_LABELS[type]}</span>
               </label>
             ))}
           </div>
         </div>
-        <UuiSelectField
-          id="supp-primary-type"
-          label="Nhóm chính cho báo cáo"
-          value={primaryType}
-          onChange={(e) => setPrimaryType(e.target.value)}
-          disabled={types.length === 0}
-          options={[{ value: '', label: '-- Không chọn nhóm chính --' }, ...types.map((type) => ({ value: type, label: SUPPLIER_TYPE_LABELS[type as keyof typeof SUPPLIER_TYPE_LABELS] }))]}
-          hint="Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế."
-          wrapperClassName="field"
-        />
+        <div className="supplier-form__reporting">
+          <div className="field">
+            <label htmlFor="supp-note" style={labelStyle}>Ghi chú</label>
+            <input id="supp-note" className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm…" />
+          </div>
+          <UuiSelectField
+            id="supp-primary-type"
+            label="Nhóm chính cho báo cáo"
+            value={primaryType}
+            onChange={(e) => setPrimaryType(e.target.value)}
+            disabled={types.length === 0}
+            options={[{ value: '', label: '-- Không chọn nhóm chính --' }, ...types.map((type) => ({ value: type, label: SUPPLIER_TYPE_LABELS[type as keyof typeof SUPPLIER_TYPE_LABELS] }))]}
+            hint="Nhóm chính chỉ dùng cho mặc định và báo cáo; từng khoản chi vẫn giữ đúng nhóm thực tế."
+            wrapperClassName="field"
+          />
+        </div>
       </div>
     </Modal>
   );

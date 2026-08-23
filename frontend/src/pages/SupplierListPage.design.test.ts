@@ -24,4 +24,20 @@ describe('SupplierListPage dispatch worksheet styling', () => {
     expect(cellRule).toContain('text-overflow: clip !important');
     expect(cellRule).toContain('white-space: normal !important');
   });
+
+  it('uses the available desktop dialog canvas before introducing an internal scrollbar', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.tsx'), 'utf8');
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/SupplierListPage.css'), 'utf8');
+
+    expect(page).toContain('maxWidth={960}');
+    expect(page).toContain('className="supplier-form__identity"');
+    expect(page).toContain('className="supplier-form__details"');
+    expect(page).toContain('className="supplier-form__terms"');
+    expect(page).toContain('className="supplier-form__service-grid"');
+    expect(css).toContain('.supplier-form__details {');
+    expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
+    expect(css).toContain('.supplier-form__terms {');
+    expect(css).toContain('minmax(0, 1.5fr)');
+    expect(css).toContain('@media (max-width: 640px)');
+  });
 });
