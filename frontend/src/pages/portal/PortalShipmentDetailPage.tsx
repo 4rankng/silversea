@@ -98,6 +98,22 @@ export default function PortalShipmentDetailPage() {
     return () => { active = false; };
   }, [customerScopeReady, id, selectedCustomerId]);
 
+  // Containers are a small unpaginated sub-list inside one shipment, so the
+  // full set is already client-side; sorting happens locally (empty cells
+  // last, id tiebreaker). The documents/declarations/status-history sections
+  // are headerless lists, so no sort surface exists for them. Computed before
+  // the loading/error early returns — hooks must run on every render.
+  const containers = useMemo(
+    () => sortClientSide(data?.containers ?? [], containerSort, {
+      containerNumber: (c) => c.containerNumber,
+      sealNumber: (c) => c.sealNumber,
+      appointmentAt: (c) => c.customerAppointmentAt,
+      cargoWeightKg: (c) => (c.cargoWeightKg == null ? null : Number(c.cargoWeightKg)),
+    }, (a, b) => a.id - b.id),
+    [data?.containers, containerSort],
+  );
+  const applyContainerSort = (key: string) => setContainerSort((current) => nextTableSort(current, key));
+
   if (loading) return <div className="portal-page"><div className="portal-panel portal-state" role="status">Đang tải chi tiết lô hàng…</div></div>;
   if (error || !data) return (
     <div className="portal-page">
@@ -107,20 +123,6 @@ export default function PortalShipmentDetailPage() {
   );
 
   const { shipment, documents, declarations, statusHistory } = data;
-  // Containers are a small unpaginated sub-list inside one shipment, so the
-  // full set is already client-side; sorting happens locally (empty cells
-  // last, id tiebreaker). The documents/declarations/status-history sections
-  // are headerless lists, so no sort surface exists for them.
-  const containers = useMemo(
-    () => sortClientSide(data.containers, containerSort, {
-      containerNumber: (c) => c.containerNumber,
-      sealNumber: (c) => c.sealNumber,
-      appointmentAt: (c) => c.customerAppointmentAt,
-      cargoWeightKg: (c) => (c.cargoWeightKg == null ? null : Number(c.cargoWeightKg)),
-    }, (a, b) => a.id - b.id),
-    [data.containers, containerSort],
-  );
-  const applyContainerSort = (key: string) => setContainerSort((current) => nextTableSort(current, key));
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
   const bookingNumber = shipment.bookingRef?.trim() || null;
   const billNumber = shipment.blNumber?.trim() || null;

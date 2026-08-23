@@ -103,12 +103,13 @@ before(async () => {
 
   // Suppliers: Alpha links to Yankee (label sorts before Zulu), Bravo is
   // unlinked (NULL label → sorts last both directions), Charlie links to Zulu.
-  // Payables: Alpha 800k owed, Bravo net-negative (clamped to 0, matching the
-  // summary's >0-only projection), Charlie none.
+  // Types/status are spread for the dispatch-catalog sort keys; payables:
+  // Alpha 800k owed, Bravo net-negative (clamped to 0, matching the summary's
+  // >0-only projection), Charlie none.
   const suppliers = await db.insert(s.suppliers).values([
-    { name: `Alpha NCC ${suffix}`, shortName: '', contactPerson: 'An', phone: '0900000001', taxCode: 'TAXA', linkedCustomerId: linkedCustomerIds[1]! },
-    { name: `Bravo NCC ${suffix}`, shortName: '', contactPerson: 'Binh', phone: '0900000002', taxCode: 'TAXB', linkedCustomerId: null },
-    { name: `Charlie NCC ${suffix}`, shortName: '', contactPerson: 'Cuc', phone: '0900000003', taxCode: 'TAXC', linkedCustomerId: linkedCustomerIds[0]! },
+    { name: `Alpha NCC ${suffix}`, shortName: '', contactPerson: 'An', phone: '0900000001', taxCode: 'TAXA', linkedCustomerId: linkedCustomerIds[1]!, types: ['FUEL'], status: 'ACTIVE' },
+    { name: `Bravo NCC ${suffix}`, shortName: '', contactPerson: 'Binh', phone: '0900000002', taxCode: 'TAXB', linkedCustomerId: null, types: null, status: 'INACTIVE' },
+    { name: `Charlie NCC ${suffix}`, shortName: '', contactPerson: 'Cuc', phone: '0900000003', taxCode: 'TAXC', linkedCustomerId: linkedCustomerIds[0]!, types: ['CUSTOMS', 'SERVICE'], status: 'ACTIVE' },
   ]).returning({ id: s.suppliers.id });
   supplierIds.push(...suppliers.map((row) => row.id));
 
@@ -235,6 +236,34 @@ describe('partner catalog list sorting (customers + suppliers)', () => {
       `Bravo NCC ${suffix}`,
       `Charlie NCC ${suffix}`,
       `Alpha NCC ${suffix}`,
+    ]);
+  });
+
+  it('sorts suppliers by service type and status (dispatch catalog columns)', async () => {
+    const typesAsc = await get(`/api/suppliers?search=${encodeURIComponent(suffix)}&sortBy=types&sortDir=asc`);
+    assert.equal(typesAsc.status, 200);
+    // Charlie "CUSTOMS, SERVICE" < Alpha "FUEL" < Bravo (no types, NULL last).
+    assert.deepEqual(itemNames(typesAsc.body), [
+      `Charlie NCC ${suffix}`,
+      `Alpha NCC ${suffix}`,
+      `Bravo NCC ${suffix}`,
+    ]);
+
+    const typesDesc = await get(`/api/suppliers?search=${encodeURIComponent(suffix)}&sortBy=types&sortDir=desc`);
+    assert.equal(typesDesc.status, 200);
+    assert.deepEqual(itemNames(typesDesc.body), [
+      `Alpha NCC ${suffix}`,
+      `Charlie NCC ${suffix}`,
+      `Bravo NCC ${suffix}`,
+    ]);
+
+    const statusDesc = await get(`/api/suppliers?search=${encodeURIComponent(suffix)}&sortBy=status&sortDir=desc`);
+    assert.equal(statusDesc.status, 200);
+    // INACTIVE (Bravo) before the two ACTIVE rows, id-tiebroken.
+    assert.deepEqual(itemNames(statusDesc.body), [
+      `Bravo NCC ${suffix}`,
+      `Alpha NCC ${suffix}`,
+      `Charlie NCC ${suffix}`,
     ]);
   });
 

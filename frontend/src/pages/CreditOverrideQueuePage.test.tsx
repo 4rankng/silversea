@@ -415,8 +415,8 @@ describe('CreditOverrideQueuePage', () => {
     renderPage();
 
     await screen.findAllByRole('columnheader', { name: 'Khách hàng' });
-    const lastFilters = () => creditQueueFiltersSpy.mock.calls.at(-1)?.[0]
-      as { cursor?: string; sortBy?: string; sortDir?: string };
+    const lastFilters = (): { cursor?: string; sortBy?: string; sortDir?: string } =>
+      creditQueueFiltersSpy.mock.calls.at(-1)?.[0] ?? {};
     expect(lastFilters().sortBy).toBeUndefined();
 
     // Move to page 2 first so the sort's pagination reset is observable.

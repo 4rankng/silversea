@@ -57,15 +57,18 @@ describe('ManagerDecisionInbox server-side sort header', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
+    // Plain useQuery (no placeholderData): the table unmounts while page 2
+    // loads, so wait for it to come back before clicking the header.
+    const issueHeader = await screen.findByRole('button', { name: 'Vấn đề' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vấn đề' }));
+    fireEvent.click(issueHeader);
     await waitFor(() => {
       expect(lastGetUrl()).toContain('page=1');
       expect(lastGetUrl()).toContain('sortBy=title');
       expect(lastGetUrl()).toContain('sortDir=asc');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vấn đề' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Vấn đề' }));
     await waitFor(() => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');

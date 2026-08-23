@@ -40,7 +40,25 @@ const transportDateOrderIssue = {
   path: ['transportDateTo'] as (string | number)[],
 };
 
-export const shipmentCusWorkspaceQuerySchema = z.object(shipmentCusWorkspaceQueryShape)
+// Overview-workboard sort keys — one per ledger column group, named for the
+// primary field the group sorts by. Distinct from the container workboard's
+// key list; the two endpoints keep separate strict contracts.
+export const SHIPMENT_CUS_WORKSPACE_SORT_KEYS = [
+  'customerName',
+  'billOrBookNumber',
+  'shippingLineName',
+  'cargoWeightKg',
+  'transportDate',
+  'customerNotes',
+  'status',
+] as const;
+export type ShipmentCusWorkspaceSortKey = typeof SHIPMENT_CUS_WORKSPACE_SORT_KEYS[number];
+
+export const shipmentCusWorkspaceQuerySchema = z.object({
+  ...shipmentCusWorkspaceQueryShape,
+  sortBy: z.enum(SHIPMENT_CUS_WORKSPACE_SORT_KEYS).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+})
   .strict()
   .refine(refineTransportDateOrder, transportDateOrderIssue);
 

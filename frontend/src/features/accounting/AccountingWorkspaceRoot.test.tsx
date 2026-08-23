@@ -26,7 +26,7 @@ vi.mock('../../lib/api', () => ({
 
 import { AccountingWorkspaceRoot } from './AccountingWorkspaceRoot';
 
-function registerRow(tripId: number, tripCode: string, revenue: string) {
+function registerRow(tripId: number, tripCode: string, revenue: string | null) {
   return {
     financialPostingId: tripId,
     financialPostingVersion: 1,
@@ -112,10 +112,12 @@ describe('AccountingWorkspaceRoot transport register sort (URL-driven)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Doanh thu' }));
     await waitFor(() => expect(lastParams()).toMatchObject({ page: 1, sortBy: 'revenue', sortDir: 'asc' }));
-    expect(screen.getByRole('columnheader', { name: 'Doanh thu' }).getAttribute('aria-sort')).toBe('ascending');
+    // The register swaps to its loading row while refetching, so the header
+    // assertions wait for the table to come back.
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Doanh thu' }).getAttribute('aria-sort')).toBe('ascending'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Doanh thu' }));
     await waitFor(() => expect(lastParams()).toMatchObject({ page: 1, sortBy: 'revenue', sortDir: 'desc' }));
-    expect(screen.getByRole('columnheader', { name: 'Doanh thu' }).getAttribute('aria-sort')).toBe('descending');
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Doanh thu' }).getAttribute('aria-sort')).toBe('descending'));
   });
 });

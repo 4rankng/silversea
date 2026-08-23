@@ -85,17 +85,20 @@ describe('AccountingWorkInbox server-side column sort', () => {
     renderInbox();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Cập nhật' })).toBeTruthy());
 
-    // Go to page 2 first so the reset is observable.
+    // Go to page 2 first so the reset is observable. The lane swaps to its
+    // loading state while refetching (no placeholder data), so each step waits
+    // for the headers to come back before clicking again.
     fireEvent.click(screen.getAllByText('Sau')[0]);
     await waitFor(() => expect(lastActionCall().page).toBe(2));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cập nhật' })).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
     await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'freshness', sortDir: 'asc' } }));
-    expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('ascending');
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('ascending'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
     await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'freshness', sortDir: 'desc' } }));
-    expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('descending');
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('descending'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Hồ sơ' }));
     await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'title', sortDir: 'asc' } }));

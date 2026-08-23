@@ -37,7 +37,7 @@ interface CapturedCall {
 function lastCall(): CapturedCall {
   const calls = useSuppliersMock.mock.calls;
   expect(calls.length).toBeGreaterThan(0);
-  const [page, search, sort] = calls[calls.length - 1] as [number?, string?, TableSortState | null?];
+  const [page, search, sort] = calls[calls.length - 1] as [number?, string?, (TableSortState | null)?];
   return { page, search, sort };
 }
 

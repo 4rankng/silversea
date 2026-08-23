@@ -21,6 +21,7 @@ import {
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusContainerLineUpdateResult,
   type ShipmentCusContainerSortKey,
+  type ShipmentCusWorkspaceSortKey,
   type ShipmentAccountingLockSummary,
 } from '@tingting/shared';
 import { api } from '../lib/api';
@@ -849,6 +850,8 @@ export interface ShipmentCusWorkspaceFilters {
   customerId?: number;
   direction?: 'IMPORT' | 'EXPORT';
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
+  sortBy?: ShipmentCusWorkspaceSortKey;
+  sortDir?: 'asc' | 'desc';
 }
 
 // Container-workboard-only filters. Both are detail-only parameters the
@@ -872,6 +875,8 @@ export async function listCusShipmentWorkspace(
   if (filters.customerId != null) query.set('customerId', String(filters.customerId));
   if (filters.direction) query.set('direction', filters.direction);
   if (filters.bucket) query.set('bucket', filters.bucket);
+  if (filters.sortBy) query.set('sortBy', filters.sortBy);
+  if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentCusWorkspaceListResponse>(`${SHIPMENTS.CUS_WORKSPACE_LIST}${suffix}`);
 }

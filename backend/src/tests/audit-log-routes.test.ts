@@ -512,7 +512,8 @@ describe('audit-log route accountant scope', () => {
     }
 
     const adminViewer = { userId: adminId, role: Role.ADMIN };
-    const ids = (result: Awaited<ReturnType<typeof queryAuditLogs>>) => result.items.map((item) => item.userName);
+    const ids = (result: Awaited<ReturnType<typeof queryAuditLogs>>) =>
+      result.items.map((item: { userName: string }) => item.userName);
 
     // Default: no sort params → newest first by id (insert order reversed).
     const unsorted = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, viewer: adminViewer });

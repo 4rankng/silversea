@@ -20,6 +20,7 @@ import {
   type DispatchClassification,
   type ShipmentCusContainerQuery,
   type ShipmentCusContainerSortKey,
+  type ShipmentCusWorkspaceSortKey,
   type ShipmentCusMissingField,
   type ShipmentCusMissingFieldCode,
   type ShipmentCusWorkspaceContainerLine,
@@ -401,13 +402,17 @@ function containerSnapshotLiftSiteSql(): SQL {
 // Whitelist mapping each sortable column's URL key to its sort expression.
 // Expressions must yield exactly one value per container row; NULLs sort last
 // in both directions via the `nulls last` wrapper at the call site.
-const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
-  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
-  billOrBookNumber: sql`case
+function billOrBookNumberSortSql(): SQL {
+  return sql`case
     when ${s.shipments.tradeDirection} = 'EXPORT'
       then coalesce(nullif(btrim(${s.shipments.bookingRef}), ''), nullif(btrim(${s.shipments.blNumber}), ''))
     else coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))
-  end`,
+  end`;
+}
+
+const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
+  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
+  billOrBookNumber: billOrBookNumberSortSql(),
   containerNumber: sql`${s.shipmentContainers.containerNumber}`,
   liftSite: sql`coalesce(${liftPort.name}, ${containerSnapshotLiftSiteSql()})`,
   transportDate: sql`case
@@ -418,6 +423,32 @@ const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
   carrierName: containerCarrierNameSql(),
   customerNotes: sql`${s.shipments.customerNotes}`,
   dispatchStatus: containerDispatchRankSql(),
+};
+
+/** Overview-workboard status rank mirrors deriveCusBucket: an active
+ * accounting lock is LOCKED, then PENDING_LOCK (approval/completed), RUNNING
+ * (dispatched/in-transit), else NEW. Only relative order matters. */
+function workspaceBucketRankSql(): SQL {
+  return sql`case
+    when exists (
+      select 1 from ${s.shipmentAccountingLocks} sal
+      where sal.shipment_id = ${s.shipments.id} and sal.released_at is null
+    ) then 3
+    when ${s.shipments.status} in ('DISPATCHED', 'IN_TRANSIT') then 2
+    when ${s.shipments.status} in ('PENDING_EXPENSE_APPROVAL', 'COMPLETED') then 1
+    else 0
+  end`;
+}
+
+// Same whitelist contract for the overview workboard's grouped columns.
+const WORKSPACE_SORT_SQL: Record<ShipmentCusWorkspaceSortKey, SQL> = {
+  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
+  billOrBookNumber: billOrBookNumberSortSql(),
+  shippingLineName: sql`${s.shipments.shippingLineName}`,
+  cargoWeightKg: sql`${s.shipments.cargoWeightKg}`,
+  transportDate: sql`${s.shipments.expectedDeliveryDate}`,
+  customerNotes: sql`${s.shipments.customerNotes}`,
+  status: workspaceBucketRankSql(),
 };
 
 // ─── "Chưa cập nhật" completeness (real FCL container rows only) ─────────────
@@ -1712,6 +1743,26 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
   const conditions = await buildShipmentPageConditions(query, actor, 'shipment');
 
   const offset = (query.page - 1) * query.limit;
+  // Explicit `nulls last` keeps empty cells at the bottom in both directions.
+  // Cargo rank stays as a secondary key so sorting never scrambles the
+  // operational priority queue it shares a page with.
+  const sortOrder = query.sortBy
+    ? [
+        sql`${WORKSPACE_SORT_SQL[query.sortBy]} ${query.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+        sql`${cargoRankSql()} asc`,
+        sql`${s.shipments.id} desc`,
+      ]
+    : [
+        // Operational priority queue before pagination: unscheduled first, then
+        // queue-date descending (intake date for unscheduled, expected delivery
+        // date otherwise), then cargo rank (Cont 20 → Cont 40 → other Cont →
+        // Lẻ → unknown), with createdAt/id as stable final tie-breakers.
+        sql`case when ${s.shipments.expectedDeliveryDate} is null then 0 else 1 end`,
+        sql`coalesce(${s.shipments.expectedDeliveryDate}, ${s.shipments.createdAt}) desc`,
+        cargoRankSql(),
+        desc(s.shipments.createdAt),
+        desc(s.shipments.id),
+      ];
   const [items, totalRows] = await Promise.all([
     db.select({
       shipment: s.shipments,
@@ -1721,17 +1772,7 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, actor: AuthUse
       .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
       .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
       .where(and(...conditions))
-      // Operational priority queue before pagination: unscheduled first, then
-      // queue-date descending (intake date for unscheduled, expected delivery
-      // date otherwise), then cargo rank (Cont 20 → Cont 40 → other Cont →
-      // Lẻ → unknown), with createdAt/id as stable final tie-breakers.
-      .orderBy(
-        sql`case when ${s.shipments.expectedDeliveryDate} is null then 0 else 1 end`,
-        sql`coalesce(${s.shipments.expectedDeliveryDate}, ${s.shipments.createdAt}) desc`,
-        cargoRankSql(),
-        desc(s.shipments.createdAt),
-        desc(s.shipments.id),
-      )
+      .orderBy(...sortOrder)
       .limit(query.limit)
       .offset(offset),
     db.select({ value: count() }).from(s.shipments)

@@ -504,18 +504,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(window.localStorage.getItem('silversea:cus-shipments:master-columns:v3')).toBeNull();
   });
 
-  it('shows active filters and clears the suffix from the visible chip', async () => {
+  it('does not render a redundant active-filters chip strip', async () => {
     renderPage('/shipments?searchSuffix=AB12');
     await screen.findByRole('table');
-    const chip = screen.getByRole('button', { name: 'Xóa bộ lọc Mã: AB12' });
-    expect(chip).toBeTruthy();
-
-    fireEvent.click(chip);
-    await waitFor(() => {
-      const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
-      expect(latestUrl).not.toContain('searchSuffix=');
-    });
-    expect((screen.getByLabelText('Bill/Book hoặc tờ khai') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByText('Đang lọc')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc Mã: AB12' })).toBeNull();
   });
 
   it('clears an applied suffix immediately from the search-field control', async () => {
@@ -527,7 +520,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       const latestUrl = String(apiGet.mock.calls.at(-1)?.[0] ?? '');
       expect(latestUrl).not.toContain('searchSuffix=');
     });
-    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc Mã: AB12' })).toBeNull();
   });
 
   it('offers a co-located reset action from the filtered no-results state', async () => {
@@ -535,7 +527,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage('/shipments?searchSuffix=ZZZZ9');
 
     expect(await screen.findByText('Không có lô hàng phù hợp')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Xóa bộ lọc Mã: ZZZZ9' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^Xóa bộ lọc$/ }));
 
     await waitFor(() => {

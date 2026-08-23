@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   ChevronRight,
   Download,
   FileLock2,
@@ -13,6 +16,7 @@ import {
 } from 'lucide-react';
 import {
   SHIPMENT_CUS_BUCKET_LABELS,
+  SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   SHIPMENT_STATUS_LABELS,
   ShipmentCusBucket,
@@ -22,6 +26,7 @@ import {
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceListResponse,
+  type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { ApiError } from '../lib/api';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -42,6 +47,7 @@ import {
   updateShipmentDeclaration,
 } from '../api/shipmentClient';
 import { downloadCSV } from '../lib/csv';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
 import { FinanceEvidence, WorkflowBadge, ShipmentSignals } from '../features/shipments/cus/CusBadges';
@@ -65,7 +71,36 @@ import {
   type ShipmentQuickEditDraft,
 } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
+import '../styles/table-sort.css';
 import './ShipmentsPage.css';
+
+/** Sortable grouped header for the overview ledger — same shared button and
+ * key whitelist contract as the container workboard (ShipmentsDetailPage). */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+}: {
+  label: string;
+  sortKey: string;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <th scope="col" aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
 
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
@@ -92,6 +127,14 @@ export default function ShipmentsPage() {
     : '';
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
+  // Column sort lives in the URL like every other workboard param. Unknown
+  // keys fall back to the backend's default operational queue order.
+  const rawSortBy = searchParams.get('sortBy');
+  const sortKey = SHIPMENT_CUS_WORKSPACE_SORT_KEYS.includes(rawSortBy as ShipmentCusWorkspaceSortKey)
+    ? rawSortBy as ShipmentCusWorkspaceSortKey
+    : null;
+  const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
+  const sort = sortKey ? { by: sortKey, dir: sortDir } : null;
 
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -144,6 +187,19 @@ export default function ShipmentsPage() {
 
   useEffect(() => setSearchInput(suffixParam), [suffixParam]);
 
+  // Both sort params are written in one setSearchParams pass so no render can
+  // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
+  const applySort = useCallback((key: string) => {
+    const next = nextTableSort(sort, key);
+    setSearchParams((current) => {
+      const nextParams = new URLSearchParams(current);
+      nextParams.set('sortBy', next.by);
+      nextParams.set('sortDir', next.dir);
+      nextParams.delete('page');
+      return nextParams;
+    }, { replace: true });
+  }, [sort, setSearchParams]);
+
   useEffect(() => {
     if (quickEditDraft || !quickEditFocusTargetRef.current) return;
     const targetId = quickEditFocusTargetRef.current;
@@ -166,6 +222,8 @@ export default function ShipmentsPage() {
         transportDateTo: dateTo || undefined,
         direction: direction || undefined,
         bucket: bucket || undefined,
+        sortBy: sortKey ?? undefined,
+        sortDir: sortKey ? sortDir : undefined,
       });
       if (requestId === requestSequence.current) setData(response);
     } catch (loadError) {
@@ -175,7 +233,7 @@ export default function ShipmentsPage() {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [bucket, dateFrom, dateTo, direction, page, suffixParam]);
+  }, [bucket, dateFrom, dateTo, direction, page, sortDir, sortKey, suffixParam]);
 
   useEffect(() => { void loadList(); }, [loadList]);
 
@@ -624,14 +682,6 @@ export default function ShipmentsPage() {
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
   const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
 
-  const filterChips = useMemo(() => [
-    suffixParam ? { key: 'searchSuffix', label: `Mã: ${suffixParam}` } : null,
-    dateFrom ? { key: 'transportDateFrom', label: `Từ ${formatDate(dateFrom)}` } : null,
-    dateTo ? { key: 'transportDateTo', label: `Đến ${formatDate(dateTo)}` } : null,
-    direction ? { key: 'direction', label: directionLabel(direction) } : null,
-    bucket ? { key: 'bucket', label: SHIPMENT_CUS_BUCKET_LABELS[bucket] } : null,
-  ].filter((chip): chip is { key: string; label: string } => chip != null), [bucket, dateFrom, dateTo, direction, suffixParam]);
-
   const exportWorksheet = async () => {
     setExporting(true);
     setError(null);
@@ -854,27 +904,6 @@ export default function ShipmentsPage() {
           </section>
         )}
 
-        {filterChips.length > 0 && (
-          <div className="cus-active-filters" aria-label="Bộ lọc đang áp dụng">
-            <span className="cus-active-filters__label">Đang lọc</span>
-            {filterChips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                className="cus-filter-chip"
-                onClick={() => {
-                  if (chip.key === 'searchSuffix') setSearchInput('');
-                  updateParam(chip.key, null);
-                }}
-                aria-label={'Xóa bộ lọc ' + chip.label}
-              >
-                {chip.label} <X size={13} aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        )}
-
-
         {notice && <div className="cus-notice cus-notice--success" role="status">{notice}</div>}
         {error && (
           <div className="cus-notice cus-notice--error" role="alert">
@@ -910,13 +939,13 @@ export default function ShipmentsPage() {
                   <col className="cus-dashboard-col--status" />
                 </colgroup>
                 <thead><tr>
-                  <th scope="col">Khách hàng &amp; nhà máy</th>
-                  <th scope="col">Chứng từ</th>
-                  <th scope="col">Phân loại &amp; hãng tàu</th>
-                  <th scope="col">Tổng quan hàng hóa</th>
-                  <th scope="col">Lịch trình &amp; điều xe</th>
-                  <th scope="col">Ghi chú</th>
-                  <th scope="col">Trạng thái</th>
+                  <SortHeader label="Khách hàng &amp; nhà máy" sortKey="customerName" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Chứng từ" sortKey="billOrBookNumber" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Phân loại &amp; hãng tàu" sortKey="shippingLineName" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Tổng quan hàng hóa" sortKey="cargoWeightKg" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Lịch trình &amp; điều xe" sortKey="transportDate" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr></thead>
                 <tbody>
                   {items.map((item) => {
