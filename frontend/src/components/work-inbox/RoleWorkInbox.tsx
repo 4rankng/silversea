@@ -66,6 +66,54 @@ function statusLabel(item: WorkInboxItemBase) {
   return 'Hoàn tất';
 }
 
+// Cross-branch workflow gate per P0-W5. Each row shows the parallel O2C
+// branches that gate the next action, so the role doesn't have to drill in
+// to learn whether they're waiting on someone else. Two branches:
+//   - "Đã phân xe" — dispatcher has assigned plates to every container
+//   - "Đã đổi lệnh" — ops has collected the paper order from the customer
+// Customer-facing rows don't need this gate; the customer's state is
+// "Đang vận chuyển / Hoàn tất" and the driver-facing row only needs to show
+// the gate that blocks *them* (Đã đổi lệnh = ops handoff).
+type Gate = { label: string; satisfied: boolean; pending?: string };
+
+function crossBranchGate(item: RoleItem, role: Role): Gate[] {
+  if (role === 'driver') {
+    const value = item as DriverWorkInboxItem;
+    // The driver row only fires after the dispatcher assigned a plate, so
+    // "Đã phân xe" is always satisfied here. The real gate for the driver
+    // is the paper-order handoff from ops.
+    return [
+      { label: 'Đã phân xe', satisfied: true },
+      {
+        label: 'Đã đổi lệnh',
+        satisfied: value.paperOrderReady,
+        pending: value.paperOrderReady ? undefined : 'Vận hành chưa giao lệnh gốc',
+      },
+    ];
+  }
+  if (role === 'operations') {
+    const value = item as OperationsWorkInboxItem;
+    // Ops sees both branches because they hand off to the driver once both
+    // branches are satisfied. Dispatch is the upstream branch; paper-order
+    // is the branch they own.
+    const dispatched = Boolean(value.driverName && value.truckPlate);
+    const paperDone = value.paperOrderState === 'COMPLETED';
+    return [
+      {
+        label: 'Đã phân xe',
+        satisfied: dispatched,
+        pending: dispatched ? undefined : 'Điều vận chưa gán biển số',
+      },
+      {
+        label: 'Đã đổi lệnh',
+        satisfied: paperDone,
+        pending: paperDone ? undefined : 'Vận hành chưa bàn giao lệnh giấy',
+      },
+    ];
+  }
+  return [];
+}
+
 function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: string }> {
   if (role === 'operations') {
     const value = item as OperationsWorkInboxItem;
@@ -338,7 +386,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
           <div className="role-work-inbox__table-wrap">
             <table className="role-work-inbox__table">
               <thead>
-                <tr><th>Công việc</th><th>Thông tin cần biết</th><th>Trạng thái</th><th>Trở ngại</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr>
+                <tr><th>Công việc</th><th>Thông tin cần biết</th><th>Mốc nghiệp vụ</th><th>Trạng thái</th><th>Trở ngại</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr>
               </thead>
               <tbody>
                 {items.map((item) => {
@@ -356,6 +404,19 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                         <dl className="role-work-inbox__facts">
                           {factsFor(item, role).map((fact) => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}
                         </dl>
+                      </td>
+                      <td data-label="Mốc nghiệp vụ">
+                        {role !== 'customer' && (
+                          <ul className="role-work-inbox__gate" aria-label="Mốc nghiệp vụ O2C">
+                            {crossBranchGate(item, role).map((gate) => (
+                              <li key={gate.label} className={gate.satisfied ? 'is-ok' : 'is-pending'}>
+                                <span className="role-work-inbox__gate-label">{gate.label}</span>
+                                <span className="role-work-inbox__gate-mark" aria-hidden="true">{gate.satisfied ? '✓' : '…'}</span>
+                                {!gate.satisfied && gate.pending && <span className="role-work-inbox__gate-pending">{gate.pending}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                       <td data-label="Trạng thái"><span className={`role-work-inbox__badge is-${item.state.toLowerCase()}`}>{statusLabel(item)}</span></td>
                       <td data-label="Trở ngại">

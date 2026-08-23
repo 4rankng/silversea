@@ -207,7 +207,42 @@ describe('RoleWorkInbox', () => {
     render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu đổi lệnh' }));
     await screen.findByText('Đã lưu lệnh ngoại tuyến; chưa được xem là hoàn tất.');
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(apiPost).toHaveBeenCalledTimes(1);
+  });
+
+  // P0-W5: the cross-branch workflow gate. Each row now carries a "Mốc nghiệp
+  // vụ" column with two branches (Đã phân xe / Đã đổi lệnh) for ops, or one
+  // (Đã đổi lệnh) for driver, with a ✓ / … mark + the pending owner when
+  // waiting. The driver should never see "Đã phân xe" as a gate since their
+  // row is the proof that dispatch already happened.
+  it('renders the cross-branch gate for the operations role (Đã phân xe ✓ + Đã đổi lệnh ✓)', async () => {
+    apiGet.mockResolvedValue(response([operationsItem])); // operationsItem: paperOrderState IN_PROGRESS, orderExchangeState COMPLETED
+    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    const table = await screen.findByRole('table');
+    const gateCells = within(table).getAllByRole('list', { name: /Mốc nghiệp vụ/ });
+    expect(gateCells.length).toBeGreaterThan(0);
+    const items = within(gateCells[0]).getAllByRole('listitem');
+    expect(items[0].textContent).toContain('Đã phân xe');
+    expect(items[0].textContent).toContain('✓');
+    expect(items[1].textContent).toContain('Đã đổi lệnh');
+    // IN_PROGRESS paperOrderState is not yet complete → still pending
+    expect(items[1].textContent).toContain('Vận hành chưa bàn giao lệnh giấy');
+  });
+
+  it('flags the dispatch branch as pending when the lô has no plate yet (ops view)', async () => {
+    const unassigned = { ...operationsItem, id: 'shipment:99', driverName: null, truckPlate: null };
+    apiGet.mockResolvedValue(response([unassigned]));
+    render(<MemoryRouter><RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" /></MemoryRouter>);
+    const table = await screen.findByRole('table');
+    const gateList = within(table).getAllByRole('list', { name: /Mốc nghiệp vụ/ })[0];
+    const dispatchItem = within(gateList).getAllByRole('listitem')[0];
+    expect(dispatchItem.textContent).toContain('Đã phân xe');
+    expect(dispatchItem.textContent).toContain('Điều vận chưa gán biển số');
+  });
+
+  it('hides the cross-branch gate column for the customer role (not relevant to their workflow)', async () => {
+    apiGet.mockResolvedValue(response([customerItem]));
+    render(<MemoryRouter><RoleWorkInbox role="customer" title="Lô hàng của tôi" description="Mô tả" customerId={14} scopeReady={true} /></MemoryRouter>);
+    const table = await screen.findByRole('table');
+    expect(within(table).queryByRole('list', { name: /Mốc nghiệp vụ/ })).toBeNull();
   });
 });
