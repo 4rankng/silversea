@@ -382,11 +382,8 @@
   .fleet-page .fleet-card-sub { white-space: normal; word-break: keep-all; }
   .penalty-page .penalty-head-tools,
   .fleet-page .fleet-card-tools {
-    width: 100%; overflow-x: auto;
-    flex-wrap: nowrap; -webkit-overflow-scrolling: touch;
+    width: 100%; flex-wrap: wrap; gap: 6px;
   }
-  .penalty-page .penalty-head-tools::-webkit-scrollbar,
-  .fleet-page .fleet-card-tools::-webkit-scrollbar { display: none; }
   .penalty-page .penalty-head-tools > *,
   .fleet-page .fleet-card-tools > * { flex-shrink: 0; }
 } /* end 640px */

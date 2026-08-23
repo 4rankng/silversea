@@ -314,9 +314,10 @@
   min-width: 0;
   color: var(--ink);
   font-size: 15px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .debit-template-card__meta {
@@ -419,8 +420,10 @@
   }
 }
 
-/* ── Compact screens (≤820px): config tables become readable cards ── */
-@media (max-width: 820px) {
+/* The desktop shell leaves a 1112px operational canvas at a 1440px viewport.
+   Eight-column configuration grids do not fit that canvas; switch to labelled
+   records before they require a horizontal scroll. */
+@media (max-width: 1500px) {
   .cfg-page .tt-table thead th { padding: 11px 12px; }
   .cfg-page .tt-table tbody td { padding: 12px 12px; }
   .cfg-page .toolbar { padding: 12px 14px 4px; gap: 8px; }
@@ -590,7 +593,7 @@
 }
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */
-@media (max-width: 820px) {
+@media (max-width: 1500px) {
   /* ── Routes config page — Mobile Pass 1 (2026-06-02) ──
      - Cards replace the cramped 8-col table
      - First cell becomes the headline (no redundant "TUYẾN ĐƯỜNG:" prefix)

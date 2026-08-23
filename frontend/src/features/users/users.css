@@ -1201,9 +1201,11 @@
 }
 
 .user-customer-scope-label span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* ── Responsive overrides (from responsive.css decomposition) ── */

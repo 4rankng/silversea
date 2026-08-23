@@ -437,17 +437,10 @@
 }
 
 @media (max-width: 420px) {
+  /* Category chips wrap instead of a masked swipe strip: every filter
+     stays reachable on touch. */
   .payables-page .payables-category-chips {
     gap: 6px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding-bottom: 4px;
-    padding-right: 26px;
-    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
-  }
-
-  .payables-page .payables-category-chips::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
   }
 }

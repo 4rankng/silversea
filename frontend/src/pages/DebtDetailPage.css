@@ -1016,9 +1016,11 @@
   font-weight: 750;
   color: var(--ink);
   line-height: 1.45;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .dd-trip-subline,
@@ -1681,10 +1683,11 @@
   .debt-detail-page .dd-filters {
     flex-basis: 100%;
     margin-left: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
+    /* Chips wrap instead of a hidden-scrollbar swipe strip: every filter
+       stays reachable on touch. */
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .debt-detail-page .dd-filters::-webkit-scrollbar { display: none; }
   .debt-detail-page .dd-filters > * {
     flex-shrink: 0;
   }
@@ -1854,10 +1857,9 @@
   .debt-detail-page .dd-filters {
     margin-left: 0;
     flex-basis: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .debt-detail-page .dd-filters::-webkit-scrollbar { display: none; }
   .debt-detail-page .dd-filter-chip {
     min-height: 44px;
     padding: 8px 12px;
@@ -1877,10 +1879,32 @@
   .dd-actions .btn { width: 100%; justify-content: center; }
   .dd-ledger-head { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px 16px; }
   .dd-ledger-head h2 { font-size: 15px; }
-  .dd-filters { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .dd-filters { width: 100%; flex-wrap: wrap; gap: 8px; }
   .dd-filters > * { flex-shrink: 0; }
-  .dd-filters::-webkit-scrollbar { display: none; }
   .dd-aging-grid { grid-template-columns: 1fr; gap: 10px; }
+  /* Accounting ledger: stack the 5-column debit/credit rows instead of the
+     700px swipe grid. The column head row loses meaning once rows stack, so
+     hide it and label the amount cells directly. */
+  .dd-accounting-ledger { overflow-x: visible; }
+  .dd-accounting-row--head { display: none; }
+  .dd-accounting-row {
+    grid-template-columns: 1fr 1fr;
+    min-width: 0;
+    gap: 4px 10px;
+    padding: 10px 0;
+  }
+  .dd-accounting-row > :nth-child(2) { grid-column: 1 / -1; order: -1; }
+  .dd-accounting-row > :nth-child(3) { text-align: right; color: var(--fg-3); }
+  .dd-accounting-row > :nth-child(4),
+  .dd-accounting-row > :nth-child(5) { text-align: right; }
+  .dd-accounting-row > :nth-child(4)::before,
+  .dd-accounting-row > :nth-child(5)::before {
+    color: var(--fg-3);
+    font-size: var(--fs-2xs);
+    margin-right: 6px;
+  }
+  .dd-accounting-row > :nth-child(4)::before { content: 'Nợ'; }
+  .dd-accounting-row > :nth-child(5)::before { content: 'Có'; }
 } /* end 640px */
 
 /* ── Q01: Credit-limit warning card ─────────────────────────────────── */

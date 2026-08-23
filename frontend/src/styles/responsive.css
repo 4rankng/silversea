@@ -229,6 +229,13 @@
     padding-right: 0;
   }
   .topbar__context-kicker { display: none; }
+  .topbar__context strong {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    font-size: 12px;
+    line-height: 1.2;
+  }
   .topbar--driver .topbar__welcome { display: none; }
   .topbar .icon-btn { display: none; }
   /* Bump hamburger to a 44px touch target (was 40px) */
@@ -246,7 +253,8 @@
   .topbar-date__trigger {
     min-height: 44px;
     height: 44px;
-    padding: 0 11px;
+    gap: 3px;
+    padding: 0 5px;
     font-size: var(--fs-xs);
     border-radius: 10px;
   }
@@ -254,6 +262,7 @@
   .topbar-date__label { line-height: 1.35; }
   .topbar-date__period { font-size: var(--fs-xs); line-height: 1.35; }
   .topbar-date__icon { width: 13px; height: 13px; }
+  .topbar-date__caret { display: none; }
   /* Month-nav chevrons were 18×18 — borderline untappable. Bump to 28×28. */
   .topbar-date__nav { width: 28px; height: 28px; }
   .topbar-date__nav svg { width: 14px; height: 14px; }

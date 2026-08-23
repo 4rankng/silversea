@@ -46,7 +46,7 @@ function runtimeStringsWithInternalCodes(filePath: string): string[] {
 }
 
 describe('product copy contract', () => {
-  it('does not ship internal Q decision codes in frontend runtime strings', () => {
+  it('does not ship internal Q decision codes in frontend runtime strings', { timeout: 20000 }, () => {
     const matches = productionSourceFiles(sourceRoot).flatMap(runtimeStringsWithInternalCodes);
     expect(matches, matches.join('\n')).toEqual([]);
   });

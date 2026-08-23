@@ -179,11 +179,13 @@ a.portal-list__row:focus-visible {
 
 .portal-list__primary > strong {
   display: block;
-  overflow: hidden;
+  min-width: 0;
+  overflow: visible;
   font-size: var(--fs-sm);
   line-height: var(--lh-snug);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .portal-list__meta {

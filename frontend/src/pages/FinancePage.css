@@ -367,6 +367,13 @@
   background: var(--surface);
 }
 .truck-trip-table { min-width: 1050px; }
+/* Below a ~1346px viewport the 1050px trip table no longer fits its cell:
+   let headers wrap and drop the forced min-width so the grid compresses
+   instead of scrolling sideways inside the expanded row. */
+@media (max-width: 1345px) {
+  .truck-trip-table { min-width: 0; }
+  .truck-trip-table thead th { white-space: normal; }
+}
 .truck-trip-table thead th {
   padding: 9px 10px;
   background: var(--surface-2);

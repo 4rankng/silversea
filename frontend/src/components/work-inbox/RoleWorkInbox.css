@@ -276,15 +276,9 @@
 
 .role-work-inbox__pagination button:disabled { cursor: default; opacity: .5; }
 
-@media (max-width: 767px) {
-  .role-work-inbox { padding: 14px 0 28px; }
-  .role-work-inbox__header { display: grid; gap: 12px; }
-  .role-work-inbox__refresh,
-  .role-work-inbox__button,
-  .role-work-inbox__state button { min-height: 44px; }
-  .role-work-inbox__refresh { width: 100%; }
-  .role-work-inbox__tabs { overflow-x: auto; }
-  .role-work-inbox__tabs button { min-height: 44px; flex: 1 0 auto; white-space: nowrap; }
+/* The 1050px table cannot fit the operational canvas below a ~1346px
+   viewport; switch to the labelled record cards before it would scroll. */
+@media (max-width: 1345px) {
   .role-work-inbox__table-wrap { overflow: visible; border: 0; background: transparent; }
   .role-work-inbox__table,
   .role-work-inbox__table tbody,
@@ -301,6 +295,17 @@
   .role-work-inbox__table td::before { content: attr(data-label); color: var(--fg-3); font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
   .role-work-inbox__table td:first-child { display: block; padding: 12px; }
   .role-work-inbox__table td:first-child::before { display: none; }
+}
+
+@media (max-width: 767px) {
+  .role-work-inbox { padding: 14px 0 28px; }
+  .role-work-inbox__header { display: grid; gap: 12px; }
+  .role-work-inbox__refresh,
+  .role-work-inbox__button,
+  .role-work-inbox__state button { min-height: 44px; }
+  .role-work-inbox__refresh { width: 100%; }
+  .role-work-inbox__tabs { flex-wrap: wrap; gap: 6px; }
+  .role-work-inbox__tabs button { min-height: 44px; flex: 1 0 auto; white-space: nowrap; }
   .role-work-inbox__subtitle {
     display: -webkit-box;
     -webkit-box-orient: vertical;

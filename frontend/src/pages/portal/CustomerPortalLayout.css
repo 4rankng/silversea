@@ -96,7 +96,7 @@
 }
 
 .customer-shell__identity div { flex: 1; }
-.customer-shell__identity strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.customer-shell__identity strong { min-width: 0; overflow: visible; font-size: 13px; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .customer-shell__avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .14); }
 .customer-shell__identity button {
   display: grid;
