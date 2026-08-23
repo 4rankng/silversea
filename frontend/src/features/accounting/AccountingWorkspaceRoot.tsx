@@ -22,14 +22,24 @@ export function AccountingWorkspaceRoot() {
   } = useAccountingWorkspaceUrlState();
   const queries = useAccountingWorkspaceQueries(state);
 
+  const viewMeta = state.activeView === 'work'
+    ? {
+      title: 'Công việc kế toán',
+      description: 'Xử lý hồ sơ đã đủ điều kiện và nhìn rõ nguyên nhân đang chặn trước khi đối soát.',
+    }
+    : state.activeView === 'overview'
+      ? {
+        title: 'Tổng quan kế toán',
+        description: 'Đối chiếu vận tải, công nợ, thanh toán và báo cáo trên cùng một kỳ dữ liệu.',
+      }
+      : {
+        title: 'Đối chiếu vận tải',
+        description: 'Soát chuyến đã hoàn thành, e-POD và nguồn tài chính trước khi lập chứng từ.',
+      };
+
   return (
     <main className="accounting-page" data-testid="accounting-workspace">
-      <PageHeader
-        title={state.activeView === 'work' ? 'Công việc kế toán' : 'Tổng Quan'}
-        description={state.activeView === 'work'
-          ? 'Xử lý hồ sơ đã đủ điều kiện và nhìn rõ nguyên nhân đang chặn trước khi đối soát.'
-          : 'Đối chiếu vận tải, công nợ, thanh toán và báo cáo trên cùng một kỳ dữ liệu.'}
-      />
+      <PageHeader title={viewMeta.title} description={viewMeta.description} />
 
       {state.activeView !== 'work' && <section className="accounting-period" aria-labelledby="accounting-period-title">
         <div>

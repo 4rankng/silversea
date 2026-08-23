@@ -70,8 +70,8 @@ function InboxLane({
       ) : !data?.items.length ? (
         <div className="accounting-work-inbox__state"><CheckCircle2 size={18} /> Không có hồ sơ trong nhóm này.</div>
       ) : (
-        <div className="accounting-work-inbox__table-wrap">
-          <table>
+        <div className="record-table-wrap accounting-work-inbox__table-wrap">
+          <table className="record-table ops-table accounting-work-inbox__table">
             <thead><tr><th>Hồ sơ</th><th>Điều kiện tài chính</th><th>Trở ngại / ngoại lệ</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr></thead>
             <tbody>{data.items.map((item) => (
               <tr key={item.id}>
@@ -83,7 +83,7 @@ function InboxLane({
                   {item.blockers.length === 0 && item.advisories.length === 0 && <span className="accounting-work-inbox__clear">Đủ điều kiện</span>}
                 </td>
                 <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatTime(item.freshnessAt)}</time></td>
-                <td data-label="Hành động"><Link className="accounting-work-inbox__action" to={item.nextAction?.targetRoute ?? item.targetRoute}>{item.nextAction?.label ?? 'Mở hồ sơ'}</Link></td>
+                <td data-label="" className="record-table__action"><Link className="accounting-work-inbox__action" to={item.nextAction?.targetRoute ?? item.targetRoute}>{item.nextAction?.label ?? 'Mở hồ sơ'}</Link></td>
               </tr>
             ))}</tbody>
           </table>

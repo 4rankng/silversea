@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 import type { AccountingTransportRegisterRow } from '@tingting/shared';
 import { formatCurrency } from '../../lib/format';
 import { routes } from '../../lib/routes';
 import {
   buildTransportDraftUrl,
-  displayBusinessDate,
   transportReadinessLabel,
 } from './accountingWorkspaceUtils';
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
-import { Pagination } from '../../design-system';
+import { EmptyState, Pagination } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 
 type AccountingTransportRegisterProps = {
@@ -96,90 +96,95 @@ export function AccountingTransportRegister({
     });
   };
 
+  const hasActiveFilters = Boolean(
+    search || customerId || carrierId || ownership || readiness,
+  );
+
   return (
     <section
       className="accounting-register"
       aria-labelledby="transport-register-title"
       aria-busy={loading}
     >
-      <header className="accounting-register__header">
-        <div>
-          <h2 id="transport-register-title">Sổ đối chiếu vận tải</h2>
-          <p>{total} chuyến đủ điều kiện tài chính trong kỳ</p>
-        </div>
-        <form
-          className="accounting-register__search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSearch();
-          }}
-          role="search"
-        >
-          <label htmlFor="accounting-transport-search">
-            Tìm chuyến, khách hàng hoặc container
-          </label>
-          <div className="accounting-register__search-row">
-            <input
-              id="accounting-transport-search"
-              name="transportSearch"
-              type="search"
-              autoComplete="off"
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Ví dụ: C-009, Silver Sea, TGHU…"
-            />
-            <button type="submit">Tìm</button>
-          </div>
-          <div className="accounting-register__filters">
-            <UuiSelectField
-                label="Khách hàng"
-                value={customerId}
-                onChange={(event) => onFilterChange('customerId', event.target.value)}
-                options={[
-                  { value: '', label: 'Tất cả khách hàng' },
-                  ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
-                ]}
-                inline
-              />
-            <UuiSelectField
-                label="Nhà xe"
-                value={carrierId}
-                onChange={(event) => onFilterChange('carrierId', event.target.value)}
-                options={[
-                  { value: '', label: 'Tất cả nhà xe' },
-                  ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
-                ]}
-                inline
-              />
-            <UuiSelectField
-                label="Loại xe"
-                value={ownership}
-                onChange={(event) =>
-                  onFilterChange('ownership', event.target.value)
-                }
-                options={[
-                  { value: '', label: 'Tất cả' },
-                  { value: 'OWN', label: 'Xe nhà' },
-                  { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
-                ]}
-                inline
-              />
-            <UuiSelectField
-                label="Điều kiện"
-                value={readiness}
-                onChange={(event) =>
-                  onFilterChange('readiness', event.target.value)
-                }
-                options={[
-                  { value: '', label: 'Tất cả' },
-                  { value: 'READY', label: 'Sẵn sàng' },
-                  { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
-                ]}
-                inline
-              />
-          </div>
-        </form>
+      <header className="accounting-register__heading">
+        <h2 id="transport-register-title">Sổ đối chiếu vận tải</h2>
+        <p>{total} chuyến đủ điều kiện tài chính trong kỳ</p>
       </header>
+
+      <form
+        className="accounting-register__toolbar"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSearch();
+        }}
+        role="search"
+      >
+        <div className="accounting-register__search">
+          <input
+            id="accounting-transport-search"
+            name="transportSearch"
+            type="search"
+            autoComplete="off"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Ví dụ: C-009, Silver Sea, TGHU…"
+            aria-label="Tìm chuyến, khách hàng hoặc container"
+          />
+          <button type="submit">Tìm</button>
+        </div>
+        <span className="accounting-register__divider" aria-hidden="true" />
+        <UuiSelectField
+          label="Khách hàng"
+          value={customerId}
+          onChange={(event) => onFilterChange('customerId', event.target.value)}
+          controlClassName="accounting-register__select"
+          options={[
+            { value: '', label: 'Tất cả khách hàng' },
+            ...customers.map((customer) => ({ value: String(customer.id), label: customer.name })),
+          ]}
+          inline
+        />
+        <UuiSelectField
+          label="Nhà xe"
+          value={carrierId}
+          onChange={(event) => onFilterChange('carrierId', event.target.value)}
+          controlClassName="accounting-register__select"
+          options={[
+            { value: '', label: 'Tất cả nhà xe' },
+            ...carriers.map((carrier) => ({ value: String(carrier.id), label: carrier.name })),
+          ]}
+          inline
+        />
+        <UuiSelectField
+          label="Loại xe"
+          value={ownership}
+          onChange={(event) => onFilterChange('ownership', event.target.value)}
+          controlClassName="accounting-register__select"
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'OWN', label: 'Xe nhà' },
+            { value: 'EXTERNAL', label: 'Nhà xe ngoài' },
+          ]}
+          inline
+        />
+        <UuiSelectField
+          label="Điều kiện"
+          value={readiness}
+          onChange={(event) => onFilterChange('readiness', event.target.value)}
+          controlClassName="accounting-register__select"
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'READY', label: 'Sẵn sàng' },
+            { value: 'MISSING_PROFITABILITY_SNAPSHOT', label: 'Thiếu dữ liệu lợi nhuận' },
+          ]}
+          inline
+        />
+        {hasActiveFilters && (
+          <button type="button" className="accounting-register__reset" onClick={onReset}>
+            <X size={12} aria-hidden="true" /> Xóa bộ lọc
+          </button>
+        )}
+      </form>
 
       {error && (
         <div className="accounting-alert" role="alert">
@@ -195,52 +200,45 @@ export function AccountingTransportRegister({
           Đang tải dữ liệu vận tải…
         </p>
       ) : rows.length === 0 ? (
-        <p className="accounting-register__state">
-          Không có chuyến phù hợp trong kỳ đã chọn.{' '}
-          <button type="button" onClick={onReset}>
-            Xóa bộ lọc tìm kiếm
-          </button>
-        </p>
+        <EmptyState
+          className="accounting-register__empty"
+          title="Không có chuyến phù hợp trong kỳ đã chọn"
+          description="Nới rộng kỳ làm việc hoặc xóa bộ lọc để xem lại toàn bộ chuyến đủ điều kiện tài chính."
+          action={
+            hasActiveFilters ? (
+              <button type="button" className="btn btn--secondary btn--sm" onClick={onReset}>
+                Xóa bộ lọc tìm kiếm
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
-        <>
-          <div className="accounting-register__table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Chuyến</th>
-                  <th>Khách hàng</th>
-                  <th>Nhà xe</th>
-                  <th className="accounting-money">Doanh thu</th>
-                  <th className="accounting-money">Chi phí</th>
-                  <th className="accounting-money">Lợi nhuận</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <TransportTableRow
-                    key={row.financialPostingId}
-                    row={row}
-                    selected={selectedIds.has(row.tripId)}
-                    onToggle={() => toggleRow(row)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="accounting-register__cards">
-            {rows.map((row) => (
-              <TransportCard
-                key={row.financialPostingId}
-                row={row}
-                selected={selectedIds.has(row.tripId)}
-                onToggle={() => toggleRow(row)}
-              />
-            ))}
-          </div>
-        </>
+        <div className="record-table-wrap accounting-register__wrap">
+          <table className="record-table ops-table accounting-register__table">
+            <thead>
+              <tr>
+                <th>Chuyến</th>
+                <th>Khách hàng</th>
+                <th>Nhà xe</th>
+                <th className="num">Doanh thu</th>
+                <th className="num">Chi phí</th>
+                <th className="num">Lợi nhuận</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <TransportTableRow
+                  key={row.financialPostingId}
+                  row={row}
+                  selected={selectedIds.has(row.tripId)}
+                  onToggle={() => toggleRow(row)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {selectedRows.length > 0 && (
@@ -281,16 +279,33 @@ function TransportTableRow({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const tripLabel = row.tripCode ?? 'chưa có mã';
+  const tripLabel = row.tripCode ?? 'Chuyến chưa có mã';
+  const ready = row.readiness.status === 'READY';
+
+  // The whole row toggles selection (dense-ledger guideline), but the in-cell
+  // checkbox label and the debt link keep their own behavior — clicks on them
+  // must not double-fire the row toggle.
+  const stop = (event: MouseEvent) => event.stopPropagation();
 
   return (
-    <tr>
-      <td>
-        <label className="accounting-row-check">
+    <tr
+      className={selected ? 'is-selected' : undefined}
+      role="button"
+      tabIndex={ready ? 0 : -1}
+      aria-disabled={ready ? undefined : true}
+      onClick={ready ? onToggle : undefined}
+      onKeyDown={(event) => {
+        if (!ready || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        onToggle();
+      }}
+    >
+      <td data-label="Chuyến">
+        <label className="accounting-row-check" onClick={stop}>
           <input
             type="checkbox"
             checked={selected}
-            disabled={row.readiness.status !== 'READY'}
+            disabled={!ready}
             onChange={onToggle}
             aria-label={`Chọn chuyến ${tripLabel}`}
           />
@@ -300,88 +315,32 @@ function TransportTableRow({
           </span>
         </label>
       </td>
-      <td>{row.customerName}</td>
-      <td>{row.ownership === 'OWN' ? 'Xe nhà' : row.carrierName ?? 'Nhà xe ngoài'}</td>
-      <td className="accounting-money">{formatCurrency(Number(row.revenue ?? 0))}</td>
-      <td className="accounting-money">{formatCurrency(Number(row.directCost ?? 0))}</td>
-      <td className="accounting-money">{formatCurrency(Number(row.profit ?? 0))}</td>
-      <td>
+      <td data-label="Khách hàng">{row.customerName}</td>
+      <td data-label="Nhà xe">
+        {row.ownership === 'OWN' ? 'Xe nhà' : row.carrierName ?? 'Nhà xe ngoài'}
+        {row.ownership === 'EXTERNAL' && (
+          <small className="accounting-register__payable">
+            Phải trả NXC {formatCurrency(Number(row.carrierPayable))}
+          </small>
+        )}
+      </td>
+      <td data-label="Doanh thu" className="num">{formatCurrency(Number(row.revenue ?? 0))}</td>
+      <td data-label="Chi phí" className="num">{formatCurrency(Number(row.directCost ?? 0))}</td>
+      <td data-label="Lợi nhuận" className="num">{formatCurrency(Number(row.profit ?? 0))}</td>
+      <td data-label="Trạng thái">
         <span
           className={`accounting-status accounting-status--${
-            row.readiness.status === 'READY' ? 'ready' : 'missing'
+            ready ? 'ready' : 'missing'
           }`}
         >
           {transportReadinessLabel(row)}
         </span>
       </td>
-      <td>
-        <Link to={routes.debtDetail(row.customerId)}>Công nợ</Link>
+      <td data-label="" className="record-table__action">
+        <Link to={routes.debtDetail(row.customerId)} onClick={stop}>
+          Công nợ
+        </Link>
       </td>
     </tr>
-  );
-}
-
-function TransportCard({
-  row,
-  selected,
-  onToggle,
-}: {
-  row: AccountingTransportRegisterRow;
-  selected: boolean;
-  onToggle: () => void;
-}) {
-  const tripLabel = row.tripCode ?? 'Chuyến chưa có mã';
-
-  return (
-    <article className="accounting-transport-card">
-      <header>
-        <label className="accounting-row-check">
-          <input
-            type="checkbox"
-            checked={selected}
-            disabled={row.readiness.status !== 'READY'}
-            onChange={onToggle}
-            aria-label={`Chọn ${tripLabel}`}
-          />
-          <strong>{tripLabel}</strong>
-        </label>
-        <span
-          className={`accounting-status accounting-status--${
-            row.readiness.status === 'READY' ? 'ready' : 'missing'
-          }`}
-        >
-          {transportReadinessLabel(row)}
-        </span>
-      </header>
-      <p>
-        {row.customerName} ·{' '}
-        {row.ownership === 'OWN' ? 'Xe nhà' : row.carrierName ?? 'Nhà xe ngoài'}
-      </p>
-      <p>
-        {displayBusinessDate(row.completionDate)} · {row.routeName} ·{' '}
-        {row.containerNumbers.join(', ') || 'Chưa có container'}
-      </p>
-      <dl>
-        <div>
-          <dt>Doanh thu</dt>
-          <dd>{formatCurrency(Number(row.revenue ?? 0))}</dd>
-        </div>
-        <div>
-          <dt>Chi phí</dt>
-          <dd>{formatCurrency(Number(row.directCost ?? 0))}</dd>
-        </div>
-        <div>
-          <dt>Lợi nhuận</dt>
-          <dd>{formatCurrency(Number(row.profit ?? 0))}</dd>
-        </div>
-        {row.ownership === 'EXTERNAL' && (
-          <div>
-            <dt>Phải trả nhà xe</dt>
-            <dd>{formatCurrency(Number(row.carrierPayable))}</dd>
-          </div>
-        )}
-      </dl>
-      <Link to={routes.debtDetail(row.customerId)}>Mở công nợ khách hàng</Link>
-    </article>
   );
 }
