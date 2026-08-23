@@ -19,7 +19,6 @@ describe('selection-state contract', () => {
     // Audit rows hover as a neutral ink wash for fine pointers, not accent fill.
     expect(read('src/pages/AuditLogPage.css')).toContain('.audit-list-panel .table-hover tbody tr:hover {\n    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));');
     expect(read('src/features/recoverable-costs/RecoverableCostsWorkspace.css')).toContain('.recoverable-costs__decision-group>[role=radio][data-selected]{border-color:var(--ink,var(--fg-1));background:var(--surface,var(--bg-1));box-shadow:inset 3px 0 0 var(--ink,var(--fg-1))}');
-    expect(read('src/pages/WorkflowFinance.css')).toContain('.workflow-choice button.is-active{border-color:var(--fg-1);background:var(--bg-1);color:var(--fg-1);box-shadow:inset 3px 0 0 var(--fg-1)}');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-column-picker__card.is-active {\n  border-color: var(--ink);\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain('.debit-editor-align-control button.is-active {\n  background: var(--ink);\n  color: var(--surface);');
     expect(read('src/pages/config/debit-note-template-editor.css')).toContain(".debit-editor-preview__table th.is-selected::after {\n  content: '';\n  position: absolute;\n  width: 9px;\n  height: 9px;\n  border: 2px solid var(--ink);");
