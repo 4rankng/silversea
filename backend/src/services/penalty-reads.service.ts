@@ -7,11 +7,22 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, desc, isNull, gte, lte, ilike, or, count, sum, max } from 'drizzle-orm';
-import { type PenaltyStatus } from '@tingting/shared';
+import { eq, and, desc, isNull, gte, lte, ilike, or, count, sum, max, asc, sql, type Column, type SQL } from 'drizzle-orm';
+import { type PenaltyStatus, type PenaltyListSortKey } from '@tingting/shared';
 import { escapeLikeTerm } from '../lib/format';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { currentVietnamMonthStart } from './financial-reporting-policy.service';
+
+/** Sort whitelist for the violation-log columns. Every expression rides the
+ * joins the list already makes; `reason` mirrors the displayed fallback chain
+ * (catalog reason text first, free-text reason after). */
+const PENALTY_SORT_SQL: Record<PenaltyListSortKey, SQL | Column> = {
+  driverName: s.drivers.name,
+  reason: sql`coalesce(${s.penaltyReasons.reasonText}, ${s.penalties.customReason})`,
+  date: s.penalties.date,
+  tripCode: s.trips.tripCode,
+  amount: s.penalties.amount,
+};
 
 /**
  * Filters shared by the penalty list and insights reads. Dates are ISO
@@ -25,6 +36,8 @@ export interface PenaltyListFilters {
   dateFrom?: string;
   dateTo?: string;
   status?: PenaltyStatus;
+  sortBy?: PenaltyListSortKey;
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface PenaltyInsightsMonth {
@@ -126,7 +139,14 @@ export async function getPenalties(filters: PenaltyListFilters = {}) {
       .leftJoin(s.penaltyReasons, eq(s.penalties.reasonId, s.penaltyReasons.id))
       .leftJoin(s.trips, eq(s.penalties.tripId, s.trips.id))
       .where(where)
-      .orderBy(desc(s.penalties.date), desc(s.penalties.id))
+      .orderBy(
+        ...(filters.sortBy
+          ? [
+              sql`${PENALTY_SORT_SQL[filters.sortBy]} ${filters.sortDir === 'desc' ? sql`desc` : sql`asc`} nulls last`,
+              asc(s.penalties.id),
+            ]
+          : [desc(s.penalties.date), desc(s.penalties.id)]),
+      )
       .limit(limit).offset((page - 1) * limit),
     db.select({ total: count() }).from(s.penalties)
       .leftJoin(s.drivers, eq(s.penalties.driverId, s.drivers.id))

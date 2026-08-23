@@ -80,6 +80,7 @@
 
   .summary-rail__item {
     flex-basis: 50%;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--line);
   }
 
@@ -93,13 +94,13 @@
 }
 
 @media (max-width: 380px) {
+  /* Mirrors the workboard rail's phone sheet: every item spans the full row
+     flush to the gutters (padding-inline 0, no vertical rule between stacked
+     items), separated by hairlines. */
   .summary-rail__item {
     flex-basis: 100%;
-  }
-
-  .summary-rail__item:nth-child(even) {
-    padding-right: 14px;
-    border-right: 1px solid var(--line);
+    padding-inline: 0;
+    border-right: 0;
   }
 
   .summary-rail__item:nth-child(n + 2) { border-top: 1px solid var(--line); }

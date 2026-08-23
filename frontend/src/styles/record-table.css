@@ -58,9 +58,10 @@
   /* Workboard standard (docs/design-guidelines.md §"Workboard table & summary
      rail"): --ink-2 header text on surface-2 with a 1px --line-strong
      underline — matching the /shipments table exactly. Header case and
-     tracking are intentionally NOT declared here: both /shipments and
-     record-table surfaces render uppercase via the shared table base, which
-     stays the single owner of that decision. */
+     tracking are intentionally NOT declared here: the global `thead th` rule
+     in frontend/src/components/Table.css (uppercase, 0.08em tracking) owns
+     them for every table, /shipments included — one authority, no per-page
+     re-declaration. */
   color: var(--ink-2);
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);

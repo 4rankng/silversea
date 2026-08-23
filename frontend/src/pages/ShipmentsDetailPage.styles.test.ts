@@ -103,7 +103,10 @@ describe('shipment detail workboard styling', () => {
 
   it('uses a dense intermediate ledger grid without empty half-width bands', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > td\s*\{[^}]*min-height:\s*0;[^}]*padding:\s*8px 10px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
+    // Card-collapse modes must reset the desktop 72px floor (workboard pattern:
+    // auto + 76px floor) — a definite height under overflow: hidden clips cells.
+    expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*900px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);

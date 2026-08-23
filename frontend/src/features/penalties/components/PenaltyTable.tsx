@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ShieldCheck, Download, Plus, FileText, Zap, Trophy, Users, DollarSign, XCircle, Loader2, UserRound, Search, X } from 'lucide-react';
+import { Shield, ShieldCheck, Download, Plus, FileText, Zap, Trophy, Users, DollarSign, XCircle, Loader2, UserRound, Search, X, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { Panel, Btn, KPI, PageHeader } from '../../../components/UI';
 import { Pagination, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
@@ -12,6 +12,8 @@ import { resolveEmptyIllustration } from '../../../lib/emptyIllustrations';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
+import type { TableSortState } from '../../../lib/table-sort';
+import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
   { key: 'all', label: 'Tất cả' },
@@ -34,14 +36,45 @@ function violationsInWindow(row: PenaltyInsightsScoreboardRow, window: PenaltySc
   return row.violationsYtd;
 }
 
+/** Sortable header for the violation log — shared table-sort button so the
+ * record-table typography contract stays authoritative. */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+  numeric = false,
+}: {
+  label: string;
+  sortKey: string;
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
+  numeric?: boolean;
+}) {
+  const active = sort?.by === sortKey;
+  return (
+    <th className={numeric ? 'num' : undefined} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
+        {label}
+        {active
+          ? (sort!.dir === 'asc'
+            ? <ArrowUp size={13} aria-hidden="true" />
+            : <ArrowDown size={13} aria-hidden="true" />)
+          : <ArrowUpDown size={13} aria-hidden="true" className="table-sort-button__icon--idle" />}
+      </button>
+    </th>
+  );
+}
+
 export function PenaltyTable({
-  rows,
-  total,
+  rows,  total,
   page,
   pageSize,
   totalPages,
   listLoading,
   onPageChange,
+  sort,
+  onSortChange,
   statusCounts,
   search,
   onSearchChange,
@@ -495,11 +528,11 @@ export function PenaltyTable({
                 <table className="record-table ops-table penalty-log-table">
                   <thead>
                     <tr>
-                      <th>Lái xe</th>
-                      <th>Lý do</th>
-                      <th>Ngày</th>
-                      <th>Chuyến</th>
-                      <th className="num">Số tiền</th>
+                      <SortHeader label="Lái xe" sortKey="driverName" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Lý do" sortKey="reason" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Ngày" sortKey="date" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
+                      <SortHeader label="Số tiền" sortKey="amount" sort={sort} onSortChange={onSortChange} numeric />
                       {canCancel && <th style={{ width: 44 }}></th>}
                     </tr>
                   </thead>

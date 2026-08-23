@@ -18,6 +18,7 @@ import { CancelPenaltyDialog } from '../features/penalties/components/CancelPena
 import type { PenaltyStatusFilter } from '../features/penalties/components/penalty-table-types';
 import { qk } from '../api/keys';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
+import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import './PenaltyPage.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -111,6 +112,21 @@ export default function PenaltyPage() {
 
   const monthLabel = `${String(selMonth).padStart(2, '0')}/${String(selYear).slice(-2)}`;
 
+  // Column sort rides the same filters bag as every other list param —
+  // setFilter resets the page to 1 and keys the query cache on primitives.
+  const sort: TableSortState | null = filters.sortBy
+    ? { by: filters.sortBy, dir: filters.sortDir === 'desc' ? 'desc' : 'asc' }
+    : null;
+  const handleSortChange = useCallback((key: string) => {
+    const next = nextTableSort(sort, key);
+    table.setFilters({
+      ...table.filters,
+      ...(salaryPeriod ? { dateFrom: salaryPeriod.start, dateTo: salaryPeriod.end } : {}),
+      sortBy: next.by,
+      sortDir: next.dir,
+    });
+  }, [sort, table, salaryPeriod]);
+
   return (
     <div ref={rootRef} className="penalty-page">
       <Breadcrumbs
@@ -128,6 +144,8 @@ export default function PenaltyPage() {
         totalPages={table.totalPages}
         listLoading={table.isLoading || periodLoading || !salaryPeriod}
         onPageChange={table.setPage}
+        sort={sort}
+        onSortChange={handleSortChange}
         statusCounts={table.query.data?.statusCounts}
         search={table.search}
         onSearchChange={table.setSearch}

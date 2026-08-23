@@ -775,10 +775,11 @@ const CREDIT_OVERRIDE_SORT_SQL: Record<CreditOverrideSortKey, CreditOverrideSort
 
 /**
  * Keyset continuation for an engaged column sort: rows that come AFTER the
- * cursor row under (`expr dir nulls last`, `id desc`). With nulls last, a
- * non-null cursor value is followed by the remaining non-null rows in sort
- * direction plus every NULL row; a NULL cursor value is followed only by NULL
- * rows with a smaller id.
+ * cursor row under (`expr dir nulls last`, `id desc`). Asc order continues
+ * with LARGER values, desc with smaller ones. With nulls last, a non-null
+ * cursor value is followed by the remaining non-null rows in sort direction
+ * plus every NULL row; a NULL cursor value is followed only by NULL rows
+ * with a smaller id.
  */
 function creditOverrideSortContinuation(
   spec: CreditOverrideSortSpec,
@@ -790,7 +791,7 @@ function creditOverrideSortContinuation(
     return sql`(${spec.expr}) is null and ${idCol} < ${cursor.id}`;
   }
   const castValue = sql`cast(${cursor.sortValue} as ${sql.raw(spec.cast)})`;
-  const after = dir === 'asc' ? sql`<` : sql`>`;
+  const after = dir === 'asc' ? sql`>` : sql`<`;
   return sql`(
     ((${spec.expr}) is not null and (
       (${spec.expr}) ${after} ${castValue}

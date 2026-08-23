@@ -467,6 +467,78 @@ describe('Q01/Q02 credit override routes', () => {
     assert.equal(staleApprove.status, 409);
   });
 
+  test('sorts the queue by whitelisted columns with sort-aware cursor pagination', async () => {
+    const customer = await mkCustomer('10000000');
+    await mkLedger(customer.id, 10_600_000);
+
+    // Amounts chosen so numeric and lexicographic order differ.
+    const amounts = [400_000, 100_000, 300_000, 200_000];
+    for (const [index, amount] of amounts.entries()) {
+      const created = await request('/api/finance/credit-overrides', {
+        method: 'POST',
+        token: managerToken,
+        idempotencyKey: `q01-credit-sort-${customer.id}-${index}`,
+        body: {
+          customerId: customer.id,
+          proposedAmount: amount,
+          expiresAt: futureExpiry,
+          reason: `Đề nghị sắp xếp ${amount}`,
+        },
+      });
+      assert.equal(created.status, 201);
+    }
+
+    const listUrl = (params: string) =>
+      `/api/finance/credit-overrides?customerId=${customer.id}&status=PENDING&${params}`;
+    const amountsOf = (body: { items: Array<{ proposedAmount: string }> }) =>
+      body.items.map((item) => Number(item.proposedAmount));
+
+    // Asc walk over two pages: page 1 hands back a sort-keyed cursor that
+    // page 2 continues exactly (numeric order, no dupes, no skips).
+    const ascPage1 = await request(
+      listUrl('limit=2&sortBy=proposedAmount&sortDir=asc'),
+      { token: managerToken },
+    );
+    assert.equal(ascPage1.status, 200);
+    assert.deepEqual(amountsOf(ascPage1.body), [100_000, 200_000]);
+    assert.equal(ascPage1.body.hasMore, true);
+
+    const ascPage2 = await request(
+      listUrl(`limit=2&sortBy=proposedAmount&sortDir=asc&cursor=${encodeURIComponent(ascPage1.body.nextCursor)}`),
+      { token: managerToken },
+    );
+    assert.equal(ascPage2.status, 200);
+    assert.deepEqual(amountsOf(ascPage2.body), [300_000, 400_000]);
+    assert.equal(ascPage2.body.hasMore, false);
+
+    // Desc inverts the whole set on one page.
+    const desc = await request(
+      listUrl('limit=10&sortBy=proposedAmount&sortDir=desc'),
+      { token: managerToken },
+    );
+    assert.deepEqual(amountsOf(desc.body), [400_000, 300_000, 200_000, 100_000]);
+
+    // A sorted cursor cannot continue under a different direction…
+    const mismatchedDir = await request(
+      listUrl(`limit=2&sortBy=proposedAmount&sortDir=desc&cursor=${encodeURIComponent(ascPage1.body.nextCursor)}`),
+      { token: managerToken },
+    );
+    assert.equal(mismatchedDir.status, 400);
+
+    // …and a default-order cursor cannot continue a sorted request.
+    const defaultPage = await request(listUrl('limit=2'), { token: managerToken });
+    assert.equal(defaultPage.status, 200);
+    const reusedCursor = await request(
+      listUrl(`limit=2&sortBy=proposedAmount&sortDir=asc&cursor=${encodeURIComponent(defaultPage.body.nextCursor)}`),
+      { token: managerToken },
+    );
+    assert.equal(reusedCursor.status, 400);
+
+    // Absent sort params keep the newest-first default exactly (the 200k
+    // request was created last).
+    assert.equal(Number(defaultPage.body.items[0].proposedAmount), 200_000);
+  });
+
   test('lists filtered history through a stable cursor during concurrent inserts and status changes', async () => {
     const customer = await mkCustomer('10000000');
     await mkLedger(customer.id, 10_500_000);

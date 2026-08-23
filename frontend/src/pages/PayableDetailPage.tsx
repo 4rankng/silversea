@@ -18,8 +18,11 @@ import { qk } from '../api/keys';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
 import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
+import { SortHeader } from '../components/shared/SortHeader';
+import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import './DebtDetailPage.css';
+import '../styles/table-sort.css';
 
 const TXN_META: Record<string, { label: string; pill: string }> = {
   [TxnType.VENDOR_EXPENSE]:  { label: 'Ghi nhận chi phí',   pill: 'dd-txn-pill dd-txn-pill--pen' },
@@ -32,6 +35,46 @@ const TXN_META: Record<string, { label: string; pill: string }> = {
 const DEFAULT_META = { label: 'KHÁC', pill: 'dd-txn-pill dd-txn-pill--other' };
 
 type LedgerFilter = 'all' | typeof TxnType.VENDOR_EXPENSE | typeof TxnType.VENDOR_PAYMENT | typeof TxnType.ADJUSTMENT | typeof TxnType.FUEL_EXPENSE | typeof TxnType.EXTERNAL_CARRIER_COST;
+
+/* ─── Client-side ledger column sorts ──────────────────────────────────────── */
+// The statement is a full-set, non-paginated fetch, so sorting happens
+// in-page; the server's chronological order stays until a header is used.
+// Each filter chip renders a different header set, so each view carries its
+// own accessors and the sort resets when the chip changes.
+
+const LEDGER_TIEBREAKER = (a: LedgerEntry, b: LedgerEntry) => a.id - b.id;
+
+const ALL_VIEW_ACCESSORS = {
+  timestamp: (row: LedgerEntry) => row.timestamp,
+  reference: (row: LedgerEntry) => row.receiptId ?? row.tripCode ?? row.note ?? null,
+  txnType: (row: LedgerEntry) => (TXN_META[row.txnType] ?? DEFAULT_META).label,
+  credit: (row: LedgerEntry) => parseFloat(row.credit) || 0,
+  debit: (row: LedgerEntry) => parseFloat(row.debit) || 0,
+  balance: (row: LedgerEntry) => parseFloat(row.balance) || 0,
+  note: (row: LedgerEntry) => row.note || null,
+} as const;
+
+const FUEL_VIEW_ACCESSORS = {
+  timestamp: (row: LedgerEntry) => row.fuelDetails?.departureDate ?? row.timestamp,
+  truckPlate: (row: LedgerEntry) => row.fuelDetails?.truckPlate ?? null,
+  routeName: (row: LedgerEntry) => row.fuelDetails?.routeName ?? null,
+  liters: (row: LedgerEntry) => (row.fuelDetails?.liters != null ? Number(row.fuelDetails.liters) : null),
+  unitPrice: (row: LedgerEntry) => (row.fuelDetails?.unitPrice != null ? Number(row.fuelDetails.unitPrice) : null),
+  amount: (row: LedgerEntry) => Number(row.fuelDetails?.amount ?? row.credit) || null,
+  balance: (row: LedgerEntry) => parseFloat(row.balance) || 0,
+  reference: (row: LedgerEntry) => row.tripCode ?? row.note ?? null,
+} as const;
+
+const EXPENSE_VIEW_ACCESSORS = {
+  timestamp: (row: LedgerEntry) => row.expenseDetails?.expenseDate ?? row.timestamp,
+  vehiclePlate: (row: LedgerEntry) => row.expenseDetails?.vehiclePlate ?? null,
+  categoryName: (row: LedgerEntry) => row.expenseDetails?.categoryName ?? null,
+  reference: (row: LedgerEntry) => row.receiptId || row.note || row.expenseDetails?.categoryName || null,
+  credit: (row: LedgerEntry) => parseFloat(row.credit) || 0,
+  debit: (row: LedgerEntry) => parseFloat(row.debit) || 0,
+  balance: (row: LedgerEntry) => parseFloat(row.balance) || 0,
+  note: (row: LedgerEntry) => row.note || null,
+} as const;
 
 const FILTER_OPTIONS: { key: LedgerFilter; label: string }[] = [
   { key: 'all',                     label: 'Tất cả' },
@@ -82,6 +125,14 @@ export default function PayableDetailPage() {
   useBackShortcut(handleBack);
 
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all');
+  const [ledgerSort, setLedgerSort] = useState<TableSortState | null>(null);
+  const handleLedgerSort = (key: string) => setLedgerSort(current => nextTableSort(current, key));
+  // Header sets differ per chip view — dropping the sort on switch keeps the
+  // active header and the visible column set in sync.
+  const changeLedgerFilter = (filter: LedgerFilter) => {
+    setLedgerFilter(filter);
+    setLedgerSort(null);
+  };
   const isPeriodDirty = period.mode !== appliedPeriod.mode
     || period.month !== appliedPeriod.month
     || period.year !== appliedPeriod.year
@@ -127,6 +178,16 @@ export default function PayableDetailPage() {
     if (ledgerFilter === 'all') return typedStatement.ledgerRows;
     return typedStatement.ledgerRows.filter((r: LedgerEntry) => r.txnType === ledgerFilter);
   }, [typedStatement, ledgerFilter]);
+
+  const ledgerAccessors = ledgerFilter === TxnType.FUEL_EXPENSE
+    ? FUEL_VIEW_ACCESSORS
+    : ledgerFilter === TxnType.VENDOR_EXPENSE
+      ? EXPENSE_VIEW_ACCESSORS
+      : ALL_VIEW_ACCESSORS;
+  const sortedLedgerRows = useMemo(
+    () => sortClientSide(filteredRows, ledgerSort, ledgerAccessors, LEDGER_TIEBREAKER),
+    [filteredRows, ledgerSort, ledgerAccessors],
+  );
 
   const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
 
@@ -373,7 +434,7 @@ export default function PayableDetailPage() {
               <button
                 key={f.key}
                 className={`dd-filter-chip${ledgerFilter === f.key ? ' dd-filter-chip--on' : ''}`}
-                onClick={() => setLedgerFilter(f.key)}
+                onClick={() => changeLedgerFilter(f.key)}
               >
                 {f.label}
               </button>
@@ -420,40 +481,40 @@ export default function PayableDetailPage() {
               <thead>
                 {ledgerFilter === TxnType.FUEL_EXPENSE ? (
                   <tr>
-                    <th>NGÀY</th>
-                    <th>BIỂN SỐ XE</th>
-                    <th>TUYẾN VẬN CHUYỂN</th>
-                    <th className="dd-r">SỐ LÍT DẦU</th>
-                    <th className="dd-r">ĐƠN GIÁ</th>
-                    <th className="dd-r">THÀNH TIỀN</th>
-                    <th className="dd-r">SỐ DƯ</th>
-                    <th>ĐỐI CHIẾU</th>
+                    <SortHeader label="NGÀY" sortKey="timestamp" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="BIỂN SỐ XE" sortKey="truckPlate" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="TUYẾN VẬN CHUYỂN" sortKey="routeName" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="SỐ LÍT DẦU" sortKey="liters" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="ĐƠN GIÁ" sortKey="unitPrice" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="THÀNH TIỀN" sortKey="amount" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="SỐ DƯ" sortKey="balance" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="ĐỐI CHIẾU" sortKey="reference" sort={ledgerSort} onSortChange={handleLedgerSort} />
                   </tr>
                 ) : ledgerFilter === TxnType.VENDOR_EXPENSE ? (
                   <tr>
-                    <th>NGÀY</th>
-                    <th>BIỂN SỐ XE</th>
-                    <th>HẠNG MỤC</th>
-                    <th>ĐỐI CHIẾU</th>
-                    <th className="dd-r">PHÁT SINH PHẢI TRẢ</th>
-                    <th className="dd-r">ĐÃ THANH TOÁN</th>
-                    <th className="dd-r">SỐ DƯ</th>
-                    <th>GHI CHÚ</th>
+                    <SortHeader label="NGÀY" sortKey="timestamp" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="BIỂN SỐ XE" sortKey="vehiclePlate" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="HẠNG MỤC" sortKey="categoryName" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="ĐỐI CHIẾU" sortKey="reference" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="PHÁT SINH PHẢI TRẢ" sortKey="credit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="ĐÃ THANH TOÁN" sortKey="debit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="SỐ DƯ" sortKey="balance" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="GHI CHÚ" sortKey="note" sort={ledgerSort} onSortChange={handleLedgerSort} />
                   </tr>
                 ) : (
                   <tr>
-                    <th>NGÀY</th>
-                    <th>ĐỐI CHIẾU</th>
-                    <th>LOẠI GIAO DỊCH</th>
-                    <th className="dd-r">PHÁT SINH PHẢI TRẢ</th>
-                    <th className="dd-r">ĐÃ THANH TOÁN</th>
-                    <th className="dd-r">SỐ DƯ</th>
-                    <th>GHI CHÚ</th>
+                    <SortHeader label="NGÀY" sortKey="timestamp" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="ĐỐI CHIẾU" sortKey="reference" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="LOẠI GIAO DỊCH" sortKey="txnType" sort={ledgerSort} onSortChange={handleLedgerSort} />
+                    <SortHeader label="PHÁT SINH PHẢI TRẢ" sortKey="credit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="ĐÃ THANH TOÁN" sortKey="debit" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="SỐ DƯ" sortKey="balance" sort={ledgerSort} onSortChange={handleLedgerSort} className="dd-r" />
+                    <SortHeader label="GHI CHÚ" sortKey="note" sort={ledgerSort} onSortChange={handleLedgerSort} />
                   </tr>
                 )}
               </thead>
               <tbody>
-                {filteredRows.map((row: LedgerEntry) => (
+                {sortedLedgerRows.map((row: LedgerEntry) => (
                   ledgerFilter === TxnType.FUEL_EXPENSE
                     ? <FuelLedgerRow key={row.id} row={row} />
                     : ledgerFilter === TxnType.VENDOR_EXPENSE

@@ -9,6 +9,7 @@ const {
   checkMutateAsyncMock,
   currentUserState,
   creditQueueState,
+  creditQueueFiltersSpy,
   queueRefetchMock,
   rejectMutateAsyncMock,
 } = vi.hoisted(() => ({
@@ -30,6 +31,7 @@ const {
     isError: false,
     error: null as Error | null,
   },
+  creditQueueFiltersSpy: vi.fn(),
   queueRefetchMock: vi.fn(),
   rejectMutateAsyncMock: vi.fn(),
 }));
@@ -55,7 +57,14 @@ vi.mock('../hooks/useCatalogs', () => ({
 }));
 
 vi.mock('../hooks/useCreditOverrideQueries', () => ({
-  useCreditOverrideQueue: (filters: { customerId?: number; cursor?: string; limit?: number }) => {
+  useCreditOverrideQueue: (filters: {
+    customerId?: number;
+    cursor?: string;
+    limit?: number;
+    sortBy?: string;
+    sortDir?: string;
+  }) => {
+    creditQueueFiltersSpy(filters);
     const filteredItems = filters.customerId
       ? creditQueueState.data.items.filter((request) => request.customerId === filters.customerId)
       : creditQueueState.data.items;
@@ -397,5 +406,37 @@ describe('CreditOverrideQueuePage', () => {
         reason: 'Thiếu bằng chứng thanh toán bổ sung.',
       },
     }));
+  });
+
+  it('sorts server-side: header click sends sortBy/sortDir and restarts pagination', async () => {
+    // 26 rows so the cursor-paginated queue has a page 2 to abandon.
+    creditQueueState.data.items = Array.from({ length: 26 }, (_, index) =>
+      makeRequest({ id: 800 + index }));
+    renderPage();
+
+    await screen.findAllByRole('columnheader', { name: 'Khách hàng' });
+    const lastFilters = () => creditQueueFiltersSpy.mock.calls.at(-1)?.[0]
+      as { cursor?: string; sortBy?: string; sortDir?: string };
+    expect(lastFilters().sortBy).toBeUndefined();
+
+    // Move to page 2 first so the sort's pagination reset is observable.
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(lastFilters().cursor).toBe('cursor:25'));
+
+    // Fresh column starts ascending, back on page 1 (no cursor).
+    fireEvent.click(screen.getByRole('button', { name: 'Giá trị đề nghị' }));
+    await waitFor(() => {
+      expect(lastFilters().sortBy).toBe('proposedAmount');
+      expect(lastFilters().sortDir).toBe('asc');
+      expect(lastFilters().cursor).toBeUndefined();
+    });
+
+    // Same header flips to descending, still restarting pagination.
+    fireEvent.click(screen.getByRole('button', { name: 'Giá trị đề nghị' }));
+    await waitFor(() => {
+      expect(lastFilters().sortBy).toBe('proposedAmount');
+      expect(lastFilters().sortDir).toBe('desc');
+      expect(lastFilters().cursor).toBeUndefined();
+    });
   });
 });

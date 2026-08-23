@@ -359,4 +359,39 @@ describe('FuelInvoicesPanel', () => {
       expectedVersion: 3,
     }));
   });
+
+  it('sorts columns client-side: money sorts numerically, asc flips to desc, default order intact', () => {
+    setRole(Role.MANAGER);
+    // Server order (by id) deliberately not ascending by amount.
+    useFuelInvoicesMock.mockReturnValue({
+      data: [
+        makeInvoice({ id: 1, invoiceNumber: 'HD-PTX-001', totalAmount: '3000000' }),
+        makeInvoice({ id: 2, invoiceNumber: 'HD-PTX-002', totalAmount: '1000000' }),
+        makeInvoice({ id: 3, invoiceNumber: 'HD-PTX-003', totalAmount: '2000000' }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    const { container } = renderPanel();
+    const order = () =>
+      [...container.querySelectorAll('.fuel-invoices-table tbody tr')]
+        .map(row => row.querySelector('.fuel-invoice-cell-title')?.textContent ?? '');
+
+    expect(order()).toEqual(['HD-PTX-001', 'HD-PTX-002', 'HD-PTX-003']);
+    expect(screen.getByRole('columnheader', { name: 'Thành tiền' }).getAttribute('aria-sort')).toBe('none');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thành tiền' }));
+    expect(order()).toEqual(['HD-PTX-002', 'HD-PTX-003', 'HD-PTX-001']);
+    expect(screen.getByRole('columnheader', { name: 'Thành tiền' }).getAttribute('aria-sort')).toBe('ascending');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thành tiền' }));
+    expect(order()).toEqual(['HD-PTX-001', 'HD-PTX-003', 'HD-PTX-002']);
+    expect(screen.getByRole('columnheader', { name: 'Thành tiền' }).getAttribute('aria-sort')).toBe('descending');
+
+    // A fresh column starts ascending.
+    fireEvent.click(screen.getByRole('button', { name: 'Hóa đơn' }));
+    expect(order()).toEqual(['HD-PTX-001', 'HD-PTX-002', 'HD-PTX-003']);
+    expect(screen.getByRole('columnheader', { name: 'Hóa đơn' }).getAttribute('aria-sort')).toBe('ascending');
+  });
 });

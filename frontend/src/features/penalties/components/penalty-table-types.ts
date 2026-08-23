@@ -1,5 +1,6 @@
 import type { Driver, PenaltyReason, PenaltyStatus } from '@tingting/shared';
 import type { PenaltyInsights, PenaltyRow, PenaltyStatusCounts } from '../../../hooks/usePenalties';
+import type { TableSortState } from '../../../lib/table-sort';
 
 /** Log status chip values — 'all' clears the server `status` param. */
 export type PenaltyStatusFilter = 'all' | PenaltyStatus;
@@ -16,6 +17,9 @@ export interface PenaltyTableProps {
   totalPages: number;
   listLoading: boolean;
   onPageChange: (page: number) => void;
+  /** Active column sort — server-side via the list endpoint's sortBy/sortDir. */
+  sort: TableSortState | null;
+  onSortChange: (key: string) => void;
   /** Full-set status counts from the list envelope — backs the chip counts. */
   statusCounts?: PenaltyStatusCounts;
   // Filters (search is debounced + page-resetting inside the hook)

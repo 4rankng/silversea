@@ -399,8 +399,10 @@ export type {
 export {
   penaltyListQuerySchema,
   penaltyInsightsQuerySchema,
+  PENALTY_LIST_SORT_KEYS,
 } from './schemas/penalty-list';
 export type {
   PenaltyListQuery,
   PenaltyInsightsQuery,
+  PenaltyListSortKey,
 } from './schemas/penalty-list';

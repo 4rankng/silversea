@@ -493,6 +493,52 @@ describe('audit-log route accountant scope', () => {
     );
   });
 
+  test('explicit sorts order rows server-side; absent params keep newest-first default', async () => {
+    const sortMarker = `audit-sort-${suffix}`;
+    const names = ['zeta', 'alpha', 'midway'];
+    const timestamps = ['2026-01-03T00:00:00.000Z', '2026-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z'];
+    for (let i = 0; i < names.length; i += 1) {
+      const [row] = await db.insert(s.auditLogs).values({
+        userId: adminId,
+        actorName: `${names[i]} ${sortMarker}`,
+        message: `${sortMarker} message ${names[i]}`,
+        entityType: 'audit-sort',
+        entityId: i + 1,
+        ipAddress: '10.0.0.8',
+        timestamp: new Date(timestamps[i]),
+        payload: { event: 'AUDIT_SORT_PROBE', path: '/api/audit-logs' },
+      }).returning();
+      createdAuditLogIds.push(row.id);
+    }
+
+    const adminViewer = { userId: adminId, role: Role.ADMIN };
+    const ids = (result: Awaited<ReturnType<typeof queryAuditLogs>>) => result.items.map((item) => item.userName);
+
+    // Default: no sort params → newest first by id (insert order reversed).
+    const unsorted = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, viewer: adminViewer });
+    assert.equal(unsorted.items.length, 3);
+    assert.deepEqual(
+      unsorted.items.map((item) => item.id),
+      [...unsorted.items].sort((a, b) => b.id - a.id).map((item) => item.id),
+    );
+
+    // userName asc/desc are exact mirrors (alpha < midway < zeta).
+    const nameAsc = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, sortBy: 'userName', sortDir: 'asc', viewer: adminViewer });
+    assert.deepEqual(ids(nameAsc).map((name) => name.split(' ')[0]), ['alpha', 'midway', 'zeta']);
+    const nameDesc = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, sortBy: 'userName', sortDir: 'desc', viewer: adminViewer });
+    assert.deepEqual(ids(nameDesc).map((name) => name.split(' ')[0]), ['zeta', 'midway', 'alpha']);
+
+    // timestamp asc = oldest first regardless of insert order.
+    const timeAsc = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, sortBy: 'timestamp', sortDir: 'asc', viewer: adminViewer });
+    assert.deepEqual(ids(timeAsc).map((name) => name.split(' ')[0]), ['alpha', 'midway', 'zeta']);
+    const timeDesc = await queryAuditLogs({ page: 1, limit: 10, search: sortMarker, sortBy: 'timestamp', sortDir: 'desc', viewer: adminViewer });
+    assert.deepEqual(ids(timeDesc).map((name) => name.split(' ')[0]), ['zeta', 'midway', 'alpha']);
+
+    // Route rejects sort keys outside the whitelist.
+    const hostile = await request(`?search=${encodeURIComponent(sortMarker)}&sortBy=password`, { method: 'GET', token: adminToken });
+    assert.equal(hostile.status, 400);
+  });
+
   test('ACCOUNTANT resolves every supported customer-scope branch and keeps pagination/count parity', async () => {
     const assignmentMarker = `o02-assigned-${suffix}`;
     const assignedCustomer = await insertCustomer(`O02 assigned ${suffix}`);

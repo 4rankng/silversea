@@ -1134,17 +1134,17 @@ export function LinkedSupplierPayableLedger({
           <table className="dd-table dd-detail-table">
             <thead>
               <tr>
-                <th>Ngày</th>
-                <th>Đối chiếu</th>
-                <th>Loại giao dịch</th>
-                <th className="dd-r">Phải trả</th>
-                <th className="dd-r">Đã trả</th>
-                <th className="dd-r">Số dư</th>
-                <th>Ghi chú</th>
+                <SortHeader label="Ngày" sortKey="timestamp" sort={sort} onSortChange={handleSortChange} />
+                <SortHeader label="Đối chiếu" sortKey="reference" sort={sort} onSortChange={handleSortChange} />
+                <SortHeader label="Loại giao dịch" sortKey="txnType" sort={sort} onSortChange={handleSortChange} />
+                <SortHeader label="Phải trả" sortKey="payable" sort={sort} onSortChange={handleSortChange} className="dd-r" />
+                <SortHeader label="Đã trả" sortKey="paid" sort={sort} onSortChange={handleSortChange} className="dd-r" />
+                <SortHeader label="Số dư" sortKey="balance" sort={sort} onSortChange={handleSortChange} className="dd-r" />
+                <SortHeader label="Ghi chú" sortKey="note" sort={sort} onSortChange={handleSortChange} />
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => <LinkedSupplierPayableRow key={row.id} row={row} />)}
+              {sortedRows.map(row => <LinkedSupplierPayableRow key={row.id} row={row} />)}
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="dd-table-empty">{emptyMessage}</td>

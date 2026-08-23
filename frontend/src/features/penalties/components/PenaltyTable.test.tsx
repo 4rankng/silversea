@@ -61,6 +61,8 @@ const baseProps: PenaltyTableProps = {
   totalPages: 1,
   listLoading: false,
   onPageChange: vi.fn(),
+  sort: null,
+  onSortChange: vi.fn(),
   statusCounts: undefined,
   search: '',
   onSearchChange: vi.fn(),
@@ -89,6 +91,29 @@ function renderTable(props: Partial<PenaltyTableProps> = {}) {
 }
 
 describe('PenaltyTable', () => {
+  it('marks every violation-log header sortable and reports the active sort', () => {
+    const onSortChange = vi.fn();
+    const { rerender } = renderTable({ rows: [row()], total: 1, sort: null, onSortChange });
+
+    const headers = [...document.querySelectorAll('.penalty-log-table thead th')];
+    const sortable = headers.filter((th) => th.querySelector('button.table-sort-button'));
+    // Lái xe / Lý do / Ngày / Chuyến / Số tiền — the cancel column stays decorative.
+    expect(sortable).toHaveLength(5);
+    expect(headers.every((th) => th.getAttribute('aria-sort') === 'none')).toBe(true);
+
+    fireEvent.click(within(sortable[4]).getByRole('button'));
+    expect(onSortChange).toHaveBeenCalledWith('amount');
+
+    rerender(
+      <MemoryRouter>
+        <PenaltyTable {...baseProps} rows={[row()]} total={1} sort={{ by: 'amount', dir: 'asc' }} onSortChange={onSortChange} />
+      </MemoryRouter>,
+    );
+    const amountHeader = [...document.querySelectorAll('.penalty-log-table thead th')]
+      .find((th) => th.textContent?.includes('Số tiền'));
+    expect(amountHeader?.getAttribute('aria-sort')).toBe('ascending');
+  });
+
   it('renders the violation log as a record table with data-labels and Money cells', () => {
     renderTable({ rows: [row()], total: 1 });
 

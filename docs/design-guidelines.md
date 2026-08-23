@@ -161,16 +161,18 @@ are their sanctioned contract.
 sticky thead on `--sticky-thead-top` with `--surface-2` background,
 `--ink-2` header text at `--ops-table-header-*` tokens (11px/600), padding
 10px 12px, and a `1px solid var(--line-strong)` underline. Header case and
-tracking are owned by the shared table base (rendered uppercase, exactly as
-`/shipments` displays) — pages never re-declare `text-transform` or
-`letter-spacing` on a thead; a conformed table's computed thead matches the
-workboard's property for property. Body cells: padding 10px 12px,
+tracking are owned by the global `thead th` rule in
+`frontend/src/components/Table.css` (uppercase, 0.08em tracking — exactly as
+`/shipments` displays); pages never re-declare `text-transform` or
+`letter-spacing` on a thead, and a conformed table's computed thead matches
+the workboard's property for property. Body cells: padding 10px 12px,
 `--line` right/bottom hairlines (last column drops the right border),
 `vertical-align: top`, multiline stacks with the primary line at
 `--ops-table-primary-size`. Row hover is a neutral `--surface-2` wash (keep
 the fine-pointer gate from record-table.css — invisible on desktop, correct
-on touch). Rows carrying a bucket/status classification wear a full-height
-`StatusStrip` marker on the identity cell. Row height is content-driven; a
+on touch). Rows carrying a bucket/status classification wear a `StatusStrip`
+marker — the 3×20px edge marker on the identity cell — in semantic tones
+only. Row height is content-driven; a
 72px floor applies only to multiline stacked-cell ledgers. Warning tint
 stays cell-scoped to the owning cell. Adopt via the record-table recipe
 (imports + `record-table ops-table` classes + `<colgroup>` proportions +

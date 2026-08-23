@@ -28,6 +28,8 @@ export type PenaltyTableFilters = {
   driverId?: number;
   dateFrom?: string;
   dateTo?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
 };
 
 /** Full-set status counts riding the list envelope (status filter excluded,
@@ -60,6 +62,8 @@ export async function fetchPenaltiesPage(
   if (params.dateFrom) qs.set('dateFrom', params.dateFrom);
   if (params.dateTo) qs.set('dateTo', params.dateTo);
   if (params.status) qs.set('status', params.status);
+  if (params.sortBy) qs.set('sortBy', params.sortBy);
+  if (params.sortDir) qs.set('sortDir', params.sortDir);
   return api.get<PenaltyListEnvelope>(`${FINANCIAL.PENALTIES}?${qs.toString()}`);
 }
 

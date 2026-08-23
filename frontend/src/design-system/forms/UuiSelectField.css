@@ -19,13 +19,17 @@
 /*
  * React Aria's Select renders its label as a `<span data-label="true">`
  * nested inside the control wrapper, not a direct `<label>` child — target
- * the attribute so this actually matches, and size it to the same 12px the
- * text-input adapters get from their own `data-input-size="sm"` state
- * (Select never sets that attribute, so it can't reuse that mechanism).
+ * the attribute so this actually matches, and size it to the same 12px/18px
+ * the text-input adapters get from their own `data-input-size="sm"` state
+ * (Select never sets that attribute, so it can't reuse that mechanism). Both
+ * metrics matter: Tailwind's `text-sm` utility bundles a 20px line-height
+ * with its 14px size, so overriding font-size alone still leaves a 2px
+ * line-height mismatch against the input labels' `text-xs` (18px).
  */
 .ds-uui-select [data-label] {
   color: var(--fg-1);
   font-size: 12px;
+  line-height: 18px;
   font-weight: 600;
 }
 
