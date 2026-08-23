@@ -40,7 +40,6 @@ export function ShipmentQuickEditFields({
           onChange={(event) => { const tradeDirection = event.target.value as ShipmentQuickEditDraft['tradeDirection']; update({ tradeDirection, ...(tradeDirection === 'IMPORT' ? { bookingRef: '' } : tradeDirection === 'EXPORT' ? { blNumber: '' } : {}) }); }}
           disabled={saving}
           options={[{ value: '', label: 'Chưa xác định' }, { value: 'IMPORT', label: 'Nhập' }, { value: 'EXPORT', label: 'Xuất' }]}
-          inline
         />
         <label><span>Hãng tàu</span><input value={draft.shippingLineName} onChange={(event) => update({ shippingLineName: event.target.value })} maxLength={255} disabled={saving} /></label>
       </>}

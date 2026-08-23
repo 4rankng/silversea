@@ -76,6 +76,13 @@ the chrome; feature dialogs own only their field grid.
   `wrapperClassName="input"` — that produces a duplicated label and a second
   empty border. When the surrounding field already shows a label, pass
   `hideLabel` so the control stays announced exactly once.
+- **One control family per form:** do not mix a shared adapter with
+  page-styled raw controls in the same form. The vendored UUI trigger keeps
+  its own Tailwind skin — `UuiSelectField.css`'s boundary selectors target
+  `[data-input-wrapper]`/`[role='presentation']`, which this Select version
+  never renders — so the two systems drift in radius, height, and label
+  metrics. Build the form from one family, or scope a local conformance skin
+  (label + trigger metrics) to the form, as the CUS quick-edit modal does.
 - **Secondary actions:** Cancel (Hủy) in dialog and drawer footers is a
   bordered `secondary` button, never a ghost. Ghost styling is reserved for
   icon-only and low-emphasis row actions; the primary action is the only

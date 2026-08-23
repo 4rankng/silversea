@@ -945,22 +945,22 @@ export default function ShipmentsPage() {
                         <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
                           <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
                           <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
-                            <strong className="cus-customer-name">{item.customerName || '—'}</strong>
-                            <span>{item.effectiveFactoryNames.length > 0
+                            <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}</strong>
+                            <span className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
                               ? item.effectiveFactoryNames.join(' + ')
                               : item.factoryName || 'Chưa có nhà máy'}</span>
-                            <span>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
+                            <span className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
                           </span></button>
                         </th>
                         <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
-                            <strong>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-                            <span>{item.declarationNumber || 'Chưa có tờ khai'}</span>
+                            <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
+                            <span className={item.declarationNumber ? undefined : 'cus-empty'}>{item.declarationNumber || 'Chưa có tờ khai'}</span>
                           </span></button>
                         </td>
                         <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
-                            <span className="cus-classification__shipping-line">{item.shippingLineName || 'Chưa có hãng tàu'}</span>
+                            <span className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
                             {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
                             <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
                           </span></button>
@@ -968,7 +968,7 @@ export default function ShipmentsPage() {
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
                             <strong className="cus-cargo-summary__containers"><span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>{item.containerSummary || worksheetQuantity(item)}</strong>
-                            <span className="cus-cargo-summary__metrics">
+                            <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
                               {item.cargoMode === 'LCL'
                                 ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
                                 : `${formatQuantity(item.weightKg)} kg`}

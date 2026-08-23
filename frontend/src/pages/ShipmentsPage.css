@@ -565,11 +565,14 @@
   font-size: var(--ops-table-supporting-size);
 }
 
+/* Documents is two short mono lines and usually carries a placeholder, while
+   the schedule column holds the widest wrapped content (appointment groups +
+   readiness). Widths reflect that distribution, not a flat split. */
 .cus-dashboard-table col.cus-dashboard-col--customer { width: 15%; }
-.cus-dashboard-table col.cus-dashboard-col--documents { width: 12%; }
+.cus-dashboard-table col.cus-dashboard-col--documents { width: 10%; }
 .cus-dashboard-table col.cus-dashboard-col--classification { width: 11%; }
 .cus-dashboard-table col.cus-dashboard-col--cargo { width: 11%; }
-.cus-dashboard-table col.cus-dashboard-col--schedule { width: 19%; }
+.cus-dashboard-table col.cus-dashboard-col--schedule { width: 21%; }
 .cus-dashboard-table col.cus-dashboard-col--notes { width: 15%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 17%; }
 
@@ -599,7 +602,10 @@
 .cus-dashboard-table tbody > tr > th,
 .cus-dashboard-table tbody > tr > td {
   position: relative;
-  height: 86px;
+  /* Table-cell height is a floor, not a cap: rows grow with dense schedule
+     columns. 72px keeps sparse rows from reading as mostly empty space while
+     the 44px inline triggers preserve their touch targets. */
+  height: 72px;
   padding: 10px;
   overflow: hidden;
   border-right: 1px solid var(--line);
@@ -613,18 +619,37 @@
 .cus-dashboard-row:hover > th,
 .cus-dashboard-row:hover > td { background: var(--surface-2); }
 
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > th,
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td { background: var(--warning-bg, #fff8e8); }
+/* A full-row cream fill stops being a signal once waiting rows dominate a
+   page (the unfiltered view is often all-waiting). Tint only the schedule
+   cell — the one that needs the dispatcher's action — so the highlight lands
+   where "Chưa chốt ngày" already explains it. Identity keeps its per-bucket
+   status strip; the rest of the row stays neutral. */
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] { background: var(--warning-bg, #fff8e8); }
 
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > th,
-.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td { background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%); }
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting:hover > td[data-label='Lịch trình & điều xe'] { background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%); }
+
+/* The cell trigger's surface-2 hover would erase the tint from the only cell
+   that carries it; blend that hover toward the warning tone instead. The
+   trigger hover border still signals clickability. */
+.cus-dashboard-table tbody > tr.cus-dashboard-row--waiting > td[data-label='Lịch trình & điều xe'] .cus-inline-trigger:not(:disabled):hover {
+  background: color-mix(in srgb, var(--warning-bg, #fff8e8) 78%, var(--warning) 8%);
+}
 
 .cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
 
 .cus-dashboard-cell--editable { padding: 0 !important; }
 .cus-dashboard-cell--readonly { padding: 0 !important; }
-.cus-dashboard-cell--readonly > .cus-inline-trigger { cursor: default; }
-.cus-dashboard-cell--editable > .cus-inline-trigger {
+.cus-dashboard-cell--readonly > .cus-inline-trigger {
+  cursor: default;
+  /* FCL schedules are display-only here. The trigger-hover and td:hover rules
+     below would still paint a chip on this div (a div never matches :disabled),
+     so lock the resting transparent state to keep the cell from advertising
+     clicks it does not have. */
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.cus-dashboard-cell--editable > .cus-inline-trigger,
+.cus-dashboard-cell--readonly > .cus-inline-trigger {
   height: 100%;
   min-height: 100%;
   padding: 10px;
@@ -649,6 +674,9 @@
 
 .cus-multiline-cell strong { color: var(--ink); font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
 .cus-multiline-cell span { color: var(--ink-3); font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
+/* Empty-value placeholders recede below populated metadata so "no data yet"
+   stays distinguishable from short data when scanning a dense grid. */
+.cus-multiline-cell .cus-empty { color: var(--ink-4); }
 .cus-multiline-cell .cus-customer-name {
   font-size: var(--ops-table-supporting-size);
   line-height: var(--ops-table-supporting-line-height);
@@ -705,7 +733,10 @@
     "shipping-line shipping-line"
     "combined direction";
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* Content-sized rows keep the direction badge hugging the carrier line;
+     a stretched 1fr row stranded it at the bottom of tall cells. */
+  grid-template-rows: auto auto;
+  align-content: start;
   min-height: 44px;
 }
 
@@ -744,8 +775,9 @@
 .cus-combined-tag { background: var(--warning-bg, #fff8e8); color: var(--warn, #a15c00) !important; }
 
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
-   structural edge like the direction badge — never an accent fill. */
-.cus-cargo-mode-tag { margin-right: 6px; background: var(--surface-3); color: var(--ink-2) !important; }
+   structural edge like the direction badge — never an accent fill. Squared
+   corners distinguish mode (structural) from direction's full pill. */
+.cus-cargo-mode-tag { margin-right: 6px; border-radius: 4px; background: var(--surface-3); color: var(--ink-2) !important; }
 
 .cus-inline-trigger {
   display: grid;
@@ -829,6 +861,38 @@
 .cus-quick-edit-modal__help,
 .cus-quick-edit-modal__fields > .cus-inline-edit-error { grid-column: 1 / -1; margin: 0; }
 .cus-quick-edit-modal__help { color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+
+/* Classification is the modal's only shared-adapter control. The vendored UUI
+   trigger keeps its own Tailwind skin (`rounded-lg`, `border-primary`,
+   `min-h-[34px]`, `text-xs`) because UuiSelectField.css's boundary selectors
+   target `[data-input-wrapper]`/`[role='presentation']` — markup this Select
+   version never renders — so the shared skin cannot be relied on here. Conform
+   the label and trigger to this modal's approved field metrics instead of
+   restyling the shared adapter. */
+.cus-quick-edit-modal__fields .ds-uui-select__control { gap: 5px; }
+.cus-quick-edit-modal__fields .ds-uui-select label {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+}
+.cus-quick-edit-modal__fields .ds-uui-select button {
+  min-height: 38px;
+  border-color: var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+}
+.cus-quick-edit-modal__fields .ds-uui-select button p {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: var(--fw-regular);
+}
+.cus-quick-edit-modal__fields .ds-uui-select button:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand-subtle);
+  outline-offset: 1px;
+}
 
 .cus-note-preview {
   align-content: stretch;
@@ -973,6 +1037,7 @@
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
   .cus-quick-edit-modal__fields input,
   .cus-quick-edit-modal__fields select { min-height: 44px; }
+  .cus-quick-edit-modal__fields .ds-uui-select button { min-height: 44px; }
   .cus-quick-edit-modal__action { min-height: 44px; }
   .cus-row-actions { grid-template-columns: 1fr; }
 }
@@ -1255,9 +1320,28 @@
 
 .cus-finance-evidence strong { }
 
+.cus-workflow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  /* Transparent on all badges so a bordered variant keeps sibling metrics.
+     Must stay above the bucket modifiers: the border shorthand's
+     border-color would otherwise override their border-color by order. */
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+}
+
 /* Workflow badge modifiers emitted dynamically:
    `cus-workflow-badge--${item.bucket.toLowerCase()}` */
+/* The neutral NEW fill is barely distinguishable as a pill on plain surface
+   cells; a hairline edge defines it without turning it into an alarm color. */
 .cus-workflow-badge--new {
+  border-color: var(--line-2);
   background: var(--surface-3);
   color: var(--ink-2);
 }
@@ -1653,18 +1737,6 @@
 .cus-detail-content {
   overflow: visible;
   border-top: 0;
-}
-
-.cus-workflow-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: max-content;
-  max-width: 100%;
-  padding: 3px 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: var(--fw-semibold);
 }
 
 @container shipment-drawer (max-width: 700px) {

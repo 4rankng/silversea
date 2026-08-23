@@ -570,7 +570,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
     expect(screen.getByText('Chờ chốt lịch')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
-    expect(css).toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > th,[\s\S]*?\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > td\s*\{[^}]*background:/);
+    expect(css).toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > td\[data-label='Lịch trình & điều xe'\]\s*\{[^}]*background:/);
+    expect(css).not.toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting > th\s*\{/);
+    expect(css).toMatch(/--waiting > td\[data-label='Lịch trình & điều xe'\] \.cus-inline-trigger:not\(:disabled\):hover\s*\{[^}]*background:\s*color-mix/);
   });
 
   it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
@@ -782,7 +784,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).not.toContain('ReactMouseEvent');
     expect(source).toContain('data-cell-label="Chứng từ"');
     expect(css).toMatch(/\.cus-dashboard-cell--editable\s*\{[^}]*padding:\s*0 !important;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--readonly\s*\{[^}]*padding:\s*0 !important;/);
+    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger,\s*\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
+    // Read-only FCL schedule cells fill their row and stay visually inert:
+    // the transparent background/border must be locked so neither the
+    // trigger-hover rule nor the td:hover rule can repaint them.
+    expect(css).toMatch(/\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*cursor:\s*default;[^}]*background:\s*transparent !important;[^}]*border-color:\s*transparent !important;/);
     expect(css).toMatch(/\.cus-dashboard-cell--editable::before\s*\{\s*display:\s*none;/);
     expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
   });
@@ -1411,6 +1418,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
     expect(source).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
     expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
+    // Base rule must precede the bucket modifiers or its border shorthand
+    // overrides their border-color by source order.
+    expect(css.indexOf('.cus-workflow-badge {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.cus-workflow-badge {')).toBeLessThan(css.indexOf('.cus-workflow-badge--new'));
+    expect(css).toMatch(/\.cus-workflow-badge--new\s*\{[^}]*border-color:\s*var\(--line-2\);/);
   });
 
   it('emits the seven-column grouped dashboard schema from the XLSX export', async () => {
@@ -1484,11 +1496,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('keeps classification tags compact and wraps the shipping-line label', () => {
     expect(source).toContain('className="cus-multiline-cell cus-classification"');
-    expect(source).toContain('className="cus-classification__shipping-line"');
+    expect(source).toContain("className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}");
     expect(css).toMatch(/\.cus-multiline-cell \.cus-classification__shipping-line\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*grid-template-areas:[\s\S]*?"shipping-line shipping-line"[\s\S]*?"combined direction";[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/\.cus-classification \.cus-direction-badge\s*\{[^}]*grid-area:\s*direction;[^}]*align-self:\s*end;[^}]*justify-self:\s*end;/);
     expect(css).toMatch(/\.cus-direction-badge,[\s\S]*?\.cus-combined-tag\s*\{[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*min-height:\s*22px;/);
+  });
+
+  it('renders the classification quick-edit select in the modal field system', () => {
+    const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
+    const classificationSelect = quickEdit.match(/<UuiSelectField[\s\S]*?label="Xuất \/ Nhập"[\s\S]*?\/>/)?.[0] ?? '';
+    expect(classificationSelect).toContain('label="Xuất / Nhập"');
+    // `inline` is the filter-toolbar layout; inside a half-width modal column
+    // it crushed the label into a wrap.
+    expect(classificationSelect).not.toContain('inline');
+    // The vendored trigger carries its own Tailwind skin (the shared boundary
+    // selectors match markup this Select never renders), so the modal conforms
+    // label + trigger metrics locally instead of via UuiSelectField.css.
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select label\s*\{[^}]*color:\s*var\(--ink-2\);[^}]*font-size:\s*12px;[^}]*font-weight:\s*var\(--fw-semibold\);/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*38px;[^}]*border-radius:\s*7px;[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.cus-quick-edit-modal__fields \{ grid-template-columns:\s*1fr; \}[\s\S]*?\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*44px;/);
   });
 
   it('shows the full customer company name with compact wrapping instead of an ellipsis', async () => {
