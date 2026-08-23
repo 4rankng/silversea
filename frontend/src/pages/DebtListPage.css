@@ -11,121 +11,6 @@
 }
 .debt-list-page__crumbs ul { gap: 4px; }
 
-/* ════════════════════════════════════════════════════════════════════════════
- *  ZONE 1 — Hero KPI Row (page-specific overrides on shared HeroKpiRow.css)
- * ════════════════════════════════════════════════════════════════════════════ */
-
-/* Debt page: smaller gap, bottom margin */
-.debt-hero-row {
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-/* Debt page: hero card uses horizontal layout (flex row) instead of column */
-.debt-hero {
-  position: relative;
-  display: block;
-  min-height: 160px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
-  overflow: hidden;
-}
-
-.debt-hero__content {
-  position: relative;
-  z-index: 1;
-  max-width: none;
-  min-width: 0;
-}
-
-.debt-hero__amount {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  line-height: 1.35;
-}
-
-.debt-hero__amount > span,
-.debt-aging-card__amount > span {
-  line-height: 1.35;
-}
-
-.debt-hero__currency {
-  font-size: var(--fs-xs);
-  line-height: 1.35;
-  font-weight: 600;
-  opacity: 0.6;
-}
-
-.debt-hero__art {
-  position: absolute;
-  right: 14px;
-  bottom: 8px;
-  z-index: 0;
-  width: 176px;
-  height: 104px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-.debt-hero__art::before {
-  content: "";
-  position: absolute;
-  inset: 4px 6px 2px 2px;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 58%),
-    linear-gradient(150deg, rgba(0, 177, 79, 0.12), rgba(0, 177, 79, 0.01));
-  border: 1px solid rgba(0, 177, 79, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-.debt-hero__illustration {
-  position: relative;
-  z-index: 1;
-  width: 144px;
-  height: 94px;
-  object-fit: contain;
-  filter: saturate(0.92) drop-shadow(0 10px 18px rgba(15, 23, 42, 0.08));
-}
-
-/* Debt page: watermark tints for danger/warning mini KPIs */
-.hero-kpi-mini.debt-kpi-mini--danger { --stat-rail: var(--danger); }
-.hero-kpi-mini.debt-kpi-mini--warning { --stat-rail: var(--warning); }
-.debt-kpi-mini--danger .hero-kpi-mini__watermark { color: rgba(227, 36, 52, 0.14); }
-.debt-kpi-mini--warning .hero-kpi-mini__watermark { color: rgba(217, 119, 6, 0.14); }
-
-/* Debt page: colored values for danger/warning mini KPIs */
-.debt-kpi-mini--danger .hero-kpi-mini__value {
-  color: var(--danger);
-}
-
-.debt-kpi-mini--warning .hero-kpi-mini__value {
-  color: var(--warning-text);
-}
-
-.debt-kpi-mini__asset {
-  right: 12px;
-  bottom: 8px;
-}
-
-.debt-kpi-mini__asset img {
-  display: block;
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
-  opacity: 0.94;
-  filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.10));
-}
-
-/* Debt page: smaller gap in stack */
-.debt-kpi-stack {
-  gap: 14px;
-}
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  ZONE 2 — Aging Distribution Grid (4 equal glass cards)
@@ -433,33 +318,6 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 768px) {
-  /* Hero row: 2-col with hero spanning full width */
-  .debt-list-page .hero-kpi-row {
-    grid-template-columns: 1fr 1fr;
-  }
-  .debt-list-page .hero-kpi-card.debt-hero {
-    grid-column: 1 / -1;
-    min-height: 148px;
-    padding: 16px 18px;
-  }
-  .debt-hero__art {
-    right: 12px;
-    bottom: 8px;
-    width: 160px;
-    height: 96px;
-  }
-  .debt-hero__illustration {
-    width: 128px;
-    height: 84px;
-  }
-  /* Mini KPIs: side by side on tablet */
-  .debt-list-page .hero-kpi-stack.debt-kpi-stack {
-    flex-direction: row;
-    grid-column: 1 / -1;
-  }
-  .debt-list-page .hero-kpi-mini {
-    flex: 1;
-  }
   /* Aging: 2x2 grid */
   .debt-aging-grid {
     grid-template-columns: 1fr 1fr;
@@ -468,39 +326,6 @@
 }
 
 @media (max-width: 640px) {
-  /* Hero row: single column, everything stacked */
-  .debt-list-page .hero-kpi-row.debt-hero-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .debt-list-page .hero-kpi-card.debt-hero {
-    grid-column: auto;
-    min-height: 136px;
-    padding: 16px;
-    gap: 10px;
-  }
-  .debt-list-page .hero-kpi-card__amount.debt-hero__amount {
-    font-size: 24px;
-  }
-  .debt-hero__art {
-    right: 10px;
-    bottom: 8px;
-    width: 144px;
-    height: 88px;
-  }
-  .debt-hero__art::before {
-    inset: 4px 6px 2px 2px;
-  }
-  .debt-hero__illustration {
-    width: 118px;
-    height: 78px;
-  }
-  .debt-list-page .hero-kpi-stack.debt-kpi-stack {
-    flex-direction: row;
-    grid-column: auto;
-    gap: 10px;
-  }
-
   /* Aging: 2x2 compact */
   .debt-aging-grid {
     grid-template-columns: 1fr 1fr;
@@ -550,28 +375,6 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 420px) {
-  .debt-list-page .hero-kpi-card__amount.debt-hero__amount {
-    font-size: var(--fs-xl);
-  }
-  .debt-hero__art {
-    width: 132px;
-    height: 82px;
-  }
-  .debt-hero__illustration {
-    width: 108px;
-    height: 72px;
-  }
-  .debt-list-page .hero-kpi-mini {
-    padding: 10px 12px;
-    gap: 10px;
-  }
-  .debt-list-page .hero-kpi-mini__value {
-    font-size: 16px;
-  }
-  .debt-kpi-mini__asset img {
-    width: 30px;
-    height: 30px;
-  }
   .debt-aging-card__amount {
     font-size: var(--fs-sm);
   }

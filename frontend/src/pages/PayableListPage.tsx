@@ -6,7 +6,6 @@ import { Search, ChevronRight, Gift } from 'lucide-react';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { AssetIcon } from '../components/AssetIcon';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { usePostCommission } from '../hooks/useQueries';
 import { financialClient } from '../api/financialClient';
@@ -21,7 +20,6 @@ import {
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { FuelInvoicesPanel } from './payables-fuel-invoices';
 import './PayableListPage.css';
-import '../components/shared/HeroKpiRow.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -29,7 +27,7 @@ import { resolveEmptyIllustration } from '../lib/emptyIllustrations';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { Pagination, SearchableSelect, UuiSelectField } from '../design-system';
+import { Pagination, SearchableSelect, SummaryRail, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -264,8 +262,6 @@ export default function PayableListPage() {
   const { rootRef } = usePageAnimations({
     ready: !loading,
     selectors: [
-      '.hero-kpi-card',
-      '.hero-kpi-mini',
       '.aging-card',
       '.payables-data-card',
     ],
@@ -274,9 +270,6 @@ export default function PayableListPage() {
   /* ── Counter animation ── */
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
 
-  const heroTotalRef = useRef<HTMLSpanElement>(null);
-  const overdueRef = useRef<HTMLSpanElement>(null);
-  const activeSuppliersRef = useRef<HTMLSpanElement>(null);
   const agingCurrentRef = useRef<HTMLSpanElement>(null);
   const agingD30Ref = useRef<HTMLSpanElement>(null);
   const agingD60Ref = useRef<HTMLSpanElement>(null);
@@ -315,9 +308,6 @@ export default function PayableListPage() {
     if (loading || payables.length === 0 || prefersReduced) return;
 
     animateCounters([
-      { el: heroTotalRef.current, value: totals.total, format: moneyParts(totals.total, false).format },
-      { el: overdueRef.current, value: totals.overdueCount },
-      { el: activeSuppliersRef.current, value: totals.supplierCount },
       { el: agingCurrentRef.current, value: totals.current, format: moneyParts(totals.current, compact).format },
       { el: agingD30Ref.current, value: totals.d30, format: moneyParts(totals.d30, compact).format },
       { el: agingD60Ref.current, value: totals.d60, format: moneyParts(totals.d60, compact).format },
@@ -395,42 +385,15 @@ export default function PayableListPage() {
 
       <FuelInvoicesPanel />
 
-      {/* ── Zone 1: Hero KPI Row ────────────────────────────────────────── */}
-      <div className="hero-kpi-row">
-        {/* Hero card — span 3 */}
-        <div className="hero-kpi-card">
-          <span className="hero-kpi-card__eyebrow">Tổng công nợ phải trả</span>
-          <span className="hero-kpi-card__amount">
-            <span ref={heroTotalRef}>{prefersReduced ? heroMoney.num : 0}</span>
-            <span className="hero-kpi-card__currency">{heroMoney.unit}</span>
-          </span>
-          <span className="hero-kpi-card__subtitle">
-            {totals.supplierCount} nhà cung cấp · cập nhật vừa xong
-          </span>
-        </div>
-
-        {/* Stacked mini-KPI cards — span 1 */}
-        <div className="hero-kpi-stack">
-          <div className="hero-kpi-mini hero-kpi-mini--danger">
-            <div className="hero-kpi-mini__body">
-              <span className="hero-kpi-mini__value" ref={overdueRef}>
-                {prefersReduced ? totals.overdueCount : 0}
-              </span>
-              <span className="hero-kpi-mini__label">quá hạn</span>
-            </div>
-            <AssetIcon name="overdue" size={44} className="hero-kpi-mini__watermark hero-kpi-mini__watermark--asset" />
-          </div>
-          <div className="hero-kpi-mini hero-kpi-mini--accent">
-            <div className="hero-kpi-mini__body">
-              <span className="hero-kpi-mini__value" ref={activeSuppliersRef}>
-                {prefersReduced ? totals.supplierCount : 0}
-              </span>
-              <span className="hero-kpi-mini__label">nhà cung cấp</span>
-            </div>
-            <AssetIcon name="active-supplier" size={44} className="hero-kpi-mini__watermark hero-kpi-mini__watermark--asset" />
-          </div>
-        </div>
-      </div>
+      {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
+      <SummaryRail
+        ariaLabel="Tóm tắt công nợ phải trả"
+        items={[
+          { label: 'Tổng công nợ phải trả', value: `${heroMoney.num} ${heroMoney.unit}` },
+          { label: 'Nhà cung cấp', value: totals.supplierCount },
+          { label: 'Quá hạn', value: totals.overdueCount, tone: totals.overdueCount > 0 ? 'warning' : undefined },
+        ]}
+      />
 
       {/* ── Zone 2: Aging Distribution (semantic O2C state lanes per P0-W6) ── */}
       <div className="payables-aging-grid">

@@ -16,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { Pagination } from '../design-system';
+import { Pagination, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import type { CustomerAging } from '../hooks/useQueries';
@@ -30,9 +30,7 @@ import {
   useCounterAnimation,
 } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
-import { AssetIcon } from '../components/AssetIcon';
 import './DebtListPage.css';
-import '../components/shared/HeroKpiRow.css';
 import '../styles/table-sort.css';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -178,23 +176,17 @@ export default function DebtListPage() {
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
   const { rootRef } = usePageAnimations({
     ready: !loading,
-    selectors: ['.hero-kpi-card', '.hero-kpi-mini', '.debt-aging-card', '.debt-data-card'],
+    selectors: ['.debt-aging-card', '.debt-data-card'],
   });
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 80 });
 
   /* ── Counter refs ── */
   const counterRefs = useRef<{
-    heroTotal: HTMLSpanElement | null;
-    overdueCount: HTMLSpanElement | null;
-    highRiskCount: HTMLSpanElement | null;
     currentAmount: HTMLSpanElement | null;
     d30Amount: HTMLSpanElement | null;
     d60Amount: HTMLSpanElement | null;
     over90Amount: HTMLSpanElement | null;
   }>({
-    heroTotal: null,
-    overdueCount: null,
-    highRiskCount: null,
     currentAmount: null,
     d30Amount: null,
     d60Amount: null,
@@ -240,9 +232,6 @@ export default function DebtListPage() {
 
     const r = counterRefs.current;
     animateCounters([
-      { el: r.heroTotal, value: totals.total, format: moneyParts(totals.total, false).format },
-      { el: r.overdueCount, value: totals.overdueCount, suffix: '' },
-      { el: r.highRiskCount, value: totals.highRiskCount, suffix: '' },
       { el: r.currentAmount, value: totals.current, format: moneyParts(totals.current, compact).format },
       { el: r.d30Amount, value: totals.d30, format: moneyParts(totals.d30, compact).format },
       { el: r.d60Amount, value: totals.d60, format: moneyParts(totals.d60, compact).format },
@@ -292,62 +281,18 @@ export default function DebtListPage() {
       />
 
       {/* ══════════════════════════════════════════════════════════════════════
-        *  ZONE 1 — Hero KPI Row (bento: 3-col hero + 1-col stacked minis)
-        *  Per P0-W6, the hero illustration was dropped — it was decorative, not
-        *  decision-bearing. The amount + counter stays; the slot it occupied
-        *  is now used by an inline state summary so the accountant can scan
-        *  "Tổng 360tr · 80 KH · 0 quá hạn · 0 rủi ro cao" without scanning the
-        *  aging lanes.
+        *  ZONE 1 — Summary rail: one ruled row the accountant can scan
+        *  ("Tổng 360tr · 80 KH · 0 quá hạn · 0 rủi ro cao") before the lanes.
         * ══════════════════════════════════════════════════════════════════════ */}
-      <div className="hero-kpi-row debt-hero-row">
-        {/* Hero card — spans 3 columns */}
-        <div className="hero-kpi-card debt-hero">
-          <div className="debt-hero__content">
-            <span className="hero-kpi-card__eyebrow">
-              Tổng công nợ phải thu
-            </span>
-            <div className="hero-kpi-card__amount debt-hero__amount">
-              <span ref={(el) => { counterRefs.current.heroTotal = el; }}>
-                {prefersReduced ? heroMoney.num : '0'}
-              </span>
-              <span className="debt-hero__currency">{heroMoney.unit}</span>
-            </div>
-            <span className="hero-kpi-card__subtitle">
-              {totalCustomers} khách hàng · cập nhật vừa xong
-            </span>
-          </div>
-        </div>
-
-        {/* Stacked mini-KPI cards — span 1 column */}
-        <div className="hero-kpi-stack debt-kpi-stack">
-          <div className="hero-kpi-mini debt-kpi-mini--danger">
-            <div className="hero-kpi-mini__body">
-              <span className="hero-kpi-mini__value">
-                <span ref={(el) => { counterRefs.current.overdueCount = el; }}>
-                  {prefersReduced ? totals.overdueCount : 0}
-                </span>
-              </span>
-              <span className="hero-kpi-mini__label">quá hạn</span>
-            </div>
-            <div className="hero-kpi-mini__watermark debt-kpi-mini__asset" aria-hidden="true">
-              <AssetIcon name="overdue" size={38} />
-            </div>
-          </div>
-          <div className="hero-kpi-mini debt-kpi-mini--warning">
-            <div className="hero-kpi-mini__body">
-              <span className="hero-kpi-mini__value">
-                <span ref={(el) => { counterRefs.current.highRiskCount = el; }}>
-                  {prefersReduced ? totals.highRiskCount : 0}
-                </span>
-              </span>
-              <span className="hero-kpi-mini__label">rủi ro cao</span>
-            </div>
-            <div className="hero-kpi-mini__watermark debt-kpi-mini__asset" aria-hidden="true">
-              <AssetIcon name="alert" size={38} />
-            </div>
-          </div>
-        </div>
-      </div>
+      <SummaryRail
+        ariaLabel="Tóm tắt công nợ phải thu"
+        items={[
+          { label: 'Tổng công nợ phải thu', value: `${heroMoney.num} ${heroMoney.unit}` },
+          { label: 'Khách hàng', value: totalCustomers },
+          { label: 'Quá hạn', value: totals.overdueCount, tone: totals.overdueCount > 0 ? 'warning' : undefined },
+          { label: 'Rủi ro cao', value: totals.highRiskCount, tone: totals.highRiskCount > 0 ? 'warning' : undefined },
+        ]}
+      />
 
       {/* ══════════════════════════════════════════════════════════════════════
         *  ZONE 2 — Aging Distribution (4 equal glass cards)

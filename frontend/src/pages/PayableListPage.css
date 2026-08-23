@@ -209,10 +209,6 @@
  * Responsive — Tablet (<=1023px)
  * ========================================================================== */
 @media (max-width: 1023px) {
-  .payables-page .hero-kpi-row {
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
 
   .payables-aging-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -247,43 +243,6 @@
     width: 100%;
     justify-content: center;
     min-height: 44px;
-  }
-
-  .payables-page .hero-kpi-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .payables-page .hero-kpi-card {
-    min-height: 116px;
-    padding: 18px 20px;
-  }
-
-  .payables-page .hero-kpi-stack {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .payables-page .hero-kpi-mini {
-    min-height: 82px;
-    padding: 14px 16px;
-  }
-
-  .payables-page .hero-kpi-mini__value {
-    font-size: var(--fs-xl);
-  }
-
-  .payables-page .hero-kpi-mini__label {
-    max-width: 88px;
-    line-height: 1.25;
-  }
-
-  .payables-page .hero-kpi-mini__watermark {
-    right: 8px;
-    bottom: 6px;
-    opacity: 0.8;
   }
 
   .payables-aging-grid {
@@ -357,13 +316,6 @@
     grid-template-columns: 1fr;
   }
 
-  .payables-page .hero-kpi-card__amount {
-    font-size: var(--fs-xl);
-  }
-
-  .payables-page .hero-kpi-mini {
-    min-height: 76px;
-  }
 }
 
 /* ============================================================================

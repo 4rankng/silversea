@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, type CSSProperties } from 'react'; // useEffect remains for the form modal's reset-on-open
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, UserCheck, BarChart3, Lock, Plus, Download, Search,
+  Plus, Download, Search,
   MoreHorizontal, Pencil, Trash2, X, Save, Loader2, Truck,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
@@ -9,11 +9,12 @@ import { downloadCSV } from '../lib/csv';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { labelStyle } from '../utils/formStyles';
-import { PageHeader, KPI, FilterPill, StatusPill, Modal } from '../components/UI';
+import { PageHeader, FilterPill, StatusPill, Modal } from '../components/UI';
+import { SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, UuiSelectField, useTableQueryState } from '../design-system';
 import { useToast } from '../components/shared/Toast';
-import { formatCurrency, formatNumber } from '../lib/format';
+import { formatCurrency } from '../lib/format';
 import {
   buildCustomerDebitNoteModeOptions,
   describeCustomerDebitNoteMode,
@@ -357,29 +358,6 @@ export default function CustomersPage() {
     return buildCustomerDebtMap(ledgerEntries ?? []);
   }, [ledgerEntries]);
 
-  const revenueMap = useMemo(() => {
-    const map = new Map<number, number>();
-    if (!ledgerEntries) return map;
-    for (const entry of ledgerEntries) {
-      if (entry.entityType === 'CUSTOMER' && entry.txnType === 'TRIP_REVENUE') {
-        const current = map.get(entry.entityId) || 0;
-        const amount = parseFloat(entry.debit || '0') || 0;
-        map.set(entry.entityId, current + amount);
-      }
-    }
-    return map;
-  }, [ledgerEntries]);
-
-  const top4Revenue = useMemo(() => {
-    const customerRevenues = customers
-      .map(c => ({ id: c.id, name: c.shortName || c.name, revenue: revenueMap.get(c.id) || 0 }))
-      .filter(c => c.revenue > 0)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 4);
-    const totalRevenue = customerRevenues.reduce((s, c) => s + c.revenue, 0);
-    return { customers: customerRevenues, total: totalRevenue };
-  }, [customers, revenueMap]);
-
   const { activeCount, lockedCount, filtered } = useMemo(() => {
     const activeCount = customers.filter(c => c.status === CustomerStatus.ACTIVE).length;
     const lockedCount = customers.filter(c => c.status === CustomerStatus.LOCKED).length;
@@ -499,44 +477,15 @@ export default function CustomersPage() {
         }
       />
 
-      {/* KPI strip */}
-      <div className="kpi-grid">
-        <KPI
-          label="Tổng khách hàng"
-          value={total}
-          icon={Users}
-          assetIconName="customer"
-          meta={<span>{total} khách hàng</span>}
-        />
-        <KPI
-          label="Đang hoạt động"
-          value={`${activeCount}`}
-          unit={`/ ${total}`}
-          variant="success"
-          icon={UserCheck}
-          assetIconName="active-customer"
-          meta={total > 0 ? `${Math.round((activeCount / total) * 100)}% hoạt động đều` : ''}
-        />
-        <KPI
-          label="Top 4 KH / doanh thu"
-          value={top4Revenue.total > 0 ? formatNumber(top4Revenue.total) : '—'}
-          variant={top4Revenue.total > 0 ? 'success' : 'warn'}
-          icon={BarChart3}
-          assetIconName="profit"
-          meta={top4Revenue.total > 0
-            ? `${top4Revenue.customers.length} KH · ${formatNumber(top4Revenue.total)} ₫`
-            : 'Chưa có dữ liệu doanh thu'
-          }
-        />
-        <KPI
-          label="Tạm khoá"
-          value={lockedCount}
-          variant="danger"
-          icon={Lock}
-          assetIconName="overdue"
-          meta="Do nợ quá hạn"
-        />
-      </div>
+      {/* Summary rail */}
+      <SummaryRail
+        ariaLabel="Tóm tắt khách hàng"
+        items={[
+          { label: 'Tổng khách hàng', value: total },
+          { label: 'Đang hoạt động', value: activeCount },
+          { label: 'Tạm khoá', value: lockedCount, tone: lockedCount > 0 ? 'warning' : undefined },
+        ]}
+      />
 
       {/* Toolbar with filter pills */}
       <div className="toolbar">
