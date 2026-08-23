@@ -201,12 +201,25 @@
 .debt-aging__dot--danger { background: var(--danger); }
 
 .debt-aging-card__label {
-  font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
   color: var(--ink-3);
+}
+.debt-aging-card__label strong {
+  font-family: var(--font-data);
+  font-size: var(--fs-sm, 13px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink-1);
+  text-transform: none;
+}
+.debt-aging-card__label small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .debt-aging-card__amount {

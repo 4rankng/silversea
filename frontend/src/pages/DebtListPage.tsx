@@ -68,6 +68,10 @@ function classifyRisk(totalOutstanding: number, aging: CustomerAging['aging'], _
 interface AgingBucket {
   key: string;
   label: string;
+  /** Semantic state shown as the primary heading on the lane card. */
+  shortLabel: string;
+  /** Subhead (day range) — secondary, smaller. */
+  subLabel: string;
   amountKey: 'current' | 'd30' | 'd60' | 'over90';
   countKey: 'currentCusts' | 'd30Custs' | 'd60Custs' | 'over90Custs';
   dotClass: string;
@@ -84,10 +88,14 @@ interface AgingBucket {
 type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90';
 
 const AGING_BUCKETS: AgingBucket[] = [
-  { key: 'current', label: '0–30 NGÀY', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: '#00B14F', filterMode: 'current' },
-  { key: 'd30', label: '31–60 NGÀY', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: '#F5A623', filterMode: 'd30' },
-  { key: 'd60', label: '61–90 NGÀY', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: '#DD5A1F', filterMode: 'd60' },
-  { key: 'over90', label: 'TRÊN 90 NGÀY', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: '#E32434', filterMode: 'over90' },
+  // Per P0-W6, the four age buckets are now surfaced as semantic O2C state
+  // lanes — "Trong hạn" / "Quá hạn 31–60" / "Quá hạn 61–90" / "Quá hạn >90" —
+  // so the accountant sees the AR workflow state (current vs overdue) at a
+  // glance instead of having to translate day ranges into a status.
+  { key: 'current', label: 'Trong hạn (0–30)', shortLabel: 'Trong hạn', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: '#00B14F', filterMode: 'current' },
+  { key: 'd30', label: 'Quá hạn 31–60', shortLabel: 'Quá hạn', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: '#F5A623', filterMode: 'd30' },
+  { key: 'd60', label: 'Quá hạn 61–90', shortLabel: 'Quá hạn', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: '#DD5A1F', filterMode: 'd60' },
+  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: '#E32434', filterMode: 'over90' },
 ];
 
 /* Map bucket → lucide icon (semantic progression: on-time → critical) */
@@ -285,6 +293,11 @@ export default function DebtListPage() {
 
       {/* ══════════════════════════════════════════════════════════════════════
         *  ZONE 1 — Hero KPI Row (bento: 3-col hero + 1-col stacked minis)
+        *  Per P0-W6, the hero illustration was dropped — it was decorative, not
+        *  decision-bearing. The amount + counter stays; the slot it occupied
+        *  is now used by an inline state summary so the accountant can scan
+        *  "Tổng 360tr · 80 KH · 0 quá hạn · 0 rủi ro cao" without scanning the
+        *  aging lanes.
         * ══════════════════════════════════════════════════════════════════════ */}
       <div className="hero-kpi-row debt-hero-row">
         {/* Hero card — spans 3 columns */}
@@ -302,14 +315,6 @@ export default function DebtListPage() {
             <span className="hero-kpi-card__subtitle">
               {totalCustomers} khách hàng · cập nhật vừa xong
             </span>
-          </div>
-          <div className="debt-hero__art" aria-hidden="true">
-            <img
-              src={resolveEmptyIllustration('finance')}
-              alt=""
-              className="debt-hero__illustration"
-              draggable={false}
-            />
           </div>
         </div>
 
@@ -374,7 +379,10 @@ export default function DebtListPage() {
                   />
                 )}
                 <span className={`debt-aging__dot ${bucket.dotClass}`} />
-                <span className="debt-aging-card__label">{bucket.label}</span>
+                <span className="debt-aging-card__label">
+                  <strong>{bucket.shortLabel}</strong>
+                  <small>{bucket.subLabel}</small>
+                </span>
               </div>
               <div className="debt-aging-card__amount">
                 <span ref={(el) => {

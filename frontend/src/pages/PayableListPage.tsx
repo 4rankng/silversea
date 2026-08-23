@@ -407,7 +407,6 @@ export default function PayableListPage() {
           <span className="hero-kpi-card__subtitle">
             {totals.supplierCount} nhà cung cấp · cập nhật vừa xong
           </span>
-          <AssetIcon name="payables" size={86} className="hero-kpi-card__watermark hero-kpi-card__watermark--asset" />
         </div>
 
         {/* Stacked mini-KPI cards — span 1 */}
@@ -433,13 +432,16 @@ export default function PayableListPage() {
         </div>
       </div>
 
-      {/* ── Zone 2: Aging Distribution ──────────────────────────────────── */}
+      {/* ── Zone 2: Aging Distribution (semantic O2C state lanes per P0-W6) ── */}
       <div className="payables-aging-grid">
-        {/* 0–30 days */}
+        {/* Trong hạn (0–30) */}
         <div className="aging-card aging-card--ok">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--ok" />
-            <span className="aging-card__label">0–30 ngày</span>
+            <span className="aging-card__label">
+              <strong>Trong hạn</strong>
+              <small>0–30 ngày</small>
+            </span>
           </div>
           <span className="aging-card__value">
             <span ref={agingCurrentRef}>{prefersReduced ? currentMoney.num : 0}</span><span className="aging-card__unit">{currentMoney.unit}</span>
@@ -450,11 +452,14 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* 31–60 days */}
+        {/* Quá hạn 31–60 */}
         <div className="aging-card aging-card--warn">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--warn" />
-            <span className="aging-card__label">31–60 ngày</span>
+            <span className="aging-card__label">
+              <strong>Quá hạn</strong>
+              <small>31–60 ngày</small>
+            </span>
           </div>
           <span className="aging-card__value">
             <span ref={agingD30Ref}>{prefersReduced ? d30Money.num : 0}</span><span className="aging-card__unit">{d30Money.unit}</span>
@@ -465,11 +470,14 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* 61–90 days */}
+        {/* Quá hạn 61–90 */}
         <div className="aging-card aging-card--deep">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--deep" />
-            <span className="aging-card__label">61–90 ngày</span>
+            <span className="aging-card__label">
+              <strong>Quá hạn</strong>
+              <small>61–90 ngày</small>
+            </span>
           </div>
           <span className="aging-card__value">
             <span ref={agingD60Ref}>{prefersReduced ? d60Money.num : 0}</span><span className="aging-card__unit">{d60Money.unit}</span>
@@ -480,11 +488,14 @@ export default function PayableListPage() {
           </div>
         </div>
 
-        {/* Over 90 days */}
+        {/* Quá hạn trên 90 */}
         <div className="aging-card aging-card--danger">
           <div className="aging-card__header">
             <span className="aging-card__dot aging-card__dot--danger" />
-            <span className="aging-card__label">Trên 90 ngày</span>
+            <span className="aging-card__label">
+              <strong>Quá hạn</strong>
+              <small>trên 90 ngày</small>
+            </span>
           </div>
           <span className="aging-card__value">
             <span ref={agingOver90Ref}>{prefersReduced ? over90Money.num : 0}</span><span className="aging-card__unit">{over90Money.unit}</span>
