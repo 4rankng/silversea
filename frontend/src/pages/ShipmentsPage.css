@@ -719,6 +719,10 @@
   overflow-wrap: anywhere;
 }
 .cus-multiline-cell .cus-cargo-summary__metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   overflow: visible;
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
@@ -784,7 +788,7 @@
 /* Cargo-mode category tag (`Cont`/`Lẻ`) in the cargo-summary cell. Neutral
    structural edge like the direction badge — never an accent fill. Squared
    corners distinguish mode (structural) from direction's full pill. */
-.cus-cargo-mode-tag { margin-right: 6px; border-radius: 4px; background: var(--surface-3); color: var(--ink-2) !important; }
+.cus-cargo-mode-tag { border-radius: 4px; background: var(--surface-3); color: var(--ink-2) !important; }
 
 .cus-inline-trigger {
   display: grid;

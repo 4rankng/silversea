@@ -992,14 +992,17 @@ export default function ShipmentsPage() {
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
                             {splitContainerSummaryLines(item.containerSummary).length > 0
-                              ? splitContainerSummaryLines(item.containerSummary).map((summaryLine, lineIndex) => (
-                                <strong key={summaryLine} className="cus-cargo-summary__containers">{lineIndex === 0 && <span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>}{summaryLine}</strong>
+                              ? splitContainerSummaryLines(item.containerSummary).map((summaryLine) => (
+                                <strong key={summaryLine} className="cus-cargo-summary__containers">{summaryLine}</strong>
                               ))
-                              : <strong className="cus-cargo-summary__containers"><span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>{worksheetQuantity(item)}</strong>}
+                              : <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>}
                             <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
-                              {item.cargoMode === 'LCL'
-                                ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
-                                : `${formatQuantity(item.weightKg)} kg`}
+                              <span className="cus-cargo-summary__weight">
+                                {item.cargoMode === 'LCL'
+                                  ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
+                                  : `${formatQuantity(item.weightKg)} kg`}
+                              </span>
+                              <span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>
                             </span>
                           </span></button>
                         </td>

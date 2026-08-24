@@ -561,14 +561,17 @@ export async function updateCusShipmentContainerLine(args: {
           updatedAt: now,
         }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
       } else if (nextCarrierType === 'OWN') {
-        if (trimOrNull(args.input.plateNumber) != null) {
-          throw new ApiError(409, 'Biển số kế hoạch cho xe nội bộ chỉ được xác định từ lệnh điều xe chính thức.');
-        }
+        // CUS may plan an internal-fleet plate (customer ask, Cap_nhat_UI_va_logic
+        // 1.3). It is a plan only — the official dispatch trip remains the
+        // confirming source once assigned.
+        const nextPlateNumber = args.input.plateNumber !== undefined
+          ? trimOrNull(args.input.plateNumber)
+          : fulfillment.plannedVehiclePlateNumber;
         await tx.update(s.shipmentFulfillments).set({
           plannedCarrierType: 'OWN',
           plannedExternalCarrierId: null,
           plannedExternalCarrierVehicleId: null,
-          plannedVehiclePlateNumber: null,
+          plannedVehiclePlateNumber: nextPlateNumber,
           version: fulfillment.version + 1,
           updatedAt: now,
         }).where(eq(s.shipmentFulfillments.id, fulfillment.id));

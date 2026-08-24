@@ -705,7 +705,26 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa phân xe CONT-002/ }));
 
     expect((await screen.findByLabelText('Nhà xe')).textContent).toContain('Đội xe SilverSea');
-    expect(screen.getByText('Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.')).toBeTruthy();
+    // CUS plans the internal plate too (Cap_nhat_UI_va_logic 1.3): the input
+    // renders for OWN, gated by permissions; copy states plan semantics.
+    expect(screen.getByText('Biển số nội bộ nhập ở đây là kế hoạch (dự kiến); lệnh điều xe chính thức vẫn là nguồn xác nhận cuối.')).toBeTruthy();
+    const plateInput = screen.getByLabelText('Biển số xe') as HTMLInputElement;
+    expect(plateInput.disabled).toBe(true);
+  });
+
+  it('enables the internal-fleet plate input when permissions allow', async () => {
+    const ownEditableDetail = {
+      ...detail,
+      containers: [{ ...detail.containers[0], carrierType: 'OWN', carrierName: 'SilverSea', permissions: { ...detail.containers[0].permissions, plateEditable: true } }],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(ownEditableDetail);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-002');
+    fireEvent.click(screen.getByRole('button', { name: /^Chỉnh sửa phân xe CONT-002/ }));
+
+    const plateInput = await screen.findByLabelText('Biển số xe') as HTMLInputElement;
+    expect(plateInput.disabled).toBe(false);
   });
 
   it('reloads and rebases an inline editor after an optimistic conflict', async () => {

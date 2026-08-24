@@ -1564,7 +1564,10 @@ function buildContainerLine(
     : (assignment?.tripExternalCarrierShortName?.trim() || assignment?.tripExternalCarrierName)
       ?? (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName)
       ?? null;
-  const plateEditable = canEditOperational && carrierType === 'EXTERNAL';
+  // CUS may plan the plate for BOTH external carriers and the internal fleet
+  // (customer ask, Cap_nhat_UI_va_logic 1.3): the value is a plan; the
+  // official dispatch trip remains the confirming source once assigned.
+  const plateEditable = canEditOperational;
   const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
     ? 'COMPLETED'
     : assignment?.tripStatus === 'IN_TRANSIT'

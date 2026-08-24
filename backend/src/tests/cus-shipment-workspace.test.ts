@@ -1050,6 +1050,45 @@ describe('Overview operational priority ordering', () => {
     assert.equal(result.line.customerAppointmentAt, '2026-08-25T04:00:00.000Z');
   });
 
+  test('CUS can plan and clear an internal-fleet plate alongside the OWN carrier', async () => {
+    // Customer ask (Cap_nhat_UI_va_logic 1.3): CUS fills/edits SilverSea
+    // vehicle info too — the planned plate is a hint, the dispatch trip
+    // remains the confirming source.
+    const marker = Math.random().toString(16).slice(2, 8);
+    const shipment = await seedShipment({
+      blNumber: `WS-OWN-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-24',
+      status: 'PENDING_DATE',
+    });
+    const container = await seedContainer(shipment.id, { containerNumber: `WSOWN${marker}`.slice(0, 20) });
+
+    const saved = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plateNumber: '15C-123.45',
+      },
+      actor: cusActor,
+    });
+    assert.equal(saved.line.carrierType, 'OWN');
+    assert.equal(saved.line.plateNumber, '15C-123.45');
+
+    const cleared = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: saved.line.shipmentVersion,
+        plateNumber: null,
+      },
+      actor: cusActor,
+    });
+    assert.equal(cleared.line.carrierType, 'OWN');
+    assert.equal(cleared.line.plateNumber, null);
+  });
+
   test('route save repairs a legacy unclassified shipment that already has a container', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const route = await seedRoute();
