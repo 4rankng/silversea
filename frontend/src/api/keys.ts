@@ -44,6 +44,10 @@ export const qk = {
     /** Single truck row — GET /trucks/:id (config-page header, etc.). */
     truckDetail: (id: number | string | undefined) => ['truck', id] as const,
     routesDropdown: ['routes-dropdown'],
+    /** Admin operational-sites directory (/config/factories). */
+    adminOperationalSites: ['admin-operational-sites'] as const,
+    /** Canonical-route options for the admin operational-site editor. */
+    adminSiteRoutes: ['admin-site-routes'] as const,
     roadAllowances: ['road-allowances'],
     roadConfig: ['road-config'],
     companyInfo: ['company-info'],
@@ -90,6 +94,8 @@ export const qk = {
     'catalogs',
     'trucks-drivers',
     'routes-dropdown',
+    'admin-operational-sites',
+    'admin-site-routes',
     'road-allowances',
     'road-config',
     'company-info',

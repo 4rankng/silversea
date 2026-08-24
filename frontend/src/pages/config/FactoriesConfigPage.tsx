@@ -8,12 +8,13 @@ import { Alert } from '../../components/shared/Alert';
 import { useToast } from '../../components/shared/Toast';
 import { Field } from '../../components/config/Field';
 import { FormActions } from '../../components/config/FormActions';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { configClient } from '../../api/configClient';
+import { qk } from '../../api/keys';
 import {
   listAdminOperationalSites,
   updateAdminOperationalSite,
   type AdminOperationalSite,
-  type UpdateOperationalSiteBody,
 } from '../../api/shipmentClient';
 import type { Route } from '@tingting/shared';
 import './config-page.css';
@@ -67,13 +68,13 @@ export default function FactoriesConfigPage() {
   const [error, setError] = useState<string | null>(null);
 
   const sitesQuery = useQuery({
-    queryKey: ['admin-operational-sites'],
+    queryKey: qk.catalogs.adminOperationalSites,
     queryFn: listAdminOperationalSites,
   });
   // Route options for the FACTORY canonical-route link. Read-only lookup,
   // same source the intake dialog uses.
   const routesQuery = useQuery({
-    queryKey: ['admin-site-routes'],
+    queryKey: qk.catalogs.adminSiteRoutes,
     queryFn: () => configClient.getRoutesList(),
   });
   const routes: Route[] = routesQuery.data ?? [];
@@ -124,7 +125,7 @@ export default function FactoriesConfigPage() {
       toast({ kind: 'success', message: 'Đã lưu nhà máy / kho.' });
       setEditing(null);
       setDraft(null);
-      await queryClient.invalidateQueries({ queryKey: ['admin-operational-sites'] });
+      await queryClient.invalidateQueries({ queryKey: qk.catalogs.adminOperationalSites });
     } catch (err) {
       setError((err as Error)?.message || 'Không thể lưu nhà máy / kho.');
     } finally {
@@ -152,18 +153,17 @@ export default function FactoriesConfigPage() {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Tìm nhà máy / kho"
           />
-          <select
-            className="input"
-            style={{ maxWidth: 240 }}
-            value={customerFilter}
-            onChange={(e) => setCustomerFilter(e.target.value)}
-            aria-label="Lọc theo khách hàng"
-          >
-            <option value="">Tất cả khách hàng</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </select>
+          <div style={{ maxWidth: 240 }}>
+            <UuiSelectField
+              label="Khách hàng"
+              value={customerFilter}
+              onChange={(e) => setCustomerFilter(e.target.value)}
+              options={[
+                { value: '', label: 'Tất cả khách hàng' },
+                ...customers.map((customer) => ({ value: customer.id, label: customer.name })),
+              ]}
+            />
+          </div>
           <div style={{ flex: 1 }} />
           <span className="cfg-page__summary">
             <strong>{filtered.length}</strong> mục
@@ -263,15 +263,15 @@ export default function FactoriesConfigPage() {
                   onChange={(e) => setDraft({ ...draft, shortName: e.target.value })} />
               </Field>
               {isFactory ? (
-                <Field label="Tuyến đường chuẩn">
-                  <select className="input" value={draft.routeId ?? ''}
-                    onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}>
-                    <option value="">— Chọn tuyến —</option>
-                    {routes.map((route) => (
-                      <option key={route.id} value={route.id}>{route.name}</option>
-                    ))}
-                  </select>
-                </Field>
+                <UuiSelectField
+                  label="Tuyến đường chuẩn"
+                  value={draft.routeId == null ? '' : String(draft.routeId)}
+                  onChange={(e) => setDraft({ ...draft, routeId: e.target.value ? Number(e.target.value) : null })}
+                  options={[
+                    { value: '', label: '— Chọn tuyến —' },
+                    ...routes.map((route) => ({ value: String(route.id), label: route.name })),
+                  ]}
+                />
               ) : (
                 <Field label="Loại">
                   <input className="input" value="Kho lấy hàng (không dùng tuyến)" disabled />
@@ -318,13 +318,15 @@ export default function FactoriesConfigPage() {
                     onChange={(e) => setDraft({ ...draft, strictRules: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Trạng thái">
-                <select className="input" value={draft.isActive ? 'ACTIVE' : 'INACTIVE'}
-                  onChange={(e) => setDraft({ ...draft, isActive: e.target.value === 'ACTIVE' })}>
-                  <option value="ACTIVE">Đang dùng</option>
-                  <option value="INACTIVE">Đã ngưng (ẩn khỏi form tạo lô)</option>
-                </select>
-              </Field>
+              <UuiSelectField
+                label="Trạng thái"
+                value={draft.isActive ? 'ACTIVE' : 'INACTIVE'}
+                onChange={(e) => setDraft({ ...draft, isActive: e.target.value === 'ACTIVE' })}
+                options={[
+                  { value: 'ACTIVE', label: 'Đang dùng' },
+                  { value: 'INACTIVE', label: 'Đã ngưng (ẩn khỏi form tạo lô)' },
+                ]}
+              />
             </div>
             <FormActions
               saving={saving}
