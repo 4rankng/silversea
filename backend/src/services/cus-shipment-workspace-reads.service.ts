@@ -381,8 +381,8 @@ function containerCarrierNameSql(): SQL {
   return sql`(
     select coalesce(
       case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then 'SilverSea' end,
-      ac.name,
-      pc.name
+      coalesce(nullif(trim(ac.short_name), ''), ac.name),
+      coalesce(nullif(trim(pc.short_name), ''), pc.name)
     )
     from ${s.shipmentFulfillments} sf
     left join ${s.trips} t

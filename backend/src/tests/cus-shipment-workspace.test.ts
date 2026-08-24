@@ -45,11 +45,22 @@ let responsibleUnitId: number;
 let adminActor: AuthUser;
 let cusActor: AuthUser;
 
+/** Random letters-only tag. cargoRankSql() regex-matches standalone '20'/'40'
+ *  in container-type codes AND names, so fixture randomness must never carry
+ *  digit runs — a hex suffix containing a standalone '40' once made a 20DC row
+ *  also rank as 20 and flipped the priority-queue assertions. */
+function lettersTag(length = 8): string {
+  let tag = '';
+  while (tag.length < length) tag += Math.random().toString(36).slice(2).replace(/[0-9]/g, '');
+  return tag.slice(0, length);
+}
+
 async function seedContainerType() {
   const [row] = await db.insert(s.containerTypes).values({
-    // code is UNIQUE; random suffix avoids cross-run collisions.
-    code: `40HC${Math.random().toString(16).slice(2, 10)}`,
-    name: `CusWs ct ${suffix}`,
+    // code is UNIQUE; letters-only tag avoids cross-run collisions AND the
+    // size-regex misfires described above.
+    code: `40HC${lettersTag()}`,
+    name: `CusWs ct ${lettersTag(6)}`,
   }).returning();
   createdContainerTypeIds.push(row.id);
   return row;
@@ -57,8 +68,8 @@ async function seedContainerType() {
 
 async function seedContainerType20() {
   const [row] = await db.insert(s.containerTypes).values({
-    code: `20DC${Math.random().toString(16).slice(2, 10)}`,
-    name: `CusWs ct20 ${suffix}`,
+    code: `20DC${lettersTag()}`,
+    name: `CusWs ct20 ${lettersTag(6)}`,
   }).returning();
   createdContainerTypeIds.push(row.id);
   return row;
@@ -624,6 +635,28 @@ describe('CUS container-flat projection', () => {
 
     assert.deepEqual(asc.items.map((row) => row.containerNumber), [`SRT-A1-${marker}`, `SRT-B2-${marker}`, `SRT-C3-${marker}`]);
     assert.deepEqual(desc.items.map((row) => row.containerNumber), [`SRT-C3-${marker}`, `SRT-B2-${marker}`, `SRT-A1-${marker}`]);
+  });
+
+  test('carrier-name sort keys on the displayed short name, not the legal name', async () => {
+    // Display prefers shortName (shortName?.trim() || name); the sort SQL must
+    // agree, or rows order by a name the operator never sees. Legal-name order
+    // (A before Zê) is the INVERSE of short-name order here, so the assertion
+    // fails against a legal-name sort.
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const carrierLegalA = await seedCustomer({ name: `CusWs Vận tải A ${marker}`, shortName: `ZZZ${marker}` });
+    const carrierLegalZ = await seedCustomer({ name: `CusWs Vận tải Zê ${marker}`, shortName: `AAA${marker}` });
+    const shipment = await seedShipment({ blNumber: `SRT-N-${marker}` });
+    const containerLegalA = await seedContainer(shipment.id, { containerNumber: `SRT-NA-${marker}` });
+    const containerLegalZ = await seedContainer(shipment.id, { containerNumber: `SRT-NZ-${marker}` });
+    await seedFulfillment(shipment.id, containerLegalA.id, { plannedCarrierType: 'EXTERNAL', plannedExternalCarrierId: carrierLegalA.id });
+    await seedFulfillment(shipment.id, containerLegalZ.id, { plannedCarrierType: 'EXTERNAL', plannedExternalCarrierId: carrierLegalZ.id });
+
+    const rows = await listCusShipmentContainers(
+      { page: 1, limit: 20, searchSuffix: marker, sortBy: 'carrierName', sortDir: 'asc' },
+      cusActor,
+    );
+
+    assert.deepEqual(rows.items.map((row) => row.carrierName), [`AAA${marker}`, `ZZZ${marker}`]);
   });
 
   test('sorts by dispatch status rank through the fulfillment projection', async () => {
