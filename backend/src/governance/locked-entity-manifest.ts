@@ -297,7 +297,7 @@ const salaryReopen = action(
 const salaryPeriodReopen = action(
   'SALARY_PERIOD_REOPEN',
   source(
-    'services/salary-period-close.service.ts',
+    'services/salary-period-close-lifecycle.service.ts',
     'requestSalaryPeriodReopen',
     'SALARY_PERIOD_REOPEN_ACTION_KIND',
     'reason',
@@ -742,7 +742,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     terminalStates: ['CLOSED'],
     stateAuthority: source('db/schema.ts', 'salaryPeriodCloses', "'CLOSED'"),
     directMutationBoundary: source(
-      'services/salary-period-close.service.ts',
+      'services/salary-period-close-lifecycle.service.ts',
       'requestSalaryPeriodReopen',
       "existingClose.status !== 'CLOSED'",
       'throw new ApiError',

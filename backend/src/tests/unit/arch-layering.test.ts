@@ -31,7 +31,6 @@ const SIZE_BUDGET = 1500;
 /** repo-relative path (from backend/) -> owning phase or deferral reason */
 const SIZE_BASELINE: Record<string, string> = {
   'src/services/cus-shipment-workspace-reads.service.ts': 'deferred (cold)',
-  'src/services/salary-period-close.service.ts': 'deferred (cold)',
   'src/services/shipment-accounting-lock.service.ts': 'deferred (cold)',
   'src/services/billing-document.service.ts': 'deferred (cold)',
 };
