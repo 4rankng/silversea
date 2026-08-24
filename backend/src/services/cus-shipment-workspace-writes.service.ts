@@ -591,7 +591,11 @@ export async function updateCusShipmentContainerLine(args: {
     const canonicalStatus = canonicalShipmentStatus(shipment.status);
     if (
       shipment.cargoMode === CARGO_MODE.FCL
-      && derivedTransportDate == null
+      // Strict null: derivedTransportDate is `undefined` whenever the input
+      // did not touch appointments (vehicle/container-only writes). The loose
+      // `== null` used to treat that as a removal and 409'd every non-schedule
+      // edit on an appointment-bearing READY lot.
+      && derivedTransportDate === null
       && canonicalStatus === ShipmentStatus.READY_FOR_DISPATCH
       && container.customerAppointmentAt != null
     ) {

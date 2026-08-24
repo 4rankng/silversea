@@ -1122,6 +1122,52 @@ describe('Overview operational priority ordering', () => {
     assert.equal(cleared.line.plateNumber, null);
   });
 
+  test('vehicle-only writes succeed on an appointment-bearing READY lot', async () => {
+    // Regression: the last-appointment guard tested `derivedTransportDate == null`,
+    // which is TRUE for `undefined` — and derived is undefined whenever the input
+    // did not touch appointments. Every vehicle-only (or other non-schedule)
+    // write on an appointment-bearing READY_FOR_DISPATCH lot therefore 409'd
+    // with a misleading "cannot delete the last appointment" error.
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const shipment = await seedShipment({
+      blNumber: `WS-RDY-${marker}`,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-20',
+      status: 'READY_FOR_DISPATCH',
+    });
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `WSRDY${marker}`.slice(0, 20),
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+
+    const saved = await updateCusShipmentContainerLine({
+      shipmentId: shipment.id,
+      containerId: container.id,
+      input: {
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        plateNumber: '15C-777.88',
+      },
+      actor: cusActor,
+    });
+    assert.equal(saved.line.carrierType, 'OWN');
+    assert.equal(saved.line.plateNumber, '15C-777.88');
+
+    // Actually clearing the lot's last appointment on a READY lot must still 409.
+    await assert.rejects(
+      () => updateCusShipmentContainerLine({
+        shipmentId: shipment.id,
+        containerId: container.id,
+        input: {
+          expectedShipmentVersion: saved.line.shipmentVersion,
+          customerAppointmentAt: null,
+        },
+        actor: cusActor,
+      }),
+      /Không thể xóa lịch hẹn cuối cùng/,
+    );
+  });
+
   test('route save repairs a legacy unclassified shipment that already has a container', async () => {
     const marker = Math.random().toString(16).slice(2, 8);
     const route = await seedRoute();
