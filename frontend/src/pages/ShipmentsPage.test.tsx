@@ -1351,7 +1351,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('uses an unbounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);
-    expect(css).toMatch(/\.cus-dashboard-table col\.cus-dashboard-col--status\s*\{[^}]*width:\s*17%;/);
+    expect(css).toMatch(/\.cus-dashboard-table col\.cus-dashboard-col--status\s*\{[^}]*width:\s*18%;/);
     expect(css).not.toMatch(/\.cus-dashboard-viewport\s*\{[^}]*max-height/);
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
