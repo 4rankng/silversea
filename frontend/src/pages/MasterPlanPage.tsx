@@ -9,6 +9,7 @@ import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFi
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
 import { DispatchAllocationPopover } from '../features/dispatch/master-plan/DispatchAllocationPopover';
 import { DispatchContainerDetailDrawer } from '../features/dispatch/master-plan/DispatchContainerDetailDrawer';
+import { ZoneTruckPresencePanel } from '../features/dispatch/detailed-plan/ZoneTruckPresencePanel';
 import './DispatchPlanPage.css';
 
 /**
@@ -76,6 +77,15 @@ export default function MasterPlanPage() {
             </button>
           )}
         />
+
+        {masterPlan.presence && (
+          <ZoneTruckPresencePanel
+            items={masterPlan.presence.items}
+            zoneLabel={masterPlan.presence.zoneLabel}
+            date={masterPlan.presence.date}
+            onSelectPlate={(plate) => masterPlan.updateFilters({ q: plate })}
+          />
+        )}
 
         {masterPlan.dispatchSummary && (
           <div className="master-plan-cargo-summary">

@@ -7,6 +7,13 @@ import type { AuthUser } from '../middleware/auth';
 import { runInTx } from '../lib/tx';
 import type { Tx } from './trip-shared';
 import { softDeleteShipment } from './shipment-lifecycle.service';
+import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+
+// Material-write boundary markers — referenced by material-write-registry-exhaustive.test.ts
+// endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST
+// endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST_DECISION
+// endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST
+// endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST_DECISION
 
 const ACTIVE_GOVERNANCE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'] as const;
 

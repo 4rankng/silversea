@@ -133,9 +133,9 @@ export function DetailedPlanGrid({
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
-              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
             </colgroup>
             <thead>
               <tr>
@@ -159,11 +159,11 @@ export function DetailedPlanGrid({
                     Khách hàng &amp; lộ trình {sortKey === 'deliveryPoint' ? '▲' : '↕'}
                   </button>
                 </th>
-                <th scope="col">Chứng từ</th>
+                <th scope="col">Tuyến đường</th>
                 <th scope="col">Container</th>
-                <th scope="col">Ghi chú</th>
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
+                <th scope="col">Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -184,30 +184,30 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__line">
                       {row.customerRoute.factoryName ?? '—'}
                     </div>
-                    {row.customerRoute.routeName && (
+                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill">
+                      {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
+                    </div>
+                    <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                      {row.docs.tradeDirection === 'IMPORT' ? (
+                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                      ) : row.docs.tradeDirection === 'EXPORT' ? (
+                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                      ) : '—'}
+                    </div>
+                  </td>
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
+                    {row.customerRoute.routeName ? (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
                         {row.customerRoute.routeName}
                       </div>
+                    ) : (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">—</div>
                     )}
-                  </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Chứng từ">
-                    <div className="detailed-plan-grid__documents">
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__documents-bill">
-                        Bill: {row.docs.billNumber ?? '—'}
-                      </div>
-                      <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                        {row.docs.tradeDirection === 'IMPORT' ? (
-                          <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
-                        ) : row.docs.tradeDirection === 'EXPORT' ? (
-                          <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
-                        ) : '—'}
-                      </div>
-                      {row.isCombined && (
-                        <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
-                          Kết hợp
-                        </span>
-                      )}
-                    </div>
+                    {row.isCombined && (
+                      <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
+                        Kết hợp
+                      </span>
+                    )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container">
                     {row.cargoMode === 'FCL' ? (
@@ -229,18 +229,6 @@ export function DetailedPlanGrid({
                       </>
                     )}
                   </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
-                    {row.notes.vehicleNote && (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
-                        Xe: {row.notes.vehicleNote}
-                      </div>
-                    )}
-                    {row.notes.customerNote && (
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                        Khách: {row.notes.customerNote}
-                      </div>
-                    )}
-                  </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối">
                     <DispatchPlanEditorCell
                       row={row}
@@ -252,6 +240,18 @@ export function DetailedPlanGrid({
                     <span className="detailed-plan-grid__classification">
                       {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                     </span>
+                  </td>
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú">
+                    {row.notes.vehicleNote && (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--notes">
+                        Xe: {row.notes.vehicleNote}
+                      </div>
+                    )}
+                    {row.notes.customerNote && (
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                        Khách: {row.notes.customerNote}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
