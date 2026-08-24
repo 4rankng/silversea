@@ -4,7 +4,7 @@
 // locked-entity manifest pins requestSalaryPeriodReopen to THIS file.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { Role, TxnType, FINANCIAL_ROLES } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';

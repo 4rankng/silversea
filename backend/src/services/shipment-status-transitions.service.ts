@@ -3,12 +3,11 @@
 // Extracted from shipment-lifecycle.service.ts verbatim (pure code movement).
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, TripPodStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
-import { normalizeShipmentRow } from './shipment-queries.service';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import {
@@ -16,7 +15,6 @@ import {
   hasDispatchDate,
 } from './shipment-intake.service';
 import {
-  assertShipmentDirectCloseTripReadiness,
   hasCompletedExpenseScopes,
   loadTripExpenseScopeState,
 } from './shipment-shared.service';

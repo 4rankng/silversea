@@ -17,7 +17,6 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { canonicalShipmentStatus, Role, TripStatus, TripPodStatus } from '@tingting/shared';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
-import type { ShipmentStatus } from './shipment-types';
 import { normalizeShipmentRow } from './shipment-queries.service';
 import {
   assertActorCanAccessShipment,

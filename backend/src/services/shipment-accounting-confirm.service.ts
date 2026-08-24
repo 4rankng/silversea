@@ -2,7 +2,6 @@
 // accountant-issued confirmation snapshot action and the accept-link/reject
 // review of manual charge proposals against Debit Note lines. Extracted from
 // shipment-accounting-lock.service.ts verbatim (pure code movement).
-import { and, desc, eq, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import type {
   ShipmentChargeProposalReviewInput,

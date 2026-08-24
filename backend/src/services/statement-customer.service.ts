@@ -10,7 +10,7 @@ import { LedgerService } from './ledger.service';
 import { getCompanyInfo } from './company-info.service';
 import { stampCompanyHeaderXlsx } from './lib/export-company';
 import { CustomerAgingListItem } from './aging.service';
-import { getCustomerReceivableSnapshot, resolveVietnamAsOfCutoff } from './customer-receivable-authority.service';
+import { getCustomerReceivableSnapshot } from './customer-receivable-authority.service';
 import { checkCreditLimit } from './credit-limit.service';
 import {
   type LedgerRow,

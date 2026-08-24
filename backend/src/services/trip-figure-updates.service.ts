@@ -6,24 +6,20 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, isNull, sql } from 'drizzle-orm';
 import { TripStatus, FuelMode, Role, TxnType } from '@tingting/shared';
+import { resolveFuelSurcharge } from './pricing.service';
 import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { resolveFreightPrice, resolveFuelSurcharge } from './pricing.service';
-import { resolveFuelNorm } from './fuel.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
 import { SnapshotServices } from './snapshot-services';
-import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
-import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { resolveTrailer } from './trip-shared';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type { Tx } from './trip-shared';
 import { requirePersistedTripGovernanceAuthorization } from './trip-governance-authorization.service';
 import { assertActiveApprovalApplication } from './governance-action-core.service';
 import { LedgerService } from './ledger.service';
-import { assertCreditLimit, consumeShipmentCreditOverride } from './credit-limit.service';
 import {
   applyCommittedLegacyFuelFreeze,
   assertCustomerCommissionWithinRevenue,

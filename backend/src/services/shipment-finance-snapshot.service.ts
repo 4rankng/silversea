@@ -6,7 +6,6 @@
 // small.
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { ShipmentChargeProposalField } from '@tingting/shared';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -15,7 +14,6 @@ import {
   SHIPMENT_PROPOSAL_BILLING_LINK_KIND,
   PROPOSAL_FIELD_COLUMN_MAP,
   type FinanceSnapshot,
-  type GovernanceRow,
   type FinanceSnapshotOptions,
   type ChargeProposalRow,
   type ProposalCoverageRow,
@@ -23,9 +21,6 @@ import {
   financialPostingChecksum,
   expenseSourceVersion,
   financeSnapshotChecksum,
-  readNumber,
-  readString,
-  normalizeNumericString,
   proposalKey,
   proposalChecksum,
   proposalAmountForField,

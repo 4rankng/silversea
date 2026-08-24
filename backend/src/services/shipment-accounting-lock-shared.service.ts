@@ -3,13 +3,12 @@
 // confirmation-summary mapper, row lockers, and version bumping. Extracted
 // from shipment-accounting-lock.service.ts verbatim (pure code movement); the
 // snapshot / reads / confirm / custody leaves import these one-way.
-import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import {
   Role,
   type ShipmentChargeProposalField,
 } from '@tingting/shared';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
