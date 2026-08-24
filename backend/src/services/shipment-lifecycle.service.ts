@@ -482,14 +482,22 @@ export async function cancelShipmentFulfillment(args: {
 
 // ─── Soft delete ────────────────────────────────────────────────────────────
 //
-// Only date-pending or CANCELED shipments may be tombstoned — once work has started
-// (DISPATCHED / IN_TRANSIT / PENDING_EXPENSE_APPROVAL / COMPLETED), the audit trail and linked trips must be
-// preserved. Callers should prefer CANCELED for an in-flight cancellation;
-// soft-delete is the "remove a mistakenly-created draft" path.
+// Only date-pending or CANCELED shipments may be tombstoned by default — once
+// a trip exists (DISPATCHED / IN_TRANSIT / PENDING_EXPENSE_APPROVAL /
+// COMPLETED), the audit trail and linked trips must be preserved. Callers
+// should prefer CANCELED for an in-flight cancellation; soft-delete is the
+// "remove a mistakenly-created draft" path.
+//
+// `allowedStatuses` lets a specific caller widen this for a status that is
+// still pre-trip (e.g. READY_FOR_DISPATCH: a carrier is allocated but no trip
+// row exists yet) without loosening the default for every caller — the
+// DISPATCHED-and-later boundary above must never be crossed by any caller.
+
+const PRE_TRIP_DELETABLE_STATUSES = ['PENDING_DATE', 'CANCELED'] as const;
 
 export async function softDeleteShipment(
   shipmentId: number,
-  options: { deletedBy?: number | null; version: number },
+  options: { deletedBy?: number | null; version: number; allowedStatuses?: readonly string[] },
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
@@ -508,10 +516,13 @@ export async function softDeleteShipment(
     }
 
     const currentStatus = canonicalShipmentStatus(existing.status);
-    if (currentStatus !== 'PENDING_DATE' && currentStatus !== 'CANCELED') {
+    const allowedStatuses = options.allowedStatuses ?? PRE_TRIP_DELETABLE_STATUSES;
+    if (currentStatus == null || !allowedStatuses.includes(currentStatus)) {
       throw new ApiError(
         409,
-        'Chỉ có thể xóa lô hàng ở trạng thái Mới tạo hoặc Đã hủy.',
+        options.allowedStatuses
+          ? 'Không thể xóa lô hàng đã có chuyến điều xe hoặc đã hoàn thành.'
+          : 'Chỉ có thể xóa lô hàng ở trạng thái Mới tạo hoặc Đã hủy.',
       );
     }
 

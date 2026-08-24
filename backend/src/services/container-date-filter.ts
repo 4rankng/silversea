@@ -50,3 +50,20 @@ export function filterContainersByDateRange<T extends { customerAppointmentAt: D
     return true;
   });
 }
+
+/**
+ * Returns true if today (business timezone) is on or after the given local
+ * run/appointment date (YYYY-MM-DD, or an instant to be projected to its
+ * local date). Null/undefined never counts as past cutoff — no run date
+ * means nothing to cut off against. Shared by the shipment-delete and
+ * container-edit CUS-approval gates so both use one date comparison.
+ */
+export function isPastRunCutoff(runDate: string | Date | null | undefined): boolean {
+  if (!runDate) return false;
+  const localRunDate = runDate instanceof Date || typeof runDate !== 'string' || runDate.length > 10
+    ? localDateInBusinessZone(runDate)
+    : runDate;
+  if (localRunDate == null) return false;
+  const today = localDateInBusinessZone(new Date());
+  return today != null && today >= localRunDate;
+}

@@ -21,6 +21,9 @@ const directContainerAccess = {
   containerTypeId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   cargoWeightKg: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   cargoVolumeCbm: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  routeId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  liftSiteId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
+  dropoffSiteId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
 };
 const directShipmentAccess = Object.fromEntries([
   'customerId', 'factoryName', 'routeId', 'deliveryLocation', 'blNumber', 'bookingRef', 'declarationNumber', 'tradeDirection', 'shippingLineName',

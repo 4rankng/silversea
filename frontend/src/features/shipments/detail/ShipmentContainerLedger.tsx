@@ -197,6 +197,11 @@ function InlineEditor({
     || line.fieldAccess.cargoWeightKg.mode === 'REQUEST'
     || line.fieldAccess.cargoVolumeCbm.mode === 'REQUEST'
   );
+  const routeRequestMode = mode === 'route' && (
+    line.fieldAccess.routeId.mode === 'REQUEST'
+    || line.fieldAccess.liftSiteId.mode === 'REQUEST'
+    || line.fieldAccess.dropoffSiteId.mode === 'REQUEST'
+  );
   const [requestReason, setRequestReason] = useState('');
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
   const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
@@ -266,6 +271,7 @@ function InlineEditor({
     ? containerRouteId !== (line.routeId ? String(line.routeId) : '')
       || liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
       || dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')
+      || (routeRequestMode && requestReason.trim().length > 0)
     : mode === 'vehicle'
       ? carrierId !== initialCarrier || plateNumber.trim() !== (line.plateNumber ?? '') || newCarrierName.trim() !== ''
     : mode === 'schedule'
@@ -332,6 +338,24 @@ function InlineEditor({
           });
         }
       } else if (mode === 'route') {
+        if (routeRequestMode) {
+          if (!requestReason.trim()) throw new Error('Vui lòng nhập lý do yêu cầu chỉnh sửa.');
+          const fields: Record<string, unknown> = {};
+          if (containerRouteId !== (line.routeId ? String(line.routeId) : '')) {
+            fields.routeId = containerRouteId ? Number(containerRouteId) : null;
+          }
+          if (liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')) {
+            fields.liftSiteId = liftSiteId ? Number(liftSiteId) : null;
+          }
+          if (dropoffSiteId !== (line.dropoffSiteId ? String(line.dropoffSiteId) : '')) {
+            fields.dropoffSiteId = dropoffSiteId ? Number(dropoffSiteId) : null;
+          }
+          if (Object.keys(fields).length === 0) throw new Error('Không có thay đổi nào để gửi yêu cầu.');
+          await requestContainerEdit(detail.summary.id, line.id, fields, requestReason.trim());
+          setRequestSuccess('Đã gửi yêu cầu chỉnh sửa tuyến đường/địa điểm. Điều vận sẽ xem xét và phê duyệt.');
+          setRequestReason('');
+          return;
+        }
         await onSaveRoute(line, {
           routeId: containerRouteId ? Number(containerRouteId) : null,
           liftSiteId: liftSiteId ? Number(liftSiteId) : null,
@@ -455,9 +479,13 @@ function InlineEditor({
       )}
       {mode === 'route' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-container-route-${line.id}`} value={containerRouteId} onChange={setContainerRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || !line.permissions.routeEditable} /></label>
-          <label><span>Cảng nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn cảng nâng" searchPlaceholder="Tìm cảng nâng" disabled={saving || !line.permissions.liftSiteEditable} /></label>
-          <label><span>Cảng hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn cảng hạ" searchPlaceholder="Tìm cảng hạ" disabled={saving || !line.permissions.dropoffSiteEditable} /></label>
+          {routeRequestMode && <small className="shipment-container-ledger__request-notice">Đã qua ngày chạy container hoặc đã có chuyến — thay đổi sẽ gửi yêu cầu để Điều vận xem xét.</small>}
+          <label className={line.fieldAccess.routeId.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Tuyến đường</span><SearchableSelect id={`shipment-detail-container-route-${line.id}`} value={containerRouteId} onChange={setContainerRouteId} options={routeOptions} placeholder="Chọn tuyến đường" searchPlaceholder="Tìm tuyến đường" disabled={saving || line.fieldAccess.routeId.mode === 'READ_ONLY'} /></label>
+          <label className={line.fieldAccess.liftSiteId.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Cảng nâng</span><SearchableSelect id={`shipment-detail-lift-${line.id}`} value={liftSiteId} onChange={setLiftSiteId} options={siteOptions} placeholder="Chọn cảng nâng" searchPlaceholder="Tìm cảng nâng" disabled={saving || line.fieldAccess.liftSiteId.mode === 'READ_ONLY'} /></label>
+          <label className={line.fieldAccess.dropoffSiteId.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Cảng hạ</span><SearchableSelect id={`shipment-detail-dropoff-${line.id}`} value={dropoffSiteId} onChange={setDropoffSiteId} options={siteOptions} placeholder="Chọn cảng hạ" searchPlaceholder="Tìm cảng hạ" disabled={saving || line.fieldAccess.dropoffSiteId.mode === 'READ_ONLY'} /></label>
+          {routeRequestMode && (
+            <label className="shipment-container-ledger__request-reason"><span>Lý do yêu cầu</span><textarea value={requestReason} onChange={(event) => setRequestReason(event.target.value)} rows={3} maxLength={500} required disabled={saving} placeholder="Nhập lý do cần chỉnh sửa tuyến đường/địa điểm sau ngày chạy" /></label>
+          )}
         </div>
       )}
       {mode === 'vehicle' && (
@@ -485,7 +513,7 @@ function InlineEditor({
       )}
       <div className="shipment-container-ledger__editor-footer">
         <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
-        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim())} label={label} onSave={() => void save()} onCancel={onCancel} />
+        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim()) || (routeRequestMode && !requestReason.trim())} label={label} onSave={() => void save()} onCancel={onCancel} />
       </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
@@ -629,7 +657,7 @@ export function ShipmentContainerLedger({
               const identityEditable = ['factoryName', 'routeId', 'deliveryLocation'].some((field) => row.shipmentFieldAccess[field as 'factoryName'].mode !== 'READ_ONLY');
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
-              const routeEditable = row.routeEditable || row.liftSiteEditable || row.dropoffSiteEditable;
+              const routeEditable = row.fieldAccess.routeId.mode !== 'READ_ONLY' || row.fieldAccess.liftSiteId.mode !== 'READ_ONLY' || row.fieldAccess.dropoffSiteId.mode !== 'READ_ONLY';
               const vehicleEditable = row.carrierEditable || row.plateEditable;
               const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
                 extraClassName,

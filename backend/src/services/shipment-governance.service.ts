@@ -7,7 +7,11 @@ import type { AuthUser } from '../middleware/auth';
 import { runInTx } from '../lib/tx';
 import type { Tx } from './trip-shared';
 import { softDeleteShipment } from './shipment-lifecycle.service';
+import { assertCusShipmentScope } from './cus-shipment-workspace-reads.service';
+import { isPastRunCutoff } from './container-date-filter';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+
+export { isPastRunCutoff } from './container-date-filter';
 
 // Material-write boundary markers — referenced by material-write-registry-exhaustive.test.ts
 // endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST
@@ -17,20 +21,13 @@ import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 
 const ACTIVE_GOVERNANCE_STATUSES = ['PENDING_CHECK', 'PENDING_APPROVAL', 'RETURNED_FOR_EVIDENCE'] as const;
 
-/**
- * Returns true if the current date/time (Vietnam timezone) is on or after
- * the shipment's scheduled run date. Used to determine whether a CUS action
- * requires admin approval.
- */
-export function isPastRunCutoff(expectedDeliveryDate: string | null): boolean {
-  if (!expectedDeliveryDate) return false;
-  const now = new Date();
-  const vietnamNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const runDate = new Date(expectedDeliveryDate + 'T00:00:00');
-  vietnamNow.setHours(0, 0, 0, 0);
-  runDate.setHours(0, 0, 0, 0);
-  return vietnamNow >= runDate;
-}
+// CUS-initiated deletion (direct or admin-approved) may tombstone a shipment
+// through READY_FOR_DISPATCH — a carrier allocation with no trip row yet —
+// but never DISPATCHED/IN_TRANSIT/PENDING_EXPENSE_APPROVAL/COMPLETED, where a
+// real trip exists and soft-delete would orphan it (same boundary
+// `softDeleteShipment` enforces by default for every other caller; this only
+// adds the one additional pre-trip status this flow needs).
+const CUS_DELETE_ALLOWED_STATUSES = ['PENDING_DATE', 'READY_FOR_DISPATCH', 'CANCELED'] as const;
 
 /**
  * CUS requests deletion of a shipment.
@@ -54,6 +51,7 @@ export async function requestShipmentDelete(args: {
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertCusShipmentScope(args.actor, shipment, tx);
     if (shipment.version !== args.version) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
     }
@@ -64,6 +62,7 @@ export async function requestShipmentDelete(args: {
       const deleted = await softDeleteShipment(args.shipmentId, {
         version: args.version,
         deletedBy: args.actor.userId,
+        allowedStatuses: CUS_DELETE_ALLOWED_STATUSES,
       }, tx);
       return { action: null, deleted, pendingApproval: false };
     }
@@ -164,6 +163,7 @@ export async function decideShipmentDeleteRequest(args: {
     const deleted = await softDeleteShipment(args.shipmentId, {
       version: action.originalVersion,
       deletedBy: args.actor.userId,
+      allowedStatuses: CUS_DELETE_ALLOWED_STATUSES,
     }, tx);
 
     const [approved] = await tx.update(s.governanceActions).set({
@@ -203,6 +203,15 @@ export async function requestContainerEdit(args: {
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertCusShipmentScope(args.actor, shipment, tx);
+
+    const [container] = await tx.select({ id: s.shipmentContainers.id }).from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.id, args.containerId),
+        eq(s.shipmentContainers.shipmentId, shipment.id),
+      ))
+      .limit(1);
+    if (!container) throw new ApiError(404, 'Không tìm thấy container thuộc lô hàng này');
 
     const [pending] = await tx.select().from(s.governanceActions)
       .where(and(
@@ -313,6 +322,15 @@ export async function decideContainerEditRequest(args: {
 
     const containerId = afterSnapshot.containerId;
     const fields = afterSnapshot.fields;
+
+    const [container] = await tx.select({ id: s.shipmentContainers.id }).from(s.shipmentContainers)
+      .where(and(
+        eq(s.shipmentContainers.id, containerId),
+        eq(s.shipmentContainers.shipmentId, action.subjectId),
+      ))
+      .limit(1);
+    if (!container) throw new ApiError(409, 'Container không còn thuộc lô hàng của yêu cầu này.');
+
     const updateData: Record<string, unknown> = { updatedAt: now };
     for (const [key, value] of Object.entries(fields)) {
       if (['routeId', 'containerNumber', 'liftSiteId', 'dropoffSiteId'].includes(key)) {

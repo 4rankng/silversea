@@ -47,7 +47,7 @@ import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
 } from './shipment-accounting-lock.service';
-import { filterContainersByDateRange } from './container-date-filter';
+import { filterContainersByDateRange, isPastRunCutoff } from './container-date-filter';
 
 export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
@@ -649,6 +649,7 @@ function containerFieldAccess(
   hasActiveLock: boolean,
   hasTrip: boolean,
   carrierType: 'OWN' | 'EXTERNAL' | null,
+  pastRunCutoff: boolean,
 ): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
   const editable = !hasActiveLock && !hasTrip && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
   const reason = hasActiveLock
@@ -659,9 +660,26 @@ function containerFieldAccess(
         ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
         : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
   const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
+  // Route/container-number/pickup-drop-off stay CUS-editable through the
+  // container's own run date even once a trip exists — past that date (or
+  // once a trip exists), CUS submits an admin-reviewed request instead of
+  // hitting the flat READ_ONLY every other field gets. Scoped to CUS only;
+  // DISPATCHER keeps the existing trip-based DIRECT/READ_ONLY split.
+  const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
   const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
     if (key === 'plateNumber' && editable && carrierType !== 'EXTERNAL') {
       return readOnly('Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.');
+    }
+    if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
+      if (hasTrip || pastRunCutoff) {
+        return {
+          mode: 'REQUEST',
+          reason: hasTrip
+            ? 'Container đã có chuyến thực tế; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.'
+            : 'Đã qua ngày chạy container; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.',
+        };
+      }
+      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trước khi điều xe.' };
     }
     return { mode, reason };
   };
@@ -1585,7 +1603,13 @@ function buildContainerLine(
       cargoVolumeCbm: container.cargoVolumeCbm,
       routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
     },
-    fieldAccess: containerFieldAccess(actor, activeLock != null, assignment?.tripId != null, carrierType as 'OWN' | 'EXTERNAL' | null),
+    fieldAccess: containerFieldAccess(
+      actor,
+      activeLock != null,
+      assignment?.tripId != null,
+      carrierType as 'OWN' | 'EXTERNAL' | null,
+      isPastRunCutoff(container.customerAppointmentAt),
+    ),
     permissions: {
       carrierEditable: canEditOperational,
       plateEditable,
@@ -2009,6 +2033,9 @@ export async function listCusShipmentContainers(
         containerTypeId: line.fieldAccess.containerTypeId,
         cargoWeightKg: line.fieldAccess.cargoWeightKg,
         cargoVolumeCbm: line.fieldAccess.cargoVolumeCbm,
+        routeId: line.fieldAccess.routeId,
+        liftSiteId: line.fieldAccess.liftSiteId,
+        dropoffSiteId: line.fieldAccess.dropoffSiteId,
       },
       shipmentFieldAccess: shipmentFieldAccess(
         row.shipment,

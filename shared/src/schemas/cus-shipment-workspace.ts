@@ -606,6 +606,9 @@ export const shipmentCusContainerFlatRowSchema = z.object({
     containerTypeId: fieldAccessSchema,
     cargoWeightKg: fieldAccessSchema,
     cargoVolumeCbm: fieldAccessSchema,
+    routeId: fieldAccessSchema,
+    liftSiteId: fieldAccessSchema,
+    dropoffSiteId: fieldAccessSchema,
   }).strict(),
   shipmentFieldAccess: shipmentCusWorkspaceShipmentFieldAccessSchema,
   // Server-derived triage state for this real FCL container row. COMPLETE

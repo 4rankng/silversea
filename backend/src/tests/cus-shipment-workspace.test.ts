@@ -22,6 +22,7 @@ import type { AuthUser } from '../middleware/auth';
 import { getCusShipmentWorkspaceDetail, listCusShipmentContainers, listCusShipmentWorkspace, updateCusShipmentContainerLine } from '../services/cus-shipment-workspace.service';
 import { ApiError } from '../errors';
 import { createShipment, updateShipment } from '../services/shipment.service';
+import { requestContainerEdit, requestShipmentDelete } from '../services/shipment-governance.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -479,7 +480,11 @@ test('workspace detail returns safe route selectors for the route authority', as
 
 describe('CUS container-flat projection', () => {
   test('flattens every container of every shipment with shipment context and operational fields', async () => {
-    const appointmentA = new Date('2026-08-20T08:00:00Z');
+    // Future-dated on purpose: this test asserts plain field projection, not
+    // the CUS container-edit run-date cutoff — a past appointment would flip
+    // fieldAccess.containerNumber.mode to REQUEST and fail unrelated to this
+    // test's intent.
+    const appointmentA = new Date('2099-08-20T08:00:00Z');
     const shipmentA = await seedShipment({ blNumber: `FLATA${suffix}`, expectedDeliveryDate: '2026-08-21' });
     const shipmentB = await seedShipment({ bookingRef: `FLATB${suffix}` });
     await seedContainer(shipmentA.id, {
@@ -542,6 +547,31 @@ describe('CUS container-flat projection', () => {
       shipmentDispatchDate.items.filter((row) => row.shipmentId === shipmentA.id).map((row) => row.id),
       [rowA1.id, rowA2.id],
     );
+  });
+
+  test('past-run-date container fields switch CUS from DIRECT to REQUEST, not READ_ONLY', async () => {
+    const shipment = await seedShipment({ blNumber: `CUTOFF${suffix}` });
+    const pastAppointment = new Date('2020-01-01T08:00:00Z');
+    const futureAppointment = new Date('2099-01-01T08:00:00Z');
+    await seedContainer(shipment.id, { containerNumber: `CUTOFF${suffix}PAST`, customerAppointmentAt: pastAppointment });
+    await seedContainer(shipment.id, { containerNumber: `CUTOFF${suffix}FUTURE`, customerAppointmentAt: futureAppointment });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: suffix }, cusActor);
+    const past = response.items.find((row) => row.containerNumber === `CUTOFF${suffix}PAST`);
+    const future = response.items.find((row) => row.containerNumber === `CUTOFF${suffix}FUTURE`);
+    assert.ok(past);
+    assert.ok(future);
+
+    for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+      assert.equal(past.fieldAccess[key].mode, 'REQUEST', `past.fieldAccess.${key}`);
+    }
+    for (const key of ['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId'] as const) {
+      assert.equal(future.fieldAccess[key].mode, 'DIRECT', `future.fieldAccess.${key}`);
+    }
+    // Fields outside the plan's scope (route/container-number/pickup-drop-off)
+    // keep their existing trip-based gate, unaffected by the date cutoff.
+    assert.equal(past.fieldAccess.containerTypeId.mode, 'DIRECT');
+    assert.equal(past.fieldAccess.cargoWeightKg.mode, 'DIRECT');
   });
 
   test('searches a container suffix and returns only the matching container row', async () => {
@@ -706,6 +736,71 @@ describe('CUS container-flat projection', () => {
         shipmentId: hiddenShipment.id,
         containerId: hiddenContainer.id,
         input: { expectedShipmentVersion: hiddenShipment.version, containerNumber: `DENIED${suffix}`.slice(0, 50) },
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
+    );
+  });
+
+  test('rejects a CUS delete-request against a shipment outside the assigned business unit', async () => {
+    const [outsideUnit] = await db.insert(s.businessUnits).values({
+      name: `CusWs outside-delete unit ${suffix}`,
+      status: 'ACTIVE',
+    }).returning();
+    createdBusinessUnitIds.push(outsideUnit.id);
+    const hiddenShipment = await seedShipment({
+      responsibleUnitId: outsideUnit.id,
+      blNumber: `HIDDENDEL${suffix}`,
+    });
+
+    await assert.rejects(
+      requestShipmentDelete({
+        shipmentId: hiddenShipment.id,
+        version: hiddenShipment.version,
+        reason: 'Test IDOR guard',
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
+    );
+  });
+
+  test('rejects a CUS container-edit-request against a shipment outside the assigned business unit', async () => {
+    const [outsideUnit] = await db.insert(s.businessUnits).values({
+      name: `CusWs outside-edit unit ${suffix}`,
+      status: 'ACTIVE',
+    }).returning();
+    createdBusinessUnitIds.push(outsideUnit.id);
+    const hiddenShipment = await seedShipment({
+      responsibleUnitId: outsideUnit.id,
+      blNumber: `HIDDENEDIT${suffix}`,
+    });
+    const hiddenContainer = await seedContainer(hiddenShipment.id, {
+      containerNumber: `HIDEDIT${suffix}`.slice(0, 50),
+    });
+
+    await assert.rejects(
+      requestContainerEdit({
+        shipmentId: hiddenShipment.id,
+        containerId: hiddenContainer.id,
+        fields: { containerNumber: `DENIED${suffix}`.slice(0, 50) },
+        reason: 'Test IDOR guard',
+        actor: cusActor,
+      }),
+      (error: unknown) => error instanceof ApiError && error.statusCode === 404,
+    );
+  });
+
+  test('rejects a container-edit-request whose container does not belong to the claimed shipment', async () => {
+    const shipmentA = await seedShipment({ blNumber: `XSHIP-A${suffix}` });
+    const shipmentB = await seedShipment({ blNumber: `XSHIP-B${suffix}` });
+    const containerOnB = await seedContainer(shipmentB.id, { containerNumber: `XSHIP-C${suffix}`.slice(0, 50) });
+
+    await assert.rejects(
+      requestContainerEdit({
+        shipmentId: shipmentA.id,
+        containerId: containerOnB.id,
+        fields: { containerNumber: `DENIED${suffix}`.slice(0, 50) },
+        reason: 'Cross-shipment guard',
         actor: cusActor,
       }),
       (error: unknown) => error instanceof ApiError && error.statusCode === 404,
