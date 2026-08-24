@@ -63,11 +63,11 @@ describe('DetailedPlanGrid', () => {
     expect(headers).toEqual([
       'Thời gian & lịch trình ↕',
       'Khách hàng & lộ trình ↕',
-      'Chứng từ',
+      'Tuyến đường',
       'Container',
-      'Ghi chú',
       'Điều phối',
       'Phân loại',
+      'Ghi chú',
     ]);
 
     // Column 1: bold date line + muted hour line
@@ -90,17 +90,17 @@ describe('DetailedPlanGrid', () => {
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
     expect(screen.getByText(/21\.500 kg/)).toBeTruthy();
-    // Column 5: notes, followed by atomic dispatch and classification.
+    // Column 7 (last): notes after atomic dispatch and classification.
     expect(screen.getByText('Xe: Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Khách: Gặp anh Hùng')).toBeTruthy();
     expect(Array.from(container.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & lộ trình',
-      'Chứng từ',
+      'Tuyến đường',
       'Container',
-      'Ghi chú',
       'Điều phối',
       'Phân loại',
+      'Ghi chú',
     ]);
   });
 

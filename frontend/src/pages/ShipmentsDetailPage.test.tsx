@@ -111,7 +111,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
 
     expect(await screen.findByText('CONT-001')).toBeTruthy();
-    // Trạng thái is now the LAST column (Task 1.2 — tách trạng thái lô ra cuối grid)
+    // Ghi chú is now BEFORE Trạng thái (customer feedback L2 — 24/08/2026)
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers).toEqual([
       'Khách hàng & lộ trình',
@@ -120,8 +120,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       'Địa điểm nâng / hạ',
       'Lịch trình',
       'Phân xe',
-      'Trạng thái',
       'Ghi chú',
+      'Trạng thái',
     ]);
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell
