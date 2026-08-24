@@ -434,11 +434,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         <div
                           className="master-plan-grid__line master-plan-grid__line--notes master-plan-grid__notes-trigger"
                           title={item.operationalNotes ?? 'Nhấn để thêm ghi chú'}
-                          onClick={() => onUpdateNotes && startNotesEdit(item)}
+                          onClick={() => { if (onUpdateNotes) startNotesEdit(item); }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              onUpdateNotes && startNotesEdit(item);
+                              if (onUpdateNotes) startNotesEdit(item);
                             }
                           }}
                           role={onUpdateNotes ? 'button' : undefined}
