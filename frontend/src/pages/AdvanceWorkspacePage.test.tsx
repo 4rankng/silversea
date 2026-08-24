@@ -46,13 +46,13 @@ describe('AdvanceWorkspacePage', () => {
     renderWorkspace('/advances');
     expect(screen.getByRole('heading', { level: 1, name: 'Tạm ứng & hoàn ứng' })).toBeTruthy();
     expect(screen.getByText('Advance requests panel · embedded')).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Yêu cầu tạm ứng/ }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('tab', { name: /Yêu cầu tạm ứng/ }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('link', { name: /Mở Trung tâm phê duyệt/ }).getAttribute('href')).toBe('/governance-actions');
   });
 
   it('renders the settlement workflow from the durable query-backed view', () => {
     renderWorkspace('/advances?view=settlements');
     expect(screen.getByText('Advance settlements panel · embedded')).toBeTruthy();
-    expect(screen.getByRole('link', { name: /Phiếu hoàn ứng/ }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('tab', { name: /Phiếu hoàn ứng/ }).getAttribute('aria-selected')).toBe('true');
   });
 });

@@ -160,9 +160,8 @@ describe('AccountingWorkspacePage', () => {
 
     // The overview is retained as the secondary tab behind the work inbox;
     // the workspace h1 stays "Tổng quan kế toán" for both views.
-    const overviewTab = screen.getByRole('link', { name: 'Tổng quan' });
-    expect(overviewTab.getAttribute('href')).toBe('/?view=overview');
-    expect(overviewTab.getAttribute('aria-current')).toBe('page');
+    const overviewTab = screen.getByRole('tab', { name: 'Tổng quan' });
+    expect(overviewTab.getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('heading', { name: 'Tổng quan kế toán' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Công nợ phải thu/ }).getAttribute('href')).toBe('/debt');
     expect(screen.getByRole('link', { name: /Công nợ phải trả/ }).getAttribute('href')).toBe('/payables');

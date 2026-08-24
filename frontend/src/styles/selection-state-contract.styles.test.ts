@@ -27,7 +27,7 @@ describe('selection-state contract', () => {
     expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-in-range { background: var(--surface-2); color: var(--fg-1); }');
     expect(read('src/pages/ForwarderTripDateRangePicker.css')).toContain('.ftrip-date-picker__days button.is-selected { background: var(--fg-1); color: var(--surface); font-weight: 800; }');
     expect(read('src/components/layout/topbar.css')).toContain('.month-picker__cell.is-selected {\n  background: var(--ink);\n  color: var(--surface);\n  border-color: var(--ink);');
-    expect(read('src/pages/AdvanceWorkspacePage.css')).toContain('.advance-workspace__views a.is-active {\n  background: var(--surface);\n  color: var(--ink);\n  box-shadow: inset 0 -3px 0 var(--ink);');
+    expect(read('src/pages/AdvanceWorkspacePage.css')).toContain('.advance-workspace__views .ds-tabs__btn--active {\n  background: var(--surface);\n  color: var(--ink);\n  border-bottom-color: var(--ink);\n  box-shadow: none;\n}');
     expect(read('src/pages/config/SalaryPeriodConfigPage.css')).toContain('.sp-mode-card.active {\n  border-color: var(--ink);\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/portal/CustomerPortalLayout.css')).toContain('.customer-shell__bottom-nav a.is-active {\n    background: var(--surface, #fff);\n    color: var(--ink, #101828);\n    box-shadow: inset 0 2px 0 var(--ink, #101828);');
     expect(read('src/pages/trip-list/filters.css')).toContain('.trip-list-page .stab-pill.active {\n  background: var(--ink);\n  border-color: var(--ink);');

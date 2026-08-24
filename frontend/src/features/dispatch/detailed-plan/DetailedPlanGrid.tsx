@@ -187,13 +187,6 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill">
                       {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
                     </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                      {row.docs.tradeDirection === 'IMPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
-                      ) : row.docs.tradeDirection === 'EXPORT' ? (
-                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
-                      ) : '—'}
-                    </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường">
                     {row.customerRoute.routeName ? (
@@ -203,6 +196,13 @@ export function DetailedPlanGrid({
                     ) : (
                       <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">—</div>
                     )}
+                    <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                      {row.docs.tradeDirection === 'IMPORT' ? (
+                        <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
+                      ) : row.docs.tradeDirection === 'EXPORT' ? (
+                        <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
+                      ) : '—'}
+                    </div>
                     {row.isCombined && (
                       <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
                         Kết hợp
