@@ -393,6 +393,13 @@
   font-weight: 600;
 }
 
+/* ── Operational canvas (<=1500px) — hand off to mobile card list before the
+   multi-column fuel invoice table forces horizontal scroll. ─────────────── */
+@media (max-width: 1500px) {
+  .fuel-invoices-panel .desktop-only { display: none !important; }
+  .fuel-invoices-panel .mobile-only  { display: block; }
+}
+
 @media (max-width: 1023px) {
   .fuel-invoices-panel__summary,
   .fuel-invoice-detail__metrics,

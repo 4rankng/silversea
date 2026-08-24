@@ -1,3 +1,10 @@
+/* ── Operational canvas (<=1500px) — hand off to mobile card list before the
+   supplier table forces horizontal scroll. ────────────────────────────── */
+@media (max-width: 1500px) {
+  .suppliers-page .desktop-only { display: none !important; }
+  .suppliers-page .mobile-only  { display: block; }
+}
+
 .supplier-form {
   display: grid;
   --supplier-form-column-gap: 12px;
