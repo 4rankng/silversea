@@ -488,7 +488,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     terminalStates: ['COMPLETED', 'CANCELED'],
     stateAuthority: source('db/schema.ts', 'tripStatusEnum', "'COMPLETED'", "'CANCELED'"),
     directMutationBoundary: source(
-      'services/trip-mutations.service.ts',
+      'services/trip-figure-updates.service.ts',
       'updateTripFigures',
       'TripStatus.COMPLETED',
       'throw new ApiError',
