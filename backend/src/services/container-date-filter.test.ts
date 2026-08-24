@@ -58,6 +58,30 @@ describe('filterContainersByDateRange', () => {
     assert.equal(result.length, 0);
   });
 
+  it('keeps undated containers whose fallback date is inside the range', () => {
+    const onlyNull = [makeContainer(null)];
+    const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20', () => '2026-08-20');
+    assert.equal(result.length, 1);
+  });
+
+  it('drops undated containers whose fallback date is outside the range', () => {
+    const onlyNull = [makeContainer(null)];
+    const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20', () => '2026-09-10');
+    assert.equal(result.length, 0);
+  });
+
+  it('drops undated containers when the fallback resolver yields null', () => {
+    const onlyNull = [makeContainer(null)];
+    const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20', () => null);
+    assert.equal(result.length, 0);
+  });
+
+  it('prefers the real appointment over the fallback date', () => {
+    const dated = [makeContainer('2026-08-21T10:00:00.000Z')]; // → 2026-08-21 local
+    const result = filterContainersByDateRange(dated, '2026-08-20', '2026-08-20', () => '2026-08-20');
+    assert.equal(result.length, 0);
+  });
+
   it('returns empty when no containers match the range', () => {
     const result = filterContainersByDateRange(containers, '2027-01-01', '2027-01-31');
     assert.equal(result.length, 0);

@@ -77,6 +77,21 @@ import './ShipmentsPage.css';
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
+
+/**
+ * Split a joined container summary ("1x40HC + 1x20DC") into one line per
+ * container type — the customer-requested layout for the "Tổng quan hàng hóa"
+ * column when one book/bill carries mixed container types. Mirrors the
+ * dispatch master-plan's formatContainerSummaryLines splitter.
+ */
+function splitContainerSummaryLines(summary: string | null | undefined): string[] {
+  if (!summary) return [];
+  return summary
+    .split(/\s*\+\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
   [ShipmentCusBucket.NEW]: 'var(--ink-3)',
   [ShipmentCusBucket.RUNNING]: 'var(--accent)',
@@ -976,7 +991,11 @@ export default function ShipmentsPage() {
                         </td>
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
-                            <strong className="cus-cargo-summary__containers"><span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>{item.containerSummary || worksheetQuantity(item)}</strong>
+                            {splitContainerSummaryLines(item.containerSummary).length > 0
+                              ? splitContainerSummaryLines(item.containerSummary).map((summaryLine, lineIndex) => (
+                                <strong key={summaryLine} className="cus-cargo-summary__containers">{lineIndex === 0 && <span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>}{summaryLine}</strong>
+                              ))
+                              : <strong className="cus-cargo-summary__containers"><span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>{worksheetQuantity(item)}</strong>}
                             <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
                               {item.cargoMode === 'LCL'
                                 ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`

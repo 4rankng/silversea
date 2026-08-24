@@ -685,7 +685,8 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
 
     # TC-1262: Accountants are office staff on /suppliers — the route now
     # grants the payable-aware supplier workspace (App.tsx officeStaffOnly)
-    # instead of bouncing them to the accounting work inbox.
+    # instead of bouncing them to the accounting work inbox. The workspace's
+    # summary surface is the KPI grid (SupplierListPage redesign b3aac81e).
     page = ctx.new_page()
     ctx.login_as('accountant', page)
     page.wait_for_load_state('networkidle')
@@ -693,7 +694,7 @@ def test_vendor_expenses(ctx: SilverseaTestContext, results: TestResults):
     page.wait_for_load_state('networkidle')
     page.wait_for_timeout(1500)
     ctx.screenshot(page, 'TC-1262_suppliers_page')
-    suppliers_visible = page.locator('.summary-rail').first.is_visible()
+    suppliers_visible = page.locator('.kpi-grid').first.is_visible()
     if '/suppliers' in page.url and suppliers_visible:
         results.pass_('TC-1262', 'Suppliers route renders the payable-aware workspace for Accountant')
     else:

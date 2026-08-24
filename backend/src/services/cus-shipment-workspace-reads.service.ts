@@ -1276,7 +1276,15 @@ function buildListItem(
 ): ShipmentCusWorkspaceListItem {
   const allContainers = support.containersByShipment.get(row.shipment.id) ?? [];
   const containers = dateRange
-    ? filterContainersByDateRange(allContainers, dateRange.dateFrom, dateRange.dateTo)
+    ? filterContainersByDateRange(
+      allContainers,
+      dateRange.dateFrom,
+      dateRange.dateTo,
+      // Undated containers plan by the shipment's delivery date — the same
+      // fallback containerTransportDateSql() uses for the row filter, so the
+      // scoped summary never zero-counts a row the filter still shows.
+      () => row.shipment.expectedDeliveryDate,
+    )
     : allContainers;
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const debitNote = support.debitNotesByShipment.get(row.shipment.id) ?? null;

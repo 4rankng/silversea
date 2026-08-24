@@ -421,12 +421,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rows[0]?.[3]).toContain('4 Pallet');
   });
 
-  it('shows every container type in a compact cargo summary without an ellipsis', async () => {
+  it('shows every container type on its own line in the cargo summary without an ellipsis', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL', containerSummary: '1x40HC + 1x20DC' }]));
 
     renderPage();
-    const containerSummary = await screen.findByText('1x40HC + 1x20DC');
-    expect(containerSummary.className).toContain('cus-cargo-summary__containers');
+    // Mixed container types split one line per type (Kiến nghị L2 item 1.2).
+    const firstType = await screen.findByText('1x40HC');
+    expect(firstType.className).toContain('cus-cargo-summary__containers');
+    const secondType = within(masterRow()).getByText('1x20DC');
+    expect(secondType.className).toContain('cus-cargo-summary__containers');
+    expect(within(masterRow()).queryByText('1x40HC + 1x20DC')).toBeNull();
     expect(within(masterRow()).getByText('25.000 kg · 52,5 CBM')).toBeTruthy();
   });
 

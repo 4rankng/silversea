@@ -78,15 +78,6 @@ export default function MasterPlanPage() {
           )}
         />
 
-        {masterPlan.presence && (
-          <ZoneTruckPresencePanel
-            items={masterPlan.presence.items}
-            zoneLabel={masterPlan.presence.zoneLabel}
-            date={masterPlan.presence.date}
-            onSelectPlate={(plate) => masterPlan.updateFilters({ q: plate })}
-          />
-        )}
-
         {masterPlan.dispatchSummary && (
           <div className="master-plan-cargo-summary">
             <span className="master-plan-cargo-summary__label">Sản lượng:</span>
@@ -126,6 +117,17 @@ export default function MasterPlanPage() {
               </>
             )}
           </div>
+        )}
+
+        {/* Customer ask (Kiến nghị L2 3.1): the Lạch Huyện truck table sits
+            BELOW the "Sản lượng" aggregate, not above it. */}
+        {masterPlan.presence && (
+          <ZoneTruckPresencePanel
+            items={masterPlan.presence.items}
+            zoneLabel={masterPlan.presence.zoneLabel}
+            date={masterPlan.presence.date}
+            onSelectPlate={(plate) => masterPlan.updateFilters({ q: plate })}
+          />
         )}
 
         {masterPlan.loading ? (
