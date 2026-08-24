@@ -1069,6 +1069,7 @@ export const portSchema = z.object({
   // route validates the value against the live taxonomy.
   dispatchZone: z.string().max(32).optional().nullable(),
   name: z.string().min(1, 'Tên cảng/bãi không được để trống').max(255),
+  shortName: z.string().max(255).optional().nullable(),
   code: z.string().max(20).optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().max(100).optional().nullable(),

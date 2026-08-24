@@ -194,10 +194,10 @@ export async function loadShipmentListContainerPortGroups(
     .filter((id): id is number => id != null))];
   const portNamesById = portIds.length === 0
     ? new Map<number, string>()
-    : new Map((await query.select({ id: s.ports.id, name: s.ports.name })
+    : new Map((await query.select({ id: s.ports.id, name: s.ports.name, shortName: s.ports.shortName })
       .from(s.ports)
       .where(inArray(s.ports.id, portIds)))
-      .map((port) => [port.id, port.name]));
+      .map((port) => [port.id, port.shortName?.trim() || port.name]));
 
   return groupShipmentContainerPortGroups(containerRows.map((row) => ({
     shipmentId: row.shipmentId,

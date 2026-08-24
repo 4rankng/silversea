@@ -23,6 +23,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
   saving: boolean; item?: Port; zoneOptions: Array<{ value: ZoneChoice; label: string }>; onsave: (d: Record<string, unknown>) => void; oncancel: () => void;
 }) {
   const [name, setName] = useState(item?.name || '');
+  const [shortName, setShortName] = useState(item?.shortName || '');
   const [code, setCode] = useState(item?.code || '');
   const [city, setCity] = useState(item?.city || '');
   const [address, setAddress] = useState(item?.address || '');
@@ -38,6 +39,16 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
             onChange={e => setName(e.target.value)}
             placeholder="Ví dụ: Cảng Lạch Huyện"
             autoFocus
+          />
+        </Field>
+      </div>
+      <div style={{ flex: 1, minWidth: 140 }}>
+        <Field label="Tên viết tắt">
+          <input
+            className="input"
+            value={shortName}
+            onChange={e => setShortName(e.target.value)}
+            placeholder="Ví dụ: SITC"
           />
         </Field>
       </div>
@@ -87,6 +98,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel }: {
           if (!name.trim()) return;
           onsave({
             name: name.trim(),
+            shortName: shortName.trim() || null,
             code: code.trim() || null,
             city: city.trim() || null,
             address: address.trim() || null,
@@ -205,6 +217,7 @@ export default function PortsConfigPage() {
           header: 'Tên cảng/bãi',
           render: (p) => <span style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{p.name}</span>,
         },
+        { header: 'Tên viết tắt', render: (p) => <span style={{ color: 'var(--fg-2)' }}>{p.shortName || '—'}</span> },
         { header: 'Mã cảng', render: (p) => <span style={{ color: 'var(--fg-2)' }}>{p.code || '—'}</span> },
         {
           header: 'Khu vực điều phối',

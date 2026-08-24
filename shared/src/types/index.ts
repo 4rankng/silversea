@@ -747,6 +747,7 @@ export interface SealType {
 export interface Port {
   id: number;
   name: string;
+  shortName: string | null;
   code: string | null;
   address: string | null;
   city: string | null;
