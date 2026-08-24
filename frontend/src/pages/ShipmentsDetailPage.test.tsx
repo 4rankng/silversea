@@ -120,8 +120,8 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
       'Địa điểm nâng / hạ',
       'Lịch trình',
       'Phân xe',
-      'Ghi chú',
       'Trạng thái',
+      'Ghi chú',
     ]);
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell

@@ -181,7 +181,7 @@ describe('MasterPlanGrid', () => {
     expect(headers).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
-      'Chứng từ & hãng tàu',
+      'Tuyến đường & hãng tàu',
       'Cảng nâng',
       'Cảng hạ',
       'Tổng quan hàng hóa',
@@ -192,12 +192,14 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
-    // T2.1: customer → factories → route, with the route bold and no redundant label.
+    // T2.1: customer → factories → bill number, with customer and bill bold.
     expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
+    // Bill number is now the 3rd line in Customer & Factory column (bold).
+    expect(screen.getByText('BL-2026-001')).toHaveClass('master-plan-grid__line--strong');
+    // Route name moved to Route & Shipping column (bold).
     expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText('BL-2026-001')).toBeTruthy();
     expect(screen.getByText('Nhập')).toBeTruthy();
     expect(screen.getByText('Cảng Cát Lái · 2 x 40HC + 1 x 20DC')).toBeTruthy();
     expect(screen.getByText('Kho Bình Dương · 2 x 40HC + 1 x 20DC')).toBeTruthy();
@@ -206,7 +208,6 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('1 x 20DC').closest('td')).toBe(cargoCell);
     expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
-    expect(screen.getByText('BL-2026-001')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText(/Lịch cont sớm nhất: 20\/08\/2026/)).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
@@ -226,7 +227,7 @@ describe('MasterPlanGrid', () => {
 
   it('anchors the direction pill at the lower-right of the document cell', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    expect(css).toContain('.master-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
+    expect(css).toContain('.master-plan-grid__route-shipping-direction { grid-area: direction; align-self: end; justify-self: end; }');
     expect(css).toContain('"carrier carrier"');
     expect(css).toContain('". direction"');
   });
@@ -236,10 +237,10 @@ describe('MasterPlanGrid', () => {
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
     const scheduleWidth = widthFor('schedule');
-    const widths = ['schedule', 'customer', 'documents', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
+    const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
     expect(scheduleWidth).toBe(22);
-    expect(scheduleWidth).toBeGreaterThan(widthFor('documents'));
+    expect(scheduleWidth).toBeGreaterThan(widthFor('route-shipping'));
     expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
   });
@@ -369,7 +370,7 @@ describe('MasterPlanGrid', () => {
     expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
-      'Chứng từ & hãng tàu',
+      'Tuyến đường & hãng tàu',
       'Cảng nâng',
       'Cảng hạ',
       'Tổng quan hàng hóa',

@@ -6,6 +6,11 @@ import {
   type ShipmentListItem,
   type ShipmentListResponse,
 } from '../../../api/shipmentClient';
+import {
+  listZoneTruckPresence,
+  type ZoneTruckPresenceItem,
+} from '../../../api/dispatchPlanningClient';
+import { configClient } from '../../../api/configClient';
 
 const PAGE_SIZE = 20;
 
@@ -45,6 +50,34 @@ export function useDispatchMasterPlan() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [dispatchSummary, setDispatchSummary] = useState<ShipmentListResponse['dispatchSummary']>(undefined);
   const requestIdRef = useRef(0);
+
+  // Zone truck presence for today: advisory panel showing OWN trucks.
+  const [zones, setZones] = useState<Array<{ code: string; label: string }>>([]);
+  const [presence, setPresence] = useState<{ zone: string; zoneLabel: string; date: string; items: ZoneTruckPresenceItem[] } | null>(null);
+  const presenceRequestIdRef = useRef(0);
+  useEffect(() => {
+    let cancelled = false;
+    configClient.getDispatchZones()
+      .then((res) => { if (!cancelled) setZones(res.items); })
+      .catch(() => { /* no taxonomy → no presence panel */ });
+    return () => { cancelled = true; };
+  }, []);
+  const presenceZone = zones[0]?.code || '';
+  useEffect(() => {
+    if (!presenceZone) { setPresence(null); return; }
+    const requestId = ++presenceRequestIdRef.current;
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    listZoneTruckPresence({ zone: presenceZone, date: todayStr })
+      .then((response) => {
+        if (presenceRequestIdRef.current !== requestId) return;
+        setPresence(response);
+      })
+      .catch(() => {
+        if (presenceRequestIdRef.current !== requestId) return;
+        setPresence(null);
+      });
+  }, [presenceZone, refreshKey]);
 
   // Debounce the free-text search so typing doesn't fire a request per keystroke.
   const [debouncedQ, setDebouncedQ] = useState(filters.q);
@@ -114,5 +147,6 @@ export function useDispatchMasterPlan() {
     replaceItem,
     pageSize: PAGE_SIZE,
     dispatchSummary,
+    presence,
   };
 }

@@ -1,3 +1,4 @@
+import { useCallback, useRef, useState } from 'react';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -16,6 +17,8 @@ interface MasterPlanGridProps {
   /** Active single-day view (YYYY-MM-DD) — when set, each row's schedule
    *  lines show only that day's đóng/trả appointments. */
   scheduleDate?: string | null;
+  /** Called when dispatch staff saves an inline operational-notes edit. */
+  onUpdateNotes?: (shipment: ShipmentListItem, notes: string) => void;
 }
 
 function formatDateTime(iso: string | null | undefined): string {
@@ -192,14 +195,39 @@ function aggregateContainerPortGroupLines(item: ShipmentListItem): ContainerPort
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes }: MasterPlanGridProps) {
+  const [editingNotesId, setEditingNotesId] = useState<number | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState('');
+  const notesInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const startNotesEdit = useCallback((item: ShipmentListItem) => {
+    setEditingNotesId(item.id);
+    setEditingNotesValue(item.operationalNotes ?? '');
+    // Focus the textarea after React renders it.
+    requestAnimationFrame(() => notesInputRef.current?.focus());
+  }, []);
+
+  const cancelNotesEdit = useCallback(() => {
+    setEditingNotesId(null);
+    setEditingNotesValue('');
+  }, []);
+
+  const saveNotesEdit = useCallback((item: ShipmentListItem) => {
+    const trimmed = editingNotesValue.trim();
+    if (trimmed !== (item.operationalNotes ?? '')) {
+      onUpdateNotes?.(item, trimmed);
+    }
+    setEditingNotesId(null);
+    setEditingNotesValue('');
+  }, [editingNotesValue, onUpdateNotes]);
+
   return (
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
         <colgroup>
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />
-          <col className="master-plan-grid__col master-plan-grid__col--documents" />
+          <col className="master-plan-grid__col master-plan-grid__col--route-shipping" />
           <col className="master-plan-grid__col master-plan-grid__col--lift-port" />
           <col className="master-plan-grid__col master-plan-grid__col--drop-port" />
           <col className="master-plan-grid__col master-plan-grid__col--cargo" />
@@ -210,7 +238,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           <tr>
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
-            <th scope="col">Chứng từ &amp; hãng tàu</th>
+            <th scope="col">Tuyến đường &amp; hãng tàu</th>
             <th scope="col">Cảng nâng</th>
             <th scope="col">Cảng hạ</th>
             <th scope="col">Tổng quan hàng hóa</th>
@@ -254,22 +282,22 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__line master-plan-grid__line--strong">{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line">{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong">
-                    {item.routeName ?? '—'}
+                    {item.blNumber || item.bookingRef || '—'}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Chứng từ & hãng tàu">
-                  <div className="master-plan-grid__documents">
-                    <div className="master-plan-grid__line master-plan-grid__documents-bill">
-                      {item.blNumber || item.bookingRef || '—'}
+                <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu">
+                  <div className="master-plan-grid__route-shipping">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route">
+                      {item.routeName ?? '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__documents-direction">
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction">
                       {item.tradeDirection === 'IMPORT' ? (
                         <Badge type="pill-color" size="sm" color="gray">Nhập</Badge>
                       ) : item.tradeDirection === 'EXPORT' ? (
                         <Badge type="pill-color" size="sm" color="gray">Xuất</Badge>
                       ) : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__documents-carrier">{item.shippingLineName ?? '—'}</div>
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier">{item.shippingLineName ?? '—'}</div>
                   </div>
                 </td>
                 <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng">
@@ -363,15 +391,66 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   </UUIButton>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú">
-                  {item.operationalNotes && (
-                    <div className="master-plan-grid__line master-plan-grid__line--notes" title={item.operationalNotes}>
-                      {item.operationalNotes}
+                  {editingNotesId === item.id ? (
+                    <div className="master-plan-grid__notes-editor">
+                      <textarea
+                        ref={notesInputRef}
+                        className="master-plan-grid__notes-input"
+                        value={editingNotesValue}
+                        onChange={(e) => setEditingNotesValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            saveNotesEdit(item);
+                          }
+                          if (e.key === 'Escape') cancelNotesEdit();
+                        }}
+                        rows={2}
+                        maxLength={2000}
+                        aria-label="Ghi chú điều phối"
+                      />
+                      <div className="master-plan-grid__notes-actions">
+                        <button
+                          type="button"
+                          className="master-plan-grid__notes-save"
+                          onClick={() => saveNotesEdit(item)}
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          type="button"
+                          className="master-plan-grid__notes-cancel"
+                          onClick={cancelNotesEdit}
+                        >
+                          Hủy
+                        </button>
+                      </div>
                     </div>
-                  )}
-                  {item.factoryNotes && (
-                    <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
-                      NM: {item.factoryNotes}
-                    </div>
+                  ) : (
+                    <>
+                      {(item.operationalNotes || onUpdateNotes) && (
+                        <div
+                          className="master-plan-grid__line master-plan-grid__line--notes master-plan-grid__notes-trigger"
+                          title={item.operationalNotes ?? 'Nhấn để thêm ghi chú'}
+                          onClick={() => onUpdateNotes && startNotesEdit(item)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onUpdateNotes && startNotesEdit(item);
+                            }
+                          }}
+                          role={onUpdateNotes ? 'button' : undefined}
+                          tabIndex={onUpdateNotes ? 0 : undefined}
+                        >
+                          {item.operationalNotes || (onUpdateNotes ? '—' : '')}
+                        </div>
+                      )}
+                      {item.factoryNotes && (
+                        <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
+                          NM: {item.factoryNotes}
+                        </div>
+                      )}
+                    </>
                   )}
                 </td>
               </tr>

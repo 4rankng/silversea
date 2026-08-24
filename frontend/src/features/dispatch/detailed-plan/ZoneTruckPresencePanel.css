@@ -1,0 +1,86 @@
+/* ─── Xe tại zone presence panel (advisory strip) ──────────────────────── */
+
+.zone-presence-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: var(--app-radius-md, 10px);
+  background: var(--surface-white, #fff);
+}
+
+.zone-presence-panel__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.zone-presence-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #101828);
+}
+
+.zone-presence-panel__date {
+  font-size: var(--fs-xs, 12px);
+  color: var(--text-tertiary, #667085);
+}
+
+.zone-presence-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.zone-presence-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--text-primary, #101828);
+  background: var(--surface-white, #fff);
+  border: 1px solid var(--border-medium, #d0d5dd);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.zone-presence-panel__chip:hover {
+  border-color: var(--border-strong, #98a2b3);
+}
+
+.zone-presence-panel__plate {
+  font-weight: 600;
+}
+
+.zone-presence-panel__tag {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 500;
+  color: var(--text-secondary, #475467);
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: 9999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.zone-presence-panel__count {
+  font-size: var(--fs-xs, 12px);
+  font-weight: 600;
+  color: var(--text-tertiary, #667085);
+}
+
+/* Mobile: chips scroll horizontally instead of wrapping tall. */
+@media (max-width: 640px) {
+  .zone-presence-panel__chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .zone-presence-panel__chip {
+    flex: 0 0 auto;
+  }
+}

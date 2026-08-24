@@ -8,6 +8,7 @@ import type {
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
+import { requestContainerEdit } from '../../../api/shipmentClient';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -190,6 +191,13 @@ function InlineEditor({
   routeOptions: Array<{ value: string; label: string; searchText?: string }>;
 }) {
   const { detail, line, mode, row } = edit;
+  const containerRequestMode = mode === 'container' && (
+    line.fieldAccess.containerNumber.mode === 'REQUEST'
+    || line.fieldAccess.containerTypeId.mode === 'REQUEST'
+    || line.fieldAccess.cargoWeightKg.mode === 'REQUEST'
+    || line.fieldAccess.cargoVolumeCbm.mode === 'REQUEST'
+  );
+  const [requestReason, setRequestReason] = useState('');
   const [liftSiteId, setLiftSiteId] = useState(line.liftSiteId ? String(line.liftSiteId) : '');
   const [dropoffSiteId, setDropoffSiteId] = useState(line.dropoffSiteId ? String(line.dropoffSiteId) : '');
   const [containerRouteId, setContainerRouteId] = useState(line.routeId ? String(line.routeId) : '');
@@ -217,6 +225,7 @@ function InlineEditor({
   const [cargoVolumeCbm, setCargoVolumeCbm] = useState(line.raw.cargoVolumeCbm ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const siteOptions = useMemo(() => detail.selectors.ports.map((port) => ({
     value: String(port.id), label: port.label, searchText: `${port.code ?? ''} ${port.name}`,
@@ -252,6 +261,7 @@ function InlineEditor({
         || containerTypeId !== (line.raw.containerTypeId ? String(line.raw.containerTypeId) : '')
         || cargoWeightKg.trim() !== (line.raw.cargoWeightKg ?? '')
         || cargoVolumeCbm.trim() !== (line.raw.cargoVolumeCbm ?? '')
+        || (containerRequestMode && requestReason.trim().length > 0)
     : mode === 'route'
     ? containerRouteId !== (line.routeId ? String(line.routeId) : '')
       || liftSiteId !== (line.liftSiteId ? String(line.liftSiteId) : '')
@@ -293,12 +303,34 @@ function InlineEditor({
           shippingLineName: shippingLineName.trim() || null,
         });
       } else if (mode === 'container') {
-        await onSaveContainer(line, {
-          containerNumber: containerNumber.trim().toUpperCase() || null,
-          containerTypeId: containerTypeId ? Number(containerTypeId) : null,
-          cargoWeightKg: cargoWeightKg.trim() || null,
-          cargoVolumeCbm: cargoVolumeCbm.trim() || null,
-        });
+        if (containerRequestMode) {
+          if (!requestReason.trim()) throw new Error('Vui lòng nhập lý do yêu cầu chỉnh sửa.');
+          const fields: Record<string, unknown> = {};
+          if (containerNumber.trim().toUpperCase() !== (line.raw.containerNumber ?? '')) {
+            fields.containerNumber = containerNumber.trim().toUpperCase() || null;
+          }
+          if (containerTypeId !== (line.raw.containerTypeId ? String(line.raw.containerTypeId) : '')) {
+            fields.containerTypeId = containerTypeId ? Number(containerTypeId) : null;
+          }
+          if (cargoWeightKg.trim() !== (line.raw.cargoWeightKg ?? '')) {
+            fields.cargoWeightKg = cargoWeightKg.trim() || null;
+          }
+          if (cargoVolumeCbm.trim() !== (line.raw.cargoVolumeCbm ?? '')) {
+            fields.cargoVolumeCbm = cargoVolumeCbm.trim() || null;
+          }
+          if (Object.keys(fields).length === 0) throw new Error('Không có thay đổi nào để gửi yêu cầu.');
+          await requestContainerEdit(detail.summary.id, line.id, fields, requestReason.trim());
+          setRequestSuccess('Đã gửi yêu cầu chỉnh sửa container. Điều vận sẽ xem xét và phê duyệt.');
+          setRequestReason('');
+          return;
+        } else {
+          await onSaveContainer(line, {
+            containerNumber: containerNumber.trim().toUpperCase() || null,
+            containerTypeId: containerTypeId ? Number(containerTypeId) : null,
+            cargoWeightKg: cargoWeightKg.trim() || null,
+            cargoVolumeCbm: cargoVolumeCbm.trim() || null,
+          });
+        }
       } else if (mode === 'route') {
         await onSaveRoute(line, {
           routeId: containerRouteId ? Number(containerRouteId) : null,
@@ -411,10 +443,14 @@ function InlineEditor({
       )}
       {mode === 'container' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Số container</span><input autoFocus value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
-          <label><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
-          <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
-          <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>
+          {containerRequestMode && <small className="shipment-container-ledger__request-notice">Chỉnh sửa sau điều xe — thay đổi sẽ gửi yêu cầu để Điều vận xem xét.</small>}
+          <label className={line.fieldAccess.containerNumber.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Số container</span><input autoFocus value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
+          <label className={line.fieldAccess.containerTypeId.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
+          <label className={line.fieldAccess.cargoWeightKg.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
+          <label className={line.fieldAccess.cargoVolumeCbm.mode === 'REQUEST' ? 'shipment-container-ledger__field--request' : undefined}><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>
+          {containerRequestMode && (
+            <label className="shipment-container-ledger__request-reason"><span>Lý do yêu cầu</span><textarea value={requestReason} onChange={(event) => setRequestReason(event.target.value)} rows={3} maxLength={500} required disabled={saving} placeholder="Nhập lý do cần chỉnh sửa container sau điều xe" /></label>
+          )}
         </div>
       )}
       {mode === 'route' && (
@@ -449,10 +485,11 @@ function InlineEditor({
       )}
       <div className="shipment-container-ledger__editor-footer">
         <span className="shipment-container-ledger__keyboard-hint">Enter để lưu · Esc để hủy</span>
-        <EditActions saving={saving} saveDisabled={!dirty} label={label} onSave={() => void save()} onCancel={onCancel} />
+        <EditActions saving={saving} saveDisabled={!dirty || (containerRequestMode && !requestReason.trim())} label={label} onSave={() => void save()} onCancel={onCancel} />
       </div>
       {edit.recoveryMessage && <span className="shipment-container-ledger__recovery" role="status">{edit.recoveryMessage}</span>}
       {saveError && <span className="shipment-container-ledger__edit-error" role="alert">{saveError}</span>}
+      {requestSuccess && <span className="shipment-container-ledger__request-success" role="status">{requestSuccess}</span>}
     </div>
   );
 }
@@ -569,8 +606,8 @@ export function ShipmentContainerLedger({
             <col className="shipment-container-ledger__col--route" />
             <col className="shipment-container-ledger__col--schedule" />
             <col className="shipment-container-ledger__col--vehicle" />
-            <col className="shipment-container-ledger__col--notes" />
             <col className="shipment-container-ledger__col--status" />
+            <col className="shipment-container-ledger__col--notes" />
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
@@ -579,8 +616,8 @@ export function ShipmentContainerLedger({
             <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />
           </tr></thead>
           <tbody>
             {rows.map((row) => {
@@ -661,15 +698,15 @@ export function ShipmentContainerLedger({
                       )}
                     </div>)}
                   </td>
+                  <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
+                    <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
+                  </td>
                   <td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
                       {row.customerNotes && <strong>{row.customerNotes}</strong>}
                       {row.operationalNotes && <span>{row.operationalNotes}</span>}
                       {!row.customerNotes && !row.operationalNotes && <span className="shipment-container-ledger__missing">—</span>}
                     </div>)}
-                  </td>
-                  <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
-                    <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
                   </td>
                 </tr>
               );

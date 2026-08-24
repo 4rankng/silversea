@@ -22,6 +22,7 @@ import type { Tx } from './trip-shared';
 import { escapeLikeTerm } from '../lib/format';
 import { operationalName } from '../db/master-data-name';
 import type { DispatchCarrierKey, DispatchSummary } from '@tingting/shared';
+import { filterContainersByDateRange } from './container-date-filter';
 
 // Codebase convention: each query service defines its own operational-name
 // expression (see driver/gps/dispatch-planning/trip-queries services).
@@ -670,16 +671,18 @@ export function buildDispatchCarrierFacetPredicate(carrierKeys: string[]): SQL |
 export async function computeDispatchSummaryForSet(
   shipmentIds: number[],
   tx: Pick<typeof db, 'select'> = db,
+  dateRange?: { dateFrom?: string; dateTo?: string },
 ): Promise<DispatchSummary> {
   const ids = [...new Set(shipmentIds)];
   if (ids.length === 0) {
     return { totalFclContainers: 0, size20ft: 0, size40ft: 0, sizeOther: 0, lclFulfillments: 0 };
   }
-  const [containerRows, lclRows] = await Promise.all([
+  const [rawContainerRows, lclRows] = await Promise.all([
     tx.select({
       shipmentId: s.shipmentContainers.shipmentId,
       code: s.containerTypes.code,
       name: s.containerTypes.name,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(inArray(s.shipmentContainers.shipmentId, ids)),
@@ -691,6 +694,12 @@ export async function computeDispatchSummaryForSet(
         activeFulfillment(),
       )),
   ]);
+
+  // Scope container counts to the active date range when one is present.
+  const containerRows = dateRange
+    ? filterContainersByDateRange(rawContainerRows, dateRange.dateFrom, dateRange.dateTo)
+    : rawContainerRows;
+
   let size20 = 0;
   let size40 = 0;
   let sizeOther = 0;
@@ -1153,6 +1162,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       dispatchSummary = await computeDispatchSummaryForSet(
         filteredIdRows.map((row) => row.id),
         tx as unknown as Pick<typeof db, 'select'>,
+        (options.deliveryDateFrom || options.deliveryDateTo)
+          ? { dateFrom: options.deliveryDateFrom, dateTo: options.deliveryDateTo }
+          : undefined,
       );
     }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
   } else {

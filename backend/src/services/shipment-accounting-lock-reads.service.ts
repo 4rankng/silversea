@@ -17,7 +17,6 @@ import {
   type GovernanceRow,
   nameOrUsername,
   readNumber,
-  readString,
   mapConfirmationSummary,
   lockShipment,
   loadActiveLockForUpdate,

@@ -90,8 +90,8 @@
 .shipment-container-ledger__col--route { width: 14%; }
 .shipment-container-ledger__col--schedule { width: 11%; }
 .shipment-container-ledger__col--vehicle { width: 13%; }
-.shipment-container-ledger__col--notes { width: 14%; }
 .shipment-container-ledger__col--status { width: 8%; }
+.shipment-container-ledger__col--notes { width: 14%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -257,6 +257,13 @@
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
 .shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+.shipment-container-ledger__field--request > input,
+.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning, #f59e0b); }
+.shipment-container-ledger__field--request > input:focus-visible,
+.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning, #f59e0b); outline-color: color-mix(in srgb, var(--warning, #f59e0b) 22%, transparent); }
+.shipment-container-ledger__request-notice { color: var(--warning-text, #92400e); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.4; }
+.shipment-container-ledger__request-reason { grid-column: 1 / -1; }
+.shipment-container-ledger__request-reason textarea { min-height: 60px; }
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
 .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
 .shipment-container-ledger__edit-action { display: inline-flex; width: auto; min-width: 36px; height: 36px; min-height: 36px; padding-inline: 12px; font-size: 13px; }
@@ -269,6 +276,7 @@
 .shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-4); box-shadow: none; opacity: 1; }
 .shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: 11px; line-height: 1.35; white-space: nowrap; }
 .shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text, #166534); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 
 .shipments-detail-skeleton { padding: 0 12px; }
@@ -318,7 +326,7 @@
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
@@ -376,7 +384,7 @@
   .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
   .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "CHỨNG TỪ"; }
 }
 
@@ -392,7 +400,7 @@
   .shipment-container-ledger tbody > tr > td { grid-column: auto !important; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: 1 / -1 !important; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
@@ -422,7 +430,7 @@
   .shipment-container-ledger tbody > tr > td { grid-template-columns: 88px minmax(0, 1fr); column-gap: 8px; padding: 6px 10px; }
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td,
-  .shipment-container-ledger tbody > tr > :nth-child(7) { grid-column: auto !important; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: auto !important; border-right: 0; }
   /* An active editor owns its complete record on a phone. Its trigger already
      supplies the internal spacing, so parent-cell padding must not truncate
      the normal-flow editor below it. */

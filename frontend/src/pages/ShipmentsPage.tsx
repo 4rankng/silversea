@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -39,6 +40,7 @@ import {
   listCusShipmentWorkspace,
   lockCusShipment,
   requestCusShipmentReopen,
+  requestShipmentDelete,
   updateCusShipmentDocumentCustody,
   updateShipment,
   updateShipmentDeclaration,
@@ -120,7 +122,8 @@ export default function ShipmentsPage() {
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<number>>(() => new Set());
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
   const [actionItem, setActionItem] = useState<ShipmentCusWorkspaceListItem | null>(null);
-  const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | null>(null);
+  const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | 'delete' | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
@@ -536,7 +539,7 @@ export default function ShipmentsPage() {
     }
   };
 
-  const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen') => {
+  const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => {
     if (dirtyDetailIds.has(item.id)) {
       setError('Hãy lưu hoặc bỏ thay đổi container trước khi thực hiện thao tác này.');
       return;
@@ -549,7 +552,9 @@ export default function ShipmentsPage() {
         ? 'Kế toán xác nhận nguồn chi phí hiện hành của lô.'
         : mode === 'lock'
           ? 'CUS xác nhận khóa lô sau khi Kế toán duyệt.'
-          : '',
+          : mode === 'delete'
+            ? ''
+            : '',
     );
   };
 
@@ -613,6 +618,14 @@ export default function ShipmentsPage() {
           acknowledged: true,
         }, idempotencyKey);
         setNotice('Đã khóa lô hàng. Mọi trường nhập và tệp tải lên hiện ở chế độ chỉ đọc.');
+      } else if (actionMode === 'delete') {
+        const result = await requestShipmentDelete(actionItem.id, actionItem.version, reason.trim());
+        if (result.pendingApproval) {
+          setPendingDeleteIds((prev) => new Set(prev).add(actionItem.id));
+          setNotice('Yêu cầu xóa đã gửi ADMIN phê duyệt.');
+        } else {
+          setNotice('Đã xóa lô hàng.');
+        }
       } else {
         if (!actionItem.activeLock?.id) {
           throw new Error('Không tìm thấy khóa lô hiện hành. Vui lòng tải lại dữ liệu.');
@@ -1006,22 +1019,36 @@ export default function ShipmentsPage() {
                           <div className="cus-row-actions">
                             <div className="cus-row-actions__summary">
                               <WorkflowBadge item={item} />
+                              {pendingDeleteIds.has(item.id) && <span className="cus-workflow-badge cus-workflow-badge--pending-delete">Chờ phê duyệt xóa</span>}
                               {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
                             </div>
-                            <UUIButton
-                              id={'cus-dashboard-detail-' + item.id}
-                              size="sm"
-                              color="tertiary"
-                              className="cus-dashboard-detail"
-                              aria-haspopup="dialog"
-                              aria-controls={'cus-detail-drawer-' + item.id}
-                              aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
-                              onPress={() => openShipmentDetail(item.id)}
-                              isDisabled={editing}
-                              iconTrailing={ChevronRight}
-                            >
-                              Xem chi tiết
-                            </UUIButton>
+                            <div className="cus-row-actions__buttons">
+                              <UUIButton
+                                size="sm"
+                                color="secondary"
+                                className="cus-dashboard-delete"
+                                aria-label={`Yêu cầu xóa lô hàng ${identity}`}
+                                onPress={() => openAction(item, 'delete')}
+                                isDisabled={editing || pendingDeleteIds.has(item.id)}
+                                iconLeading={<Trash2 size={16} aria-hidden="true" />}
+                              >
+                                Xóa
+                              </UUIButton>
+                              <UUIButton
+                                id={'cus-dashboard-detail-' + item.id}
+                                size="sm"
+                                color="tertiary"
+                                className="cus-dashboard-detail"
+                                aria-haspopup="dialog"
+                                aria-controls={'cus-detail-drawer-' + item.id}
+                                aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
+                                onPress={() => openShipmentDetail(item.id)}
+                                isDisabled={editing}
+                                iconTrailing={ChevronRight}
+                              >
+                                Xem chi tiết
+                              </UUIButton>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1157,7 +1184,7 @@ export default function ShipmentsPage() {
 
       <Modal
         isOpen={Boolean(actionItem && actionMode)}
-        title={actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actionMode === 'lock' ? 'Xác nhận khóa lô' : 'Đề nghị điều chỉnh'}
+        title={actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actionMode === 'lock' ? 'Xác nhận khóa lô' : actionMode === 'delete' ? 'Yêu cầu xóa lô hàng' : 'Đề nghị điều chỉnh'}
         onClose={closeAction}
         onConfirm={() => void submitAction()}
         footer={(
@@ -1165,7 +1192,7 @@ export default function ShipmentsPage() {
             <button type="button" className="btn btn--ghost" onClick={closeAction} disabled={submitting}>Hủy</button>
             <button type="button" className="btn btn--primary" onClick={() => void submitAction()} disabled={submitting || !reason.trim()}>
               {submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-              {actionMode === 'confirm' ? 'Xác nhận chi phí' : actionMode === 'lock' ? 'Khóa lô' : 'Gửi đề nghị'}
+              {actionMode === 'confirm' ? 'Xác nhận chi phí' : actionMode === 'lock' ? 'Khóa lô' : actionMode === 'delete' ? 'Gửi yêu cầu xóa' : 'Gửi đề nghị'}
             </button>
           </>
         )}
@@ -1174,11 +1201,13 @@ export default function ShipmentsPage() {
           <p>Xác nhận này chụp lại phiên bản Debit Note, chuyến xe và chi phí hiện hành. Nếu nguồn thay đổi, xác nhận sẽ hết hiệu lực.</p>
         ) : actionMode === 'lock' ? (
           <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Dữ liệu chỉ được mở lại qua yêu cầu được Quản trị viên duyệt.</p>
+        ) : actionMode === 'delete' ? (
+          <p>Yêu cầu xóa lô hàng sẽ gửi đến Quản trị viên để phê duyệt. Nếu lô hàng chưa phát sinh nghiệp vụ, có thể xóa ngay lập tức.</p>
         ) : (
           <p>Ghi rõ nội dung cần sửa để Quản trị viên có đủ căn cứ xem xét mở lại lô hàng.</p>
         )}
         <label className="cus-action-reason">
-          <span>{actionMode === 'confirm' ? 'Lý do xác nhận' : actionMode === 'lock' ? 'Lý do khóa' : 'Lý do điều chỉnh'}</span>
+          <span>{actionMode === 'confirm' ? 'Lý do xác nhận' : actionMode === 'lock' ? 'Lý do khóa' : actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>
           <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} maxLength={500} required autoFocus />
           <small>{reason.length}/500 ký tự</small>
         </label>

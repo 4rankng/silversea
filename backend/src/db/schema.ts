@@ -1499,6 +1499,7 @@ export const dispatchZones = pgTable('dispatch_zones', {
 export const ports = pgTable('ports', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),   // e.g. "Cảng Hải Phòng"
+  shortName: varchar('short_name', { length: 255 }).notNull().default(''),
   code: varchar('code', { length: 20 }).unique(),     // e.g. "HPH"
   address: text('address'),
   city: varchar('city', { length: 100 }).default('Hải Phòng'),

@@ -532,7 +532,7 @@
 .master-plan-grid__col--schedule { width: 22%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 14%; }
-.master-plan-grid__col--documents { width: 9%; }
+.master-plan-grid__col--route-shipping { width: 9%; }
 .master-plan-grid__col--lift-port { width: 11%; }
 .master-plan-grid__col--drop-port { width: 11%; }
 .master-plan-grid__col--cargo { width: 10%; }
@@ -628,10 +628,10 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-.master-plan-grid__documents {
+.master-plan-grid__route-shipping {
   display: grid;
   grid-template-areas:
-    "bill bill"
+    "route route"
     "carrier carrier"
     ". direction";
   grid-template-columns: minmax(0, 1fr) auto;
@@ -640,9 +640,9 @@
   gap: 3px 8px;
 }
 
-.master-plan-grid__documents-bill { grid-area: bill; }
-.master-plan-grid__documents-carrier { grid-area: carrier; align-self: start; }
-.master-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
+.master-plan-grid__route-shipping-route { grid-area: route; }
+.master-plan-grid__route-shipping-carrier { grid-area: carrier; align-self: start; }
+.master-plan-grid__route-shipping-direction { grid-area: direction; align-self: end; justify-self: end; }
 
 .master-plan-grid__line--soon {
   color: var(--warning-deep);
@@ -660,6 +660,76 @@
   font-size: var(--ops-table-note-size);
   font-weight: var(--ops-table-note-weight);
   line-height: var(--ops-table-note-line-height);
+}
+
+.master-plan-grid__notes-trigger {
+  cursor: pointer;
+  border-radius: var(--radius-xs, 4px);
+  transition: background-color 100ms var(--ease);
+}
+
+.master-plan-grid__notes-trigger:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.master-plan-grid__notes-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.master-plan-grid__notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.master-plan-grid__notes-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-xs, 4px);
+  background: var(--surface);
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--ops-table-note-size);
+  line-height: var(--ops-table-note-line-height);
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.master-plan-grid__notes-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.master-plan-grid__notes-save,
+.master-plan-grid__notes-cancel {
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs, 4px);
+  background: var(--surface);
+  color: var(--fg-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 100ms var(--ease), border-color 100ms var(--ease);
+}
+
+.master-plan-grid__notes-save {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.master-plan-grid__notes-save:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg-1));
+}
+
+.master-plan-grid__notes-cancel:hover {
+  background: var(--surface-2);
+  border-color: var(--fg-3);
 }
 
 .master-plan-grid__container-detail-trigger {
@@ -806,7 +876,7 @@
     padding-block: 8px;
   }
 
-  .master-plan-grid__documents {
+  .master-plan-grid__route-shipping {
     min-height: 0;
   }
 

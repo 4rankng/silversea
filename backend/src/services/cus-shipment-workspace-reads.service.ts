@@ -47,6 +47,7 @@ import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
 } from './shipment-accounting-lock.service';
+import { filterContainersByDateRange } from './container-date-filter';
 
 export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
@@ -162,6 +163,7 @@ type AssignmentRow = {
   plannedExternalCarrierVehicleId: number | null;
   plannedVehiclePlateNumber: string | null;
   plannedCarrierName: string | null;
+  plannedCarrierShortName: string | null;
   tripId: number | null;
   tripVersion: number | null;
   tripStatus: string | null;
@@ -170,6 +172,7 @@ type AssignmentRow = {
   tripExternalCarrierId: number | null;
   tripExternalCarrierVehicleId: number | null;
   tripExternalCarrierName: string | null;
+  tripExternalCarrierShortName: string | null;
   tripExternalPlateNumber: string | null;
   tripTruckId: number | null;
   tripTruckPlate: string | null;
@@ -1011,6 +1014,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedCarrierName: plannedCarrier.name,
+      plannedCarrierShortName: plannedCarrier.shortName,
       tripId: s.trips.id,
       tripVersion: s.trips.version,
       tripStatus: s.trips.status,
@@ -1019,6 +1023,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripExternalCarrierId: s.trips.externalEntityId,
       tripExternalCarrierVehicleId: s.trips.externalCarrierVehicleId,
       tripExternalCarrierName: actualCarrier.name,
+      tripExternalCarrierShortName: actualCarrier.shortName,
       tripExternalPlateNumber: s.trips.externalPlateNumber,
       tripTruckId: s.trips.truckId,
       tripTruckPlate: s.trucks.licensePlate,
@@ -1206,8 +1211,8 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
       .orderBy(asc(SITE_OPERATIONAL_NAME), asc(s.operationalSites.id)),
     executor.select({
       id: s.customers.id,
-      name: CUSTOMER_OPERATIONAL_NAME,
-      shortName: CUSTOMER_OPERATIONAL_NAME,
+      name: s.customers.name,
+      shortName: s.customers.shortName,
     }).from(s.customers)
       .where(and(
         eq(s.customers.isCarrier, true),
@@ -1249,7 +1254,7 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
     })),
     externalCarriers: externalCarriers.map((row) => ({
       ...row,
-      label: row.name,
+      label: row.shortName?.trim() || row.name,
     })),
     carrierVehicles: carrierVehicles.map((row) => ({
       ...row,
@@ -1267,8 +1272,12 @@ function buildListItem(
   support: WorkspaceSupport,
   actor: AuthUser,
   confirmation: Awaited<ReturnType<typeof getShipmentFinanceConfirmationSummary>>,
+  dateRange?: { dateFrom?: string; dateTo?: string },
 ): ShipmentCusWorkspaceListItem {
-  const containers = support.containersByShipment.get(row.shipment.id) ?? [];
+  const allContainers = support.containersByShipment.get(row.shipment.id) ?? [];
+  const containers = dateRange
+    ? filterContainersByDateRange(allContainers, dateRange.dateFrom, dateRange.dateTo)
+    : allContainers;
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const debitNote = support.debitNotesByShipment.get(row.shipment.id) ?? null;
   const custody = support.custodyByShipment.get(row.shipment.id) ?? null;
@@ -1346,7 +1355,9 @@ function buildListItem(
     const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
     const carrierName = carrierType === 'OWN'
       ? 'SilverSea'
-      : trimOrNull(assignment.tripExternalCarrierName ?? assignment.plannedCarrierName);
+      : (assignment.tripExternalCarrierShortName?.trim() || assignment.tripExternalCarrierName)
+        ?? (assignment.plannedCarrierShortName?.trim() || assignment.plannedCarrierName)
+        ?? null;
     const plateNumber = trimOrNull(carrierType === 'OWN'
       ? assignment.tripTruckPlate ?? assignment.plannedVehiclePlateNumber
       : assignment.tripExternalPlateNumber ?? assignment.plannedVehiclePlateNumber);
@@ -1524,7 +1535,9 @@ function buildContainerLine(
   const externalCarrierId = assignment?.tripExternalCarrierId ?? assignment?.plannedExternalCarrierId ?? null;
   const carrierName = carrierType === 'OWN'
     ? 'SilverSea'
-    : assignment?.tripExternalCarrierName ?? assignment?.plannedCarrierName ?? null;
+    : (assignment?.tripExternalCarrierShortName?.trim() || assignment?.tripExternalCarrierName)
+      ?? (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName)
+      ?? null;
   const plateEditable = canEditOperational && carrierType === 'EXTERNAL';
   const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
     ? 'COMPLETED'
@@ -1826,11 +1839,15 @@ export async function listCusShipmentWorkspace(
   const confirmations = await getShipmentFinanceConfirmationSummaries(
     items.map((row) => row.shipment.id),
   );
+  const dateRange = (query.transportDateFrom || query.transportDateTo)
+    ? { dateFrom: query.transportDateFrom, dateTo: query.transportDateTo }
+    : undefined;
   const projectedItems = items.map((row) => buildListItem(
     row,
     support,
     actor,
     confirmations.get(row.shipment.id)!,
+    dateRange,
   ));
   const needsSchedule = projectedItems.filter((item) => item.operational.scheduleReadiness === 'WAITING_DATE').length;
   const needsVehicle = projectedItems.filter((item) => (

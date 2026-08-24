@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Truck } from 'lucide-react';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
+import { updateShipment } from '../api/shipmentClient';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
@@ -33,6 +34,18 @@ export default function MasterPlanPage() {
     containerDetailTriggerRef.current = trigger;
     setContainerDetailShipment(shipment);
   };
+
+  const handleUpdateNotes = useCallback(async (shipment: ShipmentListItem, notes: string) => {
+    try {
+      const response = await updateShipment(shipment.id, {
+        expectedVersion: shipment.version,
+        operationalNotes: notes,
+      });
+      masterPlan.replaceItem({ ...shipment, operationalNotes: notes, version: response.version } as ShipmentListItem);
+    } catch {
+      // Silently fail — the user can retry. A toast could be added later.
+    }
+  }, [masterPlan]);
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
@@ -122,6 +135,7 @@ export default function MasterPlanPage() {
               items={masterPlan.items}
               onAllocate={handleAllocate}
               onViewContainers={handleViewContainers}
+              onUpdateNotes={handleUpdateNotes}
               scheduleDate={
                 masterPlan.filters.deliveryDateFrom
                 && masterPlan.filters.deliveryDateFrom === masterPlan.filters.deliveryDateTo

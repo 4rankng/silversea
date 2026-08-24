@@ -216,7 +216,7 @@ export interface DispatchDetailPlanRow {
   // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
   // containers start as "Đơn" until dispatch reclassifies them.
   classification: DispatchClassification;
-  ports: { pickupPortId: number | null; pickupPortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null };
+  ports: { pickupPortId: number | null; pickupPortName: string | null; pickupPortShortName: string | null; dropoffPortId: number | null; dropoffPortName: string | null; dropoffPortShortName: string | null };
   lotFullyPlated: boolean;
 }
 

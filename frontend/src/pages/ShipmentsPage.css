@@ -1330,6 +1330,26 @@
   color: var(--slate-4);
 }
 
+.cus-workflow-badge--pending-delete {
+  background: var(--warning-soft, #fef3c7);
+  color: var(--warning-text, #92400e);
+  border-color: var(--warning, #f59e0b);
+}
+
+.cus-row-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.cus-dashboard-delete {
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
 .cus-signals {
   display: flex;
   flex-wrap: wrap;

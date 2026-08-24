@@ -792,6 +792,42 @@ export async function reviewShipmentChangeRequest(
   );
 }
 
+export async function requestShipmentDelete(
+  shipmentId: number,
+  version: number,
+  reason: string,
+): Promise<{ pendingApproval: boolean }> {
+  return api.post<{ pendingApproval: boolean }>(
+    `/shipments/cus-workspace/${shipmentId}/delete-request`,
+    { version, reason },
+  );
+}
+
+export async function decideShipmentDeleteRequest(
+  shipmentId: number,
+  actionId: number,
+  decision: 'APPROVE' | 'REJECT',
+  expectedVersion: number,
+  reason: string,
+): Promise<{ deleted: boolean }> {
+  return api.post<{ deleted: boolean }>(
+    `/shipments/cus-workspace/${shipmentId}/delete-requests/${actionId}/decision`,
+    { decision, expectedVersion, reason },
+  );
+}
+
+export async function requestContainerEdit(
+  shipmentId: number,
+  containerId: number,
+  fields: Record<string, unknown>,
+  reason: string,
+): Promise<{ replayed: boolean }> {
+  return api.post<{ replayed: boolean }>(
+    `/shipments/cus-workspace/${shipmentId}/container-edit-request`,
+    { containerId, fields, reason },
+  );
+}
+
 export async function reviewShipmentPod(
   shipmentId: number,
   submissionId: number,
