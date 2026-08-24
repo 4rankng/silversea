@@ -435,6 +435,13 @@
   color: var(--fg-3);
 }
 
+/* Previous-day OWN-truck drop hint (customer ask: sits inside the volume
+   bar, right-aligned). Hidden by the caller when no plates match. */
+.master-plan-cargo-summary__zone-hint {
+  margin-left: auto;
+  color: var(--fg-2);
+}
+
 @container (max-width: 640px) {
   .master-plan-filters__search,
   .master-plan-filters__actions {
@@ -632,11 +639,9 @@
   display: grid;
   grid-template-areas:
     "route route"
-    "carrier carrier"
-    ". direction";
+    "carrier direction";
   grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 48px;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 3px 8px;
 }
 
@@ -874,10 +879,6 @@
     min-height: 44px;
     margin-top: 4px;
     padding-block: 8px;
-  }
-
-  .master-plan-grid__route-shipping {
-    min-height: 0;
   }
 
   .master-plan-grid__cell--action {

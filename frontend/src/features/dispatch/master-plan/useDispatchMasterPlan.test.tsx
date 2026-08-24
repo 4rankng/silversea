@@ -100,6 +100,22 @@ describe('useDispatchMasterPlan zone truck presence', () => {
     expect(result.current.presence).toBeNull();
   });
 
+  it('pins the presence query to Lạch Huyện even when taxonomy order changes', async () => {
+    getDispatchZonesMock.mockResolvedValue({
+      items: [
+        { code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 5 },
+        { code: 'LACH_HUYEN', label: 'Lạch Huyện', sortOrder: 20 },
+      ],
+    });
+
+    renderHook(() => useDispatchMasterPlan());
+
+    await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenCalled());
+    expect(listZoneTruckPresenceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ zone: 'LACH_HUYEN' }),
+    );
+  });
+
   it('silently sets presence to null on fetch failure', async () => {
     listZoneTruckPresenceMock.mockRejectedValue(new Error('network'));
 

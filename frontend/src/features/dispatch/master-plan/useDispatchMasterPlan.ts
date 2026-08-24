@@ -62,7 +62,9 @@ export function useDispatchMasterPlan() {
       .catch(() => { /* no taxonomy → no presence panel */ });
     return () => { cancelled = true; };
   }, []);
-  const presenceZone = zones[0]?.code || '';
+  // Pin the presence advisory (zone hint + panel) to Lạch Huyện when the
+  // taxonomy carries it; fall back to the first active zone otherwise.
+  const presenceZone = zones.find((zone) => zone.code === 'LACH_HUYEN')?.code || zones[0]?.code || '';
   useEffect(() => {
     if (!presenceZone) { setPresence(null); return; }
     const requestId = ++presenceRequestIdRef.current;

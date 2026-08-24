@@ -48,6 +48,12 @@ export default function MasterPlanPage() {
     }
   }, [masterPlan]);
 
+  // Customer ask (Cap_nhat_UI_va_logic 2.1): hint inside the "Sản lượng" bar
+  // listing last day's OWN trucks that dropped containers in the zone.
+  const presenceDropPlates = (masterPlan.presence?.items ?? [])
+    .filter((item) => item.evidence.some((evidence) => evidence.reason === 'D-1_DROP'))
+    .map((item) => item.plateNumber);
+
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <h1 className="sr-only">Kế hoạch Tổng quát</h1>
@@ -115,6 +121,14 @@ export default function MasterPlanPage() {
                 <span className="master-plan-cargo-summary__label">Lẻ:</span>
                 <span className="master-plan-cargo-summary__count">{masterPlan.dispatchSummary.lclFulfillments} lô</span>
               </>
+            )}
+            {presenceDropPlates.length > 0 && masterPlan.presence && (
+              <span
+                className="master-plan-cargo-summary__zone-hint"
+                title="Xe SilverSea hôm trước có cont hạ tại khu vực này"
+              >
+                Hạ {masterPlan.presence.zoneLabel}: {presenceDropPlates.join('; ')}
+              </span>
             )}
           </div>
         )}

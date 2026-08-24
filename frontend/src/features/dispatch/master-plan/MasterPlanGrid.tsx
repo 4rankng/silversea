@@ -305,9 +305,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     .filter((line) => line.direction === 'lift')
                     .map((line, index) => (
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
-                        <div className="master-plan-grid__line master-plan-grid__location-value">
-                          {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
-                        </div>
+                        <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
+                        {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
+                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value">{summaryLine}</div>
+                        ))}
                       </div>
                     ))}
                 </td>
@@ -316,9 +317,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     .filter((line) => line.direction === 'drop')
                     .map((line, index) => (
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
-                        <div className="master-plan-grid__line master-plan-grid__location-value">
-                          {line.portName}{line.containerSummary ? ` · ${line.containerSummary}` : ''}
-                        </div>
+                        <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
+                        {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
+                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value">{summaryLine}</div>
+                        ))}
                       </div>
                     ))}
                 </td>
