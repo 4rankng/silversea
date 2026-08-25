@@ -1120,6 +1120,14 @@ describe('Overview operational priority ordering', () => {
     });
     assert.equal(cleared.line.carrierType, 'OWN');
     assert.equal(cleared.line.plateNumber, null);
+
+    // The read contract must agree with the write path: an OWN line reports a
+    // plan-able plate (DIRECT + plateEditable), never the legacy "internal
+    // plate comes only from the dispatch order" READ_ONLY.
+    const detail = await getCusShipmentWorkspaceDetail(shipment.id, cusActor);
+    const line = detail.containers.find((row) => row.id === container.id);
+    assert.equal(line?.fieldAccess.plateNumber.mode, 'DIRECT');
+    assert.equal(line?.permissions.plateEditable, true);
   });
 
   test('vehicle-only writes succeed on an appointment-bearing READY lot', async () => {

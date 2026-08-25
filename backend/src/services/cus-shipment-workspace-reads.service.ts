@@ -648,7 +648,6 @@ function containerFieldAccess(
   actor: AuthUser,
   hasActiveLock: boolean,
   hasTrip: boolean,
-  carrierType: 'OWN' | 'EXTERNAL' | null,
   pastRunCutoff: boolean,
 ): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
   const editable = !hasActiveLock && !hasTrip && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
@@ -667,9 +666,10 @@ function containerFieldAccess(
   // DISPATCHER keeps the existing trip-based DIRECT/READ_ONLY split.
   const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
   const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
-    if (key === 'plateNumber' && editable && carrierType !== 'EXTERNAL') {
-      return readOnly('Biển số xe nội bộ được xác định từ lệnh điều xe chính thức.');
-    }
+    // plateNumber intentionally has no OWN special case: since the internal
+    // fleet became plan-able (Cap_nhat_UI_va_logic 1.3) the field follows the
+    // generic editable/READ_ONLY mode, mirroring permissions.plateEditable —
+    // the plate is a plan; the official dispatch trip confirms it.
     if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
       if (hasTrip || pastRunCutoff) {
         return {
@@ -1610,7 +1610,6 @@ function buildContainerLine(
       actor,
       activeLock != null,
       assignment?.tripId != null,
-      carrierType as 'OWN' | 'EXTERNAL' | null,
       isPastRunCutoff(container.customerAppointmentAt),
     ),
     permissions: {
