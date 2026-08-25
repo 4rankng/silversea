@@ -4,6 +4,7 @@ import type { Role } from '@tingting/shared';
 export interface NavItem {
   key: string;
   label: string;
+  mobileLabel?: string;
   path: string;
   icon: React.ElementType;
   section?: SectionName;

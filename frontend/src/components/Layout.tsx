@@ -705,7 +705,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navItems.map(item => {
               const IconC = item.icon;
               const isActive = item.key === activeKey;
-              const displayLabel = ('mobileLabel' in item && item.mobileLabel) || item.label;
+              const displayLabel = item.mobileLabel || item.label;
               return (
                 <button
                   key={item.key}
