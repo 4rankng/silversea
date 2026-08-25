@@ -577,8 +577,8 @@
    readiness). Widths reflect that distribution, not a flat split. */
 .cus-dashboard-table col.cus-dashboard-col--customer { width: 15%; }
 .cus-dashboard-table col.cus-dashboard-col--documents { width: 10%; }
-.cus-dashboard-table col.cus-dashboard-col--classification { width: 9%; }
-.cus-dashboard-table col.cus-dashboard-col--cargo { width: 8%; }
+.cus-dashboard-table col.cus-dashboard-col--classification { width: auto; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: auto; }
 .cus-dashboard-table col.cus-dashboard-col--schedule { width: 24%; }
 .cus-dashboard-table col.cus-dashboard-col--notes { width: 16%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 18%; }

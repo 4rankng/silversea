@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, hasExplicitNotificationTarget, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, hasExplicitNotificationTarget, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -331,7 +331,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     const [declarations, carriers, ports, platedCounts] = await Promise.all([
       loadDeclarationNumbers(tx, shipmentIds),
       carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
-      portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: s.ports.name }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
+      portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: PORT_OPERATIONAL_NAME }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
       shipmentIds.length === 0 ? [] : tx.select({
         shipmentId: s.shipmentFulfillments.shipmentId,
         total: sql<number>`count(*)`,
@@ -467,7 +467,7 @@ export async function listDispatchPortFacets(
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
   const qPattern = buildPattern(input.q);
   const portColumn = kind === 'pickup' ? s.shipmentContainers.pickupPortId : s.shipmentContainers.dropoffPortId;
-  const rows = await db.selectDistinct({ id: s.ports.id, name: s.ports.name })
+  const rows = await db.selectDistinct({ id: s.ports.id, name: PORT_OPERATIONAL_NAME })
     .from(s.shipments)
     .innerJoin(s.shipmentFulfillments, and(
       eq(s.shipmentFulfillments.shipmentId, s.shipments.id),
@@ -484,7 +484,7 @@ export async function listDispatchPortFacets(
       accountantCustomerIds ? inArray(s.shipments.customerId, accountantCustomerIds) : undefined,
       qPattern ? ilike(s.ports.name, qPattern) : undefined,
     ))
-    .orderBy(asc(s.ports.name))
+    .orderBy(asc(PORT_OPERATIONAL_NAME))
     .limit(100);
   return { items: rows };
 }
@@ -1251,7 +1251,7 @@ export async function listZonePortFacets(input: { actor: AuthUser; zone: string;
   void accountantCustomerIds; // catalog read; actor scoping happens on the row set, not the port list
   // Container-direct like the portIds facet predicate: the master grid lists
   // all statuses and fulfillments only exist from READY_FOR_DISPATCH onward.
-  const rows = await db.selectDistinct({ id: s.ports.id, name: s.ports.name, code: s.ports.code })
+  const rows = await db.selectDistinct({ id: s.ports.id, name: PORT_OPERATIONAL_NAME, code: s.ports.code })
     .from(s.shipments)
     .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.shipmentId, s.shipments.id))
     .innerJoin(s.ports, and(
@@ -1266,7 +1266,7 @@ export async function listZonePortFacets(input: { actor: AuthUser; zone: string;
       isNull(s.shipments.deletedAt),
       qPattern ? ilike(s.ports.name, qPattern) : undefined,
     ))
-    .orderBy(asc(s.ports.name))
+    .orderBy(asc(PORT_OPERATIONAL_NAME))
     .limit(100);
   return { items: rows };
 }

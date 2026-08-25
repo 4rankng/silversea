@@ -4,7 +4,7 @@
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
 import { DispatchFleetResource, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
-import { CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DispatchQueueStatus, Tx, addCalendarDays, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, encodeDescendingIdCursor, encodeFleetCursor, inferredVehicleCapacityKg, loadDeclarationNumbers, loadPickupSites, normalizeDate, normalizeDispatchHandoffStatuses, normalizeLimit, parseCursor, parseFleetCursor, redactDispatchSiteForAccountant, requireAccountantDispatchScope, routeServiceDurationMinutes, sumSelectedStatusCounts, toFrozenSiteSummary, unaccentedIlike, unaccentedIlikeLike } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DispatchQueueStatus, Tx, addCalendarDays, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, encodeDescendingIdCursor, encodeFleetCursor, inferredVehicleCapacityKg, loadDeclarationNumbers, loadPickupSites, normalizeDate, normalizeDispatchHandoffStatuses, normalizeLimit, parseCursor, parseFleetCursor, redactDispatchSiteForAccountant, requireAccountantDispatchScope, routeServiceDurationMinutes, sumSelectedStatusCounts, toFrozenSiteSummary, unaccentedIlike, unaccentedIlikeLike } from './dispatch-planning-utils.service';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
@@ -336,7 +336,7 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       driverIds.length === 0 ? [] : tx.select({ id: s.drivers.id, name: s.drivers.name, phone: s.drivers.phone }).from(s.drivers).where(inArray(s.drivers.id, [...new Set(driverIds)])),
       trailerIds.length === 0 ? [] : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate }).from(s.trailers).where(inArray(s.trailers.id, [...new Set(trailerIds)])),
       carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
-      portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: s.ports.name }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
+      portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: PORT_OPERATIONAL_NAME }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
     ]);
     const trucksById = new Map(trucks.map((row) => [row.id, row]));
     const driversById = new Map(drivers.map((row) => [row.id, row]));

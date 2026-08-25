@@ -28,6 +28,8 @@ export const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.rout
 
 export const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
 
+export const PORT_OPERATIONAL_NAME = operationalName(s.ports.shortName, s.ports.name);
+
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

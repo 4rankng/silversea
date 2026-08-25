@@ -85,11 +85,11 @@
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .shipment-container-ledger__col--customer { width: 14%; }
-.shipment-container-ledger__col--documents { width: 12%; }
-.shipment-container-ledger__col--container { width: 11%; }
-.shipment-container-ledger__col--route { width: 13%; }
+.shipment-container-ledger__col--documents { width: auto; }
+.shipment-container-ledger__col--container { width: auto; }
+.shipment-container-ledger__col--route { width: auto; }
 .shipment-container-ledger__col--schedule { width: 14%; }
-.shipment-container-ledger__col--vehicle { width: 11%; }
+.shipment-container-ledger__col--vehicle { width: auto; }
 .shipment-container-ledger__col--status { width: 9%; }
 .shipment-container-ledger__col--notes { width: 16%; }
 
