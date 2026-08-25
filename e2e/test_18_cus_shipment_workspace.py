@@ -380,11 +380,23 @@ def main() -> bool:
                 "plateNumber": "29C-123.45",
             },
         )
+        # L2 plan-able spec (f878cd0f): CUS can plan an OWN carrier with a
+        # plate while the trip is still PLANNED (no dispatch order yet). The
+        # line must persist the OWN carrierType, the typed plate, the
+        # internal-fleet name, no external carrier link, and stay PLANNED.
+        own_line = (own_fleet_response.get("data") or {}).get("line") or {}
+        own_fleet_ok = (
+            own_fleet_response.get("status") == 200
+            and own_line.get("carrierType") == "OWN"
+            and own_line.get("plateNumber") == "29C-123.45"
+            and own_line.get("externalCarrierId") is None
+            and own_line.get("dispatchStatus") == "PLANNED"
+        )
         check(
             results,
             "TC-1820",
-            "CUS không thể tự gán xe nội bộ: authority từ chối carrierType OWN",
-            own_fleet_response.get("status") == 409,
+            "CUS lập kế hoạch xe nội bộ: plan-able OWN với biển số tự gán trước điều xe",
+            own_fleet_ok,
             str(own_fleet_response),
         )
 
