@@ -1,3 +1,4 @@
+import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
@@ -414,6 +415,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
           {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
         </span>
+        <DispatchIssueStatusChip
+          status={deriveDispatchIssueStatus({
+            vehicleAssigned: currentPlate != null,
+            issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
+          })}
+        />
         {/* Cước thu/trả temporarily hidden from the grid cell per customer
             request (docx T2.3); the editor dialog still shows and saves both. */}
         {row.lotFullyPlated && !currentPlate && (

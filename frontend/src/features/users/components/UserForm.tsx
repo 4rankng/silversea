@@ -46,12 +46,9 @@ function IconInput({ icon, value, onChange, placeholder, type = 'text', autoComp
 
 // ── Driver Fields (shared by Add/Edit panels, shown when role === DRIVER) ───
 
-function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssignedTruckId, truckList }: {
+function DriverFields({ baseSalary, socialInsurance }: {
   baseSalary: string;
   socialInsurance: string;
-  assignedTruckId: number | null;
-  setAssignedTruckId: (v: number | null) => void;
-  truckList: Truck[];
 }) {
   return (
     <>
@@ -60,7 +57,7 @@ function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssigne
       <div className="users-form-cards users-form-cards--driver">
         <div className="users-form-card">
           <div className="users-customer-scope__help">
-            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe để đi qua quy trình kiểm tra và phê duyệt. Trang Người dùng chỉ đổi tài khoản và xe phân công.
+            Lương cơ bản và BHXH của lái xe được quản lý ở Cấu hình lái xe để đi qua quy trình kiểm tra và phê duyệt. Trang Người dùng chỉ đổi tài khoản. Phân công xe cho lái xe nằm ở Danh mục Xe nội bộ (Điều vận).
           </div>
           {(baseSalary || socialInsurance) && (
             <div className="users-customer-scope__summary">
@@ -68,23 +65,6 @@ function DriverFields({ baseSalary, socialInsurance, assignedTruckId, setAssigne
               {socialInsurance ? ` · BHXH/BHYT: ${socialInsurance}` : ''}
             </div>
           )}
-        </div>
-        <div className="users-form-card">
-          <FormGroup label="Xe phân công">
-            <UuiSelectField
-              label="Xe phân công"
-              hideLabel
-              value={String(assignedTruckId ?? 0)}
-              onChange={(e) => setAssignedTruckId(Number(e.target.value) || null)}
-              options={[
-                { value: '0', label: 'Chưa phân công' },
-                ...truckList.filter((t) => t.status === 'ACTIVE').map((t) => ({
-                  value: String(t.id),
-                  label: t.licensePlate,
-                })),
-              ]}
-            />
-          </FormGroup>
         </div>
       </div>
     </>
@@ -283,7 +263,6 @@ interface EditPanelProps {
   isMe: boolean;
   saving: boolean;
   error: string | null;
-  truckList: Truck[];
   customerList: Customer[];
   businessUnits: BusinessUnit[];
   shipmentOptions: ShipmentScopeOption[];
@@ -295,7 +274,7 @@ interface EditPanelProps {
 }
 
 export function EditPanel({
-  isOpen, user, isMe, saving, error, truckList, customerList, businessUnits, shipmentOptions,
+  isOpen, user, isMe, saving, error, customerList, businessUnits, shipmentOptions,
   canManageClerkScope = true,
   canEditDriversOnly, onClose, onSave,
 }: EditPanelProps) {
@@ -309,7 +288,6 @@ export function EditPanel({
   const [showPw, setShowPw]     = useState(false);
   const [baseSalary, setBaseSalary]           = useState(user.baseSalary ?? '');
   const [socialInsurance, setSocialInsurance] = useState(user.socialInsurance ?? '');
-  const [assignedTruckId, setAssignedTruckId] = useState<number | null>(user.assignedTruckId ?? null);
   const [customerIds, setCustomerIds] = useState<number[]>(
     user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : [],
   );
@@ -331,7 +309,6 @@ export function EditPanel({
       setShowPw(false);
       setBaseSalary(user.baseSalary ?? '');
       setSocialInsurance(user.socialInsurance ?? '');
-      setAssignedTruckId(user.assignedTruckId ?? null);
       setCustomerIds(user.customerIds?.length ? user.customerIds : user.customerId ? [user.customerId] : []);
       setCustomerAccountType(user.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds(user.businessUnitIds ?? []);
@@ -382,7 +359,6 @@ export function EditPanel({
     if (role === Role.DRIVER) {
       payload.baseSalary = baseSalary;
       payload.socialInsurance = socialInsurance;
-      payload.assignedTruckId = assignedTruckId;
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
@@ -521,8 +497,6 @@ export function EditPanel({
           <DriverFields
             baseSalary={baseSalary}
             socialInsurance={socialInsurance}
-            assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
-            truckList={truckList}
           />
           {!canEditDriversOnly && canManageClerkScope && (
             <SelectionScopeFields
@@ -697,7 +671,6 @@ interface AddPanelProps {
   isOpen: boolean;
   saving: boolean;
   error: string | null;
-  truckList: Truck[];
   customerList: Customer[];
   businessUnits: BusinessUnit[];
   shipmentOptions: ShipmentScopeOption[];
@@ -707,7 +680,7 @@ interface AddPanelProps {
 }
 
 export function AddPanel({
-  isOpen, saving, error, truckList, customerList, businessUnits, shipmentOptions, canManageClerkScope = true, onClose, onSave,
+  isOpen, saving, error, customerList, businessUnits, shipmentOptions, canManageClerkScope = true, onClose, onSave,
 }: AddPanelProps) {
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -718,7 +691,6 @@ export function AddPanel({
   const [showPw, setShowPw]     = useState(false);
   const [baseSalary, setBaseSalary]           = useState('');
   const [socialInsurance, setSocialInsurance] = useState('');
-  const [assignedTruckId, setAssignedTruckId] = useState<number | null>(null);
   const [customerIds, setCustomerIds] = useState<number[]>([]);
   const [customerAccountType, setCustomerAccountType] = useState<CustomerAccountType>(
     CustomerAccountType.SINGLE_ENTITY,
@@ -731,7 +703,7 @@ export function AddPanel({
       setFullName(''); setUsername(''); setEmail('');
       setPhone(''); setRole(Role.DRIVER);
       setPassword(''); setShowPw(false);
-      setBaseSalary(''); setSocialInsurance(''); setAssignedTruckId(null);
+      setBaseSalary(''); setSocialInsurance('');
       setCustomerIds([]);
       setCustomerAccountType(CustomerAccountType.SINGLE_ENTITY);
       setBusinessUnitIds([]);
@@ -778,7 +750,6 @@ export function AddPanel({
     if (role === Role.DRIVER) {
       payload.baseSalary = baseSalary;
       payload.socialInsurance = socialInsurance;
-      payload.assignedTruckId = assignedTruckId;
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
     if (role === Role.CUSTOMER) {
@@ -924,8 +895,6 @@ export function AddPanel({
           <DriverFields
             baseSalary={baseSalary}
             socialInsurance={socialInsurance}
-            assignedTruckId={assignedTruckId} setAssignedTruckId={setAssignedTruckId}
-            truckList={truckList}
           />
           {canManageClerkScope && (
             <SelectionScopeFields

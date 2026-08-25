@@ -135,7 +135,6 @@ export function FleetDriversView() {
       <DriverFormModal
         isOpen={create.open}
         saving={create.saving}
-        trucks={trucks}
         showSalary={false}
         onsave={saveDriver}
         oncancel={create.closeForm}

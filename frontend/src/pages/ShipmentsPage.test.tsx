@@ -90,6 +90,7 @@ const row: ShipmentCusWorkspaceListItem = {
     assignedContainers: 2,
     externalContainers: 1,
     plateAssignedContainers: 2,
+    orderIssuedContainers: 0,
     missingCarrierContainers: 0,
     missingPlateContainers: 0,
     transportDateEditable: true,
@@ -473,6 +474,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         totalContainers: 2,
         assignedContainers: 2,
         plateAssignedContainers: 0,
+        orderIssuedContainers: 0,
         missingPlateContainers: 2,
       },
     };
@@ -486,6 +488,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         totalContainers: 2,
         assignedContainers: 2,
         plateAssignedContainers: 1,
+        orderIssuedContainers: 0,
         missingPlateContainers: 1,
       },
     };

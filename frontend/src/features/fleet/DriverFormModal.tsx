@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, X, Loader2 } from 'lucide-react';
 import { Modal } from '../../components/UI';
-import type { Truck as TruckType, Driver } from '@tingting/shared';
+import type { Driver } from '@tingting/shared';
 import { DRIVER_STATUS } from './constants';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 // Own stylesheet: this modal also renders on /fleet/drivers (dispatch
@@ -9,8 +9,8 @@ import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 // normally pull FleetPage.css in.
 import '../../pages/FleetPage.css';
 
-export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen, showSalary = true }: {
-  saving: boolean; item?: Driver; trucks: TruckType[]; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
+export function DriverFormModal({ saving, item, onsave, oncancel, isOpen, showSalary = true }: {
+  saving: boolean; item?: Driver; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
   /** Dispatcher creates omit salary entirely — the payload strips it because
    * DISPATCHER cannot make the governance action a salaried create routes
    * into, so rendering an editable field would silently discard input. */
@@ -19,24 +19,21 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
   const [name, setName] = useState(item?.name || '');
   const [phone, setPhone] = useState(item?.phone || '');
   const [baseSalary, setBaseSalary] = useState<string | number>(item?.baseSalary || '');
-  const [truckId, setTruckId] = useState<number>(item?.assignedTruckId || 0);
   const [status, setStatus] = useState(item?.status || 'ACTIVE');
   useEffect(() => {
     if (isOpen) {
       setName(item?.name || '');
       setPhone(item?.phone || '');
       setBaseSalary(item?.baseSalary || '');
-      setTruckId(item?.assignedTruckId || 0);
       setStatus(item?.status || 'ACTIVE');
     }
-  }, [isOpen, item?.id, item?.name, item?.phone, item?.baseSalary, item?.assignedTruckId, item?.status]);
+  }, [isOpen, item?.id, item?.name, item?.phone, item?.baseSalary, item?.status]);
   const handleSave = () => {
     if (!name.trim()) return;
     onsave({
       name: name.trim(),
       phone: phone.trim() || undefined,
       baseSalary: baseSalary ? Number(baseSalary) : undefined,
-      assignedTruckId: truckId || null,
       status,
     });
   };
@@ -101,20 +98,6 @@ export function DriverFormModal({ saving, item, trucks, onsave, oncancel, isOpen
               placeholder="0"
             />
           </div>}
-          <div className="field fleet-form__field">
-            <label htmlFor="driver-truck">Xe phân công</label>
-            <UuiSelectField
-              id="driver-truck"
-              label="Xe phân công"
-              value={String(truckId)}
-              onChange={(e) => setTruckId(Number(e.target.value))}
-              options={[
-                { value: '0', label: '— Chưa phân —' },
-                ...trucks.filter((t) => t.status === 'ACTIVE').map((t) => ({ value: String(t.id), label: t.licensePlate })),
-              ]}
-              hideLabel
-            />
-          </div>
           <div className="field fleet-form__field">
             <label htmlFor="driver-status">Trạng thái</label>
             <UuiSelectField

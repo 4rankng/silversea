@@ -280,6 +280,13 @@ export function listDispatchDropoffPortFacets(filters: { q?: string } = {}) {
   );
 }
 
+export function reassignTruckDriver(truckId: number, driverId: number | null) {
+  return api.patch<{ truckId: number; driverId: number | null; previousDriverId: number | null }>(
+    `/shipments/dispatch-fleet/trucks/${truckId}/assigned-driver`,
+    { driverId },
+  );
+}
+
 export function assignDispatchDetailPlate(fulfillmentId: number, body: {
   expectedVersion: number;
   truckId?: number | null;

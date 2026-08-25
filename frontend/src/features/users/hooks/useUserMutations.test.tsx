@@ -139,7 +139,6 @@ describe('useUserMutations shipment scope payloads', () => {
     await act(async () => {
       await result.current.doUpdate(9, makeEditData({
         role: Role.DRIVER,
-        assignedTruckId: 77,
         businessUnitIds: [6, 0, 6],
         shipmentIds: [200, 201],
       }));
@@ -148,9 +147,10 @@ describe('useUserMutations shipment scope payloads', () => {
     const payload = updateUserMock.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(payload).toMatchObject({
       role: Role.DRIVER,
-      assignedTruckId: 77,
       businessUnitIds: [6],
     });
+    // Driver-truck pairing left the Users surface — never part of the payload.
+    expect(payload).not.toHaveProperty('assignedTruckId');
     expect(payload).not.toHaveProperty('shipmentIds');
   });
 });

@@ -3,7 +3,7 @@
  * may add new tractors (createRoles allowance) but not edit or retire
  * existing ones; those stay in the admin /fleet workspace.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Truck } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
@@ -12,7 +12,11 @@ import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useTrucksAndDrivers, useTrailers } from '../../../hooks/useCatalogQueries';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../../hooks/animations';
+import { invalidateAllCatalogs } from '../../../api/keys';
+import { reassignTruckDriver } from '../../../api/dispatchPlanningClient';
+import { AssignDriverDialog } from './AssignDriverDialog';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
 import { TRUCK_STATUS } from '../../fleet';
 import { TruckFormModal } from '../../fleet/TruckFormModal';
@@ -31,8 +35,50 @@ export function FleetVehiclesView() {
   const { data: trailers = [] } = useTrailers();
   const create = useCatalogCreate('/trucks');
 
+  const queryClient = useQueryClient();
   const trucks = useMemo(() => fleetData?.trucks ?? [], [fleetData?.trucks]);
   const drivers = useMemo(() => fleetData?.drivers ?? [], [fleetData?.drivers]);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignTruck, setAssignTruck] = useState<TruckType | null>(null);
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  const openAssign = useCallback((truck: TruckType) => {
+    setAssignTruck(truck);
+    setAssignError(null);
+    setAssignOpen(true);
+  }, []);
+
+  const saveAssign = useCallback(async (driverId: number | null) => {
+    if (assignTruck == null) return;
+    setAssignSaving(true);
+    setAssignError(null);
+    try {
+      await reassignTruckDriver(assignTruck.id, driverId);
+      setAssignOpen(false);
+      await invalidateAllCatalogs(queryClient);
+    } catch (e: unknown) {
+      setAssignError(e instanceof Error && e.message ? e.message : 'Không thể lưu phân công.');
+    } finally {
+      setAssignSaving(false);
+    }
+  }, [assignTruck, queryClient]);
+
+  // Driver picker options — show each driver's current pairing so picking a
+  // driver already on another truck is an informed choice (the backend moves
+  // them: one active assignment per driver, one per truck).
+  const driverOptions = useMemo(() => {
+    const plateByTruckId = new Map(trucks.map((t) => [t.id, t.licensePlate]));
+    return drivers
+      .filter((d) => d.status === 'ACTIVE')
+      .map((d) => ({
+        value: String(d.id),
+        label: d.assignedTruckId && plateByTruckId.get(d.assignedTruckId)
+          ? `${d.name} — đang chạy ${plateByTruckId.get(d.assignedTruckId)}`
+          : d.name,
+      }));
+  }, [drivers, trucks]);
 
   const { driverByTruck, trailerById, active, maintenance } = useMemo(() => {
     const driverByTruck = new Map<number, string>();
@@ -112,6 +158,7 @@ export function FleetVehiclesView() {
                 <SortHeader label="Rơ-moóc đang nối" sortKey="trailerPlate" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Tài xế được gán" sortKey="driverName" sort={sort} onSortChange={applySort} />
                 <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
+                <th aria-label="Thao tác" />
               </tr>
             </thead>
             <tbody>
@@ -130,6 +177,15 @@ export function FleetVehiclesView() {
                         {TRUCK_STATUS[t.status] || t.status}
                       </BadgeWithDot>
                     </td>
+                    <td data-label="Thao tác">
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        onClick={() => openAssign(t)}
+                      >
+                        Phân công lái xe
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -143,6 +199,16 @@ export function FleetVehiclesView() {
         trailers={trailers}
         onsave={create.create}
         oncancel={create.closeForm}
+      />
+      <AssignDriverDialog
+        isOpen={assignOpen}
+        saving={assignSaving}
+        error={assignError}
+        truck={assignTruck}
+        currentDriverName={assignTruck ? driverByTruck.get(assignTruck.id) ?? null : null}
+        driverOptions={driverOptions}
+        onsave={saveAssign}
+        oncancel={() => setAssignOpen(false)}
       />
     </div>
   );

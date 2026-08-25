@@ -242,7 +242,6 @@ export default function UsersPage() {
         isOpen={showAdd}
         saving={saving}
         error={panelError}
-        truckList={truckList}
         customerList={customerList}
         businessUnits={businessUnits}
         shipmentOptions={shipmentOptions}
@@ -257,7 +256,6 @@ export default function UsersPage() {
           isMe={editingUser.id === me?.userId}
           saving={saving}
           error={panelError}
-          truckList={truckList}
           customerList={customerList}
           businessUnits={businessUnits}
           shipmentOptions={shipmentOptions}

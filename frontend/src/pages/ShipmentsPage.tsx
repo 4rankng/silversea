@@ -1,3 +1,4 @@
+import { DispatchIssueStatusSummaryChip } from '../features/dispatch/components/DispatchIssueStatus';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -977,6 +978,11 @@ export default function ShipmentsPage() {
                         <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
                       ))}
                       <span>{vehicleReadinessLabel(item)}</span>
+                      <DispatchIssueStatusSummaryChip
+                        plated={item.operational.plateAssignedContainers}
+                        issued={item.operational.orderIssuedContainers}
+                        total={item.operational.totalContainers}
+                      />
                     </>;
                     return (
                       <tr

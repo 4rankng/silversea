@@ -29,7 +29,6 @@ describe("DriverFormModal desktop density", () => {
   });
 
   it("labels every field explicitly — selects hide the internal UUI label", () => {
-    expect(source).toMatch(/<label htmlFor="driver-truck">Xe phân công<\/label>/);
     expect(source).toMatch(/<label htmlFor="driver-status">Trạng thái<\/label>/);
     expect(source).toContain("hideLabel");
     expect(source).toContain("btn btn--secondary btn--sm");

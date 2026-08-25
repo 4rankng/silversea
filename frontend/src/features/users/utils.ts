@@ -59,7 +59,6 @@ export interface EditData {
   // Driver-profile fields — sent only when role === DRIVER.
   baseSalary?: string;
   socialInsurance?: string;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[];
   customerAccountType?: CustomerAccountType;
@@ -77,7 +76,6 @@ export interface CreateData {
   // Driver-profile fields — sent only when role === DRIVER.
   baseSalary?: string;
   socialInsurance?: string;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[];
   customerAccountType?: CustomerAccountType;

@@ -8,7 +8,6 @@ import type { CreateData, EditData } from '../utils';
 /** Normalize driver-profile fields: empty strings become undefined (omitted from API payload). */
 function driverPayload(data: CreateData | EditData) {
   return data.role === Role.DRIVER ? {
-    assignedTruckId: data.assignedTruckId ?? null,
     businessUnitIds: [...new Set(data.businessUnitIds ?? [])].filter((id) => id > 0),
   } : {};
 }

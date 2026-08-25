@@ -355,7 +355,6 @@ export function DriverCard({ drivers, truckMap, crud }: { drivers: Driver[]; tru
         isOpen={crud.showAddForm || crud.editingId != null}
         saving={crud.saving}
         item={crud.editingId != null ? drivers.find((d) => d.id === crud.editingId) : undefined}
-        trucks={[...truckMap.values()]}
         onsave={(dd) => {
           if (crud.editingId != null) crud.doUpdate(crud.editingId, dd);
           else crud.doCreate(dd);
