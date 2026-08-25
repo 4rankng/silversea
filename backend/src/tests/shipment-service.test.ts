@@ -792,11 +792,13 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
       {
         pickupPortName: dinhVu.name,
         dropoffPortName: lachHuyen.name,
+        localDate: null,
         containerSummary: `1 x 40DC${tag}`,
       },
       {
         pickupPortName: dinhVu.name,
         dropoffPortName: factory.name,
+        localDate: null,
         containerSummary: `1 x 40DC${tag}`,
       },
     ]);

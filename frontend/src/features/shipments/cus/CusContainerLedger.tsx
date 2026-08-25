@@ -115,7 +115,7 @@ function ContainerLineRow({
           externalCarrierId,
           externalCarrierVehicleId: matchedVehicle?.id ?? null,
         } : {}),
-        ...(permissions.plateEditable && !isNewExternalCarrier && draft.carrierKey.startsWith('EXTERNAL:')
+        ...(permissions.plateEditable && !isNewExternalCarrier
           ? { plateNumber: draft.plateNumber.trim() || null }
           : {}),
         ...(permissions.containerTypeEditable ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),

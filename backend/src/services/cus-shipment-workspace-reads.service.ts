@@ -326,10 +326,13 @@ export function trimOrNull(value: string | null | undefined): string | null {
 }
 
 function containerTransportDateSql() {
-  // The flat container workspace is still planned by the shipment date. A
-  // per-container appointment remains visible as detail, but must not split
-  // one Bill/Booking across different dispatch days.
-  return sql<string>`${s.shipments.expectedDeliveryDate}`;
+  // Use the container's appointment date for exact-day filtering. Containers
+  // without an appointment inherit the shipment's expected delivery date so
+  // they still appear when the user filters by that day.
+  return sql<string>`coalesce(
+    date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'),
+    ${s.shipments.expectedDeliveryDate}
+  )`;
 }
 
 // ─── Container workboard column sorting ──────────────────────────────────────

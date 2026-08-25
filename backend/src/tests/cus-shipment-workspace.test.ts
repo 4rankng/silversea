@@ -548,6 +548,9 @@ describe('CUS container-flat projection', () => {
     assert.ok(response.items.every((row) => typeof row.id === 'number'));
     assert.deepEqual(response.filterOptions.customers, [{ id: customerId, name: `CusWs customer ${suffix}` }]);
 
+    // Date filter now uses container appointment date (not shipment date).
+    // Container A1 has appointment in 2099, A2 has no appointment (falls back
+    // to shipment expectedDeliveryDate 2026-08-21).
     const shipmentDispatchDate = await listCusShipmentContainers({
       page: 1,
       limit: 100,
@@ -556,7 +559,7 @@ describe('CUS container-flat projection', () => {
     }, cusActor);
     assert.deepEqual(
       shipmentDispatchDate.items.filter((row) => row.shipmentId === shipmentA.id).map((row) => row.id),
-      [rowA1.id, rowA2.id],
+      [rowA2.id],
     );
   });
 
