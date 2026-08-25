@@ -256,7 +256,7 @@ def test_forwarder_portal(ctx: SilverseaTestContext, results: TestResults):
     rows = page.locator('.role-work-inbox__table tbody tr:visible').count()
     empty_state = page.get_by_text('Không có việc trong nhóm này.')
     has_empty_state = empty_state.count() > 0 and empty_state.first.is_visible()
-    heading = page.get_by_role('heading', name='Công việc vận hành')
+    heading = page.get_by_role('heading', name='Lệnh giao nhận')
     if heading.count() > 0 and heading.first.is_visible() and (rows > 0 or has_empty_state):
         state = f'{rows} visible inbox rows' if rows > 0 else 'authoritative empty state'
         results.pass_('TC-1310', f'Operations work inbox displays ({state})')
