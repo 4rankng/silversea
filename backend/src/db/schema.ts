@@ -183,6 +183,32 @@ export const drivers = pgTable('drivers', {
     .where(sql`${table.userId} is not null and ${table.deletedAt} is null`),
 ]);
 
+// Driver<->truck pairing as a versioned, DB-constrained assignment instead of
+// the legacy drivers.assignedTruckId convention pointer. Exactly one active
+// PRIMARY row per truck (partial unique index below) is the 1:1 invariant
+// today; relaxing to multiple concurrent drivers per truck later (co-driver,
+// shifts) is a constraint-scope change, not a new table.
+export const truckDriverAssignments = pgTable('truck_driver_assignments', {
+  id: serial('id').primaryKey(),
+  truckId: integer('truck_id').notNull(),
+  driverId: integer('driver_id').notNull(),
+  role: varchar('role', { length: 20 }).default('PRIMARY').notNull(),
+  startsAt: timestamp('starts_at').defaultNow().notNull(),
+  endsAt: timestamp('ends_at'),
+  createdBy: integer('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('truck_driver_assignments_active_primary_per_truck')
+    .on(table.truckId)
+    .where(sql`${table.endsAt} is null and ${table.role} = 'PRIMARY'`),
+  // The driver axis of the 1:1 invariant: a driver has exactly one active
+  // PRIMARY truck (matching the legacy single-value column's semantics).
+  // Both indexes drop/re-scope together when cardinality relaxes.
+  uniqueIndex('truck_driver_assignments_active_primary_per_driver')
+    .on(table.driverId)
+    .where(sql`${table.endsAt} is null and ${table.role} = 'PRIMARY'`),
+]);
+
 export const partners = pgTable('partners', {
   id: serial('id').primaryKey(),
   normalizedTaxCode: varchar('normalized_tax_code', { length: 40 }).notNull(),
