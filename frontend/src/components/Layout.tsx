@@ -282,7 +282,7 @@ export function getNavItems(
     case 'DRIVER': {
       return [
         // Công việc của tôi (My Work) - same section for PC and mobile consistency
-        { key: 'my-trips', label: 'Hành trình của tôi', path: routes.myTrips, icon: Route, section: 'my-work' as SectionName },
+        { key: 'my-trips', label: 'Hành trình của tôi', mobileLabel: 'Hành trình', path: routes.myTrips, icon: Route, section: 'my-work' as SectionName },
         { key: 'my-earnings', label: 'Thu nhập', path: routes.myEarnings, icon: DollarSign, section: 'my-work' as SectionName },
         { key: 'my-penalties', label: 'Kỷ luật', path: routes.myPenalties, icon: AlertTriangle, section: 'my-work' as SectionName },
       ];
@@ -705,6 +705,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navItems.map(item => {
               const IconC = item.icon;
               const isActive = item.key === activeKey;
+              const displayLabel = ('mobileLabel' in item && item.mobileLabel) || item.label;
               return (
                 <button
                   key={item.key}
@@ -715,7 +716,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <div className="bottom-nav-icon-wrap">
                     <IconC size={20} strokeWidth={isActive ? 2.5 : 2} />
                   </div>
-                  <span className="bottom-nav-label">{item.label}</span>
+                  <span className="bottom-nav-label">{displayLabel}</span>
                 </button>
               );
             })}

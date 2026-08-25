@@ -176,6 +176,7 @@
   letter-spacing: var(--tracking-wide);
   color: var(--ink-3);
   line-height: var(--lh-snug);
+  white-space: nowrap;
 }
 
 /* Violation rows */
