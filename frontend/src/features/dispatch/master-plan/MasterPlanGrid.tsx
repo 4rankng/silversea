@@ -143,10 +143,24 @@ type ContainerPortGroupKey = string;
  * the per-day split. We aggregate groups by (pickup, dropoff) and sum the
  * container-type counts so each port column reads "Cảng HP · 3 x 40DC"
  * instead of three "1 x 40DC" lines.
+ *
+ * Customer feedback L2 (24/08/2026) — when `scheduleDate` is set, only
+ * groups whose `localDate` matches are aggregated, so the cảng cells reflect
+ * only the conts running on that day.
  */
-function aggregateContainerPortGroupLines(item: ShipmentListItem): ContainerPortGroupLine[] {
-  const containerPortGroups = item.containerPortGroups ?? [];
+function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
+  const allGroups = item.containerPortGroups ?? [];
+  const containerPortGroups = scheduleDate
+    ? allGroups.filter((group) => group.localDate === scheduleDate)
+    : allGroups;
   if (containerPortGroups.length === 0) {
+    if (allGroups.length === 0) {
+      return [
+        { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
+        { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
+      ];
+    }
+    // Date filter active but no conts on that day — render placeholders
     return [
       { direction: 'lift', label: 'Nâng', portName: '—', containerSummary: null },
       { direction: 'drop', label: 'Hạ', portName: '—', containerSummary: null },
@@ -249,7 +263,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         <tbody>
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
-            const portGroupLines = aggregateContainerPortGroupLines(item);
+            const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình">

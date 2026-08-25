@@ -556,6 +556,14 @@ export interface ShipmentListItem extends Shipment {
 export interface ShipmentContainerPortGroup {
   pickupPortName: string | null;
   dropoffPortName: string | null;
+  /**
+   * Business-zone local date for the cont appointment that produced this
+   * port pair. Customer feedback L2 (24/08/2026) — the dispatch master-plan
+   * grid uses this to recompute the Cảng nâng / Cảng hạ cells when the
+   * user filters by a single day. `null` when the cont has no
+   * customerAppointmentAt yet.
+   */
+  localDate?: string | null;
   containerSummary: string;
 }
 

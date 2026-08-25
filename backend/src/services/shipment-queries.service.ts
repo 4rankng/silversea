@@ -116,6 +116,13 @@ export interface ShipmentCarrierAllocationSummaryEntry {
 export interface ShipmentContainerPortGroup {
   pickupPortName: string | null;
   dropoffPortName: string | null;
+  /**
+   * Business-zone local date for the cont appointment that produced this
+   * port pair. Null when the cont has no customerAppointmentAt set yet
+   * (customer feedback L2 — 24/08/2026, used to filter the cảng cells
+   * by day). `null` participates in the "no filter" fallback.
+   */
+  localDate: string | null;
   /** Compact type count for only the containers using this exact port pair. */
   containerSummary: string;
 }
@@ -126,6 +133,7 @@ type ShipmentContainerPortGroupSource = {
   dropoffPortName: string | null;
   containerTypeCode: string | null;
   containerTypeName: string | null;
+  localDate: string | null;
 };
 
 /**
@@ -140,7 +148,9 @@ export function groupShipmentContainerPortGroups(
   const bucketsByShipment = new Map<number, Map<string, Bucket>>();
 
   for (const row of rows) {
-    const key = `${row.pickupPortName ?? ''}\u0000${row.dropoffPortName ?? ''}`;
+    // Customer feedback L2 (24/08/2026) — group by (lift, drop, localDate)
+    // so the cảng cells can be day-filtered on the frontend.
+    const key = `${row.pickupPortName ?? ''}\u0000${row.dropoffPortName ?? ''}\u0000${row.localDate ?? ''}`;
     let shipmentBuckets = bucketsByShipment.get(row.shipmentId);
     if (!shipmentBuckets) {
       shipmentBuckets = new Map();
@@ -151,6 +161,7 @@ export function groupShipmentContainerPortGroups(
       bucket = {
         pickupPortName: row.pickupPortName,
         dropoffPortName: row.dropoffPortName,
+        localDate: row.localDate,
         containerSummary: '',
         typeCounts: new Map(),
       };
@@ -186,6 +197,10 @@ export async function loadShipmentListContainerPortGroups(
     dropoffPortId: s.shipmentContainers.dropoffPortId,
     containerTypeCode: s.containerTypes.code,
     containerTypeName: s.containerTypes.name,
+    // Customer feedback L2 — per-day port grouping. The frontend uses
+    // `localDate` to recompute the Cảng nâng / Cảng hạ cells when the
+    // dispatcher filters by a single day.
+    customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
   }).from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
@@ -205,6 +220,7 @@ export async function loadShipmentListContainerPortGroups(
     dropoffPortName: row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null,
     containerTypeCode: row.containerTypeCode,
     containerTypeName: row.containerTypeName,
+    localDate: row.customerAppointmentAt == null ? null : localDateInBusinessZone(row.customerAppointmentAt),
   })));
 }
 

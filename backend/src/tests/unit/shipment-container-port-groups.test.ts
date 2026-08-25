@@ -7,15 +7,32 @@ import {
 
 test('groups lift and drop locations by the container pair instead of shipment fields', () => {
   const groups = groupShipmentContainerPortGroups([
-    { shipmentId: 41, pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerTypeCode: '40DC', containerTypeName: null },
-    { shipmentId: 41, pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Kho Long Biên', containerTypeCode: '20DC', containerTypeName: null },
-    { shipmentId: 41, pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerTypeCode: '40DC', containerTypeName: null },
+    { shipmentId: 41, pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerTypeCode: '40DC', containerTypeName: null, localDate: '2026-08-25' },
+    { shipmentId: 41, pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Kho Long Biên', containerTypeCode: '20DC', containerTypeName: null, localDate: '2026-08-25' },
+    { shipmentId: 41, pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerTypeCode: '40DC', containerTypeName: null, localDate: '2026-08-26' },
   ]);
 
   assert.deepEqual(groups.get(41), [
-    { pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', containerSummary: '2 x 40DC' },
-    { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Kho Long Biên', containerSummary: '1 x 20DC' },
+    { pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', localDate: '2026-08-25', containerSummary: '1 x 40DC' },
+    { pickupPortName: 'Cảng Hải Phòng', dropoffPortName: 'Kho Long Biên', localDate: '2026-08-25', containerSummary: '1 x 20DC' },
+    { pickupPortName: 'TC - HICT', dropoffPortName: 'Nhà máy Bắc Giang', localDate: '2026-08-26', containerSummary: '1 x 40DC' },
   ]);
+});
+
+test('keeps port groups split by localDate so the cảng cells can be day-filtered', () => {
+  // Customer feedback L2 (24/08/2026) — same (lift, drop) pair on two different
+  // days must remain two separate groups so the frontend can filter by day.
+  const groups = groupShipmentContainerPortGroups([
+    { shipmentId: 41, pickupPortName: 'Cảng HP', dropoffPortName: 'Kho Long Biên', containerTypeCode: '40DC', containerTypeName: null, localDate: '2026-08-25' },
+    { shipmentId: 41, pickupPortName: 'Cảng HP', dropoffPortName: 'Kho Long Biên', containerTypeCode: '40DC', containerTypeName: null, localDate: '2026-08-26' },
+  ]);
+
+  const day25 = groups.get(41)?.filter((g) => g.localDate === '2026-08-25');
+  const day26 = groups.get(41)?.filter((g) => g.localDate === '2026-08-26');
+  assert.equal(day25?.length, 1);
+  assert.equal(day26?.length, 1);
+  assert.equal(day25?.[0]?.containerSummary, '1 x 40DC');
+  assert.equal(day26?.[0]?.containerSummary, '1 x 40DC');
 });
 
 test('groups appointments only after their effective factory has been resolved', () => {
