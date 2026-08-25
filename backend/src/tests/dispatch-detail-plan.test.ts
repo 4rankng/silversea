@@ -14,6 +14,7 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import shipmentRoutes from '../routes/shipments';
+import driverRoutes from '../routes/driver';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { auditLogMiddleware } from '../middleware/audit';
@@ -29,6 +30,7 @@ const createdPortIds: number[] = [];
 const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdAssignmentIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdSiteIds: number[] = [];
@@ -218,6 +220,14 @@ async function createOwnedTruckWithDriver() {
     status: 'ACTIVE',
   }).returning();
   createdDriverIds.push(driver.id);
+  // Driver<->truck pairing is authoritative on truck_driver_assignments;
+  // the legacy column above stays only to keep seeding realistic.
+  const [assignment] = await db.insert(s.truckDriverAssignments).values({
+    truckId: truck.id,
+    driverId: driver.id,
+    role: 'PRIMARY',
+  }).returning();
+  createdAssignmentIds.push(assignment.id);
   return { truck, driver };
 }
 
@@ -287,6 +297,25 @@ async function fetchRows(token: string, query = '') {
   return response;
 }
 
+// Driver-portal fetch for the tap-through repro (notification → open job).
+async function driverFetch(path: string, token: string): Promise<{ status: number; data: unknown }> {
+  const response = await fetch(`${baseUrl}/api/driver/me${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  return { status: response.status, data };
+}
+
+async function countDispatchNotifications(fulfillmentId: number) {
+  const notes = await db.select({ id: s.notifications.id, title: s.notifications.title }).from(s.notifications)
+    .where(and(
+      eq(s.notifications.type, 'TRIP_DISPATCHED'),
+      eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
+      eq(s.notifications.relatedEntityId, fulfillmentId),
+    ));
+  return notes;
+}
+
 before(async () => {
   await initAuditService();
   await initEnforcer();
@@ -294,6 +323,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
+  app.use('/api/driver/me', authMiddleware, casbinAuthz('driver_portal'), driverRoutes);
   app.use(globalErrorHandler);
 
   await new Promise<void>((resolve) => {
@@ -337,6 +367,7 @@ after(async () => {
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     }
     if (createdSiteIds.length > 0) await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdSiteIds));
+    if (createdAssignmentIds.length > 0) await db.delete(s.truckDriverAssignments).where(inArray(s.truckDriverAssignments.id, createdAssignmentIds));
     if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
     if (createdTrailerIds.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
@@ -737,7 +768,7 @@ describe('dispatch detail plan plate assignment', () => {
     assert.equal(stale.status, 409);
   });
 
-  test('OWN happy path assigns plate, notifies driver, flips lot flag on last container', async () => {
+  test('OWN happy path assigns plate without notifying driver, flips lot flag on last container', async () => {
     const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN', containerCount: 3 });
     const { truck, driver } = await createOwnedTruckWithDriver();
 
@@ -750,14 +781,16 @@ describe('dispatch detail plan plate assignment', () => {
     assert.equal(first.status, 200, JSON.stringify(first.data));
     assert.equal(first.data.assignedPlate, truck.licensePlate);
     assert.equal(first.data.assignedDriverId, driver.id);
-    assert.equal(first.data.driverNotified, true);
+    assert.equal(first.data.driverNotified, false);
     assert.equal(first.data.lotFullyPlated, false);
 
-    const [notification] = await db.select().from(s.notifications).where(and(
+    // Plate assignment never notifies — the driver notification belongs to
+    // dispatch-order issuance, which is the only place a trips row exists.
+    const notes = await db.select({ id: s.notifications.id }).from(s.notifications).where(and(
       eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
       eq(s.notifications.relatedEntityId, f1.id),
     ));
-    assert.ok(notification, 'driver notification persisted');
+    assert.equal(notes.length, 0, 'plate assignment must not persist any notification');
 
     const [f2] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[1]!));
     await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${f2.id}/plate`, {
@@ -867,7 +900,7 @@ describe('dispatch detail plan plate assignment', () => {
     assert.equal(clear.data.lotFullyPlated, false);
   });
 
-  test('re-assigning the same truck does not re-notify', async () => {
+  test('re-assigning the same truck never notifies', async () => {
     const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck } = await createOwnedTruckWithDriver();
     const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
@@ -876,10 +909,10 @@ describe('dispatch detail plan plate assignment', () => {
       token: dispatcherToken,
       body: { expectedVersion: fulfillment.version, truckId: truck.id },
     });
-    assert.equal(first.data.driverNotified, true);
+    assert.equal(first.data.driverNotified, false);
 
-    // Clear then re-assign the same truck: the dedupe check finds the prior
-    // notification for this fulfillment+driver+plate pair and stays silent.
+    // Clear then re-assign the same truck: plate assignment is silent at
+    // every step — issuance owns the driver notification.
     const cleared = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
@@ -1092,7 +1125,7 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(row.classification, 'SINGLE');
   });
 
-  test('OWN truck assignment notifies driver once; replay is silent', async () => {
+  test('OWN truck assignment via atomic save stays silent; replay is silent', async () => {
     const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
     const { truck } = await createOwnedTruckWithDriver();
     const { shipment, fulfillment } = await fetchShipmentAndFulfillment(fulfillmentIds[0]!);
@@ -1112,7 +1145,7 @@ describe('atomic dispatch detail plan save', () => {
       method: 'PATCH', token: dispatcherToken, body, idempotencyKey: key,
     });
     assert.equal(first.status, 200, JSON.stringify(first.data));
-    assert.equal(first.data.driverNotified, true);
+    assert.equal(first.data.driverNotified, false);
     assert.equal(first.data.dispatch.assignedPlate, truck.licensePlate);
     assert.equal(first.data.lotFullyPlated, true);
 
@@ -1122,13 +1155,13 @@ describe('atomic dispatch detail plan save', () => {
     assert.equal(replay.status, 200, JSON.stringify(replay.data));
     assert.equal(replay.data.replayed, true);
 
-    // Exactly one in-app notification for the transition.
+    // Planning saves never notify the driver.
     const notes = await db.select({ id: s.notifications.id }).from(s.notifications)
       .where(and(
         eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
         eq(s.notifications.relatedEntityId, fulfillment.id),
       ));
-    assert.equal(notes.length, 1);
+    assert.equal(notes.length, 0);
   });
 
   test('stale shipment version or stale fulfillment version changes nothing', async () => {
@@ -1770,5 +1803,104 @@ describe('review fixes: carrier switch + explicit plate clear', () => {
     const [after] = await db.select().from(s.shipmentFulfillments)
       .where(eq(s.shipmentFulfillments.id, fulfillment.id));
     assert.equal(after.plannedVehiclePlateNumber, null, 'clearVehicle must unassign the plate');
+  });
+});
+
+describe('driver notification timing (xếp xe stays silent, issuance notifies)', () => {
+  type IssueResponse = { trip: { id: number } };
+
+  test('legacy plate assignment alone: no driver notification, tap-through 404', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+
+    const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+    // Derived-driver display survives for the dispatcher; the notification does not.
+    assert.equal(plated.data.assignedDriverId, driver.id);
+    assert.equal(plated.data.driverNotified, false);
+
+    assert.equal((await countDispatchNotifications(fulfillment.id)).length, 0, 'plate-only assignment must not notify');
+
+    const token = signToken({ id: driver.userId!, username: null, role: Role.DRIVER });
+    const detail = await driverFetch(`/fulfillments/${fulfillment.id}`, token);
+    assert.equal(detail.status, 404, 'driver must not be able to open a not-yet-issued job');
+  });
+
+  test('atomic plan save alone: no driver notification, tap-through 404', async () => {
+    const { fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+    const [shipment] = await db.select().from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId));
+
+    const saved = await apiFetch<PlateResponse & { driverNotified: boolean }>(`/dispatch-detail-plan-rows/${fulfillment.id}/plan`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: {
+        expectedFulfillmentVersion: fulfillment.version,
+        expectedShipmentVersion: shipment.version,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        plannedRevenue: null,
+        plannedCarrierCost: null,
+        classification: 'SINGLE',
+        isCombined: shipment.isCombined,
+      },
+    });
+    assert.equal(saved.status, 200, JSON.stringify(saved.data));
+    assert.equal(saved.data.driverNotified, false);
+
+    assert.equal((await countDispatchNotifications(fulfillment.id)).length, 0, 'plan-only save must not notify');
+
+    const token = signToken({ id: driver.userId!, username: null, role: Role.DRIVER });
+    const detail = await driverFetch(`/fulfillments/${fulfillment.id}`, token);
+    assert.equal(detail.status, 404, 'driver must not be able to open a not-yet-issued job');
+  });
+
+  test('issuing the dispatch order notifies the driver exactly once and the job opens', async () => {
+    const { shipment, fulfillmentIds } = await createAllocatedLot({ carrierType: 'OWN' });
+    const { truck, driver } = await createOwnedTruckWithDriver();
+    const [fulfillment] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentIds[0]!));
+
+    // Step 1 — xếp xe via the legacy endpoint: silent.
+    const plated = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fulfillment.id}/plate`, {
+      method: 'PATCH',
+      token: dispatcherToken,
+      body: { expectedVersion: fulfillment.version, truckId: truck.id },
+    });
+    assert.equal(plated.status, 200, JSON.stringify(plated.data));
+    assert.equal((await countDispatchNotifications(fulfillment.id)).length, 0);
+
+    // Step 2 — issue the dispatch order: the existing issuance notification
+    // fires exactly once, sourced from the persisted trips row.
+    const issued = await apiFetch<IssueResponse>(`/${shipment.id}/dispatch`, {
+      method: 'POST',
+      token: dispatcherToken,
+      body: {
+        fulfillmentId: fulfillment.id,
+        expectedVersion: plated.data.version,
+        plannedStartAt: '2026-08-20T08:00:00+07:00',
+        plannedEndAt: '2026-08-20T12:00:00+07:00',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: truck.id,
+        driverId: driver.id,
+      },
+    });
+    assert.equal(issued.status, 201, JSON.stringify(issued.data));
+    createdTripIds.push(issued.data.trip.id);
+
+    const notes = await countDispatchNotifications(fulfillment.id);
+    assert.equal(notes.length, 1, 'issuance must notify exactly once');
+    assert.equal(notes[0]!.title, 'Lệnh điều xe mới');
+
+    // Step 3 — the driver can now open the job (the original repro's 404).
+    const token = signToken({ id: driver.userId!, username: null, role: Role.DRIVER });
+    const detail = await driverFetch(`/fulfillments/${fulfillment.id}`, token);
+    assert.equal(detail.status, 200, JSON.stringify(detail.data));
   });
 });

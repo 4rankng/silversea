@@ -7,6 +7,7 @@ import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { vehicles } from './data/index.js';
 import { normalizedTextEquals } from './seed-identity.js';
+import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 
 /**
  * Seed vehicles with their truck/trailer combinations
@@ -67,9 +68,11 @@ export async function seedVehiclesFromExcel(): Promise<void> {
         .limit(1);
 
       if (existingDriver) {
-        await db.update(s.drivers)
-          .set({ assignedTruckId: truckId, updatedAt: new Date() })
-          .where(eq(s.drivers.id, existingDriver.id));
+        await db.transaction((tx) => reassignTruckDriverInTx(tx, {
+          truckId,
+          driverId: existingDriver.id,
+          createdBy: null,
+        }));
         driverLinks++;
       }
     }

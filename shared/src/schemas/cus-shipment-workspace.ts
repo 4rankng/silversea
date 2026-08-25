@@ -145,6 +145,9 @@ export const shipmentCusWorkspaceOperationalSummarySchema = z.object({
   plateAssignedContainers: z.number().int().nonnegative(),
   missingCarrierContainers: z.number().int().nonnegative(),
   missingPlateContainers: z.number().int().nonnegative(),
+  // Live (non-canceled) trips rows — the same signal that gates the driver
+  // notification, exposed so the CUS chip and the dispatch grid cannot drift.
+  orderIssuedContainers: z.number().int().nonnegative(),
   transportDateEditable: z.boolean(),
 }).strict();
 

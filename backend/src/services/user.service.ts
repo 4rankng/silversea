@@ -18,6 +18,7 @@ import {
   userCustomerLinks,
   userBusinessUnitLinks,
   userShipmentLinks,
+  truckDriverAssignments,
 } from '../db/schema';
 import { eq, isNull, sql, or, and, ne, inArray, ilike, asc, desc } from 'drizzle-orm';
 import { CustomerAccountType, Role } from '@tingting/shared';
@@ -29,7 +30,6 @@ import {
   lockActiveBusinessUnitIds,
   lockActiveCustomerIds,
   lockShipmentRows,
-  lockTruckRow,
   lockUserRowForUpdate,
 } from './application-relationship.service';
 import {
@@ -53,7 +53,9 @@ export const USER_WITH_DRIVER_FIELDS = {
   driverId: drivers.id,
   driverName: drivers.name,
   driverPhone: drivers.phone,
-  assignedTruckId: drivers.assignedTruckId,
+  // Truck pairing comes from the assignment table (drivers.assignedTruckId is
+  // deprecated, read-only) — the response field stays for API compatibility.
+  assignedTruckId: truckDriverAssignments.truckId,
   baseSalary: drivers.baseSalary,
   socialInsurance: drivers.socialInsurance,
   driverStatus: drivers.status,
@@ -61,12 +63,18 @@ export const USER_WITH_DRIVER_FIELDS = {
 
 /** Shared LEFT JOIN condition for linking a driver profile to a user. */
 const driverJoin = () => and(eq(drivers.userId, users.id), isNull(drivers.deletedAt));
+const activeTruckAssignmentJoin = () => and(
+  eq(truckDriverAssignments.driverId, drivers.id),
+  isNull(truckDriverAssignments.endsAt),
+  eq(truckDriverAssignments.role, 'PRIMARY'),
+);
 
 /** Select a user row with its optional driver profile, scoped by an optional extra where clause. */
 function selectUserWithDriver(q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0], extraWhere?: ReturnType<typeof eq> | ReturnType<typeof and>) {
   return q.select(USER_WITH_DRIVER_FIELDS)
     .from(users)
     .leftJoin(drivers, driverJoin())
+    .leftJoin(truckDriverAssignments, activeTruckAssignmentJoin())
     .where(extraWhere);
 }
 
@@ -378,16 +386,6 @@ async function validateShipmentIds(
   }
 }
 
-async function validateAssignedTruckId(tx: Tx, assignedTruckId: number | null | undefined): Promise<void> {
-  if (assignedTruckId == null) return;
-  const truck = await lockTruckRow(tx, assignedTruckId, {
-    notFoundMessage: 'Xe đầu kéo liên kết không tồn tại hoặc đã ngưng dùng',
-  });
-  if (truck.deletedAt != null || truck.status !== 'ACTIVE') {
-    throw new ApiError(400, 'Xe đầu kéo liên kết không tồn tại hoặc đã ngưng dùng');
-  }
-}
-
 async function syncCustomerLinks(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   userId: number,
@@ -616,7 +614,6 @@ export async function createUserWithTx(tx: Tx, data: {
   status?: string;
   baseSalary?: number;
   socialInsurance?: number;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
   customerAccountType?: CustomerAccountType;
@@ -736,7 +733,6 @@ export async function createUser(data: {
   status?: string;
   baseSalary?: number;
   socialInsurance?: number;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
   customerAccountType?: CustomerAccountType;
@@ -751,14 +747,13 @@ export async function createUser(data: {
 function buildDriverUpdateSet(data: {
   fullName?: string; phone?: string;
   baseSalary?: number; socialInsurance?: number;
-  assignedTruckId?: number | null; status?: string;
+  status?: string;
 }): Record<string, unknown> {
   const set: Record<string, unknown> = { updatedAt: sql`now()` };
   if (data.fullName) set.name = data.fullName;
   if (data.phone !== undefined) set.phone = data.phone || null;
   if (data.baseSalary !== undefined) set.baseSalary = String(data.baseSalary);
   if (data.socialInsurance !== undefined) set.socialInsurance = String(data.socialInsurance);
-  if (data.assignedTruckId !== undefined) set.assignedTruckId = data.assignedTruckId ?? null;
   if (data.status !== undefined) set.status = data.status;
   return Object.keys(set).length > 1 ? set : {};
 }
@@ -774,7 +769,6 @@ export async function updateUserWithTx(id: number, data: {
   phone?: string;
   baseSalary?: number;
   socialInsurance?: number;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
   customerAccountType?: CustomerAccountType;
@@ -991,7 +985,6 @@ export async function updateUserWithTx(id: number, data: {
       .from(drivers).where(and(eq(drivers.userId, id), isNull(drivers.deletedAt))).limit(1);
 
     if (existingDriver) {
-      await validateAssignedTruckId(tx, data.assignedTruckId);
       const driverSet = buildDriverUpdateSet(data);
       if (Object.keys(driverSet).length > 0) {
         await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
@@ -1020,7 +1013,6 @@ export async function updateUser(id: number, data: {
   phone?: string;
   baseSalary?: number;
   socialInsurance?: number;
-  assignedTruckId?: number | null;
   customerId?: number | null;
   customerIds?: number[] | null;
   customerAccountType?: CustomerAccountType;

@@ -31,6 +31,7 @@ const createdContainerTypeIds: number[] = [];
 const createdTrailerIds: number[] = [];
 const createdTruckIds: number[] = [];
 const createdDriverIds: number[] = [];
+const createdAssignmentIds: number[] = [];
 const createdShipmentIds: number[] = [];
 const createdTripIds: number[] = [];
 
@@ -186,6 +187,13 @@ async function createOwnedResources(options: { trailerType?: '20FT' | '40FT' } =
     status: 'ACTIVE',
   }).returning();
   createdDriverIds.push(driver.id);
+  // Pairing is authoritative on truck_driver_assignments.
+  const [assignment] = await db.insert(s.truckDriverAssignments).values({
+    truckId: truck.id,
+    driverId: driver.id,
+    role: 'PRIMARY',
+  }).returning();
+  createdAssignmentIds.push(assignment.id);
 
   return { trailer, truck, driver, driverUser };
 }
@@ -312,6 +320,7 @@ after(async () => {
       await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
       await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
     }
+    if (createdAssignmentIds.length > 0) await db.delete(s.truckDriverAssignments).where(inArray(s.truckDriverAssignments.id, createdAssignmentIds));
     if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
     if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
     if (createdTrailerIds.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
@@ -966,6 +975,13 @@ describe('dispatch fulfillment workflow routes', () => {
       assignedTruckId: trucks[index]!.id,
     }))).returning({ id: s.drivers.id });
     createdDriverIds.push(...drivers.map((driver) => driver.id));
+    // Pairing is authoritative on truck_driver_assignments.
+    const assignments = await db.insert(s.truckDriverAssignments).values(drivers.map((driver, index) => ({
+      truckId: trucks[index]!.id,
+      driverId: driver.id,
+      role: 'PRIMARY',
+    }))).returning({ id: s.truckDriverAssignments.id });
+    createdAssignmentIds.push(...assignments.map((assignment) => assignment.id));
 
     const carriers = await db.insert(s.customers).values(Array.from({ length: 3 }, (_, index) => ({
       name: `${countToken} Nhà xe Ánh ${index}`,

@@ -3,13 +3,13 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, hasExplicitNotificationTarget, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, addCalendarDays, assertDispatchActor, assertDispatchReadActor, buildPattern, dispatchDetailTransportDateSql, dispatchEffectiveRouteIdSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES, loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
-import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
+import { getActiveAssignment } from './truck-driver-assignment.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { transitionShipmentStatus } from './shipment.service';
@@ -18,7 +18,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
 import { and, asc, count, desc, eq, gt, ilike, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, NotificationType, Role, TripStatus, type DispatchClassification, type FuelMode, type TruckSuggestion } from '@tingting/shared';
+import { canonicalShipmentStatus, Role, TripStatus, type DispatchClassification, type FuelMode, type TruckSuggestion } from '@tingting/shared';
 
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
@@ -647,30 +647,7 @@ export async function assignFulfillmentPlate(input: AssignFulfillmentPlateInput)
     create: (tx) => assignFulfillmentPlateInTx(tx, input),
   });
 
-  const result = outcome.result;
-  if (!outcome.replayed && result.driverNotified) {
-    const notificationPayload = buildPlateAssignmentNotificationPayload(result);
-    if (hasExplicitNotificationTarget(notificationPayload)) {
-      await sendNotificationPush(notificationPayload).catch((error) => {
-        console.error('Plate-assignment push delivery failed after commit:', error);
-      });
-    }
-  }
-  return { ...result, replayed: outcome.replayed };
-}
-
-
-export function buildPlateAssignmentNotificationPayload(result: PlateMutationResult): NotificationPayload {
-  return {
-    type: NotificationType.TRIP_DISPATCHED,
-    title: 'Phân công chạy mới',
-    message: result.assignedPlate
-      ? `Bạn được phân công chạy xe biển ${result.assignedPlate}`
-      : 'Bạn có phân công chạy mới',
-    relatedEntityType: 'shipment_fulfillments',
-    relatedEntityId: result.fulfillmentId,
-    targetDriverId: result.assignedDriverId ?? undefined,
-  };
+  return { ...outcome.result, replayed: outcome.replayed };
 }
 
 
@@ -724,25 +701,13 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
     if (!truck || truck.deletedAt || truck.status !== 'ACTIVE') {
       throw new ApiError(409, 'Xe đầu kéo không còn hiệu lực.');
     }
-    const [driver] = await tx.select({
-      id: s.drivers.id,
-      name: s.drivers.name,
-      userId: s.drivers.userId,
-      status: s.drivers.status,
-      deletedAt: s.drivers.deletedAt,
-    }).from(s.drivers)
-      .where(and(
-        eq(s.drivers.assignedTruckId, truck.id),
-        isNull(s.drivers.deletedAt),
-        eq(s.drivers.status, 'ACTIVE'),
-      ))
-      .limit(1);
+    const assignment = await getActiveAssignment(tx, truck.id);
     plannedVehiclePlateNumber = truck.licensePlate;
     assignedTruckId = truck.id;
-    if (driver) {
-      assignedDriverId = driver.id;
-      assignedDriverName = driver.name;
-      if (driver.userId == null) driverHint = 'Lái xe chưa có tài khoản đăng nhập.';
+    if (assignment) {
+      assignedDriverId = assignment.driverId;
+      assignedDriverName = assignment.driverName;
+      if (assignment.driverUserId == null) driverHint = 'Lái xe chưa có tài khoản đăng nhập.';
     } else {
       driverHint = 'Chưa có lái xe gắn với xe.';
     }
@@ -805,52 +770,6 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
   };
 }
 
-/**
- * Notify only when the truck actually changes (dedupe re-assign of same
- * truck): skip when the stored plate/vehicle is already identical, OR when a
- * notification for this fulfillment+driver+plate pair was already delivered
- * (covers clear → re-assign of the same truck). Shared by the legacy plate
- * endpoint and the atomic plan save.
- */
-
-export async function decideDispatchDriverNotification(tx: Tx, args: {
-  fulfillment: typeof s.shipmentFulfillments.$inferSelect;
-  carrierType: 'OWN' | 'EXTERNAL';
-  clear: boolean;
-  vehicle: DispatchVehicleResolution;
-}): Promise<boolean> {
-  const { fulfillment, vehicle } = args;
-  const sameTruck = vehicle.assignedTruckId != null
-    && fulfillment.plannedVehiclePlateNumber === vehicle.plannedVehiclePlateNumber
-    && fulfillment.plannedExternalCarrierVehicleId === vehicle.plannedExternalCarrierVehicleId;
-  let previouslyNotified = false;
-  if (!sameTruck && vehicle.assignedDriverId != null && vehicle.plannedVehiclePlateNumber != null) {
-    // Notifications are user-keyed; resolve the assigned driver's login user.
-    const [driverRow] = await tx.select({ userId: s.drivers.userId }).from(s.drivers)
-      .where(eq(s.drivers.id, vehicle.assignedDriverId))
-      .limit(1);
-    if (driverRow?.userId != null) {
-      const [prior] = await tx.select({ id: s.notifications.id }).from(s.notifications)
-        .where(and(
-          eq(s.notifications.type, NotificationType.TRIP_DISPATCHED),
-          eq(s.notifications.relatedEntityType, 'shipment_fulfillments'),
-          eq(s.notifications.relatedEntityId, fulfillment.id),
-          eq(s.notifications.userId, driverRow.userId),
-          sql`${s.notifications.message} like ${`%${vehicle.plannedVehiclePlateNumber}%`}`,
-        ))
-        .limit(1);
-      previouslyNotified = prior != null;
-    }
-  }
-  return args.carrierType === 'OWN'
-    && !args.clear
-    && vehicle.assignedTruckId != null
-    && !sameTruck
-    && !previouslyNotified
-    && vehicle.assignedDriverId != null;
-}
-
-
 export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateInput): Promise<PlateMutationResult> {
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(
@@ -879,13 +798,6 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     clear: input.clear === true,
   });
 
-  const shouldNotifyDriver = await decideDispatchDriverNotification(tx, {
-    fulfillment,
-    carrierType,
-    clear: input.clear === true,
-    vehicle,
-  });
-
   const [updated] = await tx.update(s.shipmentFulfillments).set({
     plannedVehiclePlateNumber: vehicle.plannedVehiclePlateNumber,
     plannedExternalCarrierVehicleId: vehicle.plannedExternalCarrierVehicleId,
@@ -899,24 +811,14 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, fulfillment.shipmentId);
 
-  if (shouldNotifyDriver) {
-    await persistNotificationInTx(tx, buildPlateAssignmentNotificationPayload({
-      fulfillmentId: fulfillment.id,
-      version: updated.version,
-      lotFullyPlated,
-      driverNotified: true,
-      assignedPlate: vehicle.plannedVehiclePlateNumber,
-      assignedDriverId: vehicle.assignedDriverId,
-      assignedDriverName: vehicle.assignedDriverName,
-      driverHint: vehicle.driverHint,
-    }));
-  }
-
+  // Plate assignment never notifies the driver — dispatch-order issuance
+  // (issueOrderCreateOrUpdate) owns the driver notification, so the driver
+  // never sees or taps into a job that has no trips row yet.
   return {
     fulfillmentId: fulfillment.id,
     version: updated.version,
     lotFullyPlated,
-    driverNotified: shouldNotifyDriver,
+    driverNotified: false,
     assignedPlate: vehicle.plannedVehiclePlateNumber,
     assignedDriverId: vehicle.assignedDriverId,
     assignedDriverName: vehicle.assignedDriverName,
@@ -992,10 +894,9 @@ export async function updateFulfillmentEstimates(
  * Atomic editor save for one detailed-plan row. Locks shipment then
  * fulfillment (the same order as dispatch issuance, so this cannot deadlock
  * with it), applies the union of the strongest legacy guards, updates both
- * versioned rows in one transaction, persists the in-app driver notification
- * transactionally, and returns the complete row state. Web Push stays a
- * best-effort post-commit side effect — only attempted on a new own-truck
- * transition, never on replay.
+ * versioned rows in one transaction, and returns the complete row state.
+ * Planning saves never notify the driver — dispatch-order issuance
+ * (issueOrderCreateOrUpdate) owns the driver notification.
  */
 
 export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanInput): Promise<DispatchDetailPlanMutationResult & { replayed: boolean }> {
@@ -1024,28 +925,7 @@ export async function updateDispatchDetailPlan(input: UpdateDispatchDetailPlanIn
     create: (tx) => updateDispatchDetailPlanInTx(tx, input),
   });
 
-  const result = outcome.result;
-  // Best-effort post-commit push — mirrors the legacy plate endpoint. The
-  // durable in-app row (persisted in-tx) is the delivery guarantee; this
-  // surface ping may fail silently without affecting the write.
-  if (!outcome.replayed && result.driverNotified) {
-    const notificationPayload = buildPlateAssignmentNotificationPayload({
-      fulfillmentId: result.fulfillmentId,
-      version: result.fulfillmentVersion,
-      lotFullyPlated: result.lotFullyPlated,
-      driverNotified: true,
-      assignedPlate: result.dispatch.assignedPlate,
-      assignedDriverId: null,
-      assignedDriverName: null,
-      driverHint: result.driverHint,
-    });
-    if (hasExplicitNotificationTarget(notificationPayload)) {
-      await sendNotificationPush(notificationPayload).catch((error) => {
-        console.error('Atomic plan-save push delivery failed after commit:', error);
-      });
-    }
-  }
-  return { ...result, replayed: outcome.replayed };
+  return { ...outcome.result, replayed: outcome.replayed };
 }
 
 
@@ -1135,13 +1015,6 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     });
   }
 
-  const shouldNotifyDriver = vehicle != null && await decideDispatchDriverNotification(tx, {
-    fulfillment,
-    carrierType: input.carrierType,
-    clear: input.clearVehicle === true,
-    vehicle,
-  });
-
   // Fulfillment row: assignment snapshot + estimates + classification.
   // Without a vehicle block the stored vehicle columns keep their values.
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
@@ -1181,21 +1054,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
 
-  // In-app assignment notification lives inside the transaction — exactly
-  // once per actual transition, never on replay.
-  if (shouldNotifyDriver && vehicle != null) {
-    await persistNotificationInTx(tx, buildPlateAssignmentNotificationPayload({
-      fulfillmentId: fulfillment.id,
-      version: updatedFulfillment.version,
-      lotFullyPlated,
-      driverNotified: true,
-      assignedPlate: vehicle.plannedVehiclePlateNumber,
-      assignedDriverId: vehicle.assignedDriverId,
-      assignedDriverName: vehicle.assignedDriverName,
-      driverHint: vehicle.driverHint,
-    }));
-  }
-
+  // Planning saves never notify the driver — dispatch-order issuance
+  // (issueOrderCreateOrUpdate) owns the driver notification, so the driver
+  // never sees or taps into a job that has no trips row yet.
   return {
     fulfillmentId: updatedFulfillment.id,
     fulfillmentVersion: updatedFulfillment.version,
@@ -1215,7 +1076,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       plannedCarrierCost: updatedFulfillment.plannedCarrierCost,
     },
     lotFullyPlated,
-    driverNotified: shouldNotifyDriver,
+    driverNotified: false,
     driverHint: vehicle?.driverHint ?? null,
   };
 }

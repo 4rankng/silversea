@@ -108,6 +108,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN, pattern: /^\/api\/shipments\/[^/]+\/carrier-allocations$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_CARRIER_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/carrier$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLATE_ASSIGN, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/plate$/ },
+  { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.TRUCK_DRIVER_REASSIGN, pattern: /^\/api\/shipments\/dispatch-fleet\/trucks\/[^/]+\/assigned-driver$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_ESTIMATES_UPDATE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/estimates$/ },
   { method: 'PATCH', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_FULFILLMENT_PLAN_UPDATE, pattern: /^\/api\/shipments\/dispatch-detail-plan-rows\/[^/]+\/plan$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_ACCOUNTING_LOCK_ACTIVATE, pattern: /^\/api\/shipments\/[^/]+\/accounting-lock$/ },

@@ -245,10 +245,17 @@ function buildOperationalSummary(
   let plateAssignedContainers = 0;
   let missingCarrierContainers = 0;
   let missingPlateContainers = 0;
+  let orderIssuedContainers = 0;
 
   for (const container of containers) {
     const assignment = support.assignmentsByContainer.get(container.id) ?? null;
     const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
+    // "Issued" mirrors the driver-notification gate exactly: a live (not
+    // canceled) trips row is the only thing the driver's task list and
+    // tap-through match against — planned plates alone never count.
+    if (assignment?.tripId != null && assignment.tripStatus !== 'CANCELED') {
+      orderIssuedContainers += 1;
+    }
     // Own-fleet plates: the dispatch plan already snapshots the truck plate
     // into plannedVehiclePlateNumber at allocation time, so mirror the
     // EXTERNAL fallback chain instead of waiting for the executed trip.
@@ -295,6 +302,7 @@ function buildOperationalSummary(
     plateAssignedContainers,
     missingCarrierContainers,
     missingPlateContainers,
+    orderIssuedContainers,
     transportDateEditable,
   };
 }

@@ -9,6 +9,7 @@ import { db } from '../db';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { getActiveAssignmentsByTruckIds, getActiveTruckIdByDriverIds } from './truck-driver-assignment.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
@@ -643,28 +644,18 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       const pageRows = truckRows.slice(0, limit);
       const trailerIds = pageRows.map((row) => row.currentTrailerId).filter((id): id is number => id != null);
       const truckIds = pageRows.map((row) => row.id);
-      const [trailers, assignedDrivers] = await Promise.all([
+      const [trailers, assignedDriverMap] = await Promise.all([
         trailerIds.length === 0
           ? []
           : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate })
             .from(s.trailers)
             .where(inArray(s.trailers.id, [...new Set(trailerIds)])),
-        truckIds.length === 0
-          ? []
-          : tx.select({ id: s.drivers.id, name: s.drivers.name, assignedTruckId: s.drivers.assignedTruckId })
-            .from(s.drivers)
-            .where(and(
-              isNull(s.drivers.deletedAt),
-              inArray(s.drivers.assignedTruckId, truckIds),
-            ))
-            .orderBy(asc(s.drivers.id)),
+        getActiveAssignmentsByTruckIds(tx, truckIds),
       ]);
       const trailerById = new Map(trailers.map((row) => [row.id, row]));
-      const assignedDriverByTruckId = new Map<number, { id: number; name: string }>();
-      for (const row of assignedDrivers) {
-        if (row.assignedTruckId == null || assignedDriverByTruckId.has(row.assignedTruckId)) continue;
-        assignedDriverByTruckId.set(row.assignedTruckId, { id: row.id, name: row.name });
-      }
+      const assignedDriverByTruckId = new Map<number, { id: number; name: string }>(
+        [...assignedDriverMap.entries()].map(([truckId, driver]) => [truckId, { id: driver.driverId, name: driver.driverName }]),
+      );
 
       // Advisory same-zone suggestions ride beside the cursor page — never
       // inside it, so pagination semantics stay byte-compatible for callers.
@@ -712,7 +703,6 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
           id: s.drivers.id,
           name: s.drivers.name,
           phone: s.drivers.phone,
-          assignedTruckId: s.drivers.assignedTruckId,
           status: s.drivers.status,
           userId: s.drivers.userId,
         }).from(s.drivers)
@@ -721,7 +711,8 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
           .limit(limit + 1),
       ]);
       const pageRows = driverRows.slice(0, limit);
-      const assignedTruckIds = pageRows.map((row) => row.assignedTruckId).filter((id): id is number => id != null);
+      const activeTruckByDriverId = await getActiveTruckIdByDriverIds(tx, pageRows.map((row) => row.id));
+      const assignedTruckIds = [...activeTruckByDriverId.values()];
       const assignedTrucks = assignedTruckIds.length === 0
         ? []
         : await tx.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate })
@@ -734,8 +725,10 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
           id: row.id,
           name: row.name,
           phone: row.phone,
-          assignedTruckId: row.assignedTruckId,
-          assignedTruckPlate: row.assignedTruckId ? truckById.get(row.assignedTruckId)?.licensePlate ?? null : null,
+          assignedTruckId: activeTruckByDriverId.get(row.id) ?? null,
+          assignedTruckPlate: activeTruckByDriverId.get(row.id) != null
+            ? truckById.get(activeTruckByDriverId.get(row.id)!)?.licensePlate ?? null
+            : null,
           status: row.status,
           userId: row.userId,
         })),

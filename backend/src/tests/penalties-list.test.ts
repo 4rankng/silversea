@@ -263,8 +263,14 @@ describe('GET /api/penalties/insights', () => {
     const [allPenalties, allDrivers, allTrucks] = await Promise.all([
       db.select({ driverId: s.penalties.driverId, date: s.penalties.date, amount: s.penalties.amount })
         .from(s.penalties).where(isNull(s.penalties.deletedAt)),
-      db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, assignedTruckId: s.drivers.assignedTruckId })
-        .from(s.drivers).where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE'))),
+      db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, assignedTruckId: s.truckDriverAssignments.truckId })
+        .from(s.drivers)
+        .leftJoin(s.truckDriverAssignments, and(
+          eq(s.truckDriverAssignments.driverId, s.drivers.id),
+          isNull(s.truckDriverAssignments.endsAt),
+          eq(s.truckDriverAssignments.role, 'PRIMARY'),
+        ))
+        .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE'))),
       db.select({ id: s.trucks.id, licensePlate: s.trucks.licensePlate }).from(s.trucks),
     ]);
 

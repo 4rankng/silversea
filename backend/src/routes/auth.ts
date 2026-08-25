@@ -273,7 +273,6 @@ router.post('/users', authMiddleware, casbinAuthz('users'), asyncHandler(async (
     password: data.password,
     role: data.role,
     status: data.status,
-    assignedTruckId: data.assignedTruckId,
     customerId: data.customerId,
     customerIds: data.customerIds,
     customerAccountType: data.customerAccountType,
@@ -309,7 +308,6 @@ router.patch('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(as
     payload = {
       fullName: data.fullName,
       phone: data.phone,
-      assignedTruckId: data.assignedTruckId,
       requireDriverTarget: true,
     };
   } else {
@@ -324,7 +322,6 @@ router.patch('/users/:id', authMiddleware, casbinAuthz('users'), asyncHandler(as
       fullName: data.fullName,
       email: data.email,
       phone: data.phone,
-      assignedTruckId: data.assignedTruckId,
       customerId: data.customerId,
       customerIds: data.customerIds,
       customerAccountType: data.customerAccountType,

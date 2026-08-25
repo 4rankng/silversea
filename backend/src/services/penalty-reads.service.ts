@@ -232,7 +232,12 @@ export async function getPenaltyInsights(input: { month?: number; year?: number 
     // client-side status==='ACTIVE' filter; truck plate for the scoreboard row.
     db.select({ id: s.drivers.id, name: s.drivers.name, createdAt: s.drivers.createdAt, plate: s.trucks.licensePlate })
       .from(s.drivers)
-      .leftJoin(s.trucks, eq(s.drivers.assignedTruckId, s.trucks.id))
+      .leftJoin(s.truckDriverAssignments, and(
+        eq(s.truckDriverAssignments.driverId, s.drivers.id),
+        isNull(s.truckDriverAssignments.endsAt),
+        eq(s.truckDriverAssignments.role, 'PRIMARY'),
+      ))
+      .leftJoin(s.trucks, eq(s.trucks.id, s.truckDriverAssignments.truckId))
       .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE'))),
   ]);
 

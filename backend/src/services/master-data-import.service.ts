@@ -7,6 +7,7 @@ import { Role } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   lockActiveCustomerIds,
@@ -1211,8 +1212,16 @@ async function applyParsedRows(
       if (driver.deletedAt != null || driver.status !== 'ACTIVE') {
         throw new ApiError(409, 'Tài xế chuẩn đang ngưng hoạt động; không tự động kích hoạt lại.');
       }
-      await tx.update(s.drivers).set({ assignedTruckId: truck.id, updatedAt: new Date() })
-        .where(eq(s.drivers.id, driver.id));
+      // skipAdvisoryLock: the import already holds the driver row lock and
+      // serializes its own batch; taking the truck advisory lock here would
+      // invert the lock order against a concurrent PATCH assigned-driver
+      // (row lock → advisory vs advisory → row lock = AB-BA deadlock).
+      await reassignTruckDriverInTx(tx, {
+        truckId: truck.id,
+        driverId: driver.id,
+        createdBy: null,
+        skipAdvisoryLock: true,
+      });
     }
     await tx.update(s.masterImportRowResults).set({ appliedEntityType: 'truck', appliedEntityId: truck.id })
       .where(eq(s.masterImportRowResults.id, persistedBySource.get(`${row.sheetName}:${row.rowNumber}`)!.id));

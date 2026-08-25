@@ -631,7 +631,6 @@ export const createUserSchema = z.object({
   // service uses these to create the linked `drivers` row on the same transaction.
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
-  assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
   customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
   customerAccountType: z.nativeEnum(CustomerAccountType).optional().default(CustomerAccountType.SINGLE_ENTITY),
@@ -653,7 +652,6 @@ export const updateUserSchema = z.object({
   // resulting role is DRIVER. Optional so non-driver payloads validate unchanged.
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
-  assignedTruckId: z.number().int().positive().nullable().optional(),
   customerId: z.number().int().positive().nullable().optional(),
   customerIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 khách hàng liên kết').optional(),
   customerAccountType: z.nativeEnum(CustomerAccountType).optional(),
@@ -914,7 +912,6 @@ export const penaltyReasonSchema = z.object({
 export const driverSchema = z.object({
   name: z.string().min(1),
   phone: z.string().optional(),
-  assignedTruckId: z.number().int().positive().nullable().optional(),
   baseSalary: nonNegNumeric.optional(),
   socialInsurance: nonNegNumeric.optional(),
   status: z.nativeEnum(DriverStatus).optional().default(DriverStatus.ACTIVE),

@@ -10,6 +10,7 @@ import { ApiError } from '../errors';
 import { normalizeTaxCode } from './legal-partner.service';
 import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
 import { resolveTableFreightPrice } from './pricing.service';
+import { getActiveTruckIdByDriverIds } from './truck-driver-assignment.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -22,6 +23,9 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export async function getBootstrapData() {
   return cacheGet('catalogs:bootstrap', 60, async () => {
     const [customersList, trucksList, driversList, routesList, cargoTypesList, expenseCategoriesList, suppliersList, trailersList, containerTypesList, portsList, forwarderExpenseTypesList, businessUnitsList] = await Promise.all([
+      // Driver truck pairing rides on truck_driver_assignments (the legacy
+      // drivers.assignedTruckId column is deprecated) — resolved below so the
+      // blob keeps its exact response shape with the authoritative source.
       db.select().from(s.customers).where(isNull(s.customers.deletedAt)),
       db.select().from(s.trucks).where(isNull(s.trucks.deletedAt)),
       db.select().from(s.drivers).where(isNull(s.drivers.deletedAt)),
@@ -68,7 +72,11 @@ export async function getBootstrapData() {
         .filter((customer) => customer.status === 'ACTIVE' && customer.isCarrier)
         .map((customer) => ({ id: customer.id, name: customer.shortName || customer.name, fullName: customer.name, isActive: true })),
       trucks: trucksList.filter(t => t.status === 'ACTIVE'),
-      drivers: driversList.filter(d => d.status === 'ACTIVE'),
+      drivers: await (async () => {
+        const activeDrivers = driversList.filter(d => d.status === 'ACTIVE');
+        const truckByDriverId = await getActiveTruckIdByDriverIds(db, activeDrivers.map(d => d.id));
+        return activeDrivers.map(d => ({ ...d, assignedTruckId: truckByDriverId.get(d.id) ?? null }));
+      })(),
       routes: routesList.map((route) => ({ ...route, fullName: route.name, name: route.shortName || route.name })),
       cargoTypes: cargoTypesList,
       expenseCategories: expenseCategoriesList.filter(c => c.status === 'ACTIVE'),

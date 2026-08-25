@@ -31,12 +31,14 @@ import {
   listCarrierFleetVehicles,
   updateCarrierFleetVehicle,
 } from '../../services/carrier-fleet-vehicle.service';
+import { reassignTruckDriverWriteCommand } from '../../services/truck-driver-assignment.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 
@@ -108,6 +110,44 @@ dispatchPlanningRoutes.get(
         ? Number(req.query.fulfillmentId)
         : undefined,
     }));
+  }),
+);
+
+// ─── PATCH /dispatch-fleet/trucks/:truckId/assigned-driver ─────────────────
+// The consolidated, shipment-independent way to pair a driver with a truck
+// (validation session 1, Q4 — replaces the removed Users/Fleet driver-profile
+// form field). Dispatch-owned like every other privileged fleet mutation;
+// naturally idempotent (same truck + driver is a no-op in the service core).
+const truckDriverAssignmentSchema = z.object({
+  // Key required (null = unassign): an omitted driverId is a client bug, not
+  // a request to clear the pairing — omitting must not silently unassign.
+  driverId: z.number().int().positive().nullable(),
+});
+dispatchPlanningRoutes.patch(
+  '/dispatch-fleet/trucks/:truckId/assigned-driver',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const truckId = parseInt(req.params.truckId as string, 10);
+    if (!Number.isInteger(truckId) || truckId <= 0) {
+      throw new ApiError(400, 'ID xe không hợp lệ.');
+    }
+    const parsed = truckDriverAssignmentSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const outcome = await reassignTruckDriverWriteCommand({
+      truckId,
+      driverId: parsed.data.driverId ?? null,
+      idempotencyKey: getRequestIdempotencyKey(req) ?? '',
+      actor: getUser(req),
+    });
+    // Pairing is part of the catalogs bootstrap blob — drop its cache so the
+    // fleet views immediately reflect the new assignment.
+    await cacheInvalidate('catalogs:bootstrap');
+    res.json({
+      truckId: outcome.truckId,
+      driverId: outcome.driverId,
+      previousDriverId: outcome.previousDriverId,
+      replayed: outcome.replayed,
+    });
   }),
 );
 

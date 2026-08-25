@@ -9,6 +9,7 @@ import {
 } from '@tingting/shared';
 import { eq, and, desc, isNull, sql } from 'drizzle-orm';
 import { COMPANY_INFO_SETTING_KEYS, COMPANY_INFO_DEFAULTS } from './services/company-info.service';
+import { reassignTruckDriverInTx } from './services/truck-driver-assignment.service';
 import {
   createShipment,
   transitionShipmentStatus,
@@ -286,7 +287,15 @@ export async function seed() {
   for (const [name, plate] of driverAssignments) {
     const assignedTruckId = truckIdByPlate.get(plate);
     if (assignedTruckId) {
-      await db.update(schema.drivers).set({ assignedTruckId }).where(eq(schema.drivers.name, name));
+      const [driver] = await db.select({ id: schema.drivers.id }).from(schema.drivers)
+        .where(eq(schema.drivers.name, name)).limit(1);
+      if (driver) {
+        await db.transaction((tx) => reassignTruckDriverInTx(tx, {
+          truckId: assignedTruckId,
+          driverId: driver.id,
+          createdBy: null,
+        }));
+      }
     }
   }
 

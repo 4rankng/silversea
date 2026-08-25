@@ -23,6 +23,7 @@ import { listTripContainers, listTripPhotoKeys } from './forwarder.service';
 import { getTripInstructions } from './trip-instructions.service';
 import { storageService } from './storage.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { getActiveTruckIdForDriver } from './truck-driver-assignment.service';
 import { assertTripShipmentAccountingUnlocked, getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
@@ -748,7 +749,8 @@ export async function getDriverEarnings(driverId: number, month: number, year: n
  *
  * Resolves the driver's truck by preferring the truck on their most-recent
  * non-deleted trip (so a driver reassigned mid-period sees the truck they
- * actually drove last), then falling back to `drivers.assignedTruckId`.
+ * actually drove last), then falling back to the driver's active
+ * truck_driver_assignments row.
  * Returns only overdue/due alerts (the helper already filters out 'ok').
  *
  * Returns `null` when no truck is resolvable; the route maps that to an empty
@@ -766,13 +768,9 @@ export async function getDriverVehicleAlerts(driverId: number): Promise<VehicleA
 
   let truckId = recent?.truckId ?? null;
 
-  // 2. Fall back to the driver's assigned truck.
+  // 2. Fall back to the driver's active truck assignment.
   if (!truckId) {
-    const [driver] = await db.select({ assignedTruckId: s.drivers.assignedTruckId })
-      .from(s.drivers)
-      .where(and(eq(s.drivers.id, driverId), isNull(s.drivers.deletedAt)))
-      .limit(1);
-    truckId = driver?.assignedTruckId ?? null;
+    truckId = await getActiveTruckIdForDriver(db, driverId);
   }
 
   if (!truckId) return null;

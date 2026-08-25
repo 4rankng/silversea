@@ -10,6 +10,7 @@
  * Part of plans/260731-customer-audit-reseed.
  */
 import { sql } from 'drizzle-orm';
+import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 import { db } from '../db/index.js';
 import * as s from '../db/schema.js';
 import { trucks as truckSeeds, drivers as driverSeeds } from './data/index.js';
@@ -130,8 +131,7 @@ export async function seedFleet(): Promise<FleetSeedResult> {
 
     // Link driver to truck if both resolved.
     if (driverId) {
-      await db.update(s.drivers).set({ assignedTruckId: truckId, updatedAt: new Date() })
-        .where(sql`${s.drivers.id} = ${driverId}`);
+      await db.transaction((tx) => reassignTruckDriverInTx(tx, { truckId, driverId, createdBy: null }));
     }
   }
   console.log(`✅ Trucks seeded! (${truckSeeds.length})`);

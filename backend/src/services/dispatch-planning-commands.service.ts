@@ -9,6 +9,7 @@ import { db } from '../db';
 import { ApiError } from '../errors';
 import { resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { getActiveAssignment } from './truck-driver-assignment.service';
 import { persistNotificationInTx, sendNotificationPush, type NotificationPayload } from './notification.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
@@ -360,6 +361,18 @@ export async function issueOrderCreateOrUpdate(
       throw new ApiError(409, 'Tài xế không còn hiệu lực để nhận lệnh.');
     }
     driverUserId = driver.userId;
+    // Telemetry only — no enforcement. Records how often the explicitly
+    // issued driverId differs from the truck's active assignment, gathering
+    // 1-2 weeks of staging + production data before the reject-vs-allow
+    // decision (plan validation session 1, Q3).
+    const activeAssignment = await getActiveAssignment(tx, input.truckId);
+    if (activeAssignment != null && activeAssignment.driverId !== input.driverId) {
+      console.warn('[dispatch-driver-mismatch]', JSON.stringify({
+        truckId: input.truckId,
+        issuedDriverId: input.driverId,
+        activeAssignmentDriverId: activeAssignment.driverId,
+      }));
+    }
     const trailerCandidateId = input.trailerId ?? truck.currentTrailerId ?? null;
     if (trailerCandidateId == null) {
       throw new ApiError(409, 'Xe đầu kéo chưa có rơ-moóc khả dụng.');
