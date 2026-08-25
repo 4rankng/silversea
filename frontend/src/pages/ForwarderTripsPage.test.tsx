@@ -26,7 +26,7 @@ describe('ForwarderTripsPage operations inbox', () => {
 
   it('uses the role-scoped work inbox without mounting the legacy list', async () => {
     render(<MemoryRouter><ForwarderTripsPage /></MemoryRouter>);
-    expect(await screen.findByRole('heading', { name: 'Công việc vận hành' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Lệnh giao nhận' })).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/forwarder/me/work-inbox?view=ACTION&page=1&limit=100');
     expect(screen.queryByText('Tìm Bill, Booking hoặc tờ khai...')).toBeNull();
   });

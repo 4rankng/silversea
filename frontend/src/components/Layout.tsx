@@ -549,6 +549,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Sidebar navigation handler
   const handleNavigate = useCallback((path: string) => {
     if (window.innerWidth < 1024) setSidebarOpen(false);
+    setUserMenuOpen(false);
     navigate(path);
   }, [navigate]);
 
