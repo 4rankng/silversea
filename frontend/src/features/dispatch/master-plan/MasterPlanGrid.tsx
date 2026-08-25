@@ -326,11 +326,40 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa">
                   <div className="master-plan-grid__cargo-summary">
-                    {formatContainerSummaryLines(item.containerTypeSummary).map((summaryLine) => (
-                      <div key={summaryLine} className="master-plan-grid__line">
-                        {summaryLine}
-                      </div>
-                    ))}
+                    {(() => {
+                      // Customer feedback L2 — when a single-day filter is
+                      // applied, show the per-day cont count from
+                      // appointmentGroups instead of the master lô totals.
+                      const dayGroups = scheduleDate
+                        ? (item.appointmentGroups ?? []).filter((g) => g.localDate === scheduleDate)
+                        : [];
+                      const daySummary = dayGroups.length > 0
+                        ? (() => {
+                            const merged = new Map<string, number>();
+                            for (const group of dayGroups) {
+                              for (const piece of (group.containerSummary || '').split(/\s*\+\s*/)) {
+                                const trimmed = piece.trim();
+                                const match = trimmed.match(/^(\d+)\s*[x*×]\s*(.+)$/i);
+                                if (match) {
+                                  const qty = Number(match[1]);
+                                  const label = match[2].trim();
+                                  merged.set(label, (merged.get(label) ?? 0) + qty);
+                                }
+                              }
+                            }
+                            if (merged.size === 0) return null;
+                            return Array.from(merged.entries())
+                              .map(([label, qty]) => `${qty} x ${label}`)
+                              .join(' + ');
+                          })()
+                        : null;
+                      const summaryToShow = daySummary ?? item.containerTypeSummary;
+                      return formatContainerSummaryLines(summaryToShow).map((summaryLine) => (
+                        <div key={summaryLine} className="master-plan-grid__line">
+                          {summaryLine}
+                        </div>
+                      ));
+                    })()}
                   </div>
                   <div className="master-plan-grid__line master-plan-grid__line--muted">
                     {formatWeight(item.totalCargoWeightKg)}

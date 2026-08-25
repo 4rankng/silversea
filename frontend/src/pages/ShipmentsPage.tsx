@@ -92,6 +92,12 @@ function splitContainerSummaryLines(summary: string | null | undefined): string[
     .filter(Boolean);
 }
 
+// Customer feedback L2 (24/08/2026) — per-day cont aggregation when a date
+// filter is active. The helpers are extracted into a small module so the
+// dispatch master-plan grid can share them, and the aggregation rules are
+// unit-tested.
+import { filterAppointmentGroupsByDate, aggregateContainerSummary } from '../features/shipments/cus/cargoDayFilter';
+
 const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
   [ShipmentCusBucket.NEW]: 'var(--ink-3)',
   [ShipmentCusBucket.RUNNING]: 'var(--accent)',
@@ -954,9 +960,20 @@ export default function ShipmentsPage() {
                     const editing = quickEditDraft?.shipmentId === item.id;
                     const customerNoteLines = noteLines(item.customerNotes);
                     const operationalNoteLines = noteLines(item.operationalNotes);
+                    // Customer feedback L2 — when a date filter is active,
+                    // narrow the schedule + cargo cells to that day only.
+                    const filteredGroups = filterAppointmentGroupsByDate(
+                      item.appointmentGroups,
+                      dateFrom,
+                      dateTo,
+                    );
+                    const dayFilteredSummary = filteredGroups.length > 0
+                      ? aggregateContainerSummary(filteredGroups)
+                      : '';
+                    const hasDateFilter = Boolean(dateFrom || dateTo);
                     const scheduleContent = <>
                       {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-                      {item.appointmentGroups.map((group) => (
+                      {(hasDateFilter ? filteredGroups : item.appointmentGroups).map((group) => (
                         <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
                       ))}
                       <span>{vehicleReadinessLabel(item)}</span>
@@ -991,11 +1008,22 @@ export default function ShipmentsPage() {
                         </td>
                         <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
                           <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
-                            {splitContainerSummaryLines(item.containerSummary).length > 0
-                              ? splitContainerSummaryLines(item.containerSummary).map((summaryLine) => (
-                                <strong key={summaryLine} className="cus-cargo-summary__containers">{summaryLine}</strong>
-                              ))
-                              : <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>}
+                            {(() => {
+                              // Customer feedback L2 — when a date filter is
+                              // active, show the per-day cont count instead of
+                              // the master lô totals.
+                              const summary = hasDateFilter ? dayFilteredSummary : item.containerSummary;
+                              const lines = splitContainerSummaryLines(summary);
+                              if (lines.length > 0) {
+                                return lines.map((summaryLine) => (
+                                  <strong key={summaryLine} className="cus-cargo-summary__containers">{summaryLine}</strong>
+                                ));
+                              }
+                              if (hasDateFilter && !summary) {
+                                return <span className="cus-cargo-summary__containers cus-empty">Không có cont chạy ngày đã chọn</span>;
+                              }
+                              return <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>;
+                            })()}
                             <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
                               <span className="cus-cargo-summary__weight">
                                 {item.cargoMode === 'LCL'
