@@ -43,6 +43,7 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
           onOpenTripReassign={(tripId) => navigate(`/trips/${tripId}?reassign=1`)}
+          onIssueOrder={detailPlan.issueOrder}
         />
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination

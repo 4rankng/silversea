@@ -15,6 +15,7 @@ import {
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
+import { dispatchShipment, type DispatchShipmentRequest } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 50;
 
@@ -353,6 +354,37 @@ export function useDispatchDetailPlan() {
     }
   }, []);
 
+  /** "Phát lệnh" — issues the dispatch order for an already-planned row,
+   *  creating the live trip and flipping the status chip to "Đã phát lệnh". */
+  const issueOrder = useCallback(async (
+    row: DispatchDetailPlanRow,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+  ) => {
+    setAssignmentError(null);
+    try {
+      const result = await dispatchShipment(row.shipmentId, {
+        ...body,
+        fulfillmentId: row.fulfillmentId,
+        expectedVersion: row.version,
+      });
+      setItems((previous) => previous.map((item) => (item.fulfillmentId === row.fulfillmentId
+        ? {
+          ...item,
+          version: result.version,
+          taskStatus: 'DISPATCHED',
+          dispatch: { ...item.dispatch, tripId: result.trip.id, tripStatus: result.trip.status },
+        }
+        : item)));
+      return result;
+    } catch (mutationError) {
+      const status = (mutationError as { status?: number }).status;
+      setAssignmentError(status === 409
+        ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+        : 'Không thể phát lệnh. Vui lòng thử lại.');
+      throw mutationError;
+    }
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
@@ -389,6 +421,7 @@ export function useDispatchDetailPlan() {
     assignCarrier,
     updateEstimates,
     savePlan,
+    issueOrder,
     assignmentError,
     clearAssignmentError: () => setAssignmentError(null),
     lotBanner,

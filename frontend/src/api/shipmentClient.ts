@@ -611,24 +611,52 @@ export async function listZonePortFacets(zone: string, q?: string): Promise<{ it
   return api.get<{ items: DispatchPortFacetItem[] }>(`/shipments/dispatch-zone-port-facets?${params.toString()}`);
 }
 
-/** Body for `POST /api/shipments/:id/dispatch`. */
+/** Body for `POST /api/shipments/:id/dispatch` — "phát lệnh" for a fulfillment
+ *  that already has a carrier/vehicle planned ("xếp xe"). Mirrors the backend
+ *  `fulfillmentDispatchSchema` (backend/src/routes/shipments/core.routes.ts). */
 export interface DispatchShipmentRequest {
-  routeId: number;
-  cargoTypeId: number;
-  containerTypeId: number;
+  fulfillmentId: number;
+  expectedVersion: number;
+  plannedStartAt: string;
+  plannedEndAt: string;
+  endTimeConfirmed: boolean;
+  carrierType: 'OWN' | 'EXTERNAL';
+  cargoTypeId?: number | null;
   truckId?: number | null;
   driverId?: number | null;
-  departureDate: string;
-  customerReference?: string;
-  containerCount?: number;
-  creditApprovalRequestId?: number | null;
+  trailerId?: number | null;
+  containerTypeId?: number | null;
+  pricingRateKey?: string | null;
+  externalCarrierId?: number | null;
+  externalCarrierVehicleId?: number | null;
+  externalPlateNumber?: string | null;
+  externalDriverName?: string | null;
+  externalDriverPhone?: string | null;
 }
 
-/** Response from `POST /api/shipments/:id/dispatch` — carries slice-2 warnings. */
+/** Response from `POST /api/shipments/:id/dispatch` — the trip it created (or
+ *  reused, on idempotency replay) plus the fulfillment's fresh version. */
 export interface DispatchShipmentResponse {
-  trip: { id: number; tripCode: string | null; shipmentId: number | null };
-  created: boolean;
-  preDispatchWarnings: string[];
+  fulfillmentId: number;
+  version: number;
+  trip: {
+    id: number;
+    version: number;
+    tripCode: string | null;
+    status: string;
+    plannedStartAt: string | null;
+    plannedEndAt: string | null;
+    carrierType: 'OWN' | 'EXTERNAL';
+    truckId: number | null;
+    trailerId: number | null;
+    driverId: number | null;
+    externalCarrierId: number | null;
+    externalPlateNumber: string | null;
+    externalDriverName: string | null;
+    externalDriverPhone: string | null;
+  };
+  notification: { type: string; deliveredInApp: boolean; pushAttempted: boolean };
+  replayed: boolean;
 }
 
 /** Fetch the full detail (shipment + containers + documents + …). */
@@ -1051,10 +1079,13 @@ export async function requestCusShipmentReopen(
   );
 }
 
-/** Dispatch the shipment → linked trip. Carries slice-2 preDispatchWarnings. */
+/** Issue the dispatch order ("phát lệnh") for a planned fulfillment — creates
+ *  the live trip and notifies the driver. Idempotent per request key. */
 export async function dispatchShipment(
   id: number,
   body: DispatchShipmentRequest,
 ): Promise<DispatchShipmentResponse> {
-  return api.post<DispatchShipmentResponse>(`/shipments/${id}/dispatch`, body);
+  return api.post<DispatchShipmentResponse>(`/shipments/${id}/dispatch`, body, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }

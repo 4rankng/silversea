@@ -167,6 +167,80 @@
   line-height: 1.45;
 }
 
+.dispatch-assignment-dialog__issue-btn {
+  background: var(--color-bg-success-solid, #17b26a);
+  border-color: var(--color-bg-success-solid, #17b26a);
+}
+
+.dispatch-assignment-dialog__issue-btn:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.dispatch-assignment-dialog__issue {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle, #eaecf0);
+  border-radius: 8px;
+}
+
+.dispatch-assignment-dialog__issue legend {
+  padding: 0 4px;
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue-hint {
+  margin: 0;
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+}
+
+.dispatch-assignment-dialog__issue-driver {
+  margin: 0;
+  font-size: 13px;
+}
+
+.dispatch-assignment-dialog__issue-warning {
+  color: var(--color-fg-warning-primary, #b54708);
+}
+
+.dispatch-assignment-dialog__issue > label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.dispatch-assignment-dialog__issue-times > label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--text-secondary, #475467);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dispatch-assignment-dialog__issue input[type='datetime-local'] {
+  min-height: var(--control-compact-h, 34px);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .dispatch-assignment-dialog__issue-times {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @container (max-width: 900px) {
   .detailed-plan-grid td.detailed-plan-grid__cell--editable {
     position: static;

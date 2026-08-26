@@ -7,7 +7,9 @@ import { Badge } from '../../../components/untitled-ui/base/badges/badges';
 import {
   DispatchPlanEditorCell,
   type AtomicPlanSaveResult,
+  type IssueOrderResult,
 } from './DispatchPlanEditorCell';
+import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortKey } from './useDispatchDetailPlan';
@@ -55,6 +57,10 @@ interface DetailedPlanGridProps {
     },
   ) => Promise<AtomicPlanSaveResult>;
   onOpenTripReassign: (tripId: number) => void;
+  onIssueOrder: (
+    row: DispatchDetailPlanRow,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+  ) => Promise<IssueOrderResult>;
 }
 
 /**
@@ -81,6 +87,7 @@ export function DetailedPlanGrid({
   onToggleSort,
   onAtomicSave,
   onOpenTripReassign,
+  onIssueOrder,
 }: DetailedPlanGridProps) {
   if (error) {
     return (
@@ -234,6 +241,7 @@ export function DetailedPlanGrid({
                       row={row}
                       onAtomicSave={onAtomicSave}
                       onOpenTripReassign={onOpenTripReassign}
+                      onIssueOrder={onIssueOrder}
                     />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại">

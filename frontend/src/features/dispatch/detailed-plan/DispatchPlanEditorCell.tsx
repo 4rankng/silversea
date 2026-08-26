@@ -1,6 +1,6 @@
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Send } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import { DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import {
@@ -10,11 +10,32 @@ import {
   type DispatchExternalCarrier,
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
+import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
 import './DispatchPlanEditorCell.css';
+
+export type IssueOrderResult = DispatchShipmentResponse;
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+/** `<input type="datetime-local">` value in the browser's local time — the
+ *  business timezone for every dispatcher session (Asia/Ho_Chi_Minh). */
+function toDatetimeLocalValue(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
+
+function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
+  const start = new Date();
+  start.setMinutes(start.getMinutes() < 30 ? 30 : 0, 0, 0);
+  if (start.getMinutes() === 0) start.setHours(start.getHours() + 1);
+  const end = new Date(start.getTime() + 2 * 60 * 60_000);
+  return { plannedStartAt: toDatetimeLocalValue(start), plannedEndAt: toDatetimeLocalValue(end) };
+}
 
 const PAGE_LOAD_SIZE = 50;
 const OWN_TRUCK_PREFIX = 'truck:';
@@ -66,6 +87,12 @@ interface DispatchPlanEditorCellProps {
   ) => Promise<AtomicPlanSaveResult>;
   /** Opens the governed trip reassignment flow after an order is issued. */
   onOpenTripReassign: (tripId: number) => void;
+  /** "Phát lệnh" — issues the order for the already-saved plan (carrier +
+   *  vehicle), creating the live trip and notifying the driver. */
+  onIssueOrder: (
+    row: DispatchDetailPlanRow,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+  ) => Promise<IssueOrderResult>;
   disabled?: boolean;
 }
 
@@ -147,7 +174,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * carrier, vehicle, estimates, classification and Đóng kết hợp save together
  * through PATCH /dispatch-detail-plan-rows/:id/plan or not at all.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onIssueOrder, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -164,8 +191,54 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [ownTruck, setOwnTruck] = useState<{ id: number; driverId: number | null; driverName: string | null } | null>(null);
+  const [loadingOwnTruck, setLoadingOwnTruck] = useState(false);
+  const [issueDraft, setIssueDraft] = useState(() => ({
+    ...defaultIssueTimes(),
+    externalDriverName: '',
+    externalDriverPhone: '',
+  }));
+  const [issuing, setIssuing] = useState(false);
+  const [issueError, setIssueError] = useState<string | null>(null);
+
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
+
+  const issueStatus = deriveDispatchIssueStatus({
+    vehicleAssigned: row.dispatch.assignedPlate != null,
+    issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
+  });
+  // Issuing acts on the saved plan, not unsaved draft edits — block it while
+  // the dialog has pending carrier/vehicle changes so it can't fire against
+  // stale assignment data the user hasn't saved yet.
+  const planDirty = draft.carrierValue !== carrierValueForRow(row) || draft.vehicleValue !== vehicleValueForRow(row);
+  const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
+
+  useEffect(() => {
+    if (!open || !canIssue || row.dispatch.carrierType !== 'OWN' || !row.dispatch.assignedPlate) {
+      setOwnTruck(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingOwnTruck(true);
+    listDispatchFleetResources('TRUCK', { limit: 5, q: row.dispatch.assignedPlate })
+      .then((response) => {
+        if (cancelled) return;
+        const match = (response.items as DispatchTruck[])
+          .find((truck) => truck.licensePlate === row.dispatch.assignedPlate);
+        setOwnTruck(match ? { id: match.id, driverId: match.assignedDriverId, driverName: match.assignedDriverName } : null);
+      })
+      .catch(() => { if (!cancelled) setOwnTruck(null); })
+      .finally(() => { if (!cancelled) setLoadingOwnTruck(false); });
+    return () => { cancelled = true; };
+  }, [open, canIssue, row.dispatch.carrierType, row.dispatch.assignedPlate]);
+
+  useEffect(() => {
+    if (open) {
+      setIssueDraft({ ...defaultIssueTimes(), externalDriverName: '', externalDriverPhone: '' });
+      setIssueError(null);
+    }
+  }, [open, row.fulfillmentId]);
 
   useEffect(() => {
     if (!open) setDraft(draftForRow(row));
@@ -392,6 +465,57 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
   }
 
+  async function issue() {
+    if (issuing || !canIssue) return;
+    const startAt = new Date(issueDraft.plannedStartAt);
+    const endAt = new Date(issueDraft.plannedEndAt);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      setIssueError('Giờ chạy / giờ kết thúc không hợp lệ.');
+      return;
+    }
+    if (endAt.getTime() <= startAt.getTime()) {
+      setIssueError('Giờ kết thúc phải sau giờ chạy.');
+      return;
+    }
+    const isOwn = row.dispatch.carrierType === 'OWN';
+    if (isOwn && (ownTruck == null || ownTruck.driverId == null)) {
+      setIssueError('Xe chưa gán tài xế. Vào Kế hoạch tổng quát để gán tài xế cho xe trước khi phát lệnh.');
+      return;
+    }
+    const externalDriverName = issueDraft.externalDriverName.trim();
+    const externalDriverPhone = issueDraft.externalDriverPhone.trim();
+    if (!isOwn && !externalDriverName) {
+      setIssueError('Nhập tên tài xế nhà xe ngoài trước khi phát lệnh.');
+      return;
+    }
+
+    setIssuing(true);
+    setIssueError(null);
+    try {
+      await onIssueOrder(row, {
+        plannedStartAt: startAt.toISOString(),
+        plannedEndAt: endAt.toISOString(),
+        endTimeConfirmed: true,
+        carrierType: row.dispatch.carrierType,
+        truckId: isOwn ? ownTruck!.id : undefined,
+        driverId: isOwn ? ownTruck!.driverId : undefined,
+        externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
+        externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
+        externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
+          ? undefined
+          : row.dispatch.assignedPlate,
+        externalDriverName: isOwn ? undefined : externalDriverName,
+        externalDriverPhone: isOwn ? undefined : (externalDriverPhone || undefined),
+      });
+      restoreFocusRef.current = true;
+      setOpen(false);
+    } catch {
+      setIssueError('Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+    } finally {
+      setIssuing(false);
+    }
+  }
+
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
   const currentPlate = row.dispatch.assignedPlate;
   const canReassignIssuedTrip = row.taskStatus === 'DISPATCHED'
@@ -415,12 +539,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
           {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
         </span>
-        <DispatchIssueStatusChip
-          status={deriveDispatchIssueStatus({
-            vehicleAssigned: currentPlate != null,
-            issued: row.taskStatus === 'DISPATCHED' && row.dispatch.tripId != null,
-          })}
-        />
+        <DispatchIssueStatusChip status={issueStatus} />
         {/* Cước thu/trả temporarily hidden from the grid cell per customer
             request (docx T2.3); the editor dialog still shows and saves both. */}
         {row.lotFullyPlated && !currentPlate && (
@@ -435,11 +554,23 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         maxWidth={560}
         footer={(
           <>
-            <button type="button" className="btn btn--secondary" onClick={closeEditor} disabled={saving}>Hủy</button>
-            <button type="button" className="btn btn--primary" onClick={() => void save()} disabled={saving}>
+            <button type="button" className="btn btn--secondary" onClick={closeEditor} disabled={saving || issuing}>Hủy</button>
+            <button type="button" className="btn btn--primary" onClick={() => void save()} disabled={saving || issuing}>
               <Save size={16} aria-hidden="true" />
               {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
             </button>
+            {issueStatus === 'PLATED_NOT_ISSUED' && (
+              <button
+                type="button"
+                className="btn btn--primary dispatch-assignment-dialog__issue-btn"
+                onClick={() => void issue()}
+                disabled={!canIssue || issuing || saving}
+                title={planDirty ? 'Lưu thay đổi điều phối trước khi phát lệnh' : undefined}
+              >
+                <Send size={16} aria-hidden="true" />
+                {issuing ? 'Đang phát lệnh…' : 'Phát lệnh'}
+              </button>
+            )}
           </>
         )}
       >
@@ -533,6 +664,72 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
             />
           </div>
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
+
+          {issueStatus === 'PLATED_NOT_ISSUED' && (
+            <fieldset className="dispatch-assignment-dialog__issue" disabled={issuing}>
+              <legend>Phát lệnh cho tài xế</legend>
+              {planDirty ? (
+                <p className="dispatch-assignment-dialog__issue-hint">
+                  Lưu thay đổi điều phối ở trên trước khi phát lệnh.
+                </p>
+              ) : (
+                <>
+                  {row.dispatch.carrierType === 'OWN' ? (
+                    <p className="dispatch-assignment-dialog__issue-driver">
+                      Tài xế: {loadingOwnTruck
+                        ? 'Đang tải…'
+                        : ownTruck?.driverName ?? (
+                          <span className="dispatch-assignment-dialog__issue-warning">
+                            Xe {currentPlate} chưa gán tài xế — vào Kế hoạch tổng quát để gán trước.
+                          </span>
+                        )}
+                    </p>
+                  ) : (
+                    <>
+                      <TextField
+                        id={`dispatch-issue-driver-name-${row.fulfillmentId}`}
+                        label="Tên tài xế (nhà xe ngoài)"
+                        autoComplete="off"
+                        value={issueDraft.externalDriverName}
+                        onChange={(event) => { setIssueDraft((current) => ({ ...current, externalDriverName: event.target.value })); setIssueError(null); }}
+                        required
+                      />
+                      <TextField
+                        id={`dispatch-issue-driver-phone-${row.fulfillmentId}`}
+                        label="SĐT tài xế (nhà xe ngoài)"
+                        autoComplete="off"
+                        value={issueDraft.externalDriverPhone}
+                        onChange={(event) => { setIssueDraft((current) => ({ ...current, externalDriverPhone: event.target.value })); setIssueError(null); }}
+                      />
+                    </>
+                  )}
+                  <div className="dispatch-assignment-dialog__issue-times">
+                    <label htmlFor={`dispatch-issue-start-${row.fulfillmentId}`}>
+                      <span>Giờ chạy</span>
+                      <input
+                        id={`dispatch-issue-start-${row.fulfillmentId}`}
+                        type="datetime-local"
+                        className="input"
+                        value={issueDraft.plannedStartAt}
+                        onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedStartAt: event.target.value })); setIssueError(null); }}
+                      />
+                    </label>
+                    <label htmlFor={`dispatch-issue-end-${row.fulfillmentId}`}>
+                      <span>Giờ kết thúc</span>
+                      <input
+                        id={`dispatch-issue-end-${row.fulfillmentId}`}
+                        type="datetime-local"
+                        className="input"
+                        value={issueDraft.plannedEndAt}
+                        onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedEndAt: event.target.value })); setIssueError(null); }}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+              {issueError && <p className="dispatch-assignment-dialog__error" role="alert">{issueError}</p>}
+            </fieldset>
+          )}
         </form>
       </Modal>
     </>
