@@ -140,7 +140,7 @@ export const tripClient = {
 
   cancelTrip: (id: number) => api.post<Trip>(TRIPS.CANCEL(id), {}),
 
-  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, externalCarrierId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null }) =>
+  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, externalCarrierId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null, expectedVersion?: number }) =>
     api.patch<TripDetail>(TRIPS.REASSIGN(id), data),
 
   getPricing: (customerId: number, routeId: number, date?: string) =>

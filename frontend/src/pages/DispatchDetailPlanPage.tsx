@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { PageHeader } from '../components/UI';
-import { useNavigate } from 'react-router-dom';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
+import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import './DispatchPlanPage.css';
 
@@ -13,7 +14,7 @@ import './DispatchPlanPage.css';
  */
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
-  const navigate = useNavigate();
+  const [reassignTripId, setReassignTripId] = useState<number | null>(null);
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
@@ -42,7 +43,7 @@ export default function DispatchDetailPlanPage() {
           sortKey={detailPlan.sortKey}
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
-          onOpenTripReassign={(tripId) => navigate(`/trips/${tripId}?reassign=1`)}
+          onOpenTripReassign={setReassignTripId}
           onIssueOrder={detailPlan.issueOrder}
         />
         {detailPlan.total > detailPlan.pageSize && (
@@ -55,6 +56,12 @@ export default function DispatchDetailPlanPage() {
           />
         )}
       </section>
+
+      <TripReassignDialog
+        tripId={reassignTripId}
+        onClose={() => setReassignTripId(null)}
+        onReassigned={detailPlan.refresh}
+      />
     </div>
   );
 }
