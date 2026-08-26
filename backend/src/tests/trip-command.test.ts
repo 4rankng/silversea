@@ -7,7 +7,7 @@ describe('trip command service', () => {
   it('creates a trip, invalidates dashboard reports, emits creation notification, and returns the trip', async () => {
     const calls: string[] = [];
     const notifications: unknown[] = [];
-    const trip = { id: 42, tripCode: 'TRP-202606-0042', driverId: 7, departureDate: '2026-06-20' };
+    const trip = { id: 42, tripCode: 'TRP-202606-0042', driverId: 7, departureDate: '2026-06-20', fulfillmentId: 4200 };
     const deps = {
       createTrip: async (data: unknown) => {
         calls.push(`create:${JSON.stringify(data)}`);
@@ -40,8 +40,11 @@ describe('trip command service', () => {
       type: NotificationType.TRIP_CREATED,
       title: 'Chuyến mới được tạo',
       message: 'Chuyến TRP-202606-0042 đã được tạo',
-      relatedEntityType: 'trips',
-      relatedEntityId: 42,
+      // Driver-only notification (targetDriverId, no targetRoles/targetUserId)
+      // — DriverTripDetailPage reads /my-trips/:id as a fulfillment id, so the
+      // deep link must key on the fulfillment, not the trip.
+      relatedEntityType: 'shipment_fulfillments',
+      relatedEntityId: 4200,
       targetDriverId: 7,
     });
   });
@@ -49,7 +52,7 @@ describe('trip command service', () => {
   it('copies a trip, invalidates reports, and emits the standard creation notification', async () => {
     const calls: string[] = [];
     const notifications: unknown[] = [];
-    const trip = { id: 43, tripCode: 'TRP-202606-0043', driverId: 7, departureDate: '2026-06-20' };
+    const trip = { id: 43, tripCode: 'TRP-202606-0043', driverId: 7, departureDate: '2026-06-20', fulfillmentId: 4300 };
     const deps = {
       copyTrip: async (sourceTripId: number, createdBy: number) => {
         calls.push(`copy:${sourceTripId}:${createdBy}`);
@@ -72,8 +75,8 @@ describe('trip command service', () => {
       type: NotificationType.TRIP_CREATED,
       title: 'Chuyến mới được tạo',
       message: 'Chuyến TRP-202606-0043 đã được tạo',
-      relatedEntityType: 'trips',
-      relatedEntityId: 43,
+      relatedEntityType: 'shipment_fulfillments',
+      relatedEntityId: 4300,
       targetDriverId: 7,
     });
   });
@@ -81,7 +84,7 @@ describe('trip command service', () => {
   it('dispatches a trip through the lifecycle service before attendance sync and notification', async () => {
     const calls: string[] = [];
     const notifications: unknown[] = [];
-    const trip = { id: 55, tripCode: 'TRP-202606-0055', driverId: 8, departureDate: '2026-06-21' };
+    const trip = { id: 55, tripCode: 'TRP-202606-0055', driverId: 8, departureDate: '2026-06-21', fulfillmentId: 5500 };
     const deps = {
       createTrip: async () => { throw new Error('not used'); },
       transitionTripStatus: async (tripId: number, status: TripStatus, userId: number, role: Role) => {
@@ -113,8 +116,8 @@ describe('trip command service', () => {
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
       message: 'Chuyến TRP-202606-0055 đã được điều phối',
-      relatedEntityType: 'trips',
-      relatedEntityId: 55,
+      relatedEntityType: 'shipment_fulfillments',
+      relatedEntityId: 5500,
       targetDriverId: 8,
     });
   });

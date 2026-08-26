@@ -455,8 +455,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         classification: draft.classification,
         isCombined: draft.isCombined,
       });
-      restoreFocusRef.current = true;
-      setOpen(false);
+      // Stay open — saving carrier/vehicle here is usually step one of
+      // "xếp xe rồi phát lệnh" in one sitting; closing would force a
+      // re-open just to reach the Phát lệnh action below.
     } catch {
       // Keep the modal and draft open — the caller surfaced the banner error.
       setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
@@ -479,7 +480,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
     const isOwn = row.dispatch.carrierType === 'OWN';
     if (isOwn && (ownTruck == null || ownTruck.driverId == null)) {
-      setIssueError('Xe chưa gán tài xế. Vào Kế hoạch tổng quát để gán tài xế cho xe trước khi phát lệnh.');
+      setIssueError('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
       return;
     }
     const externalDriverName = issueDraft.externalDriverName.trim();
@@ -509,8 +510,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       });
       restoreFocusRef.current = true;
       setOpen(false);
-    } catch {
-      setIssueError('Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+    } catch (issueOrderError) {
+      setIssueError(
+        issueOrderError instanceof Error && issueOrderError.message
+          ? issueOrderError.message
+          : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
+      );
     } finally {
       setIssuing(false);
     }
@@ -680,7 +685,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                         ? 'Đang tải…'
                         : ownTruck?.driverName ?? (
                           <span className="dispatch-assignment-dialog__issue-warning">
-                            Xe {currentPlate} chưa gán tài xế — vào Kế hoạch tổng quát để gán trước.
+                            Xe {currentPlate} chưa gán tài xế — vào Danh mục Xe nội bộ để gán trước.
                           </span>
                         )}
                     </p>

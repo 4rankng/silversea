@@ -49,6 +49,20 @@ const defaultDeps: TripCommandDeps = {
   emitNotification,
 };
 
+/**
+ * These trip-lifecycle notifications only ever target the driver
+ * (`targetDriverId`, no `targetRoles`/`targetUserId`) — driver-only, so the
+ * deep link can safely key on the fulfillment. `DriverTripDetailPage`
+ * (`/my-trips/:id`) reads that route param as a fulfillment id, not a trip
+ * id — `relatedEntityType: 'trips'` would send the driver to
+ * `/my-trips/{tripId}`, which 404s. `fulfillmentId` is null for trips
+ * created outside the fulfillment-issuance flow (legacy `/api/trips`); the
+ * driver then lands on the trip list instead of a dead link.
+ */
+function driverTripEntity(trip: Pick<TripRecord, 'fulfillmentId'>): { relatedEntityType: string; relatedEntityId?: number } {
+  return { relatedEntityType: 'shipment_fulfillments', relatedEntityId: trip.fulfillmentId ?? undefined };
+}
+
 function emitTripCreatedNotification(
   trip: TripRecord,
   emit: (payload: NotificationPayload) => void,
@@ -57,8 +71,7 @@ function emitTripCreatedNotification(
     type: NotificationType.TRIP_CREATED,
     title: 'Chuyến mới được tạo',
     message: `Chuyến ${trip.tripCode} đã được tạo`,
-    relatedEntityType: 'trips',
-    relatedEntityId: trip.id,
+    ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
 }
@@ -119,8 +132,7 @@ export async function dispatchTripCommand(
     type: NotificationType.TRIP_DISPATCHED,
     title: 'Chuyến được điều phối',
     message: `Chuyến ${trip.tripCode} đã được điều phối`,
-    relatedEntityType: 'trips',
-    relatedEntityId: trip.id,
+    ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
   return trip;
@@ -263,8 +275,7 @@ export async function dispatchTripWriteCommand(
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
       message: `Chuyến ${outcome.trip.tripCode} đã được điều phối`,
-      relatedEntityType: 'trips',
-      relatedEntityId: outcome.trip.id,
+      ...driverTripEntity(outcome.trip),
       targetDriverId: outcome.trip.driverId ?? undefined,
     });
   }
