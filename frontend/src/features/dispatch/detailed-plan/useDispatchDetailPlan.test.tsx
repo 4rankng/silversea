@@ -302,3 +302,90 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     await waitFor(() => expect(listZoneTruckPresenceMock).toHaveBeenLastCalledWith({ zone: 'LACH_HUYEN', date: '2026-08-21' }));
   });
 });
+
+vi.mock('../../../api/shipmentClient', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../api/shipmentClient')>();
+  return {
+    ...actual,
+    dispatchShipment: vi.fn(),
+  };
+});
+
+import { dispatchShipment } from '../../../api/shipmentClient';
+
+const dispatchShipmentMock = vi.mocked(dispatchShipment);
+
+describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it('flips the row to DISPATCHED with the new trip on a successful issue', async () => {
+    dispatchShipmentMock.mockResolvedValue({
+      fulfillmentId: 101,
+      version: 4,
+      trip: {
+        id: 55, version: 2, tripCode: 'TRP-202608-1', status: 'CREATED',
+        plannedStartAt: '2026-08-30T01:00:00.000Z', plannedEndAt: '2026-08-30T05:00:00.000Z',
+        carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8,
+        externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null,
+      },
+      notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+      replayed: false,
+    });
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.issueOrder(result.current.items[0], {
+        plannedStartAt: '2026-08-30T01:00:00.000Z',
+        plannedEndAt: '2026-08-30T05:00:00.000Z',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: 154,
+        driverId: 8,
+      });
+    });
+
+    // The call carries the row's identity contract: shipment path param +
+    // fulfillmentId + expectedVersion injected from the row's version.
+    expect(dispatchShipmentMock).toHaveBeenCalledWith(11, expect.objectContaining({
+      fulfillmentId: 101,
+      expectedVersion: 3,
+      truckId: 154,
+      driverId: 8,
+      carrierType: 'OWN',
+    }));
+    const item = result.current.items.find((r) => r.fulfillmentId === 101)!;
+    expect(item.taskStatus).toBe('DISPATCHED');
+    expect(item.dispatch.tripId).toBe(55);
+    expect(item.dispatch.tripStatus).toBe('CREATED');
+    expect(item.version).toBe(4);
+    expect(result.current.assignmentError).toBeNull();
+  });
+
+  it('surfaces a reload banner and keeps the row unchanged on a 409', async () => {
+    dispatchShipmentMock.mockRejectedValue(Object.assign(new Error('conflict'), { status: 409 }));
+    const { result } = renderHook(() => useDispatchDetailPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.issueOrder(result.current.items[0], {
+        plannedStartAt: '2026-08-30T01:00:00.000Z',
+        plannedEndAt: '2026-08-30T05:00:00.000Z',
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: 154,
+        driverId: 8,
+      })).rejects.toBeTruthy();
+    });
+
+    const item = result.current.items.find((r) => r.fulfillmentId === 101)!;
+    expect(item.taskStatus).toBe('READY');
+    expect(item.dispatch.tripId).toBeUndefined();
+    expect(result.current.assignmentError).toContain('tải lại');
+  });
+});
