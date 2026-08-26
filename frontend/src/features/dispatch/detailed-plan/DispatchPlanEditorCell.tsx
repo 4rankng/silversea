@@ -444,7 +444,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     setSaving(true);
     setError(null);
     try {
-      await onAtomicSave(row, {
+      const result = await onAtomicSave(row, {
         carrierType: carrier.carrierType,
         externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
         // Send the vehicle block only when the editor actually touches it —
@@ -458,7 +458,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       // Stay open — saving carrier/vehicle here is usually step one of
       // "xếp xe rồi phát lệnh" in one sitting; closing would force a
       // re-open just to reach the Phát lệnh action below.
-    } catch {
+      // Re-anchor the draft to the saved state: the picker's option value
+      // (truck:{id}) never string-matches the row-derived current:{plate},
+      // so without this reset planDirty stays true and Phát lệnh remains
+      // blocked right after the save that was supposed to enable it.
+      setDraft({
+        carrierValue: result.dispatch.carrierType === 'OWN'
+          ? OWN_CARRIER_VALUE
+          : `${EXTERNAL_CARRIER_PREFIX}${result.dispatch.externalCarrierId}`,
+        vehicleValue: result.dispatch.externalCarrierVehicleId != null
+          ? `${EXTERNAL_VEHICLE_PREFIX}${result.dispatch.externalCarrierVehicleId}`
+          : result.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${result.dispatch.assignedPlate}` : '',
+        plannedRevenue: result.estimates.plannedRevenue ?? '',
+        plannedCarrierCost: result.estimates.plannedCarrierCost ?? '',
+        classification: result.classification,
+        isCombined: result.isCombined,
+      });
       // Keep the modal and draft open — the caller surfaced the banner error.
       setError('Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
     } finally {
