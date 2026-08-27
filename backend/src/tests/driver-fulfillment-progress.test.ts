@@ -572,6 +572,60 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.deepEqual(buckets, ['NEW', 'RUNNING']);
   });
 
+  test('driver journey board moves a driver-completed trip to HISTORY even though trip.status stays IN_TRANSIT', async () => {
+    // completeOwnedFulfillmentTrip is an operational handoff, not the governed
+    // financial completion (see the O2C test below) — trips.status never
+    // becomes COMPLETED from this action alone. The journey board must still
+    // bucket it as HISTORY once the driver's evidence is submitted, or a
+    // driver who finished their whole job would see the card stuck in
+    // "Đã nhận" forever.
+    const actor = await createDriverPrincipal('journey-driver-completed');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+      const key = `journey-history-milestone-${index}-${suffix}`;
+      usedIdempotencyKeys.push(key);
+      const result = await recordDriverFulfillmentProgress({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: key,
+        input: {
+          eventType,
+          occurredAt: isoHour(index + 8, 30),
+          expectedVersion: index === 0 ? trip.version : undefined,
+        },
+      });
+      createdProgressEventIds.push(result.event.id);
+    }
+
+    await buildSubmittedPod({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      expectedTripVersion: trip.version,
+      prefix: 'journey-history',
+    });
+
+    const [currentTrip] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const completeKey = `journey-history-complete-${suffix}`;
+    usedIdempotencyKeys.push(completeKey);
+    const completed = await completeOwnedFulfillmentTrip({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      expectedVersion: currentTrip!.version,
+      idempotencyKey: completeKey,
+    });
+    assert.equal(completed.trip.status, TripStatus.IN_TRANSIT);
+
+    const board = await getDriverJourneyBoard(actor.driver.id);
+    const card = board.find((item) => item.fulfillmentId === fulfillment.id);
+    assert.ok(card, 'expected a journey card for the completed fulfillment');
+    assert.equal(card!.bucket, 'HISTORY');
+  });
+
   test('milestones are ordered and replay-safe', async () => {
     const actor = await createDriverPrincipal('ordered');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);

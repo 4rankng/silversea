@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, aliasedTable } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
 // driverWorkInbox (one row per trip, state-keyed for the shared RoleWorkInbox
@@ -29,9 +30,17 @@ export interface DriverJourneyCard {
   containerTypeName: string | null;
 }
 
-function bucketForStatus(status: typeof s.trips.$inferSelect.status): DriverJourneyBucket {
+/**
+ * The driver's own "Hoàn thành" action (completeOwnedFulfillmentTrip) never
+ * flips trips.status to COMPLETED — that's Q15 governance's independently
+ * approved close action, which can happen days later. From the driver's
+ * point of view the job is done once evidence is submitted (all 4
+ * milestones + required POD files, already-submitted), so History uses that
+ * readiness signal, not trip.status, for anything still IN_TRANSIT.
+ */
+function bucketForStatus(status: typeof s.trips.$inferSelect.status, evidenceReady: boolean): DriverJourneyBucket {
   if (status === 'COMPLETED') return 'HISTORY';
-  if (status === 'IN_TRANSIT') return 'RUNNING';
+  if (status === 'IN_TRANSIT') return evidenceReady ? 'HISTORY' : 'RUNNING';
   return 'NEW';
 }
 
@@ -88,6 +97,19 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     shipmentCardCounts.set(row.shipmentId, (shipmentCardCounts.get(row.shipmentId) ?? 0) + 1);
   }
 
+  // Only IN_TRANSIT trips can possibly need the readiness check (CREATED
+  // hasn't started; COMPLETED is already HISTORY) — skip the extra query for
+  // everything else.
+  const evidenceByTripId = new Map<number, boolean>();
+  await Promise.all(
+    rows
+      .filter((row) => row.tripStatus === 'IN_TRANSIT')
+      .map(async (row) => {
+        const status = await getDriverCompletionEvidenceStatus(row.tripId);
+        evidenceByTripId.set(row.tripId, status.ready);
+      }),
+  );
+
   return rows
     .filter((row): row is typeof row & { fulfillmentId: number } => row.fulfillmentId != null)
     .map((row) => ({
@@ -96,7 +118,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       shipmentId: row.shipmentId,
       tripCode: row.tripCode,
       shipmentCode: row.shipmentCode,
-      bucket: bucketForStatus(row.tripStatus),
+      bucket: bucketForStatus(row.tripStatus, evidenceByTripId.get(row.tripId) ?? false),
       classification: row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2 ? 'CLAMP' : 'SINGLE',
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
