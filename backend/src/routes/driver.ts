@@ -67,6 +67,7 @@ import {
   waitForIdempotencyRecord,
 } from '../services/idempotency.service';
 import type { Tx } from '../services/trip-shared';
+import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { runWithAuditRequestContext } from '../services/audit.service';
 import {
   armStorageCleanupGuard,
@@ -300,6 +301,16 @@ router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
   const view = await getDriverTwoOrdersView(driver.id);
   res.json(view);
+}));
+
+// Driver-app "Hành trình" screen (260827): New Orders / Running / History
+// tabs, one Layer-1 summary card per fulfillment. See
+// services/driver-journey-board.service.ts for why this is separate from
+// the shared driverWorkInbox query.
+router.get('/journey-board', asyncHandler(async (req: Request, res: Response) => {
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const items = await getDriverJourneyBoard(driver.id);
+  res.json({ items });
 }));
 
 router.get('/fulfillments/:fulfillmentId', asyncHandler(async (req: Request, res: Response) => {

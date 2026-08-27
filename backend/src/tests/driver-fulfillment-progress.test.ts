@@ -14,6 +14,7 @@ import {
   STORAGE_DELETE_MODE,
 } from '../services/durable-effect.service';
 
+import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { config } from '../config';
 import { client, db } from '../db';
 import * as s from '../db/schema';
@@ -487,6 +488,88 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.equal(detail.containerSealPhotos.length, 2);
     assert.ok(detail.containerSealPhotos.some((photo) => photo.type === 'CONTAINER' && photo.storageKey === containerPhoto.storageKey));
     assert.ok(detail.containerSealPhotos.some((photo) => photo.type === 'SEAL' && photo.storageKey === sealPhoto.storageKey));
+  });
+
+  test('driver journey board tags a single (non-combined) fulfillment as SINGLE, bucketed by trip status', async () => {
+    const actor = await createDriverPrincipal('journey-single');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
+
+    const board = await getDriverJourneyBoard(actor.driver.id);
+    const card = board.find((item) => item.fulfillmentId === fulfillment.id);
+    assert.ok(card, 'expected a journey card for the created fulfillment');
+    assert.equal(card!.classification, 'SINGLE');
+    assert.equal(card!.bucket, 'NEW');
+    assert.equal(card!.tripId, trip.id);
+  });
+
+  test('driver journey board tags sibling fulfillments of a combined shipment as CLAMP, linked cards', async () => {
+    const actor = await createDriverPrincipal('journey-clamp');
+    const [customer] = await db.insert(s.customers).values({
+      name: `Phase4 clamp customer ${suffix}`,
+    }).returning();
+    createdCustomerIds.push(customer.id);
+
+    const [route] = await db.insert(s.routes).values({
+      name: `Phase4 clamp route ${suffix}`,
+    }).returning();
+    createdRouteIds.push(route.id);
+
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+      bookingRef: `BOOK-${suffix}-clamp`,
+      isCombined: true,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+
+    const fulfillmentIds: number[] = [];
+    const tripIds: number[] = [];
+    for (let i = 0; i < 2; i++) {
+      const [container] = await db.insert(s.shipmentContainers).values({
+        shipmentId: shipment.id,
+        containerNumber: `CLAMPU${i}${suffix.replace(/[^0-9]/g, '').slice(-6)}`,
+      }).returning();
+      createdShipmentContainerIds.push(container.id);
+
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: shipment.id,
+        shipmentContainerId: container.id,
+        fulfillmentType: 'FCL_CONTAINER',
+        cargoMode: 'FCL',
+        dispatchClassification: 'CLAMP',
+        sourceShipmentVersion: shipment.version,
+        siteSnapshot: {},
+      }).returning();
+      createdFulfillmentIds.push(fulfillment.id);
+      fulfillmentIds.push(fulfillment.id);
+
+      const [trip] = await db.insert(s.trips).values({
+        tripCode: `P4CL${i}-${suffix}`.slice(0, 50),
+        customerId: customer.id,
+        routeId: route.id,
+        shipmentId: shipment.id,
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        status: i === 0 ? TripStatus.IN_TRANSIT : TripStatus.CREATED,
+        departureDate: '2026-08-01',
+        revenue: '1800000',
+        driverSalary: '250000',
+        totalFuelCost: '0',
+        carrierType: 'OWN',
+      }).returning();
+      createdTripIds.push(trip.id);
+      tripIds.push(trip.id);
+    }
+
+    const board = await getDriverJourneyBoard(actor.driver.id);
+    const cards = board.filter((item) => fulfillmentIds.includes(item.fulfillmentId));
+    assert.equal(cards.length, 2);
+    assert.ok(cards.every((card) => card.classification === 'CLAMP'));
+    assert.ok(cards.every((card) => card.shipmentId === shipment.id));
+    const buckets = cards.map((card) => card.bucket).sort();
+    assert.deepEqual(buckets, ['NEW', 'RUNNING']);
   });
 
   test('milestones are ordered and replay-safe', async () => {
