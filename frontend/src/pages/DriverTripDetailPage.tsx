@@ -23,6 +23,7 @@ import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
+import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { isShipmentCostEntryEnabled } from '../lib/featureFlags';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
@@ -877,6 +878,12 @@ export default function DriverTripDetailPage() {
       {isShipmentCostEntryEnabled() && (
         <section className="driver-task-section">
           <ShipmentCostEntryForm tripId={trip.id} />
+        </section>
+      )}
+
+      {isShipmentCostEntryEnabled() && (
+        <section className="driver-task-section">
+          <FuelRefillReportForm tripId={trip.id} />
         </section>
       )}
 

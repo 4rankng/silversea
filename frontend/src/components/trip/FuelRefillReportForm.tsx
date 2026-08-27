@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, Loader2, Plus, ReceiptText } from 'lucide-react';
-import { DriverIncidentalCostType, DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
+import { AlertTriangle, Camera, CheckCircle2, Fuel, Loader2, Plus, ReceiptText } from 'lucide-react';
+import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
 import { buildOfflineCommandKey } from '../../features/driver/useOfflineCommandQueue';
-import { SelectField, NumberField, DateField } from '../../design-system';
+import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
 import { photoSrc } from '../../lib/api/photo';
 import './ShipmentCostEntryForm.css';
 
-interface IncidentalCostEntry {
+interface FuelRefillEntry {
   id: number;
   tripId: number;
   driverId: number;
@@ -20,26 +20,26 @@ interface IncidentalCostEntry {
   createdAt: string;
 }
 
-export interface ShipmentCostEntryFormProps {
+export interface FuelRefillReportFormProps {
   /** Trip id — the incidental-costs API is trip-scoped, not fulfillment-scoped. */
   tripId: number;
 }
 
-// FUEL has its own dedicated report (FuelRefillReportForm, same flag) per the
-// driver-app spec — excluded here so a refill isn't entered twice or shown in
-// both forms' lists. Both forms write to the same driver_incidental_costs
-// table; each form only lists/creates its own slice of cost types.
-const COST_TYPE_OPTIONS = Object.values(DriverIncidentalCostType).filter(
-  (type) => type !== DriverIncidentalCostType.FUEL,
-);
-
-export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
-  const [entries, setEntries] = useState<IncidentalCostEntry[]>([]);
+/**
+ * "Báo cáo đổ dầu" — driver-app spec's dedicated fuel-refill report, separate
+ * from the generic "Nhập chi phí lô hàng" cost-entry form (same flag, same
+ * underlying driver_incidental_costs table with costType always FUEL, but
+ * its own form/list so a refill isn't entered as a generic "cost" and doesn't
+ * duplicate across both lists). Distinct from the pre-existing pump-photo OCR
+ * fuel-evidence feature elsewhere on this page — that one stays untouched;
+ * this is a simple manual report for driver-entered refill spend.
+ */
+export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
+  const [entries, setEntries] = useState<FuelRefillEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
-  const [costType, setCostType] = useState<DriverIncidentalCostType>(COST_TYPE_OPTIONS[0]);
   const [amount, setAmount] = useState<number | ''>('');
   const [occurredAt, setOccurredAt] = useState(() => businessDateISO());
   const [note, setNote] = useState('');
@@ -51,10 +51,10 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
   const refresh = useCallback(async () => {
     try {
       const items = await driverClient.listIncidentalCosts(tripId);
-      setEntries(items.filter((item) => item.costType !== DriverIncidentalCostType.FUEL));
+      setEntries(items.filter((item) => item.costType === DriverIncidentalCostType.FUEL));
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách chi phí.');
+      setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách lần đổ dầu.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,6 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
   }, [refresh]);
 
   function resetForm() {
-    setCostType(COST_TYPE_OPTIONS[0]);
     setAmount('');
     setOccurredAt(businessDateISO());
     setNote('');
@@ -80,7 +79,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
       const { storageKey } = await driverClient.uploadReceiptPhoto({ tripId, file });
       setReceiptStorageKey(storageKey);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể tải ảnh hóa đơn.');
+      setFormError(error instanceof Error ? error.message : 'Không thể tải ảnh hóa đơn đổ dầu.');
     } finally {
       setUploadingReceipt(false);
     }
@@ -96,9 +95,8 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
     setFormError(null);
     try {
       const idempotencyKey = buildOfflineCommandKey(
-        'incidental-cost',
+        'fuel-refill-report',
         tripId,
-        costType,
         occurredAt,
         amount,
         Date.now(),
@@ -106,7 +104,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
       await driverClient.createIncidentalCost(
         tripId,
         {
-          costType,
+          costType: DriverIncidentalCostType.FUEL,
           amount,
           occurredAt,
           note: note.trim() || undefined,
@@ -118,7 +116,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
       setFormOpen(false);
       await refresh();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể lưu chi phí. Vui lòng thử lại.');
+      setFormError(error instanceof Error ? error.message : 'Không thể lưu lần đổ dầu. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -133,8 +131,8 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
     <div className="shipment-cost-entry">
       <div className="shipment-cost-entry__head">
         <div>
-          <h2 className="shipment-cost-entry__title">Nhập chi phí lô hàng</h2>
-          <p className="shipment-cost-entry__subtitle">Chi phí phát sinh ngoài (phụ cấp, phí nâng/hạ, đậu xe, cầu đường, dầu…).</p>
+          <h2 className="shipment-cost-entry__title">Báo cáo đổ dầu</h2>
+          <p className="shipment-cost-entry__subtitle">Ghi nhận mỗi lần đổ dầu cho chuyến này (số tiền, ghi chú số lít nếu có, ảnh hóa đơn).</p>
         </div>
         {!formOpen && (
           <button
@@ -143,7 +141,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
             onClick={() => setFormOpen(true)}
           >
             <Plus size={16} />
-            <span>Thêm chi phí</span>
+            <span>Thêm lần đổ dầu</span>
           </button>
         )}
       </div>
@@ -157,10 +155,10 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
 
       {loading ? (
         <p className="shipment-cost-entry__loading">
-          <Loader2 size={16} className="spin" /> Đang tải chi phí…
+          <Loader2 size={16} className="spin" /> Đang tải danh sách đổ dầu…
         </p>
       ) : entries.length === 0 ? (
-        <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào cho chuyến này.</p>
+        <p className="shipment-cost-entry__empty">Chưa có lần đổ dầu nào được báo cáo cho chuyến này.</p>
       ) : (
         <ul className="shipment-cost-entry__list">
           {entries.map((entry) => (
@@ -168,13 +166,13 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
               {entry.receiptStorageKey && (
                 <img
                   src={photoSrc(entry.receiptStorageKey)}
-                  alt={`Hóa đơn ${DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}
+                  alt="Hóa đơn đổ dầu"
                   className="shipment-cost-entry__thumb"
                 />
               )}
               <div className="shipment-cost-entry__item-body">
                 <div className="shipment-cost-entry__item-top">
-                  <strong>{DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong>
+                  <strong><Fuel size={14} /> Đổ dầu</strong>
                   <span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span>
                 </div>
                 <div className="shipment-cost-entry__item-meta">
@@ -196,19 +194,8 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
             </div>
           )}
 
-          <SelectField
-            label="Loại chi phí"
-            value={costType}
-            onChange={(event) => setCostType(event.target.value as DriverIncidentalCostType)}
-            disabled={submitting}
-          >
-            {COST_TYPE_OPTIONS.map((type) => (
-              <option key={type} value={type}>{DRIVER_INCIDENTAL_COST_LABELS[type]}</option>
-            ))}
-          </SelectField>
-
           <NumberField
-            label="Số tiền (VND)"
+            label="Số tiền đổ dầu (VND)"
             value={amount}
             onChange={setAmount}
             min={1}
@@ -218,29 +205,29 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
           />
 
           <DateField
-            label="Ngày phát sinh"
+            label="Ngày đổ dầu"
             value={occurredAt}
             onChange={setOccurredAt}
             disabled={submitting}
           />
 
           <div className="shipment-cost-entry__field">
-            <label htmlFor="shipment-cost-entry-note" className="shipment-cost-entry__field-label">Ghi chú (không bắt buộc)</label>
+            <label htmlFor="fuel-refill-report-note" className="shipment-cost-entry__field-label">Ghi chú (không bắt buộc)</label>
             <textarea
-              id="shipment-cost-entry-note"
+              id="fuel-refill-report-note"
               className="shipment-cost-entry__textarea"
               value={note}
               onChange={(event) => setNote(event.target.value)}
               disabled={submitting}
               rows={2}
-              placeholder="Ví dụ: phí nâng cont tại cảng Cát Lái"
+              placeholder="Ví dụ: 120 lít tại trạm Petrolimex Km12"
             />
           </div>
 
           <div className="shipment-cost-entry__receipt">
             <label className={`shipment-cost-entry__camera-btn${uploadingReceipt ? ' is-loading' : ''}`}>
               {uploadingReceipt ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
-              <span>{receiptStorageKey ? 'Chụp lại hóa đơn' : 'Chụp hóa đơn'}</span>
+              <span>{receiptStorageKey ? 'Chụp lại hóa đơn' : 'Chụp hóa đơn đổ dầu'}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -256,7 +243,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
             </label>
             {receiptStorageKey && (
               <div className="shipment-cost-entry__receipt-preview">
-                <img src={photoSrc(receiptStorageKey)} alt="Hóa đơn đã chụp" />
+                <img src={photoSrc(receiptStorageKey)} alt="Hóa đơn đổ dầu đã chụp" />
                 <span><ReceiptText size={14} /> Đã đính kèm ảnh hóa đơn</span>
               </div>
             )}
@@ -277,7 +264,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
               disabled={submitting || uploadingReceipt}
             >
               {submitting ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-              <span>Lưu chi phí</span>
+              <span>Lưu lần đổ dầu</span>
             </button>
           </div>
         </form>
@@ -286,4 +273,4 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
   );
 }
 
-export default ShipmentCostEntryForm;
+export default FuelRefillReportForm;

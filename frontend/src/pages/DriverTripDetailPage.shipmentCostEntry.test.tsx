@@ -4,12 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodStatus } from '@tingting/shared';
 
 /**
- * Driver-app spec (260827) — "Nhập chi phí lô hàng" is deliberately hidden
- * behind `isShipmentCostEntryEnabled()` until the rollout is approved. This
- * suite verifies the section is genuinely absent from the render tree when
- * the flag is off (not just visually hidden), and reappears when it's on.
- * Mirrors the mocking conventions of `DriverTripDetailPage.test.tsx` — kept
- * as a separate file so that suite's existing 5 tests stay untouched.
+ * Driver-app spec (260827) — "Nhập chi phí lô hàng" and "Báo cáo đổ dầu" are
+ * deliberately hidden behind the same `isShipmentCostEntryEnabled()` flag
+ * until the rollout is approved. This suite verifies both sections are
+ * genuinely absent from the render tree when the flag is off (not just
+ * visually hidden), and both reappear when it's on. Mirrors the mocking
+ * conventions of `DriverTripDetailPage.test.tsx` — kept as a separate file
+ * so that suite's existing tests stay untouched.
  */
 
 const { isShipmentCostEntryEnabledMock } = vi.hoisted(() => ({
@@ -23,6 +24,11 @@ vi.mock('../lib/featureFlags', () => ({
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
   ShipmentCostEntryForm: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
   default: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
+}));
+
+vi.mock('../components/trip/FuelRefillReportForm', () => ({
+  FuelRefillReportForm: () => <div data-testid="fuel-refill-report-form">Báo cáo đổ dầu</div>,
+  default: () => <div data-testid="fuel-refill-report-form">Báo cáo đổ dầu</div>,
 }));
 
 const {
@@ -201,20 +207,24 @@ describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
     });
   });
 
-  it('does not render the cost-entry section when the flag is off (default)', async () => {
+  it('does not render the cost-entry or fuel-refill sections when the flag is off (default)', async () => {
     isShipmentCostEntryEnabledMock.mockReturnValue(false);
     renderPage();
 
     expect(await screen.findByText(/Bốn mốc thực hiện/)).toBeTruthy();
     expect(screen.queryByText('Nhập chi phí lô hàng')).toBeNull();
     expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    expect(screen.queryByText('Báo cáo đổ dầu')).toBeNull();
+    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
-  it('renders the cost-entry section when the flag is on', async () => {
+  it('renders the cost-entry and fuel-refill sections when the flag is on', async () => {
     isShipmentCostEntryEnabledMock.mockReturnValue(true);
     renderPage();
 
     expect(await screen.findByText('Nhập chi phí lô hàng')).toBeTruthy();
     expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
+    expect(screen.getByText('Báo cáo đổ dầu')).toBeTruthy();
+    expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();
   });
 });

@@ -10,8 +10,10 @@ function parseFlag(raw: string | undefined): boolean {
 
 /**
  * Driver-app spec (260827): the "Nhập chi phí lô hàng" (shipment cost entry)
- * form is backend-ready but must stay hidden from real drivers until the
- * rollout is approved. Default OFF.
+ * form and the "Báo cáo đổ dầu" (fuel refill report) form are backend-ready
+ * but must stay hidden from real drivers until the rollout is approved —
+ * both gated by this same flag, per the spec's "same treatment" for both
+ * forms. Default OFF.
  */
 export function isShipmentCostEntryEnabled(): boolean {
   return parseFlag(import.meta.env.VITE_FEATURE_SHIPMENT_COST_ENTRY);

@@ -112,6 +112,24 @@ describe('ShipmentCostEntryForm', () => {
     await waitFor(() => expect(listIncidentalCostsMock).toHaveBeenCalledTimes(2));
   });
 
+  it('excludes FUEL from the cost-type dropdown and from the rendered list — it has its own dedicated report form', async () => {
+    listIncidentalCostsMock.mockResolvedValue([
+      makeEntry({ id: 3, costType: DriverIncidentalCostType.FUEL, amount: '200000', note: 'Đổ dầu Km30' }),
+      makeEntry({ id: 4, costType: DriverIncidentalCostType.TOLL, amount: '40000' }),
+    ]);
+    renderForm();
+
+    await screen.findByText('Phí cầu đường');
+    expect(screen.queryByText('Tiền dầu')).toBeNull();
+    expect(screen.queryByText('Đổ dầu Km30')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Thêm chi phí/ }));
+    // UuiSelectField pattern: trigger button -> options render
+    fireEvent.click(await screen.findByRole('button', { name: /Loại chi phí/i }));
+    const options = screen.getAllByRole('option').map((option) => option.textContent);
+    expect(options).not.toContain('Tiền dầu');
+  });
+
   it('shows an inline error message when createIncidentalCost rejects', async () => {
     listIncidentalCostsMock.mockResolvedValue([]);
     createIncidentalCostMock.mockRejectedValue(new Error('Không thể lưu chi phí do lỗi máy chủ.'));
