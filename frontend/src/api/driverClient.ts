@@ -5,6 +5,7 @@ import {
   DriverProgressEventType,
   TripPodFileType,
   TripPodStatus,
+  type DriverIncidentalCostType,
   type TripStatus,
   type ShipmentAccountingLockSummary,
   type VehicleAlert,
@@ -471,6 +472,54 @@ export const driverClient = {
     return api.upload(DRIVER_TASK.POD_FILES(args.tripId, args.submissionId), formData, {
       retryFingerprint: fingerprint,
     }) as Promise<DriverTaskPodSubmission>;
+  },
+
+  createIncidentalCost: async (
+    tripId: number,
+    body: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+    idempotencyKey: string,
+  ) => {
+    return api.post<{
+      id: number;
+      tripId: number;
+      driverId: number;
+      costType: DriverIncidentalCostType;
+      amount: string;
+      occurredAt: string;
+      note: string | null;
+      receiptStorageKey: string | null;
+      createdAt: string;
+    }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId), body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  },
+
+  listIncidentalCosts: async (tripId: number) => {
+    const wire = await api.get<{ items: Array<{
+      id: number;
+      tripId: number;
+      driverId: number;
+      costType: DriverIncidentalCostType;
+      amount: string;
+      occurredAt: string;
+      note: string | null;
+      receiptStorageKey: string | null;
+      createdAt: string;
+    }> }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
+    return wire.items;
+  },
+
+  uploadReceiptPhoto: async (args: { tripId: number; file: File }) => {
+    const formData = new FormData();
+    formData.append('file', args.file);
+    formData.append('trip_id', String(args.tripId));
+    formData.append('type', 'OTHER');
+    const retryFingerprint = [
+      'driver-incidental-cost-receipt',
+      fileCommandFingerprint(args.file),
+      args.tripId,
+    ].join(':');
+    return api.upload('/upload', formData, { retryFingerprint }) as Promise<{ storageKey: string; url: string }>;
   },
 
   uploadContainerOrSealPhoto: async (args: { tripId: number; type: 'CONTAINER' | 'SEAL'; file: File }) => {
