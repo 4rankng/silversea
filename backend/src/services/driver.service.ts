@@ -447,6 +447,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     shipmentId: s.trips.shipmentId,
     tripCode: s.trips.tripCode,
     departureDate: s.trips.departureDate,
+    plannedStartAt: s.trips.plannedStartAt,
     status: s.trips.status,
     fuelLiters: s.trips.fuelLiters,
     fuelMode: s.trips.fuelMode,

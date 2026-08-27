@@ -159,6 +159,7 @@ export interface DriverTaskDetail {
   tripCode: string | null;
   status: TripStatus;
   departureDate: string;
+  plannedStartAt?: string | null;
   routeName: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
@@ -289,7 +290,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       pickupWarehouseName: wire.pickupLocation,
       dropWarehouseName: wire.deliveryLocation,
       lclWarehouseName: wire.cargoMode === 'LCL' ? wire.pickupLocation : null,
-      plannedAt: wire.trip.departureDate,
+      plannedAt: wire.trip.plannedStartAt ?? wire.trip.departureDate,
       contactName: wire.contactName,
       contactPhone: wire.contactPhone,
       routeSummary: wire.trip.routeName,

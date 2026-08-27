@@ -713,7 +713,7 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Bốn mốc thực hiện</span>
         </div>
-        {!paperOrderReady && (
+        {!paperOrderReady && nextMilestoneIndex === 0 && (
           <div className="driver-task-paper-order">
             <strong className="driver-task-paper-order__title">Nhận lệnh ngay, không cần chờ Ops</strong>
             <span className="driver-task-paper-order__desc">
