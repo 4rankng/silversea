@@ -1478,6 +1478,60 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.deepEqual(row.missingFields, []);
   });
 
+  test('container ports clear LIFT_SITE/DROPOFF_SITE even when the snapshot halves are empty', async () => {
+    const [liftPort] = await db.insert(s.ports).values({
+      code: `LPRT${lettersTag(5)}`,
+      name: `Cảng nâng thử ${suffix}`.slice(0, 255),
+    }).returning();
+    const [dropPort] = await db.insert(s.ports).values({
+      code: `DPRT${lettersTag(5)}`,
+      name: `Cảng hạ thử ${suffix}`.slice(0, 255),
+    }).returning();
+    createdPortIds.push(liftPort.id, dropPort.id);
+
+    const route = await seedRoute();
+    const shipment = await seedShipment({
+      blNumber: `PORT${suffix}`.slice(0, 100),
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    await seedDeclaration(shipment.id);
+    const container = await seedContainer(shipment.id, {
+      containerNumber: `PRT${suffix}1`.slice(0, 50),
+      routeId: route.id,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+      pickupPortId: liftPort.id,
+      dropoffPortId: dropPort.id,
+    });
+    // Legacy decomposed row: the snapshot never received its halves, exactly
+    // like FCL fulfillments created before the port columns became the
+    // authority. The row displays the port names, so its status must not
+    // flag "Chưa cập nhật điểm nhận/trả hàng" for them.
+    await seedFulfillment(shipment.id, container.id, {
+      siteSnapshot: {},
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-777.77',
+    });
+
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: suffix.slice(-5) }, cusActor);
+    const row = response.items.find((candidate) => candidate.shipmentId === shipment.id);
+    assert.ok(row);
+    assert.equal(row.liftSite, `Cảng nâng thử ${suffix}`.slice(0, 255));
+    assert.equal(row.dropoffSite, `Cảng hạ thử ${suffix}`.slice(0, 255));
+    assert.equal(row.informationStatus, 'COMPLETE');
+    assert.deepEqual(row.missingFields, []);
+
+    // SQL twin agreement: the "Chưa cập nhật" queue must not select this row.
+    const missingQueue = await listCusShipmentContainers(
+      { page: 1, limit: 100, informationStatus: 'MISSING', searchSuffix: suffix.slice(-5) },
+      cusActor,
+    );
+    assert.equal(missingQueue.items.some((candidate) => candidate.shipmentId === shipment.id), false);
+  });
+
   test('projects the container shipping-line fallback used by completeness filtering', async () => {
     const route = await seedRoute();
     const shipment = await seedShipment({

@@ -174,6 +174,7 @@ export interface ContainerLineDraft {
   newCarrierName: string;
   plateNumber: string;
   containerTypeId: string;
+  routeId: string;
   liftSiteId: string;
   dropoffSiteId: string;
   customerAppointmentAt: string;
@@ -195,6 +196,7 @@ export function lineDraft(line: ShipmentCusWorkspaceContainerLine): ContainerLin
     newCarrierName: '',
     plateNumber: line.plateNumber ?? '',
     containerTypeId: line.containerTypeId ? String(line.containerTypeId) : '',
+    routeId: line.routeId ? String(line.routeId) : '',
     liftSiteId: line.liftSiteId ? String(line.liftSiteId) : '',
     dropoffSiteId: line.dropoffSiteId ? String(line.dropoffSiteId) : '',
     customerAppointmentAt: toLocalDateTime(line.customerAppointmentAt),
@@ -204,6 +206,7 @@ export function lineDraft(line: ShipmentCusWorkspaceContainerLine): ContainerLin
 export function lineOperationalSignature(line: ShipmentCusWorkspaceContainerLine): string {
   return JSON.stringify([
     line.containerTypeId,
+    line.routeId,
     line.carrierType,
     line.externalCarrierId,
     line.externalCarrierVehicleId,

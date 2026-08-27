@@ -1502,7 +1502,7 @@
 
 .cus-container-table {
   width: 100%;
-  min-width: 1036px;
+  min-width: 1186px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -1510,6 +1510,7 @@
 
 .cus-container-col__identity { width: 132px; }
 .cus-container-col__type { width: 100px; }
+.cus-container-col__route { width: 150px; }
 .cus-container-col__dispatch { width: 100px; }
 .cus-container-col__carrier { width: 158px; }
 .cus-container-col__plate { width: 100px; }

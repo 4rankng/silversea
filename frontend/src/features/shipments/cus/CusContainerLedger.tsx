@@ -49,10 +49,11 @@ function ContainerLineRow({
   const carrierEditable = editing && permissions.carrierEditable;
   const plateEditable = editing && permissions.plateEditable;
   const containerTypeEditable = editing && permissions.containerTypeEditable;
+  const routeEditable = editing && permissions.routeEditable;
   const liftSiteEditable = editing && permissions.liftSiteEditable;
   const dropoffSiteEditable = editing && permissions.dropoffSiteEditable;
   const customerAppointmentEditable = editing && permissions.customerAppointmentEditable;
-  const operationalEditable = carrierEditable || plateEditable || containerTypeEditable || liftSiteEditable || dropoffSiteEditable || customerAppointmentEditable;
+  const operationalEditable = carrierEditable || plateEditable || containerTypeEditable || routeEditable || liftSiteEditable || dropoffSiteEditable || customerAppointmentEditable;
 
   useEffect(() => {
     const nextSignature = lineOperationalSignature(line);
@@ -119,6 +120,7 @@ function ContainerLineRow({
           ? { plateNumber: draft.plateNumber.trim() || null }
           : {}),
         ...(permissions.containerTypeEditable ? { containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null } : {}),
+        ...(permissions.routeEditable ? { routeId: draft.routeId ? Number(draft.routeId) : null } : {}),
         ...(permissions.liftSiteEditable ? { liftSiteId: draft.liftSiteId ? Number(draft.liftSiteId) : null } : {}),
         ...(permissions.dropoffSiteEditable ? { dropoffSiteId: draft.dropoffSiteId ? Number(draft.dropoffSiteId) : null } : {}),
         ...(permissions.customerAppointmentEditable ? {
@@ -144,6 +146,7 @@ function ContainerLineRow({
     })),
   ];
   const selectedContainerType = detail.selectors.containerTypes.find((option) => String(option.id) === draft.containerTypeId);
+  const selectedRoute = detail.selectors.routes.find((option) => String(option.id) === draft.routeId);
   const selectedCarrier = carrierOptions.find((option) => option.value === draft.carrierKey);
   const selectedLiftPort = detail.selectors.ports.find((option) => String(option.id) === draft.liftSiteId);
   const selectedDropoffPort = detail.selectors.ports.find((option) => String(option.id) === draft.dropoffSiteId);
@@ -180,6 +183,17 @@ function ContainerLineRow({
           <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => updateDraft({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
         </ShipmentContainerCell>
       ) : <td data-label="Loại cont" className="cus-container-cell"><strong>{line.containerTypeLabel || '—'}</strong></td>}
+      {routeEditable ? (
+        <ShipmentContainerCell
+          label="Tuyến"
+          value={selectedRoute?.label ?? ''}
+          placeholder="Chọn tuyến"
+          className="cus-container-cell"
+        >
+          <label className="sr-only" htmlFor={`${idPrefix}-route-${line.id}`}>Tuyến đường của container {line.containerNumber || line.ordinal}</label>
+          <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => updateDraft({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="Chọn tuyến" />
+        </ShipmentContainerCell>
+      ) : <td data-label="Tuyến" className="cus-container-cell"><strong>{line.routeName || '—'}</strong></td>}
       <td data-label="Điều vận" className="cus-container-cell">
         <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
       </td>
@@ -300,6 +314,7 @@ export function ContainerLedger({
     line.permissions.carrierEditable
     || line.permissions.plateEditable
     || line.permissions.containerTypeEditable
+    || line.permissions.routeEditable
     || line.permissions.liftSiteEditable
     || line.permissions.dropoffSiteEditable
     || line.permissions.customerAppointmentEditable
@@ -332,6 +347,7 @@ export function ContainerLedger({
             <colgroup>
               <col className="cus-container-col__identity" />
               <col className="cus-container-col__type" />
+              <col className="cus-container-col__route" />
               <col className="cus-container-col__dispatch" />
               <col className="cus-container-col__carrier" />
               <col className="cus-container-col__plate" />
@@ -342,6 +358,7 @@ export function ContainerLedger({
             <thead><tr>
               <th scope="col">Container</th>
               <th scope="col">Loại cont</th>
+              <th scope="col">Tuyến</th>
               <th scope="col">Điều vận</th>
               <th scope="col">Nhà xe</th>
               <th scope="col">Biển số</th>

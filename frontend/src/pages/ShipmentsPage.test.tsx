@@ -143,6 +143,8 @@ const detail = {
     containerNumber: 'MSKU1234567',
     containerTypeId: 2,
     containerTypeLabel: '40HC',
+    routeId: 7,
+    routeName: 'Đình Vũ — KCN VSIP',
     dispatchStatus: 'CREATED' as const,
     carrierType: 'EXTERNAL' as const,
     externalCarrierId: 8,
@@ -164,6 +166,7 @@ const detail = {
       carrierEditable: true,
       plateEditable: true,
       containerTypeEditable: true,
+      routeEditable: true,
       liftSiteEditable: true,
       dropoffSiteEditable: true,
       customerAppointmentEditable: true,
@@ -173,6 +176,10 @@ const detail = {
   }],
   selectors: {
     containerTypes: [{ id: 2, code: '40HC', name: 'Container 40HC', label: '40HC · Container 40HC' }],
+    routes: [
+      { id: 7, name: 'Đình Vũ — KCN VSIP', label: 'Đình Vũ — KCN VSIP' },
+      { id: 9, name: 'Đình Vũ — Quốc lộ 5', label: 'Đình Vũ — Quốc lộ 5' },
+    ],
     operationalSites: [
       { id: 31, siteType: 'WAREHOUSE' as const, code: 'DV', name: 'Cảng Đình Vũ', label: 'DV · Cảng Đình Vũ' },
       { id: 32, siteType: 'WAREHOUSE' as const, code: 'TV', name: 'Bãi Tân Vũ', label: 'TV · Bãi Tân Vũ' },
@@ -1190,6 +1197,36 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(payload.outboundCharges).toBeUndefined();
     expect(payload.inboundCharges).toBeUndefined();
     await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
+  });
+
+  it('saves the container route from the CUS dashboard ledger when the plan needs one', async () => {
+    apiPost.mockResolvedValueOnce({
+      line: {
+        ...detail.containers[0],
+        routeId: 9,
+        routeName: 'Đình Vũ — Quốc lộ 5',
+        shipmentVersion: 4,
+      },
+    });
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRowDetailButton());
+
+    const ledger = await screen.findByLabelText('Chi tiết container');
+    expect(within(ledger).getByRole('columnheader', { name: 'Tuyến' })).toBeTruthy();
+    fireEvent.click(within(ledger).getByRole('button', { name: /Tuyến đường của container MSKU1234567/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Đình Vũ — Quốc lộ 5' }));
+    const customerAppointment = screen.getByLabelText(/Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/) as HTMLInputElement;
+    fireEvent.keyDown(customerAppointment, { key: 'Enter' });
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers/10',
+      expect.objectContaining({
+        expectedShipmentVersion: 3,
+        routeId: 9,
+      }),
+      expect.any(Object),
+    ));
   });
 
   it('keeps a sibling container draft while refreshing its shipment version after another save', async () => {

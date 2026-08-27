@@ -532,12 +532,23 @@ function activePlannedPlateSql(): SQL {
     limit 1)`;
 }
 
-function activeSiteSnapshotKeySql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
-  return sql`(select ${s.shipmentFulfillments.siteSnapshot} ->> ${key}
+// Lift/drop presence in SQL mirrors resolveLiftSite/resolveDropoffSite: the
+// per-container port column is the authority (port row must exist, matching
+// the JS portsById lookup); the snapshot half only counts when it is a JSON
+// object (readSiteSnapshotSite's presence rule). `is not distinct from`
+// keeps a missing fulfillment row (NULL subquery) falsy. The port columns
+// carry no DB FK by repo convention, but the write path validates ids
+// against s.ports, so a dangling id is unreachable through the API.
+function portRowExistsSql(column: SQL | Column): SQL {
+  return sql`exists (select 1 from ${s.ports} where ${s.ports.id} = ${column})`;
+}
+
+function siteSnapshotHalfIsObjectSql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
+  return sql`(select jsonb_typeof(${s.shipmentFulfillments.siteSnapshot} -> ${key})
     from ${s.shipmentFulfillments}
     where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
       and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
+    limit 1) is not distinct from 'object'`;
 }
 
 // nullif(btrim(x), '') mirrors the JS trimOrNull: null-or-whitespace is absent.
@@ -567,8 +578,8 @@ function containerMissingBitsSql(): SQL[] {
     // Container row identity.
     sql`${s.shipmentContainers.containerNumber} is null`,
     sql`${s.shipmentContainers.containerTypeId} is null`,
-    sql`${activeSiteSnapshotKeySql('pickupWarehouse')} is null`,
-    sql`${activeSiteSnapshotKeySql('deliverySite')} is null`,
+    sql`not (${portRowExistsSql(s.shipmentContainers.pickupPortId)} or ${siteSnapshotHalfIsObjectSql('pickupWarehouse')})`,
+    sql`not (${portRowExistsSql(s.shipmentContainers.dropoffPortId)} or ${siteSnapshotHalfIsObjectSql('deliverySite')})`,
     sql`${s.shipmentContainers.customerAppointmentAt} is null`,
     // Vehicle stage (date-gated carrier; external-only BKS).
     sql`${transportDate} is not null and ${carrierType} is null`,
@@ -1548,6 +1559,32 @@ function buildListItem(
   };
 }
 
+// Lift/drop authority is the per-container port columns (same columns the
+// create form writes). The fulfillment site-snapshot remains the fallback
+// for legacy rows decomposed before ports existed. The missing-status bits
+// in containerMissingFields/containerMissingBitsSql resolve through the
+// same helpers so a row can never display a site name while its status
+// still says "Chưa cập nhật" (or the reverse).
+function resolveLiftSite(
+  support: WorkspaceSupport,
+  container: ContainerRow,
+  assignment: AssignmentRow | null,
+) {
+  return container.pickupPortId != null
+    ? support.portsById.get(container.pickupPortId) ?? null
+    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
+}
+
+function resolveDropoffSite(
+  support: WorkspaceSupport,
+  container: ContainerRow,
+  assignment: AssignmentRow | null,
+) {
+  return container.dropoffPortId != null
+    ? support.portsById.get(container.dropoffPortId) ?? null
+    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
+}
+
 function buildContainerLine(
   row: ShipmentListRow,
   actor: AuthUser,
@@ -1559,15 +1596,8 @@ function buildContainerLine(
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
   const canEditOperational = editableBase && assignment?.tripId == null;
-  // Lift/drop authority is the per-container port columns (same columns the
-  // create form writes). The fulfillment site-snapshot remains the fallback
-  // for legacy rows decomposed before ports existed.
-  const liftSite = container.pickupPortId != null
-    ? support.portsById.get(container.pickupPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
-  const dropoffSite = container.dropoffPortId != null
-    ? support.portsById.get(container.dropoffPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
+  const liftSite = resolveLiftSite(support, container, assignment);
+  const dropoffSite = resolveDropoffSite(support, container, assignment);
   const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
   const externalCarrierId = assignment?.tripExternalCarrierId ?? assignment?.plannedExternalCarrierId ?? null;
   const carrierName = carrierType === 'OWN'
@@ -1664,8 +1694,8 @@ function containerMissingFields(
   // Container row.
   push('CONTAINER_NUMBER', container.containerNumber == null);
   push('CONTAINER_TYPE', container.containerTypeId == null);
-  push('LIFT_SITE', readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse') == null);
-  push('DROPOFF_SITE', readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite') == null);
+  push('LIFT_SITE', resolveLiftSite(support, container, assignment) == null);
+  push('DROPOFF_SITE', resolveDropoffSite(support, container, assignment) == null);
   push('APPOINTMENT', container.customerAppointmentAt == null);
   // Vehicle stage: carrier only after a transport date exists; BKS only for
   // an external carrier (own-fleet plates come from the dispatch trip).

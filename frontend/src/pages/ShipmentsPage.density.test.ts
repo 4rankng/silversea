@@ -39,7 +39,7 @@ describe('shipment container editor density', () => {
     expect(ledgerSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1036px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*1186px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*144px;/);
     expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
     expect(css).toMatch(
