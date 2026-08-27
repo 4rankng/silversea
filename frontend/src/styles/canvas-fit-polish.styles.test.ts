@@ -20,9 +20,12 @@ describe('canvas-fit responsive polish contract', () => {
     expect(css).not.toContain('@media(max-width:1150px)');
   });
 
-  it('role work inbox cards render below the 1050px-table canvas threshold', () => {
+  it('role work inbox cards render below the 880px-table canvas threshold', () => {
+    // After P0 fix to expose the action column, the 7-column table now fits
+    // in 880px. Cards collapse below a 1145px viewport (was 1345px when the
+    // 7th column was clipped to 0px and min-width was 1050px).
     const css = read('src/components/work-inbox/RoleWorkInbox.css');
-    expect(css).toMatch(/@media \(max-width: 1345px\) \{\s*\.role-work-inbox__table-wrap \{ overflow: visible;/);
+    expect(css).toMatch(/@media \(max-width: 1145px\) \{\s*\.role-work-inbox__table-wrap \{ overflow: visible;/);
     expect(css).toContain('.role-work-inbox__tabs { flex-wrap: wrap; gap: 6px; }');
   });
 

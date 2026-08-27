@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: 14px 14px calc(136px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 14px 32px;
   background: var(--surface-2);
   min-height: 100%;
   box-sizing: border-box;
@@ -312,11 +312,14 @@
 }
 
 .driver-task-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  /* In normal flow at the end of the trip workflow so it never overlaps
+     the e-POD / fuel / income / legs sections. On mobile, the .app-body
+     already reserves 70px+ for the bottom nav, so the footer is also
+     clear of the bottom tab bar. The action is the final step of the
+     flow (after the user has filled in milestones + e-POD) so a scroll
+     to the end is the expected interaction. */
+  margin-top: 24px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 96%, transparent) 18%, var(--surface-2, #f8fafc) 100%);
 }
 

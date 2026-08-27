@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -146,6 +146,7 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
 export function RoleWorkInbox({ role, title, description, customerId, scopeReady = true }: Props) {
   const auth = useAuth();
   const user = auth?.user ?? null;
+  const navigate = useNavigate();
   const [data, setData] = useState<InboxData | null>(null);
   const [active, setActive] = useState(0);
   const [page, setPage] = useState(1);
@@ -394,8 +395,29 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
                   const operationsItem = role === 'operations' ? item as OperationsWorkInboxItem : null;
                   const customerAction = Boolean(customerItem?.deliveryResponseRequired && customerItem.deliveryEventId && customerItem.deliveryEventVersion);
                   const orderExchangeAction = Boolean(operationsItem && operationsItem.orderExchangeState !== 'COMPLETED');
+                  const rowTarget = item.nextAction?.targetRoute ?? item.targetRoute;
+                  const handleRowActivate = (event: React.MouseEvent<HTMLTableRowElement> | React.KeyboardEvent<HTMLTableRowElement>) => {
+                    // Don't navigate when the user clicked an inner button/link/textarea —
+                    // those have their own handlers and must take precedence.
+                    const target = event.target as HTMLElement;
+                    if (target.closest('a, button, textarea, input, label')) return;
+                    navigate(rowTarget);
+                  };
                   return (
-                    <tr key={item.id} className={item.priority >= 80 ? 'is-priority' : ''}>
+                    <tr
+                      key={item.id}
+                      className={item.priority >= 80 ? 'is-priority' : ''}
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`Mở hồ sơ ${item.title}`}
+                      onClick={handleRowActivate}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleRowActivate(event);
+                        }
+                      }}
+                    >
                       <td data-label="Công việc">
                         <strong className="role-work-inbox__identity">{item.title}</strong>
                         {item.subtitle && <span className="role-work-inbox__subtitle">{item.subtitle}</span>}

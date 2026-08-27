@@ -274,7 +274,7 @@ export function TripPodSubmission({
                     <li key={file.id} className="trip-pod__file">
                       <div className="trip-pod__file-meta">
                         {fileType === TripPodFileType.TOLL_TICKET ? <ReceiptText size={15} /> : <FileText size={15} />}
-                        <span className="trip-pod__file-name">{file.originalFileName}</span>
+                        <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
                       </div>
                       <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
                     </li>

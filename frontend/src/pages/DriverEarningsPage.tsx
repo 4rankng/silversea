@@ -59,20 +59,21 @@ export default function DriverEarningsPage() {
     const salaryNum = parseFloat(earnings.baseSalary);
     const penaltyNum = parseFloat(earnings.penalties);
 
-    if (heroValueRef.current) {
-      const payable = parseFloat(earnings.payableBalance);
-      targets.push({ el: heroValueRef.current, value: Math.abs(payable), prefix: payable < 0 ? '-' : '' });
-    }
+    // The hero ("LƯƠNG CHƯA THANH TOÁN") and the summary tile
+    // ("CÒN CHƯA THANH TOÁN") show the same payableBalance value. Animating
+    // them separately in a single staggered list caused them to render
+    // different values mid-animation (hero at 500.000 while summary was
+    // still ticking up through 498.720). Render both as static so the
+    // headline number and its summary tile are always in lockstep, and
+    // keep the counter animation for the supporting breakdown KPIs only.
     if (kpiRefs.current.baseSalary) targets.push({ el: kpiRefs.current.baseSalary, value: salaryNum });
     // F2 / B2 — trip-income cards always animate (headline breakdown).
     const productionNum = parseFloat(earnings.productionSalary);
     const roadNum = parseFloat(earnings.roadAllowance);
     const paidOrAdvancedNum = parseFloat(earnings.paidOrAdvanced ?? '0');
-    const payableNum = parseFloat(earnings.payableBalance);
     if (kpiRefs.current.productionSalary) targets.push({ el: kpiRefs.current.productionSalary, value: productionNum });
     if (kpiRefs.current.roadAllowance) targets.push({ el: kpiRefs.current.roadAllowance, value: roadNum });
     if (kpiRefs.current.paidOrAdvanced) targets.push({ el: kpiRefs.current.paidOrAdvanced, value: paidOrAdvancedNum });
-    if (kpiRefs.current.payableBalance) targets.push({ el: kpiRefs.current.payableBalance, value: Math.abs(payableNum), prefix: payableNum < 0 ? '-' : '' });
     if (penaltyNum > 0 && kpiRefs.current.penalties) targets.push({ el: kpiRefs.current.penalties, value: penaltyNum });
     if (earnings.adjustment !== undefined && earnings.adjustment !== 0 && kpiRefs.current.adjustment) {
       targets.push({ el: kpiRefs.current.adjustment, value: Math.abs(earnings.adjustment), prefix: earnings.adjustment > 0 ? '+' : '-' });

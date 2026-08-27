@@ -192,7 +192,7 @@
 }
 
 .trip-pod__action {
-  background: var(--ink);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -241,7 +241,15 @@
 .trip-pod__file-name {
   font-size: 13px;
   color: var(--ink);
-  overflow-wrap: anywhere;
+  /* Long file names (e.g. "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf")
+     truncate with ellipsis on a single line. The full name is still
+     available via the title attribute and the download action. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+  display: block;
 }
 
 .trip-pod__file-time {
@@ -317,6 +325,12 @@
 @media (min-width: 700px) {
   .trip-pod__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* On wide 3-column grids, each card is narrow (~210px) which squeezes
+     the 2-button action row (Chụp / Tải tệp). Stack the buttons to keep
+     the labels readable. */
+  .trip-pod__actions {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

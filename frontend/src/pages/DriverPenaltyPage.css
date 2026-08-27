@@ -108,6 +108,10 @@
 .penalty-kpi-grid .kpi__label {
   font-size: var(--driver-penalty-section);
   letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .penalty-kpi-grid .kpi__value {

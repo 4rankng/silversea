@@ -141,7 +141,7 @@
 
 .role-work-inbox__table {
   width: 100%;
-  min-width: 1050px;
+  min-width: 880px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -158,12 +158,19 @@
   text-transform: uppercase;
 }
 
-.role-work-inbox__table th:nth-child(1) { width: 19%; }
-.role-work-inbox__table th:nth-child(2) { width: 29%; }
-.role-work-inbox__table th:nth-child(3) { width: 10%; }
-.role-work-inbox__table th:nth-child(4) { width: 16%; }
-.role-work-inbox__table th:nth-child(5) { width: 10%; }
-.role-work-inbox__table th:nth-child(6) { width: 16%; }
+/* Action column (7) gets an explicit share of the 100% so it never collapses
+   to 0px in a 1142px operational canvas (it was clipping the "Xem hồ sơ"
+   link). Total widths now sum to 100% exactly. */
+.role-work-inbox__table th:nth-child(1) { width: 16%; }
+.role-work-inbox__table th:nth-child(2) { width: 24%; }
+.role-work-inbox__table th:nth-child(3) { width: 12%; }
+.role-work-inbox__table th:nth-child(4) { width: 14%; }
+.role-work-inbox__table th:nth-child(5) { width: 9%;  }
+.role-work-inbox__table th:nth-child(6) { width: 13%; }
+.role-work-inbox__table th:nth-child(7) { width: 12%; }
+
+.role-work-inbox__table tr { cursor: pointer; }
+.role-work-inbox__table tr:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 .role-work-inbox__table td {
   border-bottom: 1px solid var(--border-1);
@@ -171,7 +178,9 @@
   vertical-align: top;
   color: var(--fg-1);
   font-size: 12px;
+  min-width: 0;
 }
+.role-work-inbox__table td:nth-child(3) { overflow: hidden; }
 
 .role-work-inbox__table tr:last-child td { border-bottom: 0; }
 .role-work-inbox__table tr.is-priority td:first-child { box-shadow: inset 3px 0 var(--warning); }
@@ -311,9 +320,9 @@
 
 .role-work-inbox__pagination button:disabled { cursor: default; opacity: .5; }
 
-/* The 1050px table cannot fit the operational canvas below a ~1346px
+/* The 880px table cannot fit the operational canvas below a ~1146px
    viewport; switch to the labelled record cards before it would scroll. */
-@media (max-width: 1345px) {
+@media (max-width: 1145px) {
   .role-work-inbox__table-wrap { overflow: visible; border: 0; background: transparent; }
   .role-work-inbox__table,
   .role-work-inbox__table tbody,
