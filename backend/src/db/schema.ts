@@ -2434,6 +2434,14 @@ export const operationalSites = pgTable('operational_sites', {
   liftFeeInvoiceName: varchar('lift_fee_invoice_name', { length: 255 }),
   liftFeeInvoiceAddress: text('lift_fee_invoice_address'),
   liftFeeTaxCode: varchar('lift_fee_tax_code', { length: 40 }),
+  // Driver-app spec (260827): same invoicing pattern as lift fee, for the
+  // drop-fee and cleaning-fee invoices shown in the driver's Block 4.
+  dropFeeInvoiceName: varchar('drop_fee_invoice_name', { length: 255 }),
+  dropFeeInvoiceAddress: text('drop_fee_invoice_address'),
+  dropFeeTaxCode: varchar('drop_fee_tax_code', { length: 40 }),
+  cleaningInvoiceName: varchar('cleaning_invoice_name', { length: 255 }),
+  cleaningInvoiceAddress: text('cleaning_invoice_address'),
+  cleaningTaxCode: varchar('cleaning_tax_code', { length: 40 }),
   strictRules: text('strict_rules'),
   version: integer('version').notNull().default(1),
   isActive: boolean('is_active').notNull().default(true),
@@ -3577,7 +3585,7 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
 // COMPLETED trips reject new incidental costs — unlike progress events (which
 // are append-only audit logs), costs affect financials, so completion = immutable.
 export const driverIncidentalCostTypeEnum = applicationEnum([
-  'PER_DIEM', 'LIFT_FEE', 'PARKING', 'TOLL', 'FUEL', 'OTHER',
+  'PER_DIEM', 'LIFT_FEE', 'DROP_FEE', 'PARKING', 'TOLL', 'FUEL', 'OTHER',
 ]);
 
 export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
@@ -3592,6 +3600,10 @@ export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   // The date the cost was incurred (driver-reported). Distinct from createdAt.
   occurredAt: date('occurred_at').notNull(),
   note: text('note'),
+  // Driver-attached receipt photo for this cost line (upload.ts storage-key
+  // convention). Nullable — the M8.4 slice-3 cost log predates the mobile
+  // shipment-cost-entry form's receipt requirement, and existing rows have none.
+  receiptStorageKey: varchar('receipt_storage_key', { length: 255 }),
   recordedBy: integer('recorded_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [

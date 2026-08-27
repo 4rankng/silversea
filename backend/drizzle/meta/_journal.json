@@ -295,6 +295,13 @@
       "when": 1787665621366,
       "tag": "0041_busy_natasha_romanoff",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1787829354758,
+      "tag": "0042_driver-app-invoice-receipt-fields",
+      "breakpoints": true
     }
   ]
 }
