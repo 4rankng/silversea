@@ -14,6 +14,7 @@ import {
   STORAGE_DELETE_MODE,
 } from '../services/durable-effect.service';
 
+import { config } from '../config';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -52,6 +53,8 @@ const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
+const createdPortIds: number[] = [];
+const createdOperationalSiteIds: number[] = [];
 const usedIdempotencyKeys: string[] = [];
 
 function samplePdfBuffer(label: string): Buffer {
@@ -299,6 +302,91 @@ describe('Phase 4 driver fulfillment execution', () => {
     await assertApiError(404, () => getDriverFulfillmentDetail(actor.driver.id, canceledFulfillment.fulfillment.id));
   });
 
+  test('driver fulfillment detail falls back to the container ports and factory when text columns and snapshot are empty', async () => {
+    const actor = await createDriverPrincipal('ports-fallback');
+    const [customer] = await db.insert(s.customers).values({
+      name: `Phase4 ports customer ${suffix}`,
+    }).returning();
+    createdCustomerIds.push(customer.id);
+
+    const [pickupPort] = await db.insert(s.ports).values({
+      code: `PKP${suffix.replace(/[^A-Z0-9]/gi, '').slice(-8)}`,
+      name: 'Cảng Nam Hải Đình Vũ',
+    }).returning();
+    const [dropoffPort] = await db.insert(s.ports).values({
+      code: `DRP${suffix.replace(/[^A-Z0-9]/gi, '').slice(-8)}`,
+      name: 'Bãi SITC Tân Vũ',
+    }).returning();
+    createdPortIds.push(pickupPort.id, dropoffPort.id);
+
+    const [factory] = await db.insert(s.operationalSites).values({
+      customerId: customer.id,
+      code: `FAC${suffix.replace(/[^A-Z0-9]/gi, '').slice(-8)}`,
+      name: 'Biển Bạc Hà Nam',
+      siteType: 'FACTORY',
+      address: 'KCN Phú Hà, Hà Nam',
+      isActive: true,
+    }).returning();
+    createdOperationalSiteIds.push(factory.id);
+
+    const [route] = await db.insert(s.routes).values({
+      name: `Phase4 ports route ${suffix}`,
+    }).returning();
+    createdRouteIds.push(route.id);
+
+    // No factoryName / pickupLocation / deliveryLocation on the shipment and
+    // an empty site snapshot: the driver facts must come from the fulfillment's
+    // own container (the columns CUS maintains), not stay blank.
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+      bookingRef: `BOOK-${suffix}-pf`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      pickupPortId: pickupPort.id,
+      dropoffPortId: dropoffPort.id,
+      operationalSiteId: factory.id,
+    }).returning();
+    createdShipmentContainerIds.push(container.id);
+
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      dispatchClassification: 'SINGLE',
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+    }).returning();
+    createdFulfillmentIds.push(fulfillment.id);
+
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `P4P-${suffix}`.slice(0, 50),
+      customerId: customer.id,
+      routeId: route.id,
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      status: TripStatus.IN_TRANSIT,
+      departureDate: '2026-08-01',
+      revenue: '1800000',
+      driverSalary: '250000',
+      totalFuelCost: '0',
+      carrierType: 'OWN',
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, fulfillment.id);
+    assert.equal(detail.pickupLocation, 'Cảng Nam Hải Đình Vũ');
+    assert.equal(detail.deliveryLocation, 'Bãi SITC Tân Vũ');
+    assert.equal(detail.factoryName, 'Biển Bạc Hà Nam');
+  });
+
   test('milestones are ordered and replay-safe', async () => {
     const actor = await createDriverPrincipal('ordered');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
@@ -470,8 +558,8 @@ describe('Phase 4 driver fulfillment execution', () => {
     }
   });
 
-  test('driver cannot confirm order receipt before Ops hands over the paper order', async () => {
-    const actor = await createDriverPrincipal('paper-order-gate');
+  test('driver can confirm order receipt without Ops handoff while the paper-order gate is bypassed (default)', async () => {
+    const actor = await createDriverPrincipal('paper-order-gate-bypassed');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
     await db.update(s.trips)
@@ -481,17 +569,48 @@ describe('Phase 4 driver fulfillment execution', () => {
       })
       .where(eq(s.trips.id, trip.id));
 
-    await assertApiError(409, () => recordDriverFulfillmentProgress({
+    assert.equal(config.driverOpsPaperOrderGateEnabled, false);
+    const { event } = await recordDriverFulfillmentProgress({
       fulfillmentId: fulfillment.id,
       driverId: actor.driver.id,
       recordedBy: actor.user.id,
-      idempotencyKey: `paper-order-gate-${suffix}`,
+      idempotencyKey: `paper-order-gate-bypassed-${suffix}`,
       input: {
         eventType: DriverProgressEventType.ORDER_RECEIVED,
         occurredAt: '2026-08-01T08:05:00.000Z',
         expectedVersion: trip.version,
       },
-    }), /Ops chưa xác nhận giao lệnh gốc/);
+    });
+    assert.equal(event.eventType, DriverProgressEventType.ORDER_RECEIVED);
+  });
+
+  test('driver cannot confirm order receipt before Ops hands over the paper order once the gate is re-enabled', async () => {
+    const actor = await createDriverPrincipal('paper-order-gate-enabled');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
+
+    await db.update(s.trips)
+      .set({
+        paperOrderCollectedAt: null,
+        paperOrderCollectedBy: null,
+      })
+      .where(eq(s.trips.id, trip.id));
+
+    config.driverOpsPaperOrderGateEnabled = true;
+    try {
+      await assertApiError(409, () => recordDriverFulfillmentProgress({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: `paper-order-gate-enabled-${suffix}`,
+        input: {
+          eventType: DriverProgressEventType.ORDER_RECEIVED,
+          occurredAt: '2026-08-01T08:05:00.000Z',
+          expectedVersion: trip.version,
+        },
+      }), /Ops chưa xác nhận giao lệnh gốc/);
+    } finally {
+      config.driverOpsPaperOrderGateEnabled = false;
+    }
   });
 
   test('Driver inbox follows order acknowledgement and waits truthfully while POD is under review', async () => {
@@ -1022,6 +1141,12 @@ after(async () => {
     }
     if (createdRouteIds.length > 0) {
       await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
+    }
+    if (createdOperationalSiteIds.length > 0) {
+      await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdOperationalSiteIds));
+    }
+    if (createdPortIds.length > 0) {
+      await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
     }
     if (createdCustomerIds.length > 0) {
       await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));

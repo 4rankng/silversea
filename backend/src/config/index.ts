@@ -100,6 +100,13 @@ const configSchema = z.object({
   // flag ON. Default OFF for backward compatibility; flip to ON
   // per-environment once the shipment-first migration is complete.
   shipmentFirstCreate: z.boolean().default(false),
+  // Driver-app spec (260827): the Ops field-operations module (physical
+  // paper-order handoff confirmation) isn't built yet, so the driver's first
+  // milestone ("Đã nhận lệnh gốc" / accept order) is temporarily allowed to
+  // fire without Ops having confirmed `paperOrderCollectedAt/By` first.
+  // Default OFF (gate bypassed) per that spec's explicit instruction. Flip to
+  // ON once the Ops module ships to restore the strict handoff gate.
+  driverOpsPaperOrderGateEnabled: z.boolean().default(false),
   // Master key for at-rest encryption of DB-stored secrets (LLM API keys set
   // via the admin settings page). Optional; when empty, services/crypto.ts
   // derives a key from JWT_SECRET so existing deployments keep working. Set an
@@ -165,6 +172,7 @@ const raw = {
   botEnabled: parseFlag(process.env.BOT_ENABLE),
   minimaxApiKey: process.env.MINIMAX_API_KEY,
   shipmentFirstCreate: parseFlag(process.env.SHIPMENT_FIRST_CREATE),
+  driverOpsPaperOrderGateEnabled: parseFlag(process.env.DRIVER_OPS_PAPER_ORDER_GATE_ENABLED, false),
   settingsEncryptionKey: process.env.SETTINGS_ENCRYPTION_KEY,
   agentSlaP95GreenMs: process.env.AGENT_SLA_P95_GREEN_MS,
   agentSlaP95AmberMs: process.env.AGENT_SLA_P95_AMBER_MS,
@@ -201,6 +209,7 @@ const withDefaults = {
   vapidPrivateKey: raw.vapidPrivateKey || '',
   vapidSubject: raw.vapidSubject || VAPID_SUBJECT_DEFAULT,
   botEnabled: raw.botEnabled,
+  driverOpsPaperOrderGateEnabled: raw.driverOpsPaperOrderGateEnabled,
   minimaxApiKey: raw.minimaxApiKey || '',
   settingsEncryptionKey: raw.settingsEncryptionKey || '',
   agentSlaP95GreenMs: raw.agentSlaP95GreenMs || 5000,

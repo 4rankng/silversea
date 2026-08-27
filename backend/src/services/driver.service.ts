@@ -1,3 +1,4 @@
+import { config } from '../config';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
@@ -1060,7 +1061,8 @@ export async function recordDriverFulfillmentProgress(args: {
         throw new ApiError(409, buildDriverFulfillmentSequenceError(recorded, eventType));
       }
       if (
-        eventType === DriverProgressEventType.ORDER_RECEIVED
+        config.driverOpsPaperOrderGateEnabled
+        && eventType === DriverProgressEventType.ORDER_RECEIVED
         && (!ownedTrip.paperOrderCollectedAt || !ownedTrip.paperOrderCollectedBy)
       ) {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
