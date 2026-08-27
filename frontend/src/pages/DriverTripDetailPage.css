@@ -14,6 +14,18 @@
   min-height: 100%;
 }
 
+/* Extra bottom clearance so the last sections don't sit under the fixed
+   accept bar (and, on mobile, the driver bottom-nav it's pinned above). */
+.driver-task-screen--has-accept-bar {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 1023px) {
+  .driver-task-screen--has-accept-bar {
+    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .driver-task-feedback {
   display: grid;
   gap: 12px;
@@ -389,6 +401,56 @@
   color: var(--ok, #166534);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* Layer 2 Block 7: "Nhận lệnh vận chuyển" pinned fixed at the bottom of the
+   screen (spec: "Ghim cố định nút bấm ở đáy màn hình") — unlike
+   .driver-task-footer above, this one is deliberately position:fixed, not
+   normal flow, since it must stay reachable without scrolling. Sits above
+   the driver bottom-nav on mobile so the two never overlap. */
+.driver-task-accept-sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky, 100);
+  display: flex;
+  justify-content: center;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2, #f8fafc) 92%, transparent) 20%, var(--surface-2, #f8fafc) 100%);
+}
+
+@media (max-width: 1023px) {
+  .driver-task-accept-sticky {
+    bottom: calc(60px + env(safe-area-inset-bottom, 12px));
+  }
+}
+
+.driver-task-accept-sticky__inner {
+  width: min(720px, 100%);
+}
+
+.driver-task-accept-sticky__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink, #0f172a) 12%, transparent);
+}
+
+.driver-task-accept-sticky__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* --- Inline-style replacements --- */

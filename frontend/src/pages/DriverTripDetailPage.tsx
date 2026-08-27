@@ -552,8 +552,25 @@ export default function DriverTripDetailPage() {
   const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
+  // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
+  // bottom of the screen (spec: "Ghim cố định nút bấm ở đáy màn hình"), not
+  // an inline timeline step — computed here from the same milestone state
+  // machine the timeline uses, scoped to the ORDER_RECEIVED (index 0) step.
+  const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
+  const acceptCommand = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, DriverProgressEventType.ORDER_RECEIVED);
+  const acceptState = timelineState(Boolean(acceptEvent), acceptCommand, nextMilestoneIndex, 0);
+  const showAcceptStickyBar = acceptState !== 'done';
+  const acceptClickable = acceptState === 'available' || acceptState === 'retry';
+  const acceptButtonLabel = acceptState === 'pending'
+    ? 'Đang gửi…'
+    : acceptState === 'retry'
+      ? 'Thử gửi lại'
+      : acceptState === 'conflict'
+        ? 'Tải lại để xử lý xung đột'
+        : 'Nhận lệnh vận chuyển';
+
   return (
-    <div ref={rootRef} className="driver-task-screen">
+    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}`}>
       <header className="driver-task-header">
         <button type="button" className="driver-task-back" onClick={handleBack} aria-label="Quay lại">
           <ArrowLeft size={18} />
@@ -728,8 +745,11 @@ export default function DriverTripDetailPage() {
             const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
             const command = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, milestone.eventType);
             const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
-            const clickable = state === 'available' || state === 'retry';
             const isAcceptStep = milestone.eventType === DriverProgressEventType.ORDER_RECEIVED;
+            // Accepting is now the sticky bottom button (Block 7 of the spec) —
+            // this step stays as a status card, not a second clickable CTA for
+            // the same action.
+            const clickable = !isAcceptStep && (state === 'available' || state === 'retry');
             const stepTitle = isAcceptStep && state !== 'done' ? 'Nhận lệnh vận chuyển' : milestone.title;
             return (
               <button
@@ -750,8 +770,9 @@ export default function DriverTripDetailPage() {
                 ) : null}
                 <div className="driver-task-step__foot">
                   <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
-                  {state === 'available' && <span>Nhấn để xác nhận</span>}
-                  {state === 'retry' && <span>Nhấn để gửi lại</span>}
+                  {isAcceptStep && state !== 'done' && <span>Dùng nút “Nhận lệnh vận chuyển” ở đáy màn hình</span>}
+                  {!isAcceptStep && state === 'available' && <span>Nhấn để xác nhận</span>}
+                  {!isAcceptStep && state === 'retry' && <span>Nhấn để gửi lại</span>}
                   {state === 'conflict' && <span>Tải lại dữ liệu chuyến</span>}
                 </div>
               </button>
@@ -919,6 +940,22 @@ export default function DriverTripDetailPage() {
           )}
         </div>
       </footer>
+
+      {showAcceptStickyBar && (
+        <div className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
+          <div className="driver-task-accept-sticky__inner">
+            <button
+              type="button"
+              className="driver-task-accept-sticky__btn"
+              disabled={!acceptClickable}
+              onClick={() => void handleMilestone(DriverProgressEventType.ORDER_RECEIVED)}
+            >
+              {acceptState === 'pending' ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
+              <span>{acceptButtonLabel}</span>
+            </button>
+          </div>
+        </div>
+      )}
       </fieldset>
     </div>
   );
