@@ -270,11 +270,26 @@ export default function ShipmentsDetailPage() {
     return next;
   }, { replace: true });
 
+  const tomorrow = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return formatVietnamDateInput(d);
+  }, []);
+
   const showToday = () => setSearchParams((current) => {
     const next = new URLSearchParams(current);
     next.delete('dateScope');
     next.set('transportDateFrom', today);
     next.set('transportDateTo', today);
+    next.delete('page');
+    return next;
+  }, { replace: true });
+
+  const showTomorrow = () => setSearchParams((current) => {
+    const next = new URLSearchParams(current);
+    next.delete('dateScope');
+    next.set('transportDateFrom', tomorrow);
+    next.set('transportDateTo', tomorrow);
     next.delete('page');
     return next;
   }, { replace: true });
@@ -538,7 +553,8 @@ export default function ShipmentsDetailPage() {
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
-                {(dateFrom !== today || dateTo !== today) && <UUIButton size="sm" color="secondary" onPress={showToday}>Về hôm nay</UUIButton>}
+                {(dateFrom !== today || dateTo !== today) && <UUIButton size="sm" color="secondary" onPress={showToday}>Hôm nay</UUIButton>}
+                {(dateFrom !== tomorrow || dateTo !== tomorrow) && <UUIButton size="sm" color="secondary" onPress={showTomorrow}>Hôm sau</UUIButton>}
                 {!allDates && <UUIButton size="sm" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
                 {hasFilters && <UUIButton size="sm" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>}
               </div>

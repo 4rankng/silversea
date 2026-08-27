@@ -43,10 +43,23 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationStatus | 'ALL_ALLOCATIONS'; la
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
 ];
 
+function toISODate(d: Date): string {
+  return d.toLocaleDateString('en-CA');
+}
+
+function addDays(d: Date, n: number): Date {
+  const result = new Date(d);
+  result.setDate(result.getDate() + n);
+  return result;
+}
+
 function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'filters' | 'onChange'>) {
-  const today = new Date().toLocaleDateString('en-CA');
+  const now = new Date();
+  const today = toISODate(now);
+  const tomorrow = toISODate(addDays(now, 1));
   const isAllDates = !filters.deliveryDateFrom && !filters.deliveryDateTo;
   const isToday = filters.deliveryDateFrom === today && filters.deliveryDateTo === today;
+  const isTomorrow = filters.deliveryDateFrom === tomorrow && filters.deliveryDateTo === tomorrow;
 
   return (
     <div className="master-plan-filters__date-actions">
@@ -68,7 +81,18 @@ function QuickDateActions({ filters, onChange }: Pick<MasterPlanFiltersProps, 'f
         }}
         aria-pressed={isToday}
       >
-        Về hôm nay
+        Hôm nay
+      </UUIButton>
+      <UUIButton
+        className={`master-plan-filters__date-action${isTomorrow ? ' is-active' : ''}`}
+        size="sm"
+        color="secondary"
+        onPress={() => {
+          onChange({ deliveryDateFrom: tomorrow, deliveryDateTo: tomorrow });
+        }}
+        aria-pressed={isTomorrow}
+      >
+        Hôm sau
       </UUIButton>
     </div>
   );

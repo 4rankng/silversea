@@ -43,7 +43,8 @@ describe('MasterPlanFilters', () => {
     expect(within(drawer).getByRole('heading', { name: 'Phân xe và ngày giao' })).toBeTruthy();
     expect(within(drawer).getByRole('heading', { name: 'Cảng và nhà xe' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Tất cả các ngày' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Về hôm nay' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Xem kết quả' })).toBeTruthy();
 
@@ -61,7 +62,8 @@ describe('MasterPlanFilters', () => {
     render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Tất cả các ngày' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Về hôm nay' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Hôm nay' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Hôm sau' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('uses the compact control tokens for the bespoke desktop carrier facet', () => {

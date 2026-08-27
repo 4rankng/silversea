@@ -218,7 +218,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Tất cả ngày' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
-    fireEvent.click(screen.getByRole('button', { name: 'Về hôm nay' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
   });
 
