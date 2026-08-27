@@ -617,23 +617,22 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Bốn mốc thực hiện</span>
         </div>
-        <div
-          className={`driver-task-paper-order${paperOrderReady ? ' driver-task-paper-order--ready' : ''}`}
-        >
-          <strong className="driver-task-paper-order__title">Bước 1 cần Ops bàn giao lệnh gốc</strong>
-          <span className="driver-task-paper-order__desc">
-            {paperOrderReady
-              ? `${trip.paperOrderCollectedByName || 'Ops'} đã xác nhận bàn giao lúc ${formatDateTime(trip.paperOrderCollectedAt)}.`
-              : 'Ops chưa xác nhận bàn giao lệnh gốc, nên bạn chưa thể bấm “Đã nhận lệnh gốc”.'}
-          </span>
-        </div>
+        {!paperOrderReady && (
+          <div className="driver-task-paper-order">
+            <strong className="driver-task-paper-order__title">Nhận lệnh ngay, không cần chờ Ops</strong>
+            <span className="driver-task-paper-order__desc">
+              Ops chưa xác nhận bàn giao lệnh gốc, nhưng bạn vẫn có thể bấm “Nhận lệnh vận chuyển” — hệ thống sẽ đối chiếu giấy tờ sau.
+            </span>
+          </div>
+        )}
         <div className="driver-task-timeline">
           {MILESTONES.map((milestone, index) => {
             const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
             const command = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, milestone.eventType);
             const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
-            const clickable = (state === 'available' || state === 'retry')
-              && (milestone.eventType !== DriverProgressEventType.ORDER_RECEIVED || paperOrderReady);
+            const clickable = state === 'available' || state === 'retry';
+            const isAcceptStep = milestone.eventType === DriverProgressEventType.ORDER_RECEIVED;
+            const stepTitle = isAcceptStep && state !== 'done' ? 'Nhận lệnh vận chuyển' : milestone.title;
             return (
               <button
                 type="button"
@@ -646,17 +645,14 @@ export default function DriverTripDetailPage() {
                   <span className="driver-task-step__count">Bước {index + 1}</span>
                   <span className="driver-task-step__state">{timelineStateLabel(state)}</span>
                 </div>
-                <strong className="driver-task-step__title">{milestone.title}</strong>
+                <strong className="driver-task-step__title">{stepTitle}</strong>
                 <p className="driver-task-step__help">{milestone.help}</p>
                 {state === 'conflict' && command?.lastError ? (
                   <p className="driver-task-step__conflict">{command.lastError}</p>
                 ) : null}
                 <div className="driver-task-step__foot">
                   <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
-                  {state === 'available' && milestone.eventType === DriverProgressEventType.ORDER_RECEIVED && !paperOrderReady && (
-                    <span>Chờ Ops bàn giao</span>
-                  )}
-                  {state === 'available' && (milestone.eventType !== DriverProgressEventType.ORDER_RECEIVED || paperOrderReady) && <span>Nhấn để xác nhận</span>}
+                  {state === 'available' && <span>Nhấn để xác nhận</span>}
                   {state === 'retry' && <span>Nhấn để gửi lại</span>}
                   {state === 'conflict' && <span>Tải lại dữ liệu chuyến</span>}
                 </div>

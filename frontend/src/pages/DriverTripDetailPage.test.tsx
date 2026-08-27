@@ -216,7 +216,7 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     expect(await screen.findByText(/Bốn mốc thực hiện/)).toBeTruthy();
-    expect(screen.getByText('Đã nhận lệnh gốc')).toBeTruthy();
+    expect(screen.getByText('Nhận lệnh vận chuyển')).toBeTruthy();
     expect(screen.getByText('Đã lấy vỏ / Lấy hàng')).toBeTruthy();
     expect(screen.getByText('Đang đóng / Trả hàng')).toBeTruthy();
     expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
@@ -241,14 +241,14 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Đã nhận lệnh gốc/ }).matches(':disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
     expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).matches(':disabled')).toBe(true);
   });
 
   it('queues the next available milestone with the trip version and fulfillment id', async () => {
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: /Đã nhận lệnh gốc/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
 
     await waitFor(() => expect(enqueueMock).toHaveBeenCalledTimes(1));
     expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({
