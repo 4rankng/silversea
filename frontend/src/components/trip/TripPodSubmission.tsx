@@ -13,6 +13,7 @@ import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueue';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
+import { compressImageFile } from '../../lib/imageCompression';
 import './TripPodSubmission.css';
 
 type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
@@ -130,7 +131,7 @@ export function TripPodSubmission({
 
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
-    const file = fileList[0];
+    const file = await compressImageFile(fileList[0]);
     setUploadError(null);
 
     try {
