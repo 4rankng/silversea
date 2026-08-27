@@ -148,6 +148,7 @@ export const TRIP_POD_REQUIRED_FILE_TYPES = [
 export enum DriverIncidentalCostType {
   PER_DIEM = 'PER_DIEM',
   LIFT_FEE = 'LIFT_FEE',
+  DROP_FEE = 'DROP_FEE',
   PARKING = 'PARKING',
   TOLL = 'TOLL',
   FUEL = 'FUEL',
@@ -157,7 +158,8 @@ export enum DriverIncidentalCostType {
 /** Vietnamese labels for driver incidental cost types (PRD Mxx-HT-01). */
 export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, string> = {
   [DriverIncidentalCostType.PER_DIEM]: 'Phụ cấp ngày',
-  [DriverIncidentalCostType.LIFT_FEE]: 'Phí nâng hạ',
+  [DriverIncidentalCostType.LIFT_FEE]: 'Phí nâng',
+  [DriverIncidentalCostType.DROP_FEE]: 'Phí hạ',
   [DriverIncidentalCostType.PARKING]: 'Phí đậu xe',
   [DriverIncidentalCostType.TOLL]: 'Phí cầu đường',
   [DriverIncidentalCostType.FUEL]: 'Tiền dầu',

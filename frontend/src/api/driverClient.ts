@@ -179,9 +179,22 @@ export interface DriverTaskDetail {
     contactPhone: string | null;
     routeSummary: string | null;
     siteRules: string[];
+    invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
+}
+
+export interface DriverFulfillmentInvoiceInfo {
+  liftFeeInvoiceName: string | null;
+  liftFeeInvoiceAddress: string | null;
+  liftFeeTaxCode: string | null;
+  dropFeeInvoiceName: string | null;
+  dropFeeInvoiceAddress: string | null;
+  dropFeeTaxCode: string | null;
+  cleaningInvoiceName: string | null;
+  cleaningInvoiceAddress: string | null;
+  cleaningTaxCode: string | null;
 }
 
 interface DriverFulfillmentDetailResponse {
@@ -199,6 +212,7 @@ interface DriverFulfillmentDetailResponse {
   contactName: string | null;
   contactPhone: string | null;
   siteSnapshot: Record<string, unknown>;
+  invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   evidenceStatus: {
     ready: boolean;
     missing: string[];
@@ -250,6 +264,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       siteRules: typeof deliverySite?.strictRules === 'string' && deliverySite.strictRules.trim()
         ? [deliverySite.strictRules.trim()]
         : [],
+      invoiceInfo: wire.invoiceInfo,
     },
     currentPod,
     podHistory,

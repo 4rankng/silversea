@@ -550,6 +550,18 @@ function buildDriverFulfillmentSequenceError(
   return `Không thể ghi nhận ${DRIVER_PROGRESS_EVENT_LABELS[attempted]}. Mốc tiếp theo phải là ${DRIVER_PROGRESS_EVENT_LABELS[next]}.`;
 }
 
+export interface DriverFulfillmentInvoiceInfo {
+  liftFeeInvoiceName: string | null;
+  liftFeeInvoiceAddress: string | null;
+  liftFeeTaxCode: string | null;
+  dropFeeInvoiceName: string | null;
+  dropFeeInvoiceAddress: string | null;
+  dropFeeTaxCode: string | null;
+  cleaningInvoiceName: string | null;
+  cleaningInvoiceAddress: string | null;
+  cleaningTaxCode: string | null;
+}
+
 export interface DriverFulfillmentDetail {
   fulfillmentId: number;
   shipmentId: number;
@@ -570,6 +582,7 @@ export interface DriverFulfillmentDetail {
   contactName: string | null;
   contactPhone: string | null;
   siteSnapshot: Record<string, unknown>;
+  invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   evidenceStatus: DriverCompletionEvidenceStatus;
   milestones: DriverProgressEvent[];
   podSubmissions: Awaited<ReturnType<typeof listPodSubmissionsForDriver>>;
@@ -586,6 +599,13 @@ export async function getDriverFulfillmentDetail(
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
   }
 
+  // Container-authority fallbacks: CUS maintains the per-container ports and
+  // factory; they fill the driver's "Điểm lấy / Điểm trả / Nhà máy" facts
+  // when neither the shipment text columns nor the legacy snapshot half
+  // carries a name (FCL rows decomposed before snapshot sync).
+  const pickupPort = aliasedTable(s.ports, 'driver_pickup_port');
+  const dropoffPort = aliasedTable(s.ports, 'driver_dropoff_port');
+  const containerFactory = aliasedTable(s.operationalSites, 'driver_container_factory');
   const [shipmentRow] = await db.select({
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
@@ -603,8 +623,24 @@ export async function getDriverFulfillmentDetail(
     contactName: s.shipments.contactName,
     contactPhone: s.shipments.contactPhone,
     siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+    containerPickupPortName: pickupPort.name,
+    containerDropoffPortName: dropoffPort.name,
+    containerFactoryName: containerFactory.name,
+    liftFeeInvoiceName: containerFactory.liftFeeInvoiceName,
+    liftFeeInvoiceAddress: containerFactory.liftFeeInvoiceAddress,
+    liftFeeTaxCode: containerFactory.liftFeeTaxCode,
+    dropFeeInvoiceName: containerFactory.dropFeeInvoiceName,
+    dropFeeInvoiceAddress: containerFactory.dropFeeInvoiceAddress,
+    dropFeeTaxCode: containerFactory.dropFeeTaxCode,
+    cleaningInvoiceName: containerFactory.cleaningInvoiceName,
+    cleaningInvoiceAddress: containerFactory.cleaningInvoiceAddress,
+    cleaningTaxCode: containerFactory.cleaningTaxCode,
   }).from(s.shipmentFulfillments)
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .leftJoin(pickupPort, eq(pickupPort.id, s.shipmentContainers.pickupPortId))
+    .leftJoin(dropoffPort, eq(dropoffPort.id, s.shipmentContainers.dropoffPortId))
+    .leftJoin(containerFactory, eq(containerFactory.id, s.shipmentContainers.operationalSiteId))
     .where(eq(s.shipmentFulfillments.id, fulfillmentId))
     .limit(1);
 
@@ -644,17 +680,30 @@ export async function getDriverFulfillmentDetail(
     fulfillmentType: shipmentRow.fulfillmentType,
     tripId: ownedTrip.tripId,
     tripVersion: ownedTrip.tripVersion,
-    factoryName: shipmentRow.factoryName ?? deliverySiteName,
+    factoryName: shipmentRow.factoryName ?? deliverySiteName ?? shipmentRow.containerFactoryName,
     shippingLineName: shipmentRow.shippingLineName,
     expectedDeliveryDate: shipmentRow.expectedDeliveryDate,
     customsCutoffAt: shipmentRow.customsCutoffAt?.toISOString() ?? null,
     closingAt: shipmentRow.closingAt?.toISOString() ?? null,
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
-    pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName,
-    deliveryLocation: shipmentRow.deliveryLocation ?? deliverySiteName,
+    pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
+    deliveryLocation: shipmentRow.deliveryLocation ?? deliverySiteName ?? shipmentRow.containerDropoffPortName,
     contactName: shipmentRow.contactName,
     contactPhone: shipmentRow.contactPhone,
     siteSnapshot,
+    invoiceInfo: [
+      shipmentRow.liftFeeInvoiceName, shipmentRow.dropFeeInvoiceName, shipmentRow.cleaningInvoiceName,
+    ].some((value) => value != null) ? {
+      liftFeeInvoiceName: shipmentRow.liftFeeInvoiceName,
+      liftFeeInvoiceAddress: shipmentRow.liftFeeInvoiceAddress,
+      liftFeeTaxCode: shipmentRow.liftFeeTaxCode,
+      dropFeeInvoiceName: shipmentRow.dropFeeInvoiceName,
+      dropFeeInvoiceAddress: shipmentRow.dropFeeInvoiceAddress,
+      dropFeeTaxCode: shipmentRow.dropFeeTaxCode,
+      cleaningInvoiceName: shipmentRow.cleaningInvoiceName,
+      cleaningInvoiceAddress: shipmentRow.cleaningInvoiceAddress,
+      cleaningTaxCode: shipmentRow.cleaningTaxCode,
+    } : null,
     evidenceStatus,
     milestones,
     podSubmissions,
@@ -895,7 +944,7 @@ async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
-  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string },
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
@@ -905,6 +954,7 @@ async function insertDriverIncidentalCostTx(
     amount: String(input.amount),
     occurredAt: input.occurredAt,
     note: input.note ?? null,
+    receiptStorageKey: input.receiptStorageKey ?? null,
     recordedBy,
   }).returning();
   return row as DriverIncidentalCost;
@@ -1165,6 +1215,7 @@ export interface DriverIncidentalCost {
   amount: string;
   occurredAt: string;
   note: string | null;
+  receiptStorageKey: string | null;
   recordedBy: number | null;
   createdAt: Date;
 }
@@ -1177,7 +1228,7 @@ export interface DriverIncidentalCost {
 export async function recordIncidentalCost(
   tripId: number,
   driverId: number,
-  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string },
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
   recordedBy: number,
   idempotencyKey: string | undefined,
 ): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {

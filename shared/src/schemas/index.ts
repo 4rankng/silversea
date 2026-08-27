@@ -1732,6 +1732,7 @@ export const driverIncidentalCostSchema = z.object({
   amount: z.number().int().positive('Số tiền phải lớn hơn 0'),
   occurredAt: z.string().min(1, 'Ngày phát sinh là bắt buộc'),
   note: z.string().max(1000).optional(),
+  receiptStorageKey: z.string().max(255).optional(),
 });
 
 export type DriverIncidentalCostInput = z.infer<typeof driverIncidentalCostSchema>;
