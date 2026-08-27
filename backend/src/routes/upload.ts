@@ -492,6 +492,17 @@ uploadRouter.post('/', upload.single('file'), asyncHandler(async (req: Request, 
   }
 
   const user = getUser(req);
+  if (user.role === Role.DRIVER) {
+    // DRIVER only just gained upload:write (casbin); without this, any driver
+    // could attach a photo to any trip_id, not just their own assigned trips.
+    const access = await checkDriverTripPhotoAccess(user.userId, tripId);
+    if (access === 'no_profile') {
+      return res.status(403).json({ error: 'Không có quyền truy cập ảnh này' });
+    }
+    if (access === 'not_owned') {
+      return res.status(403).json({ error: 'Không có quyền tải ảnh cho chuyến đi này' });
+    }
+  }
   const idempotencyKey = requireUploadIdempotencyKey(req);
   const prepared = await prepareTripPhoto(file, tripId, type, {
     storageKeySeed: `trip-photo:${user.userId}:${idempotencyKey}`,
