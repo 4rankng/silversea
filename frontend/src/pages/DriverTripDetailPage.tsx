@@ -22,6 +22,8 @@ import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
+import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
+import { isShipmentCostEntryEnabled } from '../lib/featureFlags';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -866,6 +868,12 @@ export default function DriverTripDetailPage() {
             <span>Lộ trình chi tiết</span>
           </div>
           <TripLegsPanel legs={trip.legs} />
+        </section>
+      )}
+
+      {isShipmentCostEntryEnabled() && (
+        <section className="driver-task-section">
+          <ShipmentCostEntryForm tripId={trip.id} />
         </section>
       )}
 
