@@ -497,6 +497,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         newPassword: passwordForm.newPassword,
       });
       setPasswordModalOpen(false);
+      // The server revoked this session's token as part of the password
+      // change, so the SPA must drop it and send the user to sign in with
+      // the new password — staying signed in would 401 every later request.
+      logout({ revoke: false });
     } catch (err: unknown) {
       setPasswordError((err as Error)?.message || 'Không thể đổi mật khẩu.');
     } finally {

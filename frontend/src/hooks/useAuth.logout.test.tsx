@@ -37,6 +37,7 @@ function AuthProbe() {
       <output data-testid="auth-state">{isAuthenticated ? 'signed-in' : 'signed-out'}</output>
       <button type="button" onClick={() => void login('next-user', 'password')}>login</button>
       <button type="button" onClick={() => logout()}>logout</button>
+      <button type="button" onClick={() => logout({ revoke: false })}>logout-skip-revoke</button>
     </div>
   );
 }
@@ -72,6 +73,7 @@ function createStorageStub() {
 }
 
 const VALID_TEST_JWT = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjQxMDI0NDQ4MDB9.signature';
+const EXPIRED_TEST_JWT = 'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJleHAiOjF9.signature';
 
 describe('AuthProvider logout', () => {
   beforeEach(() => {
@@ -170,6 +172,116 @@ describe('AuthProvider logout', () => {
       expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('drops the token instead of retrying when the server already rejected it (401)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        userId: 1,
+        username: 'admin',
+        email: null,
+        phone: null,
+        role: 'ADMIN',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Token đã bị thu hồi' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockImplementation(() => Promise.reject(new Error('unexpected fetch')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    localStorage.setItem('token', VALID_TEST_JWT);
+    api.refreshTokenFromStorage();
+    renderWithAuth(<AuthProbe />);
+
+    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
+    });
+    // 401 = the token is dead server-side; it must leave the pending queue
+    // rather than being retried (and 401-ing) on every reconnect/logout.
+    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
+
+    window.dispatchEvent(new Event('online'));
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips the logout network call entirely with revoke: false (change-password flow)', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        userId: 1,
+        username: 'admin',
+        email: null,
+        phone: null,
+        role: 'ADMIN',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockImplementation(() => Promise.reject(new Error('unexpected fetch')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    localStorage.setItem('token', VALID_TEST_JWT);
+    api.refreshTokenFromStorage();
+    const { queryClient } = renderWithAuth(<AuthProbe />);
+
+    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
+    queryClient.setQueryData(['financial', 'customer-a'], { outstanding: 123_000 });
+    fireEvent.click(screen.getByRole('button', { name: 'logout-skip-revoke' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
+    });
+    // Only the initial /auth/me fetch happened — no /auth/logout attempt,
+    // because the change-password request already revoked this token.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
+    expect(queryClient.getQueryData(['financial', 'customer-a'])).toBeUndefined();
+    expect(disposeAgentSocketMock).toHaveBeenCalledOnce();
+    expect(clearAgentConversationMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not attempt server revocation for an already-expired token', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        userId: 1,
+        username: 'admin',
+        email: null,
+        phone: null,
+        role: 'ADMIN',
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      .mockImplementation(() => Promise.reject(new Error('unexpected fetch')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    localStorage.setItem('token', VALID_TEST_JWT);
+    api.refreshTokenFromStorage();
+    renderWithAuth(<AuthProbe />);
+
+    expect((await screen.findByTestId('auth-state')).textContent).toBe('signed-in');
+    // Token expires while the tab sits open (no query has 401'd yet).
+    localStorage.setItem('token', EXPIRED_TEST_JWT);
+    api.refreshTokenFromStorage();
+    fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state').textContent).toBe('signed-out');
+    });
+    // jwt.verify would reject the expired token before the logout route, so
+    // sending it can only produce a pointless 401.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('pending_logout_tokens')).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
   });
 
   it('clears protected query data before a different user becomes authenticated', async () => {

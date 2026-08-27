@@ -30,7 +30,7 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   login: (identifier: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: (opts?: { revoke?: boolean }) => void;
   updateUser: (updates: Pick<AuthUser, 'email' | 'phone' | 'username' | 'fullName'>) => void;
   isAuthenticated: boolean;
   loading: boolean;
@@ -81,6 +81,11 @@ async function revokeToken(token: string): Promise<void> {
     body: '{}',
   });
   if (!response.ok) {
+    // 401/403 means the token is already expired or revoked server-side —
+    // the revocation goal is met, so treat it as done. Retrying such a
+    // token can never succeed and only generates endless 401 noise.
+    // Network faults and 5xx stay retryable via the pending queue.
+    if (response.status === 401 || response.status === 403) return;
     throw new Error(`Logout revocation failed with HTTP ${response.status}`);
   }
 }
@@ -176,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return pendingRevocationInFlightRef.current;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback((opts?: { revoke?: boolean }) => {
     // Idempotent: useAuthedQuery invokes logout() on any 401/403, so during a
     // logout teardown several in-flight queries may race to log out again.
     if (logoutInFlightRef.current) return;
@@ -185,12 +190,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       finalizeLocalLogout();
       return;
     }
-    enqueuePendingLogoutToken(token);
+    // Skip the revocation queue when the caller already revoked the token
+    // server-side (change-password does it in the same request) or when the
+    // JWT is expired client-side — the server would only 401 both, seeding a
+    // permanent retry loop instead of a clean local teardown.
+    const shouldRevoke = opts?.revoke !== false && !isTokenExpired(token);
     logoutInFlightRef.current = (async () => {
       try {
-        await retryPendingRevocations();
-        if (readPendingLogoutTokens().includes(token)) {
+        if (shouldRevoke) {
+          enqueuePendingLogoutToken(token);
           await retryPendingRevocations();
+          if (readPendingLogoutTokens().includes(token)) {
+            await retryPendingRevocations();
+          }
         }
       } finally {
         // Local teardown is unconditional, while failed server revocations stay
