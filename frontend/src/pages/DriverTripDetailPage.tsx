@@ -605,6 +605,8 @@ export default function DriverTripDetailPage() {
               ? trip.containers.map((container) => container.containerNumber).join(' · ')
               : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName)
           } />
+          <TaskFact icon={<Package2 size={16} />} label="Loại container" value={valueOrDash(trip.containers[0]?.containerTypeName)} />
+          <TaskFact icon={<Package2 size={16} />} label="Số seal" value={valueOrDash(trip.containers[0]?.sealNumber)} />
           <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} />
           <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} />
           <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} />
