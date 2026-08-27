@@ -9,6 +9,11 @@
   content: '';
 }
 
+.dispatch-assignment-cell {
+  position: absolute;
+  inset: 0;
+}
+
 .dispatch-assignment-cell__trigger {
   position: absolute;
   inset: 0;
@@ -83,6 +88,58 @@
   color: var(--text-tertiary, #98a2b3);
   font-family: inherit;
   font-style: italic;
+}
+
+/* Row-level "phát lệnh" shortcut — layered above the full-cell trigger so a
+   dispatcher can issue an already-plated row without opening the editor. */
+.dispatch-assignment-cell__quick-issue {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: #fff;
+  background: linear-gradient(180deg, #1eae6b 0%, #0f7a47 100%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16), 0 0 0 1px rgba(15, 122, 71, 0.1);
+  cursor: pointer;
+  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.dispatch-assignment-cell__quick-issue svg {
+  transform: translateX(-1px);
+}
+
+.dispatch-assignment-cell__quick-issue:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 3px 8px rgba(16, 24, 40, 0.22), 0 0 0 1px rgba(15, 122, 71, 0.14);
+  transform: translateY(-1px);
+}
+
+.dispatch-assignment-cell__quick-issue:active:not(:disabled) {
+  filter: brightness(0.95);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.16);
+  transform: translateY(0);
+}
+
+.dispatch-assignment-cell__quick-issue:focus-visible {
+  z-index: 3;
+  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.dispatch-assignment-cell__quick-issue:disabled {
+  cursor: default;
+  filter: grayscale(0.3);
+  opacity: 0.55;
+  box-shadow: none;
+  transform: none;
 }
 
 .dispatch-assignment-dialog {
@@ -168,12 +225,27 @@
 }
 
 .dispatch-assignment-dialog__issue-btn {
-  background: var(--color-bg-success-solid, #17b26a);
-  border-color: var(--color-bg-success-solid, #17b26a);
+  background: linear-gradient(180deg, #1eae6b 0%, #0f7a47 100%);
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.14), 0 0 0 1px rgba(15, 122, 71, 0.1);
+  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .dispatch-assignment-dialog__issue-btn:hover:not(:disabled) {
-  filter: brightness(0.94);
+  filter: brightness(1.05);
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.2), 0 0 0 1px rgba(15, 122, 71, 0.14);
+  transform: translateY(-1px);
+}
+
+.dispatch-assignment-dialog__issue-btn:active:not(:disabled) {
+  filter: brightness(0.95);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.14);
+  transform: translateY(0);
+}
+
+.dispatch-assignment-dialog__issue-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .dispatch-assignment-dialog__issue {
@@ -250,11 +322,35 @@
     display: none;
   }
 
+  .dispatch-assignment-cell {
+    position: static;
+  }
+
   .dispatch-assignment-cell__trigger {
     position: relative;
     inset: auto;
     height: auto;
     min-height: 0;
+  }
+
+  .dispatch-assignment-cell__quick-issue {
+    position: static;
+    width: calc(100% - 24px);
+    height: var(--control-compact-h, 34px);
+    margin: 6px 12px 8px;
+    padding: 0 14px;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  .dispatch-assignment-cell__quick-issue::after {
+    content: 'Phát lệnh nhanh';
+  }
+
+  .dispatch-assignment-cell__quick-issue svg {
+    transform: none;
   }
 
   /* `td` keeps this above the grid's `.detailed-plan-grid__cell::before`
@@ -298,6 +394,11 @@
 
   .dispatch-assignment-dialog__classification {
     width: min(180px, 100%);
+  }
+
+  .dispatch-assignment-cell__quick-issue {
+    height: var(--control-touch-h, 44px);
+    font-size: 13px;
   }
 }
 

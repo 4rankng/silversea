@@ -15,27 +15,12 @@ import { Modal } from '../../../components/UI';
 import { SearchableSelect, TextField, type SearchableSelectOption } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { formatMoneyInput, normalizeMoneyInput } from '../../../lib/moneyInput';
+import { IssueOrderFields } from './IssueOrderFields';
+import { QuickIssueOrderDialog } from './QuickIssueOrderDialog';
+import { useIssueOrder } from './useIssueOrder';
 import './DispatchPlanEditorCell.css';
 
 export type IssueOrderResult = DispatchShipmentResponse;
-
-function pad2(value: number): string {
-  return String(value).padStart(2, '0');
-}
-
-/** `<input type="datetime-local">` value in the browser's local time — the
- *  business timezone for every dispatcher session (Asia/Ho_Chi_Minh). */
-function toDatetimeLocalValue(date: Date): string {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-}
-
-function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
-  const start = new Date();
-  start.setMinutes(start.getMinutes() < 30 ? 30 : 0, 0, 0);
-  if (start.getMinutes() === 0) start.setHours(start.getHours() + 1);
-  const end = new Date(start.getTime() + 2 * 60 * 60_000);
-  return { plannedStartAt: toDatetimeLocalValue(start), plannedEndAt: toDatetimeLocalValue(end) };
-}
 
 const PAGE_LOAD_SIZE = 50;
 const OWN_TRUCK_PREFIX = 'truck:';
@@ -191,15 +176,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [ownTruck, setOwnTruck] = useState<{ id: number; driverId: number | null; driverName: string | null } | null>(null);
-  const [loadingOwnTruck, setLoadingOwnTruck] = useState(false);
-  const [issueDraft, setIssueDraft] = useState(() => ({
-    ...defaultIssueTimes(),
-    externalDriverName: '',
-    externalDriverPhone: '',
-  }));
-  const [issuing, setIssuing] = useState(false);
-  const [issueError, setIssueError] = useState<string | null>(null);
+  const [quickIssueOpen, setQuickIssueOpen] = useState(false);
+  const quickIssueTriggerRef = useRef<HTMLButtonElement>(null);
+  const restoreQuickFocusRef = useRef(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
@@ -214,31 +193,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const planDirty = draft.carrierValue !== carrierValueForRow(row) || draft.vehicleValue !== vehicleValueForRow(row);
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
-  useEffect(() => {
-    if (!open || !canIssue || row.dispatch.carrierType !== 'OWN' || !row.dispatch.assignedPlate) {
-      setOwnTruck(null);
-      return undefined;
-    }
-    let cancelled = false;
-    setLoadingOwnTruck(true);
-    listDispatchFleetResources('TRUCK', { limit: 5, q: row.dispatch.assignedPlate })
-      .then((response) => {
-        if (cancelled) return;
-        const match = (response.items as DispatchTruck[])
-          .find((truck) => truck.licensePlate === row.dispatch.assignedPlate);
-        setOwnTruck(match ? { id: match.id, driverId: match.assignedDriverId, driverName: match.assignedDriverName } : null);
-      })
-      .catch(() => { if (!cancelled) setOwnTruck(null); })
-      .finally(() => { if (!cancelled) setLoadingOwnTruck(false); });
-    return () => { cancelled = true; };
-  }, [open, canIssue, row.dispatch.carrierType, row.dispatch.assignedPlate]);
-
-  useEffect(() => {
-    if (open) {
-      setIssueDraft({ ...defaultIssueTimes(), externalDriverName: '', externalDriverPhone: '' });
-      setIssueError(null);
-    }
-  }, [open, row.fulfillmentId]);
+  const {
+    ownTruck,
+    loadingOwnTruck,
+    issueDraft,
+    setIssueDraft,
+    issuing,
+    issueError,
+    setIssueError,
+    issue,
+  } = useIssueOrder({
+    row,
+    open,
+    canIssue,
+    onIssueOrder,
+    onIssued: () => { restoreFocusRef.current = true; setOpen(false); },
+  });
 
   useEffect(() => {
     if (!open) setDraft(draftForRow(row));
@@ -249,6 +219,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     restoreFocusRef.current = false;
     triggerRef.current?.focus({ preventScroll: true });
   }, [open]);
+
+  useEffect(() => {
+    if (quickIssueOpen || !restoreQuickFocusRef.current) return;
+    restoreQuickFocusRef.current = false;
+    quickIssueTriggerRef.current?.focus({ preventScroll: true });
+  }, [quickIssueOpen]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -481,59 +457,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     }
   }
 
-  async function issue() {
-    if (issuing || !canIssue) return;
-    const startAt = new Date(issueDraft.plannedStartAt);
-    const endAt = new Date(issueDraft.plannedEndAt);
-    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
-      setIssueError('Giờ chạy / giờ kết thúc không hợp lệ.');
-      return;
-    }
-    if (endAt.getTime() <= startAt.getTime()) {
-      setIssueError('Giờ kết thúc phải sau giờ chạy.');
-      return;
-    }
-    const isOwn = row.dispatch.carrierType === 'OWN';
-    if (isOwn && (ownTruck == null || ownTruck.driverId == null)) {
-      setIssueError('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
-      return;
-    }
-    const externalDriverName = issueDraft.externalDriverName.trim();
-    const externalDriverPhone = issueDraft.externalDriverPhone.trim();
-    if (!isOwn && !externalDriverName) {
-      setIssueError('Nhập tên tài xế nhà xe ngoài trước khi phát lệnh.');
-      return;
-    }
+  function openQuickIssue() {
+    if (disabled) return;
+    setQuickIssueOpen(true);
+  }
 
-    setIssuing(true);
-    setIssueError(null);
-    try {
-      await onIssueOrder(row, {
-        plannedStartAt: startAt.toISOString(),
-        plannedEndAt: endAt.toISOString(),
-        endTimeConfirmed: true,
-        carrierType: row.dispatch.carrierType,
-        truckId: isOwn ? ownTruck!.id : undefined,
-        driverId: isOwn ? ownTruck!.driverId : undefined,
-        externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
-        externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
-        externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null
-          ? undefined
-          : row.dispatch.assignedPlate,
-        externalDriverName: isOwn ? undefined : externalDriverName,
-        externalDriverPhone: isOwn ? undefined : (externalDriverPhone || undefined),
-      });
-      restoreFocusRef.current = true;
-      setOpen(false);
-    } catch (issueOrderError) {
-      setIssueError(
-        issueOrderError instanceof Error && issueOrderError.message
-          ? issueOrderError.message
-          : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
-      );
-    } finally {
-      setIssuing(false);
-    }
+  function closeQuickIssue() {
+    restoreQuickFocusRef.current = true;
+    setQuickIssueOpen(false);
   }
 
   const identity = row.container.containerNumber || row.docs.billNumber || row.shipmentCode || `dòng ${row.fulfillmentId}`;
@@ -543,7 +474,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     && row.dispatch.tripStatus === 'CREATED';
 
   return (
-    <>
+    <div className="dispatch-assignment-cell">
       <button
         ref={triggerRef}
         type="button"
@@ -566,6 +497,27 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
       </button>
+
+      {issueStatus === 'PLATED_NOT_ISSUED' && (
+        <button
+          ref={quickIssueTriggerRef}
+          type="button"
+          className="dispatch-assignment-cell__quick-issue"
+          onClick={openQuickIssue}
+          disabled={disabled}
+          aria-label={`Phát lệnh nhanh · ${identity}`}
+          title="Phát lệnh nhanh — không cần mở ô điều phối"
+        >
+          <Send size={13} aria-hidden="true" />
+        </button>
+      )}
+
+      <QuickIssueOrderDialog
+        row={row}
+        open={quickIssueOpen}
+        onClose={closeQuickIssue}
+        onIssueOrder={onIssueOrder}
+      />
 
       <Modal
         isOpen={open}
@@ -693,65 +645,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                   Lưu thay đổi điều phối ở trên trước khi phát lệnh.
                 </p>
               ) : (
-                <>
-                  {row.dispatch.carrierType === 'OWN' ? (
-                    <p className="dispatch-assignment-dialog__issue-driver">
-                      Tài xế: {loadingOwnTruck
-                        ? 'Đang tải…'
-                        : ownTruck?.driverName ?? (
-                          <span className="dispatch-assignment-dialog__issue-warning">
-                            Xe {currentPlate} chưa gán tài xế — vào Danh mục Xe nội bộ để gán trước.
-                          </span>
-                        )}
-                    </p>
-                  ) : (
-                    <>
-                      <TextField
-                        id={`dispatch-issue-driver-name-${row.fulfillmentId}`}
-                        label="Tên tài xế (nhà xe ngoài)"
-                        autoComplete="off"
-                        value={issueDraft.externalDriverName}
-                        onChange={(event) => { setIssueDraft((current) => ({ ...current, externalDriverName: event.target.value })); setIssueError(null); }}
-                        required
-                      />
-                      <TextField
-                        id={`dispatch-issue-driver-phone-${row.fulfillmentId}`}
-                        label="SĐT tài xế (nhà xe ngoài)"
-                        autoComplete="off"
-                        value={issueDraft.externalDriverPhone}
-                        onChange={(event) => { setIssueDraft((current) => ({ ...current, externalDriverPhone: event.target.value })); setIssueError(null); }}
-                      />
-                    </>
-                  )}
-                  <div className="dispatch-assignment-dialog__issue-times">
-                    <label htmlFor={`dispatch-issue-start-${row.fulfillmentId}`}>
-                      <span>Giờ chạy</span>
-                      <input
-                        id={`dispatch-issue-start-${row.fulfillmentId}`}
-                        type="datetime-local"
-                        className="input"
-                        value={issueDraft.plannedStartAt}
-                        onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedStartAt: event.target.value })); setIssueError(null); }}
-                      />
-                    </label>
-                    <label htmlFor={`dispatch-issue-end-${row.fulfillmentId}`}>
-                      <span>Giờ kết thúc</span>
-                      <input
-                        id={`dispatch-issue-end-${row.fulfillmentId}`}
-                        type="datetime-local"
-                        className="input"
-                        value={issueDraft.plannedEndAt}
-                        onChange={(event) => { setIssueDraft((current) => ({ ...current, plannedEndAt: event.target.value })); setIssueError(null); }}
-                      />
-                    </label>
-                  </div>
-                </>
+                <IssueOrderFields
+                  row={row}
+                  ownTruck={ownTruck}
+                  loadingOwnTruck={loadingOwnTruck}
+                  issueDraft={issueDraft}
+                  setIssueDraft={setIssueDraft}
+                  onFieldTouched={() => setIssueError(null)}
+                />
               )}
               {issueError && <p className="dispatch-assignment-dialog__error" role="alert">{issueError}</p>}
             </fieldset>
           )}
         </form>
       </Modal>
-    </>
+    </div>
   );
 }
