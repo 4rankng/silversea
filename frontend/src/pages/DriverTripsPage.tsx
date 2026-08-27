@@ -1,11 +1,148 @@
-import { RoleWorkInbox } from '../components/work-inbox/RoleWorkInbox';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Loader2, Package2 } from 'lucide-react';
+import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
+import type { DriverJourneyCard } from '../api/driverClient';
+import './DriverTripsPage.css';
+
+type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
+
+const TABS: Array<{ key: JourneyTabKey; label: string }> = [
+  { key: 'NEW', label: 'Lệnh mới' },
+  { key: 'RUNNING', label: 'Đã nhận' },
+  { key: 'HISTORY', label: 'Lịch sử' },
+];
+
+const EMPTY_MESSAGE: Record<JourneyTabKey, string> = {
+  NEW: 'Chưa có lệnh mới nào được giao.',
+  RUNNING: 'Không có chuyến nào đang chạy.',
+  HISTORY: 'Chưa có chuyến nào trong lịch sử.',
+};
+
+function formatCardTime(iso: string | null): string {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mo = String(date.getMonth() + 1).padStart(2, '0');
+  return `${hh}:${mm} - ${dd}/${mo}`;
+}
+
+/**
+ * "Kẹp" (combined order): sibling fulfillments/trips sharing one isCombined
+ * shipment (see driver-journey-board.service.ts) render as separate, visually
+ * linked cards under one shared tag. Everything else is its own group of one.
+ */
+function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
+  const groups = new Map<string, DriverJourneyCard[]>();
+  const order: string[] = [];
+  for (const card of cards) {
+    const key = card.classification === 'CLAMP' ? `shipment:${card.shipmentId}` : `fulfillment:${card.fulfillmentId}`;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+      order.push(key);
+    }
+    groups.get(key)!.push(card);
+  }
+  return order.map((key) => groups.get(key)!);
+}
+
+function JourneyCard({ card }: { card: DriverJourneyCard }) {
+  const navigate = useNavigate();
+  const isClamp = card.classification === 'CLAMP';
+  return (
+    <article className={`driver-journey-card${isClamp ? ' driver-journey-card--clamp' : ''}`}>
+      <div className="driver-journey-card__header">
+        <span className={`driver-journey-card__tag${isClamp ? ' driver-journey-card__tag--clamp' : ''}`}>
+          {isClamp ? 'KẸP' : 'ĐƠN'}
+        </span>
+        <span className="driver-journey-card__time">{formatCardTime(card.scheduledAt)}</span>
+      </div>
+      <div className="driver-journey-card__row">
+        <span className="driver-journey-card__cell">{card.factoryName ?? '—'}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right">{card.loadingPortName ?? '—'}</span>
+      </div>
+      <div className="driver-journey-card__row">
+        <span className="driver-journey-card__cell">{card.routeName ?? '—'}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right">{card.dropPortName ?? '—'}</span>
+      </div>
+      <div className="driver-journey-card__container">
+        <Package2 size={14} />
+        <span>
+          Cont: {card.containerNumber ?? '—'}
+          {card.containerTypeName ? ` - ${card.containerTypeName}` : ''}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="driver-journey-card__footer"
+        onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
+      >
+        <span>Xem chi tiết & Nhận lệnh</span>
+        <ArrowRight size={16} />
+      </button>
+    </article>
+  );
+}
 
 export default function DriverTripsPage() {
+  const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
+  const { data, isLoading, error } = useDriverJourneyBoard();
+
+  const countsByBucket = useMemo(() => {
+    const counts: Record<JourneyTabKey, number> = { NEW: 0, RUNNING: 0, HISTORY: 0 };
+    for (const card of data ?? []) counts[card.bucket] += 1;
+    return counts;
+  }, [data]);
+
+  const groupedCardsForTab = useMemo(() => {
+    const cardsInTab = (data ?? []).filter((card) => card.bucket === activeTab);
+    return groupCards(cardsInTab);
+  }, [data, activeTab]);
+
   return (
-    <RoleWorkInbox
-      role="driver"
-      title="Việc hôm nay"
-      description="Xem đúng việc tiếp theo, theo dõi thứ tự mốc chuyến và mở hồ sơ khi cần ghi nhận bằng chứng."
-    />
+    <div className="driver-journey">
+      <div className="driver-journey__tabs" role="tablist" aria-label="Trạng thái hành trình">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            className={activeTab === tab.key ? 'is-active' : ''}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}<span>{countsByBucket[tab.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="driver-journey__panel" role="tabpanel">
+        {isLoading ? (
+          <p className="driver-journey__loading">
+            <Loader2 size={16} className="spin" /> Đang tải hành trình…
+          </p>
+        ) : error ? (
+          <p className="driver-journey__error">Không thể tải hành trình. Vui lòng thử lại.</p>
+        ) : groupedCardsForTab.length === 0 ? (
+          <p className="driver-journey__empty">{EMPTY_MESSAGE[activeTab]}</p>
+        ) : (
+          <div className="driver-journey__list">
+            {groupedCardsForTab.map((group) => (
+              <div
+                key={group.map((card) => card.fulfillmentId).join('-')}
+                className={group.length > 1 ? 'driver-journey-group driver-journey-group--clamp' : 'driver-journey-group'}
+              >
+                {group.map((card) => (
+                  <JourneyCard key={card.fulfillmentId} card={card} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

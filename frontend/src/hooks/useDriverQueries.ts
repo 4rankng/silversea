@@ -74,3 +74,11 @@ export function useDriverPayslips() {
     queryFn: () => driverClient.getPayslips(),
   });
 }
+
+/** Driver-app "Hành trình" screen — New Orders / Running / History board. */
+export function useDriverJourneyBoard() {
+  return useQuery({
+    queryKey: qk.driver.journeyBoard,
+    queryFn: () => driverClient.getJourneyBoard(),
+  });
+}

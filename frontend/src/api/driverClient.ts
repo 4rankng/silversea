@@ -57,7 +57,28 @@ const DRIVER_TASK = {
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
+  JOURNEY_BOARD: '/driver/me/journey-board',
 } as const;
+
+export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
+export type DriverJourneyClassification = 'SINGLE' | 'CLAMP';
+
+export interface DriverJourneyCard {
+  fulfillmentId: number;
+  tripId: number;
+  shipmentId: number;
+  tripCode: string | null;
+  shipmentCode: string | null;
+  bucket: DriverJourneyBucket;
+  classification: DriverJourneyClassification;
+  scheduledAt: string | null;
+  factoryName: string | null;
+  loadingPortName: string | null;
+  routeName: string | null;
+  dropPortName: string | null;
+  containerNumber: string | null;
+  containerTypeName: string | null;
+}
 
 export interface DriverTaskLeg {
   id: number;
@@ -385,6 +406,11 @@ export const driverClient = {
     return api.post<DriverTaskMilestoneEvent>(DRIVER_TASK.PROGRESS(tripId), body, {
       headers: { 'Idempotency-Key': idempotencyKey },
     });
+  },
+
+  getJourneyBoard: async () => {
+    const wire = await api.get<{ items: DriverJourneyCard[] }>(DRIVER_TASK.JOURNEY_BOARD);
+    return wire.items;
   },
 
   getTaskDetail: async (fulfillmentId: number) => {

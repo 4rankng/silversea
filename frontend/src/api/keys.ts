@@ -174,6 +174,8 @@ export const qk = {
     twoOrders: ['driver-two-orders'],
     /** M8.6: driver payslip periods (issued salary periods with earnings). */
     payslips: ['driver-payslips'],
+    /** Driver-app "Hành trình" screen: New/Running/History journey board. */
+    journeyBoard: ['driver-journey-board'],
   },
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
