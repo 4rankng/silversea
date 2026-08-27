@@ -625,16 +625,16 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Ảnh Cont / Seal</span>
         </div>
-        <div className="driver-task-fuel-section">
+        <div className="driver-task-photo-section" data-testid="container-seal-photo-section">
           {([
             { type: 'CONTAINER' as const, label: 'Cont', photos: containerPhotos, uploading: uploadingContainerPhoto },
             { type: 'SEAL' as const, label: 'Seal', photos: sealPhotos, uploading: uploadingSealPhoto },
           ]).map((group) => (
-            <div key={group.type} className="driver-task-fuel-card">
-              <div className="driver-task-fuel-header">
+            <div key={group.type} className="driver-task-photo-card" data-testid={`photo-card-${group.type}`}>
+              <div className="driver-task-photo-header">
                 <div>
-                  <strong className="driver-task-fuel-title">{group.label}</strong>
-                  <div className="driver-task-fuel-subtitle">
+                  <strong className="driver-task-photo-title">{group.label}</strong>
+                  <div className="driver-task-photo-subtitle">
                     {group.photos.length > 0
                       ? `${group.photos.length} ảnh · gần nhất ${formatDateTime(group.photos[0].uploadedAt)}`
                       : `Chưa có ảnh ${group.label.toLowerCase()} nào.`}
@@ -649,6 +649,7 @@ export default function DriverTripDetailPage() {
                     capture="environment"
                     style={{ display: 'none' }}
                     disabled={group.uploading}
+                    data-testid={`photo-input-${group.type}`}
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       event.currentTarget.value = '';
@@ -661,7 +662,7 @@ export default function DriverTripDetailPage() {
                 <ul className="trip-pod__file-list">
                   {group.photos.map((photo) => (
                     <li key={photo.id} className="trip-pod__file">
-                      <img src={photoSrc(photo.storageKey)} alt={`${group.label} ${photo.id}`} className="driver-task-fuel-img" />
+                      <img src={photoSrc(photo.storageKey)} alt={`${group.label} ${photo.id}`} className="driver-task-photo-img" />
                       <span className="trip-pod__file-time">{formatDateTime(photo.uploadedAt)}</span>
                     </li>
                   ))}
