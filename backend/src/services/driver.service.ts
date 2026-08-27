@@ -584,6 +584,7 @@ export interface DriverFulfillmentDetail {
   contactPhone: string | null;
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
+  containerSealPhotos: Array<{ id: number; type: 'CONTAINER' | 'SEAL'; storageKey: string; uploadedAt: string }>;
   evidenceStatus: DriverCompletionEvidenceStatus;
   milestones: DriverProgressEvent[];
   podSubmissions: Awaited<ReturnType<typeof listPodSubmissionsForDriver>>;
@@ -649,11 +650,25 @@ export async function getDriverFulfillmentDetail(
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
   }
 
-  const [evidenceStatus, milestones, podSubmissions] = await Promise.all([
+  const [evidenceStatus, milestones, podSubmissions, containerSealPhotoRows] = await Promise.all([
     getDriverCompletionEvidenceStatus(ownedTrip.tripId),
     listDriverFulfillmentProgress(fulfillmentId, driverId),
     listPodSubmissionsForDriver(driverId, fulfillmentId),
+    db.select({
+      id: s.tripPhotos.id,
+      type: s.tripPhotos.type,
+      storageKey: s.tripPhotos.storageKey,
+      uploadedAt: s.tripPhotos.uploadedAt,
+    }).from(s.tripPhotos)
+      .where(and(eq(s.tripPhotos.tripId, ownedTrip.tripId), inArray(s.tripPhotos.type, ['CONTAINER', 'SEAL'])))
+      .orderBy(desc(s.tripPhotos.uploadedAt)),
   ]);
+  const containerSealPhotos = containerSealPhotoRows.map((row) => ({
+    id: row.id,
+    type: row.type as 'CONTAINER' | 'SEAL',
+    storageKey: row.storageKey,
+    uploadedAt: row.uploadedAt.toISOString(),
+  }));
 
   const siteSnapshot = projectSiteSnapshot(shipmentRow.siteSnapshot ?? {});
   // The driver portal shows the trip's pickup / drop / factory in three
@@ -705,6 +720,7 @@ export async function getDriverFulfillmentDetail(
       cleaningInvoiceAddress: shipmentRow.cleaningInvoiceAddress,
       cleaningTaxCode: shipmentRow.cleaningTaxCode,
     } : null,
+    containerSealPhotos,
     evidenceStatus,
     milestones,
     podSubmissions,

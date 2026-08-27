@@ -387,6 +387,108 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.equal(detail.factoryName, 'Biển Bạc Hà Nam');
   });
 
+  test('driver fulfillment detail surfaces the factory invoice info block and container/seal photos', async () => {
+    const actor = await createDriverPrincipal('invoice-photos');
+    const [customer] = await db.insert(s.customers).values({
+      name: `Phase4 invoice customer ${suffix}`,
+    }).returning();
+    createdCustomerIds.push(customer.id);
+
+    const [factory] = await db.insert(s.operationalSites).values({
+      customerId: customer.id,
+      code: `INV${suffix.replace(/[^A-Z0-9]/gi, '').slice(-8)}`,
+      name: 'Nhà máy Đông Anh',
+      siteType: 'FACTORY',
+      address: 'KCN Đông Anh, Hà Nội',
+      isActive: true,
+      liftFeeInvoiceName: 'Công ty Nâng Hạ Đông Anh',
+      liftFeeTaxCode: '0102030405',
+      dropFeeInvoiceName: 'Công ty Hạ Container Đông Anh',
+      dropFeeTaxCode: '0102030406',
+      cleaningInvoiceName: 'Công ty Vệ Sinh Cont Đông Anh',
+      cleaningTaxCode: '0102030407',
+    }).returning();
+    createdOperationalSiteIds.push(factory.id);
+
+    const [route] = await db.insert(s.routes).values({
+      name: `Phase4 invoice route ${suffix}`,
+    }).returning();
+    createdRouteIds.push(route.id);
+
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: customer.id,
+      routeId: route.id,
+      cargoMode: 'FCL',
+      status: 'DISPATCHED',
+      bookingRef: `BOOK-${suffix}-inv`,
+    }).returning();
+    createdShipmentIds.push(shipment.id);
+
+    const [container] = await db.insert(s.shipmentContainers).values({
+      shipmentId: shipment.id,
+      operationalSiteId: factory.id,
+    }).returning();
+    createdShipmentContainerIds.push(container.id);
+
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      shipmentContainerId: container.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      dispatchClassification: 'SINGLE',
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: {},
+    }).returning();
+    createdFulfillmentIds.push(fulfillment.id);
+
+    const [trip] = await db.insert(s.trips).values({
+      tripCode: `P4I-${suffix}`.slice(0, 50),
+      customerId: customer.id,
+      routeId: route.id,
+      shipmentId: shipment.id,
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      status: TripStatus.IN_TRANSIT,
+      departureDate: '2026-08-01',
+      revenue: '1800000',
+      driverSalary: '250000',
+      totalFuelCost: '0',
+      carrierType: 'OWN',
+    }).returning();
+    createdTripIds.push(trip.id);
+
+    const [containerPhoto] = await db.insert(s.tripPhotos).values({
+      tripId: trip.id,
+      type: 'CONTAINER',
+      storageKey: `invoice-container-${suffix}.jpg`,
+      uploadedBy: actor.user.id,
+    }).returning();
+    createdTripPhotoIds.push(containerPhoto.id);
+    const [sealPhoto] = await db.insert(s.tripPhotos).values({
+      tripId: trip.id,
+      type: 'SEAL',
+      storageKey: `invoice-seal-${suffix}.jpg`,
+      uploadedBy: actor.user.id,
+    }).returning();
+    createdTripPhotoIds.push(sealPhoto.id);
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, fulfillment.id);
+    assert.deepEqual(detail.invoiceInfo, {
+      liftFeeInvoiceName: 'Công ty Nâng Hạ Đông Anh',
+      liftFeeInvoiceAddress: null,
+      liftFeeTaxCode: '0102030405',
+      dropFeeInvoiceName: 'Công ty Hạ Container Đông Anh',
+      dropFeeInvoiceAddress: null,
+      dropFeeTaxCode: '0102030406',
+      cleaningInvoiceName: 'Công ty Vệ Sinh Cont Đông Anh',
+      cleaningInvoiceAddress: null,
+      cleaningTaxCode: '0102030407',
+    });
+    assert.equal(detail.containerSealPhotos.length, 2);
+    assert.ok(detail.containerSealPhotos.some((photo) => photo.type === 'CONTAINER' && photo.storageKey === containerPhoto.storageKey));
+    assert.ok(detail.containerSealPhotos.some((photo) => photo.type === 'SEAL' && photo.storageKey === sealPhoto.storageKey));
+  });
+
   test('milestones are ordered and replay-safe', async () => {
     const actor = await createDriverPrincipal('ordered');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);

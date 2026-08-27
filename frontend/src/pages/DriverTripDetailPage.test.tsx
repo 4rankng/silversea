@@ -139,6 +139,8 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
       contactPhone: '0909000001',
       routeSummary: 'Cát Lái → Bình Dương',
       siteRules: ['Mang đầy đủ PPE', 'Liên hệ bảo vệ trước 15 phút'],
+      invoiceInfo: null,
+      containerSealPhotos: [],
     },
     currentPod: {
       id: 22,
@@ -222,6 +224,17 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
+  });
+
+  it('renders container/seal capture buttons and hides the invoice block when there is no invoice info', async () => {
+    renderPage();
+
+    expect(await screen.findByText(/Ảnh Cont \/ Seal/)).toBeTruthy();
+    expect(screen.getByText('Chụp Cont')).toBeTruthy();
+    expect(screen.getByText('Chụp Seal')).toBeTruthy();
+    expect(screen.getByText(/Chưa có ảnh cont nào/)).toBeTruthy();
+    expect(screen.getByText(/Chưa có ảnh seal nào/)).toBeTruthy();
+    expect(screen.queryByText(/Thông tin hóa đơn/)).toBeNull();
   });
 
   it('shows the accounting lock and disables field actions', async () => {

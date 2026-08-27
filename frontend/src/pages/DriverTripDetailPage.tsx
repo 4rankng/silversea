@@ -29,6 +29,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { ApiError } from '../lib/api';
+import { photoSrc } from '../lib/api/photo';
 import { formatCurrency, formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -244,6 +245,8 @@ export default function DriverTripDetailPage() {
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
+  const [uploadingContainerPhoto, setUploadingContainerPhoto] = useState(false);
+  const [uploadingSealPhoto, setUploadingSealPhoto] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -472,6 +475,21 @@ export default function DriverTripDetailPage() {
     }
   }
 
+  async function handleUploadContainerSealPhoto(type: 'CONTAINER' | 'SEAL', file: File) {
+    if (!trip) return;
+    const setUploading = type === 'CONTAINER' ? setUploadingContainerPhoto : setUploadingSealPhoto;
+    setUploading(true);
+    try {
+      await driverClient.uploadContainerOrSealPhoto({ tripId: trip.id, type, file });
+      await refreshAll();
+      toast({ kind: 'success', message: type === 'CONTAINER' ? 'Đã lưu ảnh container.' : 'Đã lưu ảnh seal.' });
+    } catch (error) {
+      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải ảnh. Vui lòng thử lại.' });
+    } finally {
+      setUploading(false);
+    }
+  }
+
   if (!validFulfillmentId) {
     return (
       <div className="driver-task-screen driver-task-screen--feedback">
@@ -519,6 +537,10 @@ export default function DriverTripDetailPage() {
   const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
   const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
   const siteRules = fulfillment?.siteRules ?? [];
+  const invoiceInfo = fulfillment?.invoiceInfo ?? null;
+  const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
+  const containerPhotos = containerSealPhotos.filter((photo) => photo.type === 'CONTAINER');
+  const sealPhotos = containerSealPhotos.filter((photo) => photo.type === 'SEAL');
   const completionReady = evidence.data?.ready === true
     && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
   const accountingLock = trip.accountingLock ?? null;
@@ -594,6 +616,76 @@ export default function DriverTripDetailPage() {
           />
         </div>
       </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Ảnh Cont / Seal</span>
+        </div>
+        <div className="driver-task-fuel-section">
+          {([
+            { type: 'CONTAINER' as const, label: 'Cont', photos: containerPhotos, uploading: uploadingContainerPhoto },
+            { type: 'SEAL' as const, label: 'Seal', photos: sealPhotos, uploading: uploadingSealPhoto },
+          ]).map((group) => (
+            <div key={group.type} className="driver-task-fuel-card">
+              <div className="driver-task-fuel-header">
+                <div>
+                  <strong className="driver-task-fuel-title">{group.label}</strong>
+                  <div className="driver-task-fuel-subtitle">
+                    {group.photos.length > 0
+                      ? `${group.photos.length} ảnh · gần nhất ${formatDateTime(group.photos[0].uploadedAt)}`
+                      : `Chưa có ảnh ${group.label.toLowerCase()} nào.`}
+                  </div>
+                </div>
+                <label className={`btn btn--secondary btn--sm${group.uploading ? ' is-loading' : ''}`}>
+                  <Camera size={16} />
+                  <span>Chụp {group.label}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: 'none' }}
+                    disabled={group.uploading}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.currentTarget.value = '';
+                      if (file) void handleUploadContainerSealPhoto(group.type, file);
+                    }}
+                  />
+                </label>
+              </div>
+              {group.photos.length > 0 && (
+                <ul className="trip-pod__file-list">
+                  {group.photos.map((photo) => (
+                    <li key={photo.id} className="trip-pod__file">
+                      <img src={photoSrc(photo.storageKey)} alt={`${group.label} ${photo.id}`} className="driver-task-fuel-img" />
+                      <span className="trip-pod__file-time">{formatDateTime(photo.uploadedAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {invoiceInfo && (
+        <section className="driver-task-section">
+          <div className="driver-task-section__head">
+            <span>Thông tin hóa đơn</span>
+          </div>
+          <div className="driver-task-grid">
+            {invoiceInfo.liftFeeInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} />
+            )}
+            {invoiceInfo.dropFeeInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} />
+            )}
+            {invoiceInfo.cleaningInvoiceName && (
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} />
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">

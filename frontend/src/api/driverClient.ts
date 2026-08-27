@@ -55,6 +55,7 @@ const DRIVER_TASK = {
   POD_FILES: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files`,
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
+  INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
 } as const;
 
 export interface DriverTaskLeg {
@@ -180,9 +181,17 @@ export interface DriverTaskDetail {
     routeSummary: string | null;
     siteRules: string[];
     invoiceInfo: DriverFulfillmentInvoiceInfo | null;
+    containerSealPhotos: DriverContainerSealPhoto[];
   } | null;
   currentPod?: DriverTaskPodSubmission | null;
   podHistory?: DriverTaskPodSubmission[];
+}
+
+export interface DriverContainerSealPhoto {
+  id: number;
+  type: 'CONTAINER' | 'SEAL';
+  storageKey: string;
+  uploadedAt: string;
 }
 
 export interface DriverFulfillmentInvoiceInfo {
@@ -213,6 +222,7 @@ interface DriverFulfillmentDetailResponse {
   contactPhone: string | null;
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
+  containerSealPhotos: DriverContainerSealPhoto[];
   evidenceStatus: {
     ready: boolean;
     missing: string[];
@@ -265,6 +275,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
         ? [deliverySite.strictRules.trim()]
         : [],
       invoiceInfo: wire.invoiceInfo,
+      containerSealPhotos: wire.containerSealPhotos,
     },
     currentPod,
     podHistory,
@@ -460,6 +471,20 @@ export const driverClient = {
     return api.upload(DRIVER_TASK.POD_FILES(args.tripId, args.submissionId), formData, {
       retryFingerprint: fingerprint,
     }) as Promise<DriverTaskPodSubmission>;
+  },
+
+  uploadContainerOrSealPhoto: async (args: { tripId: number; type: 'CONTAINER' | 'SEAL'; file: File }) => {
+    const formData = new FormData();
+    formData.append('file', args.file);
+    formData.append('trip_id', String(args.tripId));
+    formData.append('type', args.type);
+    const retryFingerprint = [
+      'driver-container-seal-photo',
+      fileCommandFingerprint(args.file),
+      args.tripId,
+      args.type,
+    ].join(':');
+    return api.upload('/upload', formData, { retryFingerprint }) as Promise<{ storageKey: string; url: string }>;
   },
 
   submitPod: async (
