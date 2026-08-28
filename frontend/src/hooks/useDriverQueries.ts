@@ -85,3 +85,14 @@ export function useDriverJourneyBoard() {
     refetchInterval: 15_000,
   });
 }
+
+/** Topbar identity chip — the driver's current vehicle plate (biển số xe). */
+export function useDriverVehicle() {
+  return useQuery({
+    queryKey: qk.driver.vehicle,
+    queryFn: () => driverClient.getVehicle(),
+    // Plates change only when dispatch reassigns the driver's xe; a short
+    // stale window is fine and keeps the header off the request path.
+    staleTime: 60 * 1000,
+  });
+}

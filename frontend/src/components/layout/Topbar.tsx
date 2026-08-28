@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Truck } from 'lucide-react';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMonth } from '../../hooks/useMonth';
+import { useDriverVehicle } from '../../hooks/useDriverQueries';
 import { useSearch } from '../../context/SearchContext';
 import { getSearchItems, filterItems } from '../../data/searchRegistry';
 import type { SearchItem } from '../../data/searchRegistry';
@@ -139,6 +140,29 @@ function MonthNavigator() {
 
 export { MonthNavigator };
 
+/**
+ * Driver-app topbar identity: greeting + name + current vehicle plate
+ * (biển số xe). The plate fetch lives here — not in Topbar's generic body —
+ * so non-driver sessions never fire the request.
+ */
+function DriverIdentity({ name }: { name: string | null }) {
+  const { data: vehicle } = useDriverVehicle();
+  return (
+    <div className="topbar__welcome">
+      <span className="greeting">Xin chào,</span>
+      <div className="topbar__welcome-idline">
+        <span className="name">{name}</span>
+        {vehicle?.truckPlate && (
+          <span className="topbar__plate" title="Biển số xe đang điều phối">
+            <Truck size={12} aria-hidden="true" />
+            {vehicle.truckPlate}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Topbar({
   user,
   isDriver,
@@ -208,10 +232,12 @@ function Topbar({
         </button>
       )}
 
-      <div className="topbar__context" aria-label="Trang hiện tại">
-        <span className="topbar__context-kicker">Đang xem</span>
-        <strong title={pageTitle}>{pageTitle}</strong>
-      </div>
+      {!isDriver && (
+        <div className="topbar__context" aria-label="Trang hiện tại">
+          <span className="topbar__context-kicker">Đang xem</span>
+          <strong title={pageTitle}>{pageTitle}</strong>
+        </div>
+      )}
 
       {!isDriver && (
         <div ref={searchContainerRef} className="topbar__search" style={{ position: 'relative' }}>
@@ -240,10 +266,7 @@ function Topbar({
       {isDriver && (
         <>
           <div className="topbar__left-driver">
-            <div className="topbar__welcome">
-              <span className="greeting">Xin chào,</span>
-              <span className="name">{user.fullName || user.username}</span>
-            </div>
+            <DriverIdentity name={user.fullName || user.username} />
           </div>
           <div className="topbar__center-driver">
             <MonthNavigator />

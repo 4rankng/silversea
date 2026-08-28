@@ -175,6 +175,10 @@
   .topbar__welcome .name {
     color: #ffffff;
   }
+  .topbar__plate {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+  }
 
   /* Search input inside green topbar on tablet */
   .topbar__search > input {
@@ -272,14 +276,22 @@
     font-size: 12px;
     line-height: 1.2;
   }
-  .topbar--driver .topbar__welcome { display: none; }
   .topbar .icon-btn { display: none; }
   /* Bump hamburger to a 44px touch target (was 40px) */
   .topbar__toggle { width: 44px; height: 44px; }
   .topbar__toggle svg { width: 20px; height: 20px; }
-  .topbar__welcome { line-height: 1.35; }
-  .topbar__welcome .greeting { font-size: var(--fs-xs); line-height: 1.35; }
-  .topbar__welcome .name { font-size: var(--fs-sm); line-height: 1.35; }
+  /* Driver identity (greeting + name + plate chip) replaces the old page-title
+     topbar on phones — drivers no longer render the "Đang xem <page>" block. */
+  .topbar__left-driver { flex: 1 1 auto; min-width: 0; }
+  .topbar__welcome { line-height: 1.3; }
+  .topbar__welcome .greeting { font-size: var(--fs-xs); line-height: 1.3; }
+  .topbar__welcome .name {
+    font-size: 15px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar--driver .topbar__welcome .greeting { display: none; }
   .topbar__center-driver {
     flex: 0 0 auto;
     margin-left: auto;

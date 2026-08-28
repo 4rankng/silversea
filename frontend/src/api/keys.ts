@@ -176,6 +176,8 @@ export const qk = {
     payslips: ['driver-payslips'],
     /** Driver-app "Hành trình" screen: New/Running/History journey board. */
     journeyBoard: ['driver-journey-board'],
+    /** Topbar identity chip: the driver's current vehicle plate. */
+    vehicle: ['driver-vehicle'],
   },
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */

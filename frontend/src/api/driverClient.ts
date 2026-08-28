@@ -59,6 +59,7 @@ const DRIVER_TASK = {
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
   COST_SUBMISSION_NOTE: (tripId: number) => `/driver/me/trips/${tripId}/cost-submission-note`,
   JOURNEY_BOARD: '/driver/me/journey-board',
+  VEHICLE: '/driver/me/vehicle',
 } as const;
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -87,6 +88,11 @@ export interface DriverJourneyCard {
   contactPhone: string | null;
   truckPlate: string | null;
   trailerPlate: string | null;
+}
+
+/** The driver's current vehicle (topbar identity chip). */
+export interface DriverVehicle {
+  truckPlate: string | null;
 }
 
 export interface DriverTaskLeg {
@@ -435,6 +441,11 @@ export const driverClient = {
   getJourneyBoard: async () => {
     const wire = await api.get<{ items: DriverJourneyCard[] }>(DRIVER_TASK.JOURNEY_BOARD);
     return wire.items;
+  },
+
+  /** Topbar identity chip — the driver's current vehicle plate. */
+  getVehicle: async () => {
+    return api.get<DriverVehicle>(DRIVER_TASK.VEHICLE);
   },
 
   getTaskDetail: async (fulfillmentId: number) => {

@@ -836,34 +836,53 @@ export async function getDriverEarnings(driverId: number, month: number, year: n
 }
 
 /**
+ * Which truck is "the driver's xe" for driver-facing reads: the truck on
+ * their most-recent non-deleted, non-canceled trip (so a driver reassigned
+ * mid-period sees the truck they actually drove last), falling back to the
+ * active truck_driver_assignments row (the 1-truck-1-driver rule).
+ * `null` = none resolvable.
+ */
+async function resolveDriverTruckId(driverId: number): Promise<number | null> {
+  // Exclude CANCELED trips — a canceled trip was never driven, so its truck
+  // shouldn't shadow the truck the driver actually last used (a later-dated
+  // canceled trip would otherwise win on departureDate).
+  const [recent] = await db.select({ truckId: s.trips.truckId })
+    .from(s.trips)
+    .where(and(eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')))
+    .orderBy(desc(s.trips.departureDate))
+    .limit(1);
+  return recent?.truckId ?? getActiveTruckIdForDriver(db, driverId);
+}
+
+/**
+ * The driver's current vehicle, shown as an identity chip in the driver-app
+ * topbar (biển số xe next to the driver's name). Shares the truck resolution
+ * with the vehicle-alerts read so the header and the reminders always agree
+ * on which truck is "the driver's xe".
+ */
+export async function getDriverVehicle(driverId: number): Promise<{ truckPlate: string | null }> {
+  const truckId = await resolveDriverTruckId(driverId);
+  if (!truckId) return { truckPlate: null };
+
+  const [truck] = await db.select({ licensePlate: s.trucks.licensePlate })
+    .from(s.trucks)
+    .where(and(eq(s.trucks.id, truckId), isNull(s.trucks.deletedAt)))
+    .limit(1);
+  return { truckPlate: truck?.licensePlate ?? null };
+}
+
+/**
  * N5 / B4 — vehicle compliance/service reminders for a driver.
  *
- * Resolves the driver's truck by preferring the truck on their most-recent
- * non-deleted trip (so a driver reassigned mid-period sees the truck they
- * actually drove last), then falling back to the driver's active
- * truck_driver_assignments row.
+ * Resolves the driver's truck via resolveDriverTruckId (shared with the
+ * topbar vehicle read).
  * Returns only overdue/due alerts (the helper already filters out 'ok').
  *
  * Returns `null` when no truck is resolvable; the route maps that to an empty
  * alerts list (no reminders to show) rather than 404.
  */
 export async function getDriverVehicleAlerts(driverId: number): Promise<VehicleAlert[] | null> {
-  // 1. Most-recent trip's truck. Exclude CANCELED trips — a canceled trip was
-  // never driven, so its truck shouldn't shadow the truck the driver actually
-  // last used (a later-dated canceled trip would otherwise win on departureDate).
-  const [recent] = await db.select({ truckId: s.trips.truckId })
-    .from(s.trips)
-    .where(and(eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')))
-    .orderBy(desc(s.trips.departureDate))
-    .limit(1);
-
-  let truckId = recent?.truckId ?? null;
-
-  // 2. Fall back to the driver's active truck assignment.
-  if (!truckId) {
-    truckId = await getActiveTruckIdForDriver(db, driverId);
-  }
-
+  const truckId = await resolveDriverTruckId(driverId);
   if (!truckId) return null;
 
   const [truck] = await db.select({

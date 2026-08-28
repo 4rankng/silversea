@@ -14,6 +14,7 @@ import {
   getDriverTripDetail,
   getDriverEarnings,
   getDriverPenalties,
+  getDriverVehicle,
   getDriverVehicleAlerts,
   getDriverTwoOrdersView,
   listDriverFulfillmentProgress,
@@ -313,6 +314,17 @@ router.get('/journey-board', asyncHandler(async (req: Request, res: Response) =>
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await getDriverJourneyBoard(driver.id);
   res.json({ items });
+}));
+
+// Driver-app topbar identity chip (260828): the driver's current vehicle
+// plate shown next to their name. Shares the truck resolution with the
+// vehicle-alerts read, so the header and the reminders agree on which truck
+// is "the driver's xe". `null` plate when no truck is resolvable; the
+// frontend hides the chip.
+router.get('/vehicle', asyncHandler(async (req: Request, res: Response) => {
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const vehicle = await getDriverVehicle(driver.id);
+  res.json(vehicle);
 }));
 
 router.get('/fulfillments/:fulfillmentId', asyncHandler(async (req: Request, res: Response) => {

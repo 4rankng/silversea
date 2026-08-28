@@ -63,6 +63,37 @@
   overflow: visible;
 }
 
+/* Name + plate chip sit on one wrap-allowed row, so narrow phones drop the
+   plate to its own line instead of clipping the name. */
+.topbar__welcome-idline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+/* Biển số xe chip — brand-green pill on the light desktop surface; the green
+   mobile header re-skins it in responsive.css. */
+.topbar__plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.topbar__plate svg {
+  flex: 0 0 auto;
+}
+
 .topbar__center-driver {
   display: flex;
   align-items: center;
