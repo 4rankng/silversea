@@ -90,6 +90,12 @@ interface PlanEditorDraft {
   isCombined: boolean;
 }
 
+/** Plate alone doesn't tell a dispatcher which driver they're assigning —
+ *  pair it with the driver name so the picker is recognizable. */
+function ownTruckLabel(truck: DispatchTruck): string {
+  return `${truck.licensePlate} — ${truck.assignedDriverName ?? 'Chưa gán tài xế'}`;
+}
+
 function normalizePlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
 }
@@ -105,6 +111,20 @@ function vehicleValueForRow(row: DispatchDetailPlanRow): string {
     return `${EXTERNAL_VEHICLE_PREFIX}${row.dispatch.externalCarrierVehicleId}`;
   }
   return row.dispatch.assignedPlate ? `${CURRENT_PLATE_PREFIX}${row.dispatch.assignedPlate}` : '';
+}
+
+/** Resolves any vehicle-select value to its plate for comparison. The row's
+ *  own-fleet placeholder (`current:{plate}`) and the same truck's fetched
+ *  option (`truck:{id}`) are two different value strings for one vehicle —
+ *  without this, re-selecting the already-assigned truck (or just opening
+ *  the picker) registers as an unsaved change and the fetched list shows the
+ *  same plate twice. */
+function vehiclePlateKey(value: string, options: SearchableSelectOption[]): string {
+  if (!value) return '';
+  if (value.startsWith(CURRENT_PLATE_PREFIX)) return normalizePlate(value.slice(CURRENT_PLATE_PREFIX.length));
+  if (value.startsWith(FREE_TEXT_PREFIX)) return normalizePlate(value.slice(FREE_TEXT_PREFIX.length));
+  const label = options.find((option) => option.value === value)?.label;
+  return label ? normalizePlate(label.split(' — ')[0]) : value;
 }
 
 function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
@@ -190,7 +210,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   // Issuing acts on the saved plan, not unsaved draft edits — block it while
   // the dialog has pending carrier/vehicle changes so it can't fire against
   // stale assignment data the user hasn't saved yet.
-  const planDirty = draft.carrierValue !== carrierValueForRow(row) || draft.vehicleValue !== vehicleValueForRow(row);
+  const carrierSwitched = draft.carrierValue !== carrierValueForRow(row);
+  const vehicleChanged = carrierSwitched
+    ? draft.vehicleValue !== ''
+    : vehiclePlateKey(draft.vehicleValue, vehicleOptions) !== vehiclePlateKey(vehicleValueForRow(row), vehicleOptions);
+  const planDirty = carrierSwitched || vehicleChanged;
   const canIssue = issueStatus === 'PLATED_NOT_ISSUED' && !planDirty;
 
   const {
@@ -268,7 +292,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     request.then((response) => {
       if (cancelled) return;
       const mapped = selectedCarrier.carrierType === 'OWN'
-        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
+        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
         : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       const normalizedSearch = normalizePlate(vehicleSearch);
       const freeTextOption = selectedCarrier.carrierType === 'EXTERNAL'
@@ -315,10 +339,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       if (!merged.some((existing) => existing.value === option.value)) merged.push(option);
     }
     if (!draft.vehicleValue || merged.some((option) => option.value === draft.vehicleValue)) return merged;
-    const label = draft.vehicleValue.startsWith(CURRENT_PLATE_PREFIX)
-      ? draft.vehicleValue.slice(CURRENT_PLATE_PREFIX.length)
-      : row.dispatch.assignedPlate ?? 'Biển số hiện tại';
-    return [{ value: draft.vehicleValue, label }, ...merged];
+    // The row's own-fleet placeholder (`current:{plate}`) is the same truck as
+    // its fetched `truck:{id}` option — fold them into one entry (keeping the
+    // fetched option's driver-name label) instead of listing the plate twice.
+    const currentPlateKey = vehiclePlateKey(draft.vehicleValue, vehicleOptions);
+    const matchIndex = merged.findIndex((option) => vehiclePlateKey(option.value, vehicleOptions) === currentPlateKey);
+    const label = matchIndex !== -1
+      ? merged[matchIndex].label
+      : (draft.vehicleValue.startsWith(CURRENT_PLATE_PREFIX)
+        ? draft.vehicleValue.slice(CURRENT_PLATE_PREFIX.length)
+        : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
+    const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
+    return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
   }, [draft.vehicleValue, row.dispatch.assignedPlate, suggestions, vehicleOptions]);
 
   function openEditor() {
@@ -387,7 +419,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       });
     request.then((response) => {
       const mapped = selectedCarrier.carrierType === 'OWN'
-        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: truck.licensePlate }))
+        ? (response.items as DispatchTruck[]).map((truck) => ({ value: `${OWN_TRUCK_PREFIX}${truck.id}`, label: ownTruckLabel(truck) }))
         : (response.items as DispatchCarrierVehicle[]).map((vehicle) => ({ value: `${EXTERNAL_VEHICLE_PREFIX}${vehicle.id}`, label: vehicle.licensePlate }));
       setVehicleOptions((previous) => [...previous, ...mapped.filter((item) => !previous.some((option) => option.value === item.value))]);
       setVehicleCursor(response.nextCursor);
@@ -412,11 +444,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       setError('Biển số đã chọn không hợp lệ.');
       return;
     }
-    const carrierSwitched = draft.carrierValue !== carrierValueForRow(row);
-    const vehicleTouched = carrierSwitched
-      ? draft.vehicleValue !== ''
-      : draft.vehicleValue !== vehicleValueForRow(row);
-
     setSaving(true);
     setError(null);
     try {
@@ -425,7 +452,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
         // Send the vehicle block only when the editor actually touches it —
         // an estimates/classification-only save must not disturb stored columns.
-        ...(vehicleTouched ? body : {}),
+        ...(vehicleChanged ? body : {}),
         plannedRevenue: revenue.value,
         plannedCarrierCost: carrierCost.value,
         classification: draft.classification,

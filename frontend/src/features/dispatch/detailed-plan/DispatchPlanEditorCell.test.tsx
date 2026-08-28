@@ -162,7 +162,9 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     renderCell(row());
     await openDialog();
     expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy();
-    expect(screen.getByText(/Phạm Văn Hùng/)).toBeTruthy();
+    // Vehicle picker now labels options with the driver name too (recognizability
+    // fix), so scope this assertion to the issue section's own driver line.
+    expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toMatch(/Phạm Văn Hùng/);
     // The ownTruck plate lookup runs against the TRUCK search endpoint.
     expect(listResourcesMock).toHaveBeenCalledWith('TRUCK', expect.objectContaining({ q: '15H-052.82', limit: 5 }));
     await waitFor(() => expect(issueButton().disabled).toBe(false));
@@ -284,7 +286,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     // Draft re-anchored to the saved result: the issue section appears with the
     // paired driver and an ENABLED button — no close/reopen needed.
     await waitFor(() => expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy());
-    await waitFor(() => expect(screen.getByText(/Phạm Văn Hùng/)).toBeTruthy());
+    await waitFor(() => expect(document.querySelector('.dispatch-assignment-dialog__issue-driver')?.textContent).toContain('Phạm Văn Hùng'));
     await waitFor(() => expect(issueButton().disabled).toBe(false));
     expect(screen.queryByText(/Lưu thay đổi điều phối ở trên trước khi phát lệnh/)).toBeNull();
   });
