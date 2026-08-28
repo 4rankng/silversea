@@ -187,6 +187,19 @@
   line-height: 1.5;
 }
 
+.driver-task-rules__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  margin: 0 0 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--info, #2563eb) 8%, transparent);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .driver-task-empty {
   margin: 0;
   font-size: 14px;

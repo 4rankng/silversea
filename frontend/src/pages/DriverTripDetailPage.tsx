@@ -15,6 +15,7 @@ import {
   Phone,
   Route,
   ShieldAlert,
+  StickyNote,
   Truck,
   WalletCards,
 } from 'lucide-react';
@@ -540,6 +541,9 @@ export default function DriverTripDetailPage() {
   const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
   const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
   const siteRules = fulfillment?.siteRules ?? [];
+  // Khối 5 (spec): site rules plus the shipment-level note CUS wrote for the
+  // driver ("note dành cho lái xe") — both belong on this section.
+  const driverNotes = fulfillment?.driverNotes ?? trip.notes ?? null;
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const containerPhotos = containerSealPhotos.filter((photo) => photo.type === 'CONTAINER');
@@ -714,6 +718,12 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Quy định tại điểm làm hàng</span>
         </div>
+        {driverNotes ? (
+          <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
+            <StickyNote size={16} />
+            <span>{driverNotes}</span>
+          </p>
+        ) : null}
         {siteRules.length > 0 ? (
           <ul className="driver-task-rules">
             {siteRules.map((rule, index) => (
@@ -723,7 +733,7 @@ export default function DriverTripDetailPage() {
               </li>
             ))}
           </ul>
-        ) : (
+        ) : driverNotes ? null : (
           <p className="driver-task-empty">Chưa có quy định bổ sung cho điểm làm hàng này.</p>
         )}
       </section>

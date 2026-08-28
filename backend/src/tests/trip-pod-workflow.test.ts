@@ -696,6 +696,27 @@ describe('trip pod review workflow', () => {
     );
   });
 
+  test('shipment detail decorates containers with the plate issued at dispatch, ignoring canceled fulfillments', async () => {
+    const fixture = await createShipmentFixture({
+      tag: 'issued-plate',
+      cargoMode: 'FCL',
+      containerCount: 2,
+      fulfillmentCount: 2,
+      canceledFulfillmentIndexes: [1],
+    });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: '15C-184.62' })
+      .where(inArray(s.shipmentFulfillments.id, fixture.fulfillments.map((row) => row.id)));
+
+    const detail = await getShipmentDetail(fixture.shipment.id);
+    assert.equal(detail.containers.length, 2);
+    const byContainerNumber = new Map(detail.containers.map((row) => [row.containerNumber, row]));
+    // Active fulfillment (container 0) carries the issued plate.
+    assert.equal(byContainerNumber.get(fixture.containers[0]!.containerNumber)?.plannedVehiclePlate, '15C-184.62');
+    // The canceled fulfillment's plate must not leak onto container 1.
+    assert.equal(byContainerNumber.get(fixture.containers[1]!.containerNumber)?.plannedVehiclePlate, null);
+  });
+
   test('driver progress still records the fulfillment timeline in order for submitted-pod fixtures', async () => {
     const { user: driverUser, driver } = await createDriverPrincipal('progress');
     const fixture = await createShipmentFixture({

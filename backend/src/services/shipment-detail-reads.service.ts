@@ -143,7 +143,10 @@ export interface ShipmentDetail {
     cargoTypeName: string | null;
     pricingProjection: ShipmentPricingProjectionView;
   };
-  containers: Awaited<ReturnType<typeof listShipmentContainers>>;
+  containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & {
+    /** Plate issued onto this container's fulfillment at dispatch. */
+    plannedVehiclePlate: string | null;
+  }>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
   statusHistory: Awaited<ReturnType<typeof listShipmentStatusHistory>>;
@@ -151,6 +154,38 @@ export interface ShipmentDetail {
   podReviews: ShipmentPodReviewItemView[];
   carrierAssignments: Awaited<ReturnType<typeof listShipmentCarrierAssignments>>;
   accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
+}
+
+/**
+ * Attach the plate issued at dispatch onto each container row. The plate lives
+ * on the fulfillment (planned_vehicle_plate_number mirrors the truck/external
+ * vehicle at issuance); FCL fulfillments map 1:1 to containers via
+ * shipment_container_id. Canceled fulfillments never contribute a plate.
+ */
+async function decorateContainersWithIssuedVehicle(
+  shipmentId: number,
+  containers: Awaited<ReturnType<typeof listShipmentContainers>>,
+): Promise<ShipmentDetail['containers']> {
+  if (containers.length === 0) return [];
+  const fulfillments = await db.select({
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
+  const plateByContainerId = new Map<number, string>();
+  for (const row of fulfillments) {
+    if (row.shipmentContainerId == null || !row.plannedVehiclePlateNumber) continue;
+    if (!plateByContainerId.has(row.shipmentContainerId)) {
+      plateByContainerId.set(row.shipmentContainerId, row.plannedVehiclePlateNumber);
+    }
+  }
+  return containers.map((container) => ({
+    ...container,
+    plannedVehiclePlate: plateByContainerId.get(container.id) ?? null,
+  }));
 }
 
 export async function listShipmentCarrierAssignments(shipmentId: number, tx?: Tx) {
@@ -223,7 +258,7 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
       ...shipmentWithCustomer,
       pricingProjection: await buildShipmentPricingProjection(shipment, containers),
     },
-    containers,
+    containers: await decorateContainersWithIssuedVehicle(id, containers),
     documents,
     declarations,
     statusHistory,

@@ -53,6 +53,7 @@ const createdDriverIds: number[] = [];
 const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
+const createdTruckIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdPortIds: number[] = [];
 const createdOperationalSiteIds: number[] = [];
@@ -99,6 +100,15 @@ async function createDriverPrincipal(tag: string) {
   }).returning();
   createdDriverIds.push(driver.id);
   return { user, driver };
+}
+
+async function createTruck(tag: string) {
+  const [truck] = await db.insert(s.trucks).values({
+    licensePlate: `QA-${tag}-${suffix}`.slice(0, 20),
+    status: 'ACTIVE',
+  }).returning();
+  createdTruckIds.push(truck.id);
+  return truck;
 }
 
 async function createOwnedFulfillmentTrip(
@@ -624,6 +634,143 @@ describe('Phase 4 driver fulfillment execution', () => {
     const card = board.find((item) => item.fulfillmentId === fulfillment.id);
     assert.ok(card, 'expected a journey card for the completed fulfillment');
     assert.equal(card!.bucket, 'HISTORY');
+  });
+
+  test('driver can accept the next order on the same truck once the previous trip evidence is complete', async () => {
+    // Spec Phần 3: "Bỏ qua toàn bộ các bước xác nhận của Ops. Lái xe có thể
+    // bấm Nhận lệnh vận chuyển ngay khi có lệnh đến." Driver completion is an
+    // operational handoff (trip stays IN_TRANSIT until financial close), so
+    // the truck-busy guard must only block on trips still genuinely running —
+    // not on one whose driver already delivered milestones + submitted e-POD.
+    const actor = await createDriverPrincipal('truck-free-after-evidence');
+    const truck = await createTruck('free');
+    const first = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
+    await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, first.trip.id));
+
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+      const key = `truck-free-milestone-${index}-${suffix}`;
+      usedIdempotencyKeys.push(key);
+      const result = await recordDriverFulfillmentProgress({
+        fulfillmentId: first.fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: key,
+        input: {
+          eventType,
+          occurredAt: isoHour(index + 8, 30),
+          expectedVersion: index === 0 ? first.trip.version : undefined,
+        },
+      });
+      createdProgressEventIds.push(result.event.id);
+    }
+    // ORDER_RECEIVED starts the CREATED trip, bumping its version — read the
+    // current version before the POD handoff.
+    const [beforePod] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, first.trip.id)).limit(1);
+    await buildSubmittedPod({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: first.fulfillment.id,
+      expectedTripVersion: beforePod!.version,
+      prefix: 'truck-free',
+    });
+    const [completedFirst] = await db.select({ version: s.trips.version, status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, first.trip.id)).limit(1);
+    assert.equal(completedFirst!.status, TripStatus.IN_TRANSIT);
+    const completeKey = `truck-free-complete-${suffix}`;
+    usedIdempotencyKeys.push(completeKey);
+    await completeOwnedFulfillmentTrip({
+      fulfillmentId: first.fulfillment.id,
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      expectedVersion: completedFirst!.version,
+      idempotencyKey: completeKey,
+    });
+
+    // Next order on the SAME truck: acceptance must go through.
+    const second = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
+    await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, second.trip.id));
+    const acceptKey = `truck-free-accept-${suffix}`;
+    usedIdempotencyKeys.push(acceptKey);
+    const accepted = await recordDriverFulfillmentProgress({
+      fulfillmentId: second.fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+      idempotencyKey: acceptKey,
+      input: {
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
+        occurredAt: isoHour(19, 0),
+        expectedVersion: second.trip.version,
+      },
+    });
+    createdProgressEventIds.push(accepted.event.id);
+    await syncDriverFulfillmentStartSideEffects({
+      fulfillmentId: second.fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+    });
+    const [startedSecond] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, second.trip.id)).limit(1);
+    assert.equal(startedSecond!.status, TripStatus.IN_TRANSIT);
+  });
+
+  test('a still-running trip on the same truck keeps blocking the next departure', async () => {
+    const actor = await createDriverPrincipal('truck-busy-guard');
+    const truck = await createTruck('busy');
+    const running = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+    await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, running.trip.id));
+    const next = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
+    await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, next.trip.id));
+
+    const acceptKey = `truck-busy-accept-${suffix}`;
+    usedIdempotencyKeys.push(acceptKey);
+    await assertApiError(409, () => recordDriverFulfillmentProgress({
+      fulfillmentId: next.fulfillment.id,
+      driverId: actor.driver.id,
+      recordedBy: actor.user.id,
+      idempotencyKey: acceptKey,
+      input: {
+        eventType: DriverProgressEventType.ORDER_RECEIVED,
+        occurredAt: isoHour(20, 0),
+        expectedVersion: next.trip.version,
+      },
+    }), /Xe đang chạy chuyến/);
+    // The rejected attempt must not have started the trip.
+    const [stillCreated] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, next.trip.id)).limit(1);
+    assert.equal(stillCreated!.status, TripStatus.CREATED);
+  });
+
+  test('driver fulfillment detail surfaces the site contact from the snapshot and the CUS driver notes', async () => {
+    // Khối 3 (spec): tên người phụ trách kho bãi + SĐT. Khối 5: quy định tại
+    // điểm làm hàng lấy từ note dành cho lái xe. The fixture shipment carries
+    // its own contact, so clear it and put the contact on the site snapshot —
+    // the driver payload must fall back and also expose the driver notes.
+    const actor = await createDriverPrincipal('detail-contact-notes');
+    const { shipment, fulfillment } = await createOwnedFulfillmentTrip(actor.driver.id);
+    await db.update(s.shipments)
+      .set({ contactName: null, contactPhone: null, operationalNotes: 'QA e2e: cân tại cầu 3 trước khi ra cổng' })
+      .where(eq(s.shipments.id, shipment.id));
+    await db.update(s.shipmentFulfillments)
+      .set({
+        siteSnapshot: {
+          deliverySite: {
+            id: 1,
+            code: 'DEL-01',
+            name: 'Bãi giao hàng',
+            siteType: 'DELIVERY_SITE',
+            strictRules: 'Mặc áo phản quang',
+            contactName: 'Ms. Vân',
+            contactPhone: '0909123456',
+          },
+        },
+      })
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+
+    const detail = await getDriverFulfillmentDetail(actor.driver.id, fulfillment.id);
+    assert.equal(detail.contactName, 'Ms. Vân');
+    assert.equal(detail.contactPhone, '0909123456');
+    assert.equal(detail.driverNotes, 'QA e2e: cân tại cầu 3 trước khi ra cổng');
   });
 
   test('milestones are ordered and replay-safe', async () => {
@@ -1366,6 +1513,9 @@ after(async () => {
       await db.delete(s.driverWorkDays).where(inArray(s.driverWorkDays.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
     }
+    if (createdTruckIds.length > 0) {
+      await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
+    }
     if (createdFulfillmentIds.length > 0) {
       await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
     }
@@ -1400,4 +1550,8 @@ after(async () => {
     console.warn('[driver-fulfillment-progress.test] cleanup partial:', (error as Error).message);
   }
   try { await client.end(); } catch { /* ignore */ }
+  // Same convention as trip-pod-workflow.test.ts: the notification/durable-
+  // effect machinery touched by the accept-and-complete flows keeps a lazy
+  // handle alive, so exit explicitly once cleanup is done.
+  process.exit(0);
 });

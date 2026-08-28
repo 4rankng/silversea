@@ -4,7 +4,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TripStatus, Role } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
@@ -22,6 +22,7 @@ import { ArSnapshotService } from './trip-snapshots.service';
 import { SnapshotServices } from './snapshot-services';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 export async function transitionTripStatus(
   tripId: number,
@@ -126,15 +127,27 @@ export async function transitionTripStatus(
       if (trip.truckId) {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${trip.truckId})`);
       }
-      const [busyTruck] = trip.truckId ? await tx.select({ id: s.trips.id, tripCode: s.trips.tripCode })
+      const busyTrips = trip.truckId ? await tx.select({ id: s.trips.id, tripCode: s.trips.tripCode })
         .from(s.trips)
         .where(and(
           eq(s.trips.truckId, trip.truckId!),
           eq(s.trips.status, TripStatus.IN_TRANSIT),
           isNull(s.trips.deletedAt),
-        ))
-        .limit(1) : [];
-      if (busyTruck && busyTruck.id !== tripId) {
+          ne(s.trips.id, tripId),
+        )) : [];
+      // Driver completion (Q15) hands off evidence but deliberately leaves the
+      // trip IN_TRANSIT until the independently approved financial close — the
+      // journey board already buckets such trips into HISTORY. Operationally
+      // the truck is free once the driver delivered the full evidence set
+      // (4 milestones + submitted e-POD); only still-running trips block a
+      // new departure on the same truck.
+      const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
+      for (const candidate of busyTrips) {
+        const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
+        if (!evidence.ready) blockingTrips.push(candidate);
+      }
+      const busyTruck = blockingTrips[0];
+      if (busyTruck) {
         // Never leak the numeric id — show the trip code or fall back to a
         // generic phrase rather than "#17" which reads like a debug log.
         const busyLabel = busyTruck.tripCode || 'một chuyến khác';

@@ -583,6 +583,7 @@ export interface DriverFulfillmentDetail {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  driverNotes: string | null;
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   containerSealPhotos: Array<{ id: number; type: 'CONTAINER' | 'SEAL'; storageKey: string; uploadedAt: string }>;
@@ -625,7 +626,10 @@ export async function getDriverFulfillmentDetail(
     deliveryLocation: s.shipments.deliveryLocation,
     contactName: s.shipments.contactName,
     contactPhone: s.shipments.contactPhone,
+    driverNotes: s.shipments.operationalNotes,
     siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+    siteContactName: containerFactory.contactName,
+    siteContactPhone: containerFactory.contactPhone,
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
@@ -688,6 +692,25 @@ export async function getDriverFulfillmentDetail(
     && typeof (siteSnapshot.deliverySite as { name?: unknown }).name === 'string'
     ? (siteSnapshot.deliverySite as { name: string }).name
     : null;
+  // Khối 3 (spec): the yard/factory contact person belongs on the driver's
+  // task screen. Same snapshot-vs-live precedence as the site names above:
+  // CUS-typed shipment contact → point-in-time snapshot contact → live site.
+  const snapshotContact = (site: unknown): { name: string | null; phone: string | null } => {
+    if (typeof site !== 'object' || site === null) return { name: null, phone: null };
+    const record = site as { contactName?: unknown; contactPhone?: unknown };
+    const name = typeof record.contactName === 'string' && record.contactName.trim()
+      ? record.contactName.trim()
+      : null;
+    const phone = typeof record.contactPhone === 'string' && record.contactPhone.trim()
+      ? record.contactPhone.trim()
+      : null;
+    return { name, phone };
+  };
+  const deliverySiteContact = (() => {
+    const fromDelivery = snapshotContact(siteSnapshot.deliverySite);
+    if (fromDelivery.name || fromDelivery.phone) return fromDelivery;
+    return snapshotContact(siteSnapshot.pickupWarehouse);
+  })();
   return {
     fulfillmentId,
     shipmentId: shipmentRow.shipmentId,
@@ -705,8 +728,15 @@ export async function getDriverFulfillmentDetail(
     plannedReturnAt: shipmentRow.plannedReturnAt?.toISOString() ?? null,
     pickupLocation: shipmentRow.pickupLocation ?? pickupWarehouseName ?? shipmentRow.containerPickupPortName,
     deliveryLocation: shipmentRow.deliveryLocation ?? deliverySiteName ?? shipmentRow.containerDropoffPortName,
-    contactName: shipmentRow.contactName,
-    contactPhone: shipmentRow.contactPhone,
+    contactName: shipmentRow.contactName
+      ?? deliverySiteContact.name
+      ?? shipmentRow.siteContactName
+      ?? null,
+    contactPhone: shipmentRow.contactPhone
+      ?? deliverySiteContact.phone
+      ?? shipmentRow.siteContactPhone
+      ?? null,
+    driverNotes: shipmentRow.driverNotes ?? null,
     siteSnapshot,
     invoiceInfo: [
       shipmentRow.liftFeeInvoiceName, shipmentRow.dropFeeInvoiceName, shipmentRow.cleaningInvoiceName,

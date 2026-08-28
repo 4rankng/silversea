@@ -137,6 +137,7 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
       plannedAt: '2026-08-01T09:00:00.000Z',
       contactName: 'Anh Minh',
       contactPhone: '0909000001',
+      driverNotes: null,
       routeSummary: 'Cát Lái → Bình Dương',
       siteRules: ['Mang đầy đủ PPE', 'Liên hệ bảo vệ trước 15 phút'],
       invoiceInfo: null,
@@ -238,6 +239,38 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText(/Chưa có ảnh cont nào/)).toBeTruthy();
     expect(screen.getByText(/Chưa có ảnh seal nào/)).toBeTruthy();
     expect(screen.queryByText(/Thông tin hóa đơn/)).toBeNull();
+  });
+
+  it('renders the CUS driver note in the site-rules section and keeps the empty state only when both are absent', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: {
+          ...makeTaskDetail().fulfillment!,
+          driverNotes: 'QA e2e: vào kho mang mũ bảo hộ, cân tại cầu 3',
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const { unmount } = renderPage();
+
+    expect(await screen.findByTestId('driver-task-driver-notes')).toBeTruthy();
+    expect(screen.getByText(/cân tại cầu 3/)).toBeTruthy();
+    expect(screen.getByText('Mang đầy đủ PPE')).toBeTruthy();
+
+    // Note absent + rules absent → the empty state stays truthful.
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, siteRules: [] },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    unmount();
+    renderPage();
+    expect(await screen.findByText(/Chưa có quy định bổ sung/)).toBeTruthy();
   });
 
   it('shows the accounting lock and disables field actions', async () => {

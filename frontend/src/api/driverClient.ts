@@ -201,6 +201,7 @@ export interface DriverTaskDetail {
     plannedAt: string | null;
     contactName: string | null;
     contactPhone: string | null;
+    driverNotes: string | null;
     routeSummary: string | null;
     siteRules: string[];
     invoiceInfo: DriverFulfillmentInvoiceInfo | null;
@@ -243,6 +244,7 @@ interface DriverFulfillmentDetailResponse {
   deliveryLocation: string | null;
   contactName: string | null;
   contactPhone: string | null;
+  driverNotes: string | null;
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   containerSealPhotos: DriverContainerSealPhoto[];
@@ -293,6 +295,7 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
       plannedAt: wire.trip.plannedStartAt ?? wire.trip.departureDate,
       contactName: wire.contactName,
       contactPhone: wire.contactPhone,
+      driverNotes: wire.driverNotes ?? null,
       routeSummary: wire.trip.routeName,
       siteRules: typeof deliverySite?.strictRules === 'string' && deliverySite.strictRules.trim()
         ? [deliverySite.strictRules.trim()]
