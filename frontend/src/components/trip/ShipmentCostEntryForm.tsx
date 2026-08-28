@@ -348,7 +348,10 @@ export function ShipmentCostEntryForm({
           <Loader2 size={16} className="spin" /> Đang tải chi phí…
         </p>
       ) : entries.length === 0 ? (
-        <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào cho chuyến này.</p>
+        <p className="shipment-cost-entry__empty">
+          Chưa có chi phí phát sinh nào. Nhấn <strong>Thêm chi phí</strong> để nhập Phí nâng / Phí
+          hạ / Phí chi kho, Rửa cont / Hàn cont / Cân lốp hoặc chi phí khác.
+        </p>
       ) : (
         <ul className="shipment-cost-entry__list">
           {entries

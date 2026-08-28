@@ -21,6 +21,23 @@
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: 15px; line-height: 1.3; }
 .csc-section__heading p { margin: 1px 0 0; color: var(--fg-3); font-size: 12px; line-height: 1.35; }
 .csc-section .ds-field__input { background: var(--surface-2); }
+/* P1#1 closed-loop fix 2026-08-28: ensure every form input in the
+   CUS new-shipment form has a visible solid background and border. The
+   shared adapter and design system use ghost-style inputs by default
+   (transparent on the section's --surface), which renders correctly
+   in real browsers but produces blank screenshots in headless QA. The
+   override below is benign for real users (the input already has a
+   subtle border via the section's --line-2) and makes the form
+   visually distinguishable in automation screenshots. */
+.csc-form :where(input, select, textarea):not([type='radio']):not([type='checkbox']):not([type='hidden']),
+.csc-form [data-input-wrapper='true'] > input,
+.csc-form [data-input-wrapper='true'] > textarea {
+  background-color: var(--surface, #fff);
+  border: 1px solid var(--line-2, #d6dad5);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--fg-1, #101510);
+}
 .csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-searchable-field > label { color: var(--fg-1); font-size: 14px; font-weight: 600; }
 /* Selects migrated to the shared adapter: `ds-uui-*` classes

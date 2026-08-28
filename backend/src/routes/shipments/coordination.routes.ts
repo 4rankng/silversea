@@ -140,50 +140,60 @@ coordinationRoutes.post(
     const rejectReason = parsed.data.rejectReason ?? null;
     const typedActor = actor as typeof actor & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };
 
+    // Each branch preserves its existing response shape so existing clients
+    // (and the dispatch-fulfillment test) keep working: SEEN / REJECTED
+    // return the handoff row directly; ACCEPTED returns {handoff, fulfillments}.
+    // `replayed: true` is added on idempotent replays so callers can detect
+    // the replay without re-comparing side effects.
+    if (resolution === 'SEEN') {
+      const { result, replayed } = await runIdempotent({
+        endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_HANDOFF_RESOLVE,
+        idempotencyKey,
+        payload: { shipmentId, handoffId, resolution, expectedVersion, actorId: actor.userId },
+        createdBy: actor.userId,
+        entityType: 'dispatch_handoff',
+        getEntityId: (handoff) => (handoff as { id: number }).id,
+        create: async () => markSeen(handoffId, {
+          actorId: actor.userId,
+          expectedVersion,
+          expectedShipmentId: shipmentId,
+        }),
+      });
+      res.json(replayed ? { ...result, replayed: true } : result);
+      return;
+    }
+    if (resolution === 'ACCEPTED') {
+      const { result, replayed } = await runIdempotent({
+        endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_HANDOFF_RESOLVE,
+        idempotencyKey,
+        payload: { shipmentId, handoffId, resolution, expectedVersion, actorId: actor.userId },
+        createdBy: actor.userId,
+        entityType: 'dispatch_handoff',
+        getEntityId: (r: { handoff?: { id: number } | null }) => r.handoff?.id ?? handoffId,
+        create: async () => acceptDispatchHandoff({
+          shipmentId,
+          handoffId,
+          expectedVersion,
+          actor: typedActor,
+        }),
+      });
+      res.json(replayed ? { ...result, replayed: true } : result);
+      return;
+    }
+    // REJECTED
     const { result, replayed } = await runIdempotent({
       endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_HANDOFF_RESOLVE,
       idempotencyKey,
-      payload: {
-        shipmentId,
-        handoffId,
-        resolution,
-        expectedVersion,
-        rejectReason,
-        actorId: actor.userId,
-      },
+      payload: { shipmentId, handoffId, resolution, expectedVersion, rejectReason, actorId: actor.userId },
       createdBy: actor.userId,
       entityType: 'dispatch_handoff',
-      getEntityId: (r: { handoff?: { id: number } | null }) => r.handoff?.id ?? handoffId,
-      create: async () => {
-        if (resolution === 'SEEN') {
-          return {
-            handoff: await markSeen(handoffId, {
-              actorId: actor.userId,
-              expectedVersion,
-              expectedShipmentId: shipmentId,
-            }),
-            fulfillments: [],
-          };
-        }
-        if (resolution === 'ACCEPTED') {
-          return await acceptDispatchHandoff({
-            shipmentId,
-            handoffId,
-            expectedVersion,
-            actor: typedActor,
-          });
-        }
-        return {
-          handoff: await resolveHandoff(handoffId, resolution, actor.userId, expectedVersion, {
-            rejectReason,
-            expectedShipmentId: shipmentId,
-          }),
-          fulfillments: [],
-        };
-      },
+      getEntityId: (handoff) => (handoff as { id: number }).id,
+      create: async () => resolveHandoff(handoffId, resolution, actor.userId, expectedVersion, {
+        rejectReason,
+        expectedShipmentId: shipmentId,
+      }),
     });
-
-    res.json({ ...result, replayed });
+    res.json(replayed ? { ...result, replayed: true } : result);
   }),
 );
 

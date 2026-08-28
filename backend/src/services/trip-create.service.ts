@@ -369,6 +369,12 @@ export async function createTrip(data: {
       // Snapshots
       fuelPriceApplied: String(fuelPriceApplied),
       roadAllowanceBaseApplied: String(roadAllowanceBase),
+      // 27.8 "Tiền đường: hệ thống tự động ghi nhận theo database" — the
+      // driver's cost form reads this column before completion, so seed the
+      // norm-derived allowance at creation instead of leaving NULL ("—")
+      // until a figures update lands.
+      totalRoadAllowance: String(initialFuelTotals.totalRoadAllowance),
+      tollCost: String(initialFuelTotals.tollCost),
       fuelLoadedNormApplied: String(fuelLoadedNormApplied),
       fuelEmptyNormApplied: String(fuelEmptyNormApplied),
       fuelFixedAllowanceApplied: String(fuelFixedAllowanceApplied),
