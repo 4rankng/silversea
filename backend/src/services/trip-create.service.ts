@@ -36,27 +36,33 @@ function buildFullPricingFormula(freightFormula: string, freightPrice: number, v
 }
 // ─── createTrip ─────────────────────────────────────────────────────────────
 
-async function generateTripCode(tx: Tx, departureDateValue: string): Promise<string> {
+async function generateTripCode(departureDateValue: string): Promise<string> {
   const departureDate = new Date(departureDateValue);
   const year = departureDate.getFullYear();
   const month = String(departureDate.getMonth() + 1).padStart(2, '0');
   const yearMonth = `${year}${month}`;
 
-  await lockApplicationOwnedUniqueness(tx, 'trip-code-counter:year-month', [yearMonth]);
-  const counterRows = await tx.select().from(s.tripCodeCounters)
-    .where(eq(s.tripCodeCounters.yearMonth, yearMonth))
-    .for('update');
-  if (counterRows.length > 1) {
-    throw new ApiError(409, `Bộ đếm mã chuyến tháng ${yearMonth} bị trùng. Vui lòng kiểm tra dữ liệu.`);
-  }
-  const [counterRow] = counterRows.length === 0
-    ? await tx.insert(s.tripCodeCounters).values({ yearMonth, counter: 1 }).returning()
-    : await tx.update(s.tripCodeCounters)
-      .set({ counter: sql`${s.tripCodeCounters.counter} + 1` })
+  // Run counter increment in its own transaction so it persists even if the
+  // caller's trip INSERT fails and rolls back. Without this, a failed INSERT
+  // rolls back the counter, the next attempt regenerates the same code, and
+  // the unique constraint on trip_code creates an infinite failure loop.
+  return db.transaction(async (tx) => {
+    await lockApplicationOwnedUniqueness(tx, 'trip-code-counter:year-month', [yearMonth]);
+    const counterRows = await tx.select().from(s.tripCodeCounters)
       .where(eq(s.tripCodeCounters.yearMonth, yearMonth))
-      .returning();
+      .for('update');
+    if (counterRows.length > 1) {
+      throw new ApiError(409, `Bộ đếm mã chuyến tháng ${yearMonth} bị trùng. Vui lòng kiểm tra dữ liệu.`);
+    }
+    const [counterRow] = counterRows.length === 0
+      ? await tx.insert(s.tripCodeCounters).values({ yearMonth, counter: 1 }).returning()
+      : await tx.update(s.tripCodeCounters)
+        .set({ counter: sql`${s.tripCodeCounters.counter} + 1` })
+        .where(eq(s.tripCodeCounters.yearMonth, yearMonth))
+        .returning();
 
-  return `TRP-${yearMonth}-${String(counterRow.counter).padStart(4, '0')}`;
+    return `TRP-${yearMonth}-${String(counterRow.counter).padStart(4, '0')}`;
+  });
 }
 
 export async function createTrip(data: {
@@ -313,7 +319,7 @@ export async function createTrip(data: {
     });
 
     // 3. Atomic tripCode generation
-    const tripCode = await generateTripCode(tx, data.departureDate);
+    const tripCode = await generateTripCode(data.departureDate);
 
     // 4. Create trip with snapshotted rates. The trip is inserted with
     //    shipmentId = NULL even when one was provided — the link is set in a
@@ -442,7 +448,7 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
       .limit(1);
     if (!source) throw new ApiError(404, 'Không tìm thấy chuyến cần copy');
 
-    const tripCode = await generateTripCode(tx, source.departureDate);
+    const tripCode = await generateTripCode(source.departureDate);
     const [trip] = await tx.insert(s.trips)
       .values(buildCopiedTripValues(source, tripCode, createdBy))
       .returning();

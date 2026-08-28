@@ -59,6 +59,9 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
   // Generic server error
   const isDev = config.nodeEnv === 'development';
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.stack || err.message);
+  // Log the underlying cause (e.g. Drizzle-wrapped Postgres errors) so
+  // constraint violations are visible in the console during development.
+  if (err.cause) console.error(`[ERROR] cause:`, err.cause);
   res.status(500).json({
     error: 'Lỗi máy chủ',
     ...(isDev && { details: err.message, stack: err.stack }),
