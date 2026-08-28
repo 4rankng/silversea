@@ -80,5 +80,8 @@ export function useDriverJourneyBoard() {
   return useQuery({
     queryKey: qk.driver.journeyBoard,
     queryFn: () => driverClient.getJourneyBoard(),
+    // Spec (Phần 3, Bước 1): lái xe phải thấy lệnh mới ngay khi Điều vận
+    // gán biển số, không cần mở lại app. Poll mỗi 15 s thay cho FCM/APNS.
+    refetchInterval: 15_000,
   });
 }

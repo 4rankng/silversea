@@ -26,7 +26,7 @@ function draftSubmission(overrides: Partial<Parameters<typeof TripPodSubmission>
 }
 
 describe('TripPodSubmission', () => {
-  it('shows missing required documents and disables submit until required files exist', () => {
+  it('shows missing required documents and readiness status', () => {
     render(
       <TripPodSubmission
         tripId={55}
@@ -44,7 +44,8 @@ describe('TripPodSubmission', () => {
 
     expect(screen.getAllByText(/Phiếu bãi \/ phiếu hạ/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Gửi e-POD/i }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText(/Còn thiếu/)).toBeTruthy();
+    expect(screen.getByText(/Điều kiện hoàn thành/)).toBeTruthy();
   });
 
   it('creates a draft if needed before uploading a picked file', async () => {
@@ -77,8 +78,7 @@ describe('TripPodSubmission', () => {
     ));
   });
 
-  it('submits the current draft once required files are present', async () => {
-    const onSubmit = vi.fn().mockResolvedValue(undefined);
+  it('shows 100% readiness when both required files are present', () => {
     render(
       <TripPodSubmission
         tripId={55}
@@ -109,14 +109,11 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={onSubmit}
+        onSubmit={vi.fn()}
       />,
     );
 
-    const button = screen.getByRole('button', { name: /Gửi e-POD/i });
-    expect(button.hasAttribute('disabled')).toBe(false);
-    fireEvent.click(button);
-
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ id: 81 })));
+    expect(screen.getByText('100%')).toBeTruthy();
+    expect(screen.getByText(/Đủ hồ sơ bắt buộc/)).toBeTruthy();
   });
 });

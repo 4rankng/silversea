@@ -297,7 +297,7 @@ export function TripPodSubmission({
       <div className="trip-pod__foot">
         <div className="trip-pod__readiness">
           <strong>
-            Điều kiện gửi duyệt
+            Điều kiện hoàn thành
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
           {/* Spec (Phần 4): the literal "thanh tiến trình" — submit unlocks at 100%. */}
@@ -315,22 +315,15 @@ export function TripPodSubmission({
             />
           </div>
           {missingRequired.length === 0 ? (
-            <span>Đủ hồ sơ bắt buộc để gửi duyệt.</span>
+            <span>Đủ hồ sơ bắt buộc. Bấm "Hoàn thành chuyến" ở dưới để gửi.</span>
           ) : (
             <span>
               Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')}.
             </span>
           )}
         </div>
-        <button
-          type="button"
-          className="trip-pod__submit"
-          onClick={() => void handleSubmit()}
-          disabled={!canSubmit || submitting || submitState === 'pending'}
-        >
-          {submitting ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}
-          <span>Gửi e-POD</span>
-        </button>
+        {/* Spec (Phần 4): nút "Gửi e-POD" riêng đã được gộp vào nút
+            "HOÀN THÀNH CHUYẾN" ở footer chuyến (DriverTripDetailPage). */}
       </div>
 
       {latestHistory.length > 0 && (

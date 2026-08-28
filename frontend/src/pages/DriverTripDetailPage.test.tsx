@@ -226,7 +226,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Đã lấy vỏ / Lấy hàng')).toBeTruthy();
     expect(screen.getByText('Đang đóng / Trả hàng')).toBeTruthy();
     expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
   });
 
@@ -292,7 +292,7 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
     const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: /Gửi chờ duyệt phí/ }).matches(':disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).matches(':disabled')).toBe(true);
   });
 
   it('queues the next available milestone with the trip version and fulfillment id', async () => {

@@ -433,6 +433,13 @@ export default function DriverTripDetailPage() {
 
   async function handleCompleteTrip() {
     if (!trip) return;
+    // Spec (Phần 4): "HOÀN THÀNH CHUYẾN" is a single action — submit e-POD
+    // then complete the trip. The separate "Gửi e-POD" step is removed.
+    if (currentSubmission?.status === 'DRAFT') {
+      await handleSubmitPod(currentSubmission);
+      // Re-fetch to get the updated submission status after e-POD submit.
+      await refreshAll();
+    }
     const idempotencyKey = buildOfflineCommandKey('driver', 'task', validFulfillmentId, 'complete', 'version', trip.version);
     enqueue({
       id: idempotencyKey,
@@ -448,7 +455,7 @@ export default function DriverTripDetailPage() {
         expectedVersion: trip.version,
       },
     });
-    await runDrain('Chuyến đã chuyển sang chờ kế toán/CUS duyệt phí.', idempotencyKey);
+    await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
   }
 
   async function handleUploadFuelEvidence(file: File) {
@@ -556,7 +563,12 @@ export default function DriverTripDetailPage() {
   const completionReady = evidence.data?.ready === true
     && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
   const accountingLock = trip.accountingLock ?? null;
-  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !completionReady;
+  // Spec (Phần 4): "HOÀN THÀNH CHUYẾN" requires both e-POD photos uploaded.
+  const podFilesByType = currentSubmission?.files ?? [];
+  const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
+  const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
+  const podReady = hasYardReceipt && hasSignedNote;
+  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !completionReady || !podReady;
   const completionReasons = evidence.data?.missingItems ?? [];
   const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
@@ -928,10 +940,12 @@ export default function DriverTripDetailPage() {
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
             <p>
-              Sau khi ghi nhận đủ bước 3 và gửi e-POD, chuyến sẽ chuyển sang Chờ duyệt phí để kế toán/CUS xử lý.
+              Tải đủ 2 ảnh e-POD bắt buộc, ghi nhận đủ mốc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
             </p>
-            {completionReasons.length > 0 && (
+            {(completionReasons.length > 0 || !podReady) && (
               <ul className="driver-task-footer__issues">
+                {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
+                {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
                 {completionReasons.map((item) => (
                   <li key={item.code}>{item.label}</li>
                 ))}
@@ -945,12 +959,12 @@ export default function DriverTripDetailPage() {
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />
-            <span>{trip.status === 'COMPLETED' ? 'Đã gửi chờ duyệt phí' : 'Gửi chờ duyệt phí'}</span>
+            <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
           </button>
-          {completionReady && trip.status === 'IN_TRANSIT' && (
+          {completionReady && podReady && trip.status === 'IN_TRANSIT' && (
             <div className="driver-task-footer__ready">
               <CheckCircle2 size={16} />
-              <span>Đủ điều kiện gửi Kế toán/CUS duyệt phí.</span>
+              <span>Đủ điều kiện hoàn thành chuyến.</span>
             </div>
           )}
         </div>
