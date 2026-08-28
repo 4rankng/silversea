@@ -702,7 +702,10 @@ export default function DriverTripDetailPage() {
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
-          <span>Ghi chú</span>
+          {/* 27.8 spec — "Ô 'Quy định tại điểm làm hàng' → Ghi chú: Mục ghi
+              chú này nhận thông tin từ ghi chú cus/điều vận trên hệ thống
+              'ghi chú cho lái xe'". Renamed to surface the spec wording. */}
+          <span>Quy định tại điểm làm hàng</span>
         </div>
         {driverNotes ? (
           <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
@@ -829,7 +832,16 @@ export default function DriverTripDetailPage() {
 
       {isShipmentCostEntryEnabled() && (
         <section className="driver-task-section">
-          <ShipmentCostEntryForm tripId={trip.id} />
+          <ShipmentCostEntryForm
+            tripId={trip.id}
+            totalRoadAllowance={trip.totalRoadAllowance ?? null}
+            pickupLocation={fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? null}
+            deliveryLocation={fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null}
+            pickupPortName={fulfillment?.pickupPortName ?? null}
+            dropPortName={fulfillment?.dropPortName ?? null}
+            pickupWarehouseName={fulfillment?.pickupWarehouseName ?? null}
+            dropWarehouseName={fulfillment?.dropWarehouseName ?? null}
+          />
         </section>
       )}
 

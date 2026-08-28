@@ -144,27 +144,82 @@ export const TRIP_POD_REQUIRED_FILE_TYPES = [
   TripPodFileType.SIGNED_DELIVERY_NOTE,
 ] as const;
 
-/** M8.4 — driver incidental cost types (out-of-pocket expenses). */
+/** M8.4 — driver incidental cost types (out-of-pocket expenses).
+ *  27.8 spec additions: WAREHOUSE_FEE (Phí chi kho), LIFT_DROP_LACH_HUYEN
+ *  (read-only 50.000đ default for Lạch Huyện), ROAD_ALLOWANCE (auto from
+ *  `trips.totalRoadAllowance`, read-only), and the "Chi phí khác" sub-options
+ *  CONTAINER_WASH (Rửa cont) / CONTAINER_WELD (Hàn cont) / TIRE_WEIGH (Cân lốp).
+ *  The three LIFT_DROP_LACH_HUYEN / ROAD_ALLOWANCE / TIRE_WEIGH rows are
+ *  read-only on the driver form — they're seeded server-side (Lạch Huyện
+ *  default + DB-driven Tiền đường) and only a backend re-compute can change
+ *  them. The spec calls for "hệ thống tự động ghi nhận" / "không được điền
+ *  tay", so the form just displays them with a note explaining the source. */
 export enum DriverIncidentalCostType {
   PER_DIEM = 'PER_DIEM',
   LIFT_FEE = 'LIFT_FEE',
   DROP_FEE = 'DROP_FEE',
+  /** Phí chi kho — warehouse / storage fee (27.8). */
+  WAREHOUSE_FEE = 'WAREHOUSE_FEE',
+  /** Phí nâng/hạ Lạch Huyện — read-only 50.000đ default when route touches
+   *  Lạch Huyện (27.8). Seeded server-side, not editable by the driver. */
+  LIFT_DROP_LACH_HUYEN = 'LIFT_DROP_LACH_HUYEN',
+  /** Tiền đường — auto from `trips.totalRoadAllowance` (27.8). Read-only. */
+  ROAD_ALLOWANCE = 'ROAD_ALLOWANCE',
   PARKING = 'PARKING',
   TOLL = 'TOLL',
   FUEL = 'FUEL',
+  /** Sub-options for "Chi phí khác" (27.8). */
+  CONTAINER_WASH = 'CONTAINER_WASH',
+  CONTAINER_WELD = 'CONTAINER_WELD',
+  TIRE_WEIGH = 'TIRE_WEIGH',
   OTHER = 'OTHER',
 }
 
-/** Vietnamese labels for driver incidental cost types (PRD Mxx-HT-01). */
+/** Vietnamese labels for driver incidental cost types (PRD Mxx-HT-01 + 27.8). */
 export const DRIVER_INCIDENTAL_COST_LABELS: Record<DriverIncidentalCostType, string> = {
   [DriverIncidentalCostType.PER_DIEM]: 'Phụ cấp ngày',
   [DriverIncidentalCostType.LIFT_FEE]: 'Phí nâng',
   [DriverIncidentalCostType.DROP_FEE]: 'Phí hạ',
+  [DriverIncidentalCostType.WAREHOUSE_FEE]: 'Phí chi kho',
+  [DriverIncidentalCostType.LIFT_DROP_LACH_HUYEN]: 'Phí nâng/hạ Lạch Huyện',
+  [DriverIncidentalCostType.ROAD_ALLOWANCE]: 'Tiền đường',
   [DriverIncidentalCostType.PARKING]: 'Phí đậu xe',
   [DriverIncidentalCostType.TOLL]: 'Phí cầu đường',
   [DriverIncidentalCostType.FUEL]: 'Tiền dầu',
+  [DriverIncidentalCostType.CONTAINER_WASH]: 'Rửa cont',
+  [DriverIncidentalCostType.CONTAINER_WELD]: 'Hàn cont',
+  [DriverIncidentalCostType.TIRE_WEIGH]: 'Cân lốp',
   [DriverIncidentalCostType.OTHER]: 'Khác',
 } as const;
+
+/** Cost types the driver can pick from the form. Read-only auto rows
+ *  (LIFT_DROP_LACH_HUYEN, ROAD_ALLOWANCE) are seeded server-side and only
+ *  shown in the read-only banner; they never appear in this picker. FUEL is
+ *  excluded because it has its own FuelRefillReportForm. */
+export const DRIVER_EDITABLE_COST_TYPES: readonly DriverIncidentalCostType[] = [
+  DriverIncidentalCostType.LIFT_FEE,
+  DriverIncidentalCostType.DROP_FEE,
+  DriverIncidentalCostType.WAREHOUSE_FEE,
+  DriverIncidentalCostType.PARKING,
+  DriverIncidentalCostType.TOLL,
+  DriverIncidentalCostType.CONTAINER_WASH,
+  DriverIncidentalCostType.CONTAINER_WELD,
+  DriverIncidentalCostType.TIRE_WEIGH,
+  DriverIncidentalCostType.OTHER,
+] as const;
+
+/** Sub-options for the spec's "Chi phí khác" picker (Rửa cont / Hàn cont
+ *  / Cân lốp / Khác). The driver picks one and we store the right enum
+ *  value. */
+export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
+  value: DriverIncidentalCostType;
+  label: string;
+}> = [
+  { value: DriverIncidentalCostType.CONTAINER_WASH, label: 'Rửa cont' },
+  { value: DriverIncidentalCostType.CONTAINER_WELD, label: 'Hàn cont' },
+  { value: DriverIncidentalCostType.TIRE_WEIGH, label: 'Cân lốp' },
+  { value: DriverIncidentalCostType.OTHER, label: 'Khác' },
+] as const;
 
 /** Vietnamese labels for shipment statuses (PRD Mxx-HT-01). */
 export const SHIPMENT_STATUS_LABELS: Record<ShipmentStatus, string> = {

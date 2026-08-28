@@ -47,8 +47,23 @@ function makeEntry(overrides: Partial<{
   };
 }
 
-function renderForm(tripId = 42) {
-  return render(<ShipmentCostEntryForm tripId={tripId} />);
+function renderForm(
+  tripId = 42,
+  overrides: Partial<React.ComponentProps<typeof ShipmentCostEntryForm>> = {},
+) {
+  return render(
+    <ShipmentCostEntryForm
+      tripId={tripId}
+      totalRoadAllowance="600000"
+      pickupLocation="Cảng Nam Đình Vũ"
+      deliveryLocation="Nhà máy Sunrise Bắc Giang"
+      pickupPortName="Cảng Nam Đình Vũ"
+      dropPortName="Nhà máy Sunrise Bắc Giang"
+      pickupWarehouseName="Kho Nam Đình Vũ"
+      dropWarehouseName="Kho Sunrise Bắc Giang"
+      {...overrides}
+    />,
+  );
 }
 
 describe('ShipmentCostEntryForm', () => {

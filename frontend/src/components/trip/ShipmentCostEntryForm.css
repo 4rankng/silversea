@@ -14,6 +14,57 @@
   gap: 12px;
 }
 
+/* 27.8 spec — read-only auto rows. The Lock icon visually marks them
+   as system-managed so the driver doesn't try to edit them. */
+.shipment-cost-entry__auto {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.03));
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.shipment-cost-entry__auto-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 10px;
+  color: var(--ink);
+}
+
+.shipment-cost-entry__auto-row > svg {
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
+.shipment-cost-entry__auto-row.is-muted {
+  opacity: 0.55;
+}
+
+.shipment-cost-entry__auto-body {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.shipment-cost-entry__auto-label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.shipment-cost-entry__auto-value {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.shipment-cost-entry__auto-note {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
 .shipment-cost-entry__title {
   margin: 0;
   font-size: 18px;

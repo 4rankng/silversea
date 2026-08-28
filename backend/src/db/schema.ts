@@ -3585,7 +3585,12 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
 // COMPLETED trips reject new incidental costs — unlike progress events (which
 // are append-only audit logs), costs affect financials, so completion = immutable.
 export const driverIncidentalCostTypeEnum = applicationEnum([
-  'PER_DIEM', 'LIFT_FEE', 'DROP_FEE', 'PARKING', 'TOLL', 'FUEL', 'OTHER',
+  // 27.8 spec additions:
+  'PER_DIEM', 'LIFT_FEE', 'DROP_FEE', 'WAREHOUSE_FEE',
+  'LIFT_DROP_LACH_HUYEN', 'ROAD_ALLOWANCE',
+  'PARKING', 'TOLL', 'FUEL',
+  'CONTAINER_WASH', 'CONTAINER_WELD', 'TIRE_WEIGH',
+  'OTHER',
 ]);
 
 export const driverIncidentalCosts = pgTable('driver_incidental_costs', {

@@ -1,6 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Camera, CheckCircle2, Loader2, Plus, ReceiptText } from 'lucide-react';
-import { DriverIncidentalCostType, DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Camera,
+  CheckCircle2,
+  Info,
+  Loader2,
+  Lock,
+  Plus,
+  ReceiptText,
+} from 'lucide-react';
+import {
+  CHI_PHI_KHAC_SUBOPTIONS,
+  DRIVER_EDITABLE_COST_TYPES,
+  DRIVER_INCIDENTAL_COST_LABELS,
+  DriverIncidentalCostType,
+} from '@tingting/shared';
 import { driverClient } from '../../api/driverClient';
 import { buildOfflineCommandKey } from '../../features/driver/useOfflineCommandQueue';
 import { SelectField, NumberField, DateField } from '../../design-system';
@@ -23,17 +37,61 @@ interface IncidentalCostEntry {
 export interface ShipmentCostEntryFormProps {
   /** Trip id — the incidental-costs API is trip-scoped, not fulfillment-scoped. */
   tripId: number;
+  /** Auto-filled `Tiền đường` for this trip. Read-only; comes from
+   *  `trips.totalRoadAllowance` (27.8 — "Hệ thống tự động ghi nhận theo
+   *  database up lên, không được điền tay"). */
+  totalRoadAllowance: string | null;
+  /** Pickup + drop port / warehouse names. Used to decide whether the
+   *  Lạch Huyện 50.000đ read-only default applies (27.8 — "với những
+   *  cont hàng cus/điều vận nhập nâng hạ tại phía Lạch Huyện, hệ thống
+   *  ghi nhận mặc định phí nâng hạ 50.000đ"). */
+  pickupLocation: string | null;
+  deliveryLocation: string | null;
+  pickupPortName?: string | null;
+  dropPortName?: string | null;
+  pickupWarehouseName?: string | null;
+  dropWarehouseName?: string | null;
 }
 
 // FUEL has its own dedicated report (FuelRefillReportForm, same flag) per the
 // driver-app spec — excluded here so a refill isn't entered twice or shown in
 // both forms' lists. Both forms write to the same driver_incidental_costs
 // table; each form only lists/creates its own slice of cost types.
-const COST_TYPE_OPTIONS = Object.values(DriverIncidentalCostType).filter(
-  (type) => type !== DriverIncidentalCostType.FUEL,
-);
+// LIFT_DROP_LACH_HUYEN + ROAD_ALLOWANCE are also excluded from the picker —
+// they're seeded server-side and only displayed as read-only rows below.
+const COST_TYPE_OPTIONS = DRIVER_EDITABLE_COST_TYPES;
 
-export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
+const LACH_HUYEN_DEFAULT_AMOUNT = 50000;
+const LACH_HUYEN_MATCHER = /l[aá]ch\s*huy[eê]n/i;
+
+function routeTouchesLachHuyen(props: ShipmentCostEntryFormProps): boolean {
+  const candidates = [
+    props.pickupLocation,
+    props.deliveryLocation,
+    props.pickupPortName,
+    props.dropPortName,
+    props.pickupWarehouseName,
+    props.dropWarehouseName,
+  ];
+  return candidates.some((value) => typeof value === 'string' && LACH_HUYEN_MATCHER.test(value));
+}
+
+function parseAmount(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function ShipmentCostEntryForm({
+  tripId,
+  totalRoadAllowance,
+  pickupLocation,
+  deliveryLocation,
+  pickupPortName,
+  dropPortName,
+  pickupWarehouseName,
+  dropWarehouseName,
+}: ShipmentCostEntryFormProps) {
   const [entries, setEntries] = useState<IncidentalCostEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,10 +106,48 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Read-only auto rows (27.8 spec). Detected from fulfillment route.
+  const lachHuyenApplies = useMemo(
+    () => routeTouchesLachHuyen({
+      tripId,
+      totalRoadAllowance,
+      pickupLocation,
+      deliveryLocation,
+      pickupPortName,
+      dropPortName,
+      pickupWarehouseName,
+      dropWarehouseName,
+    }),
+    [
+      tripId,
+      totalRoadAllowance,
+      pickupLocation,
+      deliveryLocation,
+      pickupPortName,
+      dropPortName,
+      pickupWarehouseName,
+      dropWarehouseName,
+    ],
+  );
+  const roadAllowanceAmount = useMemo(() => parseAmount(totalRoadAllowance), [totalRoadAllowance]);
+  const existingLachHuyenEntry = useMemo(
+    () => entries.find((entry) => entry.costType === DriverIncidentalCostType.LIFT_DROP_LACH_HUYEN) ?? null,
+    [entries],
+  );
+  const existingRoadAllowanceEntry = useMemo(
+    () => entries.find((entry) => entry.costType === DriverIncidentalCostType.ROAD_ALLOWANCE) ?? null,
+    [entries],
+  );
+
   const refresh = useCallback(async () => {
     try {
       const items = await driverClient.listIncidentalCosts(tripId);
-      setEntries(items.filter((item) => item.costType !== DriverIncidentalCostType.FUEL));
+      setEntries(
+        items.filter(
+          (item) =>
+            item.costType !== DriverIncidentalCostType.FUEL,
+        ),
+      );
       setLoadError(null);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách chi phí.');
@@ -134,7 +230,9 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
       <div className="shipment-cost-entry__head">
         <div>
           <h2 className="shipment-cost-entry__title">Nhập chi phí lô hàng</h2>
-          <p className="shipment-cost-entry__subtitle">Chi phí phát sinh ngoài (phụ cấp, phí nâng/hạ, đậu xe, cầu đường, dầu…).</p>
+          <p className="shipment-cost-entry__subtitle">
+            Phí nâng/hạ, phí chi kho, rửa/hàn cont, cân lốp, tiền đường và các phí phát sinh khác.
+          </p>
         </div>
         {!formOpen && (
           <button
@@ -155,6 +253,51 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
         </div>
       )}
 
+      {/* 27.8 spec — read-only auto rows:
+            • Phí nâng/hạ Lạch Huyện 50.000đ (mặc định, không điền tay)
+            • Tiền đường (tự động từ database) */}
+      <div className="shipment-cost-entry__auto" data-testid="shipment-cost-auto">
+        <div
+          className={`shipment-cost-entry__auto-row${lachHuyenApplies ? '' : ' is-muted'}`}
+          data-testid="shipment-cost-auto-lach-huyen"
+        >
+          <Lock size={14} aria-hidden="true" />
+          <div className="shipment-cost-entry__auto-body">
+            <span className="shipment-cost-entry__auto-label">
+              {DRIVER_INCIDENTAL_COST_LABELS[DriverIncidentalCostType.LIFT_DROP_LACH_HUYEN]}
+            </span>
+            <span className="shipment-cost-entry__auto-value">
+              {formatCurrency(String(existingLachHuyenEntry?.amount ?? LACH_HUYEN_DEFAULT_AMOUNT))}
+            </span>
+            <span className="shipment-cost-entry__auto-note">
+              {lachHuyenApplies
+                ? 'Mặc định 50.000đ khi cont hàng nhập nâng hạ tại Lạch Huyện. Hệ thống tự ghi nhận — không điền tay.'
+                : 'Chỉ áp dụng khi cont hàng nhập nâng hạ tại Lạch Huyện. Tuyến hiện tại không đi qua Lạch Huyện.'}
+            </span>
+          </div>
+        </div>
+
+        <div className="shipment-cost-entry__auto-row" data-testid="shipment-cost-auto-road-allowance">
+          <Lock size={14} aria-hidden="true" />
+          <div className="shipment-cost-entry__auto-body">
+            <span className="shipment-cost-entry__auto-label">
+              {DRIVER_INCIDENTAL_COST_LABELS[DriverIncidentalCostType.ROAD_ALLOWANCE]}
+            </span>
+            <span className="shipment-cost-entry__auto-value">
+              {roadAllowanceAmount != null
+                ? formatCurrency(String(roadAllowanceAmount))
+                : existingRoadAllowanceEntry
+                  ? formatCurrency(existingRoadAllowanceEntry.amount)
+                  : '—'}
+            </span>
+            <span className="shipment-cost-entry__auto-note">
+              Hệ thống tự động ghi nhận theo database — không được điền tay. Nếu số liệu chưa đúng, ghi chú
+              bên dưới để kế toán soát lại.
+            </span>
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <p className="shipment-cost-entry__loading">
           <Loader2 size={16} className="spin" /> Đang tải chi phí…
@@ -163,27 +306,33 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
         <p className="shipment-cost-entry__empty">Chưa có chi phí phát sinh nào cho chuyến này.</p>
       ) : (
         <ul className="shipment-cost-entry__list">
-          {entries.map((entry) => (
-            <li key={entry.id} className="shipment-cost-entry__item">
-              {entry.receiptStorageKey && (
-                <img
-                  src={photoSrc(entry.receiptStorageKey)}
-                  alt={`Hóa đơn ${DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}
-                  className="shipment-cost-entry__thumb"
-                />
-              )}
-              <div className="shipment-cost-entry__item-body">
-                <div className="shipment-cost-entry__item-top">
-                  <strong>{DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong>
-                  <span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span>
+          {entries
+            .filter(
+              (entry) =>
+                entry.costType !== DriverIncidentalCostType.LIFT_DROP_LACH_HUYEN &&
+                entry.costType !== DriverIncidentalCostType.ROAD_ALLOWANCE,
+            )
+            .map((entry) => (
+              <li key={entry.id} className="shipment-cost-entry__item">
+                {entry.receiptStorageKey && (
+                  <img
+                    src={photoSrc(entry.receiptStorageKey)}
+                    alt={`Hóa đơn ${DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}
+                    className="shipment-cost-entry__thumb"
+                  />
+                )}
+                <div className="shipment-cost-entry__item-body">
+                  <div className="shipment-cost-entry__item-top">
+                    <strong>{DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong>
+                    <span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span>
+                  </div>
+                  <div className="shipment-cost-entry__item-meta">
+                    <span>{formatISODate(entry.occurredAt)}</span>
+                    {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
+                  </div>
                 </div>
-                <div className="shipment-cost-entry__item-meta">
-                  <span>{formatISODate(entry.occurredAt)}</span>
-                  {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
-                </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            ))}
         </ul>
       )}
 
@@ -225,7 +374,9 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
           />
 
           <div className="shipment-cost-entry__field">
-            <label htmlFor="shipment-cost-entry-note" className="shipment-cost-entry__field-label">Ghi chú (không bắt buộc)</label>
+            <label htmlFor="shipment-cost-entry-note" className="shipment-cost-entry__field-label">
+              <Info size={14} aria-hidden="true" /> Ghi chú (không bắt buộc)
+            </label>
             <textarea
               id="shipment-cost-entry-note"
               className="shipment-cost-entry__textarea"
@@ -233,7 +384,7 @@ export function ShipmentCostEntryForm({ tripId }: ShipmentCostEntryFormProps) {
               onChange={(event) => setNote(event.target.value)}
               disabled={submitting}
               rows={2}
-              placeholder="Ví dụ: phí nâng cont tại cảng Cát Lái"
+              placeholder="Ví dụ: phí nâng cont tại cảng Cát Lái. Nếu Tiền đường / Phí Lạch Huyện chưa đúng, ghi chú tại đây để kế toán soát lại."
             />
           </div>
 
