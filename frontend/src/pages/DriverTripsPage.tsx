@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Loader2, Package2 } from 'lucide-react';
+import { ArrowRight, Building2, Loader2, MapPinned, Package2, Phone, Route, Truck } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import type { DriverJourneyCard } from '../api/driverClient';
 import './DriverTripsPage.css';
@@ -63,12 +63,14 @@ function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
   return order.map((key) => groups.get(key)!);
 }
 
+function dash(value: string | null | undefined): string {
+  return value && value.trim().length > 0 ? value : '—';
+}
+
 function JourneyCard({ card }: { card: DriverJourneyCard }) {
   const navigate = useNavigate();
   const tag = tagLabelFor(card);
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
-  // Spec Layer-1 footer literal is for new orders; accepted/finished cards
-  // must not invite accepting again.
   const footerLabel = card.bucket === 'NEW' ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
@@ -78,20 +80,31 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         </span>
         <span className="driver-journey-card__time">{formatCardTime(card.scheduledAt)}</span>
       </div>
+      {/* Spec A4 field order: Nhà máy → Tuyến đường → Người liên hệ → SĐT →
+          Cont/Loại cont/Seal (1 line) → Càng Nâng → Cảng Hạ → Đầu kéo → Mooc */}
       <div className="driver-journey-card__row">
-        <span className="driver-journey-card__cell">{card.factoryName ?? '—'}</span>
-        <span className="driver-journey-card__cell driver-journey-card__cell--right">{card.loadingPortName ?? '—'}</span>
+        <span className="driver-journey-card__cell"><Building2 size={13} /> {dash(card.factoryName)}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right"><Route size={13} /> {dash(card.routeName)}</span>
       </div>
       <div className="driver-journey-card__row">
-        <span className="driver-journey-card__cell">{card.routeName ?? '—'}</span>
-        <span className="driver-journey-card__cell driver-journey-card__cell--right">{card.dropPortName ?? '—'}</span>
+        <span className="driver-journey-card__cell"><Phone size={13} /> {dash(card.contactName)}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right">{dash(card.contactPhone)}</span>
       </div>
       <div className="driver-journey-card__container">
         <Package2 size={14} />
         <span>
           Cont: {card.containerNumber ?? '—'}
-          {card.containerTypeName ? ` - ${card.containerTypeName}` : ''}
+          {card.containerTypeName ? ` · ${card.containerTypeName}` : ''}
+          {card.sealNumber ? ` · Seal ${card.sealNumber}` : ''}
         </span>
+      </div>
+      <div className="driver-journey-card__row">
+        <span className="driver-journey-card__cell"><MapPinned size={13} /> Nâng: {dash(card.loadingPortName)}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right"><MapPinned size={13} /> Hạ: {dash(card.dropPortName)}</span>
+      </div>
+      <div className="driver-journey-card__row">
+        <span className="driver-journey-card__cell"><Truck size={13} /> Đầu: {dash(card.truckPlate)}</span>
+        <span className="driver-journey-card__cell driver-journey-card__cell--right"><Truck size={13} /> Mooc: {dash(card.trailerPlate)}</span>
       </div>
       <button
         type="button"

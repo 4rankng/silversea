@@ -81,6 +81,11 @@ export interface DriverJourneyCard {
   dropPortName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
+  sealNumber: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  truckPlate: string | null;
+  trailerPlate: string | null;
 }
 
 export interface DriverTaskLeg {
@@ -169,6 +174,7 @@ export interface DriverTaskDetail {
   trailerType: string | null;
   customerName: string | null;
   cargoTypeName: string | null;
+  tradeDirection?: string | null;
   fuelLiters: string | null;
   fuelMode: string | null;
   fuelSupplierName: string | null;

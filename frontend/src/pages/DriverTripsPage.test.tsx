@@ -36,6 +36,11 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     dropPortName: 'Sóng Thần',
     containerNumber: 'MSCU1234561',
     containerTypeName: "40'HC",
+    sealNumber: 'SL001',
+    contactName: 'Nguyễn Văn A',
+    contactPhone: '0901234567',
+    truckPlate: '51C-12345',
+    trailerPlate: '51R-67890',
     ...overrides,
   };
 }
@@ -81,11 +86,14 @@ describe('DriverTripsPage', () => {
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
     expect(screen.getByText(expectedTime)).toBeTruthy();
-    expect(screen.getByText('Nhà máy Bình Dương')).toBeTruthy();
-    expect(screen.getByText('Cát Lái')).toBeTruthy();
-    expect(screen.getByText('Cát Lái → Bình Dương')).toBeTruthy();
-    expect(screen.getByText('Sóng Thần')).toBeTruthy();
-    expect(screen.getByText("Cont: MSCU1234561 - 40'HC")).toBeTruthy();
+    expect(screen.getByText(/Nhà máy Bình Dương/)).toBeTruthy();
+    expect(screen.getByText(/Cát Lái → Bình Dương/)).toBeTruthy();
+    expect(screen.getByText(/Nguyễn Văn A/)).toBeTruthy();
+    expect(screen.getByText(/0901234567/)).toBeTruthy();
+    expect(screen.getByText(/MSCU1234561/)).toBeTruthy();
+    expect(screen.getByText(/Seal SL001/)).toBeTruthy();
+    expect(screen.getByText(/51C-12345/)).toBeTruthy();
+    expect(screen.getByText(/51R-67890/)).toBeTruthy();
   });
 
   it('navigates to the fulfillment detail page when a card footer is pressed', async () => {

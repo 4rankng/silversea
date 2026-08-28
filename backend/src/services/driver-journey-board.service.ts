@@ -32,6 +32,11 @@ export interface DriverJourneyCard {
   dropPortName: string | null;
   containerNumber: string | null;
   containerTypeName: string | null;
+  sealNumber: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  truckPlate: string | null;
+  trailerPlate: string | null;
 }
 
 /**
@@ -78,6 +83,11 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     routeName: s.routes.name,
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeName: s.containerTypes.name,
+    sealNumber: s.shipmentContainers.sealNumber,
+    contactName: s.shipments.contactName,
+    contactPhone: s.shipments.contactPhone,
+    truckPlate: s.trucks.licensePlate,
+    trailerPlate: s.trailers.licensePlate,
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
@@ -87,6 +97,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     .leftJoin(s.routes, eq(s.routes.id, s.trips.routeId))
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .leftJoin(s.trailers, eq(s.trailers.id, s.trucks.currentTrailerId))
     .leftJoin(pickupPort, eq(pickupPort.id, s.shipmentContainers.pickupPortId))
     .leftJoin(dropoffPort, eq(dropoffPort.id, s.shipmentContainers.dropoffPortId))
     .leftJoin(containerFactory, eq(containerFactory.id, s.shipmentContainers.operationalSiteId))
@@ -134,5 +146,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       dropPortName: row.deliveryLocation ?? row.containerDropoffPortName,
       containerNumber: row.containerNumber,
       containerTypeName: row.containerTypeName,
+      sealNumber: row.sealNumber,
+      contactName: row.contactName,
+      contactPhone: row.contactPhone,
+      truckPlate: row.truckPlate,
+      trailerPlate: row.trailerPlate,
     }));
 }

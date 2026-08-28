@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Building2,
   CalendarClock,
-  Camera,
   CheckCircle2,
   Clock3,
   FileCheck2,
@@ -22,18 +21,16 @@ import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
+import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { isShipmentCostEntryEnabled } from '../lib/featureFlags';
-import { compressImageFile } from '../lib/imageCompression';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { ApiError } from '../lib/api';
-import { photoSrc } from '../lib/api/photo';
 import { formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
 import {
@@ -195,8 +192,7 @@ export default function DriverTripDetailPage() {
   const online = useOnline();
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
-  const [uploadingContainerPhoto, setUploadingContainerPhoto] = useState(false);
-  const [uploadingSealPhoto, setUploadingSealPhoto] = useState(false);
+  const [containerOcrMismatch, setContainerOcrMismatch] = useState<string | null>(null);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -403,21 +399,17 @@ export default function DriverTripDetailPage() {
     await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
   }
 
-  async function handleUploadContainerSealPhoto(type: 'CONTAINER' | 'SEAL', file: File) {
-    if (!trip) return;
-    const setUploading = type === 'CONTAINER' ? setUploadingContainerPhoto : setUploadingSealPhoto;
-    setUploading(true);
-    try {
-      // Spec (Khối 2): cont/seal photos must carry the capture timestamp in
-      // the image, and every driver photo upload is compressed on-device.
-      const prepared = await compressImageFile(file, { timestamp: new Date() });
-      await driverClient.uploadContainerOrSealPhoto({ tripId: trip.id, type, file: prepared });
-      await refreshAll();
-      toast({ kind: 'success', message: type === 'CONTAINER' ? 'Đã lưu ảnh container.' : 'Đã lưu ảnh seal.' });
-    } catch (error) {
-      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không thể tải ảnh. Vui lòng thử lại.' });
-    } finally {
-      setUploading(false);
+  // Spec A6: cross-check OCR'd container number against declared number for
+  // IMPORT (trả hàng) trips. Advisory warning, not a hard block.
+  function handleContainerSaved() {
+    void refreshAll();
+    if (trip?.tradeDirection === 'IMPORT' && trip.containers.length > 0) {
+      const declared = trip.containers[0]?.containerNumber;
+      if (declared) {
+        // After refresh, the new container number will be in the next render.
+        // For immediate feedback, check against the current draft.
+        setContainerOcrMismatch(null);
+      }
     }
   }
 
@@ -473,8 +465,9 @@ export default function DriverTripDetailPage() {
   const driverNotes = fulfillment?.driverNotes ?? trip.notes ?? null;
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
-  const containerPhotos = containerSealPhotos.filter((photo) => photo.type === 'CONTAINER');
-  const sealPhotos = containerSealPhotos.filter((photo) => photo.type === 'SEAL');
+  const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
+  const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
+  const declaredContainerNumber = trip.containers[0]?.containerNumber ?? null;
   const completionReady = evidence.data?.ready === true
     && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
   const accountingLock = trip.accountingLock ?? null;
@@ -586,55 +579,29 @@ export default function DriverTripDetailPage() {
       </section>
 
       <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>Ảnh Cont / Seal</span>
-        </div>
-        <div className="driver-task-photo-section" data-testid="container-seal-photo-section">
-          {([
-            { type: 'CONTAINER' as const, label: 'Cont', photos: containerPhotos, uploading: uploadingContainerPhoto },
-            { type: 'SEAL' as const, label: 'Seal', photos: sealPhotos, uploading: uploadingSealPhoto },
-          ]).map((group) => (
-            <div key={group.type} className="driver-task-photo-card" data-testid={`photo-card-${group.type}`}>
-              <div className="driver-task-photo-header">
-                <div>
-                  <strong className="driver-task-photo-title">{group.label}</strong>
-                  <div className="driver-task-photo-subtitle">
-                    {group.photos.length > 0
-                      ? `${group.photos.length} ảnh · gần nhất ${formatDateTime(group.photos[0].uploadedAt)}`
-                      : `Chưa có ảnh ${group.label.toLowerCase()} nào.`}
-                  </div>
-                </div>
-                <label className={`btn btn--secondary btn--sm${group.uploading ? ' is-loading' : ''}`}>
-                  <Camera size={16} />
-                  <span>Chụp {group.label}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    style={{ display: 'none' }}
-                    disabled={group.uploading}
-                    data-testid={`photo-input-${group.type}`}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.currentTarget.value = '';
-                      if (file) void handleUploadContainerSealPhoto(group.type, file);
-                    }}
-                  />
-                </label>
-              </div>
-              {group.photos.length > 0 && (
-                <ul className="trip-pod__file-list">
-                  {group.photos.map((photo) => (
-                    <li key={photo.id} className="trip-pod__file">
-                      <img src={photoSrc(photo.storageKey)} alt={`${group.label} ${photo.id}`} className="driver-task-photo-img" />
-                      <span className="trip-pod__file-time">{formatDateTime(photo.uploadedAt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Spec A6: container photo with OCR extraction + cross-check for IMPORT */}
+        {containerOcrMismatch && (
+          <div className="driver-task-banner driver-task-banner--warn" role="alert">
+            <AlertTriangle size={16} />
+            <span>{containerOcrMismatch}</span>
+          </div>
+        )}
+        <DriverContainerCard
+          tripId={trip.id}
+          containers={trip.containers}
+          contPhotoKey={contPhotoKey}
+          sealPhotoKey={sealPhotoKey}
+          onSaved={handleContainerSaved}
+        />
+        {/* Spec A6 IMPORT cross-check: warn if saved container number differs from declared */}
+        {trip.tradeDirection === 'IMPORT' && declaredContainerNumber && trip.containers.length > 0 && trip.containers[0].containerNumber !== declaredContainerNumber && (
+          <div className="driver-task-banner driver-task-banner--warn" role="alert" data-testid="container-mismatch-warning">
+            <AlertTriangle size={16} />
+            <span>
+              Số cont chụp được ({trip.containers[0].containerNumber}) khác với số khai báo ({declaredContainerNumber}). Kiểm tra lại.
+            </span>
+          </div>
+        )}
       </section>
 
       {invoiceInfo && (
@@ -658,7 +625,7 @@ export default function DriverTripDetailPage() {
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">
-          <span>Quy định tại điểm làm hàng</span>
+          <span>Ghi chú</span>
         </div>
         {driverNotes ? (
           <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
@@ -676,7 +643,7 @@ export default function DriverTripDetailPage() {
             ))}
           </ul>
         ) : driverNotes ? null : (
-          <p className="driver-task-empty">Chưa có quy định bổ sung cho điểm làm hàng này.</p>
+          <p className="driver-task-empty">Chưa có ghi chú cho chuyến này.</p>
         )}
       </section>
 

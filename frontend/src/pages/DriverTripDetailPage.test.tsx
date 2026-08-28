@@ -297,14 +297,10 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('e-POD đã gửi')).toBeNull();
   });
 
-  it('renders container/seal capture buttons and hides the invoice block when there is no invoice info', async () => {
+  it('renders the container card and hides the invoice block when there is no invoice info', async () => {
     renderPage();
 
-    expect(await screen.findByText(/Ảnh Cont \/ Seal/)).toBeTruthy();
-    expect(screen.getByText('Chụp Cont')).toBeTruthy();
-    expect(screen.getByText('Chụp Seal')).toBeTruthy();
-    expect(screen.getByText(/Chưa có ảnh cont nào/)).toBeTruthy();
-    expect(screen.getByText(/Chưa có ảnh seal nào/)).toBeTruthy();
+    expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
     expect(screen.queryByText(/Thông tin hóa đơn/)).toBeNull();
   });
 
@@ -337,7 +333,7 @@ describe('DriverTripDetailPage', () => {
     });
     unmount();
     renderPage();
-    expect(await screen.findByText(/Chưa có quy định bổ sung/)).toBeTruthy();
+    expect(await screen.findByText(/Chưa có ghi chú cho chuyến này/)).toBeTruthy();
   });
 
   it('shows the accounting lock and disables field actions', async () => {
@@ -398,7 +394,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByTestId('container-seal-photo-section')).toBeTruthy();
+    expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
   });
 });

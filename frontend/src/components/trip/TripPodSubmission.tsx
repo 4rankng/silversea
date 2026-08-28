@@ -6,7 +6,6 @@ import {
   Clock3,
   FileText,
   Loader2,
-  ReceiptText,
   Upload,
 } from 'lucide-react';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
@@ -37,16 +36,14 @@ const REQUIRED_FILE_TYPES = [
   TripPodFileType.SIGNED_DELIVERY_NOTE,
 ] as const;
 
-const FILE_TYPE_LABELS: Record<TripPodFileType, string> = {
+const FILE_TYPE_LABELS: Record<string, string> = {
   [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Biên bản giao nhận có ký nhận',
-  [TripPodFileType.TOLL_TICKET]: 'Vé cầu đường',
 };
 
-const FILE_TYPE_HELP: Record<TripPodFileType, string> = {
+const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Bắt buộc. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
-  [TripPodFileType.TOLL_TICKET]: 'Không bắt buộc. Có thể tải lên nhiều vé nếu chuyến phát sinh nhiều trạm.',
 };
 
 const STATUS_LABELS: Record<TripPodStatus, string> = {
@@ -71,15 +68,14 @@ function statusClass(status: TripPodStatus): string {
 
 const formatDateTime = formatDateTimeShort;
 
-function groupFilesByType(submission: DriverTaskPodSubmission | null): Record<TripPodFileType, DriverTaskPodFile[]> {
-  const empty: Record<TripPodFileType, DriverTaskPodFile[]> = {
+function groupFilesByType(submission: DriverTaskPodSubmission | null): Record<string, DriverTaskPodFile[]> {
+  const empty: Record<string, DriverTaskPodFile[]> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: [],
     [TripPodFileType.SIGNED_DELIVERY_NOTE]: [],
-    [TripPodFileType.TOLL_TICKET]: [],
   };
   if (!submission) return empty;
   for (const file of submission.files ?? []) {
-    empty[file.fileType].push(file);
+    if (empty[file.fileType]) empty[file.fileType].push(file);
   }
   return empty;
 }
@@ -111,15 +107,13 @@ export function TripPodSubmission({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const cameraRefs = {
+  const cameraRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
     [TripPodFileType.SIGNED_DELIVERY_NOTE]: useRef<HTMLInputElement | null>(null),
-    [TripPodFileType.TOLL_TICKET]: useRef<HTMLInputElement | null>(null),
   };
-  const fileRefs = {
+  const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
     [TripPodFileType.SIGNED_DELIVERY_NOTE]: useRef<HTMLInputElement | null>(null),
-    [TripPodFileType.TOLL_TICKET]: useRef<HTMLInputElement | null>(null),
   };
 
   const groupedFiles = useMemo(() => groupFilesByType(currentSubmission), [currentSubmission]);
@@ -215,9 +209,9 @@ export function TripPodSubmission({
       )}
 
       <div className="trip-pod__grid">
-        {[...REQUIRED_FILE_TYPES, TripPodFileType.TOLL_TICKET].map((fileType) => {
+        {REQUIRED_FILE_TYPES.map((fileType) => {
           const files = groupedFiles[fileType];
-          const isRequired = fileType !== TripPodFileType.TOLL_TICKET;
+          const isRequired = true;
           return (
             <article key={fileType} className="trip-pod__card">
               <div className="trip-pod__card-head">
@@ -279,7 +273,7 @@ export function TripPodSubmission({
                   {files.map((file) => (
                     <li key={file.id} className="trip-pod__file">
                       <div className="trip-pod__file-meta">
-                        {fileType === TripPodFileType.TOLL_TICKET ? <ReceiptText size={15} /> : <FileText size={15} />}
+                        <FileText size={15} />
                         <span className="trip-pod__file-name" title={file.originalFileName}>{file.originalFileName}</span>
                       </div>
                       <span className="trip-pod__file-time">{formatDateTime(file.createdAt)}</span>
