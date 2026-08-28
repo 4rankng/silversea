@@ -169,6 +169,18 @@ function renderPage() {
   );
 }
 
+// Board route target for the A7 completion-navigation assertion.
+function renderPageWithBoard() {
+  return render(
+    <MemoryRouter initialEntries={['/my-trips/88']}>
+      <Routes>
+        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe('DriverTripDetailPage', () => {
   beforeEach(() => {
     commandsMock.mockReset();
@@ -305,6 +317,138 @@ describe('DriverTripDetailPage', () => {
     // The submit-only requirement resolves on click — it must not be listed
     // as a blocker next to an enabled button.
     expect(screen.queryByText('e-POD đã gửi')).toBeNull();
+  });
+
+  // Spec A7: "Hoàn thành chuyến" auto-navigates off the detail screen once
+  // completion is confirmed online.
+  it('navigates back to the journey board after an online completion', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    // buildOfflineCommandKey is mocked as parts.join(':') → the complete
+    // command key for fulfillment 88, trip version 3.
+    drainMock.mockResolvedValue({
+      done: 1,
+      statusById: { 'driver:task:88:complete:version:3': 'DONE' },
+    });
+
+    renderPageWithBoard();
+
+    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    fireEvent.click(complete);
+
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+  });
+
+  it('stays on the trip when completion is queued offline instead of confirmed', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    drainMock.mockResolvedValue({
+      done: 0,
+      statusById: { 'driver:task:88:complete:version:3': 'FAILED' },
+    });
+
+    renderPageWithBoard();
+
+    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    fireEvent.click(complete);
+
+    // Still on the detail screen — the page must not abandon a queued command.
+    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ })).toBeTruthy();
+  });
+
+  // Spec A4: the detail fact grid mirrors the journey-card order, with
+  // container number + type + seal sharing one line.
+  it('renders the spec-A4 field order with container, type and seal on one line', async () => {
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    expect(labels).toEqual([
+      'Ngày giờ kế hoạch',
+      'Nhà máy',
+      'Tuyến',
+      'Người liên hệ',
+      'Số điện thoại',
+      'Container / lô hàng',
+      'Điểm lấy',
+      'Điểm trả',
+      'Đầu kéo',
+      'Rơ moóc',
+    ]);
+    expect(screen.getByText('MSCU1234561 · 40FT · Seal SEAL-9')).toBeTruthy();
+    expect(screen.queryByText('Loại container')).toBeNull();
+    expect(screen.queryByText('Số seal')).toBeNull();
+  });
+
+  // KẾT HỢP / paired trips carry multiple containers — the one-line fact must
+  // separate them (a bare .map() renders adjacent text nodes with no gap).
+  it('separates multiple containers on the one-line container fact', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        containers: [
+          { id: 1, containerNumber: 'MSCU1234561', sealNumber: 'SEAL-9', containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null },
+          { id: 2, containerNumber: 'MSCU7654321', sealNumber: 'SEAL-8', containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null },
+        ],
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    expect(await screen.findByText('MSCU1234561 · 40FT · Seal SEAL-9 · MSCU7654321 · 40FT · Seal SEAL-8')).toBeTruthy();
   });
 
   it('renders the container card and hides the invoice block when there is no invoice info', async () => {

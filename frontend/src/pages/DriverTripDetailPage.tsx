@@ -445,7 +445,15 @@ export default function DriverTripDetailPage() {
         expectedVersion: trip.version,
       },
     });
-    await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
+    const result = await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
+    // Spec A7: completing a trip jumps the driver off this screen. The e-POD
+    // upload happens *before* completion in this flow, so the destination is
+    // the journey board, where the trip lands in the Lịch sử bucket. Only a
+    // confirmed-online completion navigates; a queued or still-syncing
+    // command keeps the driver on this screen.
+    if (result.statusById?.[idempotencyKey] === 'DONE') {
+      navigate('/my-trips', { replace: true });
+    }
   }
 
   async function handleUploadFuelEvidence(file: File) {
@@ -528,6 +536,15 @@ export default function DriverTripDetailPage() {
   const fulfillment = trip.fulfillment ?? null;
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
   const dropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? fulfillment?.lclWarehouseName ?? '—';
+  // Spec A4: container number, type and seal share one line (same idiom as
+  // the journey-board card).
+  const containerLine = trip.containers.length > 0
+    ? trip.containers.map((container) => [
+        container.containerNumber,
+        container.containerTypeName,
+        container.sealNumber ? `Seal ${container.sealNumber}` : null,
+      ].filter(Boolean).join(' · ') || '—').join(' · ')
+    : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName);
   const contactName = fulfillment?.contactName ?? trip.instructions?.contactName ?? null;
   const contactPhone = fulfillment?.contactPhone ?? trip.instructions?.contactPhone ?? null;
   const siteRules = fulfillment?.siteRules ?? [];
@@ -624,30 +641,27 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-section__head">
           <span>Thông tin lệnh</span>
         </div>
+        {/* Spec A4 field order (matches the journey-board card): Ngày giờ kế
+            hoạch → Nhà máy → Tuyến → Người liên hệ → SĐT → Container/loại
+            cont/số seal (one line) → điểm nâng → điểm hạ → Đầu kéo → Mooc. */}
         <div className="driver-task-grid">
-          <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
-          <TaskFact
-            icon={<Truck size={16} />}
-            label="Rơ moóc"
-            value={trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : '—'}
-          />
-          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={
-            trip.containers.length > 0
-              ? trip.containers.map((container) => container.containerNumber).join(' · ')
-              : valueOrDash(fulfillment?.modeLabel ?? trip.cargoTypeName)
-          } />
-          <TaskFact icon={<Package2 size={16} />} label="Loại container" value={valueOrDash(trip.containers[0]?.containerTypeName)} />
-          <TaskFact icon={<Package2 size={16} />} label="Số seal" value={valueOrDash(trip.containers[0]?.sealNumber)} />
-          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} />
+          <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
           <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryName)} />
-          <TaskFact icon={<CalendarClock size={16} />} label="Giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
+          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} />
           <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
           <TaskFact
             icon={<Phone size={16} />}
             label="Số điện thoại"
             value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
+          />
+          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} />
+          <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
+          <TaskFact
+            icon={<Truck size={16} />}
+            label="Rơ moóc"
+            value={trip.trailerPlate ? `${trip.trailerPlate}${trip.trailerType ? ` (${trip.trailerType})` : ''}` : '—'}
           />
         </div>
       </section>
