@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   CalendarClock,
+  Camera,
   CheckCircle2,
   Clock3,
   FileCheck2,
@@ -17,7 +18,7 @@ import {
   StickyNote,
   Truck,
 } from 'lucide-react';
-import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
+import { DriverProgressEventType, DRIVER_PROGRESS_EVENT_LABELS, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
@@ -31,8 +32,12 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
 import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { formatDateTimeShort } from '../lib/format';
+import { ApiError } from '../lib/api';
+import { compressImageFile } from '../lib/imageCompression';
+import { formatCurrency, formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolocation';
 import {
   buildOfflineCommandKey,
   type OfflineCommand,
@@ -104,10 +109,70 @@ const MILESTONES: Array<{
   },
 ];
 
+const FUEL_EVIDENCE_OUTCOME_LABELS = {
+  ACCEPTED: 'Ảnh bơm hợp lệ',
+  UNREADABLE: 'Ảnh mờ hoặc không đọc được',
+  MULTI_SCREEN: 'Ảnh có nhiều màn hình',
+  NON_PUMP: 'Ảnh không phải màn hình bơm',
+  ANOMALY: 'Số liệu cần kế toán soát',
+} as const;
+
+const FUEL_EVIDENCE_REVIEW_LABELS = {
+  PENDING: 'Chờ kế toán xác nhận',
+  CONFIRMED: 'Kế toán đã xác nhận',
+  REJECTED: 'Kế toán từ chối',
+} as const;
+
 const formatDateTime = formatDateTimeShort;
+
+// Post-accept milestone labels. The driver UI no longer records these
+// (27.8 A5 removed the milestone timeline); the backend completion endpoint
+// auto-records them on the driver's behalf, so they are never shown as
+// pre-click blockers.
+const AUTO_RECORDED_MILESTONE_LABELS = new Set([
+  DRIVER_PROGRESS_EVENT_LABELS.PICKED_UP,
+  DRIVER_PROGRESS_EVENT_LABELS.LOADING_OR_RETURNING,
+  DRIVER_PROGRESS_EVENT_LABELS.DELIVERED,
+]);
 
 function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
+}
+
+/**
+ * Classify a fuel-evidence upload error for the driver.
+ *
+ * A 409 (version mismatch, sequencing violation, or a domain conflict such as
+ * "vehicle already on another trip") or 428 (precondition required) is a
+ * terminal *conflict* — surface the server's Vietnamese message so the driver
+ * understands the blocker. Geolocation failures map to actionable permission
+ * hints. Any other failure (network blip, 5xx, auth) falls back to a generic
+ * retry message.
+ *
+ * NOTE: we inspect `ApiError.status`, never the message. The message is a
+ * Vietnamese human-readable string and never contains the HTTP status code, so
+ * a regex on `error.message` would silently misclassify every API error.
+ */
+function fuelEvidenceUploadErrorMessage(error: unknown): string {
+  if (isGeolocationError(error)) {
+    const issue = getLocationPermissionIssue(error);
+    switch (issue.type) {
+      case 'denied':
+        return 'Chưa được cấp quyền vị trí. Hãy cho phép GPS rồi chụp lại ảnh nhiên liệu.';
+      case 'timeout':
+        return 'GPS phản hồi chậm. Vui lòng thử lại khi thiết bị bắt vị trí tốt hơn.';
+      case 'unavailable':
+        return 'Thiết bị chưa bắt được GPS. Vui lòng thử lại ở nơi có tín hiệu tốt hơn.';
+      case 'inaccurate':
+        return 'GPS chưa đủ chính xác để lưu ảnh nhiên liệu. Vui lòng thử lại.';
+      default:
+        return 'Thiết bị không hỗ trợ GPS để lưu ảnh nhiên liệu.';
+    }
+  }
+  if (error instanceof ApiError) return error.message;
+  return error instanceof Error && error.message
+    ? error.message
+    : 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.';
 }
 
 function getLatestMilestoneEvent(
@@ -155,23 +220,6 @@ function timelineState(eventFound: boolean, command: OfflineCommand | null, next
   return 'locked';
 }
 
-function timelineStateLabel(state: TimelineState): string {
-  switch (state) {
-    case 'done':
-      return 'Đã ghi nhận';
-    case 'pending':
-      return 'Đang đồng bộ';
-    case 'retry':
-      return 'Sẽ thử lại';
-    case 'conflict':
-      return 'Xung đột';
-    case 'available':
-      return 'Sẵn sàng';
-    default:
-      return 'Chờ bước trước';
-  }
-}
-
 function TaskFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div className="driver-task-fact">
@@ -190,9 +238,10 @@ export default function DriverTripDetailPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const online = useOnline();
+  const geolocation = useGeolocation();
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
-  const [containerOcrMismatch, setContainerOcrMismatch] = useState<string | null>(null);
+  const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -399,18 +448,40 @@ export default function DriverTripDetailPage() {
     await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
   }
 
-  // Spec A6: cross-check OCR'd container number against declared number for
-  // IMPORT (trả hàng) trips. Advisory warning, not a hard block.
+  async function handleUploadFuelEvidence(file: File) {
+    if (!trip) return;
+    if (!online) {
+      toast({ kind: 'warning', message: 'Cần có mạng để gửi ảnh nhiên liệu cho kế toán.' });
+      return;
+    }
+    setUploadingFuelEvidence(true);
+    try {
+      const location = await geolocation.awaitAccurateSample();
+      const prepared = await compressImageFile(file, { timestamp: new Date() });
+      await driverClient.uploadFuelEvidence({
+        tripId: trip.id,
+        file: prepared,
+        location: {
+          lat: location.lat,
+          lng: location.lng,
+          accuracy: location.accuracy,
+          timestamp: location.timestamp,
+          source: 'phone',
+        },
+      });
+      await refreshAll();
+      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu và chuyển kế toán soát OCR.' });
+    } catch (error) {
+      toast({ kind: 'error', message: fuelEvidenceUploadErrorMessage(error) });
+    } finally {
+      setUploadingFuelEvidence(false);
+    }
+  }
+
+  // Spec A6: after a container save, refetch so the read-only bento view and
+  // photo keys reflect the persisted row.
   function handleContainerSaved() {
     void refreshAll();
-    if (trip?.tradeDirection === 'IMPORT' && trip.containers.length > 0) {
-      const declared = trip.containers[0]?.containerNumber;
-      if (declared) {
-        // After refresh, the new container number will be in the next render.
-        // For immediate feedback, check against the current draft.
-        setContainerOcrMismatch(null);
-      }
-    }
   }
 
   if (!validFulfillmentId) {
@@ -467,9 +538,6 @@ export default function DriverTripDetailPage() {
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
-  const declaredContainerNumber = trip.containers[0]?.containerNumber ?? null;
-  const completionReady = evidence.data?.ready === true
-    && getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): "HOÀN THÀNH CHUYẾN" requires both e-POD photos uploaded.
   const podFilesByType = currentSubmission?.files ?? [];
@@ -478,18 +546,24 @@ export default function DriverTripDetailPage() {
   const podReady = hasYardReceipt && hasSignedNote;
   // The single-action flow submits the draft e-POD itself inside the click
   // handler, so the button gate must NOT demand an already-submitted e-POD
-  // (evidence.data.ready includes "e-POD đã gửi") — that deadlocks the driver
-  // at 100% with no separate submit button left. Milestones + both photos +
-  // IN_TRANSIT + no accounting lock is the correct pre-click contract; the
-  // backend re-validates everything after the submit half of the action.
-  const delivered = getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
-  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !delivered || !podReady;
+  // (evidence.data.ready includes "e-POD đã gửi") — that deadlocked the driver
+  // at 100% with no separate submit button left. Post-accept milestones are
+  // the same class: the driver UI no longer records them (27.8 A5 removed the
+  // milestone timeline), and the backend completion endpoint auto-records
+  // PICKED_UP → DELIVERED on the driver's behalf before re-validating
+  // evidence. So the pre-click contract is: both photos uploaded + IN_TRANSIT
+  // + no accounting lock; everything else resolves inside the action.
+  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !podReady;
   const completionReasons = evidence.data?.missingItems ?? [];
-  // "e-POD đã gửi" resolves the moment the single-action button is pressed
-  // (the handler submits the draft first) — showing it as a blocker next to
-  // an enabled button reads as a contradiction.
-  const blockingReasons = completionReasons.filter((item) => !(podReady && item.label.includes('đã gửi')));
-  const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
+  // Labels that resolve the moment the single-action button is pressed (the
+  // handler submits the draft e-POD, and completion auto-records milestones) —
+  // showing them as blockers next to an enabled button reads as a
+  // contradiction.
+  const blockingReasons = completionReasons.filter((item) => !(
+    (podReady && item.label.includes('đã gửi'))
+    || AUTO_RECORDED_MILESTONE_LABELS.has(item.label)
+  ));
+  const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
   // bottom of the screen (spec: "Ghim cố định nút bấm ở đáy màn hình"), not
@@ -579,29 +653,14 @@ export default function DriverTripDetailPage() {
       </section>
 
       <section className="driver-task-section">
-        {/* Spec A6: container photo with OCR extraction + cross-check for IMPORT */}
-        {containerOcrMismatch && (
-          <div className="driver-task-banner driver-task-banner--warn" role="alert">
-            <AlertTriangle size={16} />
-            <span>{containerOcrMismatch}</span>
-          </div>
-        )}
         <DriverContainerCard
           tripId={trip.id}
           containers={trip.containers}
           contPhotoKey={contPhotoKey}
           sealPhotoKey={sealPhotoKey}
+          tradeDirection={trip.tradeDirection ?? null}
           onSaved={handleContainerSaved}
         />
-        {/* Spec A6 IMPORT cross-check: warn if saved container number differs from declared */}
-        {trip.tradeDirection === 'IMPORT' && declaredContainerNumber && trip.containers.length > 0 && trip.containers[0].containerNumber !== declaredContainerNumber && (
-          <div className="driver-task-banner driver-task-banner--warn" role="alert" data-testid="container-mismatch-warning">
-            <AlertTriangle size={16} />
-            <span>
-              Số cont chụp được ({trip.containers[0].containerNumber}) khác với số khai báo ({declaredContainerNumber}). Kiểm tra lại.
-            </span>
-          </div>
-        )}
       </section>
 
       {invoiceInfo && (
@@ -648,10 +707,11 @@ export default function DriverTripDetailPage() {
       </section>
 
       {/* Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí
-          (Frontend). Bốn mốc thực hiện + Ảnh nhiên liệu + Thu nhập tham chiếu
-          không render trên UI. Backend vẫn giữ schema + endpoints (xem
-          driver_incidental_costs / fuel_evidence_reviews / driver_salary /
-          total_road_allowance) cho phase tiếp theo. */}
+          (Frontend) — Bốn mốc thực hiện + Thu nhập tham chiếu không render.
+          Ảnh nhiên liệu được PHỤC HỒI theo 27.8 spec ("GIỮ NGUYÊN"). Backend
+          vẫn giữ schema + endpoints (driver_incidental_costs /
+          fuel_evidence_reviews / driver_salary / total_road_allowance) cho
+          phase tiếp theo. */}
       <section className="driver-task-section">
         <div className="driver-task-section__head">
           <span>e-POD giao hàng</span>
@@ -669,6 +729,75 @@ export default function DriverTripDetailPage() {
           onUploadFile={handleUploadPodFile}
           onSubmit={handleSubmitPod}
         />
+      </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Ảnh nhiên liệu</span>
+        </div>
+        <div className="driver-task-fuel-section">
+          <div className="driver-task-fuel-card">
+            <div className="driver-task-fuel-header">
+              <div>
+                <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
+                <div className="driver-task-fuel-subtitle">
+                  {latestFuelEvidence
+                    ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
+                    : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
+                </div>
+              </div>
+              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
+                <Camera size={16} />
+                <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  disabled={uploadingFuelEvidence}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void handleUploadFuelEvidence(file);
+                  }}
+                />
+              </label>
+            </div>
+
+            {!online && (
+              <div className="driver-task-fuel-offline">
+                Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
+              </div>
+            )}
+
+            {latestFuelEvidence && (
+              <div className="driver-task-fuel-details">
+                <div className="driver-task-fuel-grid">
+                  <img
+                    src={latestFuelEvidence.photoUrl}
+                    alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
+                    className="driver-task-fuel-img"
+                  />
+                  <div className="driver-task-fuel-facts">
+                    <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
+                    <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
+                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
+                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
+                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
+                    <div><strong>GPS:</strong> {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? `${latestFuelEvidence.latitude}, ${latestFuelEvidence.longitude}` : 'Chưa có'}</div>
+                  </div>
+                </div>
+                {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
+                  <div className="driver-task-fuel-notes">
+                    {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
+                    {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
+                    {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </section>
 
       {trip.legs.length > 0 && (
@@ -718,7 +847,7 @@ export default function DriverTripDetailPage() {
             <FileCheck2 size={18} />
             <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
           </button>
-          {delivered && podReady && trip.status === 'IN_TRANSIT' && (
+          {podReady && trip.status === 'IN_TRANSIT' && (
             <div className="driver-task-footer__ready">
               <CheckCircle2 size={16} />
               <span>Đủ điều kiện hoàn thành chuyến.</span>

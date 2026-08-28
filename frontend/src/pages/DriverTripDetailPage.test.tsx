@@ -201,10 +201,11 @@ describe('DriverTripDetailPage', () => {
   });
 
   // Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí + Bốn mốc
-  // thực hiện + Ảnh nhiên liệu + Thu nhập tham chiếu. The driver page should
-  // expose only the sticky "Nhận lệnh vận chuyển" accept bar and the single
-  // "Hoàn thành chuyến" footer button.
-  it('does not render the hidden cost module UI (4-milestone timeline, fuel section, reference income)', async () => {
+  // thực hiện + Thu nhập tham chiếu. Ảnh nhiên liệu is restored per the 27.8
+  // spec ("GIỮ NGUYÊN"). The driver page should expose only the sticky
+  // "Nhận lệnh vận chuyển" accept bar and the single "Hoàn thành chuyến"
+  // footer button.
+  it('does not render the hidden cost module UI (4-milestone timeline, reference income)', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -212,14 +213,23 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Đã lấy vỏ / Lấy hàng')).toBeNull();
     expect(screen.queryByText('Đang đóng / Trả hàng')).toBeNull();
     expect(screen.queryByText('Đã hạ bãi / Giao hàng xong')).toBeNull();
-    expect(screen.queryByText('Ảnh nhiên liệu')).toBeNull();
-    expect(screen.queryByText('Chụp ảnh nhiên liệu')).toBeNull();
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
     // The hidden module is gated by feature flag, default off.
     expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
     expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
+  });
+
+  // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —
+  // the fuel-evidence upload stays visible for the driver.
+  it('renders the fuel evidence upload section', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Ảnh nhiên liệu')).toBeTruthy();
+    expect(screen.getByText('Chụp màn hình bơm gần nhất')).toBeTruthy();
+    expect(screen.getByText('Chưa có ảnh nhiên liệu nào cho chuyến này.')).toBeTruthy();
+    expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
   });
 
   it('renders the sticky accept bar and the single HOÀN THÀNH CHUYẾN footer button', async () => {

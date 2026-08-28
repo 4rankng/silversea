@@ -162,19 +162,7 @@ export async function getDriverTrips(driverId: number) {
   if (trips.length === 0) return trips;
 
   // Batched container fetch — single query for all trips on this list.
-  const tripIds = trips.map(t => t.id);
-  const containerRows = await db.select({
-    tripId: s.tripContainers.tripId,
-    containerNumber: s.tripContainers.containerNumber,
-  }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
-
-  const containersByTrip = new Map<number, string[]>();
-  for (const c of containerRows) {
-    if (!c.containerNumber) continue;
-    const list = containersByTrip.get(c.tripId);
-    if (list) list.push(c.containerNumber);
-    else containersByTrip.set(c.tripId, [c.containerNumber]);
-  }
+  const containersByTrip = await loadDriverTripContainers(trips.map(t => t.id));
 
   return trips.map(t => ({ ...t, containerNumbers: containersByTrip.get(t.id) ?? [] }));
 }
@@ -570,6 +558,9 @@ export interface DriverFulfillmentDetail {
   shipmentCode: string | null;
   bookingRef: string | null;
   cargoMode: typeof s.shipments.$inferSelect.cargoMode;
+  /** IMPORT (trả hàng) vs EXPORT (đóng hàng) — branches the driver-side
+   *  container-photo OCR behavior (cross-check vs auto-fill; spec A6). */
+  tradeDirection: typeof s.shipments.$inferSelect.tradeDirection;
   fulfillmentType: typeof s.shipmentFulfillments.$inferSelect.fulfillmentType;
   tripId: number;
   tripVersion: number;
@@ -1061,6 +1052,52 @@ export async function recordDriverProgress(
   return { event: result, replayed };
 }
 
+/**
+ * Shared milestone-event recorder (tx-scoped): inserts the progress event,
+ * publishes the customer-visible milestone event, and — for DELIVERED —
+ * writes the deliveryAttempts audit row. Used by both the driver's explicit
+ * progress route and the completion auto-record loop below.
+ */
+async function recordMilestoneEventTx(
+  tx: Tx,
+  ownedTrip: Awaited<ReturnType<typeof loadOwnedFulfillmentTrip>>,
+  driverId: number,
+  eventType: DriverProgressEventType,
+  occurredAtIso: string,
+  actorUserId: number,
+): Promise<DriverProgressEvent> {
+  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, { eventType, occurredAt: occurredAtIso }, actorUserId);
+  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
+  if (publication) {
+    const customerEvent = await createCustomerVisibleEvent({
+      shipmentId: ownedTrip.shipmentId,
+      eventKey: `driver-progress:${event.id}:${eventType}`,
+      eventType: 'MILESTONE',
+      title: publication.title,
+      message: publication.message,
+      occurredAt: event.occurredAt,
+      createdBy: actorUserId,
+    }, undefined, tx);
+    if (eventType === DriverProgressEventType.DELIVERED) {
+      const [scope] = await tx.select({
+        shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, ownedTrip.fulfillmentId)).limit(1);
+      await tx.insert(s.deliveryAttempts).values({
+        shipmentId: ownedTrip.shipmentId,
+        fulfillmentId: ownedTrip.fulfillmentId,
+        tripId: ownedTrip.tripId,
+        shipmentContainerId: scope?.shipmentContainerId ?? null,
+        driverProgressEventId: event.id,
+        customerVisibleEventId: customerEvent.id,
+        result: 'DELIVERED',
+        occurredAt: event.occurredAt,
+        recordedBy: actorUserId,
+      });
+    }
+  }
+  return event;
+}
+
 export async function recordDriverFulfillmentProgress(args: {
   fulfillmentId: number;
   driverId: number;
@@ -1116,35 +1153,7 @@ export async function recordDriverFulfillmentProgress(args: {
       ) {
         throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
       }
-      const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, args.driverId, args.input, args.recordedBy);
-      const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
-      if (publication) {
-        const customerEvent = await createCustomerVisibleEvent({
-          shipmentId: ownedTrip.shipmentId,
-          eventKey: `driver-progress:${event.id}:${eventType}`,
-          eventType: 'MILESTONE',
-          title: publication.title,
-          message: publication.message,
-          occurredAt: event.occurredAt,
-          createdBy: args.recordedBy,
-        }, undefined, tx);
-        if (eventType === DriverProgressEventType.DELIVERED) {
-          const [scope] = await tx.select({
-            shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
-          }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, ownedTrip.fulfillmentId)).limit(1);
-          await tx.insert(s.deliveryAttempts).values({
-            shipmentId: ownedTrip.shipmentId,
-            fulfillmentId: ownedTrip.fulfillmentId,
-            tripId: ownedTrip.tripId,
-            shipmentContainerId: scope?.shipmentContainerId ?? null,
-            driverProgressEventId: event.id,
-            customerVisibleEventId: customerEvent.id,
-            result: 'DELIVERED',
-            occurredAt: event.occurredAt,
-            recordedBy: args.recordedBy,
-          });
-        }
-      }
+      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy);
       if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
         await transitionTripStatus(
           ownedTrip.tripId,
@@ -1381,6 +1390,28 @@ export async function completeOwnedFulfillmentTrip(args: {
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
+      // Spec (Man_hình Phần 3 Bước 2 + 27.8 A5 "BỐN MỐC THỰC HIỆN: BỎ"): the
+      // driver UI no longer has intermediate milestone controls — "Hoàn thành
+      // chuyến" is the single trip-progress action left. Completing the trip
+      // means the cargo reached the drop point, so any missing post-accept
+      // milestones are recorded here, in order, on the driver's behalf.
+      // ORDER_RECEIVED is never auto-recorded: accepting the order stays an
+      // explicit driver action (sticky bar), and a never-accepted trip fails
+      // the evidence check below with a clear message.
+      let autoRecorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
+      let nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
+      while (nextMilestone != null && nextMilestone !== DriverProgressEventType.ORDER_RECEIVED) {
+        await recordMilestoneEventTx(
+          tx,
+          ownedTrip,
+          args.driverId,
+          nextMilestone,
+          new Date().toISOString(),
+          args.actorUserId,
+        );
+        autoRecorded = [...autoRecorded, nextMilestone];
+        nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
+      }
       const evidenceStatus = await getDriverCompletionEvidenceStatus(ownedTrip.tripId, tx);
       if (!evidenceStatus.ready) {
         throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
@@ -1400,89 +1431,10 @@ export async function completeOwnedFulfillmentTrip(args: {
   return { trip: result, replayed };
 }
 
-// ─── M8.6: driver payslip periods ───────────────────────────────────────────
-//
-// PRD M08-06-03: a driver sees their own issued salary periods (CLOSED or
-// REOPENED) with per-period earnings + close/adjustment metadata. Ownership
-// is enforced by resolving driverId from the authenticated user (the route
-// does this). The list reuses getDriverEarnings for the per-period summary.
-
-export interface DriverPayslipPeriod {
-  period: string;
-  status: string;
-  closedAt: string | null;
-  closedByName: string | null;
-  note: string | null;
-  earnings: {
-    netIncome: string;
-    productionSalary: string;
-    roadAllowance: string;
-    penalties: string;
-    paidOrAdvanced: string;
-    payableBalance: string;
-    periodStart: string;
-    periodEnd: string;
-  };
-}
-
-/**
- * List the driver's issued salary periods (CLOSED or REOPENED), newest-first,
- * with per-period earnings summary. Reuses getDriverEarnings for the numbers.
- */
-export async function getDriverPayslipPeriods(driverId: number): Promise<DriverPayslipPeriod[]> {
-  // Fetch all salary_period_closes rows (any driver — the period is global),
-  // then join the closer's name. The earnings are per-driver (getDriverEarnings
-  // filters by driverId), so the same period yields different numbers for
-  // different drivers; the period-close row itself is shared.
-  const closes = await db.select({
-    period: s.salaryPeriodCloses.period,
-    status: s.salaryPeriodCloses.status,
-    closedAt: s.salaryPeriodCloses.closedAt,
-    closedBy: s.salaryPeriodCloses.closedBy,
-    note: s.salaryPeriodCloses.note,
-  }).from(s.salaryPeriodCloses)
-    .where(sql`${s.salaryPeriodCloses.payslipIssuedAt} is not null`)
-    .orderBy(desc(s.salaryPeriodCloses.period));
-
-  if (closes.length === 0) return [];
-
-  // Batch-resolve closer names.
-  const closerIds = [...new Set(closes.map(c => c.closedBy).filter((id): id is number => id != null))];
-  const closers = closerIds.length > 0
-    ? await db.select({ id: s.users.id, name: s.users.fullName }).from(s.users).where(inArray(s.users.id, closerIds))
-    : [];
-  const closerMap = new Map(closers.map(c => [c.id, c.name]));
-
-  // Compute earnings per period for this driver.
-  const result: DriverPayslipPeriod[] = [];
-  for (const c of closes) {
-    const [yearStr, monthStr] = c.period.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
-    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) continue;
-
-    const earnings = await getDriverEarnings(driverId, month, year);
-    result.push({
-      period: c.period,
-      status: c.status,
-      closedAt: c.closedAt?.toISOString() ?? null,
-      closedByName: c.closedBy ? closerMap.get(c.closedBy) ?? null : null,
-      note: c.note,
-      earnings: {
-        netIncome: earnings.netIncome,
-        productionSalary: earnings.productionSalary,
-        roadAllowance: earnings.roadAllowance,
-        penalties: earnings.penalties,
-        paidOrAdvanced: earnings.paidOrAdvanced,
-        payableBalance: earnings.payableBalance,
-        periodStart: earnings.periodStart ?? '',
-        periodEnd: earnings.periodEnd ?? '',
-      },
-    });
-  }
-
-  return result;
-}
+// M8.6 payslip periods moved to driver-payslip.service.ts (LOC budget).
+// Re-export keeps routes/ and tests importing from this module unchanged.
+export { getDriverPayslipPeriods } from './driver-payslip.service';
+export type { DriverPayslipPeriod } from './driver-payslip.service';
 
 // ─── M8.4 slice 4: advisory evidence-readiness before completion ──────────
 //

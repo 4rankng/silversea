@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check, ImageOff } from 'lucide-react';
 import { api, fileCommandFingerprint, getAuthenticatedPhotoUrl } from '../../lib/api';
+import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import {
@@ -10,6 +11,7 @@ import {
   suggestCorrections,
 } from '@tingting/shared';
 import { TextField } from '../../design-system';
+import './DriverContainerCard.css';
 
 /**
  * Container & seal section for the driver trip-detail page.
@@ -57,6 +59,9 @@ interface Props {
   contPhotoKey: string | null;
   /** Storage key of the latest seal photo — shown as a thumbnail once saved. */
   sealPhotoKey: string | null;
+  /** Shipment trade direction. IMPORT (trả hàng) scans are cross-checked
+   *  against the declared container number (spec A6, advisory only). */
+  tradeDirection: string | null;
   onSaved: () => void;
 }
 
@@ -127,7 +132,7 @@ function renderThumb(key: string | null, label: string) {
   return <BentoThumb photoKey={key} label={label} />;
 }
 
-export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhotoKey, onSaved }: Props) {
+export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhotoKey, tradeDirection, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -137,6 +142,10 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
   const [scannerType, setScannerType] = useState<'CONTAINER' | 'SEAL' | null>(null);
   const [editing, setEditing] = useState(false);
   const [removingPhoto, setRemovingPhoto] = useState<'CONTAINER' | 'SEAL' | null>(null);
+  // Spec A6 (hàng nhập / trả hàng): the OCR'd number is compared against the
+  // declared number at SCAN time — after Lưu the declared value is overwritten,
+  // so a post-save comparison is meaningless. Advisory only (non-blocking).
+  const [scanCheck, setScanCheck] = useState<{ scanned: string; declared: string } | null>(null);
 
   const hasSaved = containers.length > 0;
   const showForm = !hasSaved || editing;
@@ -155,6 +164,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
     // these in-place, and the parent refetch updates contPhotoKey/sealPhotoKey.
     setLastPhotos({ cont: contPhotoKey, seal: sealPhotoKey });
     setError(null);
+    setScanCheck(null);
     setEditing(true);
   };
 
@@ -163,12 +173,19 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
     setError(null);
   };
 
-  const onPick = async (file: File | undefined, _type: 'CONTAINER' | 'SEAL') => {
-    if (!file) return;
+  const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL') => {
+    if (!rawFile) return;
     const key = _type === 'CONTAINER' ? 'cont' : 'seal';
     setUploading(prev => ({ ...prev, [key]: true }));
     setError(null);
+    if (_type === 'CONTAINER') setScanCheck(null);
+    // The IMPORT cross-check below already speaks (match or mismatch toast);
+    // suppress the generic "recognized" toast in that case to avoid a double.
+    let crossCheckToasted = false;
     try {
+      // Spec A6/Phần 2 Khối 2: every driver photo carries a burned-in upload
+      // timestamp — same contract as the e-POD and fuel paths.
+      const file = await compressImageFile(rawFile, { timestamp: new Date() });
       const formData = new FormData();
       formData.append('file', file);
       // The backend now uses type-specific extraction: CONTAINER photos only
@@ -187,6 +204,21 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
         const cn = result.containerNumbers?.[0];
         if (cn) {
           setDraft(prev => ({ ...prev, containerNumber: cn.toUpperCase() }));
+          // Spec A6 IMPORT (trả hàng): cross-check the scanned number against
+          // the declared one and warn on mismatch — guards against picking the
+          // wrong container. Advisory only; the driver still reviews + Lưu.
+          const declared = containers[0]?.containerNumber;
+          if (tradeDirection === 'IMPORT' && declared) {
+            crossCheckToasted = true;
+            const scannedNorm = normalizeContainerNumber(cn);
+            const declaredNorm = normalizeContainerNumber(declared);
+            if (scannedNorm !== declaredNorm) {
+              setScanCheck({ scanned: cn.toUpperCase(), declared });
+              toast({ kind: 'warning', message: 'Số cont quét được khác số khai báo — kiểm tra lại trước khi lưu.' });
+            } else {
+              toast({ kind: 'success', message: 'Số cont quét được khớp số khai báo.' });
+            }
+          }
         }
       } else {
         if (result.sealNumber) {
@@ -201,7 +233,9 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
       if (result.error) {
         setError(result.error);
       } else if ((result.containerNumbers?.length ?? 0) > 0 || result.sealNumber) {
-        toast({ kind: 'info', message: 'Đã nhận diện số — xem lại rồi bấm Lưu.' });
+        if (!crossCheckToasted) {
+          toast({ kind: 'info', message: 'Đã nhận diện số — xem lại rồi bấm Lưu.' });
+        }
       } else {
         setError(_type === 'SEAL'
           ? 'Không thấy số seal trên ảnh. Hãy nhập tay hoặc chụp lại.'
@@ -236,6 +270,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
 
   const handleSave = async () => {
     setError(null);
+    setScanCheck(null);
     if (!draft.containerNumber.trim()) {
       setError('Cần nhập số container.');
       return;
@@ -342,6 +377,16 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
             {error && (
               <div className="dcc-error">
                 <AlertCircle size={15} /> {error}
+              </div>
+            )}
+
+            {scanCheck && (
+              <div className="dcc-scancheck" role="alert" data-testid="container-scan-mismatch">
+                <AlertCircle size={15} />
+                <span>
+                  Số cont quét được <strong>{scanCheck.scanned}</strong> khác số khai báo{' '}
+                  <strong>{scanCheck.declared}</strong>. Kiểm tra lại cont đang chụp trước khi lưu.
+                </span>
               </div>
             )}
 

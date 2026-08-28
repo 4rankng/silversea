@@ -1,0 +1,296 @@
+/* DriverContainerCard — container/seal capture for the driver trip-detail
+   screen. The card renders inside a .driver-task-section card, so its own
+   shell stays flat (one elevation per group): no second border box, just the
+   section head + content grid. Touch targets ≥44px, mobile-first at 390px. */
+
+.dcc-section {
+  display: grid;
+  gap: 12px;
+}
+
+.dcc-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dcc-section__title {
+  font: inherit;
+  color: inherit;
+}
+
+.dcc-section__body {
+  display: grid;
+  gap: 12px;
+}
+
+/* Bento read-only view: featured hero over a hairline-split row of seal +
+   photos. The hero plate is the license-plate identity — large, tracking-wide,
+   uppercase. */
+.dcc-bento {
+  display: grid;
+  gap: 10px;
+}
+
+.dcc-bento__hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.dcc-bento__hero-content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dcc-bento__eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dcc-bento__plate {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.dcc-bento__hero-meta {
+  font-size: 12px;
+  color: var(--ink-2, var(--ink-3));
+}
+
+.dcc-bento__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dcc-bento__seal,
+.dcc-bento__photos {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.dcc-bento__seal-value {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.dcc-bento__dash {
+  color: var(--ink-3);
+}
+
+.dcc-bento__thumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dcc-bento__thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.dcc-bento__thumb-empty {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+  color: var(--ink-3);
+  font-size: 9px;
+  text-align: center;
+}
+
+/* Capture zones — two symmetric dashed buttons that read as camera targets. */
+.dcc-capture {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dcc-capture-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 72px;
+  border: 1px dashed var(--line-strong, var(--line));
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dcc-capture-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Photo strip — captured evidence before save, with remove control. */
+.dcc-photos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dcc-photo-fig {
+  position: relative;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dcc-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.dcc-photo-fig figcaption {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.dcc-photo-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+}
+
+.dcc-photo-remove:disabled {
+  opacity: 0.6;
+}
+
+/* Number fields + actions. TextField is a design-system component; only the
+   grid + advisory chrome live here. */
+.dcc-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.dcc-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 12px;
+}
+
+/* Spec A6 IMPORT cross-check advisory — scan-time mismatch against the
+   declared number. Advisory only; never blocks Lưu. */
+.dcc-scancheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--warning);
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dcc-scancheck strong {
+  letter-spacing: 0.04em;
+}
+
+.dcc-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.dcc-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.dcc-actions .dcc-save {
+  flex: 1;
+}
+
+.dcc-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* Narrow phones: capture zones keep 2-up (they are short labels), but the
+   photo strip and actions collapse tighter. */
+@media (max-width: 420px) {
+  .dcc-bento__hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dcc-bento__edit-btn {
+    justify-content: center;
+  }
+}
