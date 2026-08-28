@@ -402,7 +402,8 @@ describe('DetailedPlanGrid', () => {
     expect(css).toContain('.detailed-plan-filters__field--search {\n  flex: 0 1 360px;\n  width: min(100%, 360px);');
     expect(css).toContain('.detailed-plan-filters__date-scope-controls {\n  display: flex;\n  align-items: center;');
     expect(css).toContain('.detailed-plan-filters__date-scope .detailed-plan-filters__date {\n  flex: 0 1 140px;\n  width: 140px;');
-    expect(css).toContain('.detailed-plan-filters__date-mode {');
+    expect(css).toContain('.detailed-plan-filters__date-mode {\n  display: grid;\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n  flex: 0 1 316px;\n  min-width: 292px;');
+    expect(css).not.toContain('repeat(2, minmax(0, 1fr));\n  flex: 0 1 248px');
     const activeDateShortcut = css.match(/\.detailed-plan-filters__date-shortcut\.is-active\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(activeDateShortcut).toContain('background: var(--background-color-primary, #fff);');
     expect(activeDateShortcut).toContain('border-color: var(--color-fg-primary, var(--text-primary, #101828));');
