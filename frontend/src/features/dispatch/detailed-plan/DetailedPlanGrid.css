@@ -104,6 +104,8 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 0 1 316px;
   min-width: 292px;
+  /* Match the sm input height so the toolbar labels baseline-align. */
+  height: 34px;
   padding: 2px;
   border: 1px solid var(--border-color-secondary, var(--border-color, #e2e8f0));
   border-radius: 8px;
