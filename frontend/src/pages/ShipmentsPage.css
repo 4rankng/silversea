@@ -1550,6 +1550,9 @@
   line-height: 1.35;
   vertical-align: middle;
   overflow-wrap: anywhere;
+  /* The legacy global table rule makes body cells nowrap. Reset it here so
+     long site and carrier names stay within their own fixed columns. */
+  white-space: normal;
 }
 
 .cus-container-table tbody .csc-container-cell {
