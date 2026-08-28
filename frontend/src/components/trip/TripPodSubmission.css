@@ -1,10 +1,8 @@
+/* Flat content block — the enclosing .driver-task-section is the single
+   elevation surface, so this section renders as plain content, not a card. */
 .trip-pod {
   display: grid;
   gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--surface);
 }
 
 .trip-pod__head {
@@ -101,10 +99,14 @@
 .trip-pod__card {
   display: grid;
   gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface-2);
+}
+
+/* Stacked file-type groups separate with a hairline divider, not a card box.
+   --line-strong (not --line): at 1px on a white card, --line is too faint to
+   read as a group boundary on a phone screen. */
+.trip-pod__card + .trip-pod__card {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
 }
 
 .trip-pod__card-head {
@@ -225,10 +227,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  padding: 10px 0;
+}
+
+.trip-pod__file + .trip-pod__file {
+  border-top: 1px solid var(--line);
 }
 
 .trip-pod__file-meta {
@@ -310,11 +313,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--surface-2);
+  padding: 10px 0;
   font-size: 13px;
   color: var(--ink-3);
+}
+
+.trip-pod__history-item + .trip-pod__history-item {
+  border-top: 1px solid var(--line);
 }
 
 .trip-pod__history-item strong {
@@ -326,6 +331,16 @@
   .trip-pod__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  /* Side-by-side groups separate with a column hairline (the SummaryRail
+     ruled-divider convention) instead of the mobile border-top divider.
+     Assumes the fixed 3-type grid above — if the group count ever grows,
+     reset the left divider on each wrapped row's leading card. */
+  .trip-pod__card + .trip-pod__card {
+    border-top: 0;
+    padding-top: 0;
+    border-left: 1px solid var(--line);
+    padding-left: 12px;
+  }
   /* On wide 3-column grids, each card is narrow (~210px) which squeezes
      the 2-button action row (Chụp / Tải tệp). Stack the buttons to keep
      the labels readable. */
@@ -335,10 +350,6 @@
 }
 
 @media (max-width: 420px) {
-  .trip-pod {
-    padding: 14px;
-  }
-
   .trip-pod__head,
   .trip-pod__card-head,
   .trip-pod__file,

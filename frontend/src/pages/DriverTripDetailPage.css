@@ -124,14 +124,11 @@
   gap: 10px;
 }
 
+/* Flat fact row — no tile chrome; the section card is the elevation. */
 .driver-task-fact {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 12px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  border: 1px solid color-mix(in srgb, var(--ink, #0f172a) 6%, transparent);
 }
 
 .driver-task-fact__icon {
@@ -237,16 +234,25 @@
   gap: 10px;
 }
 
+/* Untouched (locked) steps read as flat rows — every semantic state below
+   carries its own border + tint, so the base adds no default chrome. */
 .driver-task-step {
   display: grid;
   gap: 8px;
-  padding: 14px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
+  padding: 2px 0;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+}
+
+.driver-task-step--done,
+.driver-task-step--pending,
+.driver-task-step--retry,
+.driver-task-step--conflict,
+.driver-task-step--available {
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 16px;
 }
 
 .driver-task-step:disabled {
@@ -322,9 +328,11 @@
   background: color-mix(in srgb, var(--danger, #dc2626) 8%, transparent);
 }
 
+/* The single actionable step ("Nhấn để xác nhận") gets a light accent tint —
+   an explicit semantic state, not a no-op white fill on the white card. */
 .driver-task-step--available {
-  border-color: color-mix(in srgb, var(--ink, #0f172a) 14%, transparent);
-  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent, #16a34a) 24%, transparent);
+  background: color-mix(in srgb, var(--accent, #16a34a) 5%, transparent);
 }
 
 .driver-task-step--locked {
@@ -504,14 +512,16 @@
   gap: 14px;
 }
 
+/* Flat groups — the section card is the single elevation surface. */
 .driver-task-fuel-card,
 .driver-task-photo-card {
-  border: 1px solid var(--border-1, #EAECEF);
-  border-radius: 14px;
-  padding: 14px;
-  background: var(--bg-2, #FFFFFF);
   display: grid;
   gap: 12px;
+}
+
+.driver-task-photo-card + .driver-task-photo-card {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
 }
 
 .driver-task-fuel-header,
@@ -620,9 +630,8 @@
     font-size: 18px;
   }
 
-  .driver-task-fact,
   .driver-task-rules__item,
-  .driver-task-step {
+  .driver-task-step:not(.driver-task-step--locked) {
     padding: 12px;
   }
 }

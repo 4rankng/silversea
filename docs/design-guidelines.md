@@ -157,6 +157,25 @@ metrics for screens without one, and do not convert hero-KPI surfaces
 (`ForwarderSettlementsPage`, dashboard tiles): 24/28px hero display numbers
 are their sanctioned contract.
 
+**One elevation per group** — the rule that kills nested cards. A container
+that already sits inside a bordered/background parent (a page card, a
+`.driver-task-section`, a dialog body) must not repeat `border` +
+`border-radius` + `background` on its children: nested content renders flat
+(headings, plain list rows, fact rows), and sub-groups inside the same
+elevation separate with a divider row (`border-top: 1px solid
+var(--line-strong)` — at 1px on a white card `--line` is too faint to read as
+a boundary on a phone screen), never with a boxed card per group. A fill or
+border on an inner row is reserved for semantic state (warning tint, selected
+step, rejected banner) — never as default chrome. Two divider weights:
+stacked group dividers use `--line-strong`; side-by-side column hairlines
+and row separators *within* a group use `--line` (SummaryRail's ruled-row
+weight). This is the SummaryRail
+no-cards rule applied inside elevated surfaces; every removed card layer also
+removes one border + one padding tier, which is pure recovered width on
+375-430px phones. Reference implementation: the driver trip-detail screen
+(`TripPodSubmission.css` e-POD groups + file rows, `DriverTripDetailPage.css`
+fact rows / fuel / photo groups / milestone steps).
+
 **Table skin** — every full-page data table renders the workboard treatment:
 sticky thead on `--sticky-thead-top` with `--surface-2` background,
 `--ink-2` header text at `--ops-table-header-*` tokens (11px/600), padding
