@@ -25,7 +25,6 @@ import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
-import { isShipmentCostEntryEnabled } from '../lib/featureFlags';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -811,26 +810,22 @@ export default function DriverTripDetailPage() {
         </section>
       )}
 
-      {isShipmentCostEntryEnabled() && (
-        <section className="driver-task-section">
-          <ShipmentCostEntryForm
-            tripId={trip.id}
-            totalRoadAllowance={trip.totalRoadAllowance ?? null}
-            pickupLocation={fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? null}
-            deliveryLocation={fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null}
-            pickupPortName={fulfillment?.pickupPortName ?? null}
-            dropPortName={fulfillment?.dropPortName ?? null}
-            pickupWarehouseName={fulfillment?.pickupWarehouseName ?? null}
-            dropWarehouseName={fulfillment?.dropWarehouseName ?? null}
-          />
-        </section>
-      )}
+      <section className="driver-task-section">
+        <ShipmentCostEntryForm
+          tripId={trip.id}
+          totalRoadAllowance={trip.totalRoadAllowance ?? null}
+          pickupLocation={fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? null}
+          deliveryLocation={fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null}
+          pickupPortName={fulfillment?.pickupPortName ?? null}
+          dropPortName={fulfillment?.dropPortName ?? null}
+          pickupWarehouseName={fulfillment?.pickupWarehouseName ?? null}
+          dropWarehouseName={fulfillment?.dropWarehouseName ?? null}
+        />
+      </section>
 
-      {isShipmentCostEntryEnabled() && (
-        <section className="driver-task-section">
-          <FuelRefillReportForm tripId={trip.id} />
-        </section>
-      )}
+      <section className="driver-task-section">
+        <FuelRefillReportForm tripId={trip.id} />
+      </section>
 
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">

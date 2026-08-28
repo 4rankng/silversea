@@ -68,6 +68,16 @@ vi.mock('../components/trip/TripPodSubmission', () => ({
   default: () => <div data-testid="pod-submission">pod</div>,
 }));
 
+vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
+  ShipmentCostEntryForm: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
+  default: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
+}));
+
+vi.mock('../components/trip/FuelRefillReportForm', () => ({
+  FuelRefillReportForm: () => <div data-testid="fuel-refill-report-form">Báo cáo đổ dầu</div>,
+  default: () => <div data-testid="fuel-refill-report-form">Báo cáo đổ dầu</div>,
+}));
+
 vi.mock('../features/driver/useOfflineCommandQueue', () => ({
   buildOfflineCommandKey: (...parts: Array<string | number>) => parts.join(':'),
   useOfflineCommandQueue: () => ({
@@ -212,12 +222,11 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  // Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí + Bốn mốc
-  // thực hiện + Thu nhập tham chiếu. Ảnh nhiên liệu is restored per the 27.8
-  // spec ("GIỮ NGUYÊN"). The driver page should expose only the sticky
-  // "Nhận lệnh vận chuyển" accept bar and the single "Hoàn thành chuyến"
-  // footer button.
-  it('does not render the hidden cost module UI (4-milestone timeline, reference income)', async () => {
+  // Spec (Phần 1, Lưu ý xây dựng app): Bốn mốc thực hiện + Thu nhập tham
+  // chiếu stay removed. The cost-entry + fuel-refill forms render
+  // unconditionally since the rollout flag was removed per user decision
+  // (27.8 doc = real customer desire).
+  it('renders cost forms and keeps the milestone/income modules removed', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -228,9 +237,8 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
-    // The hidden module is gated by feature flag, default off.
-    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
-    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
+    expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
+    expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();
   });
 
   // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —

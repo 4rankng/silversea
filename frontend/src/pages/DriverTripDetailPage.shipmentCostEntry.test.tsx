@@ -4,22 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodStatus } from '@tingting/shared';
 
 /**
- * Driver-app spec (260827) — "Nhập chi phí lô hàng" and "Báo cáo đổ dầu" are
- * deliberately hidden behind the same `isShipmentCostEntryEnabled()` flag
- * until the rollout is approved. This suite verifies both sections are
- * genuinely absent from the render tree when the flag is off (not just
- * visually hidden), and both reappear when it's on. Mirrors the mocking
- * conventions of `DriverTripDetailPage.test.tsx` — kept as a separate file
- * so that suite's existing tests stay untouched.
+ * Driver-app spec (260827) — "Nhập chi phí lô hàng" and "Báo cáo đổ dầu"
+ * render unconditionally on the task detail page (the rollout flag
+ * VITE_FEATURE_SHIPMENT_COST_ENTRY was removed per user decision — the 27.8
+ * doc is the real customer desire). This suite verifies both sections are
+ * genuinely present in the render tree. Mirrors the mocking conventions of
+ * `DriverTripDetailPage.test.tsx` — kept as a separate file so that suite's
+ * existing tests stay untouched.
  */
-
-const { isShipmentCostEntryEnabledMock } = vi.hoisted(() => ({
-  isShipmentCostEntryEnabledMock: vi.fn(),
-}));
-
-vi.mock('../lib/featureFlags', () => ({
-  isShipmentCostEntryEnabled: isShipmentCostEntryEnabledMock,
-}));
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
   ShipmentCostEntryForm: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
@@ -175,9 +167,8 @@ function renderPage() {
   );
 }
 
-describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
+describe('DriverTripDetailPage — shipment cost entry', () => {
   beforeEach(() => {
-    isShipmentCostEntryEnabledMock.mockReset();
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -198,20 +189,7 @@ describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
     });
   });
 
-  it('does not render the cost-entry or fuel-refill sections when the flag is off (default)', async () => {
-    isShipmentCostEntryEnabledMock.mockReturnValue(false);
-    renderPage();
-
-    // Wait for the page to mount via the sticky accept bar.
-    expect(await screen.findByTestId('accept-sticky-bar')).toBeTruthy();
-    expect(screen.queryByText('Nhập chi phí lô hàng')).toBeNull();
-    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
-    expect(screen.queryByText('Báo cáo đổ dầu')).toBeNull();
-    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
-  });
-
-  it('renders the cost-entry and fuel-refill sections when the flag is on', async () => {
-    isShipmentCostEntryEnabledMock.mockReturnValue(true);
+  it('renders the cost-entry and fuel-refill sections (unconditional)', async () => {
     renderPage();
 
     expect(await screen.findByTestId('accept-sticky-bar')).toBeTruthy();
