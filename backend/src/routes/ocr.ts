@@ -37,6 +37,7 @@ import {
 } from '../services/durable-effect.service';
 import { getOcrSettings, ocrHasAvailableKey } from '../services/ocr-settings.service';
 import { OCR_DISABLED_ERROR } from '../services/ocr.service';
+import { checkOcrRateLimit } from '../services/ocr-rate-limiter';
 import {
   decideFuelEvidenceReview,
   listFuelEvidenceReviewsForOffice,
@@ -45,6 +46,16 @@ import {
 // auth + Casbin ('ocr') applied at mount point in index.ts. Both routes below
 // inherit casbinAuthz('ocr') from that single mount — no per-route policy.
 const router = Router();
+
+// OCR rate limit: 2 requests/second globally to protect upstream API quotas.
+router.use(asyncHandler(async (_req: Request, res: Response, next) => {
+  const allowed = await checkOcrRateLimit();
+  if (!allowed) {
+    res.status(429).json({ error: 'OCR đang quá tải. Vui lòng thử lại sau.' });
+    return;
+  }
+  next();
+}));
 const OCR_PUMP_ENDPOINT = 'ocr.pump';
 const FUEL_EVIDENCE_DECISION_ENDPOINT = 'ocr.fuel-evidence-reviews.decision';
 let extractPumpReadingHandler = extractPumpReading;

@@ -1,21 +1,22 @@
 /**
  * OCR service for extracting container & seal numbers from photos.
  *
- * Providers are tried in order, each gated by its API key being set:
- *   1. OpenRouter (Qwen3-VL) — primary (callOpenRouterVision)
- *   2. Gemini                — fallback (callGeminiVision)
- * The first provider to return a type-valid result wins; on any error/empty/
- * type-miss the request transparently falls through. With only a Gemini key
- * configured this behaves exactly like the previous Gemini-only build.
+ * OpenRouter is the sole OCR provider. Two models are tried in sequence:
+ *   1. Qwen3-VL-32B  (15s timeout) — fast, capable vision model
+ *   2. Qwen3.7-Plus  (55s timeout) — fallback for harder images
+ * The first model to return a type-valid result wins; on any error/empty/
+ * type-miss the request transparently falls through to the next model.
+ *
+ * Gemini is retired from the OCR chain (code retained for other AI tasks).
+ * Matches vantaiphucloc's 2-tier OpenRouter-only setup.
  *
  * Ported (faithfully) from vantaiphucloc:
  *   - app/contexts/operations/infrastructure/openrouter.py → callOpenRouterVision
- *   - app/contexts/operations/infrastructure/ai.py         → callGeminiVision / preprocessImage
+ *   - app/contexts/operations/infrastructure/ai.py         → preprocessImage
  *   - app/contexts/operations/infrastructure/ocr.py        → extractContainerAndSeal (multi-provider loop)
  *
  * Accuracy techniques:
- *   - Structured JSON output via Gemini responseSchema; prompt-only + regex net for OpenRouter (temperature 0.0)
- *   - Hard-coded 2-model Gemini fallback chain (mirrors vantaiphucloc ai.py)
+ *   - Prompt-only + regex net for OpenRouter (temperature 0.0)
  *   - <think> stripping for Qwen reasoning output
  *   - Image preprocessing: downscale + auto-contrast (.normalise())
  *   - ISO 6346 check-digit auto-correction for near-miss container numbers
@@ -31,7 +32,7 @@ import { getOcrSettings, ocrHasAvailableKey, type OcrSettings } from './ocr-sett
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta';
 export const OCR_DISABLED_ERROR = 'OCR đang tắt trong cấu hình hệ thống.';
-const OCR_MISSING_KEY_ERROR = 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY / GEMINI_API_KEY)';
+const OCR_MISSING_KEY_ERROR = 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY)';
 
 /**
  * Hard-coded model fallback chain — tries each in order until one succeeds.
@@ -48,19 +49,30 @@ const MAX_DETECT = 10;
 const CONTAINER_RE = /^[A-Z]{4}\d{7}$/;
 const CONTAINER_RE_G = /[A-Z]{4}\d{7}/g;
 
-// OpenRouter (Qwen3-VL) — endpoint + model are hardcoded constants, NOT env
-// vars. The base URL is a fixed OpenAI-compatible endpoint and the model is a
-// pinned slug that should not drift per environment; only the API key
-// (resolved via OCR settings) is runtime-configurable. Mirrors the MiniMax LLM pattern
-// (services/llm/models.ts: MODEL_FAST / MINIMAX_BASE_URL) — change in code.
+// OpenRouter — endpoint + models are hardcoded constants, NOT env vars.
+// Two-model chain matching vantaiphucloc: Qwen3-VL-32B (fast) → Qwen3.7-Plus (fallback).
+// Each model has its own per-call timeout sized so the chain sums within the
+// frontend's 60s axios timeout. Only the API key is runtime-configurable.
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const OPENROUTER_MODEL = 'qwen/qwen3-vl-32b-instruct';
+
+interface OpenRouterModelConfig {
+  label: string;
+  model: string;
+  timeoutMs: number;
+}
+
+const OPENROUTER_MODELS: OpenRouterModelConfig[] = [
+  { label: 'Qwen3-VL-32B', model: 'qwen/qwen3-vl-32b-instruct', timeoutMs: 15_000 },
+  { label: 'Qwen3.7-Plus', model: 'qwen/qwen3.7-plus', timeoutMs: 55_000 },
+];
+
+/** Default model for direct callers that don't iterate the chain. */
+const OPENROUTER_MODEL = OPENROUTER_MODELS[0].model;
 
 // OpenRouter (OpenAI-compatible) call budget. Qwen reasoning models can wrap
 // chain-of-thought in <think>…</think>; strip both closed blocks and an
 // unclosed trailing one (truncation mid-thought). Ported from vantaiphucloc
 // openrouter.py.
-const OPENROUTER_TIMEOUT_MS = 60_000;
 const THINK_RE = /<think>.*?<\/think>/gis;
 const THINK_TRAILING_RE = /<think>.*$/gis;
 
@@ -303,16 +315,19 @@ function extractContentText(content: unknown): string {
 /**
  * Call an OpenRouter vision model. Empty key → friendly error (no throw). On a
  * non-2xx the status is returned as `HTTP <status>` (with a server-side log of
- * the upstream body) so a 429/401/404 is distinguishable. A 60s AbortController
- * guards against hangs; on abort the error names the timeout.
+ * the upstream body) so a 429/401/404 is distinguishable. The per-model
+ * AbortController timeout guards against hangs; on abort the error names the
+ * timeout.
  */
 export async function callOpenRouterVision(
   prompt: string,
   imageBuffer: Buffer,
   mimeType: string,
   settings?: OcrSettings,
+  modelConfig?: OpenRouterModelConfig,
 ): Promise<VisionResult> {
   const runtimeSettings = await resolveRuntimeSettings(settings);
+  const mc = modelConfig ?? OPENROUTER_MODELS[0];
   if (!runtimeSettings.enabled) {
     return {
       success: false,
@@ -334,11 +349,10 @@ export async function callOpenRouterVision(
 
   const dataUri = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
   const payload = {
-    model: OPENROUTER_MODEL,
+    model: mc.model,
     temperature: 0,
-    // Parity with Gemini (maxOutputTokens 4096). The completion budget INCLUDES
-    // any <think> reasoning tokens; 2048 can truncate the answer mid-JSON when
-    // the model reasons, which silently fails over to Gemini. 4096 leaves room.
+    // The completion budget INCLUDES any <think> reasoning tokens; 2048 can
+    // truncate the answer mid-JSON. 4096 leaves room.
     max_tokens: 4096,
     messages: [{
       role: 'user',
@@ -351,7 +365,7 @@ export async function callOpenRouterVision(
 
   const url = `${OPENROUTER_BASE_URL.replace(/\/+$/, '')}/chat/completions`;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), mc.timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -366,13 +380,13 @@ export async function callOpenRouterVision(
 
     if (!response.ok) {
       const errBody = await response.text().catch(() => '<no body>');
-      console.error(`[ocr] OpenRouter → ${response.status}: ${errBody.slice(0, 500)}`);
+      console.error(`[ocr] OpenRouter ${mc.label} → ${response.status}: ${errBody.slice(0, 500)}`);
       return {
         success: false,
         text: null,
         error: `HTTP ${response.status}`,
         provider: 'openrouter',
-        model: OPENROUTER_MODEL,
+        model: mc.model,
       };
     }
 
@@ -385,7 +399,7 @@ export async function callOpenRouterVision(
         text: null,
         error: 'Empty OpenRouter response',
         provider: 'openrouter',
-        model: result.model ?? OPENROUTER_MODEL,
+        model: result.model ?? mc.model,
       };
     }
     return {
@@ -393,18 +407,18 @@ export async function callOpenRouterVision(
       text,
       error: null,
       provider: 'openrouter',
-      model: result.model ?? OPENROUTER_MODEL,
+      model: result.model ?? mc.model,
     };
   } catch (e) {
     const msg = e instanceof Error
-      ? (e.name === 'AbortError' ? `Timeout after ${OPENROUTER_TIMEOUT_MS}ms` : `${e.name}: ${e.message}`)
+      ? (e.name === 'AbortError' ? `Timeout after ${mc.timeoutMs}ms` : `${e.name}: ${e.message}`)
       : 'Request failed';
     return {
       success: false,
       text: null,
       error: msg,
       provider: 'openrouter',
-      model: OPENROUTER_MODEL,
+      model: mc.model,
     };
   } finally {
     clearTimeout(timer);
@@ -508,32 +522,27 @@ export interface ExtractResult {
 }
 
 /**
- * Ordered OCR providers, derived from the resolved OCR settings.
- * OpenRouter (Qwen3-VL) is tried first whenever its key is set; Gemini is the
- * fallback.
+ * Ordered OCR model chain — OpenRouter only, matching vantaiphucloc.
+ * Each entry is tried in sequence; the first to return a valid result wins.
+ * Gemini is retired from the OCR chain.
  */
-function orderedProviders(settings: OcrSettings): VisionProvider[] {
-  const list: VisionProvider[] = [];
-  if (settings.openrouterKey) list.push('openrouter');
-  if (settings.geminiKey) list.push('gemini');
-  return list;
+function orderedModels(settings: OcrSettings): OpenRouterModelConfig[] {
+  if (!settings.openrouterKey) return [];
+  return [...OPENROUTER_MODELS];
 }
 
 /**
- * Dispatch a vision call to the named provider. Gemini takes a responseSchema
- * (Gemini v1beta structured output); OpenRouter is prompt-only and relies on
- * parseResponse()'s JSON+regex net.
+ * Dispatch a vision call to a specific OpenRouter model. Prompt-only,
+ * relies on parseResponse()'s JSON+regex net.
  */
-async function callProvider(
-  name: VisionProvider,
+async function callModel(
+  modelConfig: OpenRouterModelConfig,
   prompt: string,
-  responseSchema: Record<string, unknown> | undefined,
   imageBuffer: Buffer,
   mimeType: string,
   settings: OcrSettings,
 ): Promise<VisionResult> {
-  if (name === 'openrouter') return callOpenRouterVision(prompt, imageBuffer, mimeType, settings);
-  return callGeminiVision(prompt, imageBuffer, mimeType, responseSchema, settings);
+  return callOpenRouterVision(prompt, imageBuffer, mimeType, settings, modelConfig);
 }
 
 /**
@@ -578,8 +587,8 @@ export async function extractContainerAndSeal(
     };
   }
 
-  const providers = orderedProviders(settings);
-  if (!ocrHasAvailableKey(settings) || providers.length === 0) {
+  const models = orderedModels(settings);
+  if (!ocrHasAvailableKey(settings) || models.length === 0) {
     return {
       success: false,
       containerNumbers: [],
@@ -591,18 +600,18 @@ export async function extractContainerAndSeal(
     };
   }
 
-  // Track the last attempted provider so the exhausted path reports which one
-  // got furthest (and the error it gave) — every provider failure stays visible
+  // Track the last attempted model so the exhausted path reports which one
+  // got furthest (and the error it gave) — every model failure stays visible
   // rather than collapsing to a generic "failed".
   let lastProvider: VisionProvider | null = null;
   let lastModel: string | null = null;
   let lastError: string | null = null;
 
-  for (const name of providers) {
-    const result = await callProvider(name, prompt, schema, buffer, mime, settings);
+  for (const mc of models) {
+    const result = await callModel(mc, prompt, buffer, mime, settings);
 
     if (!result.success || !result.text) {
-      lastProvider = name;
+      lastProvider = 'openrouter';
       lastModel = result.model;
       lastError = result.error ?? 'Request failed';
       continue;
@@ -612,7 +621,7 @@ export async function extractContainerAndSeal(
 
     if (type === 'SEAL') {
       // SEAL succeeds only when a seal number was extracted; otherwise fall
-      // through to the next provider (a container-style misread is not a seal).
+      // through to the next model (a container-style misread is not a seal).
       if (parsed.sealNumber) {
         return {
           success: true,
@@ -620,11 +629,11 @@ export async function extractContainerAndSeal(
           sealNumber: parsed.sealNumber,
           checkDigitWarnings: [],
           error: null,
-          provider: name,
+          provider: 'openrouter',
           model: result.model,
         };
       }
-      lastProvider = name;
+      lastProvider = 'openrouter';
       lastModel = result.model;
       lastError = 'Không nhận dạng được số seal';
       continue;
@@ -636,7 +645,7 @@ export async function extractContainerAndSeal(
     const valid = parsed.containerNumbers.filter(n => CONTAINER_RE.test(n));
 
     if (valid.length === 0) {
-      lastProvider = name;
+      lastProvider = 'openrouter';
       lastModel = result.model;
       lastError = 'Không nhận dạng được số cont';
       continue;
@@ -649,12 +658,12 @@ export async function extractContainerAndSeal(
       sealNumber: null,
       checkDigitWarnings: warnings,
       error: null,
-      provider: name,
+      provider: 'openrouter',
       model: result.model,
     };
   }
 
-  // All providers exhausted.
+  // All models exhausted.
   return {
     success: false,
     containerNumbers: [],
@@ -842,8 +851,8 @@ export async function extractPumpReading(
     };
   }
 
-  const providers = orderedProviders(settings);
-  if (!ocrHasAvailableKey(settings) || providers.length === 0) {
+  const models = orderedModels(settings);
+  if (!ocrHasAvailableKey(settings) || models.length === 0) {
     return {
       outcome: 'UNREADABLE',
       success: false, litres: null, unitPrice: null, total: null,
@@ -857,9 +866,9 @@ export async function extractPumpReading(
   let lastModel: string | null = null;
   let lastError: string | null = null;
 
-  for (const name of providers) {
-    const result = await callProvider(name, PUMP_PROMPT, PUMP_SCHEMA, buffer, mime, settings);
-    lastProvider = name;
+  for (const mc of models) {
+    const result = await callModel(mc, PUMP_PROMPT, buffer, mime, settings);
+    lastProvider = 'openrouter';
     lastModel = result.model;
 
     if (!result.success || !result.text) {
@@ -885,7 +894,7 @@ export async function extractPumpReading(
           mismatch: false,
           computedTotal: null,
           error: null,
-          provider: name,
+          provider: 'openrouter',
           model: result.model,
         };
       }
@@ -905,7 +914,7 @@ export async function extractPumpReading(
         total: classified.total,
         mismatch: classified.mismatch,
         computedTotal: classified.computedTotal,
-        error: null, provider: name, model: result.model,
+        error: null, provider: 'openrouter', model: result.model,
       };
     } catch {
       lastError = 'Không thể phân tích kết quả OCR';

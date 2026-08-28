@@ -23,7 +23,8 @@ let loadPromise: Promise<OcrSettings> | null = null;
 let cacheGeneration = 0;
 
 function resolveEnabledDefault(settings: Pick<OcrSettings, 'openrouterKey' | 'geminiKey'>): boolean {
-  return settings.openrouterKey !== '' || settings.geminiKey !== '';
+  // Gemini is retired from the OCR chain — only OpenRouter key enables OCR.
+  return settings.openrouterKey !== '';
 }
 
 export async function getOcrSettingsFrom(
@@ -79,5 +80,6 @@ export function invalidateOcrSettings(): void {
 export function ocrHasAvailableKey(
   settings: Pick<OcrSettings, 'openrouterKey' | 'geminiKey'>,
 ): boolean {
-  return settings.openrouterKey !== '' || settings.geminiKey !== '';
+  // Gemini is retired from the OCR chain — only OpenRouter key is checked.
+  return settings.openrouterKey !== '';
 }
