@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
 
@@ -179,16 +179,28 @@ function renderPage() {
   );
 }
 
-// Board route target for the A7 completion-navigation assertion.
+// Board route target for the A7 completion-navigation assertion. Also stubs
+// the pod route with the :id param echoed into the testid, so the CTA test can
+// prove the driver lands on the RIGHT trip's e-POD screen (fulfillment id, not
+// trip.id — the regression Phần 4 fixed).
 function renderPageWithBoard() {
   return render(
     <MemoryRouter initialEntries={['/my-trips/88']}>
       <Routes>
         <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
         <Route path="/my-trips" element={<div data-testid="driver-journey-board" />} />
+        <Route
+          path="/my-trips/:id/pod"
+          element={<PodRouteStub />}
+        />
       </Routes>
     </MemoryRouter>,
   );
+}
+
+function PodRouteStub() {
+  const { id } = useParams<{ id: string }>();
+  return <div data-testid={`pod-route-stub-${id}`} />;
 }
 
 describe('DriverTripDetailPage', () => {
@@ -309,6 +321,12 @@ describe('DriverTripDetailPage', () => {
     // any completion command from the trip detail anymore.
     const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
     fireEvent.click(cta);
+
+    // The driver lands on THIS trip's pod screen — the route param is the
+    // fulfillment id (88), not trip.id (55). Wrong-id navigation here would
+    // open another trip's e-POD screen.
+    expect(await screen.findByTestId('pod-route-stub-88')).toBeTruthy();
+    expect(screen.queryByTestId('pod-route-stub-55')).toBeNull();
 
     // The trip detail no longer triggers the "complete" offline command on
     // click — that's the pod page's job. The driver is on the trip detail

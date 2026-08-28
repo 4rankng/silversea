@@ -230,6 +230,35 @@ describe('DriverTripPodPage', () => {
     }));
   });
 
+  // Re-homed from the trip detail: an accounting lock freezes the trip — the
+  // photos stay visible, but "Hoàn thành chuyến" must not fire.
+  it('shows the accounting-lock banner and disables completion while locked', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        accountingLock: {
+          billingDocumentId: 7,
+          billingDocumentNumber: 'DN-0007',
+          activatedByName: 'Kế toán Anh',
+          activatedAt: '2026-08-01T02:00:00.000Z',
+          reason: 'Chốt kỳ tháng 7',
+        },
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    renderPage();
+
+    expect(await screen.findByRole('status', { name: 'Lô hàng đã khóa kế toán' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
+  });
+
   it('stays on the e-POD screen when completion is queued offline instead of confirmed', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

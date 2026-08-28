@@ -405,10 +405,9 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
                 button was unusable on some devices; the file picker is now
                 one tap away. */}
             <div className="dcc-capture">
-              <label
-                className="dcc-capture-btn dcc-capture-btn--primary"
-                aria-label="Chọn ảnh cont từ thiết bị"
-              >
+              {/* No aria-label: the visible span text is the accessible name
+                  (WCAG 2.5.3 Label-in-Name). */}
+              <label className="dcc-capture-btn dcc-capture-btn--primary">
                 {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                 <span>Chụp / chọn ảnh cont</span>
                 <input
@@ -423,10 +422,7 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
                   }}
                 />
               </label>
-              <label
-                className="dcc-capture-btn dcc-capture-btn--primary"
-                aria-label="Chọn ảnh seal từ thiết bị"
-              >
+              <label className="dcc-capture-btn dcc-capture-btn--primary">
                 {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
                 <span>Chụp / chọn ảnh seal</span>
                 <input

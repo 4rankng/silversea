@@ -39,6 +39,7 @@ import {
 } from '../features/driver/useOfflineCommandQueue';
 import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
 import { useToast } from '../components/shared/Toast';
+import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
 
@@ -91,7 +92,7 @@ export function DriverTripPodPage() {
           toast({ kind: 'success', message: successMessage });
         }
       } else if (currentStatus === 'FAILED') {
-        toast({ kind: 'error', message: 'Lệnh không gửi được. Hệ thống sẽ thử lại khi có mạng.' });
+        toast({ kind: 'info', message: 'Đã lưu ngoại tuyến. Hệ thống sẽ tự gửi lại khi có mạng.' });
       } else if (currentStatus === 'CONFLICT' || currentStatus === 'REJECTED') {
         toast({
           kind: 'error',
@@ -126,7 +127,12 @@ export function DriverTripPodPage() {
   const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
   const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
   const podReady = hasYardReceipt && hasSignedNote;
-  const completionBlocked = !validFulfillmentId || !podReady || trip?.status !== 'IN_TRANSIT';
+  // Same gate the trip-detail footer enforced before the split: an accounting
+  // lock freezes the trip — e-POD photos stay visible, completion does not.
+  const completionBlocked = !validFulfillmentId
+    || Boolean(trip?.accountingLock)
+    || trip?.status !== 'IN_TRANSIT'
+    || !podReady;
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
     if (!trip || !validFulfillmentId) {
@@ -193,12 +199,15 @@ export function DriverTripPodPage() {
     if (!trip || !validFulfillmentId) return;
     setSubmitting(true);
     try {
+      // Same key shape the trip-detail page used before the split, so a
+      // command queued by the old build still dedupes against this one.
       const idempotencyKey = buildOfflineCommandKey(
         'driver',
         'task',
         validFulfillmentId,
         'pod-submit',
-        'submission-version',
+        submission.id,
+        'version',
         submission.version,
       );
       enqueue({
@@ -345,6 +354,8 @@ export function DriverTripPodPage() {
       </header>
 
       <main className="driver-trip-pod-main">
+        {trip.accountingLock && <AccountingLockBanner lock={trip.accountingLock} />}
+
         {/* Ghi chú from cus/điều vận (spec A3): shown read-only above the e-POD
             so the driver has the operational note in mind before uploading. */}
         {operationalNote && (
