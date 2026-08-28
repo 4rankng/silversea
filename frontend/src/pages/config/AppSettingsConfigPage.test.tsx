@@ -80,9 +80,7 @@ const mocks = vi.hoisted(() => ({
     data: {
       enabled: true,
       openrouterKeySet: true,
-      geminiKeySet: false,
       openrouterKeyMasked: '••••••••ocr1',
-      geminiKeyMasked: '',
     },
     isLoading: false,
     isError: false,
@@ -200,7 +198,6 @@ describe('AppSettingsConfigPage', () => {
     mocks.appSettings.data.gpsEnabled = false;
     mocks.ocrSettings.data.enabled = true;
     mocks.ocrSettings.data.openrouterKeySet = true;
-    mocks.ocrSettings.data.geminiKeySet = false;
     mocks.saveAppSettings.mockReset().mockResolvedValue({
       botEnabled: true,
       gpsEnabled: false,
@@ -315,7 +312,7 @@ describe('AppSettingsConfigPage', () => {
     const ocrSection = screen.getByRole('region', { name: 'Nhận dạng OCR' });
     expect(ocrSection.textContent).toContain('Sử dụng OCR');
     expect(ocrSection.textContent).toContain('OpenRouter API key cho OCR');
-    expect(ocrSection.textContent).toContain('Gemini API key dự phòng');
+    expect(ocrSection.textContent).not.toContain('Gemini');
     expect(ocrSection.textContent).toContain('không dùng chung với chatbot');
   });
 
@@ -446,24 +443,23 @@ describe('AppSettingsConfigPage', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('switch', { name: /Sử dụng OCR/ }));
-    fireEvent.change(screen.getByLabelText('Gemini API key dự phòng'), {
-      target: { value: '  gemini-ocr-new  ' },
+    fireEvent.change(screen.getByLabelText(/OpenRouter API key cho OCR/, { selector: 'input' }), {
+      target: { value: '  or-ocr-new  ' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt OCR' }));
 
     await waitFor(() => {
       expect(mocks.saveOcrSettings).toHaveBeenCalledWith({
         enabled: false,
-        geminiApiKey: 'gemini-ocr-new',
+        openrouterApiKey: 'or-ocr-new',
       });
     });
     expect(screen.getByRole('status').textContent).toContain('Đã lưu cài đặt nhận dạng OCR');
   });
 
-  it('does not allow OCR to be enabled until at least one OCR key is available', () => {
+  it('does not allow OCR to be enabled until the OpenRouter key is available', () => {
     mocks.ocrSettings.data.enabled = false;
     mocks.ocrSettings.data.openrouterKeySet = false;
-    mocks.ocrSettings.data.geminiKeySet = false;
     renderPage();
 
     fireEvent.click(screen.getByRole('switch', { name: /Sử dụng OCR/ }));

@@ -38,7 +38,6 @@ const VALID_CONTAINER = 'ALLU5216535';
 const TEST_SETTINGS: OcrSettings = {
   enabled: true,
   openrouterKey: 'test-or-key',
-  geminiKey: '',
 };
 
 /** Minimal Response stand-in for the mocked global fetch. */
@@ -203,7 +202,6 @@ describe('OCR: OpenRouter 2-tier model chain', () => {
       const r = await extractContainerAndSeal(IMG, 'CONTAINER', 'image/jpeg', {
         enabled: true,
         openrouterKey: '',
-        geminiKey: '',
       });
       assert.equal(r.success, false);
       assert.equal(r.provider, null);

@@ -7,8 +7,7 @@
  * The first model to return a type-valid result wins; on any error/empty/
  * type-miss the request transparently falls through to the next model.
  *
- * Gemini is retired from the OCR chain (code retained for other AI tasks).
- * Matches vantaiphucloc's 2-tier OpenRouter-only setup.
+ * Gemini is not used at all — matches vantaiphucloc's 2-tier OpenRouter-only setup.
  *
  * Ported (faithfully) from vantaiphucloc:
  *   - app/contexts/operations/infrastructure/openrouter.py → callOpenRouterVision
@@ -30,18 +29,9 @@ import sharp from 'sharp';
 import { validateCheckDigit, suggestCorrections } from '@tingting/shared';
 import { getOcrSettings, ocrHasAvailableKey, type OcrSettings } from './ocr-settings.service';
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta';
 export const OCR_DISABLED_ERROR = 'OCR đang tắt trong cấu hình hệ thống.';
 const OCR_MISSING_KEY_ERROR = 'OCR chưa cấu hình (thiếu OPENROUTER_API_KEY)';
 
-/**
- * Hard-coded model fallback chain — tries each in order until one succeeds.
- * Mirrors vantaiphucloc ai.py `_GEMINI_MODELS`. Using capable multimodal
- * models avoids a 2-pass fallback and survives single-model 503 overload.
- */
-const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest'] as const;
-
-const VISION_TIMEOUT_MS = 60_000;
 const MAX_IMAGE_DIMENSION = 2048;
 const MAX_DETECT = 10;
 
@@ -65,9 +55,6 @@ const OPENROUTER_MODELS: OpenRouterModelConfig[] = [
   { label: 'Qwen3-VL-32B', model: 'qwen/qwen3-vl-32b-instruct', timeoutMs: 15_000 },
   { label: 'Qwen3.7-Plus', model: 'qwen/qwen3.7-plus', timeoutMs: 55_000 },
 ];
-
-/** Default model for direct callers that don't iterate the chain. */
-const OPENROUTER_MODEL = OPENROUTER_MODELS[0].model;
 
 // OpenRouter (OpenAI-compatible) call budget. Qwen reasoning models can wrap
 // chain-of-thought in <think>…</think>; strip both closed blocks and an
@@ -104,33 +91,8 @@ Common Errors: Pay close attention to characters that look similar (e.g., distin
 
 Output: Return ONLY a clean JSON object containing the recognized seal number. Do not include any conversational text. Example: {"seal_number": "VN123456"}`;
 
-// JSON schema enforced at the Gemini engine level (Gemini v1beta schema format).
-const CONTAINER_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    container_numbers: {
-      type: 'ARRAY',
-      description: 'List of all valid ISO 6346 container numbers found in the image.',
-      items: { type: 'STRING', pattern: '^[A-Z]{4}\\d{7}$' },
-    },
-  },
-  required: ['container_numbers'],
-};
-
-const SEAL_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    seal_number: {
-      type: 'STRING',
-      nullable: true,
-      description: 'Alphanumeric seal number printed on the seal (uppercase, no spaces), or null if none.',
-    },
-  },
-  required: ['seal_number'],
-};
-
 /** Which vision provider produced (or failed to produce) a result. */
-export type VisionProvider = 'openrouter' | 'gemini';
+export type VisionProvider = 'openrouter';
 
 /** Provider-agnostic result of a single vision call. */
 export interface VisionResult {
@@ -140,18 +102,6 @@ export interface VisionResult {
   provider: VisionProvider;
   model: string | null;
 }
-
-/**
- * Gemini-specific result — {@link VisionResult} plus `fallbackUsed` (true when
- * the secondary model in the hard-coded chain had to answer). Kept exported as
- * an alias for backward compatibility; nothing external imports it today.
- */
-export type GeminiVisionResult = VisionResult & { fallbackUsed: boolean };
-
-interface GeminiPart { text?: string }
-interface GeminiContent { parts?: GeminiPart[] }
-interface GeminiCandidate { content?: GeminiContent }
-interface GeminiResponse { candidates?: GeminiCandidate[] }
 
 // OpenAI-compatible (OpenRouter) response shapes. `message.content` may be a
 // plain string OR an array of typed parts — extractContentText normalizes both.
@@ -164,129 +114,11 @@ async function resolveRuntimeSettings(settings?: OcrSettings): Promise<OcrSettin
   return settings ?? getOcrSettings();
 }
 
-/**
- * Call Gemini with an image + prompt. Iterates the hard-coded model chain,
- * returning on the first success. Empty key → friendly error (no 500).
- */
-export async function callGeminiVision(
-  prompt: string,
-  imageBuffer: Buffer,
-  mimeType: string,
-  responseSchema?: Record<string, unknown>,
-  settings?: OcrSettings,
-): Promise<GeminiVisionResult> {
-  const runtimeSettings = await resolveRuntimeSettings(settings);
-  if (!runtimeSettings.enabled) {
-    return {
-      success: false,
-      text: null,
-      error: OCR_DISABLED_ERROR,
-      provider: 'gemini',
-      model: null,
-      fallbackUsed: false,
-    };
-  }
-  if (!runtimeSettings.geminiKey) {
-    return {
-      success: false,
-      text: null,
-      error: 'OCR chưa cấu hình (thiếu GEMINI_API_KEY)',
-      provider: 'gemini',
-      model: null,
-      fallbackUsed: false,
-    };
-  }
-
-  const encoded = imageBuffer.toString('base64');
-  const generationConfig: Record<string, unknown> = {
-    temperature: 0.0,
-    maxOutputTokens: 4096,
-  };
-  if (responseSchema) {
-    generationConfig.responseMimeType = 'application/json';
-    generationConfig.responseSchema = responseSchema;
-  }
-
-  const payload = {
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inline_data: { mime_type: mimeType, data: encoded } },
-      ],
-    }],
-    generationConfig,
-  };
-
-  let lastError: string | null = null;
-
-  for (const model of GEMINI_MODELS) {
-    const url = `${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${runtimeSettings.geminiKey}`;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        // Keep server-side observability for upstream failures (400/403/429/5xx)
-        // without leaking the API key or spamming dev output — the user-facing
-        // error stays the clean `HTTP <status>` string below.
-        const errBody = await response.text().catch(() => '<no body>');
-        console.error(`[ocr] Gemini ${model} → ${response.status}: ${errBody.slice(0, 500)}`);
-        lastError = `HTTP ${response.status}`;
-        continue;
-      }
-
-      const result = (await response.json()) as GeminiResponse;
-      const candidates = result.candidates;
-      if (!candidates || candidates.length === 0) {
-        lastError = 'No response generated';
-        continue;
-      }
-
-      // Join ALL parts' text — Gemini may split the answer across parts, and
-      // reading only parts[0] would discard the real JSON when parts[0] is a
-      // preamble/empty. Mirrors extractContentText on the OpenRouter path.
-      const geminiParts = candidates[0]?.content?.parts ?? [];
-      const text = geminiParts.map(p => p?.text ?? '').join('').trim();
-      return {
-        success: true,
-        text,
-        error: null,
-        provider: 'gemini',
-        model,
-        fallbackUsed: model !== GEMINI_MODELS[0],
-      };
-    } catch (e) {
-      lastError = e instanceof Error
-        ? (e.name === 'AbortError' ? `Timeout after ${VISION_TIMEOUT_MS}ms` : `${e.name}: ${e.message}`)
-        : 'Request failed';
-      continue;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  return {
-    success: false,
-    text: null,
-    error: lastError ?? 'All models failed',
-    provider: 'gemini',
-    model: null,
-    fallbackUsed: false,
-  };
-}
-
 // ── OpenRouter (Qwen3-VL) vision client ────────────────────────────────────
 // Faithful port of vantaiphucloc openrouter.py: OpenAI-compatible Chat
 // Completions, image as a base64 data URI, temperature 0, NO response_format
-// (model support for json_object is uneven — a 400 would silently regress
-// every request to Gemini; parseResponse()'s regex net is the safety net).
+// (model support for json_object is uneven — a 400 would kill every request;
+// parseResponse()'s regex net is the safety net).
 
 /** Remove <think> reasoning blocks (closed, and a trailing unclosed one). */
 function stripThink(text: string): string {
@@ -297,8 +129,8 @@ function stripThink(text: string): string {
  * Normalize an OpenAI-style `message.content` to a string. Per the spec the
  * field may be a plain string OR an array of typed parts [{type:'text',text}].
  * Narrowing to `typeof === 'string'` only would silently drop parts-array
- * responses (spurious "empty" failover to Gemini). Ported from openrouter.py
- * `_extract_text`.
+ * responses (spurious "empty" failover to the fallback model). Ported from
+ * vantaiphucloc openrouter.py `_extract_text`.
  */
 function extractContentText(content: unknown): string {
   if (typeof content === 'string') return content;
@@ -450,7 +282,7 @@ interface ParsedResponse {
   sealNumber: string | null;
 }
 
-/** Extract container numbers + seal from the Gemini response (JSON, then regex fallback). */
+/** Extract container numbers + seal from the model response (JSON, then regex fallback). */
 function parseResponse(text: string | null): ParsedResponse {
   if (!text) return { containerNumbers: [], sealNumber: null };
 
@@ -466,11 +298,11 @@ function parseResponse(text: string | null): ParsedResponse {
       ? data.seal_number.toUpperCase().trim()
       : null;
     // Only trust the JSON shape when it actually yielded a result. OpenRouter
-    // (unlike schema-enforced Gemini) sends NO response_format, so the model can
-    // return valid JSON under a different key (e.g. {"numbers":[...]} or a bare
-    // array); returning an empty miss there would drop a valid number and make
-    // every request fall through to Gemini. Fall through to the regex net so the
-    // number is recovered. Mirrors vantaiphucloc ocr.py `_parse_numbers_from_response`.
+    // sends NO response_format, so the model can return valid JSON under a
+    // different key (e.g. {"numbers":[...]} or a bare array); returning an
+    // empty miss there would drop a valid number and force a wasteful failover
+    // to the fallback model. Fall through to the regex net so the number is
+    // recovered. Mirrors vantaiphucloc ocr.py `_parse_numbers_from_response`.
     if (nums.length > 0 || seal) {
       return { containerNumbers: dedupe(nums), sealNumber: seal };
     }
@@ -524,7 +356,6 @@ export interface ExtractResult {
 /**
  * Ordered OCR model chain — OpenRouter only, matching vantaiphucloc.
  * Each entry is tried in sequence; the first to return a valid result wins.
- * Gemini is retired from the OCR chain.
  */
 function orderedModels(settings: OcrSettings): OpenRouterModelConfig[] {
   if (!settings.openrouterKey) return [];
@@ -573,7 +404,6 @@ export async function extractContainerAndSeal(
   }
 
   const prompt = type === 'SEAL' ? SEAL_PROMPT : MULTI_CONTAINER_PROMPT;
-  const schema = type === 'SEAL' ? SEAL_SCHEMA : CONTAINER_SCHEMA;
 
   if (!settings.enabled) {
     return {
@@ -704,16 +534,6 @@ Important notes:
 
 Output: Return ONLY a clean JSON object: {"outcome":"ACCEPTED|UNREADABLE|MULTI_SCREEN|NON_PUMP","litres":number|null,"unit_price":number|null,"total":number|null}. Do not include any conversational text.`;
 
-const PUMP_SCHEMA = {
-  type: 'object',
-  properties: {
-    outcome: { type: 'string' },
-    litres: { type: 'number' },
-    unit_price: { type: 'number' },
-    total: { type: 'number' },
-  },
-};
-
 export type PumpReadingOutcome = 'ACCEPTED' | 'UNREADABLE' | 'MULTI_SCREEN' | 'NON_PUMP' | 'ANOMALY';
 
 export interface PumpReading {
@@ -823,7 +643,7 @@ function normalizePumpReadingOutcome(value: unknown): Exclude<PumpReadingOutcome
 
 /**
  * Extract litres, unit_price, and total from a fuel-pump display photo.
- * Uses the same Gemini/OpenRouter vision pipeline as container/seal OCR.
+ * Uses the same OpenRouter vision pipeline as container/seal OCR.
  */
 export async function extractPumpReading(
   imageBuffer: Buffer,

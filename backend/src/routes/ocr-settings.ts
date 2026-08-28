@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   ocrSettingsUpdateSchema,
   type OcrSettingsResponse,
@@ -32,8 +32,7 @@ async function getOcrSettingsUpdatedAt(
     .from(s.appSettings)
     .where(sql`${s.appSettings.key} in (
       ${OCR_SETTING_KEYS.enabled},
-      ${OCR_SETTING_KEYS.openrouterApiKey},
-      ${OCR_SETTING_KEYS.geminiApiKey}
+      ${OCR_SETTING_KEYS.openrouterApiKey}
     )`);
   const latest = rows.reduce<Date | null>(
     (current, row) => (!current || row.updatedAt > current ? row.updatedAt : current),
@@ -78,9 +77,7 @@ function toResponseBody(
   return {
     enabled: settings.enabled,
     openrouterKeySet: settings.openrouterKey !== '',
-    geminiKeySet: settings.geminiKey !== '',
     openrouterKeyMasked: maskKey(settings.openrouterKey),
-    geminiKeyMasked: maskKey(settings.geminiKey),
     updatedAt,
   };
 }
@@ -125,30 +122,27 @@ router.put(
           : data.openrouterApiKey && data.openrouterApiKey.trim() !== ''
             ? data.openrouterApiKey.trim()
             : currentSettings.openrouterKey;
-        const finalGeminiKey = data.clearGeminiKey
-          ? ''
-          : data.geminiApiKey && data.geminiApiKey.trim() !== ''
-            ? data.geminiApiKey.trim()
-            : currentSettings.geminiKey;
         const next: OcrSettings = {
           enabled: data.enabled,
           openrouterKey: finalOpenrouterKey,
-          geminiKey: finalGeminiKey,
         };
         if (next.enabled && !ocrHasAvailableKey(next)) {
-          throw new ApiError(400, 'Không thể bật OCR khi chưa có API key OpenRouter hoặc Gemini.');
+          throw new ApiError(400, 'Không thể bật OCR khi chưa có API key OpenRouter.');
         }
         const now = new Date();
         await tx.insert(s.appSettings)
           .values([
             { key: OCR_SETTING_KEYS.enabled, value: next.enabled ? 'true' : 'false', updatedAt: now },
             { key: OCR_SETTING_KEYS.openrouterApiKey, value: encryptSecret(next.openrouterKey), updatedAt: now },
-            { key: OCR_SETTING_KEYS.geminiApiKey, value: encryptSecret(next.geminiKey), updatedAt: now },
           ])
           .onConflictDoUpdate({
             target: s.appSettings.key,
             set: { value: sql`excluded.setting_value`, updatedAt: now },
           });
+        // Gemini was removed from OCR — drop any stale key row so it cannot
+        // linger encrypted in app_settings.
+        await tx.delete(s.appSettings)
+          .where(eq(s.appSettings.key, 'ocr.gemini_api_key'));
         return toResponseBody(next, now.toISOString());
       },
     });

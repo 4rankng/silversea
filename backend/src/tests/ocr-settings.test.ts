@@ -12,7 +12,7 @@ import { initEnforcer } from '../casbin/enforcer';
 import { config } from '../config';
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { disconnectRedis } from '../lib/redis';
+import { disconnectRedis, getRedis } from '../lib/redis';
 import { authMiddleware } from '../middleware/auth';
 import { auditLogMiddleware } from '../middleware/audit';
 import { casbinAuthz, requireRoles } from '../middleware/casbin';
@@ -29,6 +29,7 @@ import {
   OCR_SETTING_KEYS,
   invalidateOcrSettings,
 } from '../services/ocr-settings.service';
+import { OCR_RATE_LIMIT_KEY } from '../services/ocr-rate-limiter';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -50,7 +51,6 @@ let cargoTypeId = 0;
 let imageBuffer: Buffer;
 let originalRows: Array<{ key: string; value: string }> = [];
 let originalOpenrouterEnv = '';
-let originalGeminiEnv = '';
 const originalFetch = globalThis.fetch;
 
 function sign(user: { id: number; username: string; role: string }) {
@@ -75,10 +75,17 @@ async function replaceOcrRows(rows: Array<{ key: string; value: string }>) {
   invalidateOcrSettings();
 }
 
-async function resetToEnvFallback(env: { openrouter: string; gemini: string }) {
+async function resetToEnvFallback(env: { openrouter: string }) {
   config.openrouterApiKey = env.openrouter;
-  config.geminiApiKey = env.gemini;
   await replaceOcrRows([]);
+}
+
+/**
+ * Clear the global OCR rate-limit window. Tests fire OCR-route requests in
+ * quick bursts that would otherwise trip the production 2 req/s guard.
+ */
+async function resetOcrRateLimit() {
+  await getRedis()?.del(OCR_RATE_LIMIT_KEY);
 }
 
 async function requestJson(path: string, init: {
@@ -112,6 +119,7 @@ async function multipartRequest(
   idempotencyKey: string,
   buffer = imageBuffer,
 ) {
+  await resetOcrRateLimit();
   idempotencyKeys.add(idempotencyKey);
   const form = new FormData();
   form.set('file', new Blob([new Uint8Array(buffer)], { type: 'image/jpeg' }), 'ocr.jpg');
@@ -136,7 +144,6 @@ before(async () => {
   await initEnforcer();
   originalRows = await captureOcrRows();
   originalOpenrouterEnv = config.openrouterApiKey;
-  originalGeminiEnv = config.geminiApiKey;
 
   const mkUser = async (username: string, role: 'ADMIN' | 'MANAGER') => {
     const [user] = await db.insert(s.users).values({
@@ -199,7 +206,6 @@ after(async () => {
   try {
     await replaceOcrRows(originalRows);
     config.openrouterApiKey = originalOpenrouterEnv;
-    config.geminiApiKey = originalGeminiEnv;
 
     if (idempotencyKeys.size > 0) {
       await db.delete(s.idempotencyKeys)
@@ -264,21 +270,15 @@ after(async () => {
 
 describe('ocr settings route + runtime integration', () => {
   test('GET uses env fallback, hides plaintext, and PUT replays with encrypted storage', async () => {
-    await resetToEnvFallback({
-      openrouter: 'env-openrouter-1234',
-      gemini: 'env-gemini-5678',
-    });
+    await resetToEnvFallback({ openrouter: 'env-openrouter-1234' });
 
     const initial = await requestJson('/api/admin/ocr-settings', { token: adminToken });
     assert.equal(initial.status, 200);
     assert.equal(initial.body.enabled, true);
     assert.equal(initial.body.openrouterKeySet, true);
-    assert.equal(initial.body.geminiKeySet, true);
     assert.equal(initial.body.openrouterKeyMasked, '••••••••1234');
-    assert.equal(initial.body.geminiKeyMasked, '••••••••5678');
     assert.equal(initial.body.updatedAt, null);
     assert.equal('openrouterApiKey' in initial.body, false);
-    assert.equal('geminiApiKey' in initial.body, false);
 
     const forbidden = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
@@ -296,7 +296,6 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'db-openrouter-4321',
-        geminiApiKey: 'db-gemini-8765',
       },
     });
     const replay = await requestJson('/api/admin/ocr-settings', {
@@ -306,7 +305,6 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'db-openrouter-4321',
-        geminiApiKey: 'db-gemini-8765',
       },
     });
     assert.equal(first.status, 200);
@@ -314,24 +312,19 @@ describe('ocr settings route + runtime integration', () => {
     assert.equal(replay.status, 200);
     assert.equal(replay.body.replayed, true);
     assert.equal(first.body.openrouterKeyMasked, '••••••••4321');
-    assert.equal(first.body.geminiKeyMasked, '••••••••8765');
 
     const rows = await captureOcrRows();
     const storedOpenrouter = rows.find((row) => row.key === OCR_SETTING_KEYS.openrouterApiKey);
-    const storedGemini = rows.find((row) => row.key === OCR_SETTING_KEYS.geminiApiKey);
     assert.ok(storedOpenrouter?.value.startsWith('enc:v1:'));
-    assert.ok(storedGemini?.value.startsWith('enc:v1:'));
     assert.notEqual(storedOpenrouter?.value, 'db-openrouter-4321');
-    assert.notEqual(storedGemini?.value, 'db-gemini-8765');
     assert.equal(decryptSecret(storedOpenrouter?.value ?? ''), 'db-openrouter-4321');
-    assert.equal(decryptSecret(storedGemini?.value ?? ''), 'db-gemini-8765');
 
     const cleared = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
       token: adminToken,
       idempotencyKey: `ocr-settings-clear-after-write-${suffix}`,
       expectedUpdatedAt: String(first.body.updatedAt),
-      body: { enabled: false, clearOpenRouterKey: true, clearGeminiKey: true },
+      body: { enabled: false, clearOpenRouterKey: true },
     });
     assert.equal(cleared.status, 200, JSON.stringify(cleared.body));
 
@@ -342,17 +335,15 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'db-openrouter-4321',
-        geminiApiKey: 'db-gemini-8765',
       },
     });
     assert.equal(replayAfterClear.status, 200);
     assert.equal(replayAfterClear.body.replayed, true);
     assert.equal(replayAfterClear.body.openrouterKeyMasked, '••••••••4321');
-    assert.equal(replayAfterClear.body.geminiKeyMasked, '••••••••8765');
   });
 
-  test('PUT retains omitted and blank keys, supports clears, and enforces stale-write + enable-without-key guards', async () => {
-    await resetToEnvFallback({ openrouter: '', gemini: '' });
+  test('PUT retains omitted and blank keys, supports clears, deletes stale gemini rows, and enforces stale-write + enable-without-key guards', async () => {
+    await resetToEnvFallback({ openrouter: '' });
 
     const seed = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
@@ -361,10 +352,17 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'seed-openrouter-1111',
-        geminiApiKey: 'seed-gemini-2222',
       },
     });
     assert.equal(seed.status, 200);
+
+    // Simulate a leftover gemini key row from before the provider removal —
+    // the next PUT must delete it instead of leaving it encrypted in storage.
+    await replaceOcrRows([
+      { key: OCR_SETTING_KEYS.enabled, value: 'true' },
+      { key: OCR_SETTING_KEYS.openrouterApiKey, value: 'seed-openrouter-1111' },
+      { key: 'ocr.gemini_api_key', value: 'enc:v1:stale' },
+    ]);
     const seedRead = await requestJson('/api/admin/ocr-settings', { token: adminToken });
     assert.equal(seedRead.status, 200);
     const seedVersion = String(seedRead.body.updatedAt);
@@ -377,13 +375,16 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'next-openrouter-3333',
-        geminiApiKey: '   ',
       },
     });
     assert.equal(retain.status, 200);
     assert.equal(retain.body.openrouterKeyMasked, '••••••••3333');
-    assert.equal(retain.body.geminiKeyMasked, '••••••••2222');
-    assert.equal(retain.body.geminiKeySet, true);
+    const rowsAfterRetain = await captureOcrRows();
+    assert.equal(
+      rowsAfterRetain.some((row) => row.key === 'ocr.gemini_api_key'),
+      false,
+      'PUT must delete the stale ocr.gemini_api_key row',
+    );
 
     const stale = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
@@ -406,13 +407,11 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: false,
         clearOpenRouterKey: true,
-        clearGeminiKey: true,
       },
     });
     assert.equal(cleared.status, 200);
     assert.equal(cleared.body.enabled, false);
     assert.equal(cleared.body.openrouterKeySet, false);
-    assert.equal(cleared.body.geminiKeySet, false);
 
     const cannotEnable = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
@@ -422,11 +421,11 @@ describe('ocr settings route + runtime integration', () => {
       body: { enabled: true },
     });
     assert.equal(cannotEnable.status, 400);
-    assert.match(String(cannotEnable.body.error ?? ''), /OpenRouter hoặc Gemini/);
+    assert.match(String(cannotEnable.body.error ?? ''), /OpenRouter/);
   });
 
   test('serializes concurrent admin writes so one stale merge is rejected', async () => {
-    await resetToEnvFallback({ openrouter: '', gemini: '' });
+    await resetToEnvFallback({ openrouter: '' });
     const seeded = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
       token: adminToken,
@@ -434,13 +433,12 @@ describe('ocr settings route + runtime integration', () => {
       body: {
         enabled: true,
         openrouterApiKey: 'concurrent-openrouter-1111',
-        geminiApiKey: 'concurrent-gemini-2222',
       },
     });
     assert.equal(seeded.status, 200);
     const expectedUpdatedAt = String(seeded.body.updatedAt);
 
-    const [openrouterWrite, geminiWrite] = await Promise.all([
+    const [openrouterWrite, otherWrite] = await Promise.all([
       requestJson('/api/admin/ocr-settings', {
         method: 'PUT',
         token: adminToken,
@@ -451,30 +449,28 @@ describe('ocr settings route + runtime integration', () => {
       requestJson('/api/admin/ocr-settings', {
         method: 'PUT',
         token: adminToken,
-        idempotencyKey: `ocr-settings-concurrent-gemini-${suffix}`,
+        idempotencyKey: `ocr-settings-concurrent-other-${suffix}`,
         expectedUpdatedAt,
-        body: { enabled: true, geminiApiKey: 'concurrent-gemini-4444' },
+        body: { enabled: true },
       }),
     ]);
     assert.deepEqual(
-      [openrouterWrite.status, geminiWrite.status].sort((a, b) => a - b),
+      [openrouterWrite.status, otherWrite.status].sort((a, b) => a - b),
       [200, 409],
-      JSON.stringify({ openrouterWrite, geminiWrite }),
+      JSON.stringify({ openrouterWrite, otherWrite }),
     );
 
     const current = await requestJson('/api/admin/ocr-settings', { token: adminToken });
     assert.equal(current.status, 200);
     if (openrouterWrite.status === 200) {
       assert.equal(current.body.openrouterKeyMasked, '••••••••3333');
-      assert.equal(current.body.geminiKeyMasked, '••••••••2222');
     } else {
       assert.equal(current.body.openrouterKeyMasked, '••••••••1111');
-      assert.equal(current.body.geminiKeyMasked, '••••••••4444');
     }
   });
 
   test('replays successful recognition after OCR is disabled', async () => {
-    await resetToEnvFallback({ openrouter: '', gemini: '' });
+    await resetToEnvFallback({ openrouter: '' });
     const enabled = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
       token: adminToken,
@@ -548,7 +544,7 @@ describe('ocr settings route + runtime integration', () => {
   });
 
   test('disabled recognition rejects capture and pump, but persist-only still writes the photo row', async () => {
-    await resetToEnvFallback({ openrouter: '', gemini: '' });
+    await resetToEnvFallback({ openrouter: '' });
     const disabled = await requestJson('/api/admin/ocr-settings', {
       method: 'PUT',
       token: adminToken,
@@ -597,11 +593,10 @@ describe('ocr settings route + runtime integration', () => {
   });
 
   test('runtime OCR provider calls resolve keys from OCR settings rows and stop before fetch when disabled', async () => {
-    await resetToEnvFallback({ openrouter: '', gemini: '' });
+    await resetToEnvFallback({ openrouter: '' });
     await replaceOcrRows([
       { key: OCR_SETTING_KEYS.enabled, value: 'true' },
       { key: OCR_SETTING_KEYS.openrouterApiKey, value: 'plain-openrouter-2468' },
-      { key: OCR_SETTING_KEYS.geminiApiKey, value: '' },
     ]);
 
     const seenAuth: string[] = [];
@@ -639,7 +634,6 @@ describe('ocr settings route + runtime integration', () => {
     await replaceOcrRows([
       { key: OCR_SETTING_KEYS.enabled, value: 'false' },
       { key: OCR_SETTING_KEYS.openrouterApiKey, value: 'disabled-openrouter-1357' },
-      { key: OCR_SETTING_KEYS.geminiApiKey, value: '' },
     ]);
 
     let calls = 0;

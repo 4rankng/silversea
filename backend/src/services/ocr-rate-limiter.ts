@@ -12,7 +12,9 @@ import { getRedis } from '../lib/redis';
 
 const WINDOW_MS = 1000; // 1 second
 const MAX_REQUESTS = 2;
-const KEY = 'ocr:rate:global';
+
+/** Redis key for the global window — exported so tests can reset it. */
+export const OCR_RATE_LIMIT_KEY = 'ocr:rate:global';
 
 /**
  * Check if an OCR request is allowed under the 2 req/s limit.
@@ -29,10 +31,10 @@ export async function checkOcrRateLimit(): Promise<boolean> {
 
     // Atomic pipeline: evict stale entries, add current, count.
     const pipeline = redis.pipeline();
-    pipeline.zremrangebyscore(KEY, 0, windowStart);
-    pipeline.zadd(KEY, now, `${now}:${Math.random()}`);
-    pipeline.zcard(KEY);
-    pipeline.pexpire(KEY, WINDOW_MS);
+    pipeline.zremrangebyscore(OCR_RATE_LIMIT_KEY, 0, windowStart);
+    pipeline.zadd(OCR_RATE_LIMIT_KEY, now, `${now}:${Math.random()}`);
+    pipeline.zcard(OCR_RATE_LIMIT_KEY);
+    pipeline.pexpire(OCR_RATE_LIMIT_KEY, WINDOW_MS);
     const results = await pipeline.exec();
     const count = (results?.[2]?.[1] as number) ?? 0;
     return count <= MAX_REQUESTS;

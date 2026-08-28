@@ -233,7 +233,7 @@ export function useTripFormPhotos(onError: (msg: string) => void, onOcrResult?: 
    *
    * Uses `/ocr/persist-only` (NOT `/ocr`): recognition already ran at capture
    * (`uploadContainerPhoto`), so flushing via the full `/ocr` endpoint would
-   * re-run Gemini for nothing. `/persist-only` persists + links the photo and
+   * re-run OCR for nothing. `/persist-only` persists + links the photo and
    * SKIPS recognition. The consumed response shape is unchanged (`result.photoUrl`).
    */
   const flushPendingContainerPhotos = useCallback(async (

@@ -79,7 +79,6 @@ export default function AppSettingsConfigPage() {
   const [openrouterKey, setOpenrouterKey] = useState('');
   const [ocrEnabled, setOcrEnabled] = useState(false);
   const [ocrOpenrouterKey, setOcrOpenrouterKey] = useState('');
-  const [ocrGeminiKey, setOcrGeminiKey] = useState('');
   const [gpsUsername, setGpsUsername] = useState('');
   const [gpsPassword, setGpsPassword] = useState('');
   const [resendApiKey, setResendApiKey] = useState('');
@@ -215,11 +214,9 @@ export default function AppSettingsConfigPage() {
     setOcrMessage(null);
     const payload: OcrSettingsUpdate = { enabled: ocrEnabled };
     if (ocrOpenrouterKey.trim()) payload.openrouterApiKey = ocrOpenrouterKey.trim();
-    if (ocrGeminiKey.trim()) payload.geminiApiKey = ocrGeminiKey.trim();
     try {
       await saveOcrSettings.mutateAsync(payload);
       setOcrOpenrouterKey('');
-      setOcrGeminiKey('');
       setOcrMessage('Đã lưu cài đặt nhận dạng OCR.');
     } catch {
       setOcrMessage(null);
@@ -372,15 +369,10 @@ export default function AppSettingsConfigPage() {
   const chatbotCanSave = chatbotToggleChanged || chatbotProviderChanged || chatbotCredentialsChanged;
   const chatbotNeedsReadyProvider = features.botEnabled || chatbotProviderChanged || chatbotCredentialsChanged;
   const ocrOpenrouterKeySet = !!ocrSettings.data?.openrouterKeySet;
-  const ocrGeminiKeySet = !!ocrSettings.data?.geminiKeySet;
-  const ocrHasKey = ocrOpenrouterKeySet
-    || ocrGeminiKeySet
-    || ocrOpenrouterKey.trim() !== ''
-    || ocrGeminiKey.trim() !== '';
+  const ocrHasKey = ocrOpenrouterKeySet || ocrOpenrouterKey.trim() !== '';
   const ocrChanged = !!ocrSettings.data && (
     ocrSettings.data.enabled !== ocrEnabled
     || ocrOpenrouterKey.trim() !== ''
-    || ocrGeminiKey.trim() !== ''
   );
   // Credentials are only required while the feature is enabled. When off, the
   // fields are disabled and the save button stays inert — no validation pressure.
@@ -540,10 +532,7 @@ export default function AppSettingsConfigPage() {
           setOcrEnabled={setOcrEnabled}
           ocrOpenrouterKey={ocrOpenrouterKey}
           setOcrOpenrouterKey={setOcrOpenrouterKey}
-          ocrGeminiKey={ocrGeminiKey}
-          setOcrGeminiKey={setOcrGeminiKey}
           ocrOpenrouterKeySet={ocrOpenrouterKeySet}
-          ocrGeminiKeySet={ocrGeminiKeySet}
           ocrHasKey={ocrHasKey}
           ocrChanged={ocrChanged}
           saveOcr={saveOcr}

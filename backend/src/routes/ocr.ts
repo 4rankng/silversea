@@ -201,7 +201,7 @@ function parseIdParam(raw: unknown, label: string): number | null {
  *   - `POST /`            (capture): persist, THEN recognize via
  *     `extractContainerAndSeal`.
  *   - `POST /persist-only` (flush): persist ONLY — recognition already happened
- *     at capture, so the flush must NOT call Gemini again.
+ *     at capture, so the flush must NOT run OCR again.
  *
  * Exported so the service-layer test (`ocr-persist.test.ts`) can exercise the
  * ownership + container-link + persist logic directly, in the repo's
@@ -508,7 +508,7 @@ router.post('/fuel-evidence-reviews/:id/decision', requireRoles(Role.ACCOUNTANT)
  *
  * The create-mode flow already recognized the number at capture (`POST /api/ocr`);
  * after `saveContainers` assigns ids, the buffered photo only needs to be
- * persisted + linked to its container. Re-running Gemini here was pure waste —
+ * persisted + linked to its container. Re-running OCR here was pure waste —
  * one redundant VLM call per buffered container/seal photo.
  *
  * This handler STRUCTURALLY cannot recognize: there is no reference to

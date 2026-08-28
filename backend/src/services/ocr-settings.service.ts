@@ -9,21 +9,19 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export interface OcrSettings {
   enabled: boolean;
   openrouterKey: string;
-  geminiKey: string;
 }
 
 export const OCR_SETTING_KEYS = {
   enabled: 'ocr.enabled',
   openrouterApiKey: 'ocr.openrouter_api_key',
-  geminiApiKey: 'ocr.gemini_api_key',
 } as const;
 
 let cached: OcrSettings | null = null;
 let loadPromise: Promise<OcrSettings> | null = null;
 let cacheGeneration = 0;
 
-function resolveEnabledDefault(settings: Pick<OcrSettings, 'openrouterKey' | 'geminiKey'>): boolean {
-  // Gemini is retired from the OCR chain — only OpenRouter key enables OCR.
+function resolveEnabledDefault(settings: Pick<OcrSettings, 'openrouterKey'>): boolean {
+  // OCR is OpenRouter-only — the key's presence enables OCR by default.
   return settings.openrouterKey !== '';
 }
 
@@ -39,17 +37,13 @@ export async function getOcrSettingsFrom(
   const openrouterKey = byKey.has(OCR_SETTING_KEYS.openrouterApiKey)
     ? decryptSecret(byKey.get(OCR_SETTING_KEYS.openrouterApiKey) ?? '')
     : config.openrouterApiKey;
-  const geminiKey = byKey.has(OCR_SETTING_KEYS.geminiApiKey)
-    ? decryptSecret(byKey.get(OCR_SETTING_KEYS.geminiApiKey) ?? '')
-    : config.geminiApiKey;
   const rawEnabled = byKey.get(OCR_SETTING_KEYS.enabled);
 
   return {
     enabled: rawEnabled === undefined
-      ? resolveEnabledDefault({ openrouterKey, geminiKey })
+      ? resolveEnabledDefault({ openrouterKey })
       : rawEnabled === 'true',
     openrouterKey,
-    geminiKey,
   };
 }
 
@@ -78,8 +72,7 @@ export function invalidateOcrSettings(): void {
 }
 
 export function ocrHasAvailableKey(
-  settings: Pick<OcrSettings, 'openrouterKey' | 'geminiKey'>,
+  settings: Pick<OcrSettings, 'openrouterKey'>,
 ): boolean {
-  // Gemini is retired from the OCR chain — only OpenRouter key is checked.
   return settings.openrouterKey !== '';
 }

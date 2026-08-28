@@ -12,10 +12,7 @@ type OcrSectionProps = {
   setOcrEnabled: Dispatch<SetStateAction<boolean>>;
   ocrOpenrouterKey: string;
   setOcrOpenrouterKey: Dispatch<SetStateAction<string>>;
-  ocrGeminiKey: string;
-  setOcrGeminiKey: Dispatch<SetStateAction<string>>;
   ocrOpenrouterKeySet: boolean;
-  ocrGeminiKeySet: boolean;
   ocrHasKey: boolean;
   ocrChanged: boolean;
   saveOcr: () => Promise<void>;
@@ -29,10 +26,7 @@ export function OcrSection({
   setOcrEnabled,
   ocrOpenrouterKey,
   setOcrOpenrouterKey,
-  ocrGeminiKey,
-  setOcrGeminiKey,
   ocrOpenrouterKeySet,
-  ocrGeminiKeySet,
   ocrHasKey,
   ocrChanged,
   saveOcr,
@@ -67,19 +61,9 @@ export function OcrSection({
           placeholder="Nhập OpenRouter API key cho OCR"
           disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
         />
-        <SecretField
-          id="ocr-gemini-key"
-          label="Gemini API key dự phòng"
-          value={ocrGeminiKey}
-          onChange={setOcrGeminiKey}
-          saved={ocrGeminiKeySet}
-          maskedPreview={ocrSettings.data?.geminiKeyMasked ?? ''}
-          placeholder="Nhập Gemini API key cho OCR"
-          disabled={ocrSettings.isLoading || ocrSettings.isError || saveOcrSettings.isPending}
-        />
       </div>
       <p className="cfg-field-hint cfg-ocr-provider-note">
-        OCR ưu tiên OpenRouter và tự động chuyển sang Gemini khi nhà cung cấp chính gặp lỗi.
+        OCR chạy trên OpenRouter với chuỗi mô hình Qwen (Qwen3-VL-32B → Qwen3.7-Plus), tự động đổi mô hình khi gặp lỗi.
       </p>
       <div className="cfg-form-actions">
         <button
