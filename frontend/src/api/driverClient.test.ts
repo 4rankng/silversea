@@ -78,6 +78,47 @@ describe('driverClient fulfillment contract', () => {
     expect(result.currentPod).toMatchObject({ id: 22, tripId: 55, fulfillmentId: 88 });
   });
 
+  it('maps the wire-level tradeDirection onto the task detail (A6 IMPORT cross-check input)', async () => {
+    // tradeDirection arrives at the response top level, NOT inside wire.trip —
+    // the map spreads wire.trip, so it must be carried over explicitly or the
+    // container card's IMPORT advisory silently never fires.
+    getMock.mockResolvedValue({
+      fulfillmentId: 89,
+      shipmentId: 10,
+      shipmentCode: 'SHP-10',
+      cargoMode: 'FCL',
+      tradeDirection: 'IMPORT',
+      fulfillmentType: 'FCL_CONTAINER',
+      tripId: 56,
+      tripVersion: 1,
+      factoryName: null,
+      pickupLocation: null,
+      deliveryLocation: null,
+      contactName: null,
+      contactPhone: null,
+      driverNotes: null,
+      siteSnapshot: {},
+      invoiceInfo: null,
+      containerSealPhotos: [],
+      evidenceStatus: { ready: false, missing: [], hasDeliveredMilestone: false, hasSubmittedPod: false },
+      podSubmissions: [],
+      trip: {
+        id: 56,
+        version: 1,
+        tripCode: 'TRIP-56',
+        status: 'IN_TRANSIT',
+        departureDate: '2026-08-30',
+        routeName: null,
+        containers: [],
+        legs: [],
+      },
+    });
+
+    const result = await driverClient.getTaskDetail(89);
+
+    expect(result.tradeDirection).toBe('IMPORT');
+  });
+
   it('writes progress and completion by fulfillment id', async () => {
     postMock.mockResolvedValue({});
 

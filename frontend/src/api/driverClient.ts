@@ -99,6 +99,8 @@ export interface DriverTaskLeg {
 
 export interface DriverTaskContainer {
   id: number;
+  /** Row optimistic-lock token (sent back as If-Unmodified-Since on PATCH). */
+  updatedAt: string;
   containerNumber: string;
   sealNumber: string | null;
   containerTypeId: number | null;
@@ -245,6 +247,7 @@ interface DriverFulfillmentDetailResponse {
   shipmentCode: string | null;
   bookingRef: string | null;
   cargoMode: 'FCL' | 'LCL' | null;
+  tradeDirection?: string | null;
   fulfillmentType: string;
   tripId: number;
   tripVersion: number;
@@ -289,6 +292,10 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
   return {
     ...wire.trip,
     version: wire.tripVersion,
+    // Spec A6 cross-check: tradeDirection lives at the wire top level (next to
+    // cargoMode/driverNotes), not inside wire.trip — spreading wire.trip alone
+    // dropped it, leaving DriverContainerCard's IMPORT advisory permanently off.
+    tradeDirection: wire.tradeDirection ?? null,
     fulfillment: {
       id: wire.fulfillmentId,
       code: wire.shipmentCode,

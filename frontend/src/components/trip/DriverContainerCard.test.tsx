@@ -41,6 +41,7 @@ const uploadMock = vi.mocked(api.upload);
 function declaredContainer(containerNumber: string) {
   return {
     id: 11,
+    updatedAt: '2026-08-28T08:30:22.675Z',
     containerNumber,
     sealNumber: 'SL0001',
     containerTypeId: 3,

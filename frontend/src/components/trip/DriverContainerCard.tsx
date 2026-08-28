@@ -35,6 +35,8 @@ import './DriverContainerCard.css';
 
 interface ExistingContainer {
   id: number;
+  /** Optimistic-lock token for PATCH — the backend requires If-Unmodified-Since. */
+  updatedAt: string;
   containerNumber: string;
   sealNumber: string | null;
   containerTypeId: number | null;
@@ -287,8 +289,14 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
         // PATCH the existing row — preserves id, audit history, and updates
         // updatedAt. Photos are re-persisted by the OCR pipeline (saveTripPhoto)
         // so the latest photo becomes the canonical one on the next refetch.
+        // Pass If-Unmodified-Since explicitly from the loaded row: the blind
+        // client-side remember-map is not seeded for this nested path, so a
+        // first-save-after-load (the scan → Lưu happy path) failed with
+        // "Cần tải lại phiên bản số cont mới nhất" until reload.
         const id = containers[0].id;
-        await api.patch(`/driver/me/trips/${tripId}/containers/${id}`, payload);
+        await api.patch(`/driver/me/trips/${tripId}/containers/${id}`, payload, {
+          expectedUpdatedAt: containers[0].updatedAt,
+        });
         toast({ kind: 'success', message: 'Đã cập nhật số cont.' });
         setEditing(false);
       } else {
