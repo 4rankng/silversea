@@ -500,19 +500,22 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.ok(detail.containerSealPhotos.some((photo) => photo.type === 'SEAL' && photo.storageKey === sealPhoto.storageKey));
   });
 
-  test('driver journey board tags a single (non-combined) fulfillment as SINGLE, bucketed by trip status', async () => {
+  test('driver journey board buckets an unlinked fulfillment by trip status, passing its own classification through', async () => {
     const actor = await createDriverPrincipal('journey-single');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
 
     const board = await getDriverJourneyBoard(actor.driver.id);
     const card = board.find((item) => item.fulfillmentId === fulfillment.id);
     assert.ok(card, 'expected a journey card for the created fulfillment');
-    assert.equal(card!.classification, 'SINGLE');
+    // createOwnedFulfillmentTrip seeds an LCL fulfillment — the board passes
+    // the fulfillment's own label through; "single" here means unlinked.
+    assert.equal(card!.classification, 'LCL');
+    assert.equal(card!.linked, false);
     assert.equal(card!.bucket, 'NEW');
     assert.equal(card!.tripId, trip.id);
   });
 
-  test('driver journey board tags sibling fulfillments of a combined shipment as CLAMP, linked cards', async () => {
+  test('driver journey board links sibling fulfillments of a combined shipment, keeping their own classification', async () => {
     const actor = await createDriverPrincipal('journey-clamp');
     const [customer] = await db.insert(s.customers).values({
       name: `Phase4 clamp customer ${suffix}`,
@@ -576,7 +579,10 @@ describe('Phase 4 driver fulfillment execution', () => {
     const board = await getDriverJourneyBoard(actor.driver.id);
     const cards = board.filter((item) => fulfillmentIds.includes(item.fulfillmentId));
     assert.equal(cards.length, 2);
-    assert.ok(cards.every((card) => card.classification === 'CLAMP'));
+    // linked is the pairing signal; classification stays the fulfillment's own
+    // label (spec tag KẾT HỢP is derived on the frontend from COMBINED).
+    assert.ok(cards.every((card) => card.linked === true));
+    assert.ok(cards.every((card) => card.classification === 'COMBINED'));
     assert.ok(cards.every((card) => card.shipmentId === shipment.id));
     const buckets = cards.map((card) => card.bucket).sort();
     assert.deepEqual(buckets, ['NEW', 'RUNNING']);

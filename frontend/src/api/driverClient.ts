@@ -61,7 +61,9 @@ const DRIVER_TASK = {
 } as const;
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-export type DriverJourneyClassification = 'SINGLE' | 'CLAMP';
+// Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ labels) plus the
+// shipment-derived pairing signal for kẹp/kết-hợp cards that stick together.
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;
@@ -71,6 +73,7 @@ export interface DriverJourneyCard {
   shipmentCode: string | null;
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
+  linked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
   loadingPortName: string | null;

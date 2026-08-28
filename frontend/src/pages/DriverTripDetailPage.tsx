@@ -26,6 +26,7 @@ import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { isShipmentCostEntryEnabled } from '../lib/featureFlags';
+import { compressImageFile } from '../lib/imageCompression';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -459,9 +460,10 @@ export default function DriverTripDetailPage() {
     setUploadingFuelEvidence(true);
     try {
       const location = await geolocation.awaitAccurateSample();
+      const prepared = await compressImageFile(file, { timestamp: new Date() });
       await driverClient.uploadFuelEvidence({
         tripId: trip.id,
-        file,
+        file: prepared,
         location: {
           lat: location.lat,
           lng: location.lng,
@@ -484,7 +486,10 @@ export default function DriverTripDetailPage() {
     const setUploading = type === 'CONTAINER' ? setUploadingContainerPhoto : setUploadingSealPhoto;
     setUploading(true);
     try {
-      await driverClient.uploadContainerOrSealPhoto({ tripId: trip.id, type, file });
+      // Spec (Khối 2): cont/seal photos must carry the capture timestamp in
+      // the image, and every driver photo upload is compressed on-device.
+      const prepared = await compressImageFile(file, { timestamp: new Date() });
+      await driverClient.uploadContainerOrSealPhoto({ tripId: trip.id, type, file: prepared });
       await refreshAll();
       toast({ kind: 'success', message: type === 'CONTAINER' ? 'Đã lưu ảnh container.' : 'Đã lưu ảnh seal.' });
     } catch (error) {

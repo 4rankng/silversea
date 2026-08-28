@@ -131,7 +131,9 @@ export function TripPodSubmission({
 
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
-    const file = await compressImageFile(fileList[0]);
+    // Spec (Phần 4): e-POD photos are compressed on-device and carry the real
+    // capture timestamp in the image file. PDFs pass through untouched.
+    const file = await compressImageFile(fileList[0], { timestamp: new Date() });
     setUploadError(null);
 
     try {
@@ -161,6 +163,9 @@ export function TripPodSubmission({
   }
 
   const canSubmit = editableSubmission != null && missingRequired.length === 0 && !uploading && !creatingDraft;
+  const uploadProgressPercent = Math.round(
+    ((REQUIRED_FILE_TYPES.length - missingRequired.length) / REQUIRED_FILE_TYPES.length) * 100,
+  );
   const submissionHeadline = currentSubmission
     ? `Phiên bản ${currentSubmission.submissionVersion}`
     : 'Chưa có phiên bản e-POD';
@@ -291,7 +296,24 @@ export function TripPodSubmission({
 
       <div className="trip-pod__foot">
         <div className="trip-pod__readiness">
-          <strong>Điều kiện gửi duyệt</strong>
+          <strong>
+            Điều kiện gửi duyệt
+            <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
+          </strong>
+          {/* Spec (Phần 4): the literal "thanh tiến trình" — submit unlocks at 100%. */}
+          <div
+            className="trip-pod__progress"
+            role="progressbar"
+            aria-label="Tiến độ hồ sơ e-POD bắt buộc"
+            aria-valuenow={uploadProgressPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className={`trip-pod__progress-fill${uploadProgressPercent === 100 ? ' is-complete' : ''}`}
+              style={{ width: `${uploadProgressPercent}%` }}
+            />
+          </div>
           {missingRequired.length === 0 ? (
             <span>Đủ hồ sơ bắt buộc để gửi duyệt.</span>
           ) : (

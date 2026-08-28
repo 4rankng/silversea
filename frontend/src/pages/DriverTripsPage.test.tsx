@@ -28,6 +28,7 @@ function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
     shipmentCode: 'SHP-1',
     bucket: 'NEW',
     classification: 'SINGLE',
+    linked: false,
     scheduledAt: '2026-08-01T07:30:00.000Z',
     factoryName: 'Nhà máy Bình Dương',
     loadingPortName: 'Cát Lái',
@@ -99,11 +100,11 @@ describe('DriverTripsPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/my-trips/42');
   });
 
-  it('tags sibling CLAMP cards with KẸP and groups them visually', async () => {
+  it('tags sibling linked cards with KẸP and groups them visually', async () => {
     useDriverJourneyBoardMock.mockReturnValue({
       data: [
-        card({ fulfillmentId: 10, shipmentId: 5, classification: 'CLAMP', containerNumber: 'CONT-A' }),
-        card({ fulfillmentId: 11, shipmentId: 5, classification: 'CLAMP', containerNumber: 'CONT-B' }),
+        card({ fulfillmentId: 10, shipmentId: 5, linked: true, containerNumber: 'CONT-A' }),
+        card({ fulfillmentId: 11, shipmentId: 5, linked: true, containerNumber: 'CONT-B' }),
       ],
       isLoading: false,
       error: null,
@@ -113,6 +114,38 @@ describe('DriverTripsPage', () => {
     expect(await screen.findAllByText('KẸP')).toHaveLength(2);
     expect(screen.getByText(/CONT-A/)).toBeTruthy();
     expect(screen.getByText(/CONT-B/)).toBeTruthy();
+  });
+
+  it('tags COMBINED classifications as KẾT HỢP and LCL as LẺ', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [
+        card({ fulfillmentId: 20, classification: 'COMBINED' }),
+        card({ fulfillmentId: 21, classification: 'LCL' }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText('KẾT HỢP')).toBeTruthy();
+    expect(screen.getByText('LẺ')).toBeTruthy();
+  });
+
+  it('shows a plain "Xem chi tiết" footer on accepted and history cards', async () => {
+    useDriverJourneyBoardMock.mockReturnValue({
+      data: [card({ fulfillmentId: 30, bucket: 'RUNNING' }), card({ fulfillmentId: 31, bucket: 'HISTORY' })],
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Đã nhận/ }));
+    expect(await screen.findByRole('button', { name: /^Xem chi tiết/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
+    expect(await screen.findByRole('button', { name: /^Xem chi tiết/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Nhận lệnh/ })).toBeNull();
   });
 
   it('shows the empty-state message when a tab has no cards', async () => {

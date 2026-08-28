@@ -363,4 +363,19 @@
     flex-direction: row;
     gap: 10px;
   }
+
+  /* KPI titles ("VI PHẠM T8/2026"…) ellipsized at phone width: drop the
+   * watermark gutter and let the label wrap instead of truncating. */
+  .penalty-kpi-grid .kpi {
+    padding: 14px 16px;
+    min-height: 92px;
+  }
+
+  .penalty-kpi-grid .kpi__watermark {
+    display: none;
+  }
+
+  .penalty-kpi-grid .kpi__label {
+    white-space: normal;
+  }
 }

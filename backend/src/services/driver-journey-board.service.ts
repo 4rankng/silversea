@@ -11,7 +11,10 @@ import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 // separate from driverWorkInbox — zero risk to that shared query or its
 // existing callers/tests.
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
-export type DriverJourneyClassification = 'SINGLE' | 'CLAMP';
+// Spec tags are ĐƠN/KẸP/KẾT HỢP (+LCL's LẺ): the raw fulfillment-owned
+// dispatchClassification carries that label; `linked` carries the pairing
+// signal (kẹp/kết-hợp cards stick together), derived below from the shipment.
+export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL';
 
 export interface DriverJourneyCard {
   fulfillmentId: number;
@@ -21,6 +24,7 @@ export interface DriverJourneyCard {
   shipmentCode: string | null;
   bucket: DriverJourneyBucket;
   classification: DriverJourneyClassification;
+  linked: boolean;
   scheduledAt: string | null;
   factoryName: string | null;
   loadingPortName: string | null;
@@ -49,8 +53,9 @@ function bucketForStatus(status: typeof s.trips.$inferSelect.status, evidenceRea
  * non-canceled). A shipment marked `isCombined` with 2+ of the driver's own
  * fulfillments sharing it (the "kẹp" case — this system models multiple
  * containers on a combined order as sibling fulfillments/trips sharing one
- * shipment, not multiple trip_containers rows on a single trip) is tagged
- * CLAMP so the frontend renders its cards linked; everything else is SINGLE.
+ * shipment, not multiple trip_containers rows on a single trip) sets
+ * `linked` so the frontend renders its cards stuck together; the tag itself
+ * is the fulfillment's own dispatchClassification (ĐƠN/KẸP/KẾT HỢP/LẺ).
  */
 export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyCard[]> {
   const pickupPort = aliasedTable(s.ports, 'journey_pickup_port');
@@ -66,6 +71,7 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     isCombined: s.shipments.isCombined,
+    dispatchClassification: s.shipmentFulfillments.dispatchClassification,
     factoryName: s.shipments.factoryName,
     pickupLocation: s.shipments.pickupLocation,
     deliveryLocation: s.shipments.deliveryLocation,
@@ -119,7 +125,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       tripCode: row.tripCode,
       shipmentCode: row.shipmentCode,
       bucket: bucketForStatus(row.tripStatus, evidenceByTripId.get(row.tripId) ?? false),
-      classification: row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2 ? 'CLAMP' : 'SINGLE',
+      classification: row.dispatchClassification,
+      linked: row.isCombined && (shipmentCardCounts.get(row.shipmentId) ?? 0) >= 2,
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       factoryName: row.factoryName ?? row.containerFactoryName,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,

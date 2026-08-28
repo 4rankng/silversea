@@ -31,15 +31,29 @@ function formatCardTime(iso: string | null): string {
 }
 
 /**
- * "Kẹp" (combined order): sibling fulfillments/trips sharing one isCombined
- * shipment (see driver-journey-board.service.ts) render as separate, visually
- * linked cards under one shared tag. Everything else is its own group of one.
+ * Spec tag taxonomy: ĐƠN/KẸP/KẾT HỢP (+ LCL's LẺ). DOUBLE and COMBINED carry
+ * their own label; a SINGLE-classified fulfillment riding a linked sibling
+ * pair (the isCombined "kẹp" case — see driver-journey-board.service.ts)
+ * reads as KẸP; an unlinked SINGLE is ĐƠN.
+ */
+function tagLabelFor(card: DriverJourneyCard): string {
+  if (card.classification === 'DOUBLE') return 'KẸP';
+  if (card.classification === 'COMBINED') return 'KẾT HỢP';
+  if (card.classification === 'LCL') return 'LẺ';
+  return card.linked ? 'KẸP' : 'ĐƠN';
+}
+
+/**
+ * Kẹp/kết hợp: linked cards (sibling fulfillments sharing one isCombined
+ * shipment, or an expressively classified pair) render as separate, visually
+ * stuck-together cards under one shared tag. Everything else is its own group
+ * of one.
  */
 function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
   const groups = new Map<string, DriverJourneyCard[]>();
   const order: string[] = [];
   for (const card of cards) {
-    const key = card.classification === 'CLAMP' ? `shipment:${card.shipmentId}` : `fulfillment:${card.fulfillmentId}`;
+    const key = card.linked ? `shipment:${card.shipmentId}` : `fulfillment:${card.fulfillmentId}`;
     if (!groups.has(key)) {
       groups.set(key, []);
       order.push(key);
@@ -51,12 +65,16 @@ function groupCards(cards: DriverJourneyCard[]): DriverJourneyCard[][] {
 
 function JourneyCard({ card }: { card: DriverJourneyCard }) {
   const navigate = useNavigate();
-  const isClamp = card.classification === 'CLAMP';
+  const tag = tagLabelFor(card);
+  const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
+  // Spec Layer-1 footer literal is for new orders; accepted/finished cards
+  // must not invite accepting again.
+  const footerLabel = card.bucket === 'NEW' ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
   return (
-    <article className={`driver-journey-card${isClamp ? ' driver-journey-card--clamp' : ''}`}>
+    <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
-        <span className={`driver-journey-card__tag${isClamp ? ' driver-journey-card__tag--clamp' : ''}`}>
-          {isClamp ? 'KẸP' : 'ĐƠN'}
+        <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+          {tag}
         </span>
         <span className="driver-journey-card__time">{formatCardTime(card.scheduledAt)}</span>
       </div>
@@ -80,7 +98,7 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
         className="driver-journey-card__footer"
         onClick={() => navigate(`/my-trips/${card.fulfillmentId}`)}
       >
-        <span>Xem chi tiết & Nhận lệnh</span>
+        <span>{footerLabel}</span>
         <ArrowRight size={16} />
       </button>
     </article>

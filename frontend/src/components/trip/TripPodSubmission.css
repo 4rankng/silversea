@@ -279,6 +279,32 @@
   color: var(--ink-3);
 }
 
+.trip-pod__progress-pct {
+  margin-left: 8px;
+  color: var(--ink-2);
+}
+
+/* "Thanh tiến trình" (spec Phần 4): fills to 100% exactly when the submit
+ * button unlocks — both required photos uploaded. */
+.trip-pod__progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3, rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.trip-pod__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink-3);
+  transition: width 0.25s ease;
+}
+
+.trip-pod__progress-fill.is-complete {
+  background: var(--brand, #00b14f);
+}
+
 .trip-pod__submit {
   width: 100%;
   background: var(--accent);
