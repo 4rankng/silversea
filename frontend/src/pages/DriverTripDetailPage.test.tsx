@@ -250,7 +250,11 @@ describe('DriverTripDetailPage', () => {
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
+    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
+    // gaps, not the evidence endpoint's milestone/label echo (old code echoed
+    // the backend label "Thiếu biên bản giao nhận có ký nhận" here).
+    expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
+    expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
   it('does not deadlock the single-action complete button when the draft e-POD is not yet submitted', async () => {

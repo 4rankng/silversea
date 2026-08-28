@@ -18,7 +18,7 @@ import {
   StickyNote,
   Truck,
 } from 'lucide-react';
-import { DriverProgressEventType, DRIVER_PROGRESS_EVENT_LABELS, TRIP_STATUS_LABELS } from '@tingting/shared';
+import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
@@ -124,16 +124,6 @@ const FUEL_EVIDENCE_REVIEW_LABELS = {
 } as const;
 
 const formatDateTime = formatDateTimeShort;
-
-// Post-accept milestone labels. The driver UI no longer records these
-// (27.8 A5 removed the milestone timeline); the backend completion endpoint
-// auto-records them on the driver's behalf, so they are never shown as
-// pre-click blockers.
-const AUTO_RECORDED_MILESTONE_LABELS = new Set([
-  DRIVER_PROGRESS_EVENT_LABELS.PICKED_UP,
-  DRIVER_PROGRESS_EVENT_LABELS.LOADING_OR_RETURNING,
-  DRIVER_PROGRESS_EVENT_LABELS.DELIVERED,
-]);
 
 function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
@@ -571,15 +561,6 @@ export default function DriverTripDetailPage() {
   // evidence. So the pre-click contract is: both photos uploaded + IN_TRANSIT
   // + no accounting lock; everything else resolves inside the action.
   const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !podReady;
-  const completionReasons = evidence.data?.missingItems ?? [];
-  // Labels that resolve the moment the single-action button is pressed (the
-  // handler submits the draft e-POD, and completion auto-records milestones) —
-  // showing them as blockers next to an enabled button reads as a
-  // contradiction.
-  const blockingReasons = completionReasons.filter((item) => !(
-    (podReady && item.label.includes('đã gửi'))
-    || AUTO_RECORDED_MILESTONE_LABELS.has(item.label)
-  ));
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
@@ -856,15 +837,12 @@ export default function DriverTripDetailPage() {
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, ghi nhận đủ mốc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
+              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
             </p>
-            {(blockingReasons.length > 0) && (
+            {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
                 {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
-                {blockingReasons.map((item) => (
-                  <li key={item.code}>{item.label}</li>
-                ))}
               </ul>
             )}
           </div>
