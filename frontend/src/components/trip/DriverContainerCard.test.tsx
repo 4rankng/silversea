@@ -70,12 +70,14 @@ function renderCard(overrides: Partial<Parameters<typeof DriverContainerCard>[0]
 /** Opens the container capture zone and feeds one OCR result through the
  *  (faked) scanner, as if the driver photographed a container plate. When a
  *  container is already on file (the declared number), the card starts in the
- *  read-only bento view — enter edit mode first. */
+ *  read-only bento view — enter edit mode first. Phần 4 ticket 2026-08-28:
+ *  the primary capture button is now a file-picker label; the scanner overlay
+ *  is opened by the secondary "Mở camera cont" button. */
 async function scanContainer(ocrResult: Record<string, unknown>) {
   uploadMock.mockResolvedValueOnce(ocrResult as never);
   const editButton = screen.queryByRole('button', { name: /Sửa/ });
   if (editButton) fireEvent.click(editButton);
-  fireEvent.click(screen.getByRole('button', { name: 'Ảnh cont' }));
+  fireEvent.click(screen.getByRole('button', { name: /Mở camera cont/ }));
   fireEvent.click(screen.getByText('fake-scanner-capture'));
   await waitFor(() => expect(uploadMock).toHaveBeenCalled());
 }

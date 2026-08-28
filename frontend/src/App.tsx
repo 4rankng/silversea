@@ -58,6 +58,7 @@ const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
 const DriverTwoOrdersPage = lazy(() => import('./pages/driver/DriverTwoOrdersPage'));
 const DriverPayslipsPage = lazy(() => import('./pages/driver/DriverPayslipsPage'));
 const DriverTripDetailPage = lazy(() => import('./pages/DriverTripDetailPage'));
+const DriverTripPodPage = lazy(() => import('./pages/DriverTripPodPage'));
 const DriverEarningsPage = lazy(() => import('./pages/DriverEarningsPage'));
 const DriverPenaltyPage = lazy(() => import('./pages/DriverPenaltyPage'));
 const ForwarderTripsPage = lazy(() => import('./pages/ForwarderTripsPage'));
@@ -346,6 +347,10 @@ export function AppRoutes() {
           <Route path="/my-trips" element={driverOnly(page(<DriverTripsPage />))} />
           <Route path="/my-trips/two-orders" element={driverOnly(page(<DriverTwoOrdersPage />))} />
           <Route path="/my-trips/:id" element={driverOnly(page(<DriverTripDetailPage />))} />
+          {/* Phần 4 ticket 2026-08-28: e-POD lives on its own screen after the
+              driver ends the trip. The trip detail page navigates here when
+              the driver taps the completion CTA. */}
+          <Route path="/my-trips/:id/pod" element={driverOnly(page(<DriverTripPodPage />))} />
           <Route path="/my-earnings" element={driverOnly(page(<DriverEarningsPage />))} />
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
           <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />

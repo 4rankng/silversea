@@ -398,25 +398,66 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
               </div>
             )}
 
-            {/* Capture zones — open the fullscreen camera/gallery overlay */}
+            {/* Capture zones — primary action is a direct file picker (always
+                available, works on every browser), the camera icon is the
+                secondary action that opens the fullscreen scanner overlay.
+                Phần 4 ticket 2026-08-28: customer reported the camera-only
+                button was unusable on some devices; the file picker is now
+                one tap away. */}
             <div className="dcc-capture">
-              <button
-                type="button"
-                className="dcc-capture-btn"
-                disabled={uploading.cont}
-                onClick={() => setScannerType('CONTAINER')}
+              <label
+                className="dcc-capture-btn dcc-capture-btn--primary"
+                aria-label="Chọn ảnh cont từ thiết bị"
               >
                 {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                <span>Ảnh cont</span>
+                <span>Chụp / chọn ảnh cont</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    void onPick(file, 'CONTAINER');
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              <label
+                className="dcc-capture-btn dcc-capture-btn--primary"
+                aria-label="Chọn ảnh seal từ thiết bị"
+              >
+                {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                <span>Chụp / chọn ảnh seal</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  hidden
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    void onPick(file, 'SEAL');
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="dcc-capture-btn dcc-capture-btn--secondary"
+                disabled={uploading.cont}
+                onClick={() => setScannerType('CONTAINER')}
+                title="Mở camera overlay (chế độ chụp nâng cao)"
+              >
+                <span>Mở camera cont</span>
               </button>
               <button
                 type="button"
-                className="dcc-capture-btn"
+                className="dcc-capture-btn dcc-capture-btn--secondary"
                 disabled={uploading.seal}
                 onClick={() => setScannerType('SEAL')}
+                title="Mở camera overlay (chế độ chụp nâng cao)"
               >
-                {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                <span>Ảnh seal</span>
+                <span>Mở camera seal</span>
               </button>
             </div>
 

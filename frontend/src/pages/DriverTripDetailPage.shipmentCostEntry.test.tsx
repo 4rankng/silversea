@@ -1,21 +1,33 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TripPodStatus } from '@tingting/shared';
 
 /**
- * Driver-app spec (260827) — "Nhập chi phí lô hàng" and "Báo cáo đổ dầu"
- * render unconditionally on the task detail page (the rollout flag
- * VITE_FEATURE_SHIPMENT_COST_ENTRY was removed per user decision — the 27.8
- * doc is the real customer desire). This suite verifies both sections are
- * genuinely present in the render tree. Mirrors the mocking conventions of
- * `DriverTripDetailPage.test.tsx` — kept as a separate file so that suite's
- * existing tests stay untouched.
+ * Phần 4 ticket (2026-08-28 customer feedback): the e-POD section and the
+ * cost-entry form have been REMOVED from the trip detail page.
+ *
+ *   - e-POD lives on its own screen at /my-trips/:id/pod
+ *     (DriverTripPodPage). The trip detail page's "Hoàn thành" CTA now
+ *     navigates there instead of hosting the e-POD widget inline.
+ *   - The cost-entry form is hidden (kế toán tài chính is the post-trial
+ *     phase per the trial-readiness plan, "từ từ"). Backend schema +
+ *     endpoints are retained for the next phase.
+ *   - The fuel-refill report ("Báo cáo đổ dầu") is KEPT on the trip detail
+ *     page per 27.8 "GIỮ NGUYÊN".
+ *
+ * This suite now asserts the COST-FORM IS ABSENT, the e-POD widget is absent,
+ * the fuel form is present, and a "Bước tiếp: e-POD" CTA navigates to the
+ * pod page.
  */
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
   ShipmentCostEntryForm: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
   default: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
+}));
+
+vi.mock('../components/trip/TripPodSubmission', () => ({
+  TripPodSubmission: () => <div data-testid="trip-pod-submission">e-POD bắt buộc</div>,
+  default: () => <div data-testid="trip-pod-submission">e-POD bắt buộc</div>,
 }));
 
 vi.mock('../components/trip/FuelRefillReportForm', () => ({
@@ -39,163 +51,119 @@ vi.mock('../hooks/useDriverQueries', () => ({
   useDriverEvidenceStatus: useDriverEvidenceStatusMock,
 }));
 
-vi.mock('../hooks/animations', () => ({
-  usePageAnimations: () => ({ rootRef: { current: null } }),
-}));
-
-vi.mock('../hooks/useBackShortcut', () => ({
-  useBackShortcut: vi.fn(),
-}));
-
 vi.mock('../hooks/useOnline', () => ({
   useOnline: () => true,
 }));
 
+vi.mock('../hooks/useGeolocation', () => ({
+  useGeolocation: () => ({ awaitAccurateSample: vi.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 5, timestamp: 0 }) }),
+}));
+
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { userId: 88, role: 'DRIVER' } }),
+  useAuth: () => ({ user: { id: 5, role: 'DRIVER' } }),
 }));
 
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-vi.mock('../components/trip/TripLegsPanel', () => ({
-  default: () => null,
-}));
-
-vi.mock('../components/trip/TripPodSubmission', () => ({
-  default: () => <div data-testid="pod-submission">pod</div>,
-}));
-
 vi.mock('../features/driver/useOfflineCommandQueue', () => ({
-  buildOfflineCommandKey: (...parts: Array<string | number>) => parts.join(':'),
   useOfflineCommandQueue: () => ({
     commands: [],
     enqueue: vi.fn(),
-    drain: vi.fn(),
-    pendingCount: 0,
-    failedCount: 0,
-    conflictCount: 0,
+    drain: vi.fn().mockResolvedValue({ done: 0, failed: 0, conflicts: 0, rejected: 0, statusById: {}, messageById: {} }),
   }),
+  buildOfflineCommandKey: (...parts: (string | number)[]) => parts.join(':'),
+}));
+
+vi.mock('../api/driverClient', () => ({
+  driverClient: {
+    createPodSubmission: vi.fn(),
+    attachPodFile: vi.fn(),
+    submitPod: vi.fn(),
+    uploadFuelEvidence: vi.fn(),
+    getEvidenceStatus: vi.fn(),
+  },
 }));
 
 import DriverTripDetailPage from './DriverTripDetailPage';
 
-function makeTaskDetail(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 55,
-    version: 3,
-    tripCode: 'TRIP-55',
-    status: 'IN_TRANSIT',
-    departureDate: '2026-08-01',
-    routeName: 'Cảng Cát Lái → Nhà máy Bình Dương',
-    truckPlate: '51C-12345',
-    trailerPlate: '51R-55555',
-    trailerType: '40FT',
-    customerName: 'SilverSea',
-    cargoTypeName: 'Hàng nhập',
-    fuelLiters: null,
-    fuelMode: null,
-    fuelSupplierName: null,
-    totalRoadAllowance: '450000',
-    driverSalary: '1500000',
-    hasReturnCargo: false,
-    notes: null,
-    customerReference: 'CUS-REF',
-    instructions: {
-      contactName: 'Anh Minh',
-      contactPhone: '0909000001',
-      notes: 'Vào cổng số 2',
-    },
-    fuelEvidenceReviews: [],
-    paperOrderCollectedAt: '2026-08-01T07:45:00.000Z',
-    paperOrderCollectedBy: 12,
-    paperOrderCollectedByName: 'Ops điều độ',
-    containers: [{ id: 1, containerNumber: 'MSCU1234561', sealNumber: 'SEAL-9', containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null }],
-    legs: [],
-    fulfillment: {
-      id: 88,
-      code: 'FUL-88',
-      taskCode: 'TASK-88',
-      type: 'FCL_CONTAINER',
-      modeLabel: 'FCL',
-      factoryName: 'Nhà máy Bình Dương',
-      pickupPortName: 'Cát Lái',
-      dropPortName: 'Sóng Thần',
-      pickupWarehouseName: null,
-      dropWarehouseName: null,
-      lclWarehouseName: null,
-      plannedAt: '2026-08-01T09:00:00.000Z',
-      contactName: 'Anh Minh',
-      contactPhone: '0909000001',
-      routeSummary: 'Cát Lái → Bình Dương',
-      siteRules: ['Mang đầy đủ PPE', 'Liên hệ bảo vệ trước 15 phút'],
-      invoiceInfo: null,
-      containerSealPhotos: [],
-    },
-    currentPod: {
-      id: 22,
-      tripId: 55,
-      fulfillmentId: 88,
-      submissionVersion: 1,
-      status: TripPodStatus.DRAFT,
-      sourceTripVersion: 3,
-      version: 2,
-      createdAt: '2026-08-01T01:00:00.000Z',
-      updatedAt: '2026-08-01T01:00:00.000Z',
-      submittedAt: null,
-      reviewedAt: null,
-      rejectedAt: null,
-      rejectionReason: null,
-      acceptedAt: null,
-      supersedesSubmissionId: null,
-      files: [],
-    },
-    podHistory: [],
-    accountingLock: null,
-    ...overrides,
-  };
-}
-
-function renderPage() {
-  return render(
-    <MemoryRouter initialEntries={['/my-trips/88']}>
-      <Routes>
-        <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
-      </Routes>
-    </MemoryRouter>,
-  );
-}
-
-describe('DriverTripDetailPage — shipment cost entry', () => {
+describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
   beforeEach(() => {
     useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail(),
+      data: {
+        id: 9,
+        tripCode: 'TRP-2608-0009',
+        status: 'IN_TRANSIT',
+        version: 4,
+        driverNotes: null,
+        notes: 'Hàng dễ vỡ, bốc cẩn thận.',
+        currentPod: null,
+        podHistory: [],
+        legs: [],
+        containers: [],
+        operationalNote: null,
+        siteRules: [],
+      },
       isLoading: false,
-      error: null,
+      isError: false,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [] },
+      data: { events: [] },
       isLoading: false,
-      error: null,
+      isError: false,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
     useDriverEvidenceStatusMock.mockReturnValue({
-      data: { ready: false, missingItems: [] },
+      data: { ready: false, missingItems: [], hasDeliveredMilestone: true, hasSubmittedPod: false },
       isLoading: false,
-      error: null,
+      isError: false,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
   });
 
-  it('renders the cost-entry and fuel-refill sections (unconditional)', async () => {
-    renderPage();
+  it('hides the cost-entry form (kế toán từ từ)', () => {
+    render(
+      <MemoryRouter initialEntries={['/my-trips/9']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+  });
 
-    expect(await screen.findByTestId('accept-sticky-bar')).toBeTruthy();
-    expect(screen.getByText('Nhập chi phí lô hàng')).toBeTruthy();
-    expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
-    expect(screen.getByText('Báo cáo đổ dầu')).toBeTruthy();
-    expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();
+  it('hides the e-POD widget (moved to /pod screen)', () => {
+    render(
+      <MemoryRouter initialEntries={['/my-trips/9']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
+  });
+
+  it('keeps the fuel-refill section (GIỮ NGUYÊN per 27.8)', () => {
+    render(
+      <MemoryRouter initialEntries={['/my-trips/9']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('fuel-refill-report-form')).toBeInTheDocument();
+  });
+
+  it('renders the operational-note card from cus/điều vận', () => {
+    render(
+      <MemoryRouter initialEntries={['/my-trips/9']}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Hàng dễ vỡ, bốc cẩn thận.')).toBeInTheDocument();
   });
 });

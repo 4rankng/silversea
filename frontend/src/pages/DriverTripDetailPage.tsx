@@ -21,9 +21,7 @@ import {
 import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
-import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
-import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
@@ -228,8 +226,6 @@ export default function DriverTripDetailPage() {
   const { user } = useAuth();
   const online = useOnline();
   const geolocation = useGeolocation();
-  const [creatingDraft, setCreatingDraft] = useState(false);
-  const [uploadingPod, setUploadingPod] = useState(false);
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
 
   const fulfillmentId = Number(id);
@@ -289,7 +285,6 @@ export default function DriverTripDetailPage() {
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
-  const podHistory = trip?.podHistory ?? [];
 
   const latestCompletedIndex = useMemo(() => {
     let index = -1;
@@ -325,124 +320,6 @@ export default function DriverTripDetailPage() {
       },
     });
     await runDrain('Đã ghi nhận mốc tiến độ.', idempotencyKey);
-  }
-
-  async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
-    if (!trip || !validFulfillmentId) {
-      throw new Error('Không tìm thấy chuyến để tạo e-POD.');
-    }
-    if (currentSubmission?.status === 'DRAFT') {
-      return currentSubmission;
-    }
-    setCreatingDraft(true);
-    try {
-      const nextSubmissionVersion = Math.max(
-        currentSubmission?.submissionVersion ?? 0,
-        ...podHistory.map((submission) => submission.submissionVersion),
-      ) + 1;
-      const idempotencyKey = buildOfflineCommandKey(
-        'driver',
-        'task',
-        validFulfillmentId,
-        'pod-draft',
-        'trip-version',
-        trip.version,
-        'submission-version',
-        nextSubmissionVersion,
-      );
-      const created = await driverClient.createPodSubmission(
-        validFulfillmentId,
-        { expectedVersion: trip.version },
-        idempotencyKey,
-      );
-      await refreshAll();
-      toast({ kind: 'success', message: 'Đã mở phiên bản e-POD mới.' });
-      return created;
-    } finally {
-      setCreatingDraft(false);
-    }
-  }
-
-  async function handleUploadPodFile(submission: DriverTaskPodSubmission, fileType: Parameters<typeof driverClient.attachPodFile>[0]['fileType'], file: File) {
-    if (!validFulfillmentId) throw new Error('Không thể xác định tác vụ giao hàng.');
-    setUploadingPod(true);
-    try {
-      const uploaded = await driverClient.attachPodFile({
-        tripId: validFulfillmentId,
-        submissionId: submission.id,
-        fileType,
-        expectedVersion: submission.version,
-        file,
-      });
-      await refreshAll();
-      const label = uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name;
-      toast({ kind: 'success', message: `Đã lưu tệp ${label}.` });
-    } finally {
-      setUploadingPod(false);
-    }
-  }
-
-  async function handleSubmitPod(submission: DriverTaskPodSubmission) {
-    const idempotencyKey = buildOfflineCommandKey(
-      'driver',
-      'task',
-      validFulfillmentId,
-      'pod-submit',
-      submission.id,
-      'version',
-      submission.version,
-    );
-    enqueue({
-      id: idempotencyKey,
-      endpoint: 'driver.task.pod.submit',
-      method: 'POST',
-      path: `/driver/me/fulfillments/${validFulfillmentId}/pod/${submission.id}/submit`,
-      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
-      expectedVersion: submission.version,
-      actionKind: 'POD_SUBMIT',
-      payload: {
-        kind: 'pod-submit',
-        fulfillmentId: validFulfillmentId,
-        submissionId: submission.id,
-        expectedVersion: submission.version,
-      },
-    });
-    await runDrain('Đã gửi e-POD để duyệt.', idempotencyKey);
-  }
-
-  async function handleCompleteTrip() {
-    if (!trip) return;
-    // Spec (Phần 4): "HOÀN THÀNH CHUYẾN" is a single action — submit e-POD
-    // then complete the trip. The separate "Gửi e-POD" step is removed.
-    if (currentSubmission?.status === 'DRAFT') {
-      await handleSubmitPod(currentSubmission);
-      // Re-fetch to get the updated submission status after e-POD submit.
-      await refreshAll();
-    }
-    const idempotencyKey = buildOfflineCommandKey('driver', 'task', validFulfillmentId, 'complete', 'version', trip.version);
-    enqueue({
-      id: idempotencyKey,
-      endpoint: 'driver.task.complete',
-      method: 'POST',
-      path: `/driver/me/fulfillments/${validFulfillmentId}/complete`,
-      fulfillmentScopeKey: `fulfillment:${validFulfillmentId}`,
-      expectedVersion: trip.version,
-      actionKind: 'COMPLETE',
-      payload: {
-        kind: 'complete',
-        fulfillmentId: validFulfillmentId,
-        expectedVersion: trip.version,
-      },
-    });
-    const result = await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
-    // Spec A7: completing a trip jumps the driver off this screen. The e-POD
-    // upload happens *before* completion in this flow, so the destination is
-    // the journey board, where the trip lands in the Lịch sử bucket. Only a
-    // confirmed-online completion navigates; a queued or still-syncing
-    // command keeps the driver on this screen.
-    if (result.statusById?.[idempotencyKey] === 'DONE') {
-      navigate('/my-trips', { replace: true });
-    }
   }
 
   async function handleUploadFuelEvidence(file: File) {
@@ -545,21 +422,14 @@ export default function DriverTripDetailPage() {
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
   const accountingLock = trip.accountingLock ?? null;
-  // Spec (Phần 4): "HOÀN THÀNH CHUYẾN" requires both e-POD photos uploaded.
+  // Spec (Phần 4): the completion gate lives on the e-POD screen
+  // (/my-trips/:id/pod) — this page only links there. The footer still
+  // surfaces the two mandatory-photo gaps so the driver knows what is missing
+  // before tapping through.
   const podFilesByType = currentSubmission?.files ?? [];
   const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
   const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
   const podReady = hasYardReceipt && hasSignedNote;
-  // The single-action flow submits the draft e-POD itself inside the click
-  // handler, so the button gate must NOT demand an already-submitted e-POD
-  // (evidence.data.ready includes "e-POD đã gửi") — that deadlocked the driver
-  // at 100% with no separate submit button left. Post-accept milestones are
-  // the same class: the driver UI no longer records them (27.8 A5 removed the
-  // milestone timeline), and the backend completion endpoint auto-records
-  // PICKED_UP → DELIVERED on the driver's behalf before re-validating
-  // evidence. So the pre-click contract is: both photos uploaded + IN_TRANSIT
-  // + no accounting lock; everything else resolves inside the action.
-  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !podReady;
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
@@ -707,31 +577,12 @@ export default function DriverTripDetailPage() {
         )}
       </section>
 
-      {/* Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí
-          (Frontend) — Bốn mốc thực hiện + Thu nhập tham chiếu không render.
-          Ảnh nhiên liệu được PHỤC HỒI theo 27.8 spec ("GIỮ NGUYÊN"). Backend
-          vẫn giữ schema + endpoints (driver_incidental_costs /
-          fuel_evidence_reviews / driver_salary / total_road_allowance) cho
-          phase tiếp theo. */}
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>e-POD giao hàng</span>
-        </div>
-        <TripPodSubmission
-          tripId={trip.id}
-          tripCode={trip.tripCode}
-          tripVersion={trip.version}
-          currentSubmission={currentSubmission}
-          history={podHistory}
-          pendingCommands={tripCommands}
-          creatingDraft={creatingDraft}
-          uploading={uploadingPod}
-          onEnsureDraft={handleEnsureDraft}
-          onUploadFile={handleUploadPodFile}
-          onSubmit={handleSubmitPod}
-        />
-      </section>
-
+      {/* Phần 4 ticket 2026-08-28: e-POD moved to its own screen
+          (/my-trips/:id/pod) so the driver focuses on the two mandatory
+          photos (Phiếu bãi/hạ + Biên bản giao nhận). The "Hoàn thành"
+          CTA at the bottom navigates there. The cost-entry form is hidden
+          here per the trial-readiness plan ("kế toán từ từ"). Backend
+          schema + endpoints for both are retained for the post-trial phase. */}
       <section className="driver-task-section">
         <div className="driver-task-section__head">
           <span>Ảnh nhiên liệu</span>
@@ -810,19 +661,8 @@ export default function DriverTripDetailPage() {
         </section>
       )}
 
-      <section className="driver-task-section">
-        <ShipmentCostEntryForm
-          tripId={trip.id}
-          totalRoadAllowance={trip.totalRoadAllowance ?? null}
-          pickupLocation={fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? null}
-          deliveryLocation={fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null}
-          pickupPortName={fulfillment?.pickupPortName ?? null}
-          dropPortName={fulfillment?.dropPortName ?? null}
-          pickupWarehouseName={fulfillment?.pickupWarehouseName ?? null}
-          dropWarehouseName={fulfillment?.dropWarehouseName ?? null}
-          costSubmissionNote={trip.costSubmissionNote ?? null}
-        />
-      </section>
+      {/* Phần 4 ticket 2026-08-28: cost-entry form hidden (kế toán từ từ).
+          Backend schema + endpoints retained for the post-trial phase. */}
 
       <section className="driver-task-section">
         <FuelRefillReportForm tripId={trip.id} />
@@ -833,7 +673,8 @@ export default function DriverTripDetailPage() {
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
+              Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "Hoàn thành chuyến" ở đó — hệ thống
+              gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -842,15 +683,21 @@ export default function DriverTripDetailPage() {
               </ul>
             )}
           </div>
-          <button
-            type="button"
-            className="driver-task-complete"
-            disabled={completionBlocked}
-            onClick={() => void handleCompleteTrip()}
-          >
-            <FileCheck2 size={18} />
-            <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
-          </button>
+          {trip.status === 'IN_TRANSIT' ? (
+            <button
+              type="button"
+              className="driver-task-complete"
+              onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
+            >
+              <FileCheck2 size={18} />
+              <span>Bước tiếp: e-POD</span>
+            </button>
+          ) : (
+            <button type="button" className="driver-task-complete" disabled>
+              <FileCheck2 size={18} />
+              <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
+            </button>
+          )}
           {podReady && trip.status === 'IN_TRANSIT' && (
             <div className="driver-task-footer__ready">
               <CheckCircle2 size={16} />

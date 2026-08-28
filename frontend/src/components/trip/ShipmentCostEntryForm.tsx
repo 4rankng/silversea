@@ -10,7 +10,6 @@ import {
   ReceiptText,
 } from 'lucide-react';
 import {
-  CHI_PHI_KHAC_SUBOPTIONS,
   DRIVER_EDITABLE_COST_TYPES,
   DRIVER_INCIDENTAL_COST_LABELS,
   DriverIncidentalCostType,

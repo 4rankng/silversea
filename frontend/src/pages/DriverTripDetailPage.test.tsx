@@ -65,7 +65,7 @@ vi.mock('../components/trip/TripLegsPanel', () => ({
 }));
 
 vi.mock('../components/trip/TripPodSubmission', () => ({
-  default: () => <div data-testid="pod-submission">pod</div>,
+  default: () => <div data-testid="trip-pod-submission">pod</div>,
 }));
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
@@ -222,11 +222,11 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  // Spec (Phần 1, Lưu ý xây dựng app): Bốn mốc thực hiện + Thu nhập tham
-  // chiếu stay removed. The cost-entry + fuel-refill forms render
-  // unconditionally since the rollout flag was removed per user decision
-  // (27.8 doc = real customer desire).
-  it('renders cost forms and keeps the milestone/income modules removed', async () => {
+  // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
+  // Cost-entry form is HIDDEN (kế toán từ từ). Fuel-refill "Báo cáo đổ dầu"
+  // stays on the trip detail per 27.8 "GIỮ NGUYÊN". The e-POD widget is
+  // moved to its own /pod page; here we verify it is NOT in the tree.
+  it('hides the cost-entry form, keeps the fuel-refill, removes milestone/income modules', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -237,7 +237,11 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
-    expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
+    // cost form hidden
+    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    // e-POD widget hidden (moved to /pod)
+    expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
+    // fuel section kept
     expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();
   });
 
@@ -252,12 +256,17 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
   });
 
-  it('renders the sticky accept bar and the single HOÀN THÀNH CHUYẾN footer button', async () => {
+  it('renders the sticky accept bar and the BƯỚC TIẾP: e-POD footer button (e-POD lives on its own page now)', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
+    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn thành" CTA is now a
+    // "Bước tiếp: e-POD" link that navigates to /my-trips/:id/pod. The
+    // actual complete action lives on the e-POD page.
+    const cta = screen.getByRole('button', { name: /Bước tiếp: e-POD/ });
+    expect(cta).toBeTruthy();
+    expect(cta.hasAttribute('disabled')).toBe(false);
     // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
     // gaps, not the evidence endpoint's milestone/label echo (old code echoed
     // the backend label "Thiếu biên bản giao nhận có ký nhận" here).
@@ -265,34 +274,54 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
-  it('does not deadlock the single-action complete button when the draft e-POD is not yet submitted', async () => {
-    // Regression (round-3): the button submits the draft e-POD itself, so the
-    // gate must not demand an already-submitted e-POD — with the old
-    // evidence.ready gate the driver sat at 100% progress with a forever
-    // disabled button and no separate submit button to press.
-    const milestone = (eventType: string) => ({
-      id: 1, tripId: 55, eventType, occurredAt: '2026-08-01T07:00:00.000Z', note: null, recordedBy: 88,
-    });
-    useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [
-        milestone('ORDER_RECEIVED'),
-        milestone('PICKED_UP'),
-        milestone('LOADING_OR_RETURNING'),
-        milestone('DELIVERED'),
-      ] },
+  it('navigates to the e-POD page when the driver taps Bước tiếp: e-POD (the trip detail no longer completes the trip inline)', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
+          ],
+        },
+      }),
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
-    useDriverEvidenceStatusMock.mockReturnValue({
-      data: {
-        ready: false,
-        missingItems: [{ code: 'POD_SUBMITTED', label: 'e-POD đã gửi' }],
-      },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
+
+    renderPageWithBoard();
+
+    // Clicking "Bước tiếp: e-POD" navigates to the pod page; we don't fire
+    // any completion command from the trip detail anymore.
+    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    fireEvent.click(cta);
+
+    // The trip detail no longer triggers the "complete" offline command on
+    // click — that's the pod page's job. The driver is on the trip detail
+    // until they actually submit the e-POD.
+    expect(drainMock).not.toHaveBeenCalled();
+    expect(enqueueMock).not.toHaveBeenCalled();
+  });
+
+  // Spec A7 (re-homed on the pod page): "Hoàn thành chuyến" auto-navigates off
+  // the pod screen once completion is confirmed online. On the trip detail
+  // page, the driver just sees the "Bước tiếp: e-POD" CTA — actual completion
+  // lives at /my-trips/:id/pod (covered by DriverTripPodPage tests).
+  it('does not trigger any complete/enqueue command from the trip detail CTA', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -323,17 +352,16 @@ describe('DriverTripDetailPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
-    expect(complete.hasAttribute('disabled')).toBe(false);
-    expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
-    // The submit-only requirement resolves on click — it must not be listed
-    // as a blocker next to an enabled button.
-    expect(screen.queryByText('e-POD đã gửi')).toBeNull();
+    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    fireEvent.click(cta);
+
+    // The trip detail must NOT issue the complete offline command anymore
+    // (the pod page owns the completion lifecycle).
+    expect(drainMock).not.toHaveBeenCalled();
+    expect(enqueueMock).not.toHaveBeenCalled();
   });
 
-  // Spec A7: "Hoàn thành chuyến" auto-navigates off the detail screen once
-  // completion is confirmed online.
-  it('navigates back to the journey board after an online completion', async () => {
+  it('stays on the trip detail (the e-POD CTA is a navigation link, not a submit)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -361,63 +389,18 @@ describe('DriverTripDetailPage', () => {
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
-    // buildOfflineCommandKey is mocked as parts.join(':') → the complete
-    // command key for fulfillment 88, trip version 3.
-    drainMock.mockResolvedValue({
-      done: 1,
-      statusById: { 'driver:task:88:complete:version:3': 'DONE' },
-    });
 
     renderPageWithBoard();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
-    fireEvent.click(complete);
+    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    fireEvent.click(cta);
 
-    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
-  });
-
-  it('stays on the trip when completion is queued offline instead of confirmed', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        currentPod: {
-          id: 22,
-          tripId: 55,
-          fulfillmentId: 88,
-          submissionVersion: 1,
-          status: TripPodStatus.DRAFT,
-          version: 2,
-          createdAt: '2026-08-01T01:00:00.000Z',
-          updatedAt: '2026-08-01T01:00:00.000Z',
-          submittedAt: null,
-          reviewedAt: null,
-          rejectedAt: null,
-          rejectionReason: null,
-          acceptedAt: null,
-          supersedesSubmissionId: null,
-          files: [
-            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
-            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
-          ],
-        },
-      }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-    drainMock.mockResolvedValue({
-      done: 0,
-      statusById: { 'driver:task:88:complete:version:3': 'FAILED' },
-    });
-
-    renderPageWithBoard();
-
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
-    fireEvent.click(complete);
-
-    // Still on the detail screen — the page must not abandon a queued command.
-    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    // The trip detail doesn't navigate away on the CTA (a real router would
+    // change the URL, but the click is wired through react-router's
+    // <Link> and we don't have a Router assertion here). The point is: the
+    // driver is NOT shown a queued complete or a journey-board jump.
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ })).toBeTruthy();
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   // Spec A4: the detail fact grid mirrors the journey-card order, with
@@ -521,7 +504,12 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
     const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).matches(':disabled')).toBe(true);
+    // Phần 4 ticket 2026-08-28: the trip detail's "Bước tiếp: e-POD" CTA is
+    // a navigation link, not a destructive action. The accounting lock
+    // gates the *completion* (now on the pod page), so the trip-detail CTA
+    // here is not the place to assert disabled. We keep the lock banner
+    // assertion; the disabled state is covered in DriverTripPodPage tests.
+    expect(screen.queryByRole('button', { name: /Hoàn thành chuyến/ })).toBeNull();
   });
 
   it('queues the ORDER_RECEIVED milestone with the trip version and fulfillment id when sticky accept is clicked', async () => {
