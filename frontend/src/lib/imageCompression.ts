@@ -60,7 +60,11 @@ export async function compressImageFile(file: File, options: CompressImageOption
       if (stamp) drawTimestampChip(ctx, width, height, stamp);
 
       const blob = await canvasToBlob(canvas, quality);
-      if (!blob || blob.size >= file.size) return file;
+      // A requested timestamp chip must always land in the pixels — even if the
+      // re-encoded blob is not strictly smaller. The size guard is reserved for
+      // the no-stamp path, where skipping a no-op re-encode is a real saving.
+      if (!blob) return file;
+      if (!stamp && blob.size >= file.size) return file;
 
       const compressedName = file.name.replace(/\.\w+$/, '') + '.jpg';
       return new File([blob], compressedName, { type: 'image/jpeg', lastModified: file.lastModified });
