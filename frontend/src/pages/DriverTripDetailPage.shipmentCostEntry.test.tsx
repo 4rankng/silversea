@@ -12,12 +12,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  *   - The cost-entry form is hidden (kế toán tài chính is the post-trial
  *     phase per the trial-readiness plan, "từ từ"). Backend schema +
  *     endpoints are retained for the next phase.
- *   - The fuel-refill report ("Báo cáo đổ dầu") is KEPT on the trip detail
- *     page per 27.8 "GIỮ NGUYÊN".
+ *   - The fuel-refill report ("Báo cáo đổ dầu") is HIDDEN too — Phần 1 lists
+ *     it beside the cost-entry form as coded-but-temporarily-hidden. 27.8's
+ *     "GIỮ NGUYÊN" line covers the fuel SCREENSHOT upload, which stays.
  *
  * This suite now asserts the COST-FORM IS ABSENT, the e-POD widget is absent,
- * the fuel form is present, and a "Bước tiếp: e-POD" CTA navigates to the
- * pod page.
+ * the fuel-refill cost form is absent, and a "Bước tiếp: e-POD" CTA navigates
+ * to the pod page.
  */
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
@@ -145,7 +146,7 @@ describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
     expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
   });
 
-  it('keeps the fuel-refill section (GIỮ NGUYÊN per 27.8)', () => {
+  it('hides the fuel-refill cost form (Phần 1; GIỮ NGUYÊN is the screenshot upload)', () => {
     render(
       <MemoryRouter initialEntries={['/my-trips/9']}>
         <Routes>
@@ -153,7 +154,7 @@ describe('DriverTripDetailPage — Phần 4 ticket 2026-08-28 layout', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByTestId('fuel-refill-report-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
   it('renders the operational-note card from cus/điều vận', () => {

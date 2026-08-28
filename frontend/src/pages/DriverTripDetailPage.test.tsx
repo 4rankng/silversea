@@ -235,10 +235,11 @@ describe('DriverTripDetailPage', () => {
   });
 
   // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
-  // Cost-entry form is HIDDEN (kế toán từ từ). Fuel-refill "Báo cáo đổ dầu"
-  // stays on the trip detail per 27.8 "GIỮ NGUYÊN". The e-POD widget is
+  // BOTH cost forms are hidden (kế toán từ từ): "Nhập chi phí lô hàng" and
+  // the fuel-refill "Báo cáo đổ dầu". 27.8's "GIỮ NGUYÊN" covers the fuel
+  // SCREENSHOT upload, not the refill cost form. The e-POD widget is
   // moved to its own /pod page; here we verify it is NOT in the tree.
-  it('hides the cost-entry form, keeps the fuel-refill, removes milestone/income modules', async () => {
+  it('hides both cost forms, removes milestone/income modules', async () => {
     renderPage();
 
     await screen.findByTestId('accept-sticky-bar');
@@ -253,8 +254,8 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
     // e-POD widget hidden (moved to /pod)
     expect(screen.queryByTestId('trip-pod-submission')).toBeNull();
-    // fuel section kept
-    expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();
+    // fuel-refill cost form hidden (Phần 1; GIỮ NGUYÊN is the screenshot upload)
+    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
   // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —

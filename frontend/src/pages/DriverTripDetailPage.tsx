@@ -22,7 +22,6 @@ import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
-import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
@@ -660,12 +659,10 @@ export default function DriverTripDetailPage() {
         </section>
       )}
 
-      {/* Phần 4 ticket 2026-08-28: cost-entry form hidden (kế toán từ từ).
-          Backend schema + endpoints retained for the post-trial phase. */}
-
-      <section className="driver-task-section">
-        <FuelRefillReportForm tripId={trip.id} />
-      </section>
+      {/* Phần 1 ticket: BOTH cost forms ("Nhập chi phí lô hàng" and "Báo cáo
+          đổ dầu") are coded but temporarily hidden — kế toán tài chính is the
+          post-trial phase. Backend schema + endpoints retained. 27.8's
+          "GIỮ NGUYÊN" covers the fuel SCREENSHOT upload below, not this form. */}
 
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
