@@ -8,6 +8,27 @@
   box-sizing: border-box;
 }
 
+/* Mirrors DriverTripDetailPage.css's identical breakpoints/values — that
+   page already tightens its side padding on narrow phones, this one never
+   did, leaving disproportionate horizontal gutter on real devices. */
+@media (max-width: 430px) {
+  .driver-journey {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 320px) {
+  .driver-journey {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .driver-journey-card {
+    padding: 12px;
+  }
+}
+
 .driver-journey__tabs {
   display: flex;
   gap: 8px;

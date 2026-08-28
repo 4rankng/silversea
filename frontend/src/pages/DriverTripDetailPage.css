@@ -623,6 +623,11 @@
     padding: 14px;
     border-radius: 16px;
   }
+
+  .driver-task-accept-sticky {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
 }
 
 @media (max-width: 320px) {
@@ -643,5 +648,10 @@
   .driver-task-rules__item,
   .driver-task-step:not(.driver-task-step--locked) {
     padding: 12px;
+  }
+
+  .driver-task-accept-sticky {
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }
