@@ -37,6 +37,7 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['trips.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
   ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
   ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
+  ['driver.ts|PUT|/trips/:tripId/cost-submission-note', 'Driver cost-submission Ghi chú autosave (27.8 §2): replaceable per-trip note column written by full overwrite, replay-safe without a durable boundary; no financial figure mutation.'],
   ['shipments/core.routes.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
   ['shipments/core.routes.ts|PATCH|/operational-sites/:id', 'Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'],
 ]);

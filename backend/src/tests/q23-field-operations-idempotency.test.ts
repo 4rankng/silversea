@@ -9,7 +9,8 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
-import { disconnectRedis } from '../lib/redis';
+import { disconnectRedis, getRedis } from '../lib/redis';
+import { OCR_RATE_LIMIT_KEY } from '../services/ocr-rate-limiter';
 import driverRoutes, { setDriverFuelEvidenceAfterUploadHookForTest } from '../routes/driver';
 import forwarderRoutes, { setForwarderExpensePhotoAfterUploadHookForTest } from '../routes/forwarder';
 import ocrRoutes, { setExtractPumpReadingHandlerForTest } from '../routes/ocr';
@@ -1009,13 +1010,20 @@ describe('Q23 field operations replay boundary', () => {
   });
 
   it('requires keys for OCR pump and replays exact bytes while rejecting drift', async () => {
+    // Pump-OCR shares the global 2 rps limiter with the fuel-evidence tests
+    // that run earlier in this file — clear the window before every request
+    // so the assertions exercise idempotency/validation, not the limiter.
+    const clearOcrWindow = () => getRedis()?.del(OCR_RATE_LIMIT_KEY);
+    await clearOcrWindow();
     const form = new FormData();
     form.set('file', new Blob([new Uint8Array(imageBuffer)], { type: 'image/jpeg' }), 'pump.jpg');
     const missingKey = await multipartRequest('/api/ocr/pump', form);
     assert.equal(missingKey.status, 400);
 
     const key = `q23-ocr-pump-${suffix}`;
+    await clearOcrWindow();
     const first = await multipartRequest('/api/ocr/pump', form, { idempotencyKey: key });
+    await clearOcrWindow();
     const replay = await multipartRequest('/api/ocr/pump', form, { idempotencyKey: key });
     assert.equal(first.status, 200, JSON.stringify(first.body));
     assert.deepEqual(replay, first);
@@ -1023,6 +1031,7 @@ describe('Q23 field operations replay boundary', () => {
     const changed = await sharp({
       create: { width: 8, height: 8, channels: 3, background: { r: 3, g: 120, b: 180 } },
     }).jpeg().toBuffer();
+    await clearOcrWindow();
     const changedForm = new FormData();
     changedForm.set('file', new Blob([new Uint8Array(changed)], { type: 'image/jpeg' }), 'pump.jpg');
     const conflict = await multipartRequest('/api/ocr/pump', changedForm, { idempotencyKey: key });
@@ -1071,6 +1080,11 @@ describe('Q23 field operations replay boundary', () => {
   });
 
   it('serializes driver fuel evidence creation, enforces owner-only upload, and validates office filters', async () => {
+    // Fuel-evidence + review-decision requests share the global 2 rps OCR
+    // limiter; clear the window before each clustered request below so the
+    // assertions exercise replay/validation semantics, not the limiter.
+    const clearOcrWindow = () => getRedis()?.del(OCR_RATE_LIMIT_KEY);
+    await clearOcrWindow();
     const fuelHash = createHash('sha256').update(imageBuffer).digest('hex');
     const makeFuelForm = () => {
       const form = new FormData();
@@ -1152,6 +1166,12 @@ describe('Q23 field operations replay boundary', () => {
     });
     assert.equal(managerDenied.status, 404);
 
+    // The OCR endpoints share a global 2 rps limiter backed by Redis; the
+    // earlier pump-OCR block above can leave the window exhausted by the
+    // time this filter probe runs. Reset it so the assertion tests
+    // validation (400), not the limiter (429).
+    await getRedis()?.del(OCR_RATE_LIMIT_KEY);
+
     const invalidFilter = await jsonRequest('/api/ocr/fuel-evidence-reviews?status=INVALID', {
       method: 'GET',
     });
@@ -1165,6 +1185,7 @@ describe('Q23 field operations replay boundary', () => {
       .find((item) => Number(item.tripId) === tripId && Number(item.ownerDriverId) === driverId);
     assert.ok(review);
 
+    await clearOcrWindow();
     const decided = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
       method: 'POST',
       idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
@@ -1186,6 +1207,7 @@ describe('Q23 field operations replay boundary', () => {
     });
     assert.deepEqual(replayedDecision, decided);
 
+    await clearOcrWindow();
     const changedDecision = await jsonRequest(`/api/ocr/fuel-evidence-reviews/${review!.id}/decision`, {
       method: 'POST',
       idempotencyKey: `q23-fuel-evidence-decision-${suffix}`,
