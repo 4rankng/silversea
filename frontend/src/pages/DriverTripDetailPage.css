@@ -587,14 +587,24 @@
   cursor: wait;
 }
 
-@media (min-width: 700px) {
+/* Two columns from phone width up — only the narrowest tier (<360px, see the
+   max-width rules below) keeps the single implicit column. */
+@media (min-width: 360px) {
   .driver-task-grid,
   .driver-task-finance {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 390px) {
+/* Long-value facts span both columns. `1 / -1`, not `span 2`: below 360px the
+   grid has no explicit columns, and `span 2` would mint a second implicit
+   track — accidentally restoring two columns at the tier meant to stay
+   stacked. `1 / -1` collapses to a no-op in a single-column grid. */
+.driver-task-fact--full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 430px) {
   .driver-task-screen {
     padding-left: 10px;
     padding-right: 10px;

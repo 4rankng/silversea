@@ -220,9 +220,9 @@ function timelineState(eventFound: boolean, command: OfflineCommand | null, next
   return 'locked';
 }
 
-function TaskFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function TaskFact({ icon, label, value, fullWidth }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean }) {
   return (
-    <div className="driver-task-fact">
+    <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
       <span className="driver-task-fact__icon">{icon}</span>
       <div className="driver-task-fact__body">
         <div className="driver-task-fact__label">{label}</div>
@@ -646,17 +646,21 @@ export default function DriverTripDetailPage() {
             cont/số seal (one line) → điểm nâng → điểm hạ → Đầu kéo → Mooc. */}
         <div className="driver-task-grid">
           <TaskFact icon={<CalendarClock size={16} />} label="Ngày giờ kế hoạch" value={formatDateTime(fulfillment?.plannedAt ?? trip.departureDate)} />
+          {/* Nhà máy stays paired with Ngày giờ kế hoạch: under the locked A4
+              order a fullWidth here leaves row 1's right column empty (auto
+              placement never backfills). Long factory names wrap within the
+              half column — verified at 390px. */}
           <TaskFact icon={<Building2 size={16} />} label="Nhà máy" value={valueOrDash(fulfillment?.factoryName)} />
-          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} />
+          <TaskFact icon={<Route size={16} />} label="Tuyến" value={valueOrDash(fulfillment?.routeSummary ?? trip.routeName)} fullWidth />
           <TaskFact icon={<Phone size={16} />} label="Người liên hệ" value={valueOrDash(contactName)} />
           <TaskFact
             icon={<Phone size={16} />}
             label="Số điện thoại"
             value={contactPhone ? <a href={`tel:${contactPhone}`} className="driver-task-link">{contactPhone}</a> : '—'}
           />
-          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} />
-          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} />
+          <TaskFact icon={<Package2 size={16} />} label="Container / lô hàng" value={containerLine} fullWidth />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm lấy" value={pickupPoint} fullWidth />
+          <TaskFact icon={<MapPinned size={16} />} label="Điểm trả" value={dropPoint} fullWidth />
           <TaskFact icon={<Truck size={16} />} label="Đầu kéo" value={valueOrDash(trip.truckPlate)} />
           <TaskFact
             icon={<Truck size={16} />}
@@ -684,13 +688,13 @@ export default function DriverTripDetailPage() {
           </div>
           <div className="driver-task-grid">
             {invoiceInfo.liftFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí nâng" value={`${invoiceInfo.liftFeeInvoiceName}${invoiceInfo.liftFeeTaxCode ? ` · MST ${invoiceInfo.liftFeeTaxCode}` : ''}`} fullWidth />
             )}
             {invoiceInfo.dropFeeInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn phí hạ" value={`${invoiceInfo.dropFeeInvoiceName}${invoiceInfo.dropFeeTaxCode ? ` · MST ${invoiceInfo.dropFeeTaxCode}` : ''}`} fullWidth />
             )}
             {invoiceInfo.cleaningInvoiceName && (
-              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} />
+              <TaskFact icon={<FileCheck2 size={16} />} label="Hóa đơn vệ sinh cont" value={`${invoiceInfo.cleaningInvoiceName}${invoiceInfo.cleaningTaxCode ? ` · MST ${invoiceInfo.cleaningTaxCode}` : ''}`} fullWidth />
             )}
           </div>
         </section>
