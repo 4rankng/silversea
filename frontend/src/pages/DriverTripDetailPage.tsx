@@ -568,8 +568,19 @@ export default function DriverTripDetailPage() {
   const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
   const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
   const podReady = hasYardReceipt && hasSignedNote;
-  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !completionReady || !podReady;
+  // The single-action flow submits the draft e-POD itself inside the click
+  // handler, so the button gate must NOT demand an already-submitted e-POD
+  // (evidence.data.ready includes "e-POD đã gửi") — that deadlocks the driver
+  // at 100% with no separate submit button left. Milestones + both photos +
+  // IN_TRANSIT + no accounting lock is the correct pre-click contract; the
+  // backend re-validates everything after the submit half of the action.
+  const delivered = getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED) != null;
+  const completionBlocked = Boolean(accountingLock) || trip.status !== 'IN_TRANSIT' || !delivered || !podReady;
   const completionReasons = evidence.data?.missingItems ?? [];
+  // "e-POD đã gửi" resolves the moment the single-action button is pressed
+  // (the handler submits the draft first) — showing it as a blocker next to
+  // an enabled button reads as a contradiction.
+  const blockingReasons = completionReasons.filter((item) => !(podReady && item.label.includes('đã gửi')));
   const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
@@ -942,11 +953,11 @@ export default function DriverTripDetailPage() {
             <p>
               Tải đủ 2 ảnh e-POD bắt buộc, ghi nhận đủ mốc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
             </p>
-            {(completionReasons.length > 0 || !podReady) && (
+            {(blockingReasons.length > 0) && (
               <ul className="driver-task-footer__issues">
                 {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
-                {completionReasons.map((item) => (
+                {blockingReasons.map((item) => (
                   <li key={item.code}>{item.label}</li>
                 ))}
               </ul>
@@ -961,7 +972,7 @@ export default function DriverTripDetailPage() {
             <FileCheck2 size={18} />
             <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
           </button>
-          {completionReady && podReady && trip.status === 'IN_TRANSIT' && (
+          {delivered && podReady && trip.status === 'IN_TRANSIT' && (
             <div className="driver-task-footer__ready">
               <CheckCircle2 size={16} />
               <span>Đủ điều kiện hoàn thành chuyến.</span>

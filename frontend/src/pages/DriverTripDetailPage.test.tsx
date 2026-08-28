@@ -230,6 +230,72 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
   });
 
+  it('does not deadlock the single-action complete button when the draft e-POD is not yet submitted', async () => {
+    // Regression (round-3): the button submits the draft e-POD itself, so the
+    // gate must not demand an already-submitted e-POD — with the old
+    // evidence.ready gate the driver sat at 100% progress with a forever
+    // disabled button and no separate submit button to press.
+    const milestone = (eventType: string) => ({
+      id: 1, tripId: 55, eventType, occurredAt: '2026-08-01T07:00:00.000Z', note: null, recordedBy: 88,
+    });
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [
+        milestone('ORDER_RECEIVED'),
+        milestone('PICKED_UP'),
+        milestone('LOADING_OR_RETURNING'),
+        milestone('DELIVERED'),
+      ] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    useDriverEvidenceStatusMock.mockReturnValue({
+      data: {
+        ready: false,
+        missingItems: [{ code: 'POD_SUBMITTED', label: 'e-POD đã gửi' }],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    renderPage();
+
+    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    expect(complete.hasAttribute('disabled')).toBe(false);
+    expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
+    // The submit-only requirement resolves on click — it must not be listed
+    // as a blocker next to an enabled button.
+    expect(screen.queryByText('e-POD đã gửi')).toBeNull();
+  });
+
   it('renders container/seal capture buttons and hides the invoice block when there is no invoice info', async () => {
     renderPage();
 
