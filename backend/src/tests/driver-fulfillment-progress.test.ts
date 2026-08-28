@@ -538,7 +538,7 @@ describe('Phase 4 driver fulfillment execution', () => {
         shipmentContainerId: container.id,
         fulfillmentType: 'FCL_CONTAINER',
         cargoMode: 'FCL',
-        dispatchClassification: 'CLAMP',
+        dispatchClassification: 'COMBINED',
         sourceShipmentVersion: shipment.version,
         siteSnapshot: {},
       }).returning();
