@@ -517,6 +517,7 @@ export async function issueOrderCreateOrUpdate(
       externalPlateNumber,
       externalDriverName,
       externalDriverPhone,
+      trailerId,
     }, tx);
     const [linked] = await tx.update(s.trips).set({
       shipmentId: shipment.id,

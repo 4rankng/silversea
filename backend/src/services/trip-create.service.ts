@@ -81,6 +81,9 @@ export async function createTrip(data: {
   externalDriverPhone?: string | null;
   fuelSupplierId?: number | null;
   fuelActualUnitPrice?: number | null;
+  /** Explicit trailer resolved by the caller (e.g. dispatch planning). When
+   *  set, skips the truck.currentTrailerId fallback. */
+  trailerId?: number | null;
   // Wave 0: optional link to the shipment this trip fulfills. When set, the
   // shipment must exist + still be open for dispatching, and the shipment's containers are
   // snapshotted into the new trip. When
@@ -230,7 +233,7 @@ export async function createTrip(data: {
       if (!truck) {
         throw new ApiError(400, 'Xe đầu kéo không tồn tại');
       }
-      const resolved = await resolveTrailer(tx, truck.currentTrailerId);
+      const resolved = await resolveTrailer(tx, data.trailerId ?? truck.currentTrailerId);
       trailerId = resolved.trailerId;
       trailerType = (resolved.trailerType || truck.trailerType || '40FT') as '20FT' | '40FT';
     }
