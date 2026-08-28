@@ -1,142 +1,64 @@
-# .understandignore — patterns for files/dirs to exclude from analysis
-# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
-# Lines below are suggestions — uncomment to activate.
-# Use ! prefix to force-include something excluded by defaults.
+# Understand-Anything scope for the Silversea (TingTing) knowledge base.
 #
-# Built-in defaults (always excluded unless negated):
-#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+# Scope = backend services/routes/db + shared contracts/calculations + infra.
+# Frontend UI, tests, plans, and docs are intentionally excluded to keep the
+# graph focused on domain logic. Re-include any of them here to broaden scope.
 #
+# Syntax mirrors .gitignore: patterns are ignored, `!` re-includes.
 
-# --- From .gitignore (uncomment to exclude) ---
+# --- Drop everything, then re-include the scope (allowlist model) ---
+*
+!*/
 
-# .DS_Store
-# */.DS_Store
-# *.exe
-# *.exe~
-# *.dll
-# *.so
-# *.dylib
-# *.test
-# *.out
-# *.prof
-# bin/
-# .codegraph
-# graphify-out/
-# .antigravitycli/
-# .env
-# .env.local
-# .env.development.local
-# .env.test.local
-# .env.production.local
-# npm-debug.log*
-# yarn-debug.log*
-# yarn-error.log*
-# pnpm-debug.log*
-# *.tsbuildinfo
-# .parcel-cache/
-# .nuxt/
-# .vuepress/dist/
-# .serverless/
-# .fusebox/
-# .dynamodb/
-# .tern-port
-# *.pyc
-# .claude/
-# .kilo/
-# .crush/
-# .opencode/
-# .omc/
-# .omo/
-# .zcode/*
-# !.zcode/config.json
-# !.zcode/hooks/
-# !.zcode/hooks/understand-staleness.sh
-# frontend/qa-*.js
-# qa/scripts/*
-# HANDOFF.md
-# qa/
-# !qa/README.md
-# .autonomous-sdlc/
-# backend/uploads/
-# kilo.json
-# *.pen
-# .agents
-# .claude-tmp/
-# .ua/*
-# !.ua/config.json
-# !.ua/knowledge-graph.json
-# !.ua/meta.json
-# !.ua/fingerprints.json
-# !.ua/.understandignore
+# Re-include the core scope directories
+!backend/src/
+!backend/src/**
+!shared/src/
+!shared/src/**
 
-# --- Detected directories (uncomment to exclude) ---
+# Backend root config & infra
+!backend/package.json
+!backend/tsconfig.json
+!backend/tsconfig.build.json
+!backend/drizzle.config.ts
+!backend/Dockerfile
+!backend/Makefile
+!backend/.dockerignore
 
-# docs/ is KEPT: architectural docs are part of the knowledge base
-scripts/
-e2e/
-qa/
-plans/
-homepage/
+# Root manifests & infra
+!/package.json
+!/pnpm-workspace.yaml
+!/tsconfig.base.json
+!/eslint.config.mjs
+!/Makefile
+!/docker-compose.dev.yml
+!/.dockerignore
+!/deploy/**
+!/AGENTS.md
+!/CONTEXT.md
 
-# generated / vendored / lockfiles
-**/pnpm-lock.yaml
-**/package-lock.json
-**/drizzle/meta/
-# tool self-bundles — would duplicate every node in the graph
-repomix-output.xml
-# the plugin's own output artifacts — must never feed back into analysis
-.ua/
+# --- Re-exclude noise inside the allowed scope (negate re-includes above) ---
 
-# --- Test file patterns (uncomment to exclude) ---
+# Tests everywhere
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+backend/src/tests/**
+shared/src/**/*.test.ts
 
-# NOTE: tests are intentionally KEPT in the graph — the plugin emits
-# `tested_by` edges (production → test) that are valuable for navigation.
+# Build artifacts & tooling state
+**/dist/**
+**/graphify-out/**
+**/node_modules/**
+**/.omc/**
+**/uploads/**
+**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
 
-# JS / TS
-# *.test.*
-# *.spec.*
-# *.snap
-# C# / .NET
-# **/*Tests.cs
-# **/*Test.cs
-# **/*Fixture.cs
-# **/*.Tests.csproj
-# Java / Kotlin
-# **/src/test/**
-# **/*Test.java
-# **/*IT.java
-# **/*Spec.kt
-# Go
-# **/*_test.go
-# C++
-# **/*_test.cc
-# **/*_test.cpp
-# **/*_test.cxx
-# **/*Test.cc
-# **/*Test.cpp
-# **/*_unittest.cc
-# **/*_unittest.cpp
-# **/*_browsertest.cc
-# **/*_benchmark.cc
-# **/*Benchmark.cpp
-# Python
-# **/test_*.py
-# **/*_test.py
-# **/tests.py
-# **/conftest.py
-# Rust
-# **/tests.rs
-# **/test_*.rs
-# **/*_test.rs
-# **/bench_*.rs
-# **/*_bench.rs
-# Ruby
-# **/*_spec.rb
-# **/*_test.rb
-# **/test_*.rb
-# **/spec_helper.rb
-# **/test_helper.rb
-# **/rails_helper.rb
-# Swift
-# **/Tests/**/*.swift
-# **/Specs/**/*.swift
+# Type/fixture noise under src
+backend/src/**/*.d.ts
+
+# Backend scripts (one-off maintenance, not core logic)
+backend/src/scripts/**
+backend/src/reset-seed.ts
