@@ -17,7 +17,6 @@ import {
   ShieldAlert,
   StickyNote,
   Truck,
-  WalletCards,
 } from 'lucide-react';
 import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
@@ -35,10 +34,8 @@ import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } f
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { ApiError } from '../lib/api';
 import { photoSrc } from '../lib/api/photo';
-import { formatCurrency, formatDateTimeShort } from '../lib/format';
+import { formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
-import { useGeolocation } from '../hooks/useGeolocation';
-import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolocation';
 import {
   buildOfflineCommandKey,
   type OfflineCommand,
@@ -110,60 +107,10 @@ const MILESTONES: Array<{
   },
 ];
 
-const FUEL_EVIDENCE_OUTCOME_LABELS = {
-  ACCEPTED: 'Ảnh bơm hợp lệ',
-  UNREADABLE: 'Ảnh mờ hoặc không đọc được',
-  MULTI_SCREEN: 'Ảnh có nhiều màn hình',
-  NON_PUMP: 'Ảnh không phải màn hình bơm',
-  ANOMALY: 'Số liệu cần kế toán soát',
-} as const;
-
-const FUEL_EVIDENCE_REVIEW_LABELS = {
-  PENDING: 'Chờ kế toán xác nhận',
-  CONFIRMED: 'Kế toán đã xác nhận',
-  REJECTED: 'Kế toán từ chối',
-} as const;
-
 const formatDateTime = formatDateTimeShort;
 
 function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
-}
-
-/**
- * Classify a command send error for the offline queue.
- *
- * A 409 (version mismatch, sequencing violation, or a domain conflict such as
- * "vehicle already on another trip") or 428 (precondition required) is a
- * terminal *conflict* — the queue must stop retrying and surface the server's
- * Vietnamese message so the driver understands the blocker. Any other failure
- * (network blip, 5xx, auth) is treated as a retryable *network* error.
- *
- * NOTE: we inspect `ApiError.status`, never the message. The message is a
- * Vietnamese human-readable string and never contains the HTTP status code, so
- * a regex on `error.message` would silently misclassify every API error as a
- * network failure and trap the command in an infinite auto-retry loop.
- */
-function fuelEvidenceUploadErrorMessage(error: unknown): string {
-  if (isGeolocationError(error)) {
-    const issue = getLocationPermissionIssue(error);
-    switch (issue.type) {
-      case 'denied':
-        return 'Chưa được cấp quyền vị trí. Hãy cho phép GPS rồi chụp lại ảnh nhiên liệu.';
-      case 'timeout':
-        return 'GPS phản hồi chậm. Vui lòng thử lại khi thiết bị bắt vị trí tốt hơn.';
-      case 'unavailable':
-        return 'Thiết bị chưa bắt được GPS. Vui lòng thử lại ở nơi có tín hiệu tốt hơn.';
-      case 'inaccurate':
-        return 'GPS chưa đủ chính xác để lưu ảnh nhiên liệu. Vui lòng thử lại.';
-      default:
-        return 'Thiết bị không hỗ trợ GPS để lưu ảnh nhiên liệu.';
-    }
-  }
-  if (error instanceof ApiError) return error.message;
-  return error instanceof Error && error.message
-    ? error.message
-    : 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.';
 }
 
 function getLatestMilestoneEvent(
@@ -246,10 +193,8 @@ export default function DriverTripDetailPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const online = useOnline();
-  const geolocation = useGeolocation();
   const [creatingDraft, setCreatingDraft] = useState(false);
   const [uploadingPod, setUploadingPod] = useState(false);
-  const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [uploadingContainerPhoto, setUploadingContainerPhoto] = useState(false);
   const [uploadingSealPhoto, setUploadingSealPhoto] = useState(false);
 
@@ -458,36 +403,6 @@ export default function DriverTripDetailPage() {
     await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
   }
 
-  async function handleUploadFuelEvidence(file: File) {
-    if (!trip) return;
-    if (!online) {
-      toast({ kind: 'warning', message: 'Cần có mạng để gửi ảnh nhiên liệu cho kế toán.' });
-      return;
-    }
-    setUploadingFuelEvidence(true);
-    try {
-      const location = await geolocation.awaitAccurateSample();
-      const prepared = await compressImageFile(file, { timestamp: new Date() });
-      await driverClient.uploadFuelEvidence({
-        tripId: trip.id,
-        file: prepared,
-        location: {
-          lat: location.lat,
-          lng: location.lng,
-          accuracy: location.accuracy,
-          timestamp: location.timestamp,
-          source: 'phone',
-        },
-      });
-      await refreshAll();
-      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu và chuyển kế toán soát OCR.' });
-    } catch (error) {
-      toast({ kind: 'error', message: fuelEvidenceUploadErrorMessage(error) });
-    } finally {
-      setUploadingFuelEvidence(false);
-    }
-  }
-
   async function handleUploadContainerSealPhoto(type: 'CONTAINER' | 'SEAL', file: File) {
     if (!trip) return;
     const setUploading = type === 'CONTAINER' ? setUploadingContainerPhoto : setUploadingSealPhoto;
@@ -582,7 +497,6 @@ export default function DriverTripDetailPage() {
   // an enabled button reads as a contradiction.
   const blockingReasons = completionReasons.filter((item) => !(podReady && item.label.includes('đã gửi')));
   const paperOrderReady = Boolean(trip.paperOrderCollectedAt && trip.paperOrderCollectedBy);
-  const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the
   // bottom of the screen (spec: "Ghim cố định nút bấm ở đáy màn hình"), not
@@ -766,59 +680,11 @@ export default function DriverTripDetailPage() {
         )}
       </section>
 
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>Bốn mốc thực hiện</span>
-        </div>
-        {!paperOrderReady && nextMilestoneIndex === 0 && (
-          <div className="driver-task-paper-order">
-            <strong className="driver-task-paper-order__title">Nhận lệnh ngay, không cần chờ Ops</strong>
-            <span className="driver-task-paper-order__desc">
-              Ops chưa xác nhận bàn giao lệnh gốc, nhưng bạn vẫn có thể bấm “Nhận lệnh vận chuyển” — hệ thống sẽ đối chiếu giấy tờ sau.
-            </span>
-          </div>
-        )}
-        <div className="driver-task-timeline">
-          {MILESTONES.map((milestone, index) => {
-            const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
-            const command = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, milestone.eventType);
-            const state = timelineState(Boolean(event), command, nextMilestoneIndex, index);
-            const isAcceptStep = milestone.eventType === DriverProgressEventType.ORDER_RECEIVED;
-            // Accepting is now the sticky bottom button (Block 7 of the spec) —
-            // this step stays as a status card, not a second clickable CTA for
-            // the same action.
-            const clickable = !isAcceptStep && (state === 'available' || state === 'retry');
-            const stepTitle = isAcceptStep && state !== 'done' ? 'Nhận lệnh vận chuyển' : milestone.title;
-            return (
-              <button
-                type="button"
-                key={milestone.eventType}
-                className={`driver-task-step driver-task-step--${state}`}
-                disabled={!clickable}
-                onClick={() => void handleMilestone(milestone.eventType)}
-              >
-                <div className="driver-task-step__top">
-                  <span className="driver-task-step__count">Bước {index + 1}</span>
-                  <span className="driver-task-step__state">{timelineStateLabel(state)}</span>
-                </div>
-                <strong className="driver-task-step__title">{stepTitle}</strong>
-                <p className="driver-task-step__help">{milestone.help}</p>
-                {state === 'conflict' && command?.lastError ? (
-                  <p className="driver-task-step__conflict">{command.lastError}</p>
-                ) : null}
-                <div className="driver-task-step__foot">
-                  <span>{event ? formatDateTime(event.occurredAt) : 'Chưa ghi nhận'}</span>
-                  {isAcceptStep && state !== 'done' && <span>Dùng nút “Nhận lệnh vận chuyển” ở đáy màn hình</span>}
-                  {!isAcceptStep && state === 'available' && <span>Nhấn để xác nhận</span>}
-                  {!isAcceptStep && state === 'retry' && <span>Nhấn để gửi lại</span>}
-                  {state === 'conflict' && <span>Tải lại dữ liệu chuyến</span>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
+      {/* Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí
+          (Frontend). Bốn mốc thực hiện + Ảnh nhiên liệu + Thu nhập tham chiếu
+          không render trên UI. Backend vẫn giữ schema + endpoints (xem
+          driver_incidental_costs / fuel_evidence_reviews / driver_salary /
+          total_road_allowance) cho phase tiếp theo. */}
       <section className="driver-task-section">
         <div className="driver-task-section__head">
           <span>e-POD giao hàng</span>
@@ -836,93 +702,6 @@ export default function DriverTripDetailPage() {
           onUploadFile={handleUploadPodFile}
           onSubmit={handleSubmitPod}
         />
-      </section>
-
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>Ảnh nhiên liệu</span>
-        </div>
-        <div className="driver-task-fuel-section">
-          <div className="driver-task-fuel-card">
-            <div className="driver-task-fuel-header">
-              <div>
-                <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
-                <div className="driver-task-fuel-subtitle">
-                  {latestFuelEvidence
-                    ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
-                    : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
-                </div>
-              </div>
-              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
-                <Camera size={16} />
-                <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: 'none' }}
-                  disabled={uploadingFuelEvidence}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.currentTarget.value = '';
-                    if (file) void handleUploadFuelEvidence(file);
-                  }}
-                />
-              </label>
-            </div>
-
-            {!online && (
-              <div className="driver-task-fuel-offline">
-                Thiết bị đang ngoại tuyến. Ảnh nhiên liệu chỉ gửi được khi có mạng.
-              </div>
-            )}
-
-            {latestFuelEvidence && (
-              <div className="driver-task-fuel-details">
-                <div className="driver-task-fuel-grid">
-                  <img
-                    src={latestFuelEvidence.photoUrl}
-                    alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
-                    className="driver-task-fuel-img"
-                  />
-                  <div className="driver-task-fuel-facts">
-                    <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
-                    <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
-                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
-                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
-                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
-                    <div><strong>GPS:</strong> {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? `${latestFuelEvidence.latitude}, ${latestFuelEvidence.longitude}` : 'Chưa có'}</div>
-                  </div>
-                </div>
-                {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
-                  <div className="driver-task-fuel-notes">
-                    {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
-                    {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
-                    {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>Thu nhập tham chiếu</span>
-        </div>
-        <div className="driver-task-finance">
-          <TaskFact
-            icon={<WalletCards size={16} />}
-            label="Lương phân bổ"
-            value={trip.driverSalary ? formatCurrency(trip.driverSalary) : '—'}
-          />
-          <TaskFact
-            icon={<WalletCards size={16} />}
-            label="Tiền đi đường"
-            value={trip.totalRoadAllowance ? formatCurrency(trip.totalRoadAllowance) : '—'}
-          />
-        </div>
       </section>
 
       {trip.legs.length > 0 && (

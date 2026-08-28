@@ -35,12 +35,10 @@ const {
   useDriverTaskDetailMock,
   useDriverTaskProgressMock,
   useDriverEvidenceStatusMock,
-  awaitAccurateSampleMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
   useDriverTaskProgressMock: vi.fn(),
   useDriverEvidenceStatusMock: vi.fn(),
-  awaitAccurateSampleMock: vi.fn(),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
@@ -59,12 +57,6 @@ vi.mock('../hooks/useBackShortcut', () => ({
 
 vi.mock('../hooks/useOnline', () => ({
   useOnline: () => true,
-}));
-
-vi.mock('../hooks/useGeolocation', () => ({
-  useGeolocation: () => ({
-    awaitAccurateSample: awaitAccurateSampleMock,
-  }),
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -186,7 +178,6 @@ function renderPage() {
 describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
   beforeEach(() => {
     isShipmentCostEntryEnabledMock.mockReset();
-    awaitAccurateSampleMock.mockReset();
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -211,7 +202,8 @@ describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
     isShipmentCostEntryEnabledMock.mockReturnValue(false);
     renderPage();
 
-    expect(await screen.findByText(/Bốn mốc thực hiện/)).toBeTruthy();
+    // Wait for the page to mount via the sticky accept bar.
+    expect(await screen.findByTestId('accept-sticky-bar')).toBeTruthy();
     expect(screen.queryByText('Nhập chi phí lô hàng')).toBeNull();
     expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
     expect(screen.queryByText('Báo cáo đổ dầu')).toBeNull();
@@ -222,7 +214,8 @@ describe('DriverTripDetailPage — shipment cost entry feature flag', () => {
     isShipmentCostEntryEnabledMock.mockReturnValue(true);
     renderPage();
 
-    expect(await screen.findByText('Nhập chi phí lô hàng')).toBeTruthy();
+    expect(await screen.findByTestId('accept-sticky-bar')).toBeTruthy();
+    expect(screen.getByText('Nhập chi phí lô hàng')).toBeTruthy();
     expect(screen.getByTestId('shipment-cost-entry-form')).toBeTruthy();
     expect(screen.getByText('Báo cáo đổ dầu')).toBeTruthy();
     expect(screen.getByTestId('fuel-refill-report-form')).toBeTruthy();

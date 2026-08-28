@@ -20,7 +20,6 @@ const {
   useDriverTaskDetailMock,
   useDriverTaskProgressMock,
   useDriverEvidenceStatusMock,
-  awaitAccurateSampleMock,
   commandsMock,
   enqueueMock,
   drainMock,
@@ -29,7 +28,6 @@ const {
   useDriverTaskDetailMock: vi.fn(),
   useDriverTaskProgressMock: vi.fn(),
   useDriverEvidenceStatusMock: vi.fn(),
-  awaitAccurateSampleMock: vi.fn(),
   commandsMock: vi.fn<() => MockOfflineCommand[]>(() => []),
   enqueueMock: vi.fn(),
   drainMock: vi.fn(),
@@ -52,12 +50,6 @@ vi.mock('../hooks/useBackShortcut', () => ({
 
 vi.mock('../hooks/useOnline', () => ({
   useOnline: () => true,
-}));
-
-vi.mock('../hooks/useGeolocation', () => ({
-  useGeolocation: () => ({
-    awaitAccurateSample: awaitAccurateSampleMock,
-  }),
 }));
 
 vi.mock('../hooks/useAuth', () => ({
@@ -184,13 +176,6 @@ describe('DriverTripDetailPage', () => {
     enqueueMock.mockReset();
     drainMock.mockReset();
     toastMock.mockReset();
-    awaitAccurateSampleMock.mockReset();
-    awaitAccurateSampleMock.mockResolvedValue({
-      lat: 10.77,
-      lng: 106.69,
-      accuracy: 12,
-      timestamp: Date.now(),
-    });
     drainMock.mockResolvedValue({ done: 0, failed: 0, conflicts: 0 });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
@@ -215,17 +200,33 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it('renders the four ordered milestones and blocks handoff until evidence is ready', async () => {
+  // Spec (Phần 1, Lưu ý xây dựng app): Tạm thời ẨN module Chi phí + Bốn mốc
+  // thực hiện + Ảnh nhiên liệu + Thu nhập tham chiếu. The driver page should
+  // expose only the sticky "Nhận lệnh vận chuyển" accept bar and the single
+  // "Hoàn thành chuyến" footer button.
+  it('does not render the hidden cost module UI (4-milestone timeline, fuel section, reference income)', async () => {
     renderPage();
 
-    expect(await screen.findByText(/Bốn mốc thực hiện/)).toBeTruthy();
-    // "Nhận lệnh vận chuyển" appears twice by design: as the (now
-    // non-clickable) Bước 1 status title, and as the sticky bottom button's
-    // label — getAllByText covers both without ambiguity.
-    expect(screen.getAllByText('Nhận lệnh vận chuyển').length).toBe(2);
-    expect(screen.getByText('Đã lấy vỏ / Lấy hàng')).toBeTruthy();
-    expect(screen.getByText('Đang đóng / Trả hàng')).toBeTruthy();
-    expect(screen.getByText('Đã hạ bãi / Giao hàng xong')).toBeTruthy();
+    await screen.findByTestId('accept-sticky-bar');
+    expect(screen.queryByText(/Bốn mốc thực hiện/)).toBeNull();
+    expect(screen.queryByText('Đã lấy vỏ / Lấy hàng')).toBeNull();
+    expect(screen.queryByText('Đang đóng / Trả hàng')).toBeNull();
+    expect(screen.queryByText('Đã hạ bãi / Giao hàng xong')).toBeNull();
+    expect(screen.queryByText('Ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByText('Chụp ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
+    expect(screen.queryByText('Lương phân bổ')).toBeNull();
+    expect(screen.queryByText('Tiền đi đường')).toBeNull();
+    // The hidden module is gated by feature flag, default off.
+    expect(screen.queryByTestId('shipment-cost-entry-form')).toBeNull();
+    expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
+  });
+
+  it('renders the sticky accept bar and the single HOÀN THÀNH CHUYẾN footer button', async () => {
+    renderPage();
+
+    const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
+    expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByText(/Thiếu biên bản giao nhận có ký nhận/)).toBeTruthy();
   });
@@ -361,7 +362,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).matches(':disabled')).toBe(true);
   });
 
-  it('queues the next available milestone with the trip version and fulfillment id', async () => {
+  it('queues the ORDER_RECEIVED milestone with the trip version and fulfillment id when sticky accept is clicked', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
@@ -381,15 +382,6 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it('disables the inline Bước 1 card so accepting only happens via the sticky bottom button', async () => {
-    renderPage();
-
-    await screen.findByTestId('accept-sticky-bar');
-    const inlineAcceptCard = screen.getByRole('button', { name: /Nhận lệnh vận chuyển.*Xác nhận đã nhận lệnh giấy/s });
-    expect(inlineAcceptCard.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText('Dùng nút “Nhận lệnh vận chuyển” ở đáy màn hình')).toBeTruthy();
-  });
-
   it('hides the sticky accept bar once the order has already been accepted', async () => {
     useDriverTaskProgressMock.mockReturnValue({
       data: {
@@ -406,32 +398,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByText(/Bốn mốc thực hiện/);
+    expect(await screen.findByTestId('container-seal-photo-section')).toBeTruthy();
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
-  });
-
-  it('shows queued milestone retry state when fulfillment id differs from trip id', async () => {
-    commandsMock.mockReturnValue([{
-      id: 'queued-picked-up',
-      endpoint: 'driver.task.milestone',
-      method: 'POST',
-      path: '/driver/me/fulfillments/88/progress',
-      payload: {
-        kind: 'milestone',
-        fulfillmentId: 88,
-        eventType: DriverProgressEventType.PICKED_UP,
-        expectedVersion: 3,
-        occurredAt: '2026-08-01T01:00:00.000Z',
-      },
-      status: 'FAILED',
-      retryCount: 1,
-      lastError: 'offline',
-      createdAt: '2026-08-01T01:00:00.000Z',
-      updatedAt: '2026-08-01T01:01:00.000Z',
-    }]);
-
-    renderPage();
-
-    expect(await screen.findByText('Sẽ thử lại')).toBeTruthy();
   });
 });
