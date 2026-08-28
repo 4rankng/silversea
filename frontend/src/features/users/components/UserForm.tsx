@@ -6,7 +6,7 @@ import {
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
-import type { Customer, Truck } from '@tingting/shared';
+import type { Customer } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, UserRow, CreateData, EditData } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 

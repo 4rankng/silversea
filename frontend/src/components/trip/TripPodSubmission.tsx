@@ -102,10 +102,9 @@ export function TripPodSubmission({
   uploading,
   onEnsureDraft,
   onUploadFile,
-  onSubmit,
+  onSubmit: _onSubmit,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const cameraRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
@@ -143,20 +142,6 @@ export function TripPodSubmission({
     }
   }
 
-  async function handleSubmit() {
-    if (!editableSubmission) return;
-    setSubmitting(true);
-    setUploadError(null);
-    try {
-      await onSubmit(editableSubmission);
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Không thể gửi e-POD.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  const canSubmit = editableSubmission != null && missingRequired.length === 0 && !uploading && !creatingDraft;
   const uploadProgressPercent = Math.round(
     ((REQUIRED_FILE_TYPES.length - missingRequired.length) / REQUIRED_FILE_TYPES.length) * 100,
   );
