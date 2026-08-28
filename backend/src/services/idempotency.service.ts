@@ -73,6 +73,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SHIPMENT_CHANGE_REQUEST_REVIEW: 'shipments.change-requests.review',
   SHIPMENT_FULFILLMENTS_DECOMPOSE: 'shipments.fulfillments.decompose',
   SHIPMENT_SUBMIT_FOR_DISPATCH: 'shipments.submit-for-dispatch',
+  SHIPMENT_HANDOFF_RESOLVE: 'shipments.handoff.resolve',
   SHIPMENT_CARRIER_ALLOCATIONS_ASSIGN: 'shipments.carrier-allocations.assign',
   SHIPMENT_FULFILLMENT_CARRIER_ASSIGN: 'shipments.fulfillments.carrier.assign',
   SHIPMENT_FULFILLMENT_PLATE_ASSIGN: 'shipments.fulfillments.plate.assign',

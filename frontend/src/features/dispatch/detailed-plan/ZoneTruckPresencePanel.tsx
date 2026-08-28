@@ -1,4 +1,7 @@
 import type { ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
+// Styles live with the component so every host page (master plan + detail plan)
+// loads them — DetailedPlanGrid.css is only bundled on /dispatch-detail.
+import './ZoneTruckPresencePanel.css';
 
 const REASON_LABELS: Record<'D-1_DROP' | 'D+1_PICKUP', string> = {
   'D-1_DROP': 'Hạ D-1',

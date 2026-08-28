@@ -27,7 +27,8 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
-import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
+import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
+import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 
 const customerVisibleEventSchema = z.object({
@@ -122,27 +123,67 @@ coordinationRoutes.post(
     if (!parsed.success) throwValidation(parsed.error);
     const actor = getUser(req);
     await getShipmentDetail(shipmentId, actor);
-    if (parsed.data.resolution === 'SEEN') {
-      res.json(await markSeen(handoffId, {
-        actorId: actor.userId,
-        expectedVersion: parsed.data.expectedVersion,
-        expectedShipmentId: shipmentId,
-      }));
-      return;
+
+    // Idempotent resolve (P1#2 closed-loop fix 2026-08-28): replaying the
+    // same Idempotency-Key returns the original result, so a network-retry
+    // by the dispatcher never produces a duplicate fulfillment.
+    const idempotencyKey = getRequestIdempotencyKey(req);
+    if (!idempotencyKey) {
+      throw new ApiError(
+        400,
+        'Idempotency-Key là bắt buộc cho thao tác giải quyết lệnh điều vận.',
+      );
     }
-    if (parsed.data.resolution === 'ACCEPTED') {
-      res.json(await acceptDispatchHandoff({
+
+    const resolution = parsed.data.resolution;
+    const expectedVersion = parsed.data.expectedVersion;
+    const rejectReason = parsed.data.rejectReason ?? null;
+    const typedActor = actor as typeof actor & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER };
+
+    const { result, replayed } = await runIdempotent({
+      endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_HANDOFF_RESOLVE,
+      idempotencyKey,
+      payload: {
         shipmentId,
         handoffId,
-        expectedVersion: parsed.data.expectedVersion,
-        actor: actor as typeof actor & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
-      }));
-      return;
-    }
-    res.json(await resolveHandoff(handoffId, parsed.data.resolution, actor.userId, parsed.data.expectedVersion, {
-      rejectReason: parsed.data.rejectReason,
-      expectedShipmentId: shipmentId,
-    }));
+        resolution,
+        expectedVersion,
+        rejectReason,
+        actorId: actor.userId,
+      },
+      createdBy: actor.userId,
+      entityType: 'dispatch_handoff',
+      getEntityId: (r: { handoff?: { id: number } | null }) => r.handoff?.id ?? handoffId,
+      create: async () => {
+        if (resolution === 'SEEN') {
+          return {
+            handoff: await markSeen(handoffId, {
+              actorId: actor.userId,
+              expectedVersion,
+              expectedShipmentId: shipmentId,
+            }),
+            fulfillments: [],
+          };
+        }
+        if (resolution === 'ACCEPTED') {
+          return await acceptDispatchHandoff({
+            shipmentId,
+            handoffId,
+            expectedVersion,
+            actor: typedActor,
+          });
+        }
+        return {
+          handoff: await resolveHandoff(handoffId, resolution, actor.userId, expectedVersion, {
+            rejectReason,
+            expectedShipmentId: shipmentId,
+          }),
+          fulfillments: [],
+        };
+      },
+    });
+
+    res.json({ ...result, replayed });
   }),
 );
 

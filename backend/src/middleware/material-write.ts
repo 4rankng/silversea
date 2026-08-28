@@ -219,7 +219,7 @@ const MATERIAL_WRITE_RULES: readonly MaterialWriteRule[] = [
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_SUBMIT_FOR_DISPATCH, pattern: /^\/api\/shipments\/[^/]+\/submit-for-dispatch$/ },
   { method: 'POST', endpoint: 'shipments.customer-events.create', pattern: /^\/api\/shipments\/[^/]+\/customer-events$/ },
   { method: 'POST', endpoint: 'shipments.dispatch-handoffs.create', pattern: /^\/api\/shipments\/[^/]+\/dispatch-handoffs$/ },
-  { method: 'POST', endpoint: 'shipments.dispatch-handoffs.resolve', pattern: /^\/api\/shipments\/[^/]+\/dispatch-handoffs\/[^/]+\/resolve$/ },
+  { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_HANDOFF_RESOLVE, pattern: /^\/api\/shipments\/[^/]+\/dispatch-handoffs\/[^/]+\/resolve$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DOCUMENT_ATTACH, pattern: /^\/api\/shipments\/[^/]+\/documents$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DOCUMENT_REPLACE, pattern: /^\/api\/shipments\/[^/]+\/documents\/[^/]+\/replace$/ },
   { method: 'POST', endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_CREATE, pattern: /^\/api\/shipments\/[^/]+\/declarations$/ },
