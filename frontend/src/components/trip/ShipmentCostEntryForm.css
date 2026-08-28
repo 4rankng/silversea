@@ -56,7 +56,6 @@
 
 .shipment-cost-entry__auto-value {
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
