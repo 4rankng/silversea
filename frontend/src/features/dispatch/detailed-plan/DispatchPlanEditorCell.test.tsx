@@ -193,8 +193,18 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
 
-  it('issues an OWN order with the resolved truck/driver and closes the dialog', async () => {
-    const onIssueOrder = vi.fn().mockResolvedValue({
+  it('pre-fills issue times from the row schedule instead of the wall clock', async () => {
+    const onIssueOrder = vi.fn();
+    renderCell(row(), { onIssueOrder });
+    await openDialog();
+    const startInput = document.getElementById('dispatch-issue-start-101') as HTMLInputElement;
+    const endInput = document.getElementById('dispatch-issue-end-101') as HTMLInputElement;
+    expect(startInput.value).toBe('2026-08-20T08:00');
+    expect(endInput.value).toBe('2026-08-20T10:00');
+    expect(onIssueOrder).not.toHaveBeenCalled();
+  });
+
+  it('issues an OWN order with the resolved truck/driver and closes the dialog', async () => {    const onIssueOrder = vi.fn().mockResolvedValue({
       fulfillmentId: 101, version: 4,
       trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
       notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },

@@ -24,6 +24,20 @@ function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
   return { plannedStartAt: toDatetimeLocalValue(start), plannedEndAt: toDatetimeLocalValue(end) };
 }
 
+/** Quick-issue draft times: prefer the row's CUS-locked schedule (deliveryDate
+ *  + runHour derive from the customer appointment / closing time) so "Giờ chạy"
+ *  starts from the appointment instead of the wall clock. The clock default is
+ *  only the fallback for rows without a schedule hour. */
+function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: string; plannedEndAt: string } {
+  const date = row.time?.deliveryDate;
+  const hour = row.time?.runHour;
+  if (!date || hour == null || hour < 0 || hour > 23) return defaultIssueTimes();
+  const startAt = new Date(`${date}T${pad2(hour)}:00`);
+  if (Number.isNaN(startAt.getTime())) return defaultIssueTimes();
+  const endAt = new Date(startAt.getTime() + 2 * 60 * 60_000);
+  return { plannedStartAt: toDatetimeLocalValue(startAt), plannedEndAt: toDatetimeLocalValue(endAt) };
+}
+
 export interface IssueOrderDraft {
   plannedStartAt: string;
   plannedEndAt: string;
@@ -61,7 +75,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
   const [ownTruck, setOwnTruck] = useState<OwnTruckDriver | null>(null);
   const [loadingOwnTruck, setLoadingOwnTruck] = useState(false);
   const [issueDraft, setIssueDraft] = useState<IssueOrderDraft>(() => ({
-    ...defaultIssueTimes(),
+    ...draftIssueTimesFor(row),
     externalDriverName: '',
     externalDriverPhone: '',
   }));
@@ -89,10 +103,11 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
 
   useEffect(() => {
     if (open) {
-      setIssueDraft({ ...defaultIssueTimes(), externalDriverName: '', externalDriverPhone: '' });
+      setIssueDraft({ ...draftIssueTimesFor(row), externalDriverName: '', externalDriverPhone: '' });
       setIssueError(null);
     }
-  }, [open, row.fulfillmentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on row identity/version change; full `row` identity flips on every board refetch and would clobber in-progress dispatcher input
+  }, [open, row.fulfillmentId, row.version]);
 
   async function issue() {
     if (issuing || !canIssue) return;
