@@ -27,6 +27,7 @@ import { TRIP_STATUS_LABELS, TripPodFileType } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
+import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
@@ -52,8 +53,6 @@ export function DriverTripPodPage() {
 
   const tripId = Number(tripIdParam);
   const validFulfillmentId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
-
-  useBackShortcut(() => navigate('/my-trips', { replace: true }));
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
 
@@ -126,10 +125,7 @@ export function DriverTripPodPage() {
 
   // The two mandatory e-POD categories per 27.8 spec. The driver must upload
   // both before they can hit "Hoàn thành chuyến".
-  const podFilesByType = currentSubmission?.files ?? [];
-  const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
-  const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
-  const podReady = hasYardReceipt && hasSignedNote;
+  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   // Same gate the trip-detail footer enforced before the split: an accounting
   // lock freezes the trip — e-POD photos stay visible, completion does not.
   const completionBlocked = !validFulfillmentId
@@ -185,7 +181,7 @@ export function DriverTripPodPage() {
     try {
       // TripPodSubmission already compressed this file with the burn-in
       // timestamp before calling — pass it through untouched.
-      await driverClient.attachPodFile({
+      const uploaded = await driverClient.attachPodFile({
         tripId: validFulfillmentId,
         submissionId: submission.id,
         fileType,
@@ -193,6 +189,10 @@ export function DriverTripPodPage() {
         file,
       });
       await refreshAll();
+      // Same confirmation the inline e-POD widget gave before the split: the
+      // child only surfaces failures, so the page owns the success feedback.
+      const label = uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name;
+      toast({ kind: 'success', message: `Đã lưu tệp ${label}.` });
     } finally {
       setUploadingPod(false);
     }
@@ -293,6 +293,9 @@ export function DriverTripPodPage() {
     () => navigate(validFulfillmentId ? `/my-trips/${validFulfillmentId}` : '/my-trips', { replace: true }),
     [navigate, validFulfillmentId],
   );
+  // ESC/hardware back mirrors the header back button: both return to the trip
+  // detail the driver came from, not straight to the journey board.
+  useBackShortcut(handleBack);
 
   if (!validFulfillmentId) {
     return (
@@ -377,9 +380,9 @@ export function DriverTripPodPage() {
             <span>e-POD bắt buộc</span>
           </div>
           <TripPodSubmission
-            tripId={trip?.id ?? validFulfillmentId}
-            tripCode={trip?.tripCode ?? null}
-            tripVersion={trip?.version ?? 0}
+            tripId={trip.id}
+            tripCode={trip.tripCode}
+            tripVersion={trip.version}
             currentSubmission={currentSubmission}
             history={podHistory}
             pendingCommands={tripCommands}
@@ -406,7 +409,7 @@ export function DriverTripPodPage() {
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
               </ul>
             )}
-            {podReady && trip?.status === 'IN_TRANSIT' && (
+            {podReady && trip.status === 'IN_TRANSIT' && (
               <div className="driver-task-footer__ready">
                 <CheckCircle2 size={16} />
                 <span>Đủ điều kiện hoàn thành chuyến.</span>
@@ -423,7 +426,7 @@ export function DriverTripPodPage() {
             <span>
               {completing || submitting
                 ? 'Đang gửi…'
-                : trip?.status === 'COMPLETED'
+                : trip.status === 'COMPLETED'
                   ? 'Đã hoàn thành chuyến'
                   : 'Hoàn thành chuyến'}
             </span>

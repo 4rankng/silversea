@@ -24,6 +24,7 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { FuelRefillReportForm } from '../components/trip/FuelRefillReportForm';
 import { tripStatusVariant } from '../lib/tripStatus';
+import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
@@ -427,10 +428,7 @@ export default function DriverTripDetailPage() {
   // (/my-trips/:id/pod) — this page only links there. The footer still
   // surfaces the two mandatory-photo gaps so the driver knows what is missing
   // before tapping through.
-  const podFilesByType = currentSubmission?.files ?? [];
-  const hasYardReceipt = podFilesByType.some((f) => f.fileType === 'YARD_OR_DROP_RECEIPT');
-  const hasSignedNote = podFilesByType.some((f) => f.fileType === 'SIGNED_DELIVERY_NOTE');
-  const podReady = hasYardReceipt && hasSignedNote;
+  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const latestFuelEvidence = trip.fuelEvidenceReviews?.[0] ?? null;
 
   // Layer 2 Block 7: "Nhận lệnh vận chuyển" is a sticky button pinned to the

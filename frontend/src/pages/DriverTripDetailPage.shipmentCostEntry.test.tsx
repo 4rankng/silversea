@@ -60,7 +60,7 @@ vi.mock('../hooks/useGeolocation', () => ({
 }));
 
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 5, role: 'DRIVER' } }),
+  useAuth: () => ({ user: { userId: 5, role: 'DRIVER' } }),
 }));
 
 vi.mock('../components/shared/Toast', () => ({
