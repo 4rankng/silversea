@@ -57,6 +57,7 @@ describe('DetailedPlanFilters', () => {
     expect(container.querySelectorAll('[data-input-wrapper]')).toHaveLength(2);
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tất cả ngày' }).getAttribute('aria-pressed')).toBe('true');
     const dateMode = screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' });
     const selectedDateMode = within(dateMode).getByRole('button', { name: 'Tất cả ngày' });
@@ -64,8 +65,11 @@ describe('DetailedPlanFilters', () => {
     expect(selectedDateIcon).toBeTruthy();
     expect(selectedDateIcon?.parentElement).toBe(selectedDateMode);
     expect(within(dateMode).getByRole('button', { name: 'Hôm nay' }).querySelector('svg')).toBeNull();
+    expect(within(dateMode).getByRole('button', { name: 'Hôm sau' }).querySelector('svg')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả ngày' }));
     expect(onChange).toHaveBeenCalledWith({ date: '' });
 
@@ -237,7 +241,7 @@ describe('DetailedPlanFilters', () => {
     expect(within(drawer).getByRole('button', { name: 'Đặt lại' })).toBeTruthy();
   });
 
-  it('always exposes today and all-days shortcuts for transport date', () => {
+  it('always exposes today, next-day and all-days shortcuts for transport date', () => {
     const onChange = vi.fn();
     render(
       <DetailedPlanFilters
@@ -254,9 +258,12 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByLabelText('Ngày vận chuyển')).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm nay' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Hôm sau' }).getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: 'Tất cả ngày' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
+    fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
+    expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
     fireEvent.click(screen.getByRole('button', { name: 'Tất cả ngày' }));
     expect(onChange).toHaveBeenCalledWith({ date: '' });
   });

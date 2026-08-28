@@ -248,6 +248,7 @@ export function DetailedPlanFilters({
 }: DetailedPlanFiltersProps) {
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const today = businessDateISO();
+  const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
   const activeDrawerFilterCount = [
     filters.direction,
     filters.assignmentStatus,
@@ -313,6 +314,17 @@ export function DetailedPlanFilters({
               iconLeading={filters.date === today ? <Check aria-hidden="true" /> : undefined}
             >
               Hôm nay
+            </UUIButton>
+            <UUIButton
+              className={`detailed-plan-filters__date-shortcut${filters.date === tomorrow ? ' is-active' : ''}`}
+              size="sm"
+              color="secondary"
+              onPress={() => onChange({ date: tomorrow })}
+              aria-label="Hôm sau"
+              aria-pressed={filters.date === tomorrow}
+              iconLeading={filters.date === tomorrow ? <Check aria-hidden="true" /> : undefined}
+            >
+              Hôm sau
             </UUIButton>
             <UUIButton
               className={`detailed-plan-filters__date-shortcut${filters.date === '' ? ' is-active' : ''}`}
