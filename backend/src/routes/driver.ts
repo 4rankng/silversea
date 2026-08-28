@@ -23,6 +23,7 @@ import {
   listDriverProgress,
   recordIncidentalCost,
   listIncidentalCosts,
+  updateDriverTripCostSubmissionNote,
   getDriverPayslipPeriods,
   getCompletionEvidenceStatus,
 } from '../services/driver.service';
@@ -48,6 +49,7 @@ import {
 import type { TripPhotoType } from './upload';
 import {
   driverIncidentalCostSchema,
+  driverCostSubmissionNoteSchema,
   driverProgressSchema,
   DriverProgressEventType,
   TripPodFileType,
@@ -581,6 +583,20 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   const driver = await getDriverByUserId(getUser(req).userId);
   const items = await listIncidentalCosts(tripId, driver.id);
   res.json({ items });
+}));
+
+// 27.8 cost-section Ghi chú — driver-written note for accounting to re-check
+// auto-recorded costs (Tiền đường, Phí Lạch Huyện). Idempotent upsert.
+router.put('/trips/:tripId/cost-submission-note', asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const parsed = driverCostSubmissionNoteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const result = await updateDriverTripCostSubmissionNote(tripId, driver.id, parsed.data.note);
+  res.json(result);
 }));
 
 router.post('/trips/:tripId/fuel-evidence', fuelEvidenceUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {

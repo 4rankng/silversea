@@ -1736,6 +1736,15 @@ export const driverIncidentalCostSchema = z.object({
 });
 
 export type DriverIncidentalCostInput = z.infer<typeof driverIncidentalCostSchema>;
+
+// 27.8 cost-section Ghi chú (driver-written note for accounting re-check).
+// Distinct from `driverIncidentalCostSchema.note` (per-line) and from
+// `shipments.operationalNotes` (cus→driver rule copy).
+export const driverCostSubmissionNoteSchema = z.object({
+  note: z.string().max(2000).nullable(),
+});
+
+export type DriverCostSubmissionNoteInput = z.infer<typeof driverCostSubmissionNoteSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

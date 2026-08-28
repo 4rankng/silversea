@@ -443,6 +443,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     driverSalary: s.trips.driverSalary,
     hasReturnCargo: s.trips.hasReturnCargo,
     notes: s.trips.notes,
+    costSubmissionNote: s.trips.costSubmissionNote,
     customerReference: s.trips.customerReference,
     routeName: ROUTE_OPERATIONAL_NAME,
     truckPlate: s.trucks.licensePlate,
@@ -1006,6 +1007,28 @@ async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverInc
     .where(eq(s.driverIncidentalCosts.id, id)).limit(1);
   if (!row) throw new ApiError(404, 'Chi phí không tồn tại');
   return row as DriverIncidentalCost;
+}
+
+/**
+ * Update the 27.8 cost-section Ghi chú on a trip. Distinct from the per-line
+ * `driver_incidental_costs.note` (which explains an individual entry) and from
+ * `shipments.operationalNotes` (which is cus/dispatcher→driver rule copy).
+ * The driver writes this when the auto-recorded cost (Tiền đường) is wrong so
+ * kế toán can re-check. Empty/whitespace-only input is stored as NULL.
+ */
+export async function updateDriverTripCostSubmissionNote(
+  tripId: number,
+  driverId: number,
+  note: string | null,
+): Promise<{ tripId: number; costSubmissionNote: string | null }> {
+  await assertTripOwnedByDriver(tripId, driverId);
+  const cleaned = note?.trim() ? note.trim() : null;
+  const [row] = await db.update(s.trips)
+    .set({ costSubmissionNote: cleaned })
+    .where(and(eq(s.trips.id, tripId), eq(s.trips.driverId, driverId), isNull(s.trips.deletedAt)))
+    .returning({ id: s.trips.id, costSubmissionNote: s.trips.costSubmissionNote });
+  if (!row) throw new ApiError(404, 'Không tìm thấy chuyến được giao.');
+  return { tripId: row.id, costSubmissionNote: row.costSubmissionNote };
 }
 
 /**

@@ -57,6 +57,7 @@ const DRIVER_TASK = {
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
+  COST_SUBMISSION_NOTE: (tripId: number) => `/driver/me/trips/${tripId}/cost-submission-note`,
   JOURNEY_BOARD: '/driver/me/journey-board',
 } as const;
 
@@ -184,6 +185,9 @@ export interface DriverTaskDetail {
   driverSalary: string | null;
   hasReturnCargo: boolean | null;
   notes: string | null;
+  /** 27.8 cost-section Ghi chú — driver-written note for accounting re-check
+   *  of auto-recorded costs (Tiền đường / Phí Lạch Huyện). */
+  costSubmissionNote: string | null;
   customerReference: string | null;
   paperOrderCollectedAt?: string | null;
   paperOrderCollectedBy?: number | null;
@@ -553,6 +557,15 @@ export const driverClient = {
       createdAt: string;
     }> }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
     return wire.items;
+  },
+
+  /** 27.8 cost-section Ghi chú — driver-written note for accounting re-check. */
+  updateCostSubmissionNote: async (tripId: number, note: string | null) => {
+    const trimmed = note?.trim() ? note.trim() : null;
+    return api.put<{ tripId: number; costSubmissionNote: string | null }>(
+      DRIVER_TASK.COST_SUBMISSION_NOTE(tripId),
+      { note: trimmed },
+    );
   },
 
   uploadReceiptPhoto: async (args: { tripId: number; file: File }) => {

@@ -134,7 +134,7 @@ export {
   submitShipmentForDispatchSchema, assignShipmentCarriersSchema, shipmentCarrierAllocationSchema,
   carrierFleetVehicleSchema, shipmentAccountingLockSchema,
   cancelShipmentFulfillmentSchema, atomicDispatchPlanEditSchema, tripPodFileMetadataSchema,
-  driverProgressSchema, driverIncidentalCostSchema,
+  driverProgressSchema, driverIncidentalCostSchema, driverCostSubmissionNoteSchema,
   containerTypeSchema, portSchema, sealTypeSchema,
   dispatchZoneSchema, dispatchZoneUpdateSchema,
   debtOffsetSchema, ANCILLARY_EXPENSE_TYPES,

@@ -6,10 +6,12 @@ const {
   listIncidentalCostsMock,
   createIncidentalCostMock,
   uploadReceiptPhotoMock,
+  updateCostSubmissionNoteMock,
 } = vi.hoisted(() => ({
   listIncidentalCostsMock: vi.fn(),
   createIncidentalCostMock: vi.fn(),
   uploadReceiptPhotoMock: vi.fn(),
+  updateCostSubmissionNoteMock: vi.fn(),
 }));
 
 vi.mock('../../api/driverClient', () => ({
@@ -17,6 +19,7 @@ vi.mock('../../api/driverClient', () => ({
     listIncidentalCosts: listIncidentalCostsMock,
     createIncidentalCost: createIncidentalCostMock,
     uploadReceiptPhoto: uploadReceiptPhotoMock,
+    updateCostSubmissionNote: updateCostSubmissionNoteMock,
   },
 }));
 
@@ -71,6 +74,7 @@ describe('ShipmentCostEntryForm', () => {
     listIncidentalCostsMock.mockReset();
     createIncidentalCostMock.mockReset();
     uploadReceiptPhotoMock.mockReset();
+    updateCostSubmissionNoteMock.mockReset();
   });
 
   it('renders the empty state when there are no existing entries', async () => {
@@ -159,5 +163,35 @@ describe('ShipmentCostEntryForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lưu chi phí/ }));
 
     expect(await screen.findByText('Không thể lưu chi phí do lỗi máy chủ.')).toBeTruthy();
+  });
+
+  // 27.8 cost-section Ghi chú — driver-written note for accounting to
+  // re-check the auto-recorded costs (Tiền đường / Phí Lạch Huyện).
+  it('autosaves the section-level Ghi chú after the driver edits and pauses typing', async () => {
+    updateCostSubmissionNoteMock.mockResolvedValue({ tripId: 42, costSubmissionNote: 'Tiền đường chưa đúng' });
+    listIncidentalCostsMock.mockResolvedValue([]);
+
+    renderForm(42, { costSubmissionNote: '' });
+
+    const textarea = await screen.findByLabelText(/^Ghi chú$/);
+    fireEvent.change(textarea, { target: { value: 'Tiền đường chưa đúng' } });
+
+    await waitFor(
+      () => expect(updateCostSubmissionNoteMock).toHaveBeenCalledWith(42, 'Tiền đường chưa đúng'),
+      { timeout: 1500 },
+    );
+  });
+
+  it('does not autosave the section-level Ghi chú when the value is unchanged', async () => {
+    listIncidentalCostsMock.mockResolvedValue([]);
+    renderForm(42, { costSubmissionNote: 'Đã có sẵn' });
+
+    // Field renders with the seeded value
+    const textarea = await screen.findByLabelText(/^Ghi chú$/);
+    expect((textarea as HTMLTextAreaElement).value).toBe('Đã có sẵn');
+
+    // Wait long enough for the 600ms debounce + a small buffer
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    expect(updateCostSubmissionNoteMock).not.toHaveBeenCalled();
   });
 });

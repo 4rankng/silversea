@@ -820,6 +820,7 @@ export default function DriverTripDetailPage() {
           dropPortName={fulfillment?.dropPortName ?? null}
           pickupWarehouseName={fulfillment?.pickupWarehouseName ?? null}
           dropWarehouseName={fulfillment?.dropWarehouseName ?? null}
+          costSubmissionNote={trip.costSubmissionNote ?? null}
         />
       </section>
 

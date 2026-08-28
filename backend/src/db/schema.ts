@@ -721,6 +721,11 @@ export const trips = pgTable('trips', {
   pricingFormula: text('pricing_formula'),
   pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
   notes: text('notes'),
+  // 27.8 cost-section Ghi chú: driver-written note that flags cost anomalies
+  // for accounting (e.g. "Tiền đường trong auto-row sai, vui lòng soát lại").
+  // Distinct from `notes` (general trip memo) and from `shipments.operationalNotes`
+  // (cus/dispatcher→driver rule copy surfaced as "Quy định tại điểm làm hàng").
+  costSubmissionNote: text('cost_submission_note'),
   // Per-trip customer commission (hoa hồng). Deducted from freightExVat to produce recordedRevenue.
   // Recorded immediately on data entry (not at lock). Default 0 = no commission.
   customerCommission: numeric('customer_commission', { precision: 15, scale: 0 }).default('0'),

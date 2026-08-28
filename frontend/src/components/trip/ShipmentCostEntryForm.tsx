@@ -51,6 +51,11 @@ export interface ShipmentCostEntryFormProps {
   dropPortName?: string | null;
   pickupWarehouseName?: string | null;
   dropWarehouseName?: string | null;
+  /** 27.8 cost-section Ghi chú — driver-written note for accounting to
+   *  re-check the auto-recorded costs. Server-seeded initial value
+   *  (NULL on new trips). Distinct from per-line `note` on each cost
+   *  entry (which explains an individual line). */
+  costSubmissionNote?: string | null;
 }
 
 // FUEL has its own dedicated report (FuelRefillReportForm, same flag) per the
@@ -91,6 +96,7 @@ export function ShipmentCostEntryForm({
   dropPortName,
   pickupWarehouseName,
   dropWarehouseName,
+  costSubmissionNote: initialCostSubmissionNote = null,
 }: ShipmentCostEntryFormProps) {
   const [entries, setEntries] = useState<IncidentalCostEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +111,17 @@ export function ShipmentCostEntryForm({
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // 27.8 cost-section Ghi chú — driver-written note for accounting re-check
+  // of the auto-recorded costs (Tiền đường / Phí Lạch Huyện). Autosaves on
+  // blur with a 600ms debounce so the driver can finish typing without
+  // hammering the API. Initial value is server-seeded (NULL on new trips).
+  const [costSubmissionNote, setCostSubmissionNote] = useState(initialCostSubmissionNote ?? '');
+  const [costSubmissionNoteSaving, setCostSubmissionNoteSaving] = useState(false);
+  const [costSubmissionNoteSavedAt, setCostSubmissionNoteSavedAt] = useState<string | null>(
+    initialCostSubmissionNote ? new Date().toISOString() : null,
+  );
+  const [costSubmissionNoteError, setCostSubmissionNoteError] = useState<string | null>(null);
 
   // Read-only auto rows (27.8 spec). Detected from fulfillment route.
   const lachHuyenApplies = useMemo(
@@ -159,6 +176,34 @@ export function ShipmentCostEntryForm({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Section-level Ghi chú autosave. Debounced — only fires if the value
+  // actually changed since the last saved snapshot. Whitespace-only is
+  // normalized to empty string so the server stores NULL.
+  useEffect(() => {
+    const initial = (initialCostSubmissionNote ?? '').trim();
+    if ((costSubmissionNote.trim() || '') === initial) {
+      return;
+    }
+    const handle = setTimeout(() => {
+      setCostSubmissionNoteSaving(true);
+      setCostSubmissionNoteError(null);
+      driverClient
+        .updateCostSubmissionNote(tripId, costSubmissionNote)
+        .then(() => {
+          setCostSubmissionNoteSavedAt(new Date().toISOString());
+        })
+        .catch((err) => {
+          setCostSubmissionNoteError(
+            err instanceof Error ? err.message : 'Không thể lưu ghi chú. Vui lòng thử lại.',
+          );
+        })
+        .finally(() => {
+          setCostSubmissionNoteSaving(false);
+        });
+    }, 600);
+    return () => clearTimeout(handle);
+  }, [costSubmissionNote, initialCostSubmissionNote, tripId]);
 
   function resetForm() {
     setCostType(COST_TYPE_OPTIONS[0]);
@@ -335,6 +380,41 @@ export function ShipmentCostEntryForm({
             ))}
         </ul>
       )}
+
+      {/* 27.8 cost-section Ghi chú — driver-written note for accounting to
+          re-check the auto-recorded costs. Sits below the cost list (just
+          above the "Thêm chi phí" button) per spec line 107, and the trip
+          completion "HOÀN THÀNH VÀ GỬI DUYỆT CHI PHÍ" action lives on the
+          trip-completion footer that already moves the trip to Chờ duyệt phí. */}
+      <div className="shipment-cost-entry__section-note" data-testid="shipment-cost-section-note">
+        <label
+          htmlFor="shipment-cost-entry-section-note"
+          className="shipment-cost-entry__section-note-label"
+        >
+          Ghi chú
+        </label>
+        <textarea
+          id="shipment-cost-entry-section-note"
+          className="shipment-cost-entry__textarea"
+          value={costSubmissionNote}
+          onChange={(event) => setCostSubmissionNote(event.target.value)}
+          rows={3}
+          placeholder="Nếu Tiền đường / Phí Lạch Huyện chưa đúng, ghi chú tại đây để kế toán soát lại trước khi duyệt chi phí."
+        />
+        <div className="shipment-cost-entry__section-note-meta">
+          {costSubmissionNoteSaving ? (
+            <span><Loader2 size={12} className="spin" /> Đang lưu…</span>
+          ) : costSubmissionNoteError ? (
+            <span className="shipment-cost-entry__section-note-error">{costSubmissionNoteError}</span>
+          ) : costSubmissionNoteSavedAt ? (
+            <span className="shipment-cost-entry__section-note-saved">
+              <CheckCircle2 size={12} /> Đã lưu {formatISODate(costSubmissionNoteSavedAt)}
+            </span>
+          ) : (
+            <span className="shipment-cost-entry__section-note-hint">Tự lưu khi rời ô.</span>
+          )}
+        </div>
+      </div>
 
       {formOpen && (
         <form className="shipment-cost-entry__form" onSubmit={(event) => void handleSubmit(event)}>
