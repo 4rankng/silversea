@@ -172,9 +172,9 @@
 /* Phần 4 ticket 2026-08-28: the camera-only button was hard to use when the
    device denied the camera or the file picker was hidden inside the scanner
    overlay. The primary capture button is now a <label> wrapping a hidden
-   <input type="file" capture="environment"> — one tap opens the OS picker
-   (camera or gallery, whichever the user picks). The secondary "Mở camera"
-   button still opens the fullscreen scanner overlay. */
+   <input type="file"> (no capture attribute — one tap opens the OS picker
+   with camera AND gallery, so a denied camera is never a dead end). The
+   secondary "Mở camera" button still opens the fullscreen scanner overlay. */
 .dcc-capture-btn--primary {
   border: 1px solid color-mix(in srgb, var(--brand, #005a2d) 35%, var(--line, #d6dad5));
   background: color-mix(in srgb, var(--brand, #005a2d) 6%, var(--surface-2, #f8faf9));

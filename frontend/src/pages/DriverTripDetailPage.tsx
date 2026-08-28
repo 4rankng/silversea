@@ -27,7 +27,7 @@ import { tripStatusVariant } from '../lib/tripStatus';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
-import { useDriverEvidenceStatus, useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
+import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { ApiError } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
@@ -233,13 +233,12 @@ export default function DriverTripDetailPage() {
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
   const progress = useDriverTaskProgress(validFulfillmentId);
-  const evidence = useDriverEvidenceStatus(validFulfillmentId);
   const { commands, enqueue, drain, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
     maxPending: 12,
     storageScope: user ? `${user.role}:${user.userId}` : null,
   });
   const { rootRef } = usePageAnimations({
-    ready: !taskDetail.isLoading && !progress.isLoading && !evidence.isLoading,
+    ready: !taskDetail.isLoading && !progress.isLoading,
   });
 
   const handleBack = useCallback(() => navigate('/my-trips'), [navigate]);
@@ -249,13 +248,15 @@ export default function DriverTripDetailPage() {
     isCommandPayload(command.payload) && command.payload.fulfillmentId === validFulfillmentId,
   ), [commands, validFulfillmentId]);
 
+  // Deps are the refetch functions (referentially stable in TanStack v5), not
+  // the query result objects — whole-result deps re-create this callback on
+  // every render and re-fire the auto-drain effect below in a loop.
   const refreshAll = useCallback(async () => {
     await Promise.all([
       taskDetail.refetch(),
       progress.refetch(),
-      evidence.refetch(),
     ]);
-  }, [evidence, progress, taskDetail]);
+  }, [progress.refetch, taskDetail.refetch]);
 
   const runDrain = useCallback(async (successMessage?: string, currentCommandId?: string) => {
     const result = await drain(sendRoleOfflineCommand);

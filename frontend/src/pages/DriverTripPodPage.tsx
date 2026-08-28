@@ -78,9 +78,12 @@ export function DriverTripPodPage() {
     [commands, validFulfillmentId],
   );
 
+  // Deps are the refetch function (referentially stable in TanStack v5), not
+  // the query result object — a whole-result dep re-creates this callback on
+  // every render and re-fires the auto-drain effect below in a loop.
   const refreshAll = useCallback(async () => {
     await taskDetail.refetch();
-  }, [taskDetail]);
+  }, [taskDetail.refetch]);
 
   const runDrain = useCallback(
     async (successMessage?: string, currentCommandId?: string) => {
@@ -246,8 +249,9 @@ export function DriverTripPodPage() {
     setCompleting(true);
     try {
       if (currentSubmission?.status === 'DRAFT') {
+        // handleSubmitPod's runDrain already refetches on DONE; an extra
+        // serial GET here only delays the complete command on slow links.
         await handleSubmitPod(currentSubmission);
-        await refreshAll();
       }
       const idempotencyKey = buildOfflineCommandKey(
         'driver',

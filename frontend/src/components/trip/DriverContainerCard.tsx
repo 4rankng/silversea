@@ -413,8 +413,8 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   hidden
+                  disabled={uploading.cont}
                   onChange={e => {
                     const file = e.target.files?.[0];
                     void onPick(file, 'CONTAINER');
@@ -428,8 +428,8 @@ export function DriverContainerCard({ tripId, containers, contPhotoKey, sealPhot
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   hidden
+                  disabled={uploading.seal}
                   onChange={e => {
                     const file = e.target.files?.[0];
                     void onPick(file, 'SEAL');

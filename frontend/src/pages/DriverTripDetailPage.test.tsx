@@ -277,7 +277,6 @@ describe('DriverTripDetailPage', () => {
     // "Bước tiếp: e-POD" link that navigates to /my-trips/:id/pod. The
     // actual complete action lives on the e-POD page.
     const cta = screen.getByRole('button', { name: /Bước tiếp: e-POD/ });
-    expect(cta).toBeTruthy();
     expect(cta.hasAttribute('disabled')).toBe(false);
     // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
     // gaps, not the evidence endpoint's milestone/label echo (old code echoed
