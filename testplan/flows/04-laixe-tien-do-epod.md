@@ -361,27 +361,27 @@
   - Chữ hoặc nút của thẻ 1 đè lên thẻ 2 (hoặc ngược lại).
 - **Bằng chứng:** ảnh chụp màn hình ở độ rộng ~700–1000px
 
-### TC-LX-TIENDO-017 — Sau khi nộp e-POD, lô hàng chuyển "Chờ duyệt phí" ngay (không kẹt ở "Đang chạy")
+### TC-LX-TIENDO-017 — Sau khi nộp e-POD, lô hàng vẫn ở "Đang chạy" (skip kế toán: chờ "HOÀN THÀNH CHUYẾN" mới chuyển)
 
-- **Mã PRD:** O2C Bước 3 → Bước 4, TC-MO2C-07 + fix 2026-08-29 (driver e-POD evidence handoff)
+- **Mã PRD:** O2C Bước 3 → Bước 4, TC-MO2C-07 + fix 2026-08-29 (driver full-close)
 - **Vai trò:** `laixe` (driver-side) + `cus` (CUS-side) + `dieuvan` (dispatch-side)
 - **Mức độ:** P0
 - **Thiết bị:** Mobile + Desktop
-- **Tiền điều kiện:** Trip IN_TRANSIT; e-POD ở trạng thái DRAFT với đủ 2 slot bắt buộc. **Quan trọng:** Ops/Forwarder **chưa** xác nhận "hoàn tất kê khai chi phí" (chưa mark expense scope COMPLETED) — đây là điểm khác biệt cốt lõi với hành vi trước fix. Bài test này tập trung vào trạng thái shipment sau khi e-POD SUBMITTED, **chưa** gọi "HOÀN THÀNH CHUYẾN" (driver full-close ra COMPLETED được cover riêng ở driver-fulfillment-progress.test.ts).
+- **Tiền điều kiện:** Trip IN_TRANSIT; e-POD ở trạng thái DRAFT với đủ 2 slot bắt buộc. **Quan trọng:** kế toán flow chưa build (theo instruction "skip kế toán for now, we build later") — vì vậy submit e-POD alone **không được** advance shipment sang "Chờ duyệt phí" vì không có ai để approve. Lô chỉ chuyển "Hoàn thành" khi tài xế bấm "HOÀN THÀNH CHUYẾN".
 - **Các bước:**
   1. Đăng nhập `laixe`, mở `/my-trips/:id/pod`. Upload 2 tệp bắt buộc, bấm "Gửi e-POD" (status SUBMITTED). **Chưa** bấm "HOÀN THÀNH CHUYẾN".
-  2. **Không** thao tác gì trên `/ops/expenses` hoặc tương đương (Ops/Forwarder chưa xác nhận scope).
-  3. Mở tab khác, đăng nhập `cus`, mở `/shipments` hoặc chi tiết lô hàng. Quan sát cột trạng thái.
-  4. Mở tab khác, đăng nhập `dieuvan`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
+  2. Mở tab khác, đăng nhập `cus`, mở `/shipments` hoặc chi tiết lô hàng. Quan sát cột trạng thái.
+  3. Mở tab khác, đăng nhập `dieuvan`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
+  4. Quay lại tab lái xe, bấm "HOÀN THÀNH CHUYẾN". Refresh CUS + điều vận, quan sát lại.
 - **Kết quả mong đợi (Pass):**
-  - Cả CUS và điều vận đều thấy lô hàng ở **"Chờ duyệt phí"** (PENDING_EXPENSE_APPROVAL), không còn ở "Đang chạy" / "Đang vận chuyển" (IN_TRANSIT).
-  - Trên CUS: lô vẫn nằm trong "Tất cả" hoặc filter theo ngày, trạng thái hiển thị đúng.
-  - Trên điều vận: trạng thái chuyến hiển thị "Chờ duyệt phí" (không phải "Đang chạy").
-  - Lịch sử trạng thái có 1 dòng IN_TRANSIT → PENDING_EXPENSE_APPROVAL, kèm `changedBy` = tài xế và timestamp.
+  - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy" / "Đang vận chuyển"** (IN_TRANSIT) — KHÔNG nhảy sang "Chờ duyệt phí".
+  - Sau bước 4 ("HOÀN THÀNH CHUYẾN"): CUS + điều vận thấy lô chuyển sang **"Hoàn thành"** (COMPLETED).
+  - Lịch sử trạng thái có dòng IN_TRANSIT → COMPLETED, kèm `changedBy` = tài xế và timestamp.
+  - Khi kế toán flow build lại, test case này sẽ cần thêm 1 nhánh: sau bước 1 lô → "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL); sau bước 4 lô → "Hoàn thành" (COMPLETED). Comment trong `shipment-status-transitions.service.ts` chỉ chỗ re-enable.
 - **Kỳ vọng sai (Fail nếu):**
-  - CUS hoặc điều vận vẫn thấy "Đang chạy"/"Đang vận chuyển" dù lái xe đã nộp e-POD.
-  - Phải chờ Ops/Forwarder xác nhận chi phí thì trạng thái mới đổi (hành vi cũ — đã fix).
-- **Bằng chứng:** ảnh trạng thái trên CUS + ảnh trạng thái trên điều vận + ảnh lịch sử trạng thái
+  - Sau bước 1: lô nhảy sang "Chờ duyệt phí" — sai vì không có kế toán approve (hành vi trước fix vô tình tái hiện).
+  - Sau bước 4: lô không chuyển "Hoàn thành" (full-close path bị break).
+- **Bằng chứng:** ảnh trạng thái CUS + điều vận sau bước 1 (vẫn IN_TRANSIT) + ảnh trạng thái CUS + điều vận sau bước 4 (COMPLETED)
 
 ---
 
@@ -405,4 +405,4 @@
 | __/__/__ | TC-LX-TIENDO-014 | | | Nộp lại được khi REJECTED | |
 | __/__/__ | TC-LX-TIENDO-015 | | | Không hoàn thành chuyến nếu gửi e-POD lỗi | |
 | __/__/__ | TC-LX-TIENDO-016 | | | Bố cục 2 thẻ e-POD không đè nhau | |
-| __/__/__ | TC-LX-TIENDO-017 | | | Lô chuyển "Chờ duyệt phí" ngay sau e-POD (status sync) | |
+| __/__/__ | TC-LX-TIENDO-017 | | | e-POD submit giữ "Đang chạy"; chỉ "HOÀN THÀNH CHUYẾN" mới chuyển "Hoàn thành" (skip kế toán) | |

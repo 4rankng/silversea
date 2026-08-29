@@ -334,22 +334,41 @@ export async function recomputeShipmentCompletion(
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     });
 
-    // Driver evidence handoff: every required fulfillment's trip has a
-    // SUBMITTED or ACCEPTED e-POD, but the trip is still IN_TRANSIT (not yet
-    // financially closed by Accountant/CUS). The driver's operational work is
-    // done — advance the shipment so customer and dispatcher see "Chờ duyệt
-    // phí" instead of a misleading "Đang chạy". This branch only fires for
-    // legacy data after the driver full-close path rolled out (e.g. an
-    // IN_TRANSIT trip with submitted e-POD that has not been completed yet).
-    const allDriverEvidenceSubmitted = requiredFulfillments.every((row) => {
+    // Multi-fulfillment partial close: at least one required fulfillment's
+    // trip is COMPLETED with a SUBMITTED/ACCEPTED e-POD, but other required
+    // fulfillments are still pending (planned carrier allocation with no
+    // dispatched trip yet). The driver-closed trip should reflect on the
+    // shipment — advance to PENDING_EXPENSE_APPROVAL so CUS/Dispatcher see
+    // "Chờ duyệt phí" instead of the misleading "Đang chạy". The remaining
+    // planned carriers are still tracked at the container level (dispatch
+    // status = PLANNED) and will be re-evaluated when the next trip is
+    // dispatched. When all required fulfillments eventually complete, the
+    // `allCompletedViaDriverClose` branch above fires and the shipment
+    // jumps to COMPLETED.
+    const anyFulfillmentCompletedViaDriver = requiredFulfillments.some((row) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
       return trip != null
-        && trip.status === TripStatus.IN_TRANSIT
-        && trip.podRecoveredAt == null
+        && trip.status === 'COMPLETED'
         && latestSubmissionStatus != null
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
     });
+
+    // Driver evidence handoff (DISABLED 2026-08-29 — user instruction "skip
+    // kế toán for now, we build later"). When the accountant review flow is
+    // reintroduced, restore the PENDING_EXPENSE_APPROVAL advance so CUS/Dis-
+    // patcher can see "Chờ duyệt phí" right after e-POD submission. For now
+    // we keep the shipment in its current operational state (IN_TRANSIT) until
+    // the driver full-closes the trip — only that path advances to COMPLETED.
+    // const allDriverEvidenceSubmitted = requiredFulfillments.every((row) => {
+    //   const trip = tripsByFulfillment.get(row.id)?.[0];
+    //   const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
+    //   return trip != null
+    //     && trip.status === TripStatus.IN_TRANSIT
+    //     && trip.podRecoveredAt == null
+    //     && latestSubmissionStatus != null
+    //     && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
+    // });
 
     let targetStatus: ShipmentStatus = 'DISPATCHED';
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
@@ -362,9 +381,15 @@ export async function recomputeShipmentCompletion(
     } else if (allAwaitingApproval || (allCompleted && allExpenseScopesComplete)) {
       targetStatus = 'PENDING_EXPENSE_APPROVAL';
       reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
-    } else if (allDriverEvidenceSubmitted) {
-      targetStatus = 'PENDING_EXPENSE_APPROVAL';
-      reason = 'Tài xế đã hoàn thành bàn giao hồ sơ. Chờ Kế toán/CUS duyệt phí và chốt chuyến.';
+    } else if (anyFulfillmentCompletedViaDriver) {
+      // Multi-fulfillment partial close: at least one driver-closed trip is
+      // complete, but other planned carriers are still pending. Kept here as
+      // an "advance to PENDING_EXPENSE_APPROVAL" candidate for the day the
+      // accountant flow is reintroduced; while skip-kế-toán is in effect we
+      // fall through to the anyInTransit branch below so CUS sees the trip
+      // state, not a phantom "Chờ duyệt phí" nobody can resolve.
+      // targetStatus = 'PENDING_EXPENSE_APPROVAL';
+      // reason = 'Tài xế đã hoàn thành một phần lô hàng. ...';
     } else if (anyInTransit) {
       targetStatus = 'IN_TRANSIT';
       reason = 'Tự động chuyển sang Đang chạy khi đã có chuyến xuất phát.';

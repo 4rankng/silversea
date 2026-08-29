@@ -190,15 +190,20 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
    - **Reference**: `TRIP_STATUS_LABELS` in
      `shared/src/constants/index.ts:403`.
 
-4. **CUS-LIST-04 — Shipment flips out of "Đang chạy" the moment the driver submits e-POD (fix 2026-08-29)**
-   - **Given** a trip is in `Đang chạy` (the driver is still on the road)
+4. **CUS-LIST-04 — Shipment stays "Đang chạy" until the driver full-closes (skip kế toán, fix 2026-08-29)**
+   - **Given** a trip is in `Đang chạy` and the kế toán review flow is
+     intentionally offline (`skip kế toán for now, we build later`)
    - **When** the driver submits the e-POD (status `SUBMITTED`) on
      `/my-trips/:id/pod` — Ops/Forwarder has **not** marked the
-     expense scopes complete yet
-   - **Then** the CUS-side shipment status recomputes to `Chờ duyệt phí`
-     (PENDING_EXPENSE_APPROVAL) immediately. CUS no longer sees a stale
-     `Đang chạy` once the evidence handoff is in.
-   - **Reference**: [`04-laixe-tien-do-epod.md` TC-LX-TIENDO-017](../flows/04-laixe-tien-do-epod.md#tc-lx-tiendo-017---sau-khi-nộp-e-pod-lô-hàng-chuyển-chờ-duyệt-phí-ngay-không-kẹt-ở-đang-chạy).
+     expense scopes complete yet, and kế toán is not in the loop
+   - **Then** the CUS-side shipment status recompute does **not** advance
+     to `Chờ duyệt phí` (PENDING_EXPENSE_APPROVAL). Showing a phantom
+     "Chờ duyệt phí" nobody can resolve would mislead the clerk.
+   - **Then** the CUS list keeps showing the shipment as `Đang chạy`.
+   - **When** the driver then hits `HOÀN THÀNH CHUYẾN`
+   - **Then** the CUS list recomputes the shipment to `Hoàn thành`
+     (COMPLETED) via the driver full-close path.
+   - **Reference**: [`04-laixe-tien-do-epod.md` TC-LX-TIENDO-017](../flows/04-laixe-tien-do-epod.md#tc-lx-tiendo-017---sau-khi-nộp-e-pod-lô-hàng-vẫn-ở-đang-chạy-skip-kế-toán-chờ-hoàn-thành-chuyến-mới-chuyển).
 
 4. **CUS-LIST-04 — Row click navigates to detail**
    - **Given** a row

@@ -431,23 +431,27 @@ describe('O2C trip close readiness authority', () => {
     }
   });
 
-  // Field-reported bug fix (2026-08-29 "skip kế toán for now"): an IN_TRANSIT
-  // trip with submitted/accepted e-POD but no expense-scope completion now
-  // advances the shipment to PENDING_EXPENSE_APPROVAL so CUS and dispatch see
-  // "Chờ duyệt phí" instead of a stale "Đang chạy". The expense-scope gate
-  // is still enforced for the strict financial COMPLETED target
-  // (allCompletedAndAccepted) — see the direct-close tests above.
-  test('FCL trip with submitted/accepted e-POD advances to pending approval without the expense scope', async () => {
+  // User instruction 2026-08-29 "skip kế toán for now, we build later":
+  // while the accountant review flow is offline, a trip that has submitted
+  // its e-POD but not yet been driver-full-closed should NOT advance the
+  // shipment to PENDING_EXPENSE_APPROVAL — there is nobody to approve the
+  // expense right now and showing a phantom "Chờ duyệt phí" state would
+  // confuse CUS and Dispatcher. The shipment stays IN_TRANSIT until the
+  // driver hits "HOÀN THÀNH CHUYẾN" (which flips trip → COMPLETED via
+  // driverOwnedFulfillmentClose, then shipment → COMPLETED via
+  // allCompletedViaDriverClose). When the accountant flow is reintroduced,
+  // this branch must be re-enabled.
+  test('FCL snapshot fulfillments stay IN_TRANSIT after e-POD submit (skip kế toán)', async () => {
     for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
       const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus });
       try {
         const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[1] });
-        assert.equal(recomputed.status, 'PENDING_EXPENSE_APPROVAL');
+        assert.equal(recomputed.status, 'IN_TRANSIT');
         const [persisted] = await db.select({ status: s.shipments.status })
           .from(s.shipments)
           .where(eq(s.shipments.id, fixture.shipment.id))
           .limit(1);
-        assert.equal(persisted?.status, 'PENDING_EXPENSE_APPROVAL');
+        assert.equal(persisted?.status, 'IN_TRANSIT');
       } finally {
         await fixture.cleanup();
       }
