@@ -32,7 +32,7 @@ import {
   type ShipmentCusContainerFlatResponse,
   type ShipmentCusContainerFlatRow,
 } from '@tingting/shared';
-import { and, asc, count, desc, eq, ilike, inArray, isNull, ne, or, sql, type Column, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql, type Column, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
@@ -1772,11 +1772,32 @@ async function buildShipmentPageConditions(
   const transportDate = searchMode === 'container'
     ? containerTransportDateSql()
     : s.shipments.expectedDeliveryDate;
-  if (query.transportDateFrom) {
-    conditions.push(sql`${transportDate} >= ${query.transportDateFrom}`);
-  }
-  if (query.transportDateTo) {
-    conditions.push(sql`${transportDate} <= ${query.transportDateTo}`);
+  if (searchMode === 'container') {
+    if (query.transportDateFrom) {
+      conditions.push(sql`${transportDate} >= ${query.transportDateFrom}`);
+    }
+    if (query.transportDateTo) {
+      conditions.push(sql`${transportDate} <= ${query.transportDateTo}`);
+    }
+  } else if (query.transportDateFrom || query.transportDateTo) {
+    // Shipment-level: also consider container appointment dates so allocated
+    // shipments (whose containers may have been reappointed to a different
+    // day than the shipment's EDD) still appear under the user's chosen day.
+    // containerTransportDateSql() is interpolated verbatim so the
+    // appointment-date contract stays single-sourced with container mode.
+    const dateFrom = query.transportDateFrom ?? '0001-01-01';
+    const dateTo = query.transportDateTo ?? '9999-12-31';
+    conditions.push(or(
+      and(
+        gte(s.shipments.expectedDeliveryDate, dateFrom),
+        lte(s.shipments.expectedDeliveryDate, dateTo),
+      ),
+      sql`exists (
+        select 1 from ${s.shipmentContainers}
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+          and ${containerTransportDateSql()} between ${dateFrom} and ${dateTo}
+      )`,
+    )!);
   }
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));
