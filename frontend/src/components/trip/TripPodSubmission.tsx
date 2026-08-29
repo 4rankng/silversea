@@ -6,6 +6,7 @@ import {
   Clock3,
   FileText,
   Loader2,
+  Lock,
   Upload,
 } from 'lucide-react';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
@@ -190,6 +191,13 @@ export function TripPodSubmission({
         </div>
       )}
 
+      {isLocked && (
+        <div className="trip-pod__banner trip-pod__banner--info" role="status">
+          <Lock size={16} />
+          <span>e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này.</span>
+        </div>
+      )}
+
       {uploadError && (
         <div className="trip-pod__banner trip-pod__banner--error" role="alert">
           <AlertTriangle size={16} />
@@ -231,11 +239,7 @@ export function TripPodSubmission({
                 </div>
               </div>
 
-              {isLocked ? (
-                <p className="trip-pod__locked-note">
-                  e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này.
-                </p>
-              ) : (
+              {!isLocked && (
                 <>
                   <div className="trip-pod__actions">
                     <button
