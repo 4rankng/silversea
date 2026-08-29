@@ -40,6 +40,13 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-control-boundary:focus-within > \[role='presentation'\][\s\S]*?border-color:\s*var\(--accent/);
     expect(css).toMatch(/\.csc-control-boundary:focus-within > \[role='presentation'\][\s\S]*?box-shadow:\s*0 0 0 3px/);
     expect(css).toMatch(/\.csc-control-boundary :where\(input, select, textarea\):focus-visible\s*\{[^}]*outline:\s*none;[^}]*outline-offset:\s*0;/);
+    // Single visible boundary per control: a retired blanket rule painted a
+    // second border+padding onto the nested transparent inputs (box-in-box);
+    // it must stay retired.
+    expect(css).not.toMatch(/\.csc-form :where\(input, select, textarea\)/);
+    // Field-label parity across families (combobox + text/date join the
+    // select's dense 12px/18px label).
+    expect(css).toMatch(/\.csc-searchable-field label,\s*\n\s*\.csc-uui-field label\s*\{[^}]*font-size:\s*12px;/);
   });
 
   it('fills the desktop workspace while keeping short-value columns compact', () => {
@@ -129,8 +136,8 @@ describe('shipment create responsive layout', () => {
   it('separates form sections from the application canvas without decorative elevation', () => {
     expect(css).toMatch(/\.app-main:has\(\.csc-page\)\s*\{[^}]*background:\s*var\(--surface-3\);/);
     expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*12px;/);
-    expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*1px solid var\(--line-2\)\s*!important;[^}]*background:\s*var\(--surface\)\s*!important;/);
-    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*var\(--surface\)\s*!important;/);
+    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-18px -18px 0;[^}]*background:\s*var\(--surface-2\);/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;/);
     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
   });
@@ -163,8 +170,8 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0 28px;/);
     expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{\s*\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(44px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*12px;/);
-    expect(css).toMatch(/\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);
-    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*padding:\s*10px 14px;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*14px\s*!important;[^}]*gap:\s*12px\s*!important;/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*12px 14px;/);
     expect(css).not.toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:/);
     const boundaryBlock = css.match(/\.csc-control-boundary textarea\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(boundaryBlock).not.toContain('min-height:');

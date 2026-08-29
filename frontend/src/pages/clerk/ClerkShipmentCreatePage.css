@@ -20,26 +20,17 @@
 .csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -18px -18px 0; padding: 16px 18px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: 15px; font-weight: 700; line-height: 1.3; }
 .csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: 12.5px; line-height: 1.4; }
-.csc-section .ds-field__input { background: var(--surface-2); }
-/* P1#1 closed-loop fix 2026-08-28: ensure every form input in the
-   CUS new-shipment form has a visible solid background and border. The
-   shared adapter and design system use ghost-style inputs by default
-   (transparent on the section's --surface), which renders correctly
-   in real browsers but produces blank screenshots in headless QA. The
-   override below is benign for real users (the input already has a
-   subtle border via the section's --line-2) and makes the form
-   visually distinguishable in automation screenshots. */
-.csc-form :where(input, select, textarea):not([type='radio']):not([type='checkbox']):not([type='hidden']),
-.csc-form [data-input-wrapper='true'] > input,
-.csc-form [data-input-wrapper='true'] > textarea {
-  background-color: var(--surface, #fff);
-  border: 1px solid var(--line-2, #d6dad5);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: var(--fg-1, #101510);
-}
+/* Single visible boundary per control: the `csc-control-boundary` class on
+   each field adapter owns the wrapper border/focus ring (and gives headless
+   QA a solid, screenshot-visible control edge). Inputs nested inside an
+   adapter — the ComboBox's transparent overlay input, the InputField inner
+   input — stay transparent and borderless so no control ever renders two
+   nested boxes. */
 .csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
-.csc-searchable-field > label { color: var(--fg-1); font-size: 14px; font-weight: 600; }
+/* Field-label parity: combobox and text/date labels join the select family's
+   dense 12px/18px semibold label (the UUI defaults differ per component). */
+.csc-searchable-field label,
+.csc-uui-field label { color: var(--fg-1); font-size: 12px; line-height: 18px; font-weight: 600; }
 /* Selects migrated to the shared adapter: `ds-uui-*` classes
  * (design-system/forms/UuiSelectField.css, global) own the visuals. The
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
@@ -132,7 +123,7 @@
 .csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
 .csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
-.csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; padding: 7px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .csc-utility-button--dashed { border-style: dashed; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
@@ -231,7 +222,7 @@
   .csc-identity-grid__customer { grid-column: 1 / -1; }
 }
 @media (max-width: 900px) { .csc-cargo-choice-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 14px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; margin: -14px -14px 0; padding: 12px 14px; border-radius: 9px 9px 0 0; }.csc-mode legend, .csc-mode__option { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0 26px; }.csc-section { padding: 14px !important; gap: 12px !important; border-radius: 10px !important; }.csc-section__heading { gap: 9px; margin: -14px -14px 0; padding: 12px 14px; border-radius: 9px 9px 0 0; }.csc-mode legend, .csc-mode__option { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-combined-toggle, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: 44px; }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-customer-picker, .csc-shipping-line-picker { grid-template-columns: minmax(0, 1fr); }.csc-shipping-line-picker__add { width: 100%; justify-self: stretch; }.csc-customer-picker__add { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: 44px; min-height: 44px; }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer { grid-column: auto; }.csc-mode > div { grid-template-columns: 1fr; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { grid-template-columns: minmax(0, 1fr); }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 /* Keep the normal-flow action row above the iPhone home indicator at the end
    of the long create form. It is deliberately not sticky. */
