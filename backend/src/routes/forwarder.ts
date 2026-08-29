@@ -27,7 +27,6 @@ import { formatLocalDate } from '../lib/format';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { resolveForwarder } from '../middleware/forwarder';
 import { throwValidation } from '../lib/validation';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { tripContainerSchema, tripExpenseSchema, tripExpensePatchSchema, tripExpenseCompletionSchema } from '@tingting/shared';
 import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlements, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../services/advance.service';

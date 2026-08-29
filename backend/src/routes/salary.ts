@@ -35,7 +35,6 @@ import {
 } from '../services/salary-period-finalization-governance.service';
 import { resolveSalaryPeriodDateRange } from '../services/salary-period.service';
 import { getClosedPeriodLock, resolveSalaryPeriodAuthority } from '../services/period-lock.service';
-import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, inArray, and } from 'drizzle-orm';
 import { ApiError } from '../errors';

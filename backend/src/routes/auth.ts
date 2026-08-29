@@ -8,7 +8,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 /** ms-compatible duration string (e.g. '7d', '24h', '3600s') for jwt SignOptions.expiresIn. */
 type DurationString = `${number}` | `${number}${'s' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
 import { config } from '../config';
-import { db } from '../db';
+import type { Tx } from '../services/trip-shared';
 import * as s from '../db/schema';
 import { Role, loginSchema, createUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema } from '@tingting/shared';
 import { authMiddleware, getUser } from '../middleware/auth';
@@ -22,8 +22,6 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
 import type { Request, Response } from 'express';
 import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Audit event registrations
 registerAuditEvent('POST', '/api/auth/login', AuditEvent.USER_LOGIN);

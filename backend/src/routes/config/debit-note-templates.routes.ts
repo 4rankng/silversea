@@ -14,7 +14,7 @@
  */
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { db } from '../../db';
+import type { Tx } from '../../services/trip-shared';
 import * as s from '../../db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { debitNoteTemplateSchema } from '@tingting/shared';
@@ -59,7 +59,7 @@ function requireExpectedUpdatedAt(req: Request, message: string): Date {
 }
 
 /** Clear every other active default of the same document type. */
-async function clearOtherDefaults(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], documentType: string): Promise<void> {
+async function clearOtherDefaults(tx: Tx, documentType: string): Promise<void> {
   await tx.update(s.debitNoteTemplates)
     .set({ isDefault: false, updatedAt: new Date() })
     .where(and(

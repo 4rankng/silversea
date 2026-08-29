@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 import { eq, and } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { z } from 'zod';
-import { db } from '../db';
+import type { Tx } from '../services/trip-shared';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
@@ -114,7 +114,7 @@ interface PersistOcrInput {
   /** Optional container row to link the photo to (must belong to `tripId`). */
   containerId: number | null;
   user: OcrUser;
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0];
+  tx: Tx;
   preparedPhoto: PreparedTripPhoto;
   cleanupGuard: StorageCleanupGuardLease;
 }
