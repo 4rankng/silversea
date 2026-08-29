@@ -33,6 +33,14 @@
   flex: 0 0 auto;
 }
 
+.detailed-plan-filters__date-scope-controls .detailed-plan-filters__clear {
+  flex: 0 0 auto;
+  /* Reserve a stable width so toggling filter state never shifts the
+     neighbouring date-shortcut buttons. */
+  min-width: 92px;
+  justify-content: center;
+}
+
 .detailed-plan-filters__drawer-trigger { min-width: 92px; }
 
 .detailed-plan-filters__count {

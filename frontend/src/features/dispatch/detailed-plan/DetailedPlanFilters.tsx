@@ -331,13 +331,24 @@ export function DetailedPlanFilters({
               size="sm"
               color="secondary"
               onPress={() => onChange({ date: '' })}
-              aria-label="Tất cả ngày"
+              aria-label="Tất cả"
               aria-pressed={filters.date === ''}
               iconLeading={filters.date === '' ? <Check aria-hidden="true" /> : undefined}
             >
-              Tất cả ngày
+              Tất cả
             </UUIButton>
           </div>
+          <UUIButton
+            className="detailed-plan-filters__clear"
+            size="sm"
+            color="tertiary"
+            iconLeading={XClose}
+            onPress={clearFilters}
+            isDisabled={activeFilterCount === 0}
+            aria-label="Xóa lọc"
+          >
+            Xóa lọc
+          </UUIButton>
         </div>
       </div>
       <div className="detailed-plan-filters__toolbar-actions">
@@ -354,17 +365,6 @@ export function DetailedPlanFilters({
             <span className="detailed-plan-filters__count" aria-hidden="true">{activeDrawerFilterCount}</span>
           )}
         </UUIButton>
-        {activeFilterCount > 0 && (
-          <UUIButton
-            className="detailed-plan-filters__clear"
-            size="xs"
-            color="tertiary"
-            iconLeading={XClose}
-            onPress={clearFilters}
-          >
-            Xóa tất cả
-          </UUIButton>
-        )}
       </div>
       <Drawer
         isOpen={isFilterDrawerOpen}

@@ -58,9 +58,9 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByText('Ngày vận chuyển')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tất cả ngày' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('true');
     const dateMode = screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' });
-    const selectedDateMode = within(dateMode).getByRole('button', { name: 'Tất cả ngày' });
+    const selectedDateMode = within(dateMode).getByRole('button', { name: 'Tất cả' });
     const selectedDateIcon = selectedDateMode.querySelector('svg');
     expect(selectedDateIcon).toBeTruthy();
     expect(selectedDateIcon?.parentElement).toBe(selectedDateMode);
@@ -70,7 +70,7 @@ describe('DetailedPlanFilters', () => {
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
     fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả ngày' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ date: '' });
 
     const drawer = openFilterDrawer();
@@ -259,13 +259,57 @@ describe('DetailedPlanFilters', () => {
     expect(screen.getByRole('group', { name: 'Phạm vi ngày vận chuyển' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Hôm nay' }).getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: 'Hôm sau' }).getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByRole('button', { name: 'Tất cả ngày' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Tất cả' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO() });
     fireEvent.click(screen.getByRole('button', { name: 'Hôm sau' }));
     expect(onChange).toHaveBeenCalledWith({ date: businessDateISO(new Date(Date.now() + 86_400_000)) });
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả ngày' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ date: '' });
+  });
+
+  it('keeps the Xóa lọc button always visible and disables it when no filter is active', () => {
+    const onChange = vi.fn();
+    render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
+      />,
+    );
+
+    const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(clearButton).toBeTruthy();
+    // With no filter, the button must be present (no layout jump) but disabled.
+    expect(clearButton.getAttribute('disabled')).not.toBeNull();
+    fireEvent.click(clearButton);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('renders Hôm nay / Hôm sau / Tất cả / Xóa lọc together so the row never jumps', () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <DetailedPlanFilters
+        filters={EMPTY_DETAILED_PLAN_FILTERS}
+        onChange={onChange}
+        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+        zones={TEST_ZONES}
+      />,
+    );
+
+    // All four buttons must be in the same date-scope-controls row so
+    // toggling filter state never shifts any of the date shortcuts.
+    const controls = container.querySelector('.detailed-plan-filters__date-scope-controls');
+    expect(controls).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: 'Hôm nay' })).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: 'Hôm sau' })).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: 'Tất cả' })).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: 'Xóa lọc' })).toBeTruthy();
   });
 
   it('resets drawer filters without clearing the always-visible date scope', () => {
@@ -315,7 +359,11 @@ describe('DetailedPlanFilters', () => {
     );
 
     expect(screen.getByText('Đang lọc 10 điều kiện')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa tất cả' }));
+    // The Xóa lọc button is now always rendered but only enabled when a
+    // filter is active; the click should still reset every filter.
+    const clearButton = screen.getByRole('button', { name: 'Xóa lọc' });
+    expect(clearButton.getAttribute('disabled')).toBeNull();
+    fireEvent.click(clearButton);
     expect(onChange).toHaveBeenCalledWith(EMPTY_DETAILED_PLAN_FILTERS);
 
     rerender(
@@ -329,7 +377,8 @@ describe('DetailedPlanFilters', () => {
       />,
     );
     expect(screen.queryByText('Mặc định: mọi ngày vận chuyển')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Xóa tất cả' })).toBeNull();
+    // The button is still in the DOM, just disabled.
+    expect(screen.getByRole('button', { name: 'Xóa lọc' }).getAttribute('disabled')).not.toBeNull();
   });
 
   it('lets a user clear all selections from inside the popover footer', async () => {
