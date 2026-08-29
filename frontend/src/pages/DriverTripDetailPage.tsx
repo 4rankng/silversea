@@ -30,7 +30,7 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useAuth } from '../hooks/useAuth';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { ApiError } from '../lib/api';
+import { ApiError, getAuthenticatedPhotoUrl } from '../lib/api';
 import { compressImageFile } from '../lib/imageCompression';
 import { formatCurrency, formatDateTimeShort } from '../lib/format';
 import { useOnline } from '../hooks/useOnline';
@@ -641,7 +641,7 @@ export default function DriverTripDetailPage() {
               <div className="driver-task-fuel-details">
                 <div className="driver-task-fuel-grid">
                   <img
-                    src={latestFuelEvidence.photoUrl}
+                    src={getAuthenticatedPhotoUrl(latestFuelEvidence.photoUrl)}
                     alt={`Ảnh nhiên liệu ${trip.tripCode ?? trip.id}`}
                     className="driver-task-fuel-img"
                   />

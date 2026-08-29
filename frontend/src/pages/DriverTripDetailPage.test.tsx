@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus } from '@tingting/shared';
+import { setToken } from '../lib/token';
 
 type MockOfflineCommand = {
   id: string;
@@ -271,6 +272,44 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Chụp màn hình bơm gần nhất')).toBeTruthy();
     expect(screen.getByText('Chưa có ảnh nhiên liệu nào cho chuyến này.')).toBeTruthy();
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
+  });
+
+  // Regression: the fuel-evidence <img> consumed the raw /api/photos/ URL.
+  // <img> cannot send the Authorization header, so assetAuthMiddleware 401'd
+  // and the browser rendered a broken image; OCR was unaffected (the backend
+  // reads the stored bytes directly). The src must go through
+  // getAuthenticatedPhotoUrl so the JWT rides along as ?token=.
+  it('renders the fuel evidence photo through the token-authenticated URL', async () => {
+    setToken('jwt-for-img-test');
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fuelEvidenceReviews: [{
+          id: 7,
+          tripId: 55,
+          tripCode: 'TRIP-55',
+          photoUrl: '/api/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg',
+          ocrOutcome: 'ACCEPTED',
+          reviewStatus: 'PENDING',
+          litres: '20.84',
+          unitPrice: '23490',
+          totalAmount: '500000',
+          computedTotal: '489532',
+          capturedAt: '2026-08-29T05:46:00.000Z',
+          latitude: '1.4274301',
+          longitude: '103.8421095',
+          anomalyReason: null,
+          ocrError: null,
+          reviewNote: null,
+        }],
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    const img = await screen.findByAltText('Ảnh nhiên liệu TRIP-55');
+    expect(img.getAttribute('src')).toContain('token=jwt-for-img-test');
   });
 
   it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {

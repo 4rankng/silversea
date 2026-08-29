@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { qk } from '../api/keys';
 
 import { fuelEvidenceClient, type FuelEvidenceReviewRecord, type FuelEvidenceReviewStatus } from '../api/fuelEvidenceClient';
+import { getAuthenticatedPhotoUrl } from '../lib/api';
 import { StatusPill } from '../components/UI';
 import { formatCurrency } from '../lib/format';
 import { Pagination, UuiSelectField } from '../design-system';
@@ -170,7 +171,7 @@ export default function FuelEvidenceReviewPage() {
             <div className="fuel-evidence-review__card">
               <div>
                 <img
-                  src={row.photoUrl}
+                  src={getAuthenticatedPhotoUrl(row.photoUrl)}
                   alt={`Ảnh nhiên liệu ${row.tripCode ?? row.tripId}`}
                   style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border-1)', objectFit: 'cover' }}
                 />
