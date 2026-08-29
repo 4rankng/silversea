@@ -21,11 +21,12 @@
   - The pre-existing `driver journey board moves a driver-completed trip to HISTORY even though trip.status stays IN_TRANSIT` test was updated — title and assertion now match the new semantics (`trip.status === 'COMPLETED'`, card still in `HISTORY` bucket).
 - `testplan/flows/04-laixe-tien-do-epod.md` TC-LX-TIENDO-010 rewritten for the full-close semantics: trip → COMPLETED, shipment → COMPLETED, CUS workspace "Hoàn thành", CUS container ledger "Hoàn thành", Dispatcher trips "Hoàn thành", driver footer "Đã hoàn thành chuyến". Notes the deferred accountant review.
 - Gates at this commit: lint 0 errors / 158 pre-existing warnings; backend `tsc --noEmit -p tsconfig.json` 0; backend tests 312/312 (driver-fulfillment-progress 27/27 incl. 5 new, trip-pod-workflow 10/10, o2c-trip-close-readiness 12/12, q15-trip-financial-governance 9/9, cus-shipment-workspace + shipment-accounting-lock + shipment-service + shipment-routes + trip-shipment 254/254); frontend `tsc -b` 0; frontend tests 1361/1361 (243 files); `make build` green (frontend bundle 6.57s). Artifacts: `qa/2026-08-29_driver-full-close-flow/{lint,backend-tsc,backend-test,frontend-tsc,frontend-test,build}.txt`.
-- No push, no deploy (this task had implement-only authorization; user will trigger deploy separately if they want it).
+- Pushed + deployed (user said "commit push deploy"): `71217810` was already on origin (sibling pushed it); this session pushed the handoff commit `b3c17f3e`, then ran `make demo` (15:23–15:31 SGT) — GHCR images built + tagged `b3c17f3e`, drizzle migrations applied, blue/green cutover with rollback snapshot, backend health 200 (`{"status":"ok","timestamp":"2026-08-29T07:31:27.147Z"}`), frontend HTTPS check passed.
+  - Deploy verified artifact-vs-commit (not wrapper exit): server containers run images created 07:28–07:29 UTC today (= this deploy's build time), and the served lazy chunk `DriverTripDetailPage-C9d-SjaT.js` contains the new marker "chốt chuyến hoàn thành" — the full-close wave is live at https://vantai.tingting.vip.
 
-**Updated:** 2026-08-29 15:30 Asia/Singapore
+**Updated:** 2026-08-29 15:38 Asia/Singapore
 **Controller:** Mavis (driver full-close flow)
-**Status:** DONE — committed on `main` (local). All gates green. Live verification on https://vantai.tingting.vip deferred until user authorizes push + deploy.
+**Status:** DONE — `71217810` + `b3c17f3e` on `main` (remote). All gates green. Deployed + staging-verified at https://vantai.tingting.vip.
 
 ## Previous task — e-POD complete conflict recovery banner — DONE
 
