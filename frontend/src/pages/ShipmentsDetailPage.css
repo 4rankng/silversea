@@ -87,7 +87,13 @@
 .shipment-container-ledger__col--customer { width: 14%; }
 .shipment-container-ledger__col--documents { width: auto; }
 .shipment-container-ledger__col--container { width: auto; }
-.shipment-container-ledger__col--route { width: auto; }
+/* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
+   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
+   table-layout: fixed and width: auto, the column shrinks below the
+   longest unbreakable token and the cell's overflow:hidden clips the
+   trailing characters. Pin the column to a share that fits the
+   long-NÂNG/HẠ pair; the remaining auto columns absorb the leftover. */
+.shipment-container-ledger__col--route { width: 18%; }
 .shipment-container-ledger__col--schedule { width: 14%; }
 .shipment-container-ledger__col--vehicle { width: auto; }
 .shipment-container-ledger__col--status { width: 9%; }
