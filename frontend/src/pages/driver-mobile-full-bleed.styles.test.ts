@@ -4,19 +4,27 @@ import { describe, expect, it } from 'vitest';
 
 const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
 
-/* Real-device bug report (driver iPhone screenshot, /my-trips): the list and
- * detail pages left disproportionate side gutter on phone widths — the
- * detail page already tightens its padding below 430px/320px, the list page
- * never did. @media query behavior isn't reliably testable through jsdom
- * rendering, so this asserts on the raw CSS text — same pattern as
- * canvas-fit-polish.styles.test.ts.
+/* Real-device bug report (driver iPhone screenshot, /my-trips): the list
+ * page left a gray gutter between the green header and the white tab
+ * card, with a second "double background" tone underneath the cards.
+ * 2026-08-29: the journey container is now full-bleed (no horizontal
+ * padding) and one solid white surface under the header — there is
+ * nothing left for narrow-phone @media rules to tighten. The detail
+ * page sticky accept bar keeps its 430px/320px side-padding hooks
+ * because that bar is the only inline-padded driver widget that still
+ * needs the gutter-shrink. @media query behavior isn't reliably
+ * testable through jsdom rendering, so this asserts on the raw CSS
+ * text — same pattern as canvas-fit-polish.styles.test.ts.
  */
 describe('driver mobile full-bleed contract', () => {
-  it('/my-trips list page tightens side padding on phone widths, mirroring the detail page', () => {
+  it('/my-trips list page is one full-bleed white surface under the header', () => {
     const css = read('src/pages/DriverTripsPage.css');
-    expect(css).toMatch(/@media \(max-width: 430px\) \{\s*\.driver-journey \{\s*padding-left: 10px;\s*padding-right: 10px;/);
-    expect(css).toMatch(/@media \(max-width: 320px\) \{\s*\.driver-journey \{\s*padding-left: 8px;\s*padding-right: 8px;/);
-    expect(css).toMatch(/\.driver-journey-card \{\s*padding: 12px;\s*\}/);
+    // The legacy inset "14px 14px 32px" padding is gone — the page is
+    // edge-to-edge below the green topbar.
+    expect(css).not.toMatch(/\.driver-journey \{\s*padding:\s*14px\s+14px\s+32px/);
+    // The page below the header is one solid white surface (matches the
+    // tab card so there is no visible seam between the two).
+    expect(css).toMatch(/\.driver-journey \{\s*[^}]*background:\s*var\(--surface\)/);
   });
 
   it('trip-detail sticky accept bar tightens side padding at the same breakpoints as the screen', () => {

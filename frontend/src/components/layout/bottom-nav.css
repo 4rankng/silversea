@@ -19,8 +19,18 @@
   .app.is-driver .app-main {
     background: none;
   }
-  /* Zero padding only when the driver detail page is rendered (full-bleed card layout) */
-  .app.is-driver .app-body:has(.driver-trip-detail-page) {
+  /* But the empty body area (below the page content, behind the bottom
+     nav) still has to read as a single solid color — otherwise the
+     app-main's --bg gray bleeds through the 32px bottom-padding of the
+     journey container and shows up as a second tone under the cards. */
+  .app.is-driver .app-body {
+    background: var(--surface);
+  }
+  /* Zero padding only when a driver full-bleed screen is rendered (trip list,
+     trip detail, e-POD) — those screens own their own edge padding +
+     background (.driver-journey / .driver-task-screen), so the shell must
+     not add a second inset + a second background tone around them. */
+  .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
     padding: 0;
   }
   

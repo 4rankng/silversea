@@ -63,35 +63,40 @@
   overflow: visible;
 }
 
-/* Name + plate chip sit on one wrap-allowed row, so narrow phones drop the
-   plate to its own line instead of clipping the name. */
+/* Name on top, plate chip as a subtitle below it — a fixed two-line stack
+   rather than a row that only wraps once the name runs out of space. */
 .topbar__welcome-idline {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   min-width: 0;
 }
 
-/* Biển số xe chip — brand-green pill on the light desktop surface; the green
-   mobile header re-skins it in responsive.css. */
+/* Biển số xe — subtext line under the driver name. 2026-08-29 customer
+   asked to drop the brand-green pill: the plate is a subtitle, not a
+   status badge. Truck icon stays so the meaning ("xe") still reads
+   clearly, but no background / radius / padding. Color flips to white
+   when sitting on the green mobile topbar so it stays readable. */
 .topbar__plate {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--brand-soft);
-  color: var(--brand);
   font-size: var(--fs-xs);
-  font-weight: 700;
+  font-weight: 500;
+  color: var(--ink-3);
   letter-spacing: 0.02em;
-  line-height: 1.6;
+  line-height: 1.4;
   white-space: nowrap;
+  margin-top: 1px;
 }
 
 .topbar__plate svg {
   flex: 0 0 auto;
+}
+
+.topbar--driver .topbar__plate {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .topbar__center-driver {

@@ -2,28 +2,20 @@
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: 14px 14px 32px;
-  background: var(--surface-2);
+  /* Single white surface under the green header. A small top padding
+     gives the tab card breathing room from the header (the header owns
+     the brand color, the tab card sits on white — they read as two
+     distinct surfaces, not glued together). */
+  padding: 16px 0 32px;
+  background: var(--surface);
   min-height: 100%;
   box-sizing: border-box;
 }
 
-/* Mirrors DriverTripDetailPage.css's identical breakpoints/values — that
-   page already tightens its side padding on narrow phones, this one never
-   did, leaving disproportionate horizontal gutter on real devices. */
-@media (max-width: 430px) {
-  .driver-journey {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-}
-
+/* The narrow-phone side padding the previous round added is moot now that
+   the journey is full-bleed; kept only as a hook for the very smallest
+   screens (≤320px) so the card text doesn't kiss the edge. */
 @media (max-width: 320px) {
-  .driver-journey {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
   .driver-journey-card {
     padding: 12px;
   }

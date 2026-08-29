@@ -175,9 +175,10 @@
   .topbar__welcome .name {
     color: #ffffff;
   }
+  /* Biển số xe is subtext only — no pill background on the green header.
+     Color stays slightly dimmer than the name for hierarchy. */
   .topbar__plate {
-    background: rgba(255, 255, 255, 0.14);
-    color: #ffffff;
+    color: rgba(255, 255, 255, 0.85);
   }
 
   /* Search input inside green topbar on tablet */
