@@ -229,8 +229,8 @@ export function DriverTripPodPage() {
     }
   }
 
-  async function handleSubmitPod(submission: DriverTaskPodSubmission) {
-    if (!trip || !validFulfillmentId) return;
+  async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
+    if (!trip || !validFulfillmentId) return false;
     setSubmitting(true);
     try {
       // Same key shape the trip-detail page used before the split, so a
@@ -259,7 +259,8 @@ export function DriverTripPodPage() {
           expectedVersion: submission.version,
         },
       });
-      await runDrain('Đã gửi e-POD để duyệt.', idempotencyKey);
+      const result = await runDrain('Đã gửi e-POD để duyệt.', idempotencyKey);
+      return result.statusById?.[idempotencyKey] === 'DONE';
     } finally {
       setSubmitting(false);
     }
@@ -290,7 +291,13 @@ export function DriverTripPodPage() {
       if (currentSubmission?.status === 'DRAFT') {
         // handleSubmitPod's runDrain already refetches on DONE; an extra
         // serial GET here only delays the complete command on slow links.
-        await handleSubmitPod(currentSubmission);
+        const podSubmitted = await handleSubmitPod(currentSubmission);
+        if (!podSubmitted) {
+          // POD submission failed (offline, conflict, or rejected) —
+          // do not attempt to complete the trip; the server would reject
+          // it because the evidence gate (e-POD SUBMITTED) is not met.
+          return;
+        }
       }
       const idempotencyKey = buildOfflineCommandKey(
         'driver',
@@ -429,7 +436,7 @@ export function DriverTripPodPage() {
             uploading={uploadingPod}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
-            onSubmit={handleSubmitPod}
+            onSubmit={async (submission) => { await handleSubmitPod(submission); }}
           />
         </section>
       </main>

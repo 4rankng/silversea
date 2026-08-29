@@ -221,11 +221,17 @@ describe('DriverTripPodPage', () => {
       isError: false,
       refetch: refetchMock,
     });
-    // buildOfflineCommandKey is mocked as parts.join(':') → the complete
-    // command key for fulfillment 88, trip version 3.
+    // buildOfflineCommandKey is mocked as parts.join(':') → both the
+    // pod-submit and complete command keys must appear as DONE. The mock
+    // returns the same result for every drain() call, so both keys are
+    // needed: handleSubmitPod checks the pod-submit key, then
+    // handleCompleteTrip checks the complete key.
     drainMock.mockResolvedValue({
       done: 1,
-      statusById: { 'driver:task:88:complete:version:3': 'DONE' },
+      statusById: {
+        'driver:task:88:pod-submit:22:version:2': 'DONE',
+        'driver:task:88:complete:version:3': 'DONE',
+      },
     });
 
     renderPage();
@@ -354,6 +360,42 @@ describe('DriverTripPodPage', () => {
     expect(complete.hasAttribute('disabled')).toBe(true);
     const reload = within(banner).getByRole('button', { name: /Tải lại/ });
     expect(reload).toBeTruthy();
+  });
+
+  it('does not attempt to complete the trip when the POD submission fails', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    // POD_SUBMIT fails with a conflict → handleSubmitPod returns false →
+    // handleCompleteTrip must bail without enqueuing the COMPLETE command.
+    drainMock.mockResolvedValue({
+      done: 0,
+      conflicts: 1,
+      statusById: { 'driver:task:88:pod-submit:22:version:2': 'CONFLICT' },
+      messageById: { 'driver:task:88:pod-submit:22:version:2': 'Phiên bản e-POD đã thay đổi. Vui lòng tải lại.' },
+    });
+
+    renderPage();
+
+    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
+    fireEvent.click(complete);
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalled());
+    // The complete command must NOT be enqueued — the POD submission failed.
+    expect(enqueueMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      endpoint: 'driver.task.complete',
+    }));
+    // Still on the e-POD screen.
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
   });
 
   it('"Tải lại" drops the stuck CONFLICT command and refetches the trip', async () => {
