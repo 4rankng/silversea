@@ -4,7 +4,7 @@
  */
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { vehicles } from './data/index.js';
 import { normalizedTextEquals } from './seed-identity.js';
 import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';

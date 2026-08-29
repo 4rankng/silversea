@@ -11,7 +11,7 @@
 import { sql } from 'drizzle-orm';
 import type { DebitNoteTemplateColumn } from '@tingting/shared';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { COMPANY_INFO_SETTING_KEYS } from '../services/company-info.service.js';
 import { customers, companyIdentity } from './data/index.js';
 import { normalizedTextEquals } from './seed-identity.js';

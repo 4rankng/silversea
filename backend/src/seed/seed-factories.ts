@@ -4,7 +4,7 @@
  */
 import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { factories } from './data/index.js';
 import { normalizedTextEquals, normalizeSeedText } from './seed-identity.js';
 

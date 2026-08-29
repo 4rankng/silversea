@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import type { ReferenceSeedResult } from './seed-reference.js';
 
 const PORTS = ['cảng tân vũ', 'cảng đình vũ', 'bãi sitc', 'bãi gft'];

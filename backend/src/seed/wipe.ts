@@ -12,7 +12,7 @@
  * Postgres resolves FK dependencies when CASCADE is present, so the grouping
  * below is organizational (for readability of the dry-run output) rather than
  * a strict ordering requirement. The explicit table list is the source of
- * truth and must stay in sync with `backend/src/db/schema.ts`.
+ * truth and must stay in sync with `backend/src/db/schema/ (barrel index.ts)`.
  *
  * Part of plans/260731-customer-audit-reseed. See
  * docs/customer-workflow-gap-analysis.md for context.

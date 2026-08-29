@@ -14,7 +14,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { OperationalSiteType } from '@tingting/shared';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 
 interface SiteSeed {
   customerTaxCode: string;

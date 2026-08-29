@@ -4,7 +4,7 @@
  */
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { ports as portsFromExcel } from './data/ports-from-excel.js';
 import { normalizeSeedText, normalizedTextEquals } from './seed-identity.js';
 

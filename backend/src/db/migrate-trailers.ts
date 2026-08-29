@@ -1,5 +1,5 @@
 import { db } from './index.js';
-import * as s from './schema.js';
+import * as s from './schema/index.js';
 import { isNotNull, sql } from 'drizzle-orm';
 
 async function migrateTrailers() {

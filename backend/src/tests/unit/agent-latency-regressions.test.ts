@@ -24,7 +24,7 @@ describe('chatbot latency regression guards', () => {
   test('cancelled socket turns are persisted for abort telemetry', () => {
     const socket = source('agentSocket.ts');
     const orchestrator = source('services/agent/orchestrator.ts');
-    const schema = source('db/schema.ts');
+    const schema = source('db/schema/agent.ts');
     assert.match(socket, /await previousCompletion/);
     assert.match(socket, /ac\.signal\.aborted && !turnRecorded/);
     assert.match(socket, /await recordAbortedTurn\(/);

@@ -1,7 +1,7 @@
 /** Seed the customer-provided freight-price matrix as explicit price classes. */
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { pricing } from './data/index.js';
 import type { CustomerSeedResult } from './seed-customers.js';
 import type { ReferenceSeedResult } from './seed-reference.js';

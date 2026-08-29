@@ -9,7 +9,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { ports, routes, containerTypes } from './data/index.js';
 import { normalizedTextEquals } from './seed-identity.js';
 

@@ -12,7 +12,7 @@
 import { sql } from 'drizzle-orm';
 import { reassignTruckDriverInTx } from '../services/truck-driver-assignment.service';
 import { db } from '../db/index.js';
-import * as s from '../db/schema.js';
+import * as s from '../db/schema/index.js';
 import { trucks as truckSeeds, drivers as driverSeeds } from './data/index.js';
 import { normalizedTextEquals } from './seed-identity.js';
 

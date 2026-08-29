@@ -486,7 +486,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     // O2C reconciliation (01/08/2026): LOCKED dropped — COMPLETED is the single
     // terminal/posting state. CANCELED remains a terminal sink.
     terminalStates: ['COMPLETED', 'CANCELED'],
-    stateAuthority: source('db/schema.ts', 'tripStatusEnum', "'COMPLETED'", "'CANCELED'"),
+    stateAuthority: source(
+      'db/schema/_enums.ts',
+      'tripStatusEnum', "'COMPLETED'", "'CANCELED'"),
     directMutationBoundary: source(
       'services/trip-figure-updates.service.ts',
       'updateTripFigures',
@@ -510,7 +512,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'BILLING_DOCUMENT',
     terminalStates: ['SENT', 'CONFIRMED', 'PAID', 'CANCELED'],
     stateAuthority: source(
-      'db/schema.ts',
+      'db/schema/_enums.ts',
       'debitNoteStatusEnum',
       "'SENT'",
       "'CONFIRMED'",
@@ -538,7 +540,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'TRIP_EXPENSE',
     terminalStates: ['APPROVED'],
-    stateAuthority: source('db/schema.ts', 'tripExpenses', 'approvalStatus', "'APPROVED'"),
+    stateAuthority: source(
+      'db/schema/costs.ts',
+      'tripExpenses', 'approvalStatus', "'APPROVED'"),
     directMutationBoundary: source(
       'services/forwarder.service.ts',
       'updateTripExpense',
@@ -588,7 +592,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'ADVANCE_SETTLEMENT',
     terminalStates: ['APPROVED', 'REJECTED', 'REVERSED'],
     stateAuthority: source(
-      'db/schema.ts',
+      'db/schema/_enums.ts',
       'advanceSettlementStatusEnum',
       "'APPROVED'",
       "'REJECTED'",
@@ -696,7 +700,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'PENALTY',
     terminalStates: ['CANCELED'],
-    stateAuthority: source('db/schema.ts', 'penaltyStatusEnum', "'CANCELED'"),
+    stateAuthority: source(
+      'db/schema/_enums.ts',
+      'penaltyStatusEnum', "'CANCELED'"),
     directMutationBoundary: source(
       'services/financial.service.ts',
       'cancelPenaltyTx',
@@ -717,7 +723,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'SALARY_CONFIRMATION',
     terminalStates: ['CONFIRMED'],
-    stateAuthority: source('db/schema.ts', 'salaryConfirmationStatusEnum', "'CONFIRMED'"),
+    stateAuthority: source(
+      'db/schema/_enums.ts',
+      'salaryConfirmationStatusEnum', "'CONFIRMED'"),
     directMutationBoundary: source(
       'services/salary-confirmation-governance.service.ts',
       'requestSalaryReopen',
@@ -740,7 +748,9 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
   {
     entity: 'SALARY_PERIOD',
     terminalStates: ['CLOSED'],
-    stateAuthority: source('db/schema.ts', 'salaryPeriodCloses', "'CLOSED'"),
+    stateAuthority: source(
+      'db/schema/financial.ts',
+      'salaryPeriodCloses', "'CLOSED'"),
     directMutationBoundary: source(
       'services/salary-period-close-lifecycle.service.ts',
       'requestSalaryPeriodReopen',
@@ -789,7 +799,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'CREDIT_OVERRIDE',
     terminalStates: ['APPROVED', 'REJECTED', 'CANCELED'],
     stateAuthority: source(
-      'db/schema.ts',
+      'db/schema/_enums.ts',
       'creditOverrideStatusEnum',
       "'APPROVED'",
       "'REJECTED'",
@@ -875,7 +885,7 @@ export const LOCKED_ENTITY_BOUNDARIES: readonly LockedEntityBoundary[] = [
     entity: 'ADVANCE_REQUEST',
     terminalStates: ['APPROVED', 'REJECTED'],
     stateAuthority: source(
-      'db/schema.ts',
+      'db/schema/_enums.ts',
       'advanceRequestStatusEnum',
       "'APPROVED'",
       "'REJECTED'",
