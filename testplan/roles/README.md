@@ -54,15 +54,15 @@ Full list lives in `../testaccounts.txt` (testplan root). Highlights:
 | ADMIN       | `admin`     | `Abc123` | full                                              |
 | MANAGER     | `giamdoc`   | `Abc123` | full minus strict-admin                          |
 | ACCOUNTANT  | `ketoan`    | `Abc123` | financial only                                    |
-| DRIVER      | `laixe`     | `Abc123` | `15C-491.72`                                      |
-| DRIVER      | `thu`       | `Abc123` | `60C-23456`                                       |
-| DRIVER      | `pho`       | `Abc123` | `60C-45678`                                       |
-| DRIVER      | `quyet`     | `Abc123` | `60C-34567`                                       |
+| DRIVER      | `laixe`     | `Abc123` | `15C-284.56`                                      |
+| DRIVER      | `thu`       | `Abc123` | `60C-392.15`                                      |
+| DRIVER      | `pho`       | `Abc123` | `60C-467.29`                                      |
+| DRIVER      | `quyet`     | `Abc123` | `15C-999.68`                                      |
 | OPS         | `giaonhan`  | `Abc123` | field staff                                       |
 | CUS         | `cus`       | `Abc123` | document ops                                      |
 | DISPATCHER  | `dieuvan`   | `Abc123` | planning                                          |
-| CUSTOMER    | `e2e-customer-28348` | `Abc123` | row-scoped to own shipments             |
-| CUSTOMER    | `e2e-customer-90852` | `Abc123` | row-scoped to own shipments             |
+| CUSTOMER    | `samsung-cs`| `Abc123` | Samsung Electronics VN                            |
+| CUSTOMER    | `canon-cs`  | `Abc123` | Canon Việt Nam                                    |
 
 **Staging note**: `cus` username on staging is `cus123`. All other usernames
 are identical. Password is `Abc123` everywhere.
@@ -214,9 +214,9 @@ Local seed (`make setup`) is reproducible. To reset without nuking Postgres:
 cd backend && pnpm db:reset && pnpm db:seed
 ```
 
-For the driver app, the seed mounts `laixe` → `15C-491.72` so any driver AC
+For the driver app, the seed mounts `laixe` → `15C-284.56` so any driver AC
 that needs a known plate can rely on it. For the customer portal, the seed
-creates `e2e-customer-28348` and `e2e-customer-90852` as row-scoped users.
+creates `samsung-cs` (Samsung Electronics VN) and `canon-cs` (Canon Việt Nam) as row-scoped users.
 
 If a test mutates a fixture (creates a customer, books a shipment, etc.) and
 the next test needs a clean slate, **reset the DB before continuing**. Do

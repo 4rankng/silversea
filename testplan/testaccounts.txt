@@ -23,56 +23,58 @@ staging:
       password: Abc123
 
 # Additional demo accounts for role-based QA (user-directory export, created
-# 2026-08-20/21, @nepo.vn emails). Same shared password as above; role codes
+# 2026-08-20/21, @silversea.vn emails). Same shared password as above; role codes
 # cross-checked against the demo seed table in AGENTS.md. Drivers are bound
 # to the listed truck plates.
 demoUsers:
   - name: Trần Văn Admin
     username: admin
-    email: admin@nepo.vn
+    email: admin@silversea.vn
     role: Quản trị (ADMIN)
   - name: Nguyễn Văn Giao
     username: giaonhan
-    email: giaonhan@nepo.vn
+    email: giaonhan@silversea.vn
     phone: 0900000004
     role: Giao nhận (OPS) — local-dev seed account (backend/src/seed.ts);
       username/email/phone all work as the login identifier. Note the trailing
       "n": "giaohan" fails login — verified 2026-08-23.
   - name: Lê Văn Tỉnh
     username: giamdoc
-    email: giamdoc@nepo.vn
+    email: giamdoc@silversea.vn
     role: Quản lý (MANAGER)
   - name: Nguyễn Thị Mai
     username: ketoan
-    email: ketoan@nepo.vn
+    email: ketoan@silversea.vn
     role: Kế toán (ACCOUNTANT) — full-company financial scope
   - name: Nhân viên Điều vận Demo
     username: dieuvan
-    email: dieuvan@nepo.vn
+    email: dieuvan@silversea.vn
     role: Điều vận (DISPATCHER)
   - name: Phạm Văn Hùng
     username: laixe
-    email: laixe@nepo.vn
+    email: laixe@silversea.vn
     role: Lái xe (DRIVER)
-    truck: 15C-491.72
+    truck: 15C-284.56
   - name: Nguyễn Văn Thụ
     username: thu
-    email: thu@nepo.vn
+    email: thu@silversea.vn
     role: Lái xe (DRIVER)
-    truck: 60C-23456
+    truck: 60C-392.15
   - name: Nguyễn Văn Phố
     username: pho
-    email: pho@nepo.vn
+    email: pho@silversea.vn
     role: Lái xe (DRIVER)
-    truck: 60C-45678
+    truck: 60C-467.29
   - name: Lê Văn Quyết
     username: quyet
-    email: quyet@nepo.vn
+    email: quyet@silversea.vn
     role: Lái xe (DRIVER)
-    truck: 60C-34567
-  - name: E2E Customer Portal
-    username: e2e-customer-28348
-    role: Khách hàng (CUSTOMER)
-  - name: E2E Customer Portal
-    username: e2e-customer-90852
-    role: Khách hàng (CUSTOMER)
+    truck: 15C-999.68
+  - name: Trần Minh Đức
+    username: samsung-cs
+    email: samsung.cs@silversea.vn
+    role: Khách hàng (CUSTOMER) — Samsung Electronics VN
+  - name: Lê Thị Hương
+    username: canon-cs
+    email: canon.cs@silversea.vn
+    role: Khách hàng (CUSTOMER) — Canon Việt Nam

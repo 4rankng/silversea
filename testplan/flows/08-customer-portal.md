@@ -1,7 +1,7 @@
 # Luồng 8: Cổng Khách hàng (Customer Portal)
 
 > **Vai trò sở hữu:** Khách hàng (CUSTOMER)
-> **Tài khoản demo:** `customer` (password: `Abc123`); E2E: `e2e-customer-28348`, `e2e-customer-90852`
+> **Tài khoản demo:** `customer` (password: `Abc123`); Samsung: `samsung-cs` (password: `Abc123`); Canon: `canon-cs` (password: `Abc123`)
 > **Route chính:** `/portal/shipments`, `/portal/debit-notes`, `/portal/statement`
 > **PRD nguồn:** Module 03, Module 05, Q16, HT-11, HT-12
 >

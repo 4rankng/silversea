@@ -245,6 +245,87 @@
 
 ---
 
+## 1.7 — Tạo khách hàng inline (trong form tạo lô)
+
+### TC-CUS-CREATE-012 — Tạo khách hàng inline thành công từ form tạo lô
+
+- **Mã PRD:** 74a17b5c, casbin.ts:38-45
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đăng nhập `cus`, mở `/shipments/new`
+- **Các bước:**
+  1. Ở dropdown "Khách hàng", bấm "Thêm khách hàng" (nút + hoặc link).
+  2. Dialog "Thêm khách hàng" mở. Nhập tên: `KH Inline Test E2E`.
+  3. Nhập mã số thuế (tùy chọn): `0123456789`.
+  4. Bấm "Thêm khách hàng".
+- **Kết quả mong đợi (Pass):**
+  - Khách hàng tạo thành công (201), không bị403.
+  - Dialog đóng, khách hàng mới tự động chọn trong dropdown.
+  - Các trường credit/billing (`creditLimit`, `paymentTermDays`, `status`, `isCarrier`) bị strip — chỉ có identity fields.
+  - Không có governance action (không qua phê duyệt) vì CUS intake là identity-only.
+  - Khách hàng mới có trong danh mục khi tạo lô lần sau.
+- **Kỳ vọng sai (Fail nếu):**
+  - Bị 403 "Không có quyền truy cập" — dead-end, không thể tạo lô.
+  - Dialog không đóng sau khi tạo.
+  - Khách hàng mới không tự động chọn.
+  - Các trường credit/billing vẫn được set (rủi ro bảo mật).
+- **Bằng chứng:** Network tab (POST /api/customers → 201) + ảnh dialog + ảnh dropdown đã chọn
+
+---
+
+### TC-CUS-CREATE-013 — CUS không thể sửa/xóa khách hàng (create-only)
+
+- **Mã PRD:** casbin.ts:38-45, customer-intake-create.test.ts:158-178
+- **Vai trò:** `cus`
+- **Mức độ:** P0
+- **Thiết bị:** Desktop
+- **Các bước:**
+  1. Tạo khách hàng inline (TC-CUS-CREATE-012).
+  2. Thử sửa tên khách hàng vừa tạo qua API: `PUT /api/customers/:id`.
+  3. Thử xóa khách hàng: `DELETE /api/customers/:id`.
+- **Kết quả mong đợi (Pass):**
+  - PUT trả 403 — Casbin chỉ cho phép POST, không cho PUT/DELETE.
+  - DELETE trả 403.
+  - Khách hàng không bị thay đổi/xóa.
+- **Bằng chứng:** Network tab (PUT → 403, DELETE → 403)
+
+---
+
+### TC-CUS-CREATE-014 — Dispatcher cũng tạo được khách hàng inline
+
+- **Mã PRD:** casbin.ts:38-45
+- **Vai trò:** `dieuvan`
+- **Mức độ:** P1
+- **Thiết bị:** Desktop
+- **Tiền điều kiện:** Đăng nhập `dieuvan`, mở trang có dropdown khách hàng
+- **Các bước:**
+  1. Tạo khách hàng inline qua API: `POST /api/customers` với tên `KH Dispatcher Test`.
+  2. Kiểm tra: tạo thành công (201), credit fields bị strip.
+- **Kết quả mong đợi (Pass):**
+  - Dispatcher tạo được khách hàng inline (201).
+  - Credit/billing fields bị strip (tương tự CUS).
+- **Bằng chứng:** Network tab (POST → 201) + response body không có creditLimit
+
+---
+
+### TC-CUS-CREATE-015 — Vai trò khác không tạo được khách hàng inline
+
+- **Mã PRD:** casbin.ts:38-45
+- **Vai trò bị chặn:** `laixe`, `ketoan`, `giaonhan`, `customer`
+- **Mức độ:** P0
+- **Các bước:**
+  1. Đăng nhập `laixe`. Gọi `POST /api/customers` qua API.
+  2. Đăng nhập `ketoan`. Gọi `POST /api/customers`.
+  3. Đăng nhập `giaonhan`. Gọi `POST /api/customers`.
+  4. Đăng nhập `customer`. Gọi `POST /api/customers`.
+- **Kết quả mong đợi (Pass):**
+  - Tất cả bị 403 — Casbin chỉ bypass cho CUS và DISPATCHER.
+  - Không tạo được khách hàng.
+- **Bằng chứng:** Network tab (403 cho từng vai trò)
+
+---
+
 ## Bảng nghiệm thu — Luồng Tạo lô hàng (CUS)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -260,3 +341,7 @@
 | __/__/__ | TC-CUS-CREATE-009 | | | Phạm vi lô | |
 | __/__/__ | TC-CUS-CREATE-010 | | | Tạo liên tiếp | |
 | __/__/__ | TC-CUS-CREATE-011 | | | Double-submit | |
+| __/__/__ | TC-CUS-CREATE-012 | | | Tạo KH inline thành công | |
+| __/__/__ | TC-CUS-CREATE-013 | | | CUS create-only (PUT/DELETE 403) | |
+| __/__/__ | TC-CUS-CREATE-014 | | | Dispatcher tạo KH inline | |
+| __/__/__ | TC-CUS-CREATE-015 | | | Vai trò khác bị chặn | |

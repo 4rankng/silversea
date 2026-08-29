@@ -3,9 +3,8 @@
 > **Vietnamese label**: Khách hàng (`Role.CUSTOMER`).
 > **Home route**: `/portal/shipments` (`routes.portalShipments`).
 > **Primary sidebar section**: `Portal` (`portal`).
-> **Test accounts (local + staging)**: `e2e-customer-28348` /
-> `Abc123`, `e2e-customer-90852` / `Abc123` (both row-scoped to
-> their own shipments).
+> **Test accounts (local + staging)**: `samsung-cs` / `Abc123` (Samsung Electronics VN),
+> `canon-cs` / `Abc123` (Canon Việt Nam) — both row-scoped to their own shipments.
 > **Primary pages**:
 > - `/portal/shipments` — `frontend/src/pages/portal/PortalShipmentsPage.tsx`
 > - `/portal/shipments/:id` — `frontend/src/pages/portal/PortalShipmentDetailPage.tsx`
@@ -68,9 +67,9 @@ customer (the seed creates a few).
      and search by `Mã lô hàng` / `Tuyến`. URL reflects the
      state.
 3. **CUST-SHIP-03 — Row-scoped: no leak**
-   - **Given** the customer is `e2e-customer-28348`
+   - **Given** the customer is `samsung-cs`
    - **When** the user navigates to a shipment ID that
-     belongs to `e2e-customer-90852` directly
+     belongs to `canon-cs` directly
    - **Then** the page returns 404 / "Không tìm thấy" — the
      portal **must not** leak the other customer's data
      even via direct URL.
@@ -86,13 +85,13 @@ customer (the seed creates a few).
 
 ### Test steps
 
-1. Log in as `e2e-customer-28348`. Land on
+1. Log in as `samsung-cs`. Land on
    `/portal/shipments`.
 2. Capture the list.
 3. Apply a status filter; capture.
 4. Click a row; capture the detail.
 5. Open another tab; navigate to a shipment ID belonging to
-   `e2e-customer-90852`; capture the 404.
+   `canon-cs`; capture the 404.
 
 ### Regression hooks
 
@@ -186,7 +185,7 @@ customer (the seed creates a few).
 
 ### Test steps
 
-1. Log in as `e2e-customer-28348`. Open `/portal/debit-notes`.
+1. Log in as `samsung-cs`. Open `/portal/debit-notes`.
 2. Capture the list. Apply a status filter.
 3. Click a row; capture the PDF preview.
 4. Confirm the `Thanh toán` button is disabled (Wave 2).
@@ -226,7 +225,7 @@ customer (the seed creates a few).
 
 ### Test steps
 
-1. Log in as `e2e-customer-28348`. Open `/portal/statement`.
+1. Log in as `samsung-cs`. Open `/portal/statement`.
 2. Capture the default period.
 3. Switch to a different period; capture.
 4. Click `Export` and capture the file.
@@ -277,7 +276,7 @@ workspace. If a customer finds a way in, that's a security bug.
 
 ### Test steps
 
-1. Log in as `e2e-customer-28348`. Open dev-tools.
+1. Log in as `samsung-cs`. Open dev-tools.
 2. From the address bar, type `/dashboard` and hit Enter.
    Confirm redirect to `/portal/shipments`.
 3. Open a second tab. Paste the URL of any office page

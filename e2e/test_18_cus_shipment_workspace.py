@@ -124,6 +124,87 @@ def main() -> bool:
         )
         container_type_id = canonical_container_type["id"]
 
+        # ── TC-CUS-CREATE-012: CUS inline customer creation ──────────
+        inline_customer_name = f"KH Inline E2E {RUN_ID}"
+        inline_create = cus_api.post("/api/customers", {
+            "name": inline_customer_name,
+            "taxCode": f"99{RUN_ID[:6]}",
+            "contactPerson": "E2E Tester",
+            "phone": "0900000999",
+        })
+        inline_ok = inline_create.get("status") == 201 and inline_create.get("data", {}).get("id")
+        check(
+            results,
+            "TC-1803-CREATE",
+            "CUS tạo khách hàng inline thành công (201, không bị 403)",
+            inline_ok,
+            str(inline_create),
+        )
+        if inline_ok:
+            inline_customer = inline_create["data"]
+            # Verify credit fields were stripped for CUS intake
+            credit_stripped = (
+                inline_customer.get("creditLimit") is None
+                and inline_customer.get("paymentTermDays") is None
+            )
+            check(
+                results,
+                "TC-1803-CREATE-STRIP",
+                "CUS intake strip credit/billing fields",
+                credit_stripped,
+                f"creditLimit={inline_customer.get('creditLimit')} paymentTermDays={inline_customer.get('paymentTermDays')}",
+            )
+            # Verify customer appears in catalog list
+            from urllib.parse import quote
+            catalog_check = cus_api.get(f"/api/customers?search={quote(inline_customer_name)}")
+            found_in_catalog = any(
+                row.get("id") == inline_customer["id"]
+                for row in rows(catalog_check)
+            )
+            check(
+                results,
+                "TC-1803-CREATE-CATALOG",
+                "Khách hàng inline xuất hiện trong danh mục",
+                found_in_catalog,
+                str(catalog_check),
+            )
+            # CUS cannot PUT the customer (create-only)
+            put_result = cus_api.put(
+                f"/api/customers/{inline_customer['id']}",
+                {"name": "Sửa tên không được"},
+                headers={"If-Unmodified-Since": inline_customer.get("updatedAt", "")},
+            )
+            check(
+                results,
+                "TC-1803-CREATE-PUT-BLOCKED",
+                "CUS không thể sửa khách hàng (PUT → 403)",
+                put_result.get("status") == 403,
+                str(put_result),
+            )
+            # CUS cannot DELETE the customer
+            del_result = cus_api._request("DELETE", f"/api/customers/{inline_customer['id']}")
+            check(
+                results,
+                "TC-1803-CREATE-DEL-BLOCKED",
+                "CUS không thể xóa khách hàng (DELETE → 403)",
+                del_result.get("status") == 403,
+                str(del_result),
+            )
+
+        # ── TC-CUS-CREATE-015: Other roles blocked from inline create ─
+        for blocked_role in ("driver", "forwarder"):
+            blocked_api = login(blocked_role)
+            blocked_result = blocked_api.post("/api/customers", {
+                "name": f"Blocked {blocked_role} {RUN_ID}",
+            })
+            check(
+                results,
+                f"TC-1803-BLOCKED-{blocked_role.upper()}",
+                f"{blocked_role} bị chặn tạo khách hàng inline (403)",
+                blocked_result.get("status") == 403,
+                str(blocked_result),
+            )
+
         create_response = cus_api.post("/api/shipments/quick", {
             "customerId": customer_id,
             "routeId": route_rows[0]["id"],
