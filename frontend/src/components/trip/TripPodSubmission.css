@@ -98,13 +98,17 @@
 
 .trip-pod__card {
   display: grid;
-  gap: 12px;
-  /* Grid items default to min-width: auto, which refuses to shrink below the
-     content's intrinsic width. At the >=700px breakpoint the narrow ~210px
-     columns are then overflowed by the card's own content (title/buttons),
-     bleeding into the neighboring column instead of wrapping — this is what
-     fixes it. */
+  /* The card's single implicit column track is `auto`, which sizes to the
+     widest child's min-content — the nowrap e-POD file-name row (~330px).
+     Inside the narrow >=700px grid columns that track then overflows the
+     card and paints over the neighboring column. minmax(0,1fr) pins the
+     track to the card's resolved width so children wrap/ellipsis instead. */
+  grid-template-columns: minmax(0, 1fr);
+  /* Grid items default to min-width: auto — without this floor reset the
+     card itself refuses to shrink below its content and bleeds into the
+     neighboring column. */
   min-width: 0;
+  gap: 12px;
 }
 
 /* Stacked file-type groups separate with a hairline divider, not a card box.
@@ -232,6 +236,10 @@
 
 .trip-pod__file-list {
   display: grid;
+  /* Same min-content trap one level down: the nowrap file name would size
+     this list's auto track to the full text width and bleed past the card
+     edge. minmax(0,1fr) keeps rows inside the card; the name ellipsizes. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 0;
   margin: 0;
@@ -380,23 +388,21 @@
 
 @media (min-width: 700px) {
   .trip-pod__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    /* Exactly two required e-POD types render in this grid
+       (REQUIRED_FILE_TYPES in TripPodSubmission.tsx) — a third track would
+       sit empty and starve the two real cards of width. minmax(0,1fr) keeps
+       the tracks content-independent so wide children can't inflate them. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Side-by-side groups separate with a column hairline (the SummaryRail
      ruled-divider convention) instead of the mobile border-top divider.
-     Assumes the fixed 3-type grid above — if the group count ever grows,
-     reset the left divider on each wrapped row's leading card. */
+     If the group count ever grows past one row, reset the left divider on
+     each wrapped row's leading card. */
   .trip-pod__card + .trip-pod__card {
     border-top: 0;
     padding-top: 0;
     border-left: 1px solid var(--line);
     padding-left: 12px;
-  }
-  /* On wide 3-column grids, each card is narrow (~210px) which squeezes
-     the 2-button action row (Chụp / Tải tệp). Stack the buttons to keep
-     the labels readable. */
-  .trip-pod__actions {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 

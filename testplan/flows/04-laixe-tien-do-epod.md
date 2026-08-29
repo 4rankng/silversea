@@ -269,6 +269,94 @@
 
 ---
 
+## 4.8 — Khóa nộp lại & hoàn thành chuyến sau khi gửi e-POD (regression 2026-08-29)
+
+> Ba lỗi được báo trong ngày trial 08-29: (1) lái xe bấm lại "Chụp" trên e-POD
+> đã gửi duyệt luôn dính lỗi 409 "Đã có một e-POD đang mở cho tác vụ này" vì
+> nút chưa bị khóa; (2) khi bấm "HOÀN THÀNH CHUYẾN" mà bước gửi e-POD thất bại
+> (mất mạng/conflict), hệ thống vẫn cố hoàn thành chuyến → bị server từ chối
+> ngầm, chuyến kẹt ở "Đang chạy"/"Đã nhận" thay vì "Lịch sử"; (3) ở màn rộng
+> ≥700px, 2 thẻ e-POD bắt buộc đè chữ/nút lên nhau.
+
+### TC-LX-TIENDO-013 — Khóa nút Chụp/Tải tệp khi e-POD đã gửi duyệt (SUBMITTED/ACCEPTED)
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile
+- **Tiền điều kiện:** Đã nộp e-POD thành công (TC-LX-TIENDO-007), trạng thái "Đã gửi duyệt" hoặc "Đã chấp nhận"
+- **Các bước:**
+  1. Mở `/my-trips/:id/pod` của chuyến đã có e-POD SUBMITTED/ACCEPTED.
+  2. Quan sát khu vực 2 slot bắt buộc.
+  3. Thử bấm vào nơi trước đây có nút "Chụp"/"Tải tệp".
+- **Kết quả mong đợi (Pass):**
+  - Không còn nút "Chụp"/"Tải tệp" cho 2 slot — thay bằng dòng chữ "e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này".
+  - Không xuất hiện lỗi "Đã có một e-POD đang mở cho tác vụ này".
+- **Kỳ vọng sai (Fail nếu):**
+  - Nút "Chụp"/"Tải tệp" vẫn hiện & bấm được.
+  - Bấm vào sinh lỗi 409 "Đã có một e-POD đang mở cho tác vụ này".
+- **Bằng chứng:** ảnh màn e-POD ở trạng thái SUBMITTED/ACCEPTED, không còn nút chụp/tải
+
+---
+
+### TC-LX-TIENDO-014 — Vẫn nộp lại được sau khi e-POD bị từ chối (REJECTED)
+
+- **Vai trò:** `laixe` (nộp) + người duyệt e-POD (từ chối trước)
+- **Mức độ:** P0
+- **Thiết bị:** Mobile
+- **Tiền điều kiện:** e-POD của chuyến đã bị từ chối (REJECTED), có lý do từ chối
+- **Các bước:**
+  1. Mở `/my-trips/:id/pod` của chuyến có e-POD REJECTED.
+  2. Kiểm tra banner lý do từ chối hiển thị.
+  3. Bấm "Chụp" hoặc "Tải tệp" cho 1 trong 2 slot bắt buộc, tải file mới.
+- **Kết quả mong đợi (Pass):**
+  - Nút "Chụp"/"Tải tệp" vẫn hiện & bấm được (KHÔNG bị khóa như case SUBMITTED).
+  - Tải file mới thành công, tạo phiên bản e-POD mới (submissionVersion tăng).
+- **Kỳ vọng sai (Fail nếu):**
+  - Nút bị khóa/ẩn giống trạng thái SUBMITTED, lái xe không nộp lại được.
+  - Lỗi "Đã có một e-POD đang mở cho tác vụ này" xuất hiện dù bản trước đã REJECTED.
+- **Bằng chứng:** ảnh banner từ chối + ảnh sau khi tải file mới thành công
+
+---
+
+### TC-LX-TIENDO-015 — "HOÀN THÀNH CHUYẾN" không được tiến hành nếu bước gửi e-POD thất bại
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P0
+- **Thiết bị:** Mobile
+- **Tiền điều kiện:** e-POD đang ở DRAFT (chưa gửi), đủ 2 slot bắt buộc; có thể mô phỏng mất mạng/conflict trong lúc gửi (tắt mạng ngay sau khi bấm, hoặc dùng phiên bản trip đã lỗi thời — expectedVersion sai)
+- **Các bước:**
+  1. Mở `/my-trips/:id/pod`, đủ 2 slot bắt buộc, e-POD còn DRAFT.
+  2. Ngắt mạng (hoặc để trip bị đổi version ở tab khác) rồi bấm "HOÀN THÀNH CHUYẾN".
+  3. Quan sát: lệnh gửi e-POD thất bại/queued offline.
+  4. Bật lại mạng, tải lại trang, kiểm tra trạng thái chuyến.
+- **Kết quả mong đợi (Pass):**
+  - Khi bước gửi e-POD chưa xác nhận DONE, lệnh "HOÀN THÀNH CHUYẾN" (COMPLETE) **không được gửi lên server**.
+  - Chuyến vẫn ở màn e-POD, chưa điều hướng về `/my-trips`.
+  - Sau khi mạng ổn định và e-POD gửi thành công, bấm lại "HOÀN THÀNH CHUYẾN" mới chuyển chuyến sang "Lịch sử"/"Chờ duyệt phí".
+- **Kỳ vọng sai (Fail nếu):**
+  - Lệnh COMPLETE vẫn được gửi dù e-POD chưa SUBMITTED thành công (server từ chối ngầm, chuyến kẹt ở "Đang chạy"/"Đã nhận", không rõ lý do cho lái xe).
+- **Bằng chứng:** ảnh trạng thái mạng lỗi + ảnh chuyến vẫn ở màn e-POD + ảnh sau khi hoàn thành lại thành công
+
+---
+
+### TC-LX-TIENDO-016 — Bố cục 2 thẻ e-POD không đè lên nhau ở màn rộng (visual)
+
+- **Vai trò:** `laixe`
+- **Mức độ:** P1
+- **Thiết bị:** Mobile ngang / tablet nhỏ, chiều rộng ~700–1000px (đúng ngưỡng breakpoint)
+- **Tiền điều kiện:** Chuyến có e-POD với 2 slot (bất kỳ trạng thái DRAFT/SUBMITTED/REJECTED)
+- **Các bước:**
+  1. Mở `/my-trips/:id/pod` trên thiết bị/trình duyệt rộng ~700–1000px.
+  2. Quan sát 2 thẻ "Phiếu bãi / phiếu hạ" và "Biên bản giao nhận có ký nhận" cạnh nhau.
+- **Kết quả mong đợi (Pass):**
+  - 2 thẻ hiển thị tách bạch, có đường phân cách, không chữ/nút nào đè lên thẻ còn lại.
+  - Tiêu đề, badge "1 tệp", nút/khu vực khóa đều đọc được rõ ràng.
+- **Kỳ vọng sai (Fail nếu):**
+  - Chữ hoặc nút của thẻ 1 đè lên thẻ 2 (hoặc ngược lại).
+- **Bằng chứng:** ảnh chụp màn hình ở độ rộng ~700–1000px
+
+---
+
 ## Bảng nghiệm thu — Luồng Tiến độ & e-POD (Lái xe)
 
 | Ngày thử | Mã TC | Người thử | Kết quả | Ghi chú | Bằng chứng |
@@ -285,3 +373,7 @@
 | __/__/__ | TC-LX-TIENDO-010 | | | Gửi chờ duyệt phí | |
 | __/__/__ | TC-LX-TIENDO-011 | | | Thu nhập/Phiếu lương | |
 | __/__/__ | TC-LX-TIENDO-012 | | | Khoản phạt | |
+| __/__/__ | TC-LX-TIENDO-013 | | | Khóa nút khi đã SUBMITTED/ACCEPTED | |
+| __/__/__ | TC-LX-TIENDO-014 | | | Nộp lại được khi REJECTED | |
+| __/__/__ | TC-LX-TIENDO-015 | | | Không hoàn thành chuyến nếu gửi e-POD lỗi | |
+| __/__/__ | TC-LX-TIENDO-016 | | | Bố cục 2 thẻ e-POD không đè nhau | |
