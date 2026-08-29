@@ -4,7 +4,7 @@ import type { ShipmentCreateSectionId } from './shipment-create-model';
 interface ShipmentCreateSectionProps {
   id: ShipmentCreateSectionId;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 }
 
@@ -12,7 +12,7 @@ interface ShipmentCreateSectionProps {
 export function ShipmentCreateSection({ id, title, description, children }: ShipmentCreateSectionProps) {
   return (
     <section id={`shipment-section-${id}`} tabIndex={-1} className="csc-section" style={sectionStyle}>
-      <div className="csc-section__heading"><div><h2>{title}</h2><p>{description}</p></div></div>
+      <div className="csc-section__heading"><div><h2>{title}</h2>{description && <p>{description}</p>}</div></div>
       {children}
     </section>
   );

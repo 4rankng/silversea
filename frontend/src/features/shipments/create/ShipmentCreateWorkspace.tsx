@@ -604,7 +604,6 @@ export function ShipmentCreateWorkspace() {
               >
                 <Plus size={15} aria-hidden="true" />Thêm nhà máy
               </button>
-              <span>Chọn nhà máy và tuyến đường riêng cho từng container.</span>
             </div>
             <ShipmentContainerEditor
               saving={Boolean(saving)}
@@ -785,7 +784,7 @@ export function ShipmentCreateWorkspace() {
           )}
         </ShipmentCreateSection>
 
-        <ShipmentCreateSection id="schedule" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? 'Ngày giờ đóng/trả đã được nhập trên từng container.' : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
+        <ShipmentCreateSection id="schedule" title="Lịch & ghi chú" description={form.cargoMode === 'FCL' ? undefined : 'Các hạn vận hành và lưu ý để điều phối thực hiện đúng kế hoạch.'}>
           {form.cargoMode === 'LCL' && <div style={gridStyle}>
             <TextField label="Hạn hoàn tất hải quan" type="datetime-local" value={form.customsCutoffAt} onChange={(event) => update('customsCutoffAt', event.target.value)} disabled={Boolean(saving)} />
             <TextField label="Hạn hạ container tại cảng" type="datetime-local" value={form.closingAt} onChange={(event) => update('closingAt', event.target.value)} disabled={Boolean(saving)} />
