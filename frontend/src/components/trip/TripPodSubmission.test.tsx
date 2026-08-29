@@ -29,7 +29,6 @@ describe('TripPodSubmission', () => {
   it('shows missing required documents and readiness status', () => {
     render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
@@ -38,7 +37,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={vi.fn()}
       />,
     );
 
@@ -53,7 +51,6 @@ describe('TripPodSubmission', () => {
     const uploadFile = vi.fn().mockResolvedValue(undefined);
     const { container } = render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={null}
         history={[]}
@@ -62,7 +59,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={ensureDraft}
         onUploadFile={uploadFile}
-        onSubmit={vi.fn()}
       />,
     );
 
@@ -81,7 +77,6 @@ describe('TripPodSubmission', () => {
   it('shows 100% readiness when both required files are present', () => {
     render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={draftSubmission({
           files: [
@@ -109,7 +104,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={vi.fn()}
       />,
     );
 
@@ -122,7 +116,6 @@ describe('TripPodSubmission', () => {
   it('opens the fullscreen scanner overlay from Chụp and closes back', () => {
     render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={draftSubmission()}
         history={[]}
@@ -131,7 +124,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={vi.fn()}
       />,
     );
 
@@ -152,7 +144,6 @@ describe('TripPodSubmission', () => {
   it('locks capture/upload once the submission is SUBMITTED, avoiding the 409 dead-end', () => {
     render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={draftSubmission({ status: TripPodStatus.SUBMITTED })}
         history={[]}
@@ -161,7 +152,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={vi.fn()}
       />,
     );
 
@@ -175,7 +165,6 @@ describe('TripPodSubmission', () => {
   it('keeps capture/upload open after a REJECTED submission so the driver can retry', () => {
     render(
       <TripPodSubmission
-        tripId={55}
         tripVersion={3}
         currentSubmission={draftSubmission({
           status: TripPodStatus.REJECTED,
@@ -187,7 +176,6 @@ describe('TripPodSubmission', () => {
         uploading={false}
         onEnsureDraft={vi.fn()}
         onUploadFile={vi.fn()}
-        onSubmit={vi.fn()}
       />,
     );
 

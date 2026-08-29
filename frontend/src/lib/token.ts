@@ -78,3 +78,12 @@ export function clearToken(): void {
 export function invalidateTokenCache(): void {
   cachedToken = undefined;
 }
+
+// Self-heal the service-worker mirror at app start: sessions logged in before
+// the mirror shipped (and any cache purge, e.g. a future CACHE-name bump in
+// sw.js) hold their JWT only in localStorage, which the worker cannot read —
+// their background-sync notifications would 401 silently forever. The mirror
+// is otherwise written only by setToken (login/logout).
+if (typeof window !== 'undefined') {
+  mirrorTokenToServiceWorkerCache(readToken());
+}

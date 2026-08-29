@@ -8,6 +8,7 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp } from '@tingting/shared';
+import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { emitNotification } from './notification.service';
 import {
@@ -135,10 +136,18 @@ function buildAdvanceSettlementConditions(filters?: { forwarderId?: number; stat
     // select a composite tab in one query. Vocabulary derives from the schema
     // enum so a new status only changes the enum, never these call sites.
     type SettlementStatus = typeof s.advanceSettlementStatusEnum.enumValues[number];
-    const statuses = filters.status.split(',').map((v) => v.trim()).filter(Boolean) as SettlementStatus[];
-    conditions.push(statuses.length === 1
-      ? eq(s.advanceSettlements.status, statuses[0])
-      : inArray(s.advanceSettlements.status, statuses));
+    const statuses = filters.status.split(',').map((v) => v.trim()).filter(Boolean);
+    // Unknown labels would reach Postgres as an invalid enum literal (22P02)
+    // and 500 the list endpoint; validate against the same enum vocabulary.
+    const valid = new Set<string>(s.advanceSettlementStatusEnum.enumValues);
+    const unknown = statuses.filter((v) => !valid.has(v));
+    if (unknown.length > 0) {
+      throw new ApiError(400, `Trạng thái tất toán không hợp lệ: ${unknown.join(', ')}`);
+    }
+    const typed = statuses as SettlementStatus[];
+    conditions.push(typed.length === 1
+      ? eq(s.advanceSettlements.status, typed[0])
+      : inArray(s.advanceSettlements.status, typed));
   }
   return conditions.length > 0 ? and(...conditions) : undefined;
 }

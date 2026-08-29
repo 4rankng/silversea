@@ -5,6 +5,11 @@ let redis: Redis | null = null;
 
 const inflightCacheRequests = new Map<string, Promise<unknown>>();
 const cacheVersions = new Map<string, number>();
+// Globally monotonic version source. cacheGet snapshots a key's version to
+// suppress stale writes after an invalidate; that guard is only sound while
+// values never repeat, so the counter (not a per-key increment) owns the
+// number — a cap-clear that resets the MAP must not reset the VALUES.
+let cacheVersionSeq = 0;
 
 export function getRedis(): Redis {
   if (!redis) {
@@ -72,10 +77,11 @@ export async function cacheGet<T>(
 export async function cacheInvalidate(key: string): Promise<void> {
   // The version map has no natural eviction; cap it so a pathological key
   // cardinality (e.g. per-entity keys over a huge table) cannot grow it
-  // without bound. Clearing only loses version continuity, and each key
-  // self-heals on its next invalidate.
+  // without bound. Clearing only loses version continuity — with a globally
+  // monotonic sequence the re-created key gets a value no in-flight snapshot
+  // can hold, so the stale-overwrite guard stays sound across a clear.
   if (cacheVersions.size > 10_000) cacheVersions.clear();
-  cacheVersions.set(key, (cacheVersions.get(key) ?? 0) + 1);
+  cacheVersions.set(key, ++cacheVersionSeq);
   inflightCacheRequests.delete(key);
   const client = getRedis();
   try {

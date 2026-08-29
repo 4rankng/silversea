@@ -333,7 +333,7 @@ export function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function containerTransportDateSql() {
+export function containerTransportDateSql() {
   // Use the container's appointment date for exact-day filtering. Containers
   // without an appointment inherit the shipment's expected delivery date so
   // they still appear when the user filters by that day.
@@ -451,16 +451,17 @@ const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
 };
 
 /** Overview-workboard status rank mirrors deriveCusBucket: an active
- * accounting lock is LOCKED, then PENDING_LOCK (approval/completed), RUNNING
- * (dispatched/in-transit), else NEW. Only relative order matters. */
+ * accounting lock — or a driver full-closed (COMPLETED) shipment — is
+ * LOCKED, then PENDING_LOCK (approval), RUNNING (dispatched/in-transit),
+ * else NEW. Only relative order matters. */
 function workspaceBucketRankSql(): SQL {
   return sql`case
     when exists (
       select 1 from ${s.shipmentAccountingLocks} sal
       where sal.shipment_id = ${s.shipments.id} and sal.released_at is null
-    ) then 3
+    ) or ${s.shipments.status} = 'COMPLETED' then 3
     when ${s.shipments.status} in ('DISPATCHED', 'IN_TRANSIT') then 2
-    when ${s.shipments.status} in ('PENDING_EXPENSE_APPROVAL', 'COMPLETED') then 1
+    when ${s.shipments.status} = 'PENDING_EXPENSE_APPROVAL' then 1
     else 0
   end`;
 }
@@ -1827,7 +1828,14 @@ async function buildShipmentPageConditions(
     )!);
   }
   if (query.bucket === ShipmentCusBucket.LOCKED) {
-    conditions.push(activeLockExists);
+    // Mirrors deriveCusBucket: an active lock is LOCKED, and so is a
+    // driver full-closed (COMPLETED) shipment no one has locked yet —
+    // otherwise the badge says "Đã khóa" while only the "Chờ khóa" tab
+    // can retrieve the row.
+    conditions.push(or(
+      activeLockExists,
+      eq(s.shipments.status, ShipmentStatus.COMPLETED),
+    )!);
   } else if (query.bucket === ShipmentCusBucket.RUNNING) {
     conditions.push(sql`not ${activeLockExists}`);
     conditions.push(inArray(s.shipments.status, [
@@ -1835,10 +1843,12 @@ async function buildShipmentPageConditions(
       ShipmentStatus.IN_TRANSIT,
     ]));
   } else if (query.bucket === ShipmentCusBucket.PENDING_LOCK) {
+    // Driver full-close lands on COMPLETED (LOCKED bucket); the unlocked
+    // "Chờ khóa" tab is only for the partial-close PENDING_EXPENSE_APPROVAL
+    // state and the disabled accountant flow's own advances.
     conditions.push(sql`not ${activeLockExists}`);
     conditions.push(inArray(s.shipments.status, [
       ShipmentStatus.PENDING_EXPENSE_APPROVAL,
-      ShipmentStatus.COMPLETED,
     ]));
   } else if (query.bucket === ShipmentCusBucket.NEW) {
     conditions.push(sql`not ${activeLockExists}`);

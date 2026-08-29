@@ -13,6 +13,7 @@ import { count, gte } from 'drizzle-orm';
 import { canonicalShipmentStatus } from '@tingting/shared';
 import type { ShipmentStatus } from './shipment-types';
 import { isClerkScopedUser, loadClerkShipmentScope, buildShipmentScopeWhere } from './clerk-shipment-scope.service';
+import { containerTransportDateSql } from './cus-shipment-workspace-reads.service';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
@@ -1103,10 +1104,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       sql`exists (
         select 1 from ${s.shipmentContainers}
         where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and coalesce(
-            date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'),
-            ${s.shipments.expectedDeliveryDate}
-          ) between ${from} and ${to}
+          and ${containerTransportDateSql()} between ${from} and ${to}
       )`,
     )!);
   }

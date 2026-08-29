@@ -77,6 +77,7 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   const [flashSupported, setFlashSupported] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [decodeFailed, setDecodeFailed] = useState(false);
 
   // Acquire the rear camera on mount; release it on unmount.
   useEffect(() => {
@@ -130,15 +131,23 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
   }, [flashOn]);
 
   /** Common "I have an image, downsize it, fire onCapture" path. */
-  const finishWith = useCallback(async (rawDataUrl: string) => {
+  const finishWith = useCallback(async (rawDataUrl: string, allowRawFallback: boolean) => {
     if (busy) return;
     setBusy(true);
     try {
       const finalUrl = await downsizeImageToDataUrl(rawDataUrl);
       onCapture(finalUrl);
     } catch {
-      // Downsize can fail on a tainted canvas (CORS); fall back to the raw source.
-      onCapture(rawDataUrl);
+      if (allowRawFallback) {
+        // Camera frames are canvas-drawn JPEGs (always decodable); a failure
+        // here can only be a tainted canvas — the raw frame is still valid JPEG.
+        onCapture(rawDataUrl);
+      } else {
+        // A gallery file the browser cannot decode (HEIC outside Safari) would
+        // be stored as broken bytes under a .jpg name — reject it instead.
+        setDecodeFailed(true);
+        setBusy(false);
+      }
     }
   }, [busy, onCapture]);
 
@@ -150,14 +159,15 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
     canvas.height = video.videoHeight;
     canvas.getContext('2d')!.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    void finishWith(dataUrl);
+    void finishWith(dataUrl, true);
   }, [finishWith]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setDecodeFailed(false);
     const reader = new FileReader();
-    reader.onload = () => { void finishWith(reader.result as string); };
+    reader.onload = () => { void finishWith(reader.result as string, false); };
     reader.onerror = () => { /* ignore — user can retry */ };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -197,6 +207,22 @@ export function ContainerScanner({ onCapture, onClose }: ContainerScannerProps) 
               </span>
             </>
           )}
+        </div>
+      )}
+
+      {/* Gallery decode failure — the file cannot be shown as a photo, so it
+          must not be uploaded as broken bytes under a .jpg name. */}
+      {decodeFailed && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 96, zIndex: 2,
+          display: 'flex', justifyContent: 'center', padding: '0 24px',
+        }}>
+          <span style={{
+            fontSize: 13, lineHeight: 1.5, maxWidth: 280, textAlign: 'center',
+            color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '8px 12px',
+          }}>
+            Không đọc được ảnh vừa chọn. Hãy dùng ảnh chụp từ máy ảnh hoặc chọn tệp khác.
+          </span>
         </div>
       )}
 

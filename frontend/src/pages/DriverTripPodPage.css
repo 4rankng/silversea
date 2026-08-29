@@ -142,3 +142,15 @@
     width: 100%;
   }
 }
+
+/* Below 1024px the fixed driver bottom-nav (60px + safe-area) sits over the
+   page footer at max scroll: the shell clearance is dropped for full-bleed
+   task screens (bottom-nav.css `:has()` rule owns shell padding at every
+   width), so the screen must clear the nav itself. Two-class selector wins
+   the cascade over `.driver-task-screen`'s 32px base padding regardless of
+   CSS import order. */
+@media (max-width: 1023px) {
+  .driver-trip-pod-screen.driver-task-screen {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 12px));
+  }
+}

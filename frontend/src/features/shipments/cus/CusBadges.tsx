@@ -51,13 +51,12 @@ const BUCKET_ICONS = {
 
 export function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const Icon = BUCKET_ICONS[item.bucket];
-  // PENDING_LOCK is shared between "Chờ duyệt phí" (driver evidence handed
-  // off, awaiting accountant) and "Hoàn thành" (accountant closed the
-  // shipment). Both have user-meaningful status labels — show those instead
-  // of the generic "Chờ khóa" so the badge reflects the actual state. NEW
-  // and LOCKED keep their bucket label because they group heterogeneous
-  // sub-states (multiple sub-statuses for NEW, accounting-lock aggregate
-  // for LOCKED).
+  // PENDING_LOCK is the "Chờ duyệt phí" state (driver partial close or the
+  // disabled accountant flow's advance) — show the status label instead of
+  // the generic "Chờ khóa". Driver full-closed shipments are LOCKED (locked
+  // tab) even before an accounting lock row exists; that tab keeps the
+  // bucket label because it groups heterogeneous sub-states (an active
+  // accounting lock and the unlocked full-closed aggregate).
   const useStatusLabel = item.bucket === ShipmentCusBucket.NEW
     || item.bucket === ShipmentCusBucket.PENDING_LOCK;
   const label = useStatusLabel ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel;

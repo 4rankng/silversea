@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { DOW_LABELS } from './salary-attendance-constants';
 import './ForwarderTripDateRangePicker.css';
 
 type DateRange = { dateFrom: string; dateTo: string };
@@ -107,7 +108,7 @@ export function ForwarderTripDateRangePicker({ dateFrom, dateTo, onChange }: Dat
             <button type="button" className={activeDate === 'to' ? 'is-active' : ''} onClick={() => setActiveDate('to')}>Đến: {displayDate(dateTo)}</button>
           </div>
           <div className="ftrip-date-picker__month"><button type="button" aria-label="Tháng trước" onClick={() => setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}><ChevronLeft size={18} /></button><strong>{monthLabel(viewMonth)}</strong><button type="button" aria-label="Tháng sau" onClick={() => setViewMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}><ChevronRight size={18} /></button></div>
-          <div className="ftrip-date-picker__weekdays">{['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map((day) => <span key={day}>{day}</span>)}</div>
+          <div className="ftrip-date-picker__weekdays">{DOW_LABELS.map((day) => <span key={day}>{day}</span>)}</div>
           <div className="ftrip-date-picker__days">{days.map((date, index) => date ? <button key={isoDate(date)} type="button" className={`${selected === isoDate(date) ? 'is-selected' : ''}${dateFrom && dateTo && isoDate(date) >= dateFrom && isoDate(date) <= dateTo ? ' is-in-range' : ''}`} onClick={() => select(isoDate(date))}>{date.getDate()}</button> : <span key={`blank-${index}`} />)}</div>
           <footer><button type="button" className="btn btn--primary" onClick={close}>Áp dụng khoảng ngày</button></footer>
         </section>

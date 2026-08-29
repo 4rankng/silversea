@@ -102,14 +102,21 @@ export function ShipmentCreateWorkspace() {
 
   // Catalogs (customers, routes, etc.) are otherwise fetched once on mount
   // and never refreshed, so a customer created elsewhere (another tab, the
-  // admin customer page) would stay invisible here until a hard reload.
-  // Revalidate silently whenever the tab regains focus/visibility. Merge
-  // rather than replace: a customer added inline (clerk scope may not
-  // include it yet) must survive revalidation instead of vanishing from
-  // under a possibly-selected form value.
+  // admin customer submission) must survive revalidation — same for an
+  // inline-created route. Merge rather than replace those lists; everything
+  // else takes the fresh bootstrap wholesale.
   useEffect(() => {
+    let revalidateInFlight = false;
+    let revalidatePending = false;
     function revalidateCatalogs() {
+      // Both focus AND visibilitychange fire for one tab return; coalesce
+      // them into a single request instead of double-fetching.
+      if (revalidateInFlight) {
+        revalidatePending = true;
+        return;
+      }
       if (loading || document.visibilityState === 'hidden') return;
+      revalidateInFlight = true;
       tripClient.getBootstrap().then((fresh) => {
         setCatalogs((current) => current ? {
           ...fresh,
@@ -117,8 +124,18 @@ export function ShipmentCreateWorkspace() {
             ...fresh.customers,
             ...current.customers.filter((known) => !fresh.customers.some((item) => item.id === known.id)),
           ],
+          routes: [
+            ...fresh.routes,
+            ...current.routes.filter((known) => !fresh.routes.some((item) => item.id === known.id)),
+          ],
         } : fresh);
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => {
+        revalidateInFlight = false;
+        if (revalidatePending) {
+          revalidatePending = false;
+          revalidateCatalogs();
+        }
+      });
     }
     window.addEventListener('focus', revalidateCatalogs);
     document.addEventListener('visibilitychange', revalidateCatalogs);
@@ -152,6 +169,21 @@ export function ShipmentCreateWorkspace() {
   const issueByField = useMemo(
     () => new Map(validationIssues.map((item) => [item.fieldId, item.message])),
     [validationIssues],
+  );
+  // Stable option arrays: USearchableField's type-to-search effect keys on
+  // the `options` identity, so a freshly-mapped array on every render would
+  // wipe the clerk's in-progress typed filter on any unrelated re-render.
+  const customerOptions = useMemo(
+    () => (catalogs?.customers ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+    [catalogs],
+  );
+  const routeOptions = useMemo(
+    () => (catalogs?.routes ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+    [catalogs],
+  );
+  const portOptions = useMemo(
+    () => (catalogs?.ports ?? []).map((item) => ({ value: String(item.id), label: item.name })),
+    [catalogs],
   );
   const isDirty = useMemo(() => {
     const hasFormData = Object.entries(form).some(([key, value]) => (
@@ -400,7 +432,7 @@ export function ShipmentCreateWorkspace() {
                 required
                 value={form.customerId}
                 onChange={selectCustomer}
-                options={catalogs.customers.map((item) => ({ value: String(item.id), label: item.name }))}
+                options={customerOptions}
                 placeholder="Gõ để tìm kiếm"
                 disabled={Boolean(saving)}
                 error={issueByField.get('shipment-customer')}
@@ -454,7 +486,7 @@ export function ShipmentCreateWorkspace() {
                 required
                 value={form.routeId}
                 onChange={(value) => update('routeId', value)}
-                options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                options={routeOptions}
                 placeholder="Gõ chọn"
                 disabled={Boolean(saving)}
                 error={issueByField.get('shipment-route')}
@@ -624,7 +656,7 @@ export function ShipmentCreateWorkspace() {
                       required
                       value={row.routeId}
                       onChange={(value) => updateContainer(row.key, 'routeId', value)}
-                      options={(catalogs.routes ?? []).map((item) => ({ value: String(item.id), label: item.name }))}
+                      options={routeOptions}
                       placeholder="Chọn tuyến đường"
                       disabled={Boolean(saving)}
                       error={issueByField.get(`container-${row.key}-route`)}
@@ -637,7 +669,7 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-pickup-port`}
                     error={issueByField.get(`container-${row.key}-pickup-port`)}
                   >
-                    <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
+                    <SearchableField id={`container-${row.key}-pickup-port`} label="Cảng nâng" hideLabel value={row.pickupPortId} onChange={(value) => updateContainer(row.key, 'pickupPortId', value)} options={portOptions} placeholder="Chọn cảng nâng" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-pickup-port`)} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Cảng hạ"
@@ -646,7 +678,7 @@ export function ShipmentCreateWorkspace() {
                     fieldId={`container-${row.key}-dropoff-port`}
                     error={issueByField.get(`container-${row.key}-dropoff-port`)}
                   >
-                    <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={(catalogs.ports ?? []).map((item) => ({ value: String(item.id), label: item.name }))} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
+                    <SearchableField id={`container-${row.key}-dropoff-port`} label="Cảng hạ" hideLabel value={row.dropoffPortId} onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)} options={portOptions} placeholder="Chọn cảng hạ" disabled={Boolean(saving)} error={issueByField.get(`container-${row.key}-dropoff-port`)} />
                   </ShipmentContainerCell>
                   <ShipmentContainerCell
                     label="Trọng lượng (kg)"

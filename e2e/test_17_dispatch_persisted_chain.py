@@ -1143,78 +1143,35 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         {"expectedVersion": trip_version},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-complete"},
     )
+    # Driver full-close path (2026-08-29): completeOwnedFulfillmentTrip
+    # transitions the trip to COMPLETED (not IN_TRANSIT). The shipment also
+    # advances to COMPLETED via allCompletedViaDriverClose. Ops expense
+    # scope is no longer a gate — the accountant review will handle costs
+    # later when the flow is reintroduced.
     assert_ok(
         results,
         "TC-1718",
-        "Driver completes the operational handoff after e-POD submission",
+        "Driver completes the trip via full-close path",
         complete_status in (200, 201)
-        and complete_body.get("status") == "IN_TRANSIT"
+        and complete_body.get("status") == "COMPLETED"
         and complete_body.get("evidenceStatus", {}).get("latestSubmissionStatus") == "SUBMITTED",
         str(complete_body),
     )
     if isinstance(complete_body, dict) and isinstance(complete_body.get("version"), int):
         trip_version = complete_body["version"]
 
-    completion_status, completion_body = request_json(
-        forwarder_api,
-        "PUT",
-        f"/api/forwarder/me/trips/{trip_id}/expense-completion",
-        {"tripContainerId": None, "completed": True},
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-expense-completion"},
+    # Verify shipment also moved to COMPLETED after driver full-close
+    shipment_after_close = clerk_api.get(f"/api/shipments/{shipment_id}")
+    shipment_close_payload = shipment_after_close.get("data", shipment_after_close)
+    assert_ok(
+        results,
+        "TC-1718C",
+        "Shipment is COMPLETED after driver full-close",
+        shipment_close_payload.get("shipment", {}).get("status") == "COMPLETED",
+        str(shipment_close_payload),
     )
-    if completion_status != 200 or completion_body.get("status") != "COMPLETED":
-        results.fail("TC-1718C", "Ops completes the general expense scope", api_failure_detail(completion_body))
-        return
-    results.pass_("TC-1718C", "Ops completes the general expense scope", f"trip#{trip_id}")
-
-    forwarder_trip_response = forwarder_api.get(f"/api/forwarder/me/trips/{trip_id}")
-    forwarder_trip_detail = forwarder_trip_response.get("data", forwarder_trip_response)
-    completion_scopes = forwarder_trip_detail.get("completionScopes") or []
-    pending_container_scope_ids = [
-        scope.get("tripContainerId")
-        for scope in completion_scopes
-        if scope.get("tripContainerId") is not None and scope.get("status") != "COMPLETED"
-    ]
-    for index, trip_container_scope_id in enumerate(pending_container_scope_ids, start=1):
-        scope_completion_status, scope_completion_body = request_json(
-            forwarder_api,
-            "PUT",
-            f"/api/forwarder/me/trips/{trip_id}/expense-completion",
-            {"tripContainerId": trip_container_scope_id, "completed": True},
-            headers={"Idempotency-Key": f"{BOOKING_PREFIX}-expense-completion-container-{index}"},
-        )
-        if scope_completion_status != 200 or scope_completion_body.get("status") != "COMPLETED":
-            results.fail(
-                f"TC-1718D-{index}",
-                "Ops completes every remaining container expense scope",
-                api_failure_detail(scope_completion_body),
-            )
-            return
-        results.pass_(
-            f"TC-1718D-{index}",
-            "Ops completes every remaining container expense scope",
-            f"tripContainerId={trip_container_scope_id}",
-        )
-
-    forwarder_trip_response = forwarder_api.get(f"/api/forwarder/me/trips/{trip_id}")
-    forwarder_trip_detail = forwarder_trip_response.get("data", forwarder_trip_response)
-    remaining_completion_scopes = [
-        scope for scope in (forwarder_trip_detail.get("completionScopes") or [])
-        if scope.get("status") != "COMPLETED"
-    ]
-    if remaining_completion_scopes:
-        results.fail(
-            "TC-1718E",
-            "Ops completion scopes are fully closed before accounting review",
-            str(remaining_completion_scopes),
-        )
-        return
-    shipment_detail = clerk_api.get(f"/api/shipments/{shipment_id}")
-    shipment_payload = shipment_detail.get("data", shipment_detail)
-    if shipment_payload.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
-        results.fail("TC-1718E", "Shipment moves to pending expense approval after full ops handoff", str(shipment_payload))
-        return
-    results.pass_("TC-1718E", "Shipment moves to pending expense approval after full ops handoff", f"shipment#{shipment_id}")
+    # TC-1718D/E: Ops expense scope tests skipped — driver full-close
+    # bypasses the expense-scope gate (allCompletedViaDriverClose).
 
     driver_forbidden_export_status, driver_forbidden_export_body = request_json(
         driver_api,
@@ -1244,13 +1201,18 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         {"expectedVersion": submission_version, "resolution": "ACCEPT", "podRecovered": True},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-review"},
     )
-    if review_status not in (200, 201):
-        results.fail("TC-1720", "Clerk accepts the e-POD", api_failure_detail(review_body))
+    # After driver full-close, the POD review endpoint rejects with
+    # "Chỉ có thể duyệt e-POD của chuyến đang chạy" because the trip is
+    # already COMPLETED. The accountant review flow is deliberately skipped
+    # ("skip kế toán for now, we build later"). Verify the rejection.
+    if not assert_ok(
+        results,
+        "TC-1720",
+        "Clerk cannot review e-POD after driver full-close (trip already COMPLETED)",
+        review_status == 409 or (review_status == 400 and "đang chạy" in str(review_body)),
+        api_failure_detail(review_body),
+    ):
         return
-    if review_body.get("tripStatus") != "IN_TRANSIT" or review_body.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
-        results.fail("TC-1720", "Pending expense approval after e-POD acceptance", str(review_body))
-        return
-    results.pass_("TC-1720", "Clerk accepts the e-POD", f"trip={review_body.get('tripStatus')} shipment={review_body.get('shipment', {}).get('status')}")
 
     manager_replay_status, manager_replay_body = request_json(
         manager_api,
@@ -1259,96 +1221,27 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         {"expectedVersion": submission_version, "resolution": "ACCEPT", "podRecovered": True},
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-manager-replay"},
     )
+    # Manager is also blocked — trip is COMPLETED, POD review is not available.
     assert_ok(
         results,
         "TC-1721",
-        "Manager remains blocked after POD approval",
-        manager_replay_status == 403,
+        "Manager remains blocked after driver full-close (trip already COMPLETED)",
+        manager_replay_status == 403 or manager_replay_status == 409,
         api_failure_detail(manager_replay_body),
     )
 
     shipment_detail = clerk_api.get(f"/api/shipments/{shipment_id}")
     shipment_payload = shipment_detail.get("data", shipment_detail)
-    if shipment_payload.get("shipment", {}).get("status") != "PENDING_EXPENSE_APPROVAL":
-        results.fail("TC-1722", "Shipment is pending expense approval in persisted detail", str(shipment_payload))
+    # After driver full-close, shipment is COMPLETED (not PENDING_EXPENSE_APPROVAL).
+    if shipment_payload.get("shipment", {}).get("status") != "COMPLETED":
+        results.fail("TC-1722", "Shipment is COMPLETED in persisted detail after driver full-close", str(shipment_payload))
         return
-    if not shipment_payload.get("podReviews"):
-        results.fail("TC-1722", "Shipment detail exposes POD review", str(shipment_payload))
-        return
-    results.pass_("TC-1722", "Shipment is pending expense approval in persisted detail", f"shipment#{shipment_id}")
-    current_trip_version = shipment_payload.get("podReviews", [{}])[0].get("tripVersion")
-    if isinstance(current_trip_version, int):
-        trip_version = current_trip_version
-
-    for index, photo_type in enumerate(("CONTAINER", "SEAL"), start=1):
-        photo_status, photo_body = request_multipart(
-            accountant_api,
-            "/api/upload",
-            fields={"trip_id": str(trip_id), "type": photo_type},
-            file_field="file",
-            filename=f"{photo_type.lower()}-{BOOKING_PREFIX}.png",
-            file_bytes=sample_png_bytes(),
-            content_type="image/png",
-            idempotency_key=f"{BOOKING_PREFIX}-photo-{index}",
-        )
-        if photo_status not in (200, 201):
-            results.fail(f"TC-1722-{index}", f"Office uploads {photo_type.lower()} evidence photo", api_failure_detail(photo_body))
-            return
-        results.pass_(f"TC-1722-{index}", f"Office uploads {photo_type.lower()} evidence photo", str(photo_body))
-
-    shipment_version = shipment_payload.get("shipment", {}).get("version")
-    close_request_status, close_request_body = request_json(
-        accountant_api,
-        "POST",
-        f"/api/shipments/{shipment_id}/complete",
-        {
-            "expectedVersion": shipment_version,
-            "vatRate": 0.08,
-            "trips": [{"tripId": trip_id, "expectedVersion": trip_version}],
-        },
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-request"},
-    )
-    if close_request_status != 200:
-        results.fail("TC-1723", "Accountant closes the shipment directly", api_failure_detail(close_request_body))
-        return
-    if close_request_body.get("shipment", {}).get("status") != "COMPLETED":
-        results.fail("TC-1723", "Direct close returns completed shipment", str(close_request_body))
-        return
-    if close_request_body.get("completedTripIds") != [trip_id]:
-        results.fail("TC-1723", "Direct close reports the completed trip ids", str(close_request_body))
-        return
-    results.pass_("TC-1723", "Accountant closes the shipment directly", f"shipment#{shipment_id} trip#{trip_id}")
-
-    finance_inbox_status, finance_inbox_body = request_json(
-        accountant_api,
-        "GET",
-        f"/api/financial/work-inbox?view=ACTION&page=1&limit=100&search={urllib.parse.quote(trip.get('tripCode') or str(trip_id))}",
-    )
-    finance_item = next((row for row in first_items(finance_inbox_body) if row.get("tripId") == trip_id), None)
-    advisory_codes = [advisory.get("code") for advisory in (finance_item or {}).get("advisories", [])]
-    if finance_inbox_status != 200 or not finance_item or finance_item.get("blockers") or "CUSTOMER_DISPUTE" not in advisory_codes:
-        results.fail("TC-1723A", "Accountant readiness treats the customer dispute as advisory", str(finance_inbox_body))
-        return
-    results.pass_("TC-1723A", "Accountant closes with accepted POD while the customer dispute remains advisory", f"trip#{trip_id}")
-
-    replay_status, replay_body = request_json(
-        accountant_api,
-        "POST",
-        f"/api/shipments/{shipment_id}/complete",
-        {
-            "expectedVersion": shipment_version,
-            "vatRate": 0.08,
-            "trips": [{"tripId": trip_id, "expectedVersion": trip_version}],
-        },
-        headers={"Idempotency-Key": f"{BOOKING_PREFIX}-close-request"},
-    )
-    if replay_status != 200:
-        results.fail("TC-1724", "Replay returns the stored direct close result", api_failure_detail(replay_body))
-        return
-    if replay_body.get("replayed") is not True:
-        results.fail("TC-1724", "Replay is marked explicitly", str(replay_body))
-        return
-    results.pass_("TC-1724", "Replay returns the stored direct close result", f"shipment#{shipment_id}")
+    results.pass_("TC-1722", "Shipment is COMPLETED in persisted detail after driver full-close", f"shipment#{shipment_id}")
+    # After driver full-close: shipment is COMPLETED, POD review is not
+    # available (trip is COMPLETED). The accounting close (TC-1722-1/2,
+    # TC-1723, TC-1723A, TC-1724) is no longer applicable — the driver
+    # full-close path bypasses the accountant review entirely.
+    # Skip to debit note generation which depends on COMPLETED status.
 
     generate_status, generate_body = request_json(
         accountant_api,
@@ -1363,13 +1256,23 @@ def test_dispatch_persisted_chain(ctx: SilverseaTestContext, results: TestResult
         },
         headers={"Idempotency-Key": f"{BOOKING_PREFIX}-generate"},
     )
-    if generate_status != 200:
-        results.fail("TC-1723", "Accountant generates the debit note draft", api_failure_detail(generate_body))
+    # After driver full-close, the trip is COMPLETED but e-POD is still
+    # SUBMITTED (no accountant review). The billing eligibility check
+    # blocks trips with SUBMITTED e-POD — verify the expected rejection.
+    blocked_trips = generate_body.get("eligibilitySummary", {}).get("blockedTrips", [])
+    trip_blocked = any(bt.get("tripId") == trip_id for bt in blocked_trips)
+    assert_ok(
+        results,
+        "TC-1723",
+        "Debit note blocked while e-POD is SUBMITTED (skip kế toán flow)",
+        generate_status == 200 and trip_blocked,
+        str(generate_body.get("eligibilitySummary", {})),
+    )
+    if trip_blocked:
         return
+    # If trip is not blocked (future flow with accepted e-POD), continue
+    # with billing tests below.
     draft = generate_body
-    if not draft.get("lines"):
-        results.fail("TC-1723", "Debit note draft contains lines", str(draft))
-        return
     selected_lines = [
         line for line in draft["lines"]
         if line.get("sourceType") == "TRIP" and line.get("sourceId") == trip_id

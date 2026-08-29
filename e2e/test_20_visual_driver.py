@@ -107,25 +107,22 @@ def test_visual_driver(ctx: SilverseaTestContext, results: TestResults):
         else:
             results.fail("TC-3021", "Card header", f"tag={tag.count()} time={time_el.count()}")
 
-        # TC-3022: Factory (left) | Port (right)
-        rows = card.locator(".driver-journey-card__row")
-        if rows.count() >= 2:
-            row1_text = rows.nth(0).inner_text()
-            row2_text = rows.nth(1).inner_text()
-            results.pass_("TC-3022", f"Rows: Factory/Port + Route/Port visible")
+        # TC-3022: Factory (left) | Port (right) — the 9f0deb30 card rewrite
+        # replaced the __row layout with named sections + a facts grid.
+        factory = card.locator(".driver-journey-card__factory")
+        route_el = card.locator(".driver-journey-card__route")
+        if factory.count() > 0 and route_el.count() > 0:
+            results.pass_("TC-3022", f"Factory + route sections visible")
         else:
-            results.fail("TC-3022", "Card rows", f"Expected 2, got {rows.count()}")
+            results.fail("TC-3022", "Card sections", f"factory={factory.count()} route={route_el.count()}")
 
-        # TC-3023: Container info: Cont: [Number] - [Type]
+        # TC-3023: Container number rendered bare in __cont-no (no "Cont:" label)
         cont = card.locator(".driver-journey-card__container")
-        if cont.count() > 0:
-            cont_text = cont.first.inner_text().strip()
-            if "Cont:" in cont_text:
-                results.pass_("TC-3023", f"Container: {cont_text[:50]}")
-            else:
-                results.fail("TC-3023", "Container info", f"Text: {cont_text[:50]}")
+        cont_no = card.locator(".driver-journey-card__cont-no")
+        if cont.count() > 0 and cont_no.count() > 0 and cont_no.first.inner_text().strip() not in ("", "-"):
+            results.pass_("TC-3023", f"Container: {cont.first.inner_text().strip()[:50]}")
         else:
-            results.fail("TC-3023", "Container element", "Not found")
+            results.fail("TC-3023", "Container info", "Not found or no container number")
 
         # TC-3024: Footer: "Xem chi tiết & Nhận lệnh" button
         footer = card.locator(".driver-journey-card__footer")

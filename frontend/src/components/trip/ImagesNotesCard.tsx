@@ -2,6 +2,7 @@ import React from 'react';
 import './ImagesNotesCard.css';
 import { Upload, Loader2, X } from 'lucide-react';
 import { CardSection } from './CardSection';
+import { getAuthenticatedPhotoUrl } from '../../lib/api';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 
 interface ImagesNotesCardProps {
@@ -47,7 +48,7 @@ export function ImagesNotesCard({ collapsible, defaultCollapsed }: ImagesNotesCa
             <div className="photo-grid">
               {photoUrls.map((url, i) => (
                 <div key={i} className="photo-thumb">
-                  <img src={url} alt={`Preview ${i + 1}`} />
+                  <img src={getAuthenticatedPhotoUrl(url)} alt={`Preview ${i + 1}`} />
                   <button
                     type="button"
                     className="photo-thumb__remove"

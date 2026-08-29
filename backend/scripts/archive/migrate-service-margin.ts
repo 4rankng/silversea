@@ -13,7 +13,7 @@
  * Usage: npx tsx scripts/migrate-service-margin.ts
  */
 import { db } from '../src/db/index.js';
-import * as s from '../src/db/schema.js';
+import * as s from '../src/db/schema/index.js';
 import { eq, and, isNull } from 'drizzle-orm';
 
 const DEFAULT_FEE_VAT = 0.080;

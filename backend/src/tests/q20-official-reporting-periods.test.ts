@@ -243,12 +243,31 @@ describe('Q20 official reporting period attribution', () => {
     const truck = await mkTruck('official');
     await mkTruckCap(truck.id, addDays(boundaryStart, -15));
 
+    // The cross-period trip completes inside the current salary period, far
+    // enough past the boundary start that it is also in the current calendar
+    // month. Both period definitions (salary period and calendar month) must
+    // agree the trip belongs to the current month — that is the Q20 intent
+    // ("completion date drives period attribution"). The salary-period
+    // boundary itself sits on the LAST days of the previous calendar month
+    // (cross-month mode like 26→25 means August period starts on 2026-07-26),
+    // so anchoring the test to a date that is unambiguously in the current
+    // calendar month (i.e. strictly past the salary-period boundary start,
+    // but still inside the current period's last day) keeps the
+    // calendar-month filter (`[start, nextMonthStart)`) and the
+    // salary-period filter (`[start, end + 1)`) in agreement. The earliest
+    // such date is `min(boundaryStart, first-of-current-calendar-month)` +
+    // 0 — i.e. the first calendar day of the current month that is also
+    // inside the current salary period.
+    const currentCalendarMonthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const crossPeriodCompletionDate = currentCalendarMonthStart >= boundaryStart
+      ? currentCalendarMonthStart
+      : addDays(boundaryStart, 0);
     const crossPeriodTrip = await mkTrip({
       label: 'cross-complete',
       supplierId: supplier.id,
       truckId: truck.id,
-      departureDate: addDays(boundaryStart, -1),
-      completedAt: atBusinessNoon(boundaryStart),
+      departureDate: addDays(crossPeriodCompletionDate, -1),
+      completedAt: atBusinessNoon(crossPeriodCompletionDate),
       status: 'COMPLETED',
       revenue: '3100000',
       grossProfit: '1200000',
@@ -290,12 +309,12 @@ describe('Q20 official reporting period attribution', () => {
     assert.equal(
       previousMonthPnl.tripDetails.some((trip) => trip.tripCode === crossPeriodTrip.tripCode),
       false,
-      `completion date ${boundaryStart} must keep ${crossPeriodTrip.tripCode} out of the previous official month ${previousPeriodStart}..${previousPeriodEnd}`,
+      `completion date ${crossPeriodCompletionDate} must keep ${crossPeriodTrip.tripCode} out of the previous official month ${previousPeriodStart}..${previousPeriodEnd}`,
     );
     assert.equal(
       currentMonthPnl.tripDetails.some((trip) => trip.tripCode === crossPeriodTrip.tripCode),
       true,
-      `completion date ${boundaryStart} must place ${crossPeriodTrip.tripCode} into the current official month`,
+      `completion date ${crossPeriodCompletionDate} must place ${crossPeriodTrip.tripCode} into the current official month`,
     );
     assert.equal(
       currentMonthPnl.tripDetails.some((trip) => trip.id === inProgressTrip.id),

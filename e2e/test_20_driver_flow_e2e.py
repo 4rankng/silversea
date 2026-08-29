@@ -304,12 +304,14 @@ def test_driver_flow_e2e(ctx: SilverseaTestContext, results: TestResults):
         else:
             results.fail("TC-2034", "Card tag", "Not found")
 
-        # Container info
+        # Container info — the 9f0deb30 card rewrite renders the container
+        # number bare in __cont-no (no "Cont:" label prefix).
         cont = card.locator(".driver-journey-card__container")
-        if cont.count() > 0 and "Cont:" in cont.first.inner_text():
+        cont_no = card.locator(".driver-journey-card__cont-no")
+        if cont.count() > 0 and cont_no.count() > 0 and cont_no.first.inner_text().strip() not in ("", "-"):
             results.pass_("TC-2035", f"Container info: {cont.first.inner_text().strip()[:50]}")
         else:
-            results.fail("TC-2035", "Container info", "Not found or missing 'Cont:'")
+            results.fail("TC-2035", "Container info", "Not found or no container number")
 
         # Footer button
         footer = card.locator(".driver-journey-card__footer")

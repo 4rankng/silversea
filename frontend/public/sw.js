@@ -115,23 +115,38 @@ self.addEventListener('periodicsync', (event) => {
       const res = await fetch(JOURNEY_BOARD_URL, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (res.status === 403) {
+        // Registered on install for every signed-in PWA user, but the
+        // journey board is driver-only: an office device would poll a
+        // permanent 403 forever. The periodic-sync permission never names
+        // the role, so self-unregister here.
+        await self.registration.periodicSync?.unregister('refresh-journey-board');
+        return;
+      }
       if (!res.ok) return;
       // The endpoint wraps the cards in { items: [...] }.
       const wire = await res.json();
       const cards = Array.isArray(wire) ? wire : wire?.items ?? [];
       const newOrders = cards.filter((c) => c && c.bucket === 'NEW');
-      if (newOrders.length === 0) return;
-      // Only notify if there are new orders the driver hasn't seen.
+      // Track the NEW-bucket size even when it drains to zero. An early
+      // return at zero would freeze the high-water mark at the last peak:
+      // every later count that does not exceed the stale peak (e.g.
+      // 3 → 0 → 1) would silently never notify.
       const countResponse = await caches.match('/__journey-new-count');
       const lastCount = parseInt(countResponse ? await countResponse.text() : '0', 10) || 0;
       const cache = await caches.open(CACHE);
       cache.put('/__journey-new-count', new Response(String(newOrders.length)));
+      // Notify when the NEW count rose since the previous sync (queue grew).
       if (newOrders.length > lastCount) {
         const latest = newOrders[0];
         await self.registration.showNotification('Lệnh vận chuyển mới', {
           body: `Bạn có ${newOrders.length} lệnh mới. ${latest.routeName || ''}`.trim(),
           icon: '/assets/transting-logo-192.png?v=4',
           tag: 'tingting-new-order',
+          // A still-displayed first alert must be audibly replaced, not
+          // silently swapped (the push handler above sets this for the
+          // same reason).
+          renotify: true,
           data: { url: '/my-trips' },
           vibrate: [120, 60, 120],
         });

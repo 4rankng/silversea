@@ -426,7 +426,6 @@ export function DriverTripPodPage() {
             labels at the top of the card. */}
         <section className="driver-task-section">
           <TripPodSubmission
-            tripId={trip.id}
             tripCode={trip.tripCode}
             tripVersion={trip.version}
             currentSubmission={currentSubmission}
@@ -436,7 +435,6 @@ export function DriverTripPodPage() {
             uploading={uploadingPod}
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
-            onSubmit={async (submission) => { await handleSubmitPod(submission); }}
           />
         </section>
       </main>

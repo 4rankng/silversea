@@ -34,6 +34,10 @@ export function CustomerCreateDialog({ isOpen, onClose, onCreated }: CustomerCre
   }
 
   async function submit() {
+    // Re-entry guard: the confirm-shortcut fires on every Enter keydown while
+    // any input has focus (auto-repeat included), and must not stack a second
+    // POST while the first is in flight.
+    if (saving) return;
     const normalizedName = name.trim();
     if (!normalizedName) {
       setError('Vui lòng nhập tên khách hàng.');

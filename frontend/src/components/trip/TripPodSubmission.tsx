@@ -9,7 +9,7 @@ import {
   Lock,
   Upload,
 } from 'lucide-react';
-import { TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueue';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
@@ -20,7 +20,6 @@ import './TripPodSubmission.css';
 type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
 
 export interface TripPodSubmissionProps {
-  tripId: number;
   tripCode?: string | null;
   tripVersion: number;
   currentSubmission: DriverTaskPodSubmission | null;
@@ -30,13 +29,9 @@ export interface TripPodSubmissionProps {
   uploading: boolean;
   onEnsureDraft: () => Promise<DriverTaskPodSubmission>;
   onUploadFile: (submission: DriverTaskPodSubmission, fileType: TripPodFileType, file: File) => Promise<void>;
-  onSubmit: (submission: DriverTaskPodSubmission) => Promise<void>;
 }
 
-const REQUIRED_FILE_TYPES = [
-  TripPodFileType.YARD_OR_DROP_RECEIPT,
-  TripPodFileType.SIGNED_DELIVERY_NOTE,
-] as const;
+const REQUIRED_FILE_TYPES = TRIP_POD_REQUIRED_FILE_TYPES;
 
 const FILE_TYPE_LABELS: Record<string, string> = {
   [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
@@ -94,7 +89,6 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 export function TripPodSubmission({
-  tripId: _tripId,
   tripCode,
   tripVersion,
   currentSubmission,
@@ -104,7 +98,6 @@ export function TripPodSubmission({
   uploading,
   onEnsureDraft,
   onUploadFile,
-  onSubmit: _onSubmit,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Which required slot the fullscreen scanner is capturing for (vantaiphucloc
@@ -219,14 +212,13 @@ export function TripPodSubmission({
       <div className="trip-pod__grid">
         {REQUIRED_FILE_TYPES.map((fileType) => {
           const files = groupedFiles[fileType];
-          const isRequired = true;
           return (
             <article key={fileType} className="trip-pod__card">
               <div className="trip-pod__card-head">
                 <div>
                   <h3 className="trip-pod__card-title">
                     {FILE_TYPE_LABELS[fileType]}
-                    {isRequired && <span className="trip-pod__required">Bắt buộc</span>}
+                    <span className="trip-pod__required">Bắt buộc</span>
                   </h3>
                   <p className="trip-pod__card-help">{FILE_TYPE_HELP[fileType]}</p>
                 </div>
