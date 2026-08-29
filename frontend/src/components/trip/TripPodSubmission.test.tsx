@@ -148,4 +148,48 @@ describe('TripPodSubmission', () => {
     fireEvent.click(screen.getByLabelText('Đóng'));
     expect(screen.queryByLabelText('Chọn ảnh từ thư viện')).toBeNull();
   });
+
+  it('locks capture/upload once the submission is SUBMITTED, avoiding the 409 dead-end', () => {
+    render(
+      <TripPodSubmission
+        tripId={55}
+        tripVersion={3}
+        currentSubmission={draftSubmission({ status: TripPodStatus.SUBMITTED })}
+        history={[]}
+        pendingCommands={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Chụp' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tải tệp' })).toBeNull();
+    expect(screen.getAllByText(/e-POD đã gửi duyệt/).length).toBeGreaterThan(0);
+  });
+
+  it('keeps capture/upload open after a REJECTED submission so the driver can retry', () => {
+    render(
+      <TripPodSubmission
+        tripId={55}
+        tripVersion={3}
+        currentSubmission={draftSubmission({
+          status: TripPodStatus.REJECTED,
+          rejectionReason: 'Ảnh mờ, không đọc được số phiếu.',
+        })}
+        history={[]}
+        pendingCommands={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole('button', { name: 'Chụp' }).length).toBe(2);
+    expect(screen.getAllByRole('button', { name: 'Tải tệp' }).length).toBe(2);
+  });
 });
