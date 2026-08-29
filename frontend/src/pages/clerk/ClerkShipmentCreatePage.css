@@ -39,7 +39,7 @@
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__booking, .csc-identity-grid__trade-direction { grid-column: span 3; }
 .csc-identity-grid__shipping-line, .csc-identity-grid__declaration { grid-column: span 6; }
-.csc-shipping-line-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.csc-shipping-line-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-shipping-line-picker__add { width: fit-content; white-space: nowrap; }
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
 .csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: 13px; line-height: 1.5; }
@@ -58,7 +58,7 @@
 .csc-route-dialog__submit { flex: 0 0 auto; min-height: 38px; }
 .csc-customer-popover { z-index: 50; min-width: min(32rem, calc(100vw - 32px)); max-width: calc(100vw - 32px); border: 1px solid var(--border-1); background: var(--surface, #fff); box-shadow: 0 12px 28px rgb(15 23 42 / 14%); }
 .csc-customer-popover .csc-customer-option [slot='label'] { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
-.csc-customer-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; min-width: 0; }
+.csc-customer-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .csc-customer-picker__add { width: fit-content; white-space: nowrap; }
 .csc-customer-picker > .csc-searchable-field { min-width: 0; }
 .csc-customer-dialog { display: grid; gap: 12px; }
