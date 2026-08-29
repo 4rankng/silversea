@@ -1,6 +1,7 @@
 import { DispatchIssueStatusSummaryChip } from '../features/dispatch/components/DispatchIssueStatus';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import {
   ChevronRight,
   Download,
@@ -231,6 +232,13 @@ export default function ShipmentsPage() {
   }, [bucket, dateFrom, dateTo, direction, page, sortDir, sortKey, suffixParam]);
 
   useEffect(() => { void loadList(); }, [loadList]);
+  // 27.8 trial regression 2026-08-29: driver "Hoàn thành chuyến" flipped the
+  // shipment server-side but this list kept reading "Đang chạy" until manual
+  // reload. Polling + visibility-refetch keeps the CUS workboard honest when
+  // a remote role (driver, OPS, accountant) mutates the underlying state
+  // while the user is parked here. Pause when the tab is hidden so we don't
+  // burn the office workspace on a backgrounded tab.
+  useAutoRefresh(loadList, 30_000);
 
   const loadDetail = useCallback(async (shipmentId: number, force = false) => {
     if (!force && details[shipmentId]) return;

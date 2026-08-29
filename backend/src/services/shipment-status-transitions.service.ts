@@ -337,63 +337,55 @@ export async function recomputeShipmentCompletion(
     // "Chờ duyệt phí". When the accountant review is reintroduced, this
     // condition narrows back to `allCompletedAndAccepted` and the strict
     // gates resume.
-    const allCompletedViaDriverClose = requiredFulfillments.every((row) => {
+    // One shared "driver-closed" predicate: the trip is COMPLETED with a
+    // SUBMITTED/ACCEPTED e-POD but the accountant gates (expense scopes +
+    // podRecoveredAt) are not yet satisfied because the accountant flow was
+    // deliberately skipped ("skip kế toán for now, we build later").
+    const completedViaDriver = (row: (typeof requiredFulfillments)[number]) => {
       const trip = tripsByFulfillment.get(row.id)?.[0];
       const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
       return trip != null
         && trip.status === 'COMPLETED'
         && latestSubmissionStatus != null
         && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
-    });
+    };
+    // Driver "Hoàn thành chuyến" full-close path: every required fulfillment's
+    // trip is driver-closed — advance the shipment so CUS/Dispatcher see
+    // "Hoàn thành" instead of a stale "Chờ duyệt phí". When the accountant
+    // review is reintroduced, this condition narrows back to
+    // `allCompletedAndAccepted` and the strict gates resume.
+    const allCompletedViaDriverClose = requiredFulfillments.every(completedViaDriver);
 
     // Multi-fulfillment partial close: at least one required fulfillment's
-    // trip is COMPLETED with a SUBMITTED/ACCEPTED e-POD, but other required
-    // fulfillments are still pending (planned carrier allocation with no
-    // dispatched trip yet). The driver-closed trip should reflect on the
-    // shipment — advance to PENDING_EXPENSE_APPROVAL so CUS/Dispatcher see
-    // "Chờ duyệt phí" instead of the misleading "Đang chạy". The remaining
-    // planned carriers are still tracked at the container level (dispatch
-    // status = PLANNED) and will be re-evaluated when the next trip is
-    // dispatched. When all required fulfillments eventually complete, the
+    // trip is driver-closed but other required fulfillments are still pending
+    // (planned carrier allocation with no dispatched trip yet). Advance the
+    // shipment to PENDING_EXPENSE_APPROVAL so CUS/Dispatcher see "Chờ duyệt
+    // phí" for the closed part (the trip-level container badge already shows
+    // "Hoàn thành" via dispatchStatus). The remaining planned carriers are
+    // still tracked at the container level and re-evaluated when their trip
+    // dispatches. When the last required fulfillment closes, the
     // `allCompletedViaDriverClose` branch above fires and the shipment
-    // jumps to COMPLETED.
-    const anyFulfillmentCompletedViaDriver = requiredFulfillments.some((row) => {
-      const trip = tripsByFulfillment.get(row.id)?.[0];
-      const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
-      return trip != null
-        && trip.status === 'COMPLETED'
-        && latestSubmissionStatus != null
-        && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
-    });
-
-    // Driver evidence handoff (DISABLED 2026-08-29 — user instruction "skip
-    // kế toán for now, we build later"). When the accountant review flow is
-    // reintroduced, restore the PENDING_EXPENSE_APPROVAL advance so CUS/Dis-
-    // patcher can see "Chờ duyệt phí" right after e-POD submission. For now
-    // we keep the shipment in its current operational state (IN_TRANSIT) until
-    // the driver full-closes the trip — only that path advances to COMPLETED.
-    // const allDriverEvidenceSubmitted = requiredFulfillments.every((row) => {
-    //   const trip = tripsByFulfillment.get(row.id)?.[0];
-    //   const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
-    //   return trip != null
-    //     && trip.status === TripStatus.IN_TRANSIT
-    //     && trip.podRecoveredAt == null
-    //     && latestSubmissionStatus != null
-    //     && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
-    // });
+    // jumps to COMPLETED. A shipment with another leg actively IN_TRANSIT
+    // must stay operational (RUNNING) instead — the partial close would
+    // otherwise pin a physically moving load under "Chờ duyệt phí".
+    const anyFulfillmentCompletedViaDriver = requiredFulfillments.some(completedViaDriver);
 
     let targetStatus: ShipmentStatus = 'DISPATCHED';
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
-    if (allCompletedViaDriverClose) {
-      targetStatus = 'COMPLETED';
-      reason = 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).';
-    } else if (allCompletedAndAccepted) {
+    if (allCompletedAndAccepted) {
+      // Strict accountant-reviewed close. Keep this branch AHEAD of the
+      // driver full-close branch: it is a superset test, so a trailing
+      // driver branch would shadow it forever — when the accountant review
+      // is reintroduced, the strict gate must actually execute.
       targetStatus = 'COMPLETED';
       reason = 'Tự động hoàn thành khi mọi tác vụ đã duyệt e-POD, thu hồi POD gốc và chốt xong.';
+    } else if (allCompletedViaDriverClose) {
+      targetStatus = 'COMPLETED';
+      reason = 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).';
     } else if (allAwaitingApproval || (allCompleted && allExpenseScopesComplete)) {
       targetStatus = 'PENDING_EXPENSE_APPROVAL';
       reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
-    } else if (anyFulfillmentCompletedViaDriver) {
+    } else if (anyFulfillmentCompletedViaDriver && !anyInTransit) {
       // Multi-fulfillment partial close: at least one driver-closed trip is
       // complete, but other planned carriers are still pending. Advance the
       // shipment so the CUS workspace badge + Dispatcher trips list show
@@ -406,14 +398,28 @@ export async function recomputeShipmentCompletion(
       // shipment jumps to COMPLETED.
       targetStatus = 'PENDING_EXPENSE_APPROVAL';
       reason = 'Tài xế đã hoàn thành một phần lô hàng. Chuyển sang Chờ duyệt phí cho phần đã đóng; những tác vụ còn lại sẽ được cập nhật khi phát lệnh tiếp.';
-    } else if (anyInTransit && allRequiredTripsPresent) {
-      // Only advance the shipment to IN_TRANSIT when every required
-      // fulfillment has a dispatched trip. A shipment with mixed
-      // dispatched + planned-carrier fulfillments stays at DISPATCHED
-      // until either (a) all planned carriers get a trip too, or
-      // (b) the driver-closed trip drives the partial close above.
-      targetStatus = 'IN_TRANSIT';
+    } else if (anyInTransit) {
+      // Advance a DISPATCHED shipment to IN_TRANSIT only when every required
+      // fulfillment has a dispatched trip: a partially-dispatched shipment
+      // keeps the "Đã phân xe" badge until the remaining planned carriers
+      // get trips (or the driver-closed leg drives the partial close above).
+      // An already IN_TRANSIT shipment never rewinds to DISPATCHED — a
+      // canceled/re-planned sibling leg must not demote a load whose other
+      // container is physically on the road.
+      targetStatus = (currentShipmentStatus === 'IN_TRANSIT' || allRequiredTripsPresent)
+        ? 'IN_TRANSIT'
+        : 'DISPATCHED';
       reason = 'Tự động chuyển sang Đang chạy khi đã có chuyến xuất phát.';
+    } else if (currentShipmentStatus === 'IN_TRANSIT') {
+      // 27.8 trial regression 2026-08-29: every required fulfillment's only
+      // trip is CANCELED (e.g. external carrier rejected; planner hasn't
+      // allocated a replacement yet), so the recompute branches above all
+      // miss. Without this guard the shipment sat at IN_TRANSIT forever
+      // and the CUS/dispatcher badge never moved off "Đang chạy" — even
+      // when the original driver did report the canceled leg. Rewind to
+      // DISPATCHED so the planner's queue surfaces the lot for re-allocation.
+      targetStatus = 'DISPATCHED';
+      reason = 'Tự động quay về Đã phân xe vì mọi tác vụ đều bị hủy; cần điều phối lại.';
     }
 
     if (currentShipmentStatus === targetStatus) return shipment;

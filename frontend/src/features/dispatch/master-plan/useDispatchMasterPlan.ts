@@ -11,6 +11,7 @@ import {
   type ZoneTruckPresenceItem,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
+import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 
 const PAGE_SIZE = 20;
 
@@ -132,6 +133,15 @@ export function useDispatchMasterPlan() {
   const refetch = useCallback(() => {
     setRefreshKey((value) => value + 1);
   }, []);
+
+  // 27.8 trial regression 2026-08-29: the dispatcher queue kept showing a
+  // shipment as "Đã phân xe" / "Đang chạy" after the driver completed the
+  // trip and the shipment was promoted server-side. The default TanStack
+  // 5-minute staleTime plus `refetchOnWindowFocus: false` was the root
+  // cause; this hook fires `refetch()` every 30 s while the tab is visible
+  // and once on visibility regain so the dispatcher screen stays in sync
+  // with the driver app's "Hoàn thành chuyến" action.
+  useAutoRefresh(refetch, 30_000);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 

@@ -1713,6 +1713,37 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
   });
 
+  test('recompute: every required fulfillment\'s trip is CANCELED, current IN_TRANSIT rewinds to DISPATCHED (27.8 trial regression 2026-08-29)', async () => {
+    // Field-reported symptom: shipment 263800 sat at IN_TRANSIT forever
+    // because its only required fulfillment's trip was CANCELED and the
+    // recompute branches (allCompletedViaDriverClose, allCompletedAndAccepted,
+    // allAwaitingApproval, anyFulfillmentCompletedViaDriver, anyInTransit)
+    // all missed — no transition fired. CUS/Dispatcher kept reading
+    // "Đang chạy" indefinitely. The fix adds a rewind-to-DISPATCHED branch
+    // when current=IN_TRANSIT and no progress branch can fire, so the
+    // planner's queue surfaces the lot for re-allocation.
+    const actor = await createDriverPrincipal('all-canceled-rewind');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+
+    // Force the recompute path that produced the field symptom: a CANCELED
+    // trip on the only required fulfillment, while the shipment is at
+    // IN_TRANSIT (the lifecycle was advanced when the trip first departed).
+    await db.update(s.trips).set({ status: TripStatus.CANCELED, deletedAt: null })
+      .where(eq(s.trips.id, trip.id));
+    await db.update(s.shipmentFulfillments).set({ canceledAt: null })
+      .where(eq(s.shipmentFulfillments.id, fulfillment.id));
+    // Drive the recompute by touching the trip's update timestamp so the
+    // recompute is invoked; in production this is called on every trip
+    // status transition via `transitionTripStatus`.
+    const { recomputeShipmentCompletion } = await import('../services/shipment.service.js');
+    await recomputeShipmentCompletion(fulfillment.shipmentId, { changedBy: actor.user.id });
+
+    const [shipment] = await db.select({ status: s.shipments.status })
+      .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
+    assert.equal(shipment?.status, 'DISPATCHED',
+      'IN_TRANSIT with every required trip CANCELED must rewind to DISPATCHED so the planner queue surfaces the lot');
+  });
+
   test('driver fulfillment detail falls back to site snapshot for pickup / drop / factory when top-level columns are null', async () => {
     // The driver portal renders Điểm lấy / Điểm trả / Nhà máy in the trip
     // detail header. Top-level `pickupLocation` / `deliveryLocation` /

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   assignDispatchDetailPlate,
@@ -154,6 +155,15 @@ export function useDispatchDetailPlan() {
     setFilters((prev) => ({ ...prev, ...patch }));
     setPage(1);
   }, []);
+
+  const refetch = useCallback(() => {
+    setRefreshKey((value) => value + 1);
+  }, []);
+
+  // 27.8 trial regression 2026-08-29: keep the dispatch detail plan in sync
+  // with the driver app's "Hoàn thành chuyến" action. See the matching
+  // useAutoRefresh comment in useDispatchMasterPlan for the full rationale.
+  useAutoRefresh(refetch, 30_000);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
