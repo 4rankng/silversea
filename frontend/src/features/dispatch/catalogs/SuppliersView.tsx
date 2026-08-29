@@ -9,6 +9,7 @@ import { Store } from 'lucide-react';
 import { Plus } from '@untitledui/icons';
 import { KPI } from '../../../components/UI';
 import { Breadcrumbs } from '../../../components/shared/Breadcrumbs';
+import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
@@ -80,7 +81,10 @@ export function SuppliersView() {
         totalLabel={total > 0 ? `${total} nhà thầu phụ` : ''}
       >
         {loading ? (
-          <div className="dispatch-catalogs__empty">Đang tải…</div>
+          <div role="status">
+            <SkeletonTable rows={6} cols={5} />
+            <span className="sr-only">Đang tải…</span>
+          </div>
         ) : !error && suppliers.length === 0 ? (
           <div className="dispatch-catalogs__empty">
             {search ? 'Không có nhà thầu phụ khớp tìm kiếm' : 'Chưa có nhà thầu phụ nào'}

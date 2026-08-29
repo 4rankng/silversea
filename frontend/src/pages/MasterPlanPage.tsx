@@ -4,6 +4,8 @@ import { Plus, Truck } from 'lucide-react';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
 import { updateShipment } from '../api/shipmentClient';
+import { useToast } from '../components/shared/Toast';
+import { SkeletonTable } from '../components/shared/Skeleton';
 import { useDispatchMasterPlan } from '../features/dispatch/master-plan/useDispatchMasterPlan';
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
@@ -21,6 +23,7 @@ import './DispatchPlanPage.css';
 export default function MasterPlanPage() {
   const navigate = useNavigate();
   const masterPlan = useDispatchMasterPlan();
+  const { toast } = useToast();
   const [allocating, setAllocating] = useState<ShipmentListItem | null>(null);
   const [containerDetailShipment, setContainerDetailShipment] = useState<ShipmentListItem | null>(null);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -43,10 +46,11 @@ export default function MasterPlanPage() {
         operationalNotes: notes,
       });
       masterPlan.replaceItem({ ...shipment, operationalNotes: notes, version: response.version } as ShipmentListItem);
+      toast({ kind: 'success', message: 'Đã lưu ghi chú điều phối.' });
     } catch {
-      // Silently fail — the user can retry. A toast could be added later.
+      toast({ kind: 'error', message: 'Không lưu được ghi chú điều phối. Vui lòng thử lại.' });
     }
-  }, [masterPlan]);
+  }, [masterPlan, toast]);
 
   // Customer ask (Cap_nhat_UI_va_logic 2.1): hint inside the "Sản lượng" bar
   // listing last day's OWN trucks that dropped containers in the zone.
@@ -145,8 +149,9 @@ export default function MasterPlanPage() {
         )}
 
         {masterPlan.loading ? (
-          <div className="dispatch-plan-page__loading">
-            Đang tải dữ liệu…
+          <div role="status">
+            <SkeletonTable rows={6} cols={8} />
+            <span className="sr-only">Đang tải dữ liệu…</span>
           </div>
         ) : masterPlan.items.length === 0 && !masterPlan.error ? (
           <EmptyState

@@ -1,5 +1,6 @@
 import { Truck } from 'lucide-react';
 import { EmptyState } from '../../../design-system';
+import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
@@ -124,7 +125,10 @@ export function DetailedPlanGrid({
       )}
 
       {loading ? (
-        <div className="dispatch-plan-page__loading">Đang tải dữ liệu…</div>
+        <div role="status">
+          <SkeletonTable rows={6} cols={7} />
+          <span className="sr-only">Đang tải dữ liệu…</span>
+        </div>
       ) : items.length === 0 ? (
         <EmptyState
           illustration="/assets/illustrations/empty-dispatch.svg"
