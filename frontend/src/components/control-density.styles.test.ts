@@ -87,6 +87,11 @@ describe('shared control density', () => {
       '.penalty-filter-bar .ds-uui-select',
       '.dispatch-allocation-popover__fields .ds-uui-select',
       '.trip-list-page .filter-pill .ds-uui-select',
+      // CUS /shipments/new local conformance skin — the shared UUI label
+      // defaults vary per component (combobox vs text vs date), so the
+      // form aligns them to the dense 12/18 semibold cadence. Scope is
+      // the CUS form's own `.csc-uui-field` wrapper, not a bare `ds-uui-*`.
+      '.csc-uui-field label',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 

@@ -882,6 +882,11 @@ export async function seedShipments(passwordHash: string) {
     { name: 'Công ty TNHH SX TM Dệt May Vân Trung', taxCode: '1100987654', contactPerson: 'Vũ Thị Vân', phone: '02213654321' },
     { name: 'Công ty CP Thực phẩm Đồng Văn', taxCode: '1100456789', contactPerson: 'Trần Văn Đồng', phone: '02213876543' },
     { name: 'Công ty TNHH Điện tử ASKEY Việt Nam', taxCode: '0700321654', contactPerson: 'Lý Thị Kiều', phone: '0203333444' },
+    // Customer-portal demo rows. The two CUSTOMER users samsung-cs and
+    // canon-cs (added below) are row-scoped to these customers so TC-CUST-SHIP-03
+    // (row-scope, no leak) has two distinct portals to cross-verify.
+    { name: 'Công ty TNHH Samsung Electronics Việt Nam', taxCode: '0301444111', contactPerson: 'Trần Minh Đức', phone: '02253991111' },
+    { name: 'Công ty TNHH Canon Việt Nam', taxCode: '0301444222', contactPerson: 'Lê Thị Hương', phone: '02253992222' },
   ];
   const sampleCustomers: { id: number; name: string }[] = [];
   for (const c of sampleCustomerSeeds) {
@@ -902,27 +907,40 @@ export async function seedShipments(passwordHash: string) {
   }
   console.log(`  ✅ Sample customers (${sampleCustomers.length} stable rows)`);
 
-  // 2b. Insert the CUSTOMER demo login only when it is missing. Existing rows
+  // 2b. Insert the CUSTOMER demo logins only when missing. Existing rows
   // are preserved byte-for-byte so restore/bootstrap flows never clobber
-  // operator-managed credentials or row-scope fields.
-  const [portalCustomer] = sampleCustomers;
-  const [existingCustomerUser] = await db.select({ id: schema.users.id })
-    .from(schema.users)
-    .where(normalizedTextEquals(schema.users.username, 'customer'))
-    .limit(1);
-  if (!existingCustomerUser) {
+  // operator-managed credentials or row-scope fields. The first sample
+  // customer remains the default `customer` portal; samsung-cs and canon-cs
+  // are row-scoped to their own customers so TC-CUST-SHIP-03 (row-scope,
+  // no leak) has two distinct portals to cross-verify.
+  const portalCustomer = sampleCustomers[0];
+  const samsungCustomer = sampleCustomers[5];
+  const canonCustomer = sampleCustomers[6];
+  const customerPortalSeeds: Array<{
+    username: string;
+    email: string;
+    phone: string;
+    fullName: string;
+    customerId: number;
+  }> = [
+    { username: 'customer', email: 'customer@nepo.vn', phone: '0900000020', fullName: 'Khách hàng Demo', customerId: portalCustomer.id },
+    { username: 'samsung-cs', email: 'samsung.cs@nepo.vn', phone: '0900000021', fullName: 'Trần Minh Đức', customerId: samsungCustomer.id },
+    { username: 'canon-cs', email: 'canon.cs@nepo.vn', phone: '0900000022', fullName: 'Lê Thị Hương', customerId: canonCustomer.id },
+  ];
+  for (const seed of customerPortalSeeds) {
+    const [existing] = await db.select({ id: schema.users.id })
+      .from(schema.users)
+      .where(normalizedTextEquals(schema.users.username, seed.username))
+      .limit(1);
+    if (existing) continue;
     await db.insert(schema.users).values({
-      username: 'customer',
-      email: 'customer@nepo.vn',
-      phone: '0900000020',
+      ...seed,
       passwordHash,
       role: Role.CUSTOMER,
-      fullName: 'Khách hàng Demo',
       status: 'ACTIVE',
-      customerId: portalCustomer.id,
     });
   }
-  console.log('  ✅ CUSTOMER demo user (customer / Abc123)');
+  console.log('  ✅ CUSTOMER demo users (customer / samsung-cs / canon-cs, all /Abc123)');
 
   // 3. Sample shipments — realistic refs, every lifecycle status, both trade
   //    directions. Idempotency key = the document ref itself (blNumber for
@@ -953,7 +971,7 @@ export async function seedShipments(passwordHash: string) {
     declaration?: { declarationNumber: string; scope: 'SINGLE' | 'SHARED'; note: string };
   };
 
-  const [bienBac, haNoi, vanTrung, dongVan, askey] = sampleCustomers;
+  const [bienBac, haNoi, vanTrung, dongVan, askey, samsung, canon] = sampleCustomers;
   const shipmentSeeds: ShipmentSeed[] = [
     // ── IMPORT — Bill refs, container haulage from Hai Phong ports ──────────
     {
@@ -1115,6 +1133,22 @@ export async function seedShipments(passwordHash: string) {
         { containerNumber: 'BBHU2001012', sealNumber: 'SL8600101', cargoWeightKg: 18200, factoryCode: 'BB-KHO-LONG-BIEN', appointmentAt: '2026-08-24T04:00:00.000Z' },
         { containerNumber: 'BBHU2001028', sealNumber: 'SL8600102', cargoWeightKg: 17600, factoryCode: 'BB-KHO-LONG-BIEN', appointmentAt: '2026-08-25T04:00:00.000Z' },
       ],
+    },
+    // ── Customer-portal demo rows (samsung-cs, canon-cs) ────────────────────
+    // One IMPORT shipment per customer is enough to let /portal/shipments
+    // render a non-empty list and let TC-CUST-SHIP-03 (no-leak) navigate
+    // from samsung-cs to canon-cs's shipment ID and assert 404.
+    {
+      tradeDirection: 'IMPORT', ref: '105254551001', customerId: samsung.id,
+      expectedDeliveryDate: '2026-08-22',
+      pickupLocation: 'Cảng Hải Phòng', deliveryLocation: 'KCN Yên Phong, Bắc Ninh',
+      contactName: 'Trần Minh Đức', contactPhone: '02253991111',
+    },
+    {
+      tradeDirection: 'IMPORT', ref: '105254551002', customerId: canon.id,
+      expectedDeliveryDate: '2026-08-25',
+      pickupLocation: 'Cảng Đình Vũ', deliveryLocation: 'KCN Thăng Long, Hà Nội',
+      contactName: 'Lê Thị Hương', contactPhone: '02253992222',
     },
   ];
 
