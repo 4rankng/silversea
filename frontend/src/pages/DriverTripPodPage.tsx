@@ -65,7 +65,7 @@ export function DriverTripPodPage() {
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
-  const { commands, enqueue, drain } = useOfflineCommandQueue({
+  const { commands, enqueue, drain, remove } = useOfflineCommandQueue({
     maxPending: 12,
     storageScope: user ? `${user.role}:${user.userId}` : null,
   });
@@ -76,6 +76,19 @@ export function DriverTripPodPage() {
     }),
     [commands, validFulfillmentId],
   );
+  // A terminal CONFLICT anywhere in this fulfillment's scope (mirrors the D1
+  // fix on the trip-detail accept bar) — drain() refuses to retry any
+  // queued command while a CONFLICT sits in the same scope, so without an
+  // explicit recovery path the driver can never re-attempt "HOÀN THÀNH
+  // CHUYẾN" once the server has rejected it (e.g. expectedVersion drift,
+  // hidden milestone gap). The footer must offer a "Tải lại" that drops
+  // the stuck command and refetches; otherwise the ready hint is a lie and
+  // the button does nothing. We surface the FIRST stuck command in scope —
+  // its `lastError` is the server's human-readable reason.
+  const stuckConflict = useMemo(
+    () => tripCommands.find((command) => command.status === 'CONFLICT') ?? null,
+    [tripCommands],
+  );
 
   // Deps are the refetch function (referentially stable in TanStack v5), not
   // the query result object — a whole-result dep re-creates this callback on
@@ -83,6 +96,24 @@ export function DriverTripPodPage() {
   const refreshAll = useCallback(async () => {
     await taskDetail.refetch();
   }, [taskDetail.refetch]);
+
+  // Discard the stuck CONFLICT command and pull fresh server state. The
+  // server is the source of truth — if the underlying blocker (e.g. the
+  // trip was bumped by an out-of-band action, the POD rejection cleared)
+  // has gone away, the next "HOÀN THÀNH CHUYẾN" tap can succeed.
+  const handleConflictReload = useCallback(async () => {
+    const stuck = tripCommands.filter(
+      (command) => command.status === 'CONFLICT' && command.fulfillmentScopeKey,
+    );
+    stuck.forEach((command) => remove(command.id));
+    await refreshAll();
+    toast({
+      kind: stuck.length > 0 ? 'success' : 'info',
+      message: stuck.length > 0
+        ? 'Đã tải lại chuyến và bỏ lệnh xung đột. Bấm "HOÀN THÀNH CHUYẾN" để thử lại.'
+        : 'Đã tải lại dữ liệu chuyến.',
+    });
+  }, [tripCommands, remove, refreshAll, toast]);
 
   const runDrain = useCallback(
     async (successMessage?: string, currentCommandId?: string) => {
@@ -236,8 +267,16 @@ export function DriverTripPodPage() {
 
   // The single "Hoàn thành và gửi" action on this page: submit e-POD (if a
   // DRAFT is open) then complete the trip, then jump back to /my-trips.
+  // When a CONFLICT is already parked in this fulfillment's scope, the
+  // main button is disabled and a "Tải lại" banner takes over — see
+  // handleConflictReload. The defensive check below keeps a future call
+  // site honest.
   async function handleCompleteTrip() {
     if (!trip || !validFulfillmentId) return;
+    if (stuckConflict) {
+      await handleConflictReload();
+      return;
+    }
     if (trip.status !== 'IN_TRANSIT') {
       toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
       return;
@@ -396,6 +435,29 @@ export function DriverTripPodPage() {
       </main>
 
       <footer className="driver-task-footer">
+        {stuckConflict && (
+          <div
+            className="driver-task-footer__conflict"
+            role="alert"
+            data-testid="epod-complete-conflict"
+          >
+            <AlertTriangle size={18} />
+            <div className="driver-task-footer__conflict-body">
+              <strong>Không thể hoàn thành chuyến</strong>
+              <p>
+                {stuckConflict.lastError
+                  ?? 'Hệ thống ghi nhận xung đột dữ liệu trên lệnh hoàn thành. Bấm "Tải lại" để bỏ lệnh cũ và đồng bộ lại.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="driver-task-footer__conflict-reload"
+              onClick={() => void handleConflictReload()}
+            >
+              Tải lại
+            </button>
+          </div>
+        )}
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>HOÀN THÀNH CHUYẾN</strong>
@@ -409,7 +471,7 @@ export function DriverTripPodPage() {
                 {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
               </ul>
             )}
-            {podReady && trip.status === 'IN_TRANSIT' && (
+            {podReady && trip.status === 'IN_TRANSIT' && !stuckConflict && (
               <div className="driver-task-footer__ready">
                 <CheckCircle2 size={16} />
                 <span>Đủ điều kiện hoàn thành chuyến.</span>
@@ -419,7 +481,7 @@ export function DriverTripPodPage() {
           <button
             type="button"
             className="driver-task-complete"
-            disabled={completionBlocked || submitting || completing}
+            disabled={completionBlocked || submitting || completing || Boolean(stuckConflict)}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />
