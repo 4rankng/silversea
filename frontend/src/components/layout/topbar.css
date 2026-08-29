@@ -67,13 +67,6 @@
   min-width: 0;
 }
 
-.topbar__welcome .greeting {
-  font-size: var(--fs-xs);
-  line-height: 1.35;
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
 .topbar__welcome .name {
   font-size: 15px;
   line-height: 1.35;

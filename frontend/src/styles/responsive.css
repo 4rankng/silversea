@@ -292,7 +292,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .topbar--driver .topbar__welcome .greeting { display: none; }
   .topbar__center-driver {
     flex: 0 0 auto;
     margin-left: auto;

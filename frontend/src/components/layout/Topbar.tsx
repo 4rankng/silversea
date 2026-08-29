@@ -149,7 +149,6 @@ function DriverIdentity({ name }: { name: string | null }) {
   const { data: vehicle } = useDriverVehicle();
   return (
     <div className="topbar__welcome">
-      <span className="greeting">Xin chào,</span>
       <div className="topbar__welcome-idline">
         <span className="name">{name}</span>
         {vehicle?.truckPlate && (
