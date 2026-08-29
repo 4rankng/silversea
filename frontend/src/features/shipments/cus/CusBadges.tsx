@@ -51,7 +51,16 @@ const BUCKET_ICONS = {
 
 export function WorkflowBadge({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const Icon = BUCKET_ICONS[item.bucket];
-  const label = item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel;
+  // PENDING_LOCK is shared between "Chờ duyệt phí" (driver evidence handed
+  // off, awaiting accountant) and "Hoàn thành" (accountant closed the
+  // shipment). Both have user-meaningful status labels — show those instead
+  // of the generic "Chờ khóa" so the badge reflects the actual state. NEW
+  // and LOCKED keep their bucket label because they group heterogeneous
+  // sub-states (multiple sub-statuses for NEW, accounting-lock aggregate
+  // for LOCKED).
+  const useStatusLabel = item.bucket === ShipmentCusBucket.NEW
+    || item.bucket === ShipmentCusBucket.PENDING_LOCK;
+  const label = useStatusLabel ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel;
   return (
     <span className={`cus-workflow-badge cus-workflow-badge--${item.bucket.toLowerCase()}`}>
       <Icon size={14} aria-hidden="true" /> {label}

@@ -915,6 +915,89 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     );
   });
 
+  // Field-reported bug: the Kế hoạch tổng quát date filter used to match
+  // strictly on shipments.expectedDeliveryDate, so FCL shipments whose
+  // CUS-set container appointment sat on a different day than the shipment
+  // EDD dropped out of the user's range — most visible after CUS had already
+  // assigned a carrier (the page would show "Không có lô hàng nào cần phân xe"
+  // for a day that did have plated, ready-to-dispatch lots). The filter now
+  // includes the per-container customerAppointmentAt with EDD fallback.
+  test('deliveryDateFrom/deliveryDateTo also match the per-container appointment date', async () => {
+    const customer = await mkCustomer();
+    const edd = '2026-08-10';
+    const appointmentDay = '2026-08-25';
+
+    const eddInRange = await createShipment({
+      customerId: customer.id,
+      expectedDeliveryDate: edd,
+    });
+    // FCL shipment: EDD on Aug-10, container appointment reappointed to
+    // Aug-25. The old filter would only match Aug-10; the new filter must
+    // also surface this row when the user filters by Aug-25.
+    const fclReappointed = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: edd,
+    });
+    const fclContainer = await mkContainer(fclReappointed.id, (await mkContainerType(`40DC${Math.random().toString(36).slice(2, 6)}`, "40'DC")).id);
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date(`${appointmentDay}T08:00:00+07:00`) })
+      .where(eq(s.shipmentContainers.id, fclContainer.id));
+    // FCL shipment: no appointment at all — should fall back to the EDD
+    // filter the same way the CUS workspace contract does.
+    const fclNoAppointment = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: edd,
+    });
+    await mkContainer(fclNoAppointment.id, (await mkContainerType(`20DC${Math.random().toString(36).slice(2, 6)}`, "20'DC")).id);
+    // LCL shipment: no containers, only EDD.
+    const lclInRange = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'LCL',
+      expectedDeliveryDate: edd,
+    });
+    // FCL shipment: EDD and appointment both outside the Aug-25 day — must
+    // NOT show up under that filter.
+    const fclBothOut = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'FCL',
+      expectedDeliveryDate: '2026-08-10',
+    });
+    const fclBothOutContainer = await mkContainer(
+      fclBothOut.id,
+      (await mkContainerType(`40DC${Math.random().toString(36).slice(2, 6)}`, "40'DC")).id,
+    );
+    await db.update(s.shipmentContainers)
+      .set({ customerAppointmentAt: new Date('2026-08-12T08:00:00+07:00') })
+      .where(eq(s.shipmentContainers.id, fclBothOutContainer.id));
+
+    createdShipmentIds.push(
+      eddInRange.id,
+      fclReappointed.id,
+      fclNoAppointment.id,
+      lclInRange.id,
+      fclBothOut.id,
+    );
+
+    const aug25 = await listShipmentsPaginated({
+      customerId: customer.id,
+      deliveryDateFrom: appointmentDay,
+      deliveryDateTo: appointmentDay,
+      page: 1,
+      limit: 20,
+    });
+    assert.deepEqual(
+      new Set(aug25.items.map((row) => row.id)),
+      new Set([fclReappointed.id]),
+      'FCL reappointed container surfaces the shipment under the appointment day',
+    );
+    assert.ok(
+      !aug25.items.some((row) => row.id === fclBothOut.id),
+      'FCL with both EDD and appointment out of range stays out',
+    );
+  });
+
   test('allocationStatus filter keeps totals and page boundaries consistent', async () => {
     const customer = await mkCustomer();
     const tag = Math.random().toString(36).slice(2, 8);

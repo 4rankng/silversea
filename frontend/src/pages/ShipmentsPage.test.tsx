@@ -394,7 +394,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
 
-    const statusCell = within(masterRow()).getByText('Chờ khóa').closest('td');
+    const statusCell = within(masterRow()).getByText('Sẵn sàng điều xe').closest('td');
     expect(statusCell).toBeTruthy();
     expect(statusCell?.querySelector('.cus-row-actions__summary')).toBeTruthy();
     expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Xem chi tiết');

@@ -634,7 +634,7 @@ describe('Phase 4 driver fulfillment execution', () => {
       expectedVersion: currentTrip!.version,
       idempotencyKey: completeKey,
     });
-    assert.equal(completed.trip.status, TripStatus.IN_TRANSIT);
+    assert.equal(completed.trip.status, TripStatus.COMPLETED);
 
     const board = await getDriverJourneyBoard(actor.driver.id);
     const card = board.find((item) => item.fulfillmentId === fulfillment.id);
@@ -682,6 +682,9 @@ describe('Phase 4 driver fulfillment execution', () => {
     });
     const [completedFirst] = await db.select({ version: s.trips.version, status: s.trips.status })
       .from(s.trips).where(eq(s.trips.id, first.trip.id)).limit(1);
+    // The driver has only submitted the e-POD at this point — the trip is
+    // still IN_TRANSIT. The next call to completeOwnedFulfillmentTrip flips
+    // it to COMPLETED (full-close path).
     assert.equal(completedFirst!.status, TripStatus.IN_TRANSIT);
     const completeKey = `truck-free-complete-${suffix}`;
     usedIdempotencyKeys.push(completeKey);
@@ -1377,7 +1380,7 @@ describe('Phase 4 driver fulfillment execution', () => {
     }), /không hợp lệ|không khớp định dạng/i);
   });
 
-  test('O2C: driver completion hands the shipment to Pending Expense Approval without financial posting', async () => {
+  test('O2C: driver completion flips the trip + shipment straight to COMPLETED (skip kế toán for now)', async () => {
     const actor = await createDriverPrincipal('valid');
     const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id);
 
@@ -1420,10 +1423,206 @@ describe('Phase 4 driver fulfillment execution', () => {
       expectedVersion: currentTrip!.version,
       idempotencyKey: completeKey,
     });
-    assert.equal(completed.trip.status, TripStatus.IN_TRANSIT);
+    assert.equal(completed.trip.status, TripStatus.COMPLETED);
     const [shipment] = await db.select({ status: s.shipments.status })
       .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
-    assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
+    assert.equal(shipment?.status, 'COMPLETED');
+  });
+
+  test('driver full-close path: transitionTripStatus with driverOwnedFulfillmentClose flips an IN_TRANSIT trip to COMPLETED for the owning driver', async () => {
+    // The full-close path lets the driver bypass the standard
+    // podRecoveredAt / governance gates — the e-POD submission is the
+    // evidence handoff. Verify the trip flips straight to COMPLETED, the
+    // accounting-lock aggregate is released, and the post-update block
+    // posts revenue/AP just like the Accountant/CUS path would.
+    const actor = await createDriverPrincipal('driver-full-close-allow');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+
+    // Snapshot the pre-state to assert the financial posting side-effects.
+    const [preTrip] = await db.select({
+      revenue: s.trips.revenue,
+      driverSalary: s.trips.driverSalary,
+      completedAt: s.trips.completedAt,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+
+    const updated = await transitionTripStatus(
+      trip.id,
+      TripStatus.COMPLETED,
+      actor.user.id,
+      Role.DRIVER,
+      true,
+      true,
+      {
+        expectedVersion: preTrip ? trip.version : trip.version,
+        driverOwnedFulfillmentClose: {
+          driverId: actor.driver.id,
+          fulfillmentId: fulfillment.id,
+        },
+      },
+    );
+
+    assert.equal(updated.status, TripStatus.COMPLETED);
+    assert.ok(updated.completedAt, 'completedAt should be stamped');
+    // The standard close path's financial posting still fires — revenue +
+    // driver salary are persisted as before. The e-POD gate replaces the
+    // podRecoveredAt + expense-scope + governance gates, not the
+    // bookkeeping itself.
+    const [postTrip] = await db.select({
+      revenue: s.trips.revenue,
+      driverSalary: s.trips.driverSalary,
+      completedAt: s.trips.completedAt,
+    }).from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(String(postTrip!.revenue), String(preTrip!.revenue));
+    assert.equal(String(postTrip!.driverSalary), String(preTrip!.driverSalary));
+  });
+
+  test('driver full-close path: rejects when the caller is not a DRIVER role', async () => {
+    // The driverOwnedFulfillmentClose option is the ONLY path that grants
+    // DRIVER the close permission. ADMIN/MANAGER still need
+    // routineShipmentClose + governance, CUS/ACCOUNTANT need
+    // routineShipmentClose. Anyone else (e.g. DISPATCHER) must hit 403.
+    const actor = await createDriverPrincipal('driver-full-close-non-driver-role');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+
+    await assertApiError(
+      403,
+      () => transitionTripStatus(
+        trip.id,
+        TripStatus.COMPLETED,
+        actor.user.id,
+        'DISPATCHER',
+        true,
+        true,
+        {
+          driverOwnedFulfillmentClose: {
+            driverId: actor.driver.id,
+            fulfillmentId: fulfillment.id,
+          },
+        },
+      ),
+      /chỉ lái xe/i,
+    );
+  });
+
+  test('driver full-close path: rejects when the driver does not own the trip', async () => {
+    // Even with the DRIVER role + driverOwnedFulfillmentClose, the trip
+    // must actually belong to this driver. A driver handing in another
+    // driver's fulfillmentId must be 403'd — the ownership check
+    // mirrors the existing driverOwnedFulfillmentStart discipline.
+    const owner = await createDriverPrincipal('driver-full-close-owner');
+    const intruder = await createDriverPrincipal('driver-full-close-intruder');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(owner.driver.id, TripStatus.IN_TRANSIT);
+
+    await assertApiError(
+      403,
+      () => transitionTripStatus(
+        trip.id,
+        TripStatus.COMPLETED,
+        intruder.user.id,
+        Role.DRIVER,
+        true,
+        true,
+        {
+          driverOwnedFulfillmentClose: {
+            driverId: intruder.driver.id,
+            fulfillmentId: fulfillment.id,
+          },
+        },
+      ),
+      /không sở hữu/i,
+    );
+
+    // Owner's trip status should be untouched.
+    const [after] = await db.select({ status: s.trips.status })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    assert.equal(after!.status, TripStatus.IN_TRANSIT);
+  });
+
+  test('driver full-close path: rejects when the trip is not IN_TRANSIT (CREATED trip)', async () => {
+    // The trip must already be in flight — a CREATED trip must be
+    // dispatched first. This matches the existing Q18 (terminal) +
+    // IN_TRANSIT precondition.
+    const actor = await createDriverPrincipal('driver-full-close-created');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.CREATED);
+
+    await assertApiError(
+      409,
+      () => transitionTripStatus(
+        trip.id,
+        TripStatus.COMPLETED,
+        actor.user.id,
+        Role.DRIVER,
+        true,
+        true,
+        {
+          driverOwnedFulfillmentClose: {
+            driverId: actor.driver.id,
+            fulfillmentId: fulfillment.id,
+          },
+        },
+      ),
+      /đang chạy/i,
+    );
+  });
+
+  test('driver full-close path: completeOwnedFulfillmentTrip advances the shipment to COMPLETED (skip expense-scope gate)', async () => {
+    // End-to-end: driver records milestones + submits e-POD, then taps
+    // "HOÀN THÀNH CHUYẾN". The shipment must flip to COMPLETED even
+    // though no expense-scope rows were ever touched (the user chose
+    // "skip kế toán for now, we build later" — the strict
+    // allCompletedAndAccepted path is bypassed).
+    const actor = await createDriverPrincipal('driver-full-close-e2e');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+      const key = `full-close-e2e-milestone-${index}-${suffix}`;
+      usedIdempotencyKeys.push(key);
+      const result = await recordDriverFulfillmentProgress({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: key,
+        input: {
+          eventType,
+          occurredAt: isoHour(index + 8, 30),
+          expectedVersion: index === 0 ? trip.version : undefined,
+        },
+      });
+      createdProgressEventIds.push(result.event.id);
+    }
+
+    const [beforePod] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    await buildSubmittedPod({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      expectedTripVersion: beforePod!.version,
+      prefix: 'full-close-e2e',
+    });
+
+    // Deliberately no trip_expense_completion_scopes rows beyond the seed
+    // (the createOwnedFulfillmentTrip helper pre-creates a general COMPLETED
+    // scope, so we explicitly clear it to prove the driver path bypasses
+    // the expense-scope check).
+    await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, trip.id));
+
+    const [beforeComplete] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const completeKey = `full-close-e2e-complete-${suffix}`;
+    usedIdempotencyKeys.push(completeKey);
+    const completed = await completeOwnedFulfillmentTrip({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      expectedVersion: beforeComplete!.version,
+      idempotencyKey: completeKey,
+    });
+    assert.equal(completed.trip.status, TripStatus.COMPLETED);
+
+    const [shipment] = await db.select({ status: s.shipments.status })
+      .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
+    assert.equal(shipment?.status, 'COMPLETED');
   });
 
   test('driver fulfillment detail falls back to site snapshot for pickup / drop / factory when top-level columns are null', async () => {

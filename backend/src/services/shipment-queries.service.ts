@@ -1079,13 +1079,36 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       conditions.push(lte(s.shipments.customsCutoffAt, inclusive));
     }
   }
-  // Dispatch master-plan: delivery-date range filters on expectedDeliveryDate
-  // (a plain date column, so no end-of-day bump is needed — equality matches).
-  if (options.deliveryDateFrom) {
-    conditions.push(gte(s.shipments.expectedDeliveryDate, options.deliveryDateFrom));
-  }
-  if (options.deliveryDateTo) {
-    conditions.push(lte(s.shipments.expectedDeliveryDate, options.deliveryDateTo));
+  // Dispatch master-plan: delivery-date range filters on the per-container
+  // appointment date (with shipment-level EDD as fallback), so a shipment
+  // whose CUS-set container appointment differs from the shipment's EDD still
+  // shows up under the user's chosen day. Mirrors the CUS workspace
+  // contract (containerTransportDateSql): coalesce(date(customerAppointmentAt
+  // at time zone 'Asia/Ho_Chi_Minh'), shipments.expectedDeliveryDate).
+  if (options.deliveryDateFrom || options.deliveryDateTo) {
+    const from = options.deliveryDateFrom ?? '0001-01-01';
+    const to = options.deliveryDateTo ?? '9999-12-31';
+    // Either the shipment's EDD is in range, OR at least one container's
+    // appointment date is in range. The EXISTS branch covers the field-reported
+    // bug where filtering by date dropped FCL shipments whose containers had
+    // been reappointed to a day other than the shipment's EDD — most visible
+    // once CUS has already assigned a carrier (the Kế hoạch tổng quát view
+    // would show "Không có lô hàng nào cần phân xe" for a day that did have
+    // plated, ready-to-dispatch lots).
+    conditions.push(or(
+      and(
+        gte(s.shipments.expectedDeliveryDate, from),
+        lte(s.shipments.expectedDeliveryDate, to),
+      ),
+      sql`exists (
+        select 1 from ${s.shipmentContainers}
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+          and coalesce(
+            date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'),
+            ${s.shipments.expectedDeliveryDate}
+          ) between ${from} and ${to}
+      )`,
+    )!);
   }
   // Dispatch master-plan Lạch Huyện facets: OR within each dimension, AND
   // across dimensions. Correlated EXISTS keeps multi-container shipments to one

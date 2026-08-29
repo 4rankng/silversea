@@ -316,14 +316,55 @@ export async function recomputeShipmentCompletion(
         && trip.podRecoveredAt != null;
     });
 
+    // Driver "Hoàn thành chuyến" full-close path: every required fulfillment's
+    // trip is COMPLETED with a SUBMITTED/ACCEPTED e-POD, but the accountant
+    // review gates (expense scopes + podRecoveredAt) are not yet satisfied
+    // because the accountant flow was deliberately skipped ("skip kế toán
+    // for now, we build later"). The trip is operationally done — advance
+    // the shipment so CUS/Dispatcher see "Hoàn thành" instead of a stale
+    // "Chờ duyệt phí". When the accountant review is reintroduced, this
+    // condition narrows back to `allCompletedAndAccepted` and the strict
+    // gates resume.
+    const allCompletedViaDriverClose = requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
+      return trip != null
+        && trip.status === 'COMPLETED'
+        && latestSubmissionStatus != null
+        && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
+    });
+
+    // Driver evidence handoff: every required fulfillment's trip has a
+    // SUBMITTED or ACCEPTED e-POD, but the trip is still IN_TRANSIT (not yet
+    // financially closed by Accountant/CUS). The driver's operational work is
+    // done — advance the shipment so customer and dispatcher see "Chờ duyệt
+    // phí" instead of a misleading "Đang chạy". This branch only fires for
+    // legacy data after the driver full-close path rolled out (e.g. an
+    // IN_TRANSIT trip with submitted e-POD that has not been completed yet).
+    const allDriverEvidenceSubmitted = requiredFulfillments.every((row) => {
+      const trip = tripsByFulfillment.get(row.id)?.[0];
+      const latestSubmissionStatus = trip == null ? null : latestSubmissionByTripId.get(trip.id) ?? null;
+      return trip != null
+        && trip.status === TripStatus.IN_TRANSIT
+        && trip.podRecoveredAt == null
+        && latestSubmissionStatus != null
+        && (latestSubmissionStatus === TripPodStatus.SUBMITTED || latestSubmissionStatus === TripPodStatus.ACCEPTED);
+    });
+
     let targetStatus: ShipmentStatus = 'DISPATCHED';
     let reason = 'Tự động cập nhật theo tình trạng điều xe hiện tại.';
-    if (allCompletedAndAccepted) {
+    if (allCompletedViaDriverClose) {
+      targetStatus = 'COMPLETED';
+      reason = 'Tài xế đã hoàn thành chuyến. Lô hàng chuyển sang Hoàn thành (kế toán review sẽ xử lý chi phí sau).';
+    } else if (allCompletedAndAccepted) {
       targetStatus = 'COMPLETED';
       reason = 'Tự động hoàn thành khi mọi tác vụ đã duyệt e-POD, thu hồi POD gốc và chốt xong.';
     } else if (allAwaitingApproval || (allCompleted && allExpenseScopesComplete)) {
       targetStatus = 'PENDING_EXPENSE_APPROVAL';
       reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
+    } else if (allDriverEvidenceSubmitted) {
+      targetStatus = 'PENDING_EXPENSE_APPROVAL';
+      reason = 'Tài xế đã hoàn thành bàn giao hồ sơ. Chờ Kế toán/CUS duyệt phí và chốt chuyến.';
     } else if (anyInTransit) {
       targetStatus = 'IN_TRANSIT';
       reason = 'Tự động chuyển sang Đang chạy khi đã có chuyến xuất phát.';

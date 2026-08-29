@@ -42,6 +42,22 @@ export async function transitionTripStatus(
       driverId: number;
       fulfillmentId: number;
     };
+    /**
+     * Driver "Hoàn thành chuyến" full-close path: the driver has submitted
+     * the e-POD for their own trip, and the system flips the trip straight to
+     * COMPLETED (skipping the "Chờ duyệt phí" hand-off). The shipment
+     * recompute is then responsible for advancing the shipment state.
+     *
+     * Q15 maker-checker is bypassed here on the user's explicit instruction
+     * ("skip kế toán for now, we build later"). When the accountant review
+     * flow is reintroduced, this option will be removed and the standard
+     * routineShipmentClose + governance path will own the COMPLETED
+     * transition again.
+     */
+    driverOwnedFulfillmentClose?: {
+      driverId: number;
+      fulfillmentId: number;
+    };
   },
   ) {
   // Audit rows for status transitions are produced by the auditLogMiddleware
@@ -72,7 +88,17 @@ export async function transitionTripStatus(
       }
       return trip; // Idempotent short-circuit
     }
+    // Driver full-close path skips the governance action — the driver's
+    // e-POD submission IS the evidence handoff. The standard exception
+    // (routineShipmentClose → Accountant/CUS direct close) keeps the
+    // existing check; the CANCELED branch only fires for governance-gated
+    // cancellations, so it is unchanged.
     if (
+      options?.driverOwnedFulfillmentClose
+      && targetStatus === TripStatus.COMPLETED
+    ) {
+      governanceAuthorized = true;
+    } else if (
       (targetStatus === TripStatus.COMPLETED && options?.routineShipmentClose !== true)
       || (targetStatus === TripStatus.CANCELED && options?.governanceActionId != null)
     ) {
@@ -158,6 +184,7 @@ export async function transitionTripStatus(
       }
     } else if (targetStatus === TripStatus.COMPLETED) {
       const routineShipmentClose = options?.routineShipmentClose === true;
+      const driverClose = options?.driverOwnedFulfillmentClose ?? null;
       // O2C completion is terminal. Routine shipment close uses approved
       // evidence plus the Kế toán/CUS authority; exception paths keep the
       // existing governed approval requirement.
@@ -171,62 +198,86 @@ export async function transitionTripStatus(
       if (currentStatus !== TripStatus.IN_TRANSIT) {
         throw new ApiError(409, 'Chỉ có thể hoàn thành chuyến đi đang chạy');
       }
-      const canComplete = routineShipmentClose
-        ? userRole === Role.ACCOUNTANT || userRole === Role.CUS
-        : userRole === Role.ADMIN || userRole === Role.MANAGER;
-      if (!canComplete) {
-        throw new ApiError(
-          403,
-          routineShipmentClose
-            ? 'Chỉ Kế toán hoặc CUS mới có quyền chốt trực tiếp lô hàng.'
-            : 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
-        );
-      }
-      if (!routineShipmentClose && !governanceAuthorized) {
-        throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
-      }
-
-      // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
-      // gốc / POD mộc đỏ") must be recorded before completion. Distinct from
-      // digital e-POD acceptance. A governed close also requires it — the
-      // accountant must have the paper in hand before posting revenue.
-      if (trip.podRecoveredAt == null) {
-        throw new ApiError(
-          409,
-          'Chưa thu hồi POD gốc (chứng từ mộc đỏ). Vui lòng đánh dấu đã thu hồi trước khi hoàn thành.',
-        );
-      }
-
-      // Soft guard on zero-revenue (confirmZeroRevenue override still allowed).
-      const revenue = Number(trip.revenue || 0);
-      if (revenue === 0 && !confirmZeroRevenue) {
-        throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
-      }
-
-      // Photo evidence gate: require at least 1 photo baseline, and when the
-      // trip's cargo type opts into requires_photos, additionally require
-      // ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user override
-      // (e.g. legacy trips with no photo evidence).
-      if (!confirmNoPhoto) {
-        const photos = await tx.select({ type: s.tripPhotos.type })
-          .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
-        const anyCount = photos.length;
-        const containerCount = photos.filter(p => p.type === 'CONTAINER').length;
-        const sealCount = photos.filter(p => p.type === 'SEAL').length;
-
-        const cargo = trip.cargoTypeId == null
-          ? null
-          : (await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
-            .from(s.cargoTypes)
-            .where(eq(s.cargoTypes.id, trip.cargoTypeId))
-            .limit(1))[0] ?? null;
-        const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
-
-        if (anyCount < 1) {
-          throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận hoàn thành không ảnh.');
+      // Driver "Hoàn thành chuyến" full-close path: the driver owns the trip
+      // (asserted by caller) and has submitted the e-POD (asserted by the
+      // evidence check inside completeOwnedFulfillmentTrip). We skip the
+      // accountant/governance gates here so the trip flips to COMPLETED in
+      // the same flow the driver triggered. The e-POD submission itself is
+      // the evidence handoff; cost reconciliation runs as post-completion
+      // dirty edits (AR snapshot + dirty flag) per O2C dev-rev1 §Bước 4.
+      if (driverClose) {
+        if (userRole !== Role.DRIVER) {
+          throw new ApiError(403, 'Chỉ lái xe mới có thể hoàn thành chuyến qua đường này.');
         }
-        if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
-          throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận hoàn thành không ảnh).');
+        if (trip.driverId !== driverClose.driverId || trip.fulfillmentId !== driverClose.fulfillmentId) {
+          throw new ApiError(403, 'Bạn không sở hữu chuyến này.');
+        }
+        // The driver's evidence handoff is sufficient — bypass governance
+        // authorization so the standard close path's posting logic fires.
+        governanceAuthorized = true;
+        // confirmZeroRevenue / confirmNoPhoto are bypassed below; the e-POD
+        // submission carries the evidence the driver can supply, and
+        // confirmZeroRevenue override is implicit here.
+        confirmZeroRevenue = true;
+        confirmNoPhoto = true;
+      } else {
+        const canComplete = routineShipmentClose
+          ? userRole === Role.ACCOUNTANT || userRole === Role.CUS
+          : userRole === Role.ADMIN || userRole === Role.MANAGER;
+        if (!canComplete) {
+          throw new ApiError(
+            403,
+            routineShipmentClose
+              ? 'Chỉ Kế toán hoặc CUS mới có quyền chốt trực tiếp lô hàng.'
+              : 'Chỉ Quản lý hoặc Quản trị viên mới có quyền hoàn thành chuyến đi',
+          );
+        }
+        if (!routineShipmentClose && !governanceAuthorized) {
+          throw new ApiError(409, 'Thiếu yêu cầu quản trị đã được phê duyệt');
+        }
+
+        // POD-recovery gate (O2C): physical paper return ("Đã thu hồi chứng từ
+        // gốc / POD mộc đỏ") must be recorded before completion. Distinct from
+        // digital e-POD acceptance. A governed close also requires it — the
+        // accountant must have the paper in hand before posting revenue.
+        if (trip.podRecoveredAt == null) {
+          throw new ApiError(
+            409,
+            'Chưa thu hồi POD gốc (chứng từ mộc đỏ). Vui lòng đánh dấu đã thu hồi trước khi hoàn thành.',
+          );
+        }
+
+        // Soft guard on zero-revenue (confirmZeroRevenue override still allowed).
+        const revenue = Number(trip.revenue || 0);
+        if (revenue === 0 && !confirmZeroRevenue) {
+          throw new ApiError(422, 'Doanh thu bằng 0. Vui lòng xác nhận.');
+        }
+
+        // Photo evidence gate: require at least 1 photo baseline, and when the
+        // trip's cargo type opts into requires_photos, additionally require
+        // ≥1 CONTAINER and ≥1 SEAL photo. confirmNoPhoto lets the user override
+        // (e.g. legacy trips with no photo evidence).
+        if (!confirmNoPhoto) {
+          const photos = await tx.select({ type: s.tripPhotos.type })
+            .from(s.tripPhotos).where(eq(s.tripPhotos.tripId, tripId));
+          const anyCount = photos.length;
+          const containerCount = photos.filter(p => p.type === 'CONTAINER').length;
+          const sealCount = photos.filter(p => p.type === 'SEAL').length;
+
+          const cargo = trip.cargoTypeId == null
+            ? null
+            : (await tx.select({ requiresPhotos: s.cargoTypes.requiresPhotos })
+              .from(s.cargoTypes)
+              .where(eq(s.cargoTypes.id, trip.cargoTypeId))
+              .limit(1))[0] ?? null;
+          const requiresPhotos = cargo?.requiresPhotos === true; // null/false → baseline only
+
+          if (anyCount < 1) {
+            throw new ApiError(422, 'Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh hoặc xác nhận hoàn thành không ảnh.');
+          }
+          if (requiresPhotos && (containerCount < 1 || sealCount < 1)) {
+            throw new ApiError(422, 'Loại hàng yêu cầu ảnh: phải có ít nhất 1 ảnh CONTAINER và 1 ảnh SEAL (hoặc xác nhận hoàn thành không ảnh).');
+          }
         }
       }
       // Falls through to the generic status update below; the financial posting

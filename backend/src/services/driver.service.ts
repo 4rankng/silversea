@@ -1458,10 +1458,24 @@ export async function completeOwnedFulfillmentTrip(args: {
       if (!evidenceStatus.ready) {
         throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
       }
-      // Driver "Hoàn thành" means hand off the operational evidence for
-      // accounting review. It never posts revenue or changes the trip to the
-      // financial COMPLETED state; Q15 reserves that transition for the
-      // independently approved close action.
+      // Driver full-close: e-POD already proves delivery. Skip accountant
+      // gates per user instruction ("skip kế toán for now").
+      await transitionTripStatus(
+        ownedTrip.tripId,
+        TripStatus.COMPLETED,
+        args.actorUserId,
+        Role.DRIVER,
+        true,
+        true,
+        {
+          expectedVersion: ownedTrip.tripVersion,
+          transaction: tx,
+          driverOwnedFulfillmentClose: {
+            driverId: args.driverId,
+            fulfillmentId: args.fulfillmentId,
+          },
+        },
+      );
       const { recomputeShipmentCompletion } = await import('./shipment.service.js');
       await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
       return buildDriverFulfillmentCompletionResultTx(tx, ownedTrip.tripId, args.driverId);
@@ -1478,21 +1492,8 @@ export async function completeOwnedFulfillmentTrip(args: {
 export { getDriverPayslipPeriods } from './driver-payslip.service';
 export type { DriverPayslipPeriod } from './driver-payslip.service';
 
-// ─── M8.4 slice 4: advisory evidence-readiness before completion ──────────
-//
-// PRD M08-04-03 + open §3 question ("which evidences mandatory before
-// completion — photo / signature / GPS?"). Status `pending`. Resolved the
-// same way as M10.2 slice 2: advisory, NOT enforcing. This function returns
-// the list of missing recommended evidence types so the UI (or the
-// operator) sees what's absent before marking the trip COMPLETED. A
-// follow-up flip enforces once §3 sign-off lands.
-//
-// Recommended set: ≥1 container photo + ≥1 DEPARTED progress event + ≥1
-// ARRIVED progress event. These are the minimum audit trail for a trip
-// that was physically driven.
-
+// Advisory evidence-readiness before completion (M8.4 slice 4).
 export type CompletionEvidenceStatus = DriverCompletionEvidenceStatus;
-
 export async function getCompletionEvidenceStatus(tripId: number): Promise<CompletionEvidenceStatus> {
   return getDriverCompletionEvidenceStatus(tripId);
 }

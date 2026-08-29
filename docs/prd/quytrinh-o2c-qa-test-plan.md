@@ -326,6 +326,66 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | Bằng chứng | Ảnh chặn khi thiếu file, hai slot, status/version và binding ở shipment detail cho từng fulfillment/trip |
 | Phụ thuộc | TC-MO2C-05 |
 
+### TC-MO2C-07A — Driver hoàn thành chuyến (full-close) và đồng bộ trạng thái
+
+| Trường | Nội dung |
+| --- | --- |
+| Vai trò | Driver, CUS, Dispatcher |
+| Tiền điều kiện | Trip đang `IN_TRANSIT`; e-POD đã nộp (`SUBMITTED`); mọi milestone đã ghi nhận |
+| Hành động | 1. Đăng nhập driver, mở `/my-trips/:fulfillmentId`. 2. Bấm `Hoàn thành chuyến`. 3. Ghi trạng thái trip trước và sau. 4. Đăng nhập `dieuvan`, mở `/dispatch` hoặc danh sách chuyến; xác nhận trạng thái chuyến là `Hoàn thành` (`COMPLETED`), không phải `Đang chạy`. 5. Đăng nhập `cus`, mở danh sách lô hàng; xác nhận lô hàng đã chuyển sang `Hoàn thành` (`COMPLETED`) hoặc `Đã khóa` (bucket `LOCKED`). 6. Mở chi tiết lô hàng → bảng container ledger; xác nhận cột trạng thái điều xe hiển thị `Hoàn thành` cho container đã giao. |
+| PRD kỳ vọng | Trip chuyển `COMPLETED` ngay khi driver bấm hoàn thành; shipment tự chuyển `COMPLETED` qua `allCompletedViaDriverClose`; CUS thấy lô ở bucket `LOCKED` (`Đã khóa`), không phải `PENDING_LOCK` (`Chờ khóa`); Dispatcher thấy chuyến `Hoàn thành`; container ledger badge hiển thị `Hoàn thành` |
+| FAIL nếu | Trip vẫn `IN_TRANSIT` sau khi driver bấm hoàn thành; shipment vẫn `Đang chạy`; CUS bucket vẫn `RUNNING` hoặc `PENDING_LOCK`; Dispatcher thấy `Đang chạy`; container ledger badge sai |
+| Bằng chứng | Ảnh trạng thái trip trước/sau; ảnh Dispatcher danh sách chuyến; ảnh CUS danh sách lô + bucket; ảnh container ledger badge; entity IDs và version |
+| Phụ thuộc | TC-MO2C-07 |
+
+### TC-MO2C-07B — Driver hoàn thành: negative cases và điều kiện thiếu
+
+| Trường | Nội dung |
+| --- | --- |
+| Vai trò | Driver |
+| Tiền điều kiện | Trip đang `IN_TRANSIT` |
+| Hành động | 1. Chưa nộp e-POD, bấm `Hoàn thành chuyến`; xác nhận bị chặn với thông báo thiếu e-POD. 2. Nộp e-POD nhưng chưa ghi milestone `PICKED_UP`; bấm `Hoàn thành`; xác nhận hệ thống tự ghi milestone thiếu và hoàn thành. 3. Thử bấm `Hoàn thành` lần hai trên cùng chuyến đã `COMPLETED`; xác nhận bị từ chối hoặc idempotent. 4. Trên chuyến `CANCELED`, thử bấm `Hoàn thành`; xác nhận bị từ chối. |
+| PRD kỳ vọng | Không thể hoàn thành khi thiếu e-POD; milestone thiếu được tự động ghi nhận; hoàn thành lần hai là idempotent hoặc bị chặn; chuyến đã hủy không thể hoàn thành |
+| FAIL nếu | Cho hoàn thành thiếu e-POD; milestone không được tự ghi; double-complete tạo dữ liệu kép; hoàn thành chuyến đã hủy |
+| Bằng chứng | Ảnh thông báo chặn thiếu e-POD; ảnh milestone tự ghi; ảnh idempotent/reject; ảnh canceled reject |
+| Phụ thuộc | TC-MO2C-07A |
+
+### TC-MO2C-07C — Customer-visible events sau khi driver hoàn thành
+
+| Trường | Nội dung |
+| --- | --- |
+| Vai trò | Customer |
+| Tiền điều kiện | Trip đã được driver hoàn thành (TC-MO2C-07A) |
+| Hành động | 1. Đăng nhập `customer`, mở chi tiết lô hàng. 2. Kiểm tra timeline/sự kiện hiển thị; xác nhận có sự kiện `Đã giao hàng` với thời gian khớp thời điểm driver bấm hoàn thành. 3. Kiểm tra trạng thái lô hàng hiển thị `Đã giao hàng`. |
+| PRD kỳ vọng | Customer thấy sự kiện `Đã giao hàng` trong timeline; trạng thái lô là `COMPLETED`; thời gian sự kiện khớp thời điểm driver hoàn thành |
+| FAIL nếu | Customer không thấy sự kiện; trạng thái vẫn `Đang chạy`; thời gian sai |
+| Bằng chứng | Ảnh customer portal timeline; ảnh trạng thái lô; timestamp khớp |
+| Phụ thuộc | TC-MO2C-07A |
+
+### TC-MO2C-07D — Multi-fulfillment: driver hoàn thành một phần
+
+| Trường | Nội dung |
+| --- | --- |
+| Vai trò | Driver, CUS, Dispatcher |
+| Tiền điều kiện | Lô FCL có 2 fulfillment/container; chỉ một chuyến đã driver hoàn thành; chuyến kia vẫn `IN_TRANSIT` |
+| Hành động | 1. Driver hoàn thành chuyến đầu tiên (TC-MO2C-07A). 2. Đăng nhập CUS/Dispatcher, kiểm tra trạng thái lô hàng. 3. Xác nhận lô vẫn `Đang chạy` (`IN_TRANSIT`) vì còn chuyến thứ hai chưa hoàn thành. 4. Driver hoàn thành chuyến thứ hai. 5. Xác nhận lô chuyển `Hoàn thành` (`COMPLETED`). |
+| PRD kỳ vọng | Lô chỉ chuyển `COMPLETED` khi mọi chuyến bắt buộc đã hoàn thành; lô vẫn `IN_TRANSIT` nếu còn chuyến đang chạy |
+| FAIL nếu | Lô chuyển `COMPLETED` khi còn chuyến chưa hoàn thành; lô không chuyển sau khi tất cả chuyến hoàn thành |
+| Bằng chứng | Ảnh lô sau chuyến 1 (still IN_TRANSIT); ảnh lô sau chuyến 2 (COMPLETED); 4 trip/shipment IDs |
+| Phụ thuộc | TC-MO2C-07A |
+
+### TC-MO2C-07E — CUS workspace bucket phân loại đúng trạng thái
+
+| Trường | Nội dung |
+| --- | --- |
+| Vai trò | CUS |
+| Tiền điều kiện | Có lô ở các trạng thái: `NEW`, `DISPATCHED`, `IN_TRANSIT`, `PENDING_EXPENSE_APPROVAL`, `COMPLETED` |
+| Hành động | 1. Đăng nhập `cus`, mở workspace. 2. Lọc theo từng bucket: `Mới tạo`, `Đang chạy`, `Chờ khóa`, `Đã khóa`. 3. Xác nhận lô `COMPLETED` nằm ở bucket `Đã khóa` (`LOCKED`), không phải `Chờ khóa` (`PENDING_LOCK`). 4. Xác nhận lô `PENDING_EXPENSE_APPROVAL` nằm ở bucket `Chờ khóa` (`PENDING_LOCK`). 5. Xác nhận lô `IN_TRANSIT` nằm ở bucket `Đang chạy` (`RUNNING`). |
+| PRD kỳ vọng | `COMPLETED` → `LOCKED` (Đã khóa); `PENDING_EXPENSE_APPROVAL` → `PENDING_LOCK` (Chờ khóa); `IN_TRANSIT`/`DISPATCHED` → `RUNNING` (Đang chạy); `NEW`/`PENDING_DATE`/`READY_FOR_DISPATCH` → `NEW` (Mới tạo) |
+| FAIL nếu | `COMPLETED` nằm ở `PENDING_LOCK`; `PENDING_EXPENSE_APPROVAL` nằm ở `RUNNING`; bucket sai bất kỳ |
+| Bằng chứng | Ảnh từng bucket với lô đúng trạng thái; screenshot filter results |
+| Phụ thuộc | TC-MO2C-07A |
+
 ### TC-MO2C-08 — Ops nâng/hạ, hóa đơn/thay thế, offset tạm ứng, chia scope
 
 | Trường | Nội dung |
@@ -479,6 +539,7 @@ Lưu artifact theo mẫu `qa/<YYYY-MM-DD>_o2c-manual_<case-id>.<ext>`, ví dụ 
 | CUS | TC-MO2C-03 |
 | Điều phối | TC-MO2C-04 |
 | Driver | TC-MO2C-05 → TC-MO2C-07 |
+| Driver full-close & status sync | TC-MO2C-07A → TC-MO2C-07E |
 | Ops | TC-MO2C-08 → TC-MO2C-09 |
 | POD / Kế toán / chốt | TC-MO2C-10 → TC-MO2C-15 |
 | Governance / ngoại lệ | TC-MO2C-16 |

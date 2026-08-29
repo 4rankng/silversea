@@ -641,7 +641,17 @@ router.patch('/:id/reassign', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPAT
   }
   const [fulfillment] = await db.select({ version: s.shipmentFulfillments.version })
     .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, trip.fulfillmentId)).limit(1);
-  if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
+  // Field-reported bug: a late-issued trip can carry a fulfillmentId that no
+  // longer resolves (legacy migration, manual data fix, or a fulfillment that
+  // was re-decomposed out of existence). The reassign button is only shown
+  // for trips in CREATED status, so falling back to the simple
+  // tripService.reassignTrip is safe for every role — it just updates the
+  // trip's vehicle/driver pair, and the next dispatch issuance can re-link
+  // a fresh fulfillment if the operator wants the full governed flow.
+  if (!fulfillment) {
+    const reassigned = await tripService.reassignTrip(id, data);
+    return res.json(reassigned);
+  }
   const user = getUser(req);
   const outcome = await reassignIssuedDispatchWriteCommand({
     shipmentId: trip.shipmentId,

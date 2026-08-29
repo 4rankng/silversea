@@ -431,17 +431,23 @@ describe('O2C trip close readiness authority', () => {
     }
   });
 
-  test('FCL snapshot fulfillments still require the general scope before pending approval', async () => {
+  // Field-reported bug fix (2026-08-29 "skip kế toán for now"): an IN_TRANSIT
+  // trip with submitted/accepted e-POD but no expense-scope completion now
+  // advances the shipment to PENDING_EXPENSE_APPROVAL so CUS and dispatch see
+  // "Chờ duyệt phí" instead of a stale "Đang chạy". The expense-scope gate
+  // is still enforced for the strict financial COMPLETED target
+  // (allCompletedAndAccepted) — see the direct-close tests above.
+  test('FCL trip with submitted/accepted e-POD advances to pending approval without the expense scope', async () => {
     for (const submissionStatus of ['SUBMITTED', 'ACCEPTED'] as const) {
       const fixture = await createExpenseScopeRecomputeFixture({ cargoMode: 'FCL', submissionStatus });
       try {
         const recomputed = await recomputeShipmentCompletion(fixture.shipment.id, { changedBy: userIds[1] });
-        assert.equal(recomputed.status, 'IN_TRANSIT');
+        assert.equal(recomputed.status, 'PENDING_EXPENSE_APPROVAL');
         const [persisted] = await db.select({ status: s.shipments.status })
           .from(s.shipments)
           .where(eq(s.shipments.id, fixture.shipment.id))
           .limit(1);
-        assert.equal(persisted?.status, 'IN_TRANSIT');
+        assert.equal(persisted?.status, 'PENDING_EXPENSE_APPROVAL');
       } finally {
         await fixture.cleanup();
       }

@@ -687,7 +687,7 @@ export default function DriverTripDetailPage() {
             <strong>Hoàn tất lệnh vận chuyển</strong>
             <p>
               Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "HOÀN THÀNH CHUYẾN" ở đó — hệ thống
-              gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
+              gửi e-POD và chốt chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">

@@ -90,6 +90,19 @@ README applies (silent redirect to `/dispatch`).
      Vietnamese banner (`Lô hàng đã được điều xe bởi người khác`) with
      a "Tải lại" action; no half-state trip is left behind.
 
+6. **DISP-MP-06 — Date filter follows the per-container appointment (fix 2026-08-29)**
+   - **Given** a FCL shipment whose CUS-reappointed container carries a
+     `customerAppointmentAt` that differs from `shipments.expectedDeliveryDate`,
+     and CUS has already assigned a carrier (plannedCarrierType on the
+     fulfillment is `OWN` or `EXTERNAL`)
+   - **When** the dispatcher filters the master plan by the appointment day
+   - **Then** the row surfaces under that day (not just under the shipment
+     EDD) — empty state "Không có lô hàng nào cần phân xe" must only appear
+     when the range is genuinely empty.
+   - **When** the dispatcher filters by an unrelated day
+   - **Then** the row drops out cleanly.
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-013](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-013---bộ-lọc-ngày-kế-hoạch-tổng-quát-hiển-thị-lô-đã-phân-nhà-xe-theo-appointment-container).
+
 ### Test steps
 
 1. Log in as `dieuvan`.
@@ -171,6 +184,20 @@ containers (so the auto-split is meaningful).
      `dispatch.publish`, actor = dispatcher, payload = the per-row
      plate + container + trailer assignments.
    - **Evidence**: `/audit-logs` (as `admin`) shows the row.
+
+6. **DISP-DP-06 — Phân xe lại falls back when the fulfillment link is gone (fix 2026-08-29)**
+   - **Given** an issued trip on `/dispatch-detail` whose
+     `trip.fulfillmentId` no longer resolves to a row in
+     `shipment_fulfillments` (legacy migration, manual fix, or a
+     re-decomposition that left a stale link)
+   - **When** the dispatcher opens the "Phân xe lại" dialog, changes
+     `Loại xe` / `Đối tác xe ngoài` / plate / driver, and confirms
+   - **Then** the route does **not** 404 with "Không tìm thấy tác vụ
+     điều xe" — it falls back to the simple trip-vehicle reassign and
+     the trip row updates in place (carrierType, externalCarrierId /
+     plate / driver). The next `Phát lệnh` from the detail plan can
+     re-link a fresh fulfillment if needed.
+   - **Reference**: [`02-dieuvan-dispatch.md` TC-DV-DISPATCH-012](../flows/02-dieuvan-dispatch.md#tc-dv-dispatch-012---phân-xe-lại-khi-tác-vụ-điều-xe-bị-mấttái-cấu-trúc-fallback).
 
 ### Test steps
 

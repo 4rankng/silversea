@@ -238,6 +238,49 @@
   - Audit log ghi cả 2 lần thử.
 - **Bằng chứng:** ảnh 2 request (1 OK, 1 conflict) + audit log
 
+### TC-DV-DISPATCH-012 — Phân xe lại khi tác vụ điều xe bị mất/tái cấu trúc (fallback)
+
+- **Mã PRD:** Bug fix 2026-08-29 — lệnh đã phát muộn không thể "Phân xe lại"
+- **Vai trò:** `dieuvan` (hoặc `admin` / `giamdoc`)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Đã phát lệnh điều xe, trip ở CREATED. Có thể mô phỏng: trip.fulfillmentId trỏ tới 1 fulfillment đã bị hủy cứng (canceledAt IS NOT NULL ở cấp DB hoặc row bị xóa khỏi `shipment_fulfillments`).
+- **Các bước:**
+  1. Mở `/dispatch-detail` (Kế hoạch chi tiết xe). Ở ô đã phát lệnh (status chip = ISSUED, trip = CREATED), bấm "Phân xe lại".
+  2. Trong dialog "Phân xe lại", đổi loại xe sang "Xe ngoài", chọn đối tác "Biên Đông", nhập biển số/tên lái xe/SĐT.
+  3. Bấm "Xác nhận phân xe lại".
+- **Kết quả mong đợi (Pass):**
+  - **Không** hiện lỗi "Không tìm thấy tác vụ điều xe" (lỗi cũ trước fix).
+  - Phân xe lại thành công: trip ghi nhận carrierType mới, externalCarrier/externalPlate mới, version tăng.
+  - Dialog đóng, ô điều phối refresh, biển số mới hiển thị.
+  - Nếu dispatch muốn re-link đầy đủ, "Phát lệnh" lại từ Kế hoạch chi tiết sẽ tạo fulfillment mới.
+- **Kỳ vọng sai (Fail nếu):**
+  - Vẫn trả 404 "Không tìm thấy tác vụ điều xe" (hành vi cũ — đã fix).
+  - Không cập nhật được trip sau khi đổi.
+- **Bằng chứng:** ảnh dialog trước/sau + ảnh ô điều phối sau refresh + ảnh Network 200
+
+### TC-DV-DISPATCH-013 — Bộ lọc ngày "Kế hoạch tổng quát" hiển thị lô đã phân nhà xe theo appointment container
+
+- **Mã PRD:** Bug fix 2026-08-29 — bộ lọc ngày đang không hiển thị lô đã phân nhà xe
+- **Vai trò:** `dieuvan` (DISPATCHER)
+- **Mức độ:** P0
+- **Thiết bị:** Desktop (1440×900)
+- **Tiền điều kiện:** Lô FCL READY_FOR_DISPATCH đã được CUS gán nhà xe (plannedCarrierType = OWN/EXTERNAL trên shipmentFulfillments). **Quan trọng:** `shipments.expectedDeliveryDate` khác với `shipment_containers.customerAppointmentAt` (CUS đã re-appointment sang ngày khác).
+- **Các bước:**
+  1. Mở `/dispatch` (Kế hoạch tổng quát). Ở thanh "Ngày giao", chọn đúng ngày mà container đã được re-appointment tới (ví dụ 30/08/2026).
+  2. Quan sát: lô FCL vừa tạo có xuất hiện trong danh sách không.
+  3. Đổi bộ lọc về ngày = `expectedDeliveryDate` của lô. Quan sát: lô vẫn xuất hiện.
+  4. Đổi sang 1 ngày không liên quan (ví dụ 15/08/2026). Quan sát: lô biến mất.
+- **Kết quả mong đợi (Pass):**
+  - Lô hiển thị ở cả 2 filter (ngày appointment, ngày EDD) — bộ lọc theo cả 2 nguồn ngày.
+  - Lô biến mất khi filter sang ngày không liên quan.
+  - Empty state "Không có lô hàng nào cần phân xe" chỉ hiện khi thật sự rỗng (không phải vì filter quá hẹp do sai nguồn ngày).
+  - Cột "Sản lượng" / "Phân xe" vẫn hiển thị nhà xe đã gán (Biên Đông, SilverSea, …) cho lô đó.
+- **Kỳ vọng sai (Fail nếu):**
+  - Lô không hiện ở filter theo appointment date dù đã được re-appointment (hành vi cũ — đã fix).
+  - Lô hiện ở cả filter ngày không liên quan (lọc quá rộng).
+- **Bằng chứng:** ảnh Kế hoạch tổng quát với 3 filter trên + ảnh nhà xe đã gán
+
 ---
 
 ## Bảng nghiệm thu — Luồng Điều xe (Điều vận)
@@ -255,3 +298,5 @@
 | __/__/__ | TC-DV-DISPATCH-009 | | | RBAC dispatch | |
 | __/__/__ | TC-DV-DISPATCH-010 | | | Double-submit | |
 | __/__/__ | TC-DV-DISPATCH-011 | | | Concurrent dispatch | |
+| __/__/__ | TC-DV-DISPATCH-012 | | | Phân xe lại khi tác vụ bị mất (fallback) | |
+| __/__/__ | TC-DV-DISPATCH-013 | | | Filter ngày hiển thị lô đã phân nhà xe (appointment) | |

@@ -771,8 +771,11 @@ function deriveCusBucket(status: string | null, hasActiveLock: boolean): Shipmen
   if (canonical === ShipmentStatus.DISPATCHED || canonical === ShipmentStatus.IN_TRANSIT) {
     return ShipmentCusBucket.RUNNING;
   }
-  if (canonical === ShipmentStatus.PENDING_EXPENSE_APPROVAL || canonical === ShipmentStatus.COMPLETED) {
+  if (canonical === ShipmentStatus.PENDING_EXPENSE_APPROVAL) {
     return ShipmentCusBucket.PENDING_LOCK;
+  }
+  if (canonical === ShipmentStatus.COMPLETED) {
+    return ShipmentCusBucket.LOCKED;
   }
   return ShipmentCusBucket.NEW;
 }

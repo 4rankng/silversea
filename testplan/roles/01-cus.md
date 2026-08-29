@@ -190,6 +190,16 @@ DISPATCHER, CUS, ACCOUNTANT, CUSTOMER scoped).
    - **Reference**: `TRIP_STATUS_LABELS` in
      `shared/src/constants/index.ts:403`.
 
+4. **CUS-LIST-04 — Shipment flips out of "Đang chạy" the moment the driver submits e-POD (fix 2026-08-29)**
+   - **Given** a trip is in `Đang chạy` (the driver is still on the road)
+   - **When** the driver submits the e-POD (status `SUBMITTED`) on
+     `/my-trips/:id/pod` — Ops/Forwarder has **not** marked the
+     expense scopes complete yet
+   - **Then** the CUS-side shipment status recomputes to `Chờ duyệt phí`
+     (PENDING_EXPENSE_APPROVAL) immediately. CUS no longer sees a stale
+     `Đang chạy` once the evidence handoff is in.
+   - **Reference**: [`04-laixe-tien-do-epod.md` TC-LX-TIENDO-017](../flows/04-laixe-tien-do-epod.md#tc-lx-tiendo-017---sau-khi-nộp-e-pod-lô-hàng-chuyển-chờ-duyệt-phí-ngay-không-kẹt-ở-đang-chạy).
+
 4. **CUS-LIST-04 — Row click navigates to detail**
    - **Given** a row
    - **When** the user clicks it
