@@ -1,4 +1,9 @@
 .driver-penalty-page {
+  /* Same centered-measure idiom as .driver-journey / .driver-task-screen:
+     the desktop driver shell is full-bleed, so the page caps itself to the
+     720px driver measure instead of stretching edge to edge. */
+  max-width: var(--driver-measure);
+  margin: 0 auto;
   --driver-penalty-title: var(--fs-xl);
   --driver-penalty-subtitle: var(--fs-xs);
   --driver-penalty-section: var(--fs-xs);

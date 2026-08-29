@@ -3,6 +3,14 @@
   margin: 0 auto;
 }
 
+/* Desktop driver shell is full-bleed (shell padding removed at ≥1024px) —
+   the column owns its own breathing room, matching .driver-journey. */
+@media (min-width: 1024px) {
+  .driver-earnings-page {
+    padding: 16px 0 32px;
+  }
+}
+
 .earnings-hero-bento {
   position: relative;
   display: flex;

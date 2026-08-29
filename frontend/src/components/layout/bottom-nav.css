@@ -14,8 +14,24 @@
 .app.is-driver .app-body {
   background: var(--surface);
 }
+/* Trip detail / e-POD paint their own off-white (--surface-2) 720px column;
+   the shell mirrors that same tone edge-to-edge so a wide desktop window
+   never shows a white gutter beside or below the column. Journey and the
+   other driver pages stay on white. */
+.app.is-driver .app-body:has(.driver-task-screen) {
+  background: var(--surface-2);
+}
 .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
   padding: 0;
+}
+/* Earnings and penalty are centered content columns (960px / measure), not
+   full-bleed screens — drop the desktop shell inset only at widths where no
+   bottom nav exists. Below 1024px the shell keeps its padding and the
+   bottom-nav clearance those pages were QA'd with. */
+@media (min-width: 1024px) {
+  .app.is-driver .app-body:has(.driver-earnings-page, .driver-penalty-page) {
+    padding: 0;
+  }
 }
 
 @media (max-width: 1023px) {
