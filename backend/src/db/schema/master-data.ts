@@ -205,6 +205,12 @@ export const customers = pgTable('customers', {
   debitNoteMode: varchar('debit_note_mode', { length: 20 }).notNull().default('MONTHLY'),
   debitNoteTemplateId: integer('debit_note_template_id'),
   linkedSupplierId: integer('linked_supplier_id'),
+  // Intake provenance: CUS/Dispatcher inline creates stamp the creating actor
+  // so loadClerkShipmentScope can admit the creator's own intake customers
+  // into their shipment scope. NULL = admin/seed/legacy rows (admin-managed
+  // user_customer_links remain the authoritative grant; never written by
+  // intake so the creator's token never invalidates).
+  createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),

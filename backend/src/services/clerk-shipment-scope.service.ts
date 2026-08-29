@@ -8,6 +8,18 @@ import type { Tx } from './trip-shared';
 
 export interface ClerkShipmentScope {
   businessUnitIds: number[];
+  /**
+   * Admin-managed user_customer_links only. Drives the has-any-assignment
+   * gate so a clerk with zero admin links cannot self-bootstrap scope by
+   * creating a customer.
+   */
+  adminCustomerIds: number[];
+  /**
+   * adminCustomerIds ∪ customers this clerk created via intake
+   * (customers.created_by). Makes an inline-created customer a working
+   * customer for its creator — visible on the workboard and usable for
+   * shipment creates — without touching admin-managed link tables.
+   */
   customerIds: number[];
   shipmentIds: number[];
 }
@@ -27,7 +39,7 @@ export async function loadClerkShipmentScope(
   tx?: Tx,
 ): Promise<ClerkShipmentScope> {
   const client = tx ?? db;
-  const [unitRows, customerRows, shipmentRows] = await Promise.all([
+  const [unitRows, customerRows, createdCustomerRows, shipmentRows] = await Promise.all([
     client.select({ id: s.userBusinessUnitLinks.businessUnitId })
       .from(s.userBusinessUnitLinks)
       .innerJoin(s.businessUnits, eq(s.userBusinessUnitLinks.businessUnitId, s.businessUnits.id))
@@ -44,6 +56,13 @@ export async function loadClerkShipmentScope(
         sql`${s.customers.deletedAt} IS NULL`,
       ))
       .orderBy(s.userCustomerLinks.customerId),
+    client.select({ id: s.customers.id })
+      .from(s.customers)
+      .where(and(
+        eq(s.customers.createdBy, userId),
+        sql`${s.customers.deletedAt} IS NULL`,
+      ))
+      .orderBy(s.customers.id),
     client.select({ id: s.userShipmentLinks.shipmentId })
       .from(s.userShipmentLinks)
       .innerJoin(s.shipments, eq(s.userShipmentLinks.shipmentId, s.shipments.id))
@@ -54,15 +73,20 @@ export async function loadClerkShipmentScope(
       .orderBy(s.userShipmentLinks.shipmentId),
   ]);
 
+  const adminCustomerIds = normalizeIds(customerRows.map((row) => row.id));
+  const createdCustomerIds = normalizeIds(createdCustomerRows.map((row) => row.id));
   return {
     businessUnitIds: normalizeIds(unitRows.map((row) => row.id)),
-    customerIds: normalizeIds(customerRows.map((row) => row.id)),
+    adminCustomerIds,
+    customerIds: normalizeIds([...adminCustomerIds, ...createdCustomerIds]),
     shipmentIds: normalizeIds(shipmentRows.map((row) => row.id)),
   };
 }
 
 export function hasAnyClerkShipmentAssignment(scope: ClerkShipmentScope): boolean {
-  return scope.businessUnitIds.length > 0 && (scope.customerIds.length > 0 || scope.shipmentIds.length > 0);
+  // Admin links only — a self-created customer must not bootstrap a scope-less
+  // clerk past the assignment gate; links stay the admin's lever.
+  return scope.businessUnitIds.length > 0 && (scope.adminCustomerIds.length > 0 || scope.shipmentIds.length > 0);
 }
 
 export function shipmentMatchesClerkScope(

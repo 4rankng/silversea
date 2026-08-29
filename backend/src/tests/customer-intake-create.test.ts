@@ -12,6 +12,11 @@
  *   - the create does NOT touch the clerk's customer scope (user_customer_links
  *     stays admin-managed) — scope changes force re-auth, so an intake create
  *     must never invalidate the creator's own session;
+ *   - the row stamps created_by with the acting CUS/Dispatcher, and that stamp
+ *     admits the customer into the creator's shipment scope (workboard reads
+ *     and shipment create) via the loadClerkShipmentScope union — while the
+ *     assignment gate itself stays admin-links-only so a scope-less clerk
+ *     cannot self-bootstrap;
  *   - the allowance is create-only: PUT on the new row stays 403 (Casbin, not
  *     an auth failure);
  *   - the ADMIN path is untouched — material fields still apply directly.
@@ -34,6 +39,7 @@ import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import configRoutes from '../routes/config';
+import { loadClerkShipmentScope, hasAnyClerkShipmentAssignment, shipmentMatchesClerkScope } from '../services/clerk-shipment-scope.service';
 import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
@@ -45,6 +51,7 @@ const uniqueTaxCode = () => `0310${String(Date.now()).slice(-6)}`;
 
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
+const createdBusinessUnitIds: number[] = [];
 
 let server: http.Server;
 let baseUrl: string;
@@ -62,13 +69,14 @@ async function mkUser(username: string, role: Role) {
   return u;
 }
 
-function sign(u: { id: number; username: string | null; role: Role | string }) {
+function sign(u: { id: number; username: string | null; role: Role | string }, customerIds: number[] = []) {
   return jwt.sign(
     {
       userId: u.id,
       username: u.username ?? u.id.toString(),
       role: u.role as Role,
       customerId: null,
+      customerIds,
     },
     config.jwtSecret,
   );
@@ -99,6 +107,7 @@ after(async () => {
   }
   if (createdUserIds.length > 0) {
     await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
+    await db.delete(s.userBusinessUnitLinks).where(inArray(s.userBusinessUnitLinks.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
   // Force-exit — the shared ioredis + postgres.js clients block graceful
@@ -144,6 +153,10 @@ describe('customer intake create (shipment-create screen)', () => {
     assert.equal(row.paymentTermDays, null);
     assert.equal(row.name, `Clerk intake customer ${suffix}`);
 
+    // Intake provenance: the acting clerk is stamped on the row, which is
+    // what later admits it into their shipment scope (union test below).
+    assert.equal(row.createdBy, clerkUserId);
+
     // Clerk scoping is admin-managed: an intake create must not link the
     // creator (scope changes invalidate their token mid-form otherwise).
     const links = await db.select()
@@ -153,6 +166,76 @@ describe('customer intake create (shipment-create screen)', () => {
         eq(s.userCustomerLinks.customerId, row.id as number),
       ));
     assert.equal(links.length, 0);
+  });
+
+  test('created customers join the creator\'s shipment scope — gate stays admin-managed', async () => {
+    // Dedicated staffed clerk with admin-managed links (unit + one customer),
+    // so this fixture's link writes can't invalidate the shared clerk's token.
+    const staffed = await mkUser(`ci-staffed-${suffix}`, Role.CUS);
+    const staffedToken = sign(staffed, []);
+    const [unit] = await db.insert(s.businessUnits).values({ name: `CI unit ${suffix}` }).returning();
+    createdBusinessUnitIds.push(unit.id);
+    await db.insert(s.userBusinessUnitLinks).values({ userId: staffed.id, businessUnitId: unit.id });
+    const linkedRes = await postCustomer(adminToken, { name: `Linked scope customer ${suffix}` });
+    const linkedBody = await linkedRes.text();
+    assert.equal(linkedRes.status, 201, linkedBody);
+    const linked = JSON.parse(linkedBody) as { id: number };
+    createdCustomerIds.push(linked.id);
+    await db.insert(s.userCustomerLinks).values({ userId: staffed.id, customerId: linked.id });
+
+    // Re-sign AFTER the admin link so the JWT snapshot matches the live links —
+    // exactly like a fresh login; the intake create below must NOT change that.
+    const staffedTokenWithLinks = sign(staffed, [linked.id]);
+
+    const createdRes = await postCustomer(staffedTokenWithLinks, { name: `Clerk-created scope customer ${suffix}` });
+    const createdBody = await createdRes.text();
+    assert.equal(createdRes.status, 201, createdBody);
+    const created = JSON.parse(createdBody) as { id: number; createdBy: number | null };
+    createdCustomerIds.push(created.id);
+    assert.equal(created.createdBy, staffed.id);
+
+    const scope = await loadClerkShipmentScope(staffed.id);
+    assert.deepEqual(scope.adminCustomerIds, [linked.id]);
+    assert.deepEqual(scope.customerIds, [linked.id, created.id].sort((a, b) => a - b));
+    assert.equal(hasAnyClerkShipmentAssignment(scope), true);
+    // A shipment for the intake-created customer is inside the creator's scope.
+    assert.equal(shipmentMatchesClerkScope(scope, {
+      id: created.id,
+      customerId: created.id,
+      responsibleUnitId: unit.id,
+    }), true);
+    // Outside customers stay outside.
+    assert.equal(shipmentMatchesClerkScope(scope, {
+      id: created.id + 1000,
+      customerId: 999999999,
+      responsibleUnitId: unit.id,
+    }), false);
+
+    // The intake create must not invalidate the staffed clerk's session:
+    // live links are unchanged, so the same token keeps working (the
+    // links-only token check never sees created_by).
+    const alive = await postCustomer(staffedTokenWithLinks, { name: `Clerk scope alive ${suffix}` });
+    const aliveBody = await alive.text();
+    assert.equal(alive.status, 201, aliveBody);
+    createdCustomerIds.push((JSON.parse(aliveBody) as { id: number }).id);
+  });
+
+  test('a scope-less clerk cannot self-bootstrap past the assignment gate', async () => {
+    const zeroLink = await mkUser(`ci-zero-link-${suffix}`, Role.CUS);
+    const zeroToken = sign(zeroLink);
+    const res = await postCustomer(zeroToken, { name: `Zero-link intake customer ${suffix}` });
+    const body = await res.text();
+    assert.equal(res.status, 201, body);
+    const row = JSON.parse(body) as { id: number; createdBy: number | null };
+    createdCustomerIds.push(row.id);
+    assert.equal(row.createdBy, zeroLink.id);
+
+    const scope = await loadClerkShipmentScope(zeroLink.id);
+    assert.deepEqual(scope.adminCustomerIds, []);
+    assert.deepEqual(scope.customerIds, [row.id]);
+    // The union admits the created customer, but the admin-links gate stays
+    // shut — intake creates must not hand a scope-less clerk a workboard.
+    assert.equal(hasAnyClerkShipmentAssignment(scope), false);
   });
 
   test('the create keeps the clerk session alive — the allowance is create-only', async () => {
@@ -188,5 +271,8 @@ describe('customer intake create (shipment-create screen)', () => {
     const row = JSON.parse(body) as Record<string, unknown>;
     createdCustomerIds.push(row.id as number);
     assert.equal(Number(row.creditLimit), 123456);
+    // Admin creates stay unstamped — visibility is governed by
+    // user_customer_links alone, never by a creator stamp.
+    assert.equal(row.createdBy ?? null, null);
   });
 });

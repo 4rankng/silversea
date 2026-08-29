@@ -1792,7 +1792,10 @@ describe('GET /cus-workspace', () => {
       singleRow.queryCount,
       `expected fixed query count, got one=${singleRow.queryCount} twenty=${twentyRows.queryCount}`,
     );
-    assert.ok(twentyRows.queryCount <= 20, `expected <= 20 SQL statements, got ${twentyRows.queryCount}`);
+    // +1 for the created-by scope query in loadClerkShipmentScope (constant
+    // per request, independent of page size — the fixed-count assertion above
+    // is the anti-N+1 guarantee).
+    assert.ok(twentyRows.queryCount <= 21, `expected <= 21 SQL statements, got ${twentyRows.queryCount}`);
     t.diagnostic(`CUS workspace page: rows=20 total=${twentyRows.response.data.total} sqlStatements=${twentyRows.queryCount} durationMs=${twentyRows.durationMs.toFixed(2)}`);
   });
 

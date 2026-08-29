@@ -22,7 +22,7 @@ import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUnique
 import { loadClerkShipmentScope } from '../../services/clerk-shipment-scope.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake } from '../../services/route-intake.service';
-import { restrictCustomerCreateForIntake } from '../../services/customer-intake.service';
+import { restrictCustomerCreateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
 import { assertTireSerialAvailable } from '../../services/tire.service';
 import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
@@ -249,11 +249,13 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     shouldGovernDelete: () => true,
   },
   beforeCreate: async (input, req, tx) => {
-    const data = restrictCustomerCreateForIntake(input, getUser(req).role);
+    const actor = getUser(req);
+    const data = restrictCustomerCreateForIntake(input, actor.role);
     data.shortName = data.shortName?.trim() || data.name.trim();
     await H.lockCustomerMutationKeys(tx, data);
     await validateCustomerUniqueness(data);
-    return data;
+    const createdBy = intakeCreatedBy(actor.role, actor.userId);
+    return createdBy == null ? data : { ...data, createdBy };
   },
   beforeUpdate: async (id, data, _req, tx) => {
     if (data.name !== undefined && data.shortName === undefined) {

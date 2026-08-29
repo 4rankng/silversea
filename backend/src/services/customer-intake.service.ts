@@ -29,3 +29,16 @@ export function restrictCustomerCreateForIntake(data: CustomerCreateInput, role:
   } = data;
   return identity;
 }
+
+/**
+ * Intake creates stamp the acting CUS/Dispatcher user on the customer row
+ * (`created_by`). The stamp is scope-following: the creator's own
+ * `loadClerkShipmentScope` admits customers they created, so an inline
+ * customer becomes a working customer immediately. Admin-created rows stay
+ * NULL — their visibility is governed solely by user_customer_links. The
+ * stamp never writes link rows, so the creator's JWT scope snapshot
+ * (links-only exact-equality) stays valid and the session survives.
+ */
+export function intakeCreatedBy(role: Role, actorId: number): number | null {
+  return role === Role.CUS || role === Role.DISPATCHER ? actorId : null;
+}
