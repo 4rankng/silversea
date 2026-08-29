@@ -103,11 +103,22 @@ export function ShipmentCreateWorkspace() {
   // Catalogs (customers, routes, etc.) are otherwise fetched once on mount
   // and never refreshed, so a customer created elsewhere (another tab, the
   // admin customer page) would stay invisible here until a hard reload.
-  // Revalidate silently whenever the tab regains focus/visibility.
+  // Revalidate silently whenever the tab regains focus/visibility. Merge
+  // rather than replace: a customer added inline (clerk scope may not
+  // include it yet) must survive revalidation instead of vanishing from
+  // under a possibly-selected form value.
   useEffect(() => {
     function revalidateCatalogs() {
       if (loading || document.visibilityState === 'hidden') return;
-      tripClient.getBootstrap().then(setCatalogs).catch(() => {});
+      tripClient.getBootstrap().then((fresh) => {
+        setCatalogs((current) => current ? {
+          ...fresh,
+          customers: [
+            ...fresh.customers,
+            ...current.customers.filter((known) => !fresh.customers.some((item) => item.id === known.id)),
+          ],
+        } : fresh);
+      }).catch(() => {});
     }
     window.addEventListener('focus', revalidateCatalogs);
     document.addEventListener('visibilitychange', revalidateCatalogs);

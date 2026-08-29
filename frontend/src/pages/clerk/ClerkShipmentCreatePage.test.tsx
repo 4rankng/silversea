@@ -393,6 +393,37 @@ describe('ClerkShipmentCreatePage', () => {
     expect(await screen.findByRole('option', { name: 'Công ty TNHH Thương mại Phú Cường' })).toBeTruthy();
   });
 
+  it('keeps a locally-created customer when revalidation returns a scoped list without it', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
+    mocks.createCustomer.mockResolvedValueOnce({
+      ...bootstrap.customers[0]!,
+      id: 9,
+      name: 'Công ty TNHH Chưa Gán Scope',
+    });
+    fireEvent.change(within(dialog).getByLabelText('Tên khách hàng'), { target: { value: 'Công ty TNHH Chưa Gán Scope' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm khách hàng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm khách hàng' })).toBeNull());
+    expect((screen.getByRole('combobox', { name: /^Khách hàng/ }) as HTMLInputElement).value).toBe('Công ty TNHH Chưa Gán Scope');
+
+    // Clerk-scope bootstrap still lacks the row (an admin has to assign it);
+    // revalidation must merge, not replace — the selected value may not be
+    // yanked out from under the form.
+    mocks.bootstrap.mockResolvedValue(bootstrap);
+    fireEvent(window, new Event('focus'));
+
+    await waitFor(() => expect(mocks.bootstrap).toHaveBeenCalledTimes(2));
+    expect((screen.getByRole('combobox', { name: /^Khách hàng/ }) as HTMLInputElement).value).toBe('Công ty TNHH Chưa Gán Scope');
+    const combobox = screen.getByRole('combobox', { name: /^Khách hàng/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(await screen.findByRole('option', { name: 'Công ty TNHH Chưa Gán Scope' })).toBeTruthy();
+  });
+
   it('requires a customer before creating a shipment', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });

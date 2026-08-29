@@ -9,9 +9,11 @@
  *     selectable row, not a pending governance action;
  *   - financially material payload fields (credit terms) are dropped — the
  *     row keeps its database defaults even when the request tries to set them;
- *   - the creating clerk is auto-linked (user_customer_links) so their scoped
- *     bootstrap keeps showing the customer they just created;
- *   - the allowance is create-only: PUT on the new row stays 403;
+ *   - the create does NOT touch the clerk's customer scope (user_customer_links
+ *     stays admin-managed) — scope changes force re-auth, so an intake create
+ *     must never invalidate the creator's own session;
+ *   - the allowance is create-only: PUT on the new row stays 403 (Casbin, not
+ *     an auth failure);
  *   - the ADMIN path is untouched — material fields still apply directly.
  *
  * Mirrors shipment-routes.test.ts scaffolding; all rows cleaned up in `after`.
@@ -37,10 +39,12 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+// Tax codes are globally unique across customers (application-owned lock) —
+// derive a per-run one so the test never collides with seeded data.
+const uniqueTaxCode = () => `0310${String(Date.now()).slice(-6)}`;
 
 const createdCustomerIds: number[] = [];
 const createdUserIds: number[] = [];
-const createdLinkIds: number[] = [];
 
 let server: http.Server;
 let baseUrl: string;
@@ -89,9 +93,6 @@ before(async () => {
 });
 
 after(async () => {
-  if (createdLinkIds.length > 0) {
-    await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.id, createdLinkIds));
-  }
   if (createdCustomerIds.length > 0) {
     await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.customerId, createdCustomerIds));
     await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
@@ -100,7 +101,12 @@ after(async () => {
     await db.delete(s.userCustomerLinks).where(inArray(s.userCustomerLinks.userId, createdUserIds));
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  // Force-exit — the shared ioredis + postgres.js clients block graceful
+  // shutdown on this Node 25 / postgres-js combination (same guard and
+  // rationale as shipment-routes.test.ts). Assertions are all recorded.
+  server.closeAllConnections();
+  server.close();
+  process.exit(0);
 });
 
 function postCustomer(token: string, body: Record<string, unknown>) {
@@ -116,18 +122,19 @@ function postCustomer(token: string, body: Record<string, unknown>) {
 }
 
 describe('customer intake create (shipment-create screen)', () => {
-  test('CUS creates a selectable row with credit fields dropped and is auto-scoped to it', async () => {
+  test('CUS creates a selectable row with credit fields dropped and no scope side effects', async () => {
     const res = await postCustomer(clerkToken, {
       name: `Clerk intake customer ${suffix}`,
-      taxCode: '0310001111',
+      taxCode: uniqueTaxCode(),
       contactPerson: 'Anh Test',
       phone: '0900000001',
       // Must be ignored for a CUS maker — clerk intake is identity-only.
       creditLimit: 999999999,
       paymentTermDays: 45,
     });
-    assert.equal(res.status, 201);
-    const row = await res.json() as Record<string, unknown>;
+    const body = await res.text();
+    assert.equal(res.status, 201, body);
+    const row = JSON.parse(body) as Record<string, unknown>;
     createdCustomerIds.push(row.id as number);
 
     // A real customer row came back (not a pending governance action).
@@ -137,23 +144,26 @@ describe('customer intake create (shipment-create screen)', () => {
     assert.equal(row.paymentTermDays, null);
     assert.equal(row.name, `Clerk intake customer ${suffix}`);
 
-    // The clerk's scoped bootstrap now includes the customer they created.
-    const [link] = await db.select()
+    // Clerk scoping is admin-managed: an intake create must not link the
+    // creator (scope changes invalidate their token mid-form otherwise).
+    const links = await db.select()
       .from(s.userCustomerLinks)
       .where(and(
         eq(s.userCustomerLinks.userId, clerkUserId),
         eq(s.userCustomerLinks.customerId, row.id as number),
-      ))
-      .limit(1);
-    assert.ok(link, 'user_customer_links row must exist for the creating clerk');
-    createdLinkIds.push(link.id);
+      ));
+    assert.equal(links.length, 0);
   });
 
-  test('the CUS allowance is create-only — updates stay denied', async () => {
+  test('the create keeps the clerk session alive — the allowance is create-only', async () => {
     const created = await postCustomer(clerkToken, { name: `Clerk update target ${suffix}` });
-    const row = await created.json() as { id: number };
+    const createBody = await created.text();
+    assert.equal(created.status, 201, createBody);
+    const row = JSON.parse(createBody) as { id: number };
     createdCustomerIds.push(row.id);
 
+    // 403 from Casbin (create-only allowance), never 401 — a scope-delta
+    // logout here would kill the clerk's form mid-work.
     const res = await fetch(`${baseUrl}/customers/${row.id}`, {
       method: 'PUT',
       headers: {
@@ -164,7 +174,8 @@ describe('customer intake create (shipment-create screen)', () => {
       },
       body: JSON.stringify({ name: 'Sửa tên không được phép' }),
     });
-    assert.equal(res.status, 403);
+    const putBody = await res.text();
+    assert.equal(res.status, 403, putBody);
   });
 
   test('ADMIN creates keep applying material config directly', async () => {
@@ -172,8 +183,9 @@ describe('customer intake create (shipment-create screen)', () => {
       name: `Admin intake customer ${suffix}`,
       creditLimit: 123456,
     });
-    assert.equal(res.status, 201);
-    const row = await res.json() as Record<string, unknown>;
+    const body = await res.text();
+    assert.equal(res.status, 201, body);
+    const row = JSON.parse(body) as Record<string, unknown>;
     createdCustomerIds.push(row.id as number);
     assert.equal(Number(row.creditLimit), 123456);
   });
