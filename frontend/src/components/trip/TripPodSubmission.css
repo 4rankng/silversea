@@ -277,6 +277,15 @@
   font-size: 13px;
 }
 
+.trip-pod__locked-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 13px;
+}
+
 .trip-pod__foot {
   display: grid;
   gap: 12px;

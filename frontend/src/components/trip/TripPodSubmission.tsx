@@ -118,6 +118,15 @@ export function TripPodSubmission({
 
   const groupedFiles = useMemo(() => groupFilesByType(currentSubmission), [currentSubmission]);
   const editableSubmission = currentSubmission?.status === TripPodStatus.DRAFT ? currentSubmission : null;
+  // SUBMITTED/ACCEPTED is locked: onEnsureDraft() would call
+  // createPodSubmission, which the backend always rejects with 409 "Đã có một
+  // e-POD đang mở cho tác vụ này." while an open version exists (see
+  // trip-pod.service.ts). Without this the capture buttons stay clickable and
+  // every retap dead-ends in that confusing error. REJECTED is intentionally
+  // NOT locked — the backend allows opening a fresh draft on top of a
+  // rejected submission, and locking it here would block that retry.
+  const isLocked = currentSubmission?.status === TripPodStatus.SUBMITTED
+    || currentSubmission?.status === TripPodStatus.ACCEPTED;
   const missingRequired = REQUIRED_FILE_TYPES.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
   const submitCommands = pendingCommands.filter((command) => command.endpoint === 'driver.task.pod.submit');
@@ -222,34 +231,42 @@ export function TripPodSubmission({
                 </div>
               </div>
 
-              <div className="trip-pod__actions">
-                <button
-                  type="button"
-                  className="trip-pod__action"
-                  onClick={() => setScanning(fileType)}
-                  disabled={uploading || creatingDraft || submitState === 'pending'}
-                >
-                  {creatingDraft || uploading ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
-                  <span>Chụp</span>
-                </button>
-                <button
-                  type="button"
-                  className="trip-pod__action trip-pod__action--secondary"
-                  onClick={() => triggerInput(fileRefs[fileType])}
-                  disabled={uploading || creatingDraft || submitState === 'pending'}
-                >
-                  <Upload size={16} />
-                  <span>Tải tệp</span>
-                </button>
-              </div>
+              {isLocked ? (
+                <p className="trip-pod__locked-note">
+                  e-POD đã gửi duyệt — không thể chụp hoặc tải lại tệp cho phiên bản này.
+                </p>
+              ) : (
+                <>
+                  <div className="trip-pod__actions">
+                    <button
+                      type="button"
+                      className="trip-pod__action"
+                      onClick={() => setScanning(fileType)}
+                      disabled={uploading || creatingDraft || submitState === 'pending'}
+                    >
+                      {creatingDraft || uploading ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
+                      <span>Chụp</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="trip-pod__action trip-pod__action--secondary"
+                      onClick={() => triggerInput(fileRefs[fileType])}
+                      disabled={uploading || creatingDraft || submitState === 'pending'}
+                    >
+                      <Upload size={16} />
+                      <span>Tải tệp</span>
+                    </button>
+                  </div>
 
-              <input
-                ref={fileRefs[fileType]}
-                className="trip-pod__input"
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(event) => void handlePick(fileType, event.target.files)}
-              />
+                  <input
+                    ref={fileRefs[fileType]}
+                    className="trip-pod__input"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(event) => void handlePick(fileType, event.target.files)}
+                  />
+                </>
+              )}
 
               {files.length > 0 ? (
                 <ul className="trip-pod__file-list">
