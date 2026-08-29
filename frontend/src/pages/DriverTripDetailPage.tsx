@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   StickyNote,
   Truck,
+  Zap,
 } from 'lucide-react';
 import { DriverProgressEventType, TRIP_STATUS_LABELS } from '@tingting/shared';
 import { StatusPill } from '../components/UI';
@@ -217,7 +218,7 @@ export default function DriverTripDetailPage() {
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
   const progress = useDriverTaskProgress(validFulfillmentId);
-  const { commands, enqueue, drain, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
+  const { commands, enqueue, drain, remove, pendingCount, failedCount, conflictCount } = useOfflineCommandQueue({
     maxPending: 12,
     storageScope: user ? `${user.role}:${user.userId}` : null,
   });
@@ -282,6 +283,23 @@ export default function DriverTripDetailPage() {
   }, [progress.data]);
 
   const nextMilestoneIndex = latestCompletedIndex >= MILESTONES.length - 1 ? -1 : latestCompletedIndex + 1;
+
+  // D1 fix: a terminal CONFLICT on the accept command used to dead-end the
+  // sticky bar (button relabelled but stayed disabled forever, no dismissal
+  // UI anywhere). Reloading now discards this fulfillment's CONFLICT commands
+  // — the server is the source of truth; if the blocker (e.g. truck busy on
+  // another running trip) has cleared, the bar returns to available.
+  async function handleConflictReload() {
+    const stuck = tripCommands.filter((command) => command.status === 'CONFLICT');
+    stuck.forEach((command) => remove(command.id));
+    await refreshAll();
+    toast({
+      kind: stuck.length > 0 ? 'success' : 'info',
+      message: stuck.length > 0
+        ? 'Đã tải lại chuyến và bỏ lệnh xung đột. Thử nhận lại nếu xe đã rảnh.'
+        : 'Đã tải lại dữ liệu chuyến.',
+    });
+  }
 
   async function handleMilestone(eventType: MilestoneType) {
     if (!trip) return;
@@ -422,7 +440,9 @@ export default function DriverTripDetailPage() {
   const acceptCommand = commandStateForMilestone(tripCommands, trip.fulfillment?.id ?? validFulfillmentId, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = timelineState(Boolean(acceptEvent), acceptCommand, nextMilestoneIndex, 0);
   const showAcceptStickyBar = acceptState !== 'done';
-  const acceptClickable = acceptState === 'available' || acceptState === 'retry';
+  // 'conflict' must stay clickable (D1): the click reloads the trip and
+  // discards the stuck command instead of accepting — see handleConflictReload.
+  const acceptClickable = acceptState === 'available' || acceptState === 'retry' || acceptState === 'conflict';
   const acceptButtonLabel = acceptState === 'pending'
     ? 'Đang gửi…'
     : acceptState === 'retry'
@@ -460,6 +480,21 @@ export default function DriverTripDetailPage() {
                 {failedCount > 0 && `${failedCount} lệnh sẽ thử lại. `}
                 {conflictCount > 0 && `${conflictCount} lệnh cần tải lại để xử lý xung đột.`}
               </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Spec Phần 3 / AC-DISPATCH-002: the Ops field-confirmation step is
+          bypassed while the Ops module is unfinished — tell the driver the
+          order is acceptable immediately instead of leaving them guessing. */}
+      {acceptState === 'available' && (
+        <section className="driver-task-section driver-task-section--banner" data-testid="bypass-ops-banner">
+          <div className="driver-task-bypass">
+            <Zap size={16} />
+            <div>
+              <strong>Nhận lệnh ngay, không cần chờ Ops</strong>
+              <p>App tạm bỏ qua xác nhận hiện trường — bấm nhận lệnh để bắt đầu chuyến.</p>
             </div>
           </div>
         </section>
@@ -580,7 +615,7 @@ export default function DriverTripDetailPage() {
                     : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
                 </div>
               </div>
-              <label className={`btn btn--secondary btn--sm${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
+              <label className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
                 <Camera size={16} />
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
                 <input
@@ -651,9 +686,9 @@ export default function DriverTripDetailPage() {
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>Hoàn thành chuyến</strong>
+            <strong>Hoàn tất lệnh vận chuyển</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "Hoàn thành chuyến" ở đó — hệ thống
+              Tải đủ 2 ảnh e-POD bắt buộc trên màn e-POD, rồi bấm "HOÀN THÀNH CHUYẾN" ở đó — hệ thống
               gửi e-POD và chuyển chuyến sang Chờ duyệt phí.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
@@ -670,12 +705,12 @@ export default function DriverTripDetailPage() {
               onClick={() => navigate(`/my-trips/${validFulfillmentId}/pod`)}
             >
               <FileCheck2 size={18} />
-              <span>Bước tiếp: e-POD</span>
+              <span>Hoàn tất lệnh vận chuyển</span>
             </button>
           ) : (
             <button type="button" className="driver-task-complete" disabled>
               <FileCheck2 size={18} />
-              <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'Hoàn thành chuyến'}</span>
+              <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'HOÀN THÀNH CHUYẾN'}</span>
             </button>
           )}
           {podReady && trip.status === 'IN_TRANSIT' && (
@@ -694,7 +729,9 @@ export default function DriverTripDetailPage() {
               type="button"
               className="driver-task-accept-sticky__btn"
               disabled={!acceptClickable}
-              onClick={() => void handleMilestone(DriverProgressEventType.ORDER_RECEIVED)}
+              onClick={() => void (acceptState === 'conflict'
+                ? handleConflictReload()
+                : handleMilestone(DriverProgressEventType.ORDER_RECEIVED))}
             >
               {acceptState === 'pending' ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
               <span>{acceptButtonLabel}</span>

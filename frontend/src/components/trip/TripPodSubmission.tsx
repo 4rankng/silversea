@@ -294,7 +294,7 @@ export function TripPodSubmission({
             />
           </div>
           {missingRequired.length === 0 ? (
-            <span>Đủ hồ sơ bắt buộc. Bấm "Hoàn thành chuyến" ở dưới để gửi.</span>
+            <span>Đủ hồ sơ bắt buộc. Bấm "HOÀN THÀNH CHUYẾN" ở dưới để gửi.</span>
           ) : (
             <span>
               Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')}.

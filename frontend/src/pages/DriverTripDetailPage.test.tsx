@@ -23,6 +23,7 @@ const {
   commandsMock,
   enqueueMock,
   drainMock,
+  removeMock,
   toastMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   commandsMock: vi.fn<() => MockOfflineCommand[]>(() => []),
   enqueueMock: vi.fn(),
   drainMock: vi.fn(),
+  removeMock: vi.fn(),
   toastMock: vi.fn(),
 }));
 
@@ -84,6 +86,7 @@ vi.mock('../features/driver/useOfflineCommandQueue', () => ({
     commands: commandsMock(),
     enqueue: enqueueMock,
     drain: drainMock,
+    remove: removeMock,
     pendingCount: 0,
     failedCount: 0,
     conflictCount: 0,
@@ -209,6 +212,7 @@ describe('DriverTripDetailPage', () => {
     commandsMock.mockReturnValue([]);
     enqueueMock.mockReset();
     drainMock.mockReset();
+    removeMock.mockReset();
     toastMock.mockReset();
     drainMock.mockResolvedValue({ done: 0, failed: 0, conflicts: 0 });
     useDriverTaskDetailMock.mockReturnValue({
@@ -269,15 +273,75 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
   });
 
-  it('renders the sticky accept bar and the BƯỚC TIẾP: e-POD footer button (e-POD lives on its own page now)', async () => {
+  it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
+    renderPage();
+
+    const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
+    expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
+    // AC-DISPATCH-002: the bypass banner tells the driver the order is
+    // acceptable immediately (Ops field confirmation is skipped for now).
+    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Nhận lệnh ngay, không cần chờ Ops');
+  });
+
+  // D1 fix: a terminal CONFLICT on the accept command must not dead-end the
+  // sticky bar. The reload action discards the stuck command for THIS
+  // fulfillment and refetches — the bar then returns to available.
+  it('recovers the accept bar from a terminal CONFLICT via the reload action', async () => {
+    commandsMock.mockReturnValue([
+      {
+        id: 'cmd-conflict-1',
+        endpoint: 'driver.task.milestone',
+        method: 'POST',
+        path: '/driver/me/fulfillments/88/progress',
+        payload: { kind: 'milestone', fulfillmentId: 88, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:00:00.000Z', expectedVersion: 3 },
+        status: 'CONFLICT',
+        retryCount: 1,
+        lastError: 'Xe đang chạy chuyến khác. Vui lòng hoàn thành chuyến đó trước.',
+        createdAt: '2026-08-29T02:00:00.000Z',
+        updatedAt: '2026-08-29T02:00:05.000Z',
+      },
+    ]);
+    renderPage();
+
+    const reloadBtn = await screen.findByRole('button', { name: /Tải lại để xử lý xung đột/ });
+    // The defect: this button used to be permanently disabled.
+    expect(reloadBtn.matches(':disabled')).toBe(false);
+    // No bypass banner while stuck — the driver cannot accept yet.
+    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
+
+    fireEvent.click(reloadBtn);
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('cmd-conflict-1'));
+    // Refetch ran so the bar re-derives from fresh server state.
+    const detailCalls = useDriverTaskDetailMock.mock.results.at(-1)?.value;
+    expect(detailCalls?.data).toBeTruthy();
+  });
+
+  // AC-DISPATCH-002 counterpart: once the order is accepted, the bypass
+  // banner disappears (no longer acceptable — already running).
+  it('hides the bypass banner once the order is accepted', async () => {
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    renderPage();
+
+    // Accept recorded → acceptState 'done' → no sticky bar at all.
+    await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
+    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
+  });
+
+  it('renders the e-POD footer CTA enabled and gates on the two missing photos', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
     // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn thành" CTA is now a
-    // "Bước tiếp: e-POD" link that navigates to /my-trips/:id/pod. The
+    // "Hoàn tất lệnh vận chuyển" link that navigates to /my-trips/:id/pod. The
     // actual complete action lives on the e-POD page.
-    const cta = screen.getByRole('button', { name: /Bước tiếp: e-POD/ });
+    const cta = screen.getByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
     expect(cta.hasAttribute('disabled')).toBe(false);
     // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the footer lists only the two e-POD photo
     // gaps, not the evidence endpoint's milestone/label echo (old code echoed
@@ -286,7 +350,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
-  it('navigates to the e-POD page when the driver taps Bước tiếp: e-POD (the trip detail no longer completes the trip inline)', async () => {
+  it('navigates to the e-POD page when the driver taps Hoàn tất lệnh vận chuyển (the trip detail no longer completes the trip inline)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -317,9 +381,9 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    // Clicking "Bước tiếp: e-POD" navigates to the pod page; we don't fire
+    // Clicking "Hoàn tất lệnh vận chuyển" navigates to the pod page; we don't fire
     // any completion command from the trip detail anymore.
-    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen — the route param is the
@@ -337,7 +401,7 @@ describe('DriverTripDetailPage', () => {
 
   // Spec A7 (re-homed on the pod page): "Hoàn thành chuyến" auto-navigates off
   // the pod screen once completion is confirmed online. On the trip detail
-  // page, the driver just sees the "Bước tiếp: e-POD" CTA — actual completion
+  // page, the driver just sees the "Hoàn tất lệnh vận chuyển" CTA — actual completion
   // lives at /my-trips/:id/pod (covered by DriverTripPodPage tests).
   it('does not trigger any complete/enqueue command from the trip detail CTA', async () => {
     useDriverTaskDetailMock.mockReturnValue({
@@ -370,7 +434,7 @@ describe('DriverTripDetailPage', () => {
 
     renderPage();
 
-    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
     fireEvent.click(cta);
 
     // The trip detail must NOT issue the complete offline command anymore
@@ -410,7 +474,7 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    const cta = await screen.findByRole('button', { name: /Bước tiếp: e-POD/ });
+    const cta = await screen.findByRole('button', { name: /Hoàn tất lệnh vận chuyển/ });
     fireEvent.click(cta);
 
     // The trip detail doesn't navigate away on the CTA (a real router would
@@ -522,12 +586,12 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText(/Đã khóa kế toán · Debit Note #91/)).toBeTruthy();
     const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
-    // Phần 4 ticket 2026-08-28: the trip detail's "Bước tiếp: e-POD" CTA is
+    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất lệnh vận chuyển" CTA is
     // a navigation link, not a destructive action. The accounting lock
     // gates the *completion* (now on the pod page), so the trip-detail CTA
     // here is not the place to assert disabled. We keep the lock banner
     // assertion; the disabled state is covered in DriverTripPodPage tests.
-    expect(screen.queryByRole('button', { name: /Hoàn thành chuyến/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /HOÀN THÀNH CHUYẾN/ })).toBeNull();
   });
 
   it('queues the ORDER_RECEIVED milestone with the trip version and fulfillment id when sticky accept is clicked', async () => {

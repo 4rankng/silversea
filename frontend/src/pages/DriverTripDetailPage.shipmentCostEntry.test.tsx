@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  *     "GIỮ NGUYÊN" line covers the fuel SCREENSHOT upload, which stays.
  *
  * This suite now asserts the COST-FORM IS ABSENT, the e-POD widget is absent,
- * the fuel-refill cost form is absent, and a "Bước tiếp: e-POD" CTA navigates
+ * the fuel-refill cost form is absent, and a "Hoàn tất lệnh vận chuyển" CTA navigates
  * to the pod page.
  */
 

@@ -183,7 +183,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  /* AC-NFR-003: e-POD Chụp / Tải tệp / HOÀN THÀNH CHUYẾN ≥48px touch target. */
+  min-height: 48px;
   padding: 0 14px;
   border-radius: 12px;
   border: 1px solid transparent;

@@ -275,7 +275,7 @@ export function DriverTripPodPage() {
           expectedVersion: trip.version,
         },
       });
-      const result = await runDrain('Chuyến đã hoàn thành.', idempotencyKey);
+      const result = await runDrain('Hoàn tất chuyến hàng thành công!', idempotencyKey);
       if (result.statusById?.[idempotencyKey] === 'DONE') {
         navigate('/my-trips', { replace: true });
       }
@@ -398,9 +398,9 @@ export function DriverTripPodPage() {
       <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
-            <strong>Hoàn thành chuyến</strong>
+            <strong>HOÀN THÀNH CHUYẾN</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "Hoàn thành chuyến" — hệ thống gửi e-POD và chuyển
+              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "HOÀN THÀNH CHUYẾN" — hệ thống gửi e-POD và chuyển
               chuyến sang Chờ duyệt phí.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
@@ -428,7 +428,7 @@ export function DriverTripPodPage() {
                 ? 'Đang gửi…'
                 : trip.status === 'COMPLETED'
                   ? 'Đã hoàn thành chuyến'
-                  : 'Hoàn thành chuyến'}
+                  : 'HOÀN THÀNH CHUYẾN'}
             </span>
           </button>
         </div>

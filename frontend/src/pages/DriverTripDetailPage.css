@@ -229,6 +229,34 @@
   color: var(--ink-3);
 }
 
+/* Bypass-Ops banner (AC-DISPATCH-002): a go-signal tint, not the sync
+   banner's neutral gray — the driver should read "action available now". */
+.driver-task-bypass {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.driver-task-bypass svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.driver-task-bypass strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.driver-task-bypass p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 .driver-task-timeline {
   display: grid;
   gap: 10px;
@@ -399,7 +427,9 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
+  /* AC-NFR-003: primary driver actions (Nhận lệnh / Chụp ảnh / Hoàn thành)
+     need ≥48px touch targets for one-thumb cabin use. */
+  min-height: 48px;
   padding: 0 14px;
   border-radius: 14px;
   border: 1px solid transparent;
@@ -585,6 +615,13 @@
 
 .driver-task-fuel-loading {
   cursor: wait;
+}
+
+/* AC-NFR-003: the fuel-screenshot capture rides on the compact btn--sm size
+   globally — scope-lift it to a 48px touch target on the driver screen only. */
+.driver-task-fuel-btn {
+  min-height: 48px;
+  padding: 0 14px;
 }
 
 /* Two columns from phone width up — only the narrowest tier (<360px, see the

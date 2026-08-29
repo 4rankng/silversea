@@ -5,7 +5,7 @@ import { TripPodStatus } from '@tingting/shared';
 
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
- * driver reaches from the trip detail ("Bước tiếp: e-POD"). These tests pin
+ * driver reaches from the trip detail ("Hoàn tất lệnh vận chuyển"). These tests pin
  * the re-homed completion lifecycle: the footer gate needs both mandatory
  * photos, "Hoàn thành chuyến" submits the open DRAFT then completes the trip,
  * and only a confirmed-online completion navigates back to /my-trips.
@@ -151,7 +151,7 @@ describe('DriverTripPodPage', () => {
     // Both mandatory photos are listed as missing and completion is gated.
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }).hasAttribute('disabled')).toBe(true);
   });
 
   it('enables Hoàn thành chuyến once both mandatory photos are on the draft', async () => {
@@ -170,7 +170,7 @@ describe('DriverTripPodPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
     expect(complete.hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
     expect(screen.queryByText(/Thiếu/)).toBeNull();
@@ -219,7 +219,7 @@ describe('DriverTripPodPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
     fireEvent.click(complete);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
@@ -256,7 +256,7 @@ describe('DriverTripPodPage', () => {
     renderPage();
 
     expect(await screen.findByRole('status', { name: 'Lô hàng đã khóa kế toán' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ }).hasAttribute('disabled')).toBe(true);
   });
 
   it('stays on the e-POD screen when completion is queued offline instead of confirmed', async () => {
@@ -279,12 +279,12 @@ describe('DriverTripPodPage', () => {
 
     renderPage();
 
-    const complete = await screen.findByRole('button', { name: /Hoàn thành chuyến/ });
+    const complete = await screen.findByRole('button', { name: /HOÀN THÀNH CHUYẾN/ });
     fireEvent.click(complete);
 
     // Still on the e-POD screen — the page must not abandon a queued command.
     await waitFor(() => expect(toastMock).toHaveBeenCalled());
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
-    expect(screen.getByRole('button', { name: /Hoàn thành chuyến/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /HOÀN THÀNH CHUYẾN/ })).toBeTruthy();
   });
 });
