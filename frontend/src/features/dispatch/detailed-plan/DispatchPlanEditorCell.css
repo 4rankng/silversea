@@ -294,6 +294,10 @@
 
 .dispatch-assignment-dialog__issue-times > label {
   display: grid;
+  /* Explicit minmax(0,1fr) track: datetime-local inputs keep a hard intrinsic
+     width, so the default auto track would size to the input and overflow the
+     cell (inputs merging + spilling past the fieldset) on narrow viewports. */
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: 6px;
   color: var(--text-secondary, #475467);
@@ -302,12 +306,17 @@
 }
 
 .dispatch-assignment-dialog__issue input[type='datetime-local'] {
+  width: 100%;
+  min-width: 0;
   min-height: var(--control-compact-h, 34px);
   padding: 0 10px;
   font-size: 12px;
 }
 
-@media (max-width: 480px) {
+/* Phone/narrow widths render .input at the 16px touch font, which makes the
+   datetime control's intrinsic width exceed the two-column split — stack the
+   pair so each input gets the full row instead of clipping its value. */
+@media (max-width: 640px) {
   .dispatch-assignment-dialog__issue-times {
     grid-template-columns: minmax(0, 1fr);
   }
