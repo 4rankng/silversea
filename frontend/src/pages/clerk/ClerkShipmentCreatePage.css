@@ -124,7 +124,9 @@
 .csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
 .csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
 .csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
-.csc-utility-button--dashed { border-style: dashed; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
+/* The `--dashed` name survives as the JSX/test marker, but the accent action
+   is borderless — plus icon + label only (user request 2026-08-30). */
+.csc-utility-button--dashed { border: 0; background: transparent; color: var(--accent, #2563eb); font-weight: 700; }
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
