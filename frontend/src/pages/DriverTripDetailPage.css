@@ -596,20 +596,15 @@
   gap: 12px;
 }
 
-.driver-task-fuel-img,
-.driver-task-photo-img {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--border-1, #EAECEF);
-  object-fit: cover;
-}
-
 /* `contain`, never `cover`: this is evidence. The GPS/time watermark the
    capture burns into the bottom-left corner is exactly what a crop eats
    first, so the photo is letterboxed on a neutral backing instead. The cap
    only bounds pathological aspect ratios (a full-height 9:16 phone shot) —
    the common portrait pump screenshot lands well inside it. */
 .driver-task-fuel-img {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--border-1, #EAECEF);
   max-height: 360px;
   object-fit: contain;
   background: var(--surface-2);

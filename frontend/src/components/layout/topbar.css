@@ -38,6 +38,20 @@
   gap: 12px;
 }
 
+/* 641–1023px tablet tier: styles/responsive.css (imported last, index.css:38)
+   re-pins .topbar gutters to 16px inside its max-width block at equal
+   specificity — later source order beats the inset above, so the topbar
+   stayed at a 16px gutter while the card column and bottom-nav tabs aligned
+   to the measure. Opt up to (0,2,0) longhands so specificity wins instead of
+   order; LONGBANDS only — a shorthand here would also beat responsive's
+   safe-area padding-top tiers and eat the notch inset on phones. */
+@media (max-width: 1023px) {
+  .topbar.topbar--driver {
+    padding-left: max(16px, calc((100% - var(--driver-measure)) / 2));
+    padding-right: max(16px, calc((100% - var(--driver-measure)) / 2));
+  }
+}
+
 .topbar__left-driver {
   display: flex;
   align-items: center;
