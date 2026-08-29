@@ -642,6 +642,23 @@
   color: var(--ink-3);
 }
 
+/* GPS read-out: confirm the fix was recorded without printing raw coordinates. */
+.driver-task-fuel-gps-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok, #166534);
+}
+
+/* Feedback screens: retry and back share one centered row. */
+.driver-task-feedback__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .driver-task-fuel-notes {
   padding: 12px;
   border-radius: 12px;

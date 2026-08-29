@@ -120,10 +120,13 @@
   flex-wrap: wrap;
 }
 
+/* Evidence photos are watermarked — contain keeps the burned-in timestamp
+   visible where cover would crop it (same treatment as .driver-task-fuel-img). */
 .dcc-bento__thumb {
   width: 64px;
   height: 64px;
-  object-fit: cover;
+  object-fit: contain;
+  background: var(--surface-2);
   border-radius: 10px;
   border: 1px solid var(--line);
 }
@@ -214,10 +217,12 @@
   gap: 6px;
 }
 
+/* Same watermark rule as the bento thumb: contain, never cover. */
 .dcc-photo {
   width: 100%;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
+  background: var(--surface-2);
   border-radius: 10px;
   border: 1px solid var(--line);
 }

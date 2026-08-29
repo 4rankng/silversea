@@ -44,6 +44,14 @@ import { AccountingLockBanner } from '../components/shipment/AccountingLockBanne
 import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
 
+// Status-aware completion CTA label — same logic as DriverTripDetailPage:
+// only IN_TRANSIT can complete, COMPLETED is done, others read as not-yet.
+function completeCtaLabel(status: DriverTaskDetail['status']): string {
+  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
+  if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
+  return 'Chưa thể hoàn thành chuyến';
+}
+
 export function DriverTripPodPage() {
   const { id: tripIdParam } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -374,10 +382,19 @@ export function DriverTripPodPage() {
         <div className="driver-task-feedback">
           <AlertTriangle size={28} />
           <p>Không tải được chuyến. Vui lòng thử lại.</p>
-          <button type="button" className="driver-task-back" onClick={handleBack}>
-            <ArrowLeft size={16} />
-            <span>Quay lại danh sách</span>
-          </button>
+          <div className="driver-task-feedback__actions">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => void taskDetail.refetch()}
+            >
+              Thử lại
+            </button>
+            <button type="button" className="driver-task-back" onClick={handleBack}>
+              <ArrowLeft size={16} />
+              <span>Quay lại danh sách</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -467,8 +484,8 @@ export function DriverTripPodPage() {
           <div className="driver-task-footer__summary">
             <strong>HOÀN THÀNH CHUYẾN</strong>
             <p>
-              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "HOÀN THÀNH CHUYẾN" — hệ thống gửi e-POD và chuyển
-              chuyến sang Chờ duyệt phí.
+              Tải đủ 2 ảnh e-POD bắt buộc, rồi bấm "HOÀN THÀNH CHUYẾN" — hệ thống gửi e-POD và chốt
+              chuyến hoàn thành (CUS + Điều vận sẽ thấy trạng thái "Hoàn thành" ngay).
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
@@ -491,11 +508,7 @@ export function DriverTripPodPage() {
           >
             <FileCheck2 size={18} />
             <span>
-              {completing || submitting
-                ? 'Đang gửi…'
-                : trip.status === 'COMPLETED'
-                  ? 'Đã hoàn thành chuyến'
-                  : 'HOÀN THÀNH CHUYẾN'}
+              {completing || submitting ? 'Đang gửi…' : completeCtaLabel(trip.status)}
             </span>
           </button>
         </div>

@@ -112,6 +112,15 @@ function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
 }
 
+// The completion CTA must not read as an actionable "HOÀN THÀNH CHUYẾN" while
+// disabled: only IN_TRANSIT trips can complete, COMPLETED is already done, and
+// every other status gets a neutral not-yet label.
+function completeCtaLabel(status: DriverTaskDetail['status']): string {
+  if (status === 'IN_TRANSIT') return 'HOÀN THÀNH CHUYẾN';
+  if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
+  return 'Chưa thể hoàn thành chuyến';
+}
+
 /**
  * Classify a fuel-evidence upload error for the driver.
  *
@@ -398,10 +407,19 @@ export default function DriverTripDetailPage() {
         <div className="driver-task-feedback">
           <AlertTriangle size={28} />
           <p>Không thể tải lệnh vận chuyển này.</p>
-          <button type="button" className="driver-task-back" onClick={handleBack}>
-            <ArrowLeft size={16} />
-            <span>Quay lại danh sách</span>
-          </button>
+          <div className="driver-task-feedback__actions">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => void taskDetail.refetch()}
+            >
+              Thử lại
+            </button>
+            <button type="button" className="driver-task-back" onClick={handleBack}>
+              <ArrowLeft size={16} />
+              <span>Quay lại danh sách</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -651,7 +669,14 @@ export default function DriverTripDetailPage() {
                     <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
                     <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
                     <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
-                    <div><strong>GPS:</strong> {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? `${latestFuelEvidence.latitude}, ${latestFuelEvidence.longitude}` : 'Chưa có'}</div>
+                    <div>
+                      <strong>GPS:</strong>
+                      {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (
+                        <span className="driver-task-fuel-gps-ok">
+                          <CheckCircle2 size={13} /> Đã ghi nhận GPS
+                        </span>
+                      ) : 'Chưa có'}
+                    </div>
                   </div>
                 </div>
                 {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
@@ -708,7 +733,7 @@ export default function DriverTripDetailPage() {
           ) : (
             <button type="button" className="driver-task-complete" disabled>
               <FileCheck2 size={18} />
-              <span>{trip.status === 'COMPLETED' ? 'Đã hoàn thành chuyến' : 'HOÀN THÀNH CHUYẾN'}</span>
+              <span>{completeCtaLabel(trip.status)}</span>
             </button>
           )}
           {podReady && trip.status === 'IN_TRANSIT' && (

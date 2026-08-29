@@ -23,7 +23,7 @@ interface DriverPenaltyRow {
 export default function DriverPenaltyPage() {
   const [monthFilter, setMonthFilter] = useState('');
 
-  const { data: allPenaltiesData, isLoading: loading } = useDriverPenalties();
+  const { data: allPenaltiesData, isLoading: loading, isError: loadError, refetch, isFetching } = useDriverPenalties();
   const allPenalties = useMemo((): DriverPenaltyRow[] => {
     if (Array.isArray(allPenaltiesData)) return allPenaltiesData;
     if (allPenaltiesData && 'items' in allPenaltiesData) return allPenaltiesData.items;
@@ -65,6 +65,27 @@ export default function DriverPenaltyPage() {
   const isSafeThisMonth = incidentCount === 0;
 
   const isLoadingPeriod = periodLoading;
+
+  // A failed fetch must not read as "no violations": the unfiltered query
+  // drives every zone on this page, so the error screen gates on THAT call
+  // only — the month-filtered call can fail without the page being broken.
+  if (loadError) return (
+    <div className="driver-penalty-page">
+      <PageHeader title="Kỷ luật của tôi" description="Lịch sử vi phạm và khấu trừ lương của bạn" iconName="alert" />
+      <div className="empty-state" role="alert">
+        <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
+        <h3 className="empty-state-title">Không thể tải biên bản vi phạm</h3>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+        >
+          Thử lại
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div ref={rootRef} className="driver-penalty-page">

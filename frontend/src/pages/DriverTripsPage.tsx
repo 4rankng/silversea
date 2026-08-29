@@ -184,7 +184,7 @@ function JourneyCard({ card }: { card: DriverJourneyCard }) {
 
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
-  const { data, isLoading, error } = useDriverJourneyBoard();
+  const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
 
   const countsByBucket = useMemo(() => {
     const counts: Record<JourneyTabKey, number> = { NEW: 0, RUNNING: 0, HISTORY: 0 };
@@ -220,7 +220,17 @@ export default function DriverTripsPage() {
             <Loader2 size={16} className="spin" /> Đang tải hành trình…
           </p>
         ) : error ? (
-          <p className="driver-journey__error">Không thể tải hành trình. Vui lòng thử lại.</p>
+          <div className="driver-journey__error" role="alert">
+            <p>Không thể tải hành trình. Vui lòng thử lại.</p>
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+            >
+              Thử lại
+            </button>
+          </div>
         ) : groupedCardsForTab.length === 0 ? (
           <p className="driver-journey__empty">{EMPTY_MESSAGE[activeTab]}</p>
         ) : (

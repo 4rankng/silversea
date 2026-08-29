@@ -20,7 +20,13 @@ interface PenaltyEntry {
 export default function DriverEarningsPage() {
   const { month, year } = useMonth();
   const { data: period } = useSalaryPeriod(month, year);
-  const { data: earnings, isLoading: earningsLoading, error: earningsError } = useDriverEarnings(month, year);
+  const {
+    data: earnings,
+    isLoading: earningsLoading,
+    error: earningsError,
+    refetch: refetchEarnings,
+    isFetching: earningsFetching,
+  } = useDriverEarnings(month, year);
   const penaltyParams = period ? { dateFrom: period.start, dateTo: period.end } : undefined;
   const { data: penaltiesData, isLoading: penaltiesLoading } = useDriverPenalties(penaltyParams);
   // N5 / B4: truck compliance/service reminders (overdue/due). Fetched
@@ -94,12 +100,17 @@ export default function DriverEarningsPage() {
   if (error) return (
     <div className="driver-earnings-page">
       <PageHeader title="Thu nhập" description="Tổng hợp thu nhập và khấu trừ" />
-      <div className="empty-state">
+      <div className="empty-state" role="alert">
         <AlertTriangle size={36} style={{ color: 'var(--danger)', opacity: 0.7 }} />
         <h3 className="empty-state-title">{error}</h3>
-        <p className="empty-state-desc">
-          Hệ thống tạm thời không phản hồi. Vui lòng kéo xuống để làm mới, hoặc thử lại sau ít phút.
-        </p>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          onClick={() => void refetchEarnings()}
+          disabled={earningsFetching}
+        >
+          Thử lại
+        </button>
       </div>
     </div>
   );
