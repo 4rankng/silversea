@@ -44,6 +44,7 @@ import {
 import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
 import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
+import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
 
 type MilestoneType = DriverProgressEventType.ORDER_RECEIVED;
@@ -212,6 +213,10 @@ export default function DriverTripDetailPage() {
   const online = useOnline();
   const geolocation = useGeolocation();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
+  // 27.8 "GIỮ NGUYÊN" fuel screenshot — captured through the same fullscreen
+  // scanner overlay as the e-POD photos (vantaiphucloc pattern) instead of a
+  // bare <input capture>, so camera-denied devices still get the gallery.
+  const [fuelScanning, setFuelScanning] = useState(false);
 
   const fulfillmentId = Number(id);
   const validFulfillmentId = Number.isInteger(fulfillmentId) && fulfillmentId > 0 ? fulfillmentId : undefined;
@@ -615,22 +620,15 @@ export default function DriverTripDetailPage() {
                     : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
                 </div>
               </div>
-              <label className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}>
+              <button
+                type="button"
+                className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}
+                disabled={uploadingFuelEvidence}
+                onClick={() => setFuelScanning(true)}
+              >
                 <Camera size={16} />
                 <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  style={{ display: 'none' }}
-                  disabled={uploadingFuelEvidence}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.currentTarget.value = '';
-                    if (file) void handleUploadFuelEvidence(file);
-                  }}
-                />
-              </label>
+              </button>
             </div>
 
             {!online && (
@@ -740,6 +738,16 @@ export default function DriverTripDetailPage() {
         </div>
       )}
       </fieldset>
+
+      {fuelScanning && (
+        <ContainerScanner
+          onCapture={(dataUrl) => {
+            setFuelScanning(false);
+            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'));
+          }}
+          onClose={() => setFuelScanning(false)}
+        />
+      )}
     </div>
   );
 }

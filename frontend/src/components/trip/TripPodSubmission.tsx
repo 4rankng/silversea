@@ -13,6 +13,7 @@ import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueu
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
+import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import './TripPodSubmission.css';
 
 type SubmitState = 'idle' | 'pending' | 'retry' | 'conflict';
@@ -105,11 +106,11 @@ export function TripPodSubmission({
   onSubmit: _onSubmit,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Which required slot the fullscreen scanner is capturing for (vantaiphucloc
+  // EPOD pattern: "Chụp" opens the live-camera overlay with torch + gallery,
+  // not a bare <input capture> — camera-denied devices still get the picker).
+  const [scanning, setScanning] = useState<TripPodFileType | null>(null);
 
-  const cameraRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
-    [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
-    [TripPodFileType.SIGNED_DELIVERY_NOTE]: useRef<HTMLInputElement | null>(null),
-  };
   const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
     [TripPodFileType.SIGNED_DELIVERY_NOTE]: useRef<HTMLInputElement | null>(null),
@@ -124,21 +125,26 @@ export function TripPodSubmission({
 
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
-    // Spec (Phần 4): e-POD photos are compressed on-device and carry the real
-    // capture timestamp in the image file. PDFs pass through untouched.
-    const file = await compressImageFile(fileList[0], { timestamp: new Date() });
-    setUploadError(null);
+    await uploadPodFile(fileType, fileList[0], fileRefs[fileType].current);
+  }
 
+  /** Scanner path: the overlay hands back a JPEG data URL, convert + upload. */
+  async function handleScanCapture(fileType: TripPodFileType, dataUrl: string) {
+    await uploadPodFile(fileType, dataUrlToFile(dataUrl, `pod-${fileType.toLowerCase()}.jpg`), null);
+  }
+
+  // Spec (Phần 4): e-POD photos are compressed on-device and carry the real
+  // capture timestamp in the image file. PDFs pass through untouched.
+  async function uploadPodFile(fileType: TripPodFileType, raw: File, input: HTMLInputElement | null) {
+    const file = await compressImageFile(raw, { timestamp: new Date() });
+    setUploadError(null);
     try {
       const submission = editableSubmission ?? await onEnsureDraft();
       await onUploadFile(submission, fileType, file);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Không thể tải tệp e-POD.');
     } finally {
-      const cameraInput = cameraRefs[fileType].current;
-      const fileInput = fileRefs[fileType].current;
-      if (cameraInput) cameraInput.value = '';
-      if (fileInput) fileInput.value = '';
+      if (input) input.value = '';
     }
   }
 
@@ -220,7 +226,7 @@ export function TripPodSubmission({
                 <button
                   type="button"
                   className="trip-pod__action"
-                  onClick={() => triggerInput(cameraRefs[fileType])}
+                  onClick={() => setScanning(fileType)}
                   disabled={uploading || creatingDraft || submitState === 'pending'}
                 >
                   {creatingDraft || uploading ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
@@ -237,14 +243,6 @@ export function TripPodSubmission({
                 </button>
               </div>
 
-              <input
-                ref={cameraRefs[fileType]}
-                className="trip-pod__input"
-                type="file"
-                accept="image/*,application/pdf"
-                capture="environment"
-                onChange={(event) => void handlePick(fileType, event.target.files)}
-              />
               <input
                 ref={fileRefs[fileType]}
                 className="trip-pod__input"
@@ -320,6 +318,17 @@ export function TripPodSubmission({
             ))}
           </ul>
         </div>
+      )}
+
+      {scanning && (
+        <ContainerScanner
+          onCapture={(dataUrl) => {
+            const fileType = scanning;
+            setScanning(null);
+            void handleScanCapture(fileType, dataUrl);
+          }}
+          onClose={() => setScanning(null)}
+        />
       )}
     </section>
   );

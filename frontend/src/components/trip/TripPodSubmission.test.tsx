@@ -116,4 +116,36 @@ describe('TripPodSubmission', () => {
     expect(screen.getByText('100%')).toBeTruthy();
     expect(screen.getByText(/Đủ hồ sơ bắt buộc/)).toBeTruthy();
   });
+
+  // vantaiphucloc EPOD pattern: "Chụp" opens the fullscreen camera overlay
+  // (live preview + torch + gallery fallback), not a bare <input capture>.
+  it('opens the fullscreen scanner overlay from Chụp and closes back', () => {
+    render(
+      <TripPodSubmission
+        tripId={55}
+        tripVersion={3}
+        currentSubmission={draftSubmission()}
+        history={[]}
+        pendingCommands={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // Two capture buttons (one per required slot); open the first.
+    const captureButtons = screen.getAllByRole('button', { name: 'Chụp' });
+    expect(captureButtons.length).toBe(2);
+    fireEvent.click(captureButtons[0]);
+
+    // The overlay portals to body: jsdom has no getUserMedia, so the scanner
+    // renders its camera-error state — the gallery fallback must survive.
+    expect(screen.getByLabelText('Chọn ảnh từ thư viện')).toBeTruthy();
+    expect(screen.getByLabelText('Đóng')).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Đóng'));
+    expect(screen.queryByLabelText('Chọn ảnh từ thư viện')).toBeNull();
+  });
 });

@@ -107,14 +107,24 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag !== 'refresh-journey-board') return;
   event.waitUntil((async () => {
     try {
-      const res = await fetch(JOURNEY_BOARD_URL, { credentials: 'include' });
+      // The API authenticates via Authorization: Bearer, not cookies. The page
+      // mirrors the JWT into the SW cache (see lib/token.ts setToken), which —
+      // unlike localStorage — IS readable from the service worker.
+      const tokenResponse = await caches.match('/__auth-token');
+      const token = tokenResponse ? await tokenResponse.text() : '';
+      const res = await fetch(JOURNEY_BOARD_URL, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) return;
-      const cards = await res.json();
-      const newOrders = Array.isArray(cards) ? cards.filter((c) => c.bucket === 'NEW') : [];
+      // The endpoint wraps the cards in { items: [...] }.
+      const wire = await res.json();
+      const cards = Array.isArray(wire) ? wire : wire?.items ?? [];
+      const newOrders = cards.filter((c) => c && c.bucket === 'NEW');
       if (newOrders.length === 0) return;
       // Only notify if there are new orders the driver hasn't seen.
-      const lastCount = parseInt((await caches.match('/__journey-new-count'))?.body ?? '0', 10) || 0;
-      const cache = await caches.open('tingting-shell-v2');
+      const countResponse = await caches.match('/__journey-new-count');
+      const lastCount = parseInt(countResponse ? await countResponse.text() : '0', 10) || 0;
+      const cache = await caches.open(CACHE);
       cache.put('/__journey-new-count', new Response(String(newOrders.length)));
       if (newOrders.length > lastCount) {
         const latest = newOrders[0];

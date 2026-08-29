@@ -30,20 +30,23 @@ type TorchConstraint = MediaTrackConstraintSet & { torch?: boolean };
 
 /**
  * Downsize an image to MAX_CAPTURE_WIDTH while preserving aspect ratio, so we
- * don't upload multi-megapixel camera frames to the OCR endpoint. Images at or
- * below the threshold pass through untouched.
+ * don't upload multi-megapixel camera frames to the OCR endpoint.
+ *
+ * ALWAYS re-encode through a canvas as image/jpeg (vantaiphucloc pattern):
+ * iOS gallery photos can be HEIC, and passing a small image through untouched
+ * would send HEIC bytes that get stored under a .jpg name and render as
+ * broken images in Chrome/Firefox/Android. Drawing to a canvas forces a
+ * decode + JPEG re-encode, so the output is always real JPEG regardless of
+ * the input format.
  */
 function downsizeImageToDataUrl(imageSrc: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      if (img.width <= MAX_CAPTURE_WIDTH) {
-        resolve(imageSrc);
-        return;
-      }
-      const outW = MAX_CAPTURE_WIDTH;
-      const outH = Math.round(img.height * (outW / img.width));
+      const scale = img.width > MAX_CAPTURE_WIDTH ? MAX_CAPTURE_WIDTH / img.width : 1;
+      const outW = Math.max(1, Math.round(img.width * scale));
+      const outH = Math.max(1, Math.round(img.height * scale));
       const canvas = document.createElement('canvas');
       canvas.width = outW;
       canvas.height = outH;
