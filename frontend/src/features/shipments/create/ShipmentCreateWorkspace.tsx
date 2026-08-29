@@ -17,6 +17,8 @@ import {
 } from '../../../api/shipmentClient';
 import { OperationalSiteDetailsDialog } from '../../../components/shipment/OperationalSiteDetailsDialog';
 import { OperationalSiteCreateDialog } from '../../../components/shipment/OperationalSiteCreateDialog';
+import { CustomerCreateDialog } from './CustomerCreateDialog';
+import type { Customer } from '@tingting/shared';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
@@ -86,6 +88,8 @@ export function ShipmentCreateWorkspace() {
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const routeAddButtonRef = useRef<HTMLButtonElement>(null);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+  const customerAddButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +99,23 @@ export function ShipmentCreateWorkspace() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Catalogs (customers, routes, etc.) are otherwise fetched once on mount
+  // and never refreshed, so a customer created elsewhere (another tab, the
+  // admin customer page) would stay invisible here until a hard reload.
+  // Revalidate silently whenever the tab regains focus/visibility.
+  useEffect(() => {
+    function revalidateCatalogs() {
+      if (loading || document.visibilityState === 'hidden') return;
+      tripClient.getBootstrap().then(setCatalogs).catch(() => {});
+    }
+    window.addEventListener('focus', revalidateCatalogs);
+    document.addEventListener('visibilitychange', revalidateCatalogs);
+    return () => {
+      window.removeEventListener('focus', revalidateCatalogs);
+      document.removeEventListener('visibilitychange', revalidateCatalogs);
+    };
+  }, [loading]);
 
   useEffect(() => {
     if (!form.customerId) { setSites([]); return; }
@@ -183,6 +204,20 @@ export function ShipmentCreateWorkspace() {
     addRouteToCatalog(route);
     update('routeId', String(route.id));
     closeRouteDialog();
+  }
+
+  function closeCustomerDialog() {
+    setCustomerDialogOpen(false);
+    queueMicrotask(() => customerAddButtonRef.current?.focus());
+  }
+
+  function handleCustomerCreated(customer: Customer) {
+    setCatalogs((current) => current ? {
+      ...current,
+      customers: [...current.customers.filter((item) => item.id !== customer.id), customer],
+    } : current);
+    selectCustomer(String(customer.id));
+    closeCustomerDialog();
   }
 
   function addRouteToCatalog(route: Route) {
@@ -347,7 +382,7 @@ export function ShipmentCreateWorkspace() {
         <ShipmentCreateSection id="identity" title="Nhận diện lô" description="Khách hàng, chứng từ và hướng xuất nhập khẩu.">
           <div className="csc-identity-grid">
             {/* KHÁCH HÀNG */}
-            <div className="csc-identity-grid__customer" data-field="shipment-customer" data-field-id="shipment-customer">
+            <div className="csc-identity-grid__customer csc-customer-picker" data-field="shipment-customer" data-field-id="shipment-customer">
               <SearchableField
                 id="shipment-customer"
                 label="Khách hàng"
@@ -362,6 +397,15 @@ export function ShipmentCreateWorkspace() {
                 popoverClassName="csc-customer-popover"
                 optionClassName="csc-customer-option"
               />
+              <button
+                ref={customerAddButtonRef}
+                type="button"
+                onClick={() => setCustomerDialogOpen(true)}
+                disabled={Boolean(saving)}
+                className="csc-utility-button csc-utility-button--dashed csc-customer-picker__add"
+              >
+                <Plus size={15} aria-hidden="true" />Thêm khách hàng
+              </button>
             </div>
 
             <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction"><SelectField id="shipment-trade-direction" label="Hình thức xuất nhập khẩu" required value={form.tradeDirection} onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])} disabled={Boolean(saving)} error={issueByField.get('shipment-trade-direction')} options={[{ value: '', label: '— Chọn hình thức —' }, { value: 'IMPORT', label: 'Nhập khẩu' }, { value: 'EXPORT', label: 'Xuất khẩu' }]} /></div>
@@ -718,6 +762,11 @@ export function ShipmentCreateWorkspace() {
         isOpen={routeDialogOpen}
         onClose={closeRouteDialog}
         onCreated={handleRouteCreated}
+      />
+      <CustomerCreateDialog
+        isOpen={customerDialogOpen}
+        onClose={closeCustomerDialog}
+        onCreated={handleCustomerCreated}
       />
       <Modal
         isOpen={backConfirmOpen}

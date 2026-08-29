@@ -14,10 +14,11 @@ const mocks = vi.hoisted(() => ({
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
   createRoute: vi.fn(),
+  createCustomer: vi.fn(),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
-vi.mock('../../api/configClient', () => ({ configClient: { createRoute: mocks.createRoute } }));
+vi.mock('../../api/configClient', () => ({ configClient: { createRoute: mocks.createRoute, createCustomer: mocks.createCustomer } }));
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
@@ -117,6 +118,29 @@ describe('ClerkShipmentCreatePage', () => {
       defaultLegs: null,
       createdAt: '2026-08-18T00:00:00.000Z',
       updatedAt: '2026-08-18T00:00:00.000Z',
+      deletedAt: null,
+    });
+    mocks.createCustomer.mockResolvedValue({
+      id: 8,
+      name: 'Công ty TNHH Thương mại Phú Cường',
+      shortName: 'Phú Cường',
+      taxCode: '0312345678',
+      partnerId: null,
+      contactPerson: 'Chị Lan',
+      phone: '0909123456',
+      contactInfo: null,
+      creditLimit: null,
+      creditWarningThreshold: null,
+      paymentTermDays: null,
+      fuelSurchargeSharePct: null,
+      paymentDatePolicy: 'NEXT_BUSINESS_DAY',
+      status: 'ACTIVE',
+      isCarrier: false,
+      debitNoteMode: 'MONTHLY',
+      debitNoteTemplateId: null,
+      linkedSupplierId: null,
+      createdAt: '2026-08-29T00:00:00.000Z',
+      updatedAt: '2026-08-29T00:00:00.000Z',
       deletedAt: null,
     });
   });
@@ -288,6 +312,67 @@ describe('ClerkShipmentCreatePage', () => {
     expect((screen.getByRole('combobox', { name: /^Tuyến đường/ }) as HTMLInputElement).value).toBe('Cát Lái — Sóng Thần');
     expect(mocks.createRoute).not.toHaveBeenCalled();
     expect(addButton).toHaveFocus();
+  });
+
+  it('creates and selects a customer from the visible shipment-intake action', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm khách hàng' }));
+    expect(within(dialog).getByRole('alert').textContent).toContain('Vui lòng nhập tên khách hàng');
+
+    fireEvent.change(within(dialog).getByLabelText('Tên khách hàng'), { target: { value: '  Công ty TNHH Thương mại Phú Cường  ' } });
+    fireEvent.change(within(dialog).getByLabelText('Mã số thuế'), { target: { value: '0312345678' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Thêm khách hàng' }));
+
+    await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalledWith({
+      name: 'Công ty TNHH Thương mại Phú Cường',
+      taxCode: '0312345678',
+      contactPerson: undefined,
+      phone: undefined,
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm khách hàng' })).toBeNull());
+    expect((screen.getByRole('combobox', { name: /^Khách hàng/ }) as HTMLInputElement).value).toBe('Công ty TNHH Thương mại Phú Cường');
+    expect(addButton).toHaveFocus();
+  });
+
+  it('keeps the selected customer when customer creation is cancelled', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+
+    const addButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
+    fireEvent.click(addButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm khách hàng' });
+    fireEvent.change(within(dialog).getByLabelText('Tên khách hàng'), { target: { value: 'Không lưu' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm khách hàng' })).toBeNull());
+    expect((screen.getByRole('combobox', { name: /^Khách hàng/ }) as HTMLInputElement).value).toBe(longCustomerName);
+    expect(mocks.createCustomer).not.toHaveBeenCalled();
+    expect(addButton).toHaveFocus();
+  });
+
+  it('picks up a customer created elsewhere once the tab regains focus, without a reload', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    expect(mocks.bootstrap).toHaveBeenCalledTimes(1);
+
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      customers: [...bootstrap.customers, { id: 8, name: 'Công ty TNHH Thương mại Phú Cường' }],
+    });
+    fireEvent(window, new Event('focus'));
+
+    await waitFor(() => expect(mocks.bootstrap).toHaveBeenCalledTimes(2));
+    const combobox = screen.getByRole('combobox', { name: /^Khách hàng/ });
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(await screen.findByRole('option', { name: 'Công ty TNHH Thương mại Phú Cường' })).toBeTruthy();
   });
 
   it('requires a customer before creating a shipment', async () => {

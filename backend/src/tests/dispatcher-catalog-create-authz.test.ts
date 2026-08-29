@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 import type { NextFunction, Request, Response } from 'express';
-import { Role, routeSchema } from '@tingting/shared';
+import { Role, routeSchema, customerSchema } from '@tingting/shared';
 import { initEnforcer } from '../casbin/enforcer';
 import { casbinAuthz } from '../middleware/casbin';
 import { restrictRouteCreateForIntake } from '../services/route-intake.service';
+import { restrictCustomerCreateForIntake } from '../services/customer-intake.service';
 
 function request(role: Role, method: string, path: string): Request {
   return {
@@ -72,7 +73,6 @@ describe('Dispatcher resource-catalog create authorization', () => {
       }
       // Other config catalogs stay fully read-only for DISPATCHER.
       for (const [method, path] of [
-        ['POST', '/customers'],
         ['POST', '/pricing-tables'],
         ['POST', '/expense-categories'],
       ] as const) {
@@ -108,13 +108,33 @@ describe('Dispatcher resource-catalog create authorization', () => {
         ['PUT', '/routes/1'],
         ['DELETE', '/routes/1'],
         ['POST', '/trucks'],
-        ['POST', '/customers'],
         ['POST', '/pricing-tables'],
       ] as const) {
         assert.deepEqual(await authorize(Role.CUS, method, path), {
           nextCalled: false,
           statusCode: 403,
         }, `${method} ${path}`);
+      }
+    });
+
+    it('lets CUS and Dispatchers add the missing customer from shipment intake', async () => {
+      for (const role of [Role.CUS, Role.DISPATCHER]) {
+        assert.deepEqual(await authorize(role, 'POST', '/customers'), {
+          nextCalled: true,
+          statusCode: 200,
+        }, role);
+      }
+      // The allowance is create-only: updates and deletes stay Casbin-denied.
+      for (const role of [Role.CUS, Role.DISPATCHER]) {
+        for (const [method, path] of [
+          ['PUT', '/customers/1'],
+          ['DELETE', '/customers/1'],
+        ] as const) {
+          assert.deepEqual(await authorize(role, method, path), {
+            nextCalled: false,
+            statusCode: 403,
+          }, `${role} ${method} ${path}`);
+        }
       }
     });
 
@@ -141,6 +161,41 @@ describe('Dispatcher resource-catalog create authorization', () => {
       assert.deepEqual(restrictRouteCreateForIntake(payload, Role.MANAGER), payload);
     });
 
+    it('strips credit and billing fields from CUS and Dispatcher customer payloads', () => {
+      const payload = customerSchema.parse({
+        name: 'Công ty TNHH Thương mại Phú Cường',
+        shortName: 'Phú Cường',
+        taxCode: '0312345678',
+        contactPerson: 'Chị Lan',
+        phone: '0909123456',
+        creditLimit: 500000000,
+        creditWarningThreshold: 0.8,
+        paymentTermDays: 30,
+        fuelSurchargeSharePct: 50,
+        debitNoteTemplateId: 2,
+      });
+      // Zod defaults materialize paymentDatePolicy/debitNoteMode on every
+      // parse; the intake strip must drop them as absent keys so the create
+      // also bypasses the materiality-gated maker-checker flow.
+      for (const role of [Role.CUS, Role.DISPATCHER]) {
+        const restricted = restrictCustomerCreateForIntake(payload, role);
+        assert.deepEqual(restricted, {
+          name: 'Công ty TNHH Thương mại Phú Cường',
+          shortName: 'Phú Cường',
+          taxCode: '0312345678',
+          contactPerson: 'Chị Lan',
+          phone: '0909123456',
+          status: 'ACTIVE',
+          isCarrier: false,
+        });
+        for (const key of ['creditLimit', 'creditWarningThreshold', 'paymentTermDays',
+          'paymentDatePolicy', 'fuelSurchargeSharePct', 'debitNoteMode', 'debitNoteTemplateId']) {
+          assert.ok(!(key in restricted), `${role} ${key}`);
+        }
+      }
+      assert.deepEqual(restrictCustomerCreateForIntake(payload, Role.MANAGER), payload);
+    });
+
     it('leaves MANAGER/ACCOUNTANT config writes exactly as before', async () => {
       assert.deepEqual(await authorize(Role.MANAGER, 'POST', '/routes'), {
         nextCalled: true,
@@ -164,7 +219,7 @@ describe('Dispatcher resource-catalog create authorization', () => {
     });
 
     it('does not broaden Dispatcher create access to unrelated catalogs', async () => {
-      assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/customers'), {
+      assert.deepEqual(await authorize(Role.DISPATCHER, 'POST', '/pricing-tables'), {
         nextCalled: false,
         statusCode: 403,
       });

@@ -22,6 +22,7 @@ import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUnique
 import { loadClerkShipmentScope } from '../../services/clerk-shipment-scope.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake } from '../../services/route-intake.service';
+import { restrictCustomerCreateForIntake } from '../../services/customer-intake.service';
 import { assertTireSerialAvailable } from '../../services/tire.service';
 import { requestOrApplyGovernedConfigAction } from '../../services/price-config-governance.service';
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
@@ -240,7 +241,8 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialCustomerUpdate(data as CustomerMutationPayload, current),
     shouldGovernDelete: () => true,
   },
-  beforeCreate: async (data, _req, tx) => {
+  beforeCreate: async (input, req, tx) => {
+    const data = restrictCustomerCreateForIntake(input, getUser(req).role);
     data.shortName = data.shortName?.trim() || data.name.trim();
     await H.lockCustomerMutationKeys(tx, data);
     await validateCustomerUniqueness(data);

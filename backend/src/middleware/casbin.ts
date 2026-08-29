@@ -31,6 +31,18 @@ function hasRouteScopedRoleAllowance(req: Request, resource: string) {
   ) {
     return true;
   }
+  // Same screen, same need for the customer catalog: CUS/Dispatchers may add
+  // the missing customer inline. POST-only and customer-scoped; the intake
+  // strip in the customers beforeCreate keeps financially material fields
+  // out of their payload, and updates/deletes stay Casbin-denied.
+  if (
+    resource === 'config'
+    && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)
+    && req.method === 'POST'
+    && /^\/customers\/?$/.test(req.path)
+  ) {
+    return true;
+  }
   // Other Dispatcher catalog creates: DISPATCHER may POST exactly the three
   // resource-catalog rows it staffs dispatch plans from (trucks, drivers,
   // suppliers). Every other config write stays Casbin-denied, and
