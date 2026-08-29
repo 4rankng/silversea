@@ -16,7 +16,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 12px 12px 24px;
-  max-width: 720px;
+  max-width: var(--driver-measure);
   width: 100%;
   margin-inline: auto;
 }
@@ -83,7 +83,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  width: min(720px, 100%);
+  width: min(var(--driver-measure), 100%);
   margin: 0 auto 8px;
   padding: 10px 12px;
   border-radius: 12px;

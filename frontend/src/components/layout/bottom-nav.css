@@ -5,12 +5,25 @@
   display: none;
 }
 
+/* Driver full-bleed screens (trip list, trip detail, e-POD) own their edge
+   padding + background (.driver-journey / .driver-task-screen). This must
+   NOT be gated to the ≤1023px tablet/phone breakpoint — a driver session
+   opened at desktop width still renders these same components (the sidebar
+   + generic topbar only toggle off below 1023px), so the shell must never
+   add a second inset + a second background tone around them at any width. */
+.app.is-driver .app-body {
+  background: var(--surface);
+}
+.app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
+  padding: 0;
+}
+
 @media (max-width: 1023px) {
   .app.is-driver .sidebar,
   .app.is-driver .sidebar-overlay {
     display: none !important;
   }
-  
+
   .driver-mode .app-body {
     padding-bottom: calc(70px + env(safe-area-inset-bottom, 12px));
   }
@@ -19,21 +32,7 @@
   .app.is-driver .app-main {
     background: none;
   }
-  /* But the empty body area (below the page content, behind the bottom
-     nav) still has to read as a single solid color — otherwise the
-     app-main's --bg gray bleeds through the 32px bottom-padding of the
-     journey container and shows up as a second tone under the cards. */
-  .app.is-driver .app-body {
-    background: var(--surface);
-  }
-  /* Zero padding only when a driver full-bleed screen is rendered (trip list,
-     trip detail, e-POD) — those screens own their own edge padding +
-     background (.driver-journey / .driver-task-screen), so the shell must
-     not add a second inset + a second background tone around them. */
-  .app.is-driver .app-body:has(.driver-journey, .driver-task-screen) {
-    padding: 0;
-  }
-  
+
   .bottom-nav {
     display: flex;
     position: fixed;
@@ -55,6 +54,11 @@
     z-index: var(--z-sticky, 100);
     justify-content: space-around;
     align-items: center;
+    /* Bar is full-bleed, tabs are inset to the driver measure — on a phone
+       that is a no-op (viewport < measure), on a tablet it stops the four
+       tabs from being flung to the far corners while the content column
+       sits at 720px. Same inset idiom as .topbar--driver. */
+    padding-inline: max(0px, calc((100% - var(--driver-measure)) / 2));
     padding-bottom: env(safe-area-inset-bottom, 12px);
     box-shadow: 0 -4px 16px rgba(0,0,0,0.03);
   }

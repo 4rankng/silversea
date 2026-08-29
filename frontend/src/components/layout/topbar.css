@@ -28,7 +28,12 @@
   justify-content: flex-start;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
-  padding: 10px 16px;
+  /* The bar itself stays full-bleed (it owns the brand color edge to edge),
+     but its CONTENT is inset to the driver measure so the greeting and the
+     month picker line up with the card column below instead of drifting to
+     the far corners of a wide canvas. Collapses to the plain 16px gutter as
+     soon as the viewport is narrower than the measure. */
+  padding: 10px max(16px, calc((100% - var(--driver-measure)) / 2));
   height: auto;
   gap: 12px;
 }
@@ -95,8 +100,14 @@
   flex: 0 0 auto;
 }
 
-.topbar--driver .topbar__plate {
-  color: rgba(255, 255, 255, 0.85);
+/* Only the ≤1023px driver topbar is painted with the brand green (--sb-bg,
+   set in styles/responsive.css) — above that the bar is plain white, so an
+   unconditional white plate rendered white-on-white and the biển số vanished
+   from the desktop shell entirely. Match the tier that actually paints green. */
+@media (max-width: 1023px) {
+  .topbar--driver .topbar__plate {
+    color: rgba(255, 255, 255, 0.85);
+  }
 }
 
 .topbar__center-driver {

@@ -1,6 +1,6 @@
 .driver-task-screen {
   width: 100%;
-  max-width: 720px;
+  max-width: var(--driver-measure);
   margin: 0 auto;
   padding: 14px 14px 32px;
   background: var(--surface-2);
@@ -385,7 +385,7 @@
 }
 
 .driver-task-footer__body {
-  width: min(720px, 100%);
+  width: min(var(--driver-measure), 100%);
   margin: 0 auto;
   display: grid;
   gap: 10px;
@@ -478,7 +478,7 @@
 }
 
 .driver-task-accept-sticky__inner {
-  width: min(720px, 100%);
+  width: min(var(--driver-measure), 100%);
 }
 
 .driver-task-accept-sticky__btn {
@@ -585,9 +585,14 @@
   gap: 12px;
 }
 
+/* Photo is evidence, not the subject: it stays a bounded thumbnail in a fixed
+   track so a portrait pump screenshot can't dictate the row height, and the
+   facts get the remaining width. `align-items: start` keeps the two columns
+   independent — without it the facts column inherits the photo's height. */
 .driver-task-fuel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
 }
 
@@ -599,10 +604,47 @@
   object-fit: cover;
 }
 
+/* `contain`, never `cover`: this is evidence. The GPS/time watermark the
+   capture burns into the bottom-left corner is exactly what a crop eats
+   first, so the photo is letterboxed on a neutral backing instead. The cap
+   only bounds pathological aspect ratios (a full-height 9:16 phone shot) —
+   the common portrait pump screenshot lands well inside it. */
+.driver-task-fuel-img {
+  max-height: 360px;
+  object-fit: contain;
+  background: var(--surface-2);
+}
+
+/* Read-out of the OCR result — a spec table, not free-floating text. Rows are
+   packed to the top (`align-content: start`): the facts column is a grid whose
+   auto rows would otherwise be STRETCHED to the photo's height, which is what
+   smeared six 19px lines across 430px with 46px of dead air between each. */
 .driver-task-fuel-facts {
   display: grid;
-  gap: 8px;
+  align-content: start;
+  gap: 0;
   font-size: 13px;
+}
+
+.driver-task-fuel-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.driver-task-fuel-facts > div:last-child {
+  border-bottom: 0;
+}
+
+.driver-task-fuel-facts > div > strong {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--ink-3);
 }
 
 .driver-task-fuel-notes {
@@ -649,12 +691,51 @@
   }
 }
 
+/* ── Tablet and up (repo ladder: the inverse of the 640px PHONE tier) ───────
+   The screen is now at or near its full 720px measure, so a half column is
+   ~330px — wide enough for every "long" value. Three deliberate changes:
+   (1) facts stop claiming full rows, which removes the half-empty rows that
+   made the card look ragged; (2) the fuel photo and its read-out sit
+   side by side; (3) the primary CTAs stop being 720px-wide slabs. Nothing
+   here reaches the phone, where the stacked layout is still correct. */
+@media (min-width: 641px) {
+  .driver-task-fuel-grid {
+    grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  /* Centered and capped: a full-measure black bar reads as a page-wide
+     banner rather than a button once the column stops being phone-width.
+     Below this tier both stay 100% for one-thumb cabin use (AC-NFR-003). */
+  .driver-task-complete,
+  .driver-task-accept-sticky__btn {
+    width: min(100%, 360px);
+    margin-inline: auto;
+  }
+
+  .driver-task-accept-sticky__inner {
+    display: flex;
+    justify-content: center;
+  }
+}
+
 /* Long-value facts span both columns. `1 / -1`, not `span 2`: below 360px the
    grid has no explicit columns, and `span 2` would mint a second implicit
    track — accidentally restoring two columns at the tier meant to stay
    stacked. `1 / -1` collapses to a no-op in a single-column grid. */
 .driver-task-fact--full {
   grid-column: 1 / -1;
+}
+
+/* At ≥641px a half column is ~330px — wide enough for "Cảng Tân Cảng 128 Hải
+   Phòng" on one line — so the full-row override stops buying legibility and
+   only leaves half-empty rows. Reset to auto placement for a clean 2×N grid.
+   Must sit AFTER the base rule above: a media query adds no specificity, so
+   source order is the only thing deciding the winner. */
+@media (min-width: 641px) {
+  .driver-task-fact--full {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 430px) {

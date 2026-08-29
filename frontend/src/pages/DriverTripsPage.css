@@ -1,6 +1,6 @@
 .driver-journey {
   width: 100%;
-  max-width: 720px;
+  max-width: var(--driver-measure);
   margin: 0 auto;
   /* Single white surface under the green header. A small top padding
      gives the tab card breathing room from the header (the header owns

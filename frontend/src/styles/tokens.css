@@ -198,6 +198,12 @@
 
   --sidebar-w: 248px;
   --topbar-h: 56px;
+  /* Driver-app reading measure. The driver screens are a single-column
+     sequential workflow, so they never stretch to the canvas — they hold one
+     comfortable column and the shell chrome (driver topbar, bottom nav)
+     aligns its inner content to the SAME measure so the greeting, the month
+     picker, the cards and the nav tabs all share one left/right edge. */
+  --driver-measure: 720px;
   /* Control density contract: compact operational tools, regular forms, and
      a touch-safe minimum. Keep --control-h as the shell-compatible alias. */
   --control-compact-h: 34px;
