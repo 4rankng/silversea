@@ -1219,3 +1219,40 @@ The record-layout switch used a 1000px container query. At a 1024px browser view
 - The supplied 508px screenshot is the old seven-column rendering of `/dispatch-detail`. Current committed responsive CSS already converts the grid to labelled records at a 900px workspace and a two-column task card below 640px, retaining the full `Điều phối` editor and visible `Đơn` tag without horizontal overflow.
 - Fresh authenticated local ADMIN browser QA at 508×1442, 768×1024, and 1440×900 has zero document overflow, console errors, and HTTP >=400 responses. Focused DetailedPlanGrid test (28/28), frontend typecheck, context validation, and diff check pass.
 - An attempted `pnpm test -- DetailedPlanGrid.test.tsx` ran the unfiltered frontend suite and remains red in three concurrent MasterPlanGrid/ShipmentsPage assertions. Source was not changed. Evidence: `qa/2026-08-22_dispatch-detail-overflow_*`.
+
+### testplan/testaccounts.txt sweep (2026-08-30) — DONE
+
+- Ran the closed-loop SDLC gates against `testplan/` (100 flow TCs + 215 role ACs) and `testplan/testaccounts.txt` on local dev. Two follow-ups from the 2026-08-29 sweep + one stray in-progress refactor.
+- **Stale conformance-skin list** (`frontend/src/components/control-density.styles.test.ts`): commit `175d88bf` added the CUS form's `.csc-uui-field label` (local label-cadence alignment: 12/18 semibold across combobox + text + date) but did not add it to `sanctionedConformanceScopes`. Test was passing on the first re-run by accident; the second run correctly flagged it. Fix: add `.csc-uui-field label` to the list with a comment cross-referencing `docs/design-guidelines.md`. Block stays scoped to the CUS form's own wrapper, not a bare `.ds-uui-*`, so the guard's intent (no bare `ds-uui-*` overrides) still holds.
+- **Missing CUSTOMER demo accounts**: `testplan/testaccounts.txt` documents `samsung-cs` and `canon-cs` (CUSTOMER role, Samsung Electronics VN + Canon VN) but `backend/src/seed.ts` only created the generic `customer` user. TC-CUST-SHIP-03 (row-scope, no leak) had no second CUSTOMER user to cross-verify. Fix: add the two customers (tax codes 0301444111, 0301444222), add 1 IMPORT shipment per customer (105254551001, 105254551002), and refactor the single-`customer` user block into a `customerPortalSeeds` loop that idempotently seeds `customer`, `samsung-cs`, `canon-cs`, each row-scoped to its own customer. The existing `customer` user (linked to Biển Bạc) is preserved byte-for-byte on re-runs.
+- **Email domain drift**: `testplan/testaccounts.txt` claimed `@silversea.vn` for all 11 demoUsers; the live seed has used `@nepo.vn` since 2026-08-20. Canonicalised the doc to `@nepo.vn` and added the customer row note for each portal account.
+- **Bonus — AR N+1 refactor** (found uncommitted in the working tree between the two runs): `backend/src/services/total-ar-report.service.ts` was running 2 queries per customer (opening + activity) inside a JS loop, giving O(customers) round-trips. Collapsed to 2 grouped queries in parallel with the customer lookup, then indexed the results by `entityId` in JS. M5.5 service tests (6/6) + new route tests (4/4) stay green; aggregation is byte-identical. Committed separately as `ca8453a3 perf(ar-report): collapse 2*N ledger queries into 2 grouped passes`.
+
+#### Verification on local dev (pnpm dev, localhost:3001 + 7174)
+
+- 13/13 demo accounts log in (admin, giamdoc, ketoan, cus, dieuvan, laixe, giaonhan, thu, pho, quyet, customer, samsung-cs, canon-cs).
+- samsung-cs → `/api/portal/shipments` total: 1 (105254551001 / READY_FOR_DISPATCH).
+- canon-cs   → `/api/portal/shipments` total: 1 (105254551002 / READY_FOR_DISPATCH).
+- samsung-cs → `/api/portal/shipments/304070` (canon's id) → HTTP 404 `{"error":"Không tìm thấy lô hàng"}` — **TC-CUST-SHIP-03 PASS**.
+
+#### Gate result
+
+- Lint: 0 errors / 161 warnings (1 net new pre-existing in `m55-total-ar-route.test.ts`).
+- Backend tsc, frontend tsc, `make build` all exit 0.
+- Frontend `pnpm test --run` 1370/1370 (244 files).
+- Backend `pnpm test` 2270/2270 (431 suites) — +4 from the new route tests + 0 from the AR refactor (the service test was already there).
+
+#### Commits
+
+- `ca8453a3 perf(ar-report): collapse 2*N ledger queries into 2 grouped passes`
+- `3e68154d testplan(qa-loop): seed samsung-cs/canon-cs customers + sanction CUS form label`
+
+#### Artifacts (local, not committed; `qa/` is gitignored)
+
+- `qa/2026-08-30_testplan-qa/REPORT.md`
+- `qa/2026-08-30_testplan-qa/lint.log`, `backend-tsc.log`, `frontend-tsc.log`
+- `qa/2026-08-30_testplan-qa/m55-total-ar.log`
+- `qa/2026-08-30_testplan-qa/testaccounts-probe.log`
+- `qa/2026-08-30_testplan-qa/row-scope-probe.log`
+
+No commit, push, or deployment was performed.
