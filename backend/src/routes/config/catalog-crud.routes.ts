@@ -237,7 +237,14 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
   updateSchema: customerUpdateSchema,
   governance: {
     reasonLabel: 'cấu hình khách hàng ảnh hưởng công nợ',
-    shouldGovernCreate: (data) => H.hasMaterialCustomerConfigChange(data as CustomerMutationPayload),
+    shouldGovernCreate: (data, req) => {
+      // Intake creates by CUS/Dispatchers reach here identity-only (the
+      // restrict in beforeCreate stripped credit and billing fields), so
+      // they insert directly — mirroring the shipment-route intake bypass.
+      // Admin-page creates keep the full materiality gate below.
+      if (req.user && [Role.CUS, Role.DISPATCHER].includes(req.user.role as Role)) return false;
+      return H.hasMaterialCustomerConfigChange(data as CustomerMutationPayload);
+    },
     shouldGovernUpdate: (_id, data, _req, current) => H.hasMaterialCustomerUpdate(data as CustomerMutationPayload, current),
     shouldGovernDelete: () => true,
   },

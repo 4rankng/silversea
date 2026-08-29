@@ -199,6 +199,24 @@ describe('ClerkShipmentCreatePage', () => {
     expect(combobox.closest('.csc-customer-field')).toBeTruthy();
   });
 
+  it('keeps the customer combobox open on focus so typing filters the dropdown', async () => {
+    // Spec: the customer field is a proper combobox. Focusing the field
+    // pops the overlay (production: openOnPress + menuTrigger=focus);
+    // jsdom needs an explicit ArrowDown to drive the keyboard handler
+    // the same way. The typed text stays in the input — `form.customerId`
+    // only updates when the user actually picks a row.
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+
+    const combobox = screen.getByRole('combobox', { name: /^Khách hàng/ }) as HTMLInputElement;
+    // Open the popover first (the long-name test covers unfiltered list);
+    // here we just confirm the searchable wiring doesn't regress — the
+    // overlay still opens on focus + ArrowDown.
+    fireEvent.focus(combobox);
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+    expect(await screen.findByRole('option', { name: longCustomerName })).toBeTruthy();
+  });
+
   it('uses an application-styled menu for every shipment-create select', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });

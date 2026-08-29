@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { ComboBox } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
@@ -137,6 +138,15 @@ interface USearchableFieldProps {
   shortcut?: boolean;
   /** Allow free-typed values that don't match any option (e.g. Hãng tàu). */
   allowsCustomValue?: boolean;
+  /**
+   * Type-to-search mode. The field keeps the user's typed text in the input
+   * and the ComboBox filters its dropdown as they type, but `value` is only
+   * committed when the user actually picks an option — the form stays
+   * constrained to existing IDs (e.g. customerId). Without this flag the
+   * controlled `inputValue` resets on every keystroke, so the user cannot
+   * type to filter.
+   */
+  searchable?: boolean;
   hideLabel?: boolean;
 }
 
@@ -155,23 +165,51 @@ export function USearchableField({
   optionClassName,
   shortcut,
   allowsCustomValue,
+  searchable,
   hideLabel,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
+  // Local input text so type-to-search survives the controlled re-renders.
+  // Synced with the selected option's label whenever `value` changes externally
+  // (form reset, dialog-create success, etc.).
+  const [inputValue, setInputValue] = useState<string>(selected?.label ?? '');
+  useEffect(() => {
+    setInputValue(selected?.label ?? '');
+    // We intentionally key on `value` + `options` so external resets and
+    // catalog refetches snap the visible text back to the chosen label.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, options]);
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
         size="sm"
         aria-label={label}
         label={hideLabel ? undefined : label}
-        menuTrigger="manual"
+        // `searchable` mode opens the popover on focus (so the user sees the
+        // option list and can type to filter immediately) — the default
+        // `manual` + `openOnPress` combo only opens on keyboard, which made
+        // the field feel like a closed select.
+        menuTrigger={searchable ? 'focus' : 'manual'}
         openOnPress
         selectedKey={value || null}
-        inputValue={selected?.label ?? (allowsCustomValue ? value : undefined)}
-        onSelectionChange={(key) => { if (key !== null) onChange(String(key)); }}
-        {...(allowsCustomValue
-          ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
-          : {})}
+        inputValue={
+          searchable
+            ? inputValue
+            : selected?.label ?? (allowsCustomValue ? value : undefined)
+        }
+        onSelectionChange={(key) => {
+          if (key === null) return;
+          onChange(String(key));
+          if (searchable) {
+            const picked = options.find((option) => String(option.value) === String(key));
+            setInputValue(picked?.label ?? '');
+          }
+        }}
+        {...(searchable
+          ? { onInputChange: (text: string) => setInputValue(text) }
+          : allowsCustomValue
+            ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
+            : {})}
         items={options.map((option) => ({
           id: option.value,
           label: option.label,

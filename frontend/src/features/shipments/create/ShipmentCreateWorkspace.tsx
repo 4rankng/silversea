@@ -396,6 +396,7 @@ export function ShipmentCreateWorkspace() {
                 className="csc-customer-field"
                 popoverClassName="csc-customer-popover"
                 optionClassName="csc-customer-option"
+                searchable
               />
               <button
                 ref={customerAddButtonRef}
