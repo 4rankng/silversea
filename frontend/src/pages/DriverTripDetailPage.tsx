@@ -45,11 +45,7 @@ import { useToast } from '../components/shared/Toast';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
-type MilestoneType =
-  | DriverProgressEventType.ORDER_RECEIVED
-  | DriverProgressEventType.PICKED_UP
-  | DriverProgressEventType.LOADING_OR_RETURNING
-  | DriverProgressEventType.DELIVERED;
+type MilestoneType = DriverProgressEventType.ORDER_RECEIVED;
 
 type MilestoneCommandPayload = {
   kind: 'milestone';
@@ -79,6 +75,9 @@ type DriverTaskCommandPayload =
 
 type TimelineState = 'done' | 'pending' | 'retry' | 'conflict' | 'available' | 'locked';
 
+// Spec AC-DETAIL-003: BỎ HOÀN TOÀN 4 mốc thực hiện truyền thống. Only the
+// ORDER_RECEIVED action remains — the driver accepts the dispatch order in one
+// tap. No check-in milestones for pickup, loading, or delivery.
 const MILESTONES: Array<{
   eventType: MilestoneType;
   title: string;
@@ -86,23 +85,8 @@ const MILESTONES: Array<{
 }> = [
   {
     eventType: DriverProgressEventType.ORDER_RECEIVED,
-    title: 'Đã nhận lệnh gốc',
-    help: 'Xác nhận đã nhận lệnh giấy từ Ops. Thời điểm này được lưu để theo dõi SLA bàn giao.',
-  },
-  {
-    eventType: DriverProgressEventType.PICKED_UP,
-    title: 'Đã lấy vỏ / Lấy hàng',
-    help: 'Ghi nhận khi đã nhận vỏ hoặc lấy hàng xong tại điểm đầu.',
-  },
-  {
-    eventType: DriverProgressEventType.LOADING_OR_RETURNING,
-    title: 'Đang đóng / Trả hàng',
-    help: 'Ghi nhận khi vào giai đoạn đóng hàng hoặc xử lý trả hàng.',
-  },
-  {
-    eventType: DriverProgressEventType.DELIVERED,
-    title: 'Đã hạ bãi / Giao hàng xong',
-    help: 'Ghi nhận sau khi hạ bãi hoặc giao hàng hoàn tất.',
+    title: 'Đã nhận lệnh',
+    help: 'Xác nhận đã nhận lệnh vận chuyển. Thời điểm này được lưu để theo dõi SLA.',
   },
 ];
 

@@ -44,6 +44,7 @@ import { ProfileModal } from './layout/ProfileModal';
 import { PasswordModal } from './layout/PasswordModal';
 import type { NavItem, NavSection, SectionName } from './layout/types';
 import { useBottomNavAnimations } from '../hooks/useBottomNavAnimations';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 import { routes, titleForPath } from '../lib/routes';
 import { getModernRole } from '../lib/role-helpers';
 import { hasOperationalDensity } from '../lib/operational-density';
@@ -440,6 +441,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     media.addEventListener('change', handleCompactDesktopChange);
     return () => media.removeEventListener('change', handleCompactDesktopChange);
   }, []);
+
+  // Auto-subscribe drivers to push notifications (spec AC-DISPATCH-001).
+  // Drivers must receive dispatch orders even when the app is backgrounded.
+  // The subscribe() hook is idempotent — it no-ops if already subscribed or
+  // if the browser denies permission.
+  const push = usePushNotifications();
+  useEffect(() => {
+    if (user?.role === 'DRIVER' && push.isSupported && !push.isSubscribed && push.permissionStatus !== 'denied') {
+      void push.subscribe();
+    }
+  }, [user?.role, push.isSupported, push.isSubscribed, push.permissionStatus, push.subscribe]);
 
   const openProfileModal = () => {
     if (!user) return;

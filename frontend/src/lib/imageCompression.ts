@@ -87,13 +87,15 @@ function scaledSize(width: number, height: number, maxDimension: number): { widt
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
 }
 
-/** dd/MM/yyyy HH:mm — the timestamp burned into driver photo pixels. */
+/** YYYY-MM-DD HH:mm:ss — the timestamp burned into driver photo pixels (spec AC-OCR-001). */
 export function formatPhotoTimestamp(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, '0');
+  const yyyy = date.getFullYear();
   const mo = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
   const hh = String(date.getHours()).padStart(2, '0');
   const mm = String(date.getMinutes()).padStart(2, '0');
-  return `${dd}/${mo}/${date.getFullYear()} ${hh}:${mm}`;
+  const ss = String(date.getSeconds()).padStart(2, '0');
+  return `${yyyy}-${mo}-${dd} ${hh}:${mm}:${ss}`;
 }
 
 /**

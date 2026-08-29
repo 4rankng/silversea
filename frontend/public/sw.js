@@ -96,6 +96,42 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// ─── Periodic Background Sync ──────────────────────────────────────────────
+// Keeps the journey board fresh even when the driver hasn't opened the app.
+// The browser fires this every ~15 min (Chrome); we poll the API and surface
+// any new dispatch orders as OS notifications.
+
+const JOURNEY_BOARD_URL = '/api/driver/me/journey-board';
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== 'refresh-journey-board') return;
+  event.waitUntil((async () => {
+    try {
+      const res = await fetch(JOURNEY_BOARD_URL, { credentials: 'include' });
+      if (!res.ok) return;
+      const cards = await res.json();
+      const newOrders = Array.isArray(cards) ? cards.filter((c) => c.bucket === 'NEW') : [];
+      if (newOrders.length === 0) return;
+      // Only notify if there are new orders the driver hasn't seen.
+      const lastCount = parseInt((await caches.match('/__journey-new-count'))?.body ?? '0', 10) || 0;
+      const cache = await caches.open('tingting-shell-v2');
+      cache.put('/__journey-new-count', new Response(String(newOrders.length)));
+      if (newOrders.length > lastCount) {
+        const latest = newOrders[0];
+        await self.registration.showNotification('Lệnh vận chuyển mới', {
+          body: `Bạn có ${newOrders.length} lệnh mới. ${latest.routeName || ''}`.trim(),
+          icon: '/assets/transting-logo-192.png?v=4',
+          tag: 'tingting-new-order',
+          data: { url: '/my-trips' },
+          vibrate: [120, 60, 120],
+        });
+      }
+    } catch {
+      /* best-effort — network may be unavailable */
+    }
+  })());
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 

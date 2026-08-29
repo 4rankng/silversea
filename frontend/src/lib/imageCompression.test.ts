@@ -6,9 +6,9 @@ function makeFile(name: string, type: string, sizeBytes: number): File {
 }
 
 describe('formatPhotoTimestamp', () => {
-  it('formats as dd/MM/yyyy HH:mm with zero padding', () => {
-    expect(formatPhotoTimestamp(new Date(2026, 7, 28, 9, 5))).toBe('28/08/2026 09:05');
-    expect(formatPhotoTimestamp(new Date(2026, 11, 31, 23, 59))).toBe('31/12/2026 23:59');
+  it('formats as YYYY-MM-DD HH:mm:ss with zero padding', () => {
+    expect(formatPhotoTimestamp(new Date(2026, 7, 28, 9, 5, 0))).toBe('2026-08-28 09:05:00');
+    expect(formatPhotoTimestamp(new Date(2026, 11, 31, 23, 59, 59))).toBe('2026-12-31 23:59:59');
   });
 });
 
@@ -77,7 +77,7 @@ describe('compressImageFile', () => {
 
     expect(result).not.toBe(original);
     expect(result.type).toBe('image/jpeg');
-    expect(ctx.fillText).toHaveBeenCalledWith('28/08/2026 14:30', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('2026-08-28 14:30:00', expect.any(Number), expect.any(Number));
   });
 
   it('stamps even an already-small JPEG (stamp forces the re-encode)', async () => {
@@ -104,7 +104,7 @@ describe('compressImageFile', () => {
 
     const result = await compressImageFile(original, { timestamp: stamp });
     expect(result).not.toBe(original);
-    expect(ctx.fillText).toHaveBeenCalledWith('28/08/2026 08:00', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('2026-08-28 08:00:00', expect.any(Number), expect.any(Number));
   });
 
   it('falls back to the original file if the browser cannot decode the image', async () => {
