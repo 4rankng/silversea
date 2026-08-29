@@ -99,6 +99,12 @@
 .trip-pod__card {
   display: grid;
   gap: 12px;
+  /* Grid items default to min-width: auto, which refuses to shrink below the
+     content's intrinsic width. At the >=700px breakpoint the narrow ~210px
+     columns are then overflowed by the card's own content (title/buttons),
+     bleeding into the neighboring column instead of wrapping — this is what
+     fixes it. */
+  min-width: 0;
 }
 
 /* Stacked file-type groups separate with a hairline divider, not a card box.
