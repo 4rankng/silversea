@@ -7,6 +7,8 @@ import { getUser } from '../../middleware/auth';
 import { getDashboardStats, getPnlReport, getReceivablesSummary, previewDistribution, getDistributionHistory, requestProfitDistributionGovernance } from '../../services/reporting.service';
 import { getFuelVarianceReport } from '../../services/pnl.service';
 import { getPaymentTermEvalReport } from '../../services/payment-term.service';
+import { getTotalArReport } from '../../services/total-ar-report.service';
+import { cacheGet } from '../../lib/redis';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
 import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
@@ -127,6 +129,25 @@ router.get('/reports/receivables-aging/export', requireRoles(Role.ADMIN, Role.MA
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', attachmentDisposition(`cong-no-phai-thu-${dateStr}.xlsx`));
   await exportReceivablesAgingXlsx(data.customers, dateStr, res);
+}));
+
+// ─── Total AR report (M5.5) ──────────────────────────────────────────────────
+// Per-customer AR aging over a date range, cached briefly like the other
+// ledger-derived reports. Every ledger-writing path must bust
+// `reports:total-ar:*` — the canonical invalidateReportCaches plus the two
+// trip-path copies (routes/trips.ts, services/trip-command.service.ts).
+router.get('/reports/total-ar', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const rangeFrom = typeof req.query.rangeFrom === 'string' ? req.query.rangeFrom : '';
+  const rangeTo = typeof req.query.rangeTo === 'string' ? req.query.rangeTo : '';
+  if (!DATE_RE.test(rangeFrom) || !DATE_RE.test(rangeTo) || rangeFrom > rangeTo) {
+    return res.status(400).json({ error: 'Khoảng ngày báo cáo không hợp lệ (cần rangeFrom ≤ rangeTo, định dạng YYYY-MM-DD)' });
+  }
+  res.json(await cacheGet(
+    `reports:total-ar:${rangeFrom}:${rangeTo}`,
+    120,
+    () => getTotalArReport(rangeFrom, rangeTo),
+  ));
 }));
 
 // ─── Fuel variance report ────────────────────────────────────────────────────

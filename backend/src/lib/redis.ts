@@ -124,6 +124,7 @@ export async function invalidateReportCaches(): Promise<void> {
       cacheInvalidate('reports:dashboard:executive'),
       cacheInvalidatePattern('reports:pnl:*'),
       cacheInvalidatePattern('reports:fuel-variance:*'),   // previously never invalidated — stale-data bug
+      cacheInvalidatePattern('reports:total-ar:*'),        // M5.5 total AR aging
       cacheInvalidatePattern('reports:entity-results:*'),  // aging primitive cache (Phase A2)
     ]);
   } catch {

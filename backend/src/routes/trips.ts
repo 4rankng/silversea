@@ -101,6 +101,7 @@ async function invalidateReportCaches(invalidatePnl?: boolean) {
     cacheInvalidate('reports:dashboard'),
     cacheInvalidate('reports:dashboard:executive'),
     cacheInvalidatePattern('reports:entity-results:*'),   // trip writes change AR/AP aging
+    cacheInvalidatePattern('reports:total-ar:*'),         // trip revenue posts CUSTOMER ledger rows
     cacheInvalidatePattern('reports:fuel-variance:*'),    // trip writes change fuel variance
     invalidatePnl ? cacheInvalidatePattern('reports:pnl:*') : Promise.resolve(),
   ]).catch(() => {});
