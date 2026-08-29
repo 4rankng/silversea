@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Truck, Coffee, XCircle, Moon, DollarSign, Info, Edit, ArrowRightLeft, CheckCircle2, Clock3, Lock } from 'lucide-react';
+import { Truck, Coffee, XCircle, DollarSign, Info, Edit, ArrowRightLeft, CheckCircle2, Clock3, Lock } from 'lucide-react';
 import { Money } from '../components/shared/Money';
 import { Modal } from '../components/UI';
 import { usePostDriverPayout } from '../hooks/useFinancialQueries';
@@ -15,21 +15,12 @@ import { useToast } from '../components/shared/Toast';
 import { ROLE_LABELS, Role } from '@tingting/shared';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
+import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
 import './SalaryAttendancePage.css';
-
-export const DOW_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 function governanceActorLabel(role: string | null): string {
   return role ? ROLE_LABELS[role as Role] ?? 'Người dùng không xác định' : 'Người dùng không xác định';
 }
-
-
-export const STATUS_CONFIG = {
-  TRIP_DAY:      { label: 'Đi chuyến',    bg: 'var(--accent-soft)', color: 'var(--accent)', icon: Truck, emoji: '🚛' },
-  STANDBY:       { label: 'Chờ việc',     bg: 'var(--warning-soft)', color: 'var(--warning-text)', icon: Coffee, emoji: '⏳' },
-  PERSONAL_LEAVE:{ label: 'Nghỉ riêng',   bg: 'var(--danger-soft)',  color: 'var(--danger)',  icon: XCircle, emoji: '🏖' },
-  WEEKLY_OFF:    { label: 'Nghỉ tuần',    bg: 'var(--bg-3)',         color: 'var(--fg-3)',    icon: Moon,    emoji: '💤' },
-};
 
 
 // ── Calendar Cell ─────────────────────────────────────────────────────────────

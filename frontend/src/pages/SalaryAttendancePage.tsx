@@ -7,7 +7,6 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyIllustration } from '../components/shared';
 import {
   CalCell,
-  DOW_LABELS,
   DriverPayoutModal,
   MobileDayList,
   PostCloseAdjustmentList,
@@ -15,8 +14,8 @@ import {
   SalaryConfirmationGovernanceList,
   SalaryPeriodGovernanceList,
   SalarySummaryCard,
-  STATUS_CONFIG,
 } from './salary-attendance-components';
+import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
 
