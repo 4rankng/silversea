@@ -276,8 +276,17 @@ router.use('/customers', createCrudRouter(s.customers, customerSchema, {
     await validateCustomerUniqueness(data, id);
     return data;
   },
-  afterCreate: async (item, data, _req, tx) => {
+  afterCreate: async (item, data, req, tx) => {
     await H.syncCustomerRelationsHook(tx, item, data);
+    // CUS bootstrap is scoped to the clerk's assigned customers. Without a
+    // link, a customer the clerk just created inline would vanish from their
+    // own dropdown on the next focus-revalidation — auto-scope the creator.
+    const maker = getUser(req);
+    if (maker.role === Role.CUS) {
+      await tx.insert(s.userCustomerLinks)
+        .values({ userId: maker.userId, customerId: item.id })
+        .onConflictDoNothing({ target: [s.userCustomerLinks.userId, s.userCustomerLinks.customerId] });
+    }
   },
   afterUpdate: async (item, data, _req, tx) => {
     await H.syncCustomerRelationsHook(tx, item, data);
