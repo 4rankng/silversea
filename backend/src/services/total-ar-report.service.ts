@@ -5,6 +5,10 @@
 // balance for a date range. Also includes zero-activity customers who still
 // have an outstanding balance (M5.5 §1: "zero-activity-with-balance still
 // appears").
+//
+// The ledger aggregation runs as two grouped passes (opening + period
+// activity), not 2 queries per customer — cost is O(ledger rows), independent
+// of customer count.
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -38,30 +42,26 @@ export async function getTotalArReport(
   rangeFrom: string,
   rangeTo: string,
 ): Promise<TotalArReport> {
-  // Get ALL customers with any ledger activity (opening or within period).
-  const customerRows = await db.select({
-    id: s.customers.id,
-    name: s.customers.name,
-  })
-    .from(s.customers)
-    .where(isNull(s.customers.deletedAt));
+  const [customerRows, openingRows, activityRows] = await Promise.all([
+    db.select({ id: s.customers.id, name: s.customers.name })
+      .from(s.customers)
+      .where(isNull(s.customers.deletedAt)),
 
-  const items: CustomerArReportItem[] = [];
-
-  for (const c of customerRows) {
-    // Opening = sum of all debits - credits BEFORE rangeFrom.
-    const [openingRow] = await db.select({
+    // Opening = sum of all debits - credits BEFORE rangeFrom, per customer.
+    db.select({
+      entityId: s.ledger.entityId,
       balance: sql<string>`coalesce(sum(${s.ledger.debit} - ${s.ledger.credit}), 0)`,
     })
       .from(s.ledger)
       .where(and(
         eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.entityId, c.id),
         sql`${s.ledger.timestamp} < ${rangeFrom}::date`,
-      ));
+      ))
+      .groupBy(s.ledger.entityId),
 
-    // Activity within the period.
-    const [activityRow] = await db.select({
+    // Activity within the period, per customer.
+    db.select({
+      entityId: s.ledger.entityId,
       newCharges: sql<string>`coalesce(sum(case when ${s.ledger.txnType} NOT IN ('PAYMENT_RECEIVED', 'ADJUSTMENT', 'UNLOCK_REVERSAL') then ${s.ledger.debit} else 0 end), 0)`,
       receipts: sql<string>`coalesce(sum(case when ${s.ledger.txnType} = 'PAYMENT_RECEIVED' then ${s.ledger.credit} else 0 end), 0)`,
       adjustments: sql<string>`coalesce(sum(case when ${s.ledger.txnType} IN ('ADJUSTMENT', 'UNLOCK_REVERSAL') then ${s.ledger.credit} - ${s.ledger.debit} else 0 end), 0)`,
@@ -69,18 +69,28 @@ export async function getTotalArReport(
       .from(s.ledger)
       .where(and(
         eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.entityId, c.id),
         gte(s.ledger.timestamp, sql`${rangeFrom}::date`),
         lte(s.ledger.timestamp, sql`${rangeTo}::date`),
-      ));
+      ))
+      .groupBy(s.ledger.entityId),
+  ]);
 
-    const openingBalance = Number(openingRow?.balance ?? 0);
-    const newCharges = Number(activityRow?.newCharges ?? 0);
-    const receipts = Number(activityRow?.receipts ?? 0);
-    const adjustments = Number(activityRow?.adjustments ?? 0);
-    const closingBalance = openingBalance + newCharges - receipts + adjustments;
+  const openingById = new Map(openingRows.map((row) => [row.entityId, Number(row.balance)]));
+  const activityById = new Map(activityRows.map((row) => [row.entityId, {
+    newCharges: Number(row.newCharges),
+    receipts: Number(row.receipts),
+    adjustments: Number(row.adjustments),
+  }]));
 
-    // Include if opening > 0 OR any activity in the period.
+  const items: CustomerArReportItem[] = [];
+  for (const c of customerRows) {
+    const openingBalance = openingById.get(c.id) ?? 0;
+    const activity = activityById.get(c.id);
+    const newCharges = activity?.newCharges ?? 0;
+    const receipts = activity?.receipts ?? 0;
+    const adjustments = activity?.adjustments ?? 0;
+
+    // Include if opening ≠ 0 OR any period activity.
     if (openingBalance !== 0 || newCharges !== 0 || receipts !== 0 || adjustments !== 0) {
       items.push({
         customerId: c.id,
@@ -89,7 +99,7 @@ export async function getTotalArReport(
         newCharges,
         receipts,
         adjustments,
-        closingBalance,
+        closingBalance: openingBalance + newCharges - receipts + adjustments,
       });
     }
   }
