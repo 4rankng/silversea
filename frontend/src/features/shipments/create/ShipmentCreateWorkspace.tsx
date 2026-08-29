@@ -84,6 +84,11 @@ export function ShipmentCreateWorkspace() {
   // re-fetches and the new row appears in the dropdown without a full reload.
   const [sitesVersion, setSitesVersion] = useState(0);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
+  // Pending intents for the two destructive guards below: the requested mode
+  // / container row is stashed while its Modal confirm is open, so the change
+  // only lands after explicit confirmation (no native window.confirm).
+  const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
+  const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
   const [shippingLineDialogOpen, setShippingLineDialogOpen] = useState(false);
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
@@ -344,7 +349,14 @@ export function ShipmentCreateWorkspace() {
     const hasModeData = form.cargoMode === 'LCL'
       ? Boolean(form.packageType || form.packageCount || form.cargoVolumeCbm || form.extraDeliveryDates.some(Boolean))
       : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
-    if (hasModeData && !window.confirm(`Chuyển sang ${next} sẽ xóa dữ liệu hàng hóa đã nhập. Tiếp tục?`)) return;
+    if (hasModeData) {
+      setPendingModeSwitch(next);
+      return;
+    }
+    applyModeSwitch(next);
+  }
+
+  function applyModeSwitch(next: CargoMode) {
     setForm((current) => ({
       ...current,
       cargoMode: next,
@@ -369,9 +381,28 @@ export function ShipmentCreateWorkspace() {
 
   function removeContainer(row: ContainerRow) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '');
-    if (hasEnteredData && !window.confirm(`Xóa Container này sẽ mất dữ liệu đã nhập. Tiếp tục?`)) return;
+    if (hasEnteredData) {
+      setPendingContainerDelete(row);
+      return;
+    }
+    discardContainer(row);
+  }
+
+  function discardContainer(row: ContainerRow) {
     setContainers((current) => current.filter((item) => item.key !== row.key));
     clearFeedback();
+  }
+
+  function confirmModeSwitch() {
+    const next = pendingModeSwitch;
+    setPendingModeSwitch(null);
+    if (next) applyModeSwitch(next);
+  }
+
+  function confirmContainerDelete() {
+    const row = pendingContainerDelete;
+    setPendingContainerDelete(null);
+    if (row) discardContainer(row);
   }
 
   function focusIssue(fieldId: string) {
@@ -824,6 +855,32 @@ export function ShipmentCreateWorkspace() {
         )}
       >
         <p>Thông tin chưa lưu sẽ bị mất. Hãy tạo lô hàng hoặc xác nhận bỏ thay đổi.</p>
+      </Modal>
+      <Modal
+        isOpen={pendingModeSwitch !== null}
+        title="Chuyển loại hàng?"
+        onClose={() => setPendingModeSwitch(null)}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setPendingModeSwitch(null)}>Tiếp tục nhập</button>
+            <button type="button" className="btn btn--secondary" onClick={confirmModeSwitch}>Chuyển và xóa dữ liệu</button>
+          </>
+        )}
+      >
+        <p>Chuyển sang {pendingModeSwitch} sẽ xóa dữ liệu hàng hóa đã nhập.</p>
+      </Modal>
+      <Modal
+        isOpen={pendingContainerDelete !== null}
+        title="Xóa container?"
+        onClose={() => setPendingContainerDelete(null)}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => setPendingContainerDelete(null)}>Hủy</button>
+            <button type="button" className="btn btn--secondary" onClick={confirmContainerDelete}>Xóa container</button>
+          </>
+        )}
+      >
+        <p>Xóa container này sẽ mất dữ liệu đã nhập.</p>
       </Modal>
     </div>
   );

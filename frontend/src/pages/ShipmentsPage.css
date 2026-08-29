@@ -435,12 +435,12 @@
   }
 
   .cus-worksheet-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 14px 12px 0;
   }
 
   .cus-worksheet-toolbar__filters {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .cus-worksheet-toolbar__filters .cus-plan-status-filter {

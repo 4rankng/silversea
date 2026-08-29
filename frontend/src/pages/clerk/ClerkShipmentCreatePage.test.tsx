@@ -625,7 +625,6 @@ describe('ClerkShipmentCreatePage', () => {
   });
 
   it('confirms before deleting a populated container record', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
@@ -633,11 +632,15 @@ describe('ClerkShipmentCreatePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
-    expect(confirm).toHaveBeenCalledWith('Xóa Container này sẽ mất dữ liệu đã nhập. Tiếp tục?');
+    const dialog = await screen.findByRole('dialog', { name: 'Xóa container?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     expect(screen.getAllByLabelText('Số container')).toHaveLength(2);
 
-    confirm.mockReturnValue(true);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xóa container?' })).toBeNull());
+
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xóa container?' });
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xóa container' }));
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
   });
 
