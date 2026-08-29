@@ -624,6 +624,22 @@
   padding: 0 14px;
 }
 
+/* The app-wide mobile touch floor (responsive.css `#root button { … }` at
+   ≤640px) carries ID specificity and silently squashes every class-level
+   min-height — including the accept bar's authored 52px. Primary driver
+   actions (AC-NFR-003: Nhận lệnh / Hoàn thành ≥48px) opt back up here with
+   matching ID specificity; everything else keeps the 44px global floor. */
+@media (max-width: 640px) {
+  #root .driver-task-complete,
+  #root .driver-task-fuel-btn {
+    min-height: 48px;
+  }
+
+  #root .driver-task-accept-sticky__btn {
+    min-height: 52px;
+  }
+}
+
 /* Two columns from phone width up — only the narrowest tier (<360px, see the
    max-width rules below) keeps the single implicit column. */
 @media (min-width: 360px) {

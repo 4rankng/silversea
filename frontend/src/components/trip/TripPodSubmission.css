@@ -194,6 +194,15 @@
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 
+/* ID-specificity opt-up over the global `#root button` 44px mobile floor
+   (responsive.css) — see the twin comment in DriverTripDetailPage.css. */
+@media (max-width: 640px) {
+  #root .trip-pod__action,
+  #root .trip-pod__submit {
+    min-height: 48px;
+  }
+}
+
 .trip-pod__action {
   background: var(--accent);
   color: #fff;

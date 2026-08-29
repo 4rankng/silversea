@@ -154,7 +154,6 @@
 .driver-journey-card__time {
   font-size: 12px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
   color: var(--ink-3);
 }
 
@@ -209,7 +208,6 @@
   padding: 4px 0;
   color: var(--brand);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
   text-decoration: none;
 }
 
@@ -244,7 +242,6 @@
 
 .driver-journey-card__cont-no {
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   color: var(--ink);
 }
