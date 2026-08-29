@@ -260,7 +260,19 @@ export async function recomputeShipmentCompletion(
       const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
       return linkedTrips.length === 1;
     });
-    if (!allRequiredTripsPresent) {
+    // Distinguish the "some planned carriers have not dispatched yet" case
+    // (mixed shipment — at least one trip exists, some fulfillments still
+    // pending) from the "no trips at all" case. The former should continue
+    // through the recompute so a driver-completed trip can lift the
+    // shipment off DISPATCHED → PENDING_EXPENSE_APPROVAL (see
+    // `anyFulfillmentCompletedViaDriver` below). The latter (every
+    // required fulfillment missing its trip) still falls back to the
+    // DISPATCHED rewind so the workboard doesn't get stuck.
+    const anyRequiredTripDispatched = requiredFulfillments.some((row) => {
+      const linkedTrips = tripsByFulfillment.get(row.id) ?? [];
+      return linkedTrips.length >= 1;
+    });
+    if (!allRequiredTripsPresent && !anyRequiredTripDispatched) {
       if (
         currentShipmentStatus === 'PENDING_DATE'
         || currentShipmentStatus === 'READY_FOR_DISPATCH'
@@ -383,14 +395,23 @@ export async function recomputeShipmentCompletion(
       reason = 'Tự động chuyển sang Chờ duyệt phí khi mọi tác vụ đã nộp đủ hồ sơ chờ kế toán/CUS duyệt.';
     } else if (anyFulfillmentCompletedViaDriver) {
       // Multi-fulfillment partial close: at least one driver-closed trip is
-      // complete, but other planned carriers are still pending. Kept here as
-      // an "advance to PENDING_EXPENSE_APPROVAL" candidate for the day the
-      // accountant flow is reintroduced; while skip-kế-toán is in effect we
-      // fall through to the anyInTransit branch below so CUS sees the trip
-      // state, not a phantom "Chờ duyệt phí" nobody can resolve.
-      // targetStatus = 'PENDING_EXPENSE_APPROVAL';
-      // reason = 'Tài xế đã hoàn thành một phần lô hàng. ...';
-    } else if (anyInTransit) {
+      // complete, but other planned carriers are still pending. Advance the
+      // shipment so the CUS workspace badge + Dispatcher trips list show
+      // "Chờ duyệt phí" (the trip-level container badge already shows
+      // "Hoàn thành" via dispatchStatus) instead of a stale "Đang chạy".
+      // The remaining planned carriers are still tracked at the container
+      // level (dispatchStatus = PLANNED) and will be re-evaluated when the
+      // next trip is dispatched. When the last required fulfillment
+      // eventually closes, `allCompletedViaDriverClose` fires and the
+      // shipment jumps to COMPLETED.
+      targetStatus = 'PENDING_EXPENSE_APPROVAL';
+      reason = 'Tài xế đã hoàn thành một phần lô hàng. Chuyển sang Chờ duyệt phí cho phần đã đóng; những tác vụ còn lại sẽ được cập nhật khi phát lệnh tiếp.';
+    } else if (anyInTransit && allRequiredTripsPresent) {
+      // Only advance the shipment to IN_TRANSIT when every required
+      // fulfillment has a dispatched trip. A shipment with mixed
+      // dispatched + planned-carrier fulfillments stays at DISPATCHED
+      // until either (a) all planned carriers get a trip too, or
+      // (b) the driver-closed trip drives the partial close above.
       targetStatus = 'IN_TRANSIT';
       reason = 'Tự động chuyển sang Đang chạy khi đã có chuyến xuất phát.';
     }

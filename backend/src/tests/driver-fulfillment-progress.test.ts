@@ -1625,6 +1625,94 @@ describe('Phase 4 driver fulfillment execution', () => {
     assert.equal(shipment?.status, 'COMPLETED');
   });
 
+  test('driver full-close path: multi-fulfillment partial close advances shipment to PENDING_EXPENSE_APPROVAL (not stuck at DISPATCHED)', async () => {
+    // Field-reported regression 2026-08-29: when a shipment has multiple
+    // required fulfillments but only the driver-owned one has a trip, the
+    // original `allCompletedViaDriverClose` branch required EVERY
+    // required fulfillment to have a COMPLETED trip — so the shipment
+    // stayed at DISPATCHED (and the CUS badge read "Đang chạy") even
+    // though this trip was actually done. The fix adds an
+    // `anyFulfillmentCompletedViaDriver` branch that lifts the shipment
+    // to PENDING_EXPENSE_APPROVAL when at least one driver-closed trip
+    // is complete; the remaining planned carriers stay on the container
+    // badge as PLANNED.
+    const actor = await createDriverPrincipal('driver-full-close-multi-fulfillment');
+    const { fulfillment, trip } = await createOwnedFulfillmentTrip(actor.driver.id, TripStatus.IN_TRANSIT);
+
+    // Add a second FCL_CONTAINER fulfillment for the same shipment —
+    // mirrors the field scenario (shipment 77 had 3 fulfillments, only
+    // 1 had a trip). The second fulfillment stays un-tripped (planned
+    // carrier allocation only) and must NOT block the close.
+    const [secondContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: fulfillment.shipmentId,
+      containerTypeId: 1,
+      containerNumber: `MULTI-${suffix}`,
+      routeId: 1,
+      customerAppointmentAt: new Date('2026-09-05T08:00:00.000Z'),
+    }).returning();
+    createdShipmentContainerIds.push(secondContainer.id);
+    const [secondFulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: fulfillment.shipmentId,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: secondContainer.id,
+      sourceShipmentVersion: 1,
+      plannedCarrierType: 'OWN',
+    }).returning();
+    createdFulfillmentIds.push(secondFulfillment.id);
+
+    for (const [index, eventType] of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.entries()) {
+      const key = `multi-close-milestone-${index}-${suffix}`;
+      usedIdempotencyKeys.push(key);
+      const result = await recordDriverFulfillmentProgress({
+        fulfillmentId: fulfillment.id,
+        driverId: actor.driver.id,
+        recordedBy: actor.user.id,
+        idempotencyKey: key,
+        input: {
+          eventType,
+          occurredAt: isoHour(index + 8, 30),
+          expectedVersion: index === 0 ? trip.version : undefined,
+        },
+      });
+      createdProgressEventIds.push(result.event.id);
+    }
+
+    const [beforePod] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    await buildSubmittedPod({
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      fulfillmentId: fulfillment.id,
+      expectedTripVersion: beforePod!.version,
+      prefix: 'multi-close',
+    });
+
+    // Delete the expense-scope row so the path is unambiguously bypassing
+    // the strict gates (matches the e2e helper's intent).
+    await db.delete(s.tripExpenseCompletionScopes).where(eq(s.tripExpenseCompletionScopes.tripId, trip.id));
+
+    const [beforeComplete] = await db.select({ version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
+    const completeKey = `multi-close-complete-${suffix}`;
+    usedIdempotencyKeys.push(completeKey);
+    const completed = await completeOwnedFulfillmentTrip({
+      fulfillmentId: fulfillment.id,
+      driverId: actor.driver.id,
+      actorUserId: actor.user.id,
+      expectedVersion: beforeComplete!.version,
+      idempotencyKey: completeKey,
+    });
+    assert.equal(completed.trip.status, TripStatus.COMPLETED);
+
+    // The shipment must advance to PENDING_EXPENSE_APPROVAL (not stay at
+    // DISPATCHED, not jump to COMPLETED) — the second planned carrier
+    // has no trip yet, so the full COMPLETED gate is still pending.
+    const [shipment] = await db.select({ status: s.shipments.status })
+      .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
+    assert.equal(shipment?.status, 'PENDING_EXPENSE_APPROVAL');
+  });
+
   test('driver fulfillment detail falls back to site snapshot for pickup / drop / factory when top-level columns are null', async () => {
     // The driver portal renders Điểm lấy / Điểm trả / Nhà máy in the trip
     // detail header. Top-level `pickupLocation` / `deliveryLocation` /
