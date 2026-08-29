@@ -132,8 +132,10 @@ function buildAdvanceSettlementConditions(filters?: { forwarderId?: number; stat
   if (filters?.forwarderId) conditions.push(eq(s.advanceSettlements.forwarderId, filters.forwarderId));
   if (filters?.status) {
     // Comma-separated status lists (e.g. "PENDING,CHECKED_BY_ACCOUNTANT")
-    // select a composite tab in one query.
-    const statuses = filters.status.split(',').map((v) => v.trim()).filter(Boolean) as ('PENDING' | 'CHECKED_BY_ACCOUNTANT' | 'APPROVED' | 'REJECTED' | 'REVERSED')[];
+    // select a composite tab in one query. Vocabulary derives from the schema
+    // enum so a new status only changes the enum, never these call sites.
+    type SettlementStatus = typeof s.advanceSettlementStatusEnum.enumValues[number];
+    const statuses = filters.status.split(',').map((v) => v.trim()).filter(Boolean) as SettlementStatus[];
     conditions.push(statuses.length === 1
       ? eq(s.advanceSettlements.status, statuses[0])
       : inArray(s.advanceSettlements.status, statuses));
