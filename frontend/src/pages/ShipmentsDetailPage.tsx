@@ -553,10 +553,40 @@ export default function ShipmentsDetailPage() {
             </div>
             <div className="shipments-detail-filters__footer">
               <div className="shipments-detail-filters__date-actions">
-                {(dateFrom !== today || dateTo !== today) && <UUIButton size="sm" color="secondary" onPress={showToday}>Hôm nay</UUIButton>}
-                {(dateFrom !== tomorrow || dateTo !== tomorrow) && <UUIButton size="sm" color="secondary" onPress={showTomorrow}>Hôm sau</UUIButton>}
-                {!allDates && <UUIButton size="sm" color="secondary" onPress={showAllDates}>Tất cả ngày</UUIButton>}
-                {hasFilters && <UUIButton size="sm" color="secondary" className="shipments-detail-filters__reset" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton>}
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  onPress={showToday}
+                  isDisabled={dateFrom === today && dateTo === today}
+                >
+                  Hôm nay
+                </UUIButton>
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  onPress={showTomorrow}
+                  isDisabled={dateFrom === tomorrow && dateTo === tomorrow}
+                >
+                  Hôm sau
+                </UUIButton>
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  onPress={showAllDates}
+                  isDisabled={allDates}
+                >
+                  Tất cả
+                </UUIButton>
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  className="shipments-detail-filters__reset"
+                  onPress={resetFilters}
+                  isDisabled={!hasFilters}
+                  iconLeading={<RotateCcw aria-hidden="true" />}
+                >
+                  Xóa bộ lọc
+                </UUIButton>
               </div>
             </div>
           </div>

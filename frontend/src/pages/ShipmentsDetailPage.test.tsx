@@ -16,6 +16,7 @@ import { ApiError } from '../lib/api';
 import ShipmentsDetailPage from './ShipmentsDetailPage';
 
 const today = formatVietnamDateInput(new Date());
+const tomorrow = formatVietnamDateInput(new Date(Date.now() + 86_400_000));
 const directContainerAccess = {
   containerNumber: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
   containerTypeId: { mode: 'DIRECT' as const, reason: 'Có thể sửa.' },
@@ -184,7 +185,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     expect(screen.queryByText('Sổ điều hành container')).toBeNull();
     expect(screen.queryByText('Mỗi dòng là một container. Lịch trình và ghi chú thuộc toàn lô; điểm nâng hạ và phân xe thuộc từng container.')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Áp dụng' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Tất cả ngày' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tất cả' })).toBeTruthy();
     expect(document.querySelector('.shipment-container-ledger__route i')).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
@@ -216,10 +217,52 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
   it('can show all dates and return to today', async () => {
     apiGet.mockResolvedValue(response);
     render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
-    fireEvent.click(await screen.findByRole('button', { name: 'Tất cả ngày' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tất cả' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
     fireEvent.click(screen.getByRole('button', { name: 'Hôm nay' }));
     await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`));
+  });
+
+  it('keeps Hôm nay / Hôm sau / Tất cả / Xóa bộ lọc in one stable row and disables the active one', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentsDetailPage /></MemoryRouter>);
+
+    // The four buttons must all be present from the first render so the row
+    // never reflows when a date shortcut is activated.
+    const actionGroup = document.querySelector('.shipments-detail-filters__date-actions') as HTMLElement;
+    expect(actionGroup).toBeTruthy();
+    const isDisabled = (btn: HTMLElement) => btn.hasAttribute('disabled');
+    const todayBtn = within(actionGroup).getByRole('button', { name: 'Hôm nay' });
+    const tomorrowBtn = within(actionGroup).getByRole('button', { name: 'Hôm sau' });
+    const allBtn = within(actionGroup).getByRole('button', { name: 'Tất cả' });
+    const resetBtn = within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' });
+
+    // Default (today): Hôm nay is disabled (already today), the date
+    // shortcuts Hôm sau + Tất cả are enabled. Xóa bộ lọc is enabled
+    // because the default state seeds dateFrom/dateTo = today, so the
+    // reset action is meaningful.
+    expect(isDisabled(todayBtn)).toBe(true);
+    expect(isDisabled(allBtn)).toBe(false);
+    expect(isDisabled(resetBtn)).toBe(false);
+    expect(isDisabled(tomorrowBtn)).toBe(false);
+
+    // Switch to Hôm sau — the other three stay mounted, only the active one disables.
+    fireEvent.click(tomorrowBtn);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${tomorrow}&transportDateTo=${tomorrow}`));
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm sau' }))).toBe(true);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm nay' }))).toBe(false);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Tất cả' }))).toBe(false);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' }))).toBe(false);
+
+    // Switch to Tất cả — every date button disables; Xóa bộ lọc also
+    // disables because selecting Tất cả clears the date filter, leaving
+    // no other active filter behind.
+    fireEvent.click(allBtn);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/shipments/cus-workspace/containers?page=1&limit=20'));
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Tất cả' }))).toBe(true);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm nay' }))).toBe(false);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Hôm sau' }))).toBe(false);
+    expect(isDisabled(within(actionGroup).getByRole('button', { name: 'Xóa bộ lọc' }))).toBe(true);
   });
 
   it('renders every fulfillment classification with its canonical Vietnamese label', async () => {
@@ -467,7 +510,7 @@ describe('ShipmentsDetailPage — DOCX container workboard', () => {
     await screen.findByText('CONT-001');
     const actionGroup = document.querySelector('.shipments-detail-filters__date-actions');
     expect(actionGroup).toBeTruthy();
-    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Tất cả ngày' })).toBeTruthy();
+    expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Tất cả' })).toBeTruthy();
     expect(within(actionGroup as HTMLElement).getByRole('button', { name: 'Xóa bộ lọc' })).toBeTruthy();
     expect(screen.queryByText('Đang lọc')).toBeNull();
     expect(screen.queryByText(/Ngày vận chuyển:/)).toBeNull();
