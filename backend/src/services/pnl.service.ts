@@ -11,7 +11,7 @@ import * as s from '../db/schema';
 import { eq, and, isNull, sql, gte, inArray, ne, getTableColumns, desc } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
-import { calendarMonthDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
+import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 import {
   resolveFinancialReportingPolicyForMonth,
   type FinancialReportMonthRef,
@@ -266,7 +266,11 @@ export function recordedTripRevenue(trip: {
 export async function getPnlReport(month: number, year: number, q: QueryClient = db) {
   const compute = async () => {
     const period = buildCalendarMonthPeriod(month, year);
-    const { start: tripStart, end: tripEnd } = calendarMonthDateRange(year, month);
+    // Q20: official monthly reporting anchors trips (and their penalties and
+    // company expenses) to the OFFICIAL salary-period month (26th→25th) via
+    // each trip's completion business date — not the calendar month. Policy
+    // resolution and profile effective-dating below stay calendar-anchored.
+    const { start: tripStart, end: tripEnd } = await salaryPeriodDateRange(month, year);
     const reportMonthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const financialPolicy = await resolveFinancialReportingPolicyForMonth(period, q);
     const allocationEnabled = canAllocateWithPolicy(financialPolicy);
@@ -823,7 +827,8 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
   };
 
   if (q !== db) return compute();
-  return cacheGet(`reports:pnl:${month}:${year}`, 120, compute);
+  // v2: window switched from calendar month to official salary-period month (Q20).
+  return cacheGet(`reports:pnl:v2:${month}:${year}`, 120, compute);
 }
 
 /**
@@ -831,8 +836,10 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
  * Compares actual fuel dispensed (fuelLiters) against norm (sum of leg calculatedLiters).
  */
 export async function getFuelVarianceReport(month: number, year: number) {
-  return cacheGet(`reports:fuel-variance:${month}:${year}`, 120, async () => {
-    const { start: tripStart, end: tripEnd } = calendarMonthDateRange(year, month);
+  return cacheGet(`reports:fuel-variance:v2:${month}:${year}`, 120, async () => {
+    // Q20: fuel variance follows the official salary-period month (26th→25th)
+    // of each trip's completion business date, like the P&L.
+    const { start: tripStart, end: tripEnd } = await salaryPeriodDateRange(month, year);
     const completionBusinessDate = tripCompletionBusinessDateSql();
 
     // Query locked trips with fuel data for the period
