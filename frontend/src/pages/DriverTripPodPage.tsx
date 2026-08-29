@@ -414,10 +414,10 @@ export function DriverTripPodPage() {
           </section>
         )}
 
+        {/* No section __head here: TripPodSubmission already opens with its
+            own "e-POD bắt buộc" eyebrow — a second copy stacks duplicate
+            labels at the top of the card. */}
         <section className="driver-task-section">
-          <div className="driver-task-section__head">
-            <span>e-POD bắt buộc</span>
-          </div>
           <TripPodSubmission
             tripId={trip.id}
             tripCode={trip.tripCode}

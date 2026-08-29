@@ -156,6 +156,9 @@ describe('DriverTripPodPage', () => {
 
     expect(await screen.findByTestId('trip-pod-submission')).toBeTruthy();
     expect(screen.getByRole('heading', { name: /e-POD giao hàng/ })).toBeTruthy();
+    // The section label lives inside TripPodSubmission's own eyebrow — the
+    // page must not stack a second "e-POD bắt buộc" head above it.
+    expect(screen.queryByText('e-POD bắt buộc')).toBeNull();
     // Both mandatory photos are listed as missing and completion is gated.
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
