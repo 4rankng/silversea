@@ -70,6 +70,11 @@ export async function cacheGet<T>(
 }
 
 export async function cacheInvalidate(key: string): Promise<void> {
+  // The version map has no natural eviction; cap it so a pathological key
+  // cardinality (e.g. per-entity keys over a huge table) cannot grow it
+  // without bound. Clearing only loses version continuity, and each key
+  // self-heals on its next invalidate.
+  if (cacheVersions.size > 10_000) cacheVersions.clear();
   cacheVersions.set(key, (cacheVersions.get(key) ?? 0) + 1);
   inflightCacheRequests.delete(key);
   const client = getRedis();
