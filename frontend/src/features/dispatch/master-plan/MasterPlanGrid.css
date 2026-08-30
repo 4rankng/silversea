@@ -536,10 +536,10 @@
 /* Schedule carries the variable-length appointment groups and cutoff. Two
    independent port columns make lift/drop scanning explicit without changing
    the authoritative per-container projection. */
-.master-plan-grid__col--schedule { width: 22%; }
+.master-plan-grid__col--schedule { width: 15%; }
 /* Schedule lines carry time+date+factory+count; extra width avoids mid-value wraps. */
 .master-plan-grid__col--customer { width: 14%; }
-.master-plan-grid__col--route-shipping { width: 9%; }
+.master-plan-grid__col--route-shipping { width: 16%; }
 .master-plan-grid__col--lift-port { width: 11%; }
 .master-plan-grid__col--drop-port { width: 11%; }
 .master-plan-grid__col--cargo { width: 10%; }
