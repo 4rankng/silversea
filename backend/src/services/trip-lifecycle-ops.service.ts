@@ -160,3 +160,27 @@ export async function deleteTrip(
   };
   return runInTx(transaction, execute);
 }
+
+/**
+ * Guard reads for the reassignment route: the trip snapshot the governed
+ * write validates against, plus the fulfillment's optimistic-lock version.
+ * Route leaves must not touch the db client directly (arch-layering).
+ */
+export async function loadReassignmentGuardContext(tripId: number) {
+  const [trip] = await db.select({
+    id: s.trips.id,
+    version: s.trips.version,
+    shipmentId: s.trips.shipmentId,
+    fulfillmentId: s.trips.fulfillmentId,
+    plannedStartAt: s.trips.plannedStartAt,
+    plannedEndAt: s.trips.plannedEndAt,
+    externalCarrierVehicleId: s.trips.externalCarrierVehicleId,
+  }).from(s.trips).where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt))).limit(1);
+  return trip ?? null;
+}
+
+export async function loadFulfillmentVersion(fulfillmentId: number): Promise<number | null> {
+  const [fulfillment] = await db.select({ version: s.shipmentFulfillments.version })
+    .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, fulfillmentId)).limit(1);
+  return fulfillment?.version ?? null;
+}

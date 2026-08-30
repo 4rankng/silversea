@@ -36,7 +36,6 @@ const SIZE_BASELINE: Record<string, string> = {};
  * settings routes); shrinks as queries migrate to services. Never add entries.
  */
 const DB_CLIENT_IMPORT_BASELINE = new Set([
-  'src/routes/trips.ts',
   'src/routes/upload.ts',
   'src/routes/llm-settings.ts',
   'src/routes/gps-settings.ts',

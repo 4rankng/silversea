@@ -1241,3 +1241,8 @@ export async function listActiveSuppliersForForwarder() {
     .from(s.suppliers)
     .where(and(isNull(s.suppliers.deletedAt), eq(s.suppliers.status, 'ACTIVE')));
 }
+
+/** Executor-default read for the trips route leaf (route stays db-free). */
+export async function getTripExpensesForRoute(tripId: number) {
+  return getTripExpenses(db, tripId);
+}

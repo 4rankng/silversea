@@ -580,3 +580,19 @@ export async function getTripById(id: number) {
     accountingLock,
   };
 }
+
+/**
+ * Transaction-scoped status/version read for trip figure mutations. Route
+ * leaves call this inside runIdempotent create-callbacks instead of touching
+ * the db client directly (arch-layering route->db boundary).
+ */
+export async function loadTripStatusVersion(
+  executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0],
+  tripId: number,
+): Promise<{ status: string | null; version: number } | null> {
+  const [current] = await executor.select({
+    status: s.trips.status,
+    version: s.trips.version,
+  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  return current ?? null;
+}
