@@ -1264,3 +1264,14 @@ No commit, push, or deployment was performed.
 - The port-code mismatch is a real seed bug worth a follow-up PR: `seed.ts:847` hard-codes the lookup `if (p.code === 'HICT')` but the data team has standardised the code as `TCHICT` (the local DB still has the old name). Suggested fix: look up by name `'Cảng Tân Cảng HICT'` (or both `HICT` and `TCHICT`), or move the reference to a config table. Not blocking — a one-off migration is fine for now.
 
 No further commit, push, or deployment was performed.
+
+### Visual QA pass against testplan/ on local dev (2026-08-31) — DONE
+
+- Visited 30+ routes across 7 demo roles (cus, dieuvan, driver, accountant, admin, samsung-cs, canon-cs) via Playwright with token-injected localStorage auth. ~25 PNG screenshots in `qa/2026-08-31_visual-qa/`.
+- Caught 2 stale tests vs. in-flight design changes:
+  1. `Layout.test.ts > DISPATCHER nav matrix` — `getNavItems` now returns 6 items (the new "Sổ chuyến đi" / `/trips`); the matrix test expected 5. Added the new item.
+  2. `MasterPlanGrid.test.tsx > schedule column width` — 2b023521 rebalanced the desktop grid so schedule is now 15% (was 22%), route-shipping is 16% (new wider), allocation is 12%. The test still asserted the old shape. Updated to the new priority: schedule 15, route-shipping 16, allocation 12, schedule > allocation, sum-to-100 invariant.
+- Committed as `ed4ae12c test(frontend): align Layout + MasterPlanGrid assertions with in-progress design`. No product behaviour change.
+- Gates after the fix: lint 0/269, tsc 0/0, backend 2285/2285, frontend 1370/1370, build green.
+
+No further commit, push, or deployment was performed.
