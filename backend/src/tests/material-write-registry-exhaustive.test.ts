@@ -28,15 +28,15 @@ const REVIEWED_NON_MATERIAL_MUTATIONS = new Map<string, string>([
   ['auth.ts|POST|/logout', 'Authentication session revocation; independently token-bound and replay-safe.'],
   ['financial/reports.routes.ts|POST|/reports/distribute-profit/preview', 'Read-only calculation preview.'],
   ['financial/billing-documents.routes.ts|POST|/finance/billing-documents/generate', 'Read-only draft generation preview.'],
-  ['forwarder.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
+  ['forwarder/advances.ts|POST|/advance-settlements/preview', 'Read-only settlement calculation preview.'],
   ['shipments/core.routes.ts|POST|/pricing-preview', 'Read-only shipment pricing calculation preview.'],
   ['notifications.ts|POST|/:id/read', 'Per-user notification read marker.'],
   ['notifications.ts|POST|/read-all', 'Per-user notification read markers.'],
   ['notifications.ts|POST|/subscribe', 'Replaceable per-user browser push subscription.'],
   ['notifications.ts|POST|/unsubscribe', 'Idempotent deletion of a browser push subscription.'],
-  ['trips.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
-  ['trips.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
-  ['trips.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
+  ['trips/pod.ts|POST|/:id/pod-recovered', 'O2C POD-recovery flag setter (accountant/CUS); no direct financial mutation — the completion transition that consumes it runs its own durable boundary.'],
+  ['trips/pod.ts|POST|/:id/paper-order-collected', 'O2C field-ops hand-off timestamp (Ops); operational marker, no financial mutation.'],
+  ['trips/pod.ts|POST|/:id/driver-order-accepted', 'O2C field-ops hand-off timestamp (Driver); operational marker, no financial mutation.'],
   ['driver.ts|PUT|/trips/:tripId/cost-submission-note', 'Driver cost-submission Ghi chú autosave (27.8 §2): replaceable per-trip note column written by full overwrite, replay-safe without a durable boundary; no financial figure mutation.'],
   ['shipments/core.routes.ts|POST|/operational-sites', 'Reference-data CRUD (factory/warehouse master). Upsert keyed by the (customerId, code) partial unique index — replaying the same payload updates the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'],
   ['shipments/core.routes.ts|PATCH|/operational-sites/:id', 'Reference-data CRUD (factory/warehouse master). Version-checked partial update — a replay hits the stale-version 409 guard instead of applying twice, and identity fields (customer, code, site type) are immutable. No financial or shipment-lifecycle mutation.'],
@@ -98,16 +98,16 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/routes/driver.ts'),
     marker: 'DRIVER_IDEMPOTENCY_ENDPOINTS.FUEL_EVIDENCE_CREATE',
   }],
-  ['forwarder.ts|POST|/trips/:tripId/paper-order-collection', {
-    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+  ['forwarder/order-exchange.ts|POST|/trips/:tripId/paper-order-collection', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder/order-exchange.ts'),
     marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.PAPER_ORDER_COLLECTION',
   }],
-  ['forwarder.ts|POST|/shipments/:shipmentId/order-exchange/start', {
-    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+  ['forwarder/order-exchange.ts|POST|/shipments/:shipmentId/order-exchange/start', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder/order-exchange.ts'),
     marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_START',
   }],
-  ['forwarder.ts|POST|/shipments/:shipmentId/order-exchange/complete', {
-    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder.ts'),
+  ['forwarder/order-exchange.ts|POST|/shipments/:shipmentId/order-exchange/complete', {
+    serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder/order-exchange.ts'),
     marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_COMPLETE',
   }],
   ['financial/payments.routes.ts|POST|/finance/treasury/accounts/setup', {

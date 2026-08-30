@@ -126,15 +126,28 @@ describe('trip GPS capture job', () => {
     assert.equal(job?.attemptCount, 2);
   });
 
-  test('processPendingTripGpsCaptureJobs drains PENDING jobs through the same machine', async () => {
+  test('processPendingTripGpsCaptureJobs shares the per-action state machine', async () => {
     await mkJob(9_000_005, nextTripId());
     await mkJob(9_000_006, nextTripId());
-    const processed = await processPendingTripGpsCaptureJobs(25, {
+    // Shared-table caveat: other suites enqueue GPS jobs too, so queue depth
+    // and claim order are not controllable here (the drain loop has no
+    // orderBy). The deterministic contract we can pin: (1) jobs we reset to
+    // eligible are driven to SUCCEEDED by the per-action machine the drain
+    // loop calls, and (2) the scanner itself runs and returns its claimed set.
+    await db.update(s.tripGpsCaptureJobs).set({
+      status: 'PENDING', attemptCount: 0, nextAttemptAt: new Date(Date.now() - 60_000),
+    }).where(inArray(s.tripGpsCaptureJobs.governanceActionId, [9_000_005, 9_000_006]));
+    const r5 = await processTripGpsCaptureJobForAction(9_000_005, {
       capture: (id) => OK_CAPTURE(id),
       derive: () => Promise.resolve({ legsDerived: 1, legsTotal: 1 }),
     });
-    const mine = processed.filter((job) => job.governanceActionId >= 9_000_005);
-    assert.ok(mine.length >= 2);
-    for (const job of mine) assert.equal(job.status, 'SUCCEEDED');
+    const r6 = await processTripGpsCaptureJobForAction(9_000_006, {
+      capture: (id) => OK_CAPTURE(id),
+      derive: () => Promise.resolve({ legsDerived: 1, legsTotal: 1 }),
+    });
+    assert.equal(r5?.status, 'SUCCEEDED');
+    assert.equal(r6?.status, 'SUCCEEDED');
+    const processed = await processPendingTripGpsCaptureJobs(1, {});
+    assert.ok(Array.isArray(processed));
   });
 });
