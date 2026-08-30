@@ -104,6 +104,7 @@ describe('getNavItems', () => {
       ['Danh mục Xe nội bộ', '/fleet/vehicles'],
       ['Danh mục Tài xế', '/fleet/drivers'],
       ['Nhà thầu phụ', '/suppliers'],
+      ['Sổ chuyến đi', '/trips'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],

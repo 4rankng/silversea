@@ -246,15 +246,19 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('"carrier direction"');
   });
 
-  it('prioritizes schedule space over the compact document and allocation columns on desktop', () => {
+  it('rebalances schedule against route-shipping and allocation on desktop', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
     const scheduleWidth = widthFor('schedule');
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    expect(scheduleWidth).toBe(22);
-    expect(scheduleWidth).toBeGreaterThan(widthFor('route-shipping'));
+    // 2b023521 rebalanced the grid toward route/shipping (16%) +
+    // allocation (12%); schedule is now 15% (was 22%) — the trip window
+    // still gets dedicated room but route/shipping wins on the wireframe.
+    expect(scheduleWidth).toBe(15);
+    expect(widthFor('route-shipping')).toBe(16);
+    expect(widthFor('allocation')).toBe(12);
     expect(scheduleWidth).toBeGreaterThan(widthFor('allocation'));
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
   });
