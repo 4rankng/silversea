@@ -49,21 +49,42 @@ import {
 } from './shipment-accounting-lock.service';
 import { filterContainersByDateRange, isPastRunCutoff } from './container-date-filter';
 
-export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
-const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
-export const SITE_OPERATIONAL_NAME = operationalName(s.operationalSites.shortName, s.operationalSites.name);
+import {
+  CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME,
+  plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort,
+  containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS,
+  containerCarrierNameSql, containerSnapshotLiftSiteSql, billOrBookNumberSortSql,
+  CONTAINER_SORT_SQL, workspaceBucketRankSql, WORKSPACE_SORT_SQL,
+  activeTripCarrierTypeSql, activePlannedCarrierTypeSql, activeCarrierTypeSql,
+  activeTripPlateSql, activePlannedPlateSql, portRowExistsSql,
+  siteSnapshotHalfIsObjectSql, trimmedPresentSql, containerMissingBitsSql,
+  containerIncompleteSql, cargoRankSql,
+} from './cus-workspace-sql.service';
+import {
+  toNumber, toMoneyString, sumMoney, sumDecimal, businessDateNow,
+  deriveTransportDateFromContainerAppointments,
+  effectiveBillingLineAmount, billOrBookNumberFor, trimOrNull,
+} from './cus-workspace-mapping.service';
+
+export * from './cus-workspace-sql.service';
+export * from './cus-workspace-mapping.service';
+
+import {
+  buildOperationalSummary, buildListItem, resolveLiftSite, resolveDropoffSite,
+  buildContainerLine, containerMissingFields, shipmentFieldAccess,
+} from './cus-workspace-builders.service';
 
 type Executor = typeof db | Tx;
-type ShipmentRow = typeof s.shipments.$inferSelect;
+export type ShipmentRow = typeof s.shipments.$inferSelect;
 export type ShipmentFulfillmentRow = typeof s.shipmentFulfillments.$inferSelect;
 
-type ShipmentListRow = {
+export type ShipmentListRow = {
   shipment: ShipmentRow;
   customerName: string | null;
   routeName: string | null;
 };
 
-type ContainerRow = {
+export type ContainerRow = {
   id: number;
   shipmentId: number;
   containerNumber: string | null;
@@ -81,7 +102,7 @@ type ContainerRow = {
   dropoffPortId: number | null;
 };
 
-type DeclarationRow = {
+export type DeclarationRow = {
   id: number;
   shipmentId: number;
   declarationNumber: string | null;
@@ -90,7 +111,7 @@ type DeclarationRow = {
   note: string | null;
 };
 
-type LockRow = {
+export type LockRow = {
   id: number;
   shipmentId: number;
   billingDocumentId: number;
@@ -99,19 +120,19 @@ type LockRow = {
   reason: string;
 };
 
-type DebitNoteRow = {
+export type DebitNoteRow = {
   shipmentId: number;
   billingDocumentId: number;
   issuedAt: Date | null;
   debitNoteStatus: string | null;
 };
 
-type CustodyRow = {
+export type CustodyRow = {
   shipmentId: number;
   status: string;
 };
 
-type TripRow = {
+export type TripRow = {
   id: number;
   shipmentId: number | null;
   version: number;
@@ -120,7 +141,7 @@ type TripRow = {
   revenueCombine: string | null;
 };
 
-type BillingLineRow = {
+export type BillingLineRow = {
   shipmentId: number;
   documentId: number;
   lineId: number;
@@ -134,7 +155,7 @@ type BillingLineRow = {
   vatTreatment: string;
 };
 
-type RecoveryFactRow = {
+export type RecoveryFactRow = {
   id: number;
   shipmentId: number;
   shipmentContainerId: number | null;
@@ -152,7 +173,7 @@ type RecoveryFactRow = {
   sourceExpenseSellAmount: string | null;
 };
 
-type AssignmentRow = {
+export type AssignmentRow = {
   shipmentContainerId: number | null;
   fulfillmentId: number;
   fulfillmentVersion: number;
@@ -178,548 +199,8 @@ type AssignmentRow = {
   tripTruckPlate: string | null;
 };
 
-type WorkspaceSupport = Awaited<ReturnType<typeof loadSupportRows>>;
-const plannedCarrier = alias(s.customers, 'cus_workspace_planned_carrier');
-const actualCarrier = alias(s.customers, 'cus_workspace_actual_carrier');
-const billingSourceTrip = alias(s.trips, 'cus_workspace_billing_source_trip');
-const billingExpenseTrip = alias(s.trips, 'cus_workspace_billing_expense_trip');
-// Sort-only join for the container workboard's lift-site column (1:1 on the
-// container's port reference; snapshot fallbacks live in the sort SQL below).
-const liftPort = alias(s.ports, 'cus_container_lift_port');
+export type WorkspaceSupport = Awaited<ReturnType<typeof loadSupportRows>>;
 
-function toNumber(value: string | number | null | undefined): number {
-  if (value == null) return 0;
-  const next = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(next) ? next : 0;
-}
-
-function toMoneyString(value: number): string {
-  return Math.round(value).toString();
-}
-
-function sumMoney(values: Array<string | number | null | undefined>): string {
-  return toMoneyString(values.reduce<number>((sum, value) => sum + toNumber(value), 0));
-}
-
-// Sums numeric strings preserving `scale` decimal places. Returns null when no
-// value is present, so callers can fall back to the shipment-level figure for
-// historical rows that predate per-container cargo tracking.
-function sumDecimal(values: Array<string | null | undefined>, scale: number): string | null {
-  const present = values.filter((value): value is string => value != null && value !== '');
-  if (present.length === 0) return null;
-  const total = present.reduce<number>((sum, value) => sum + toNumber(value), 0);
-  return total.toFixed(scale);
-}
-
-function businessDateNow(): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-export function deriveTransportDateFromContainerAppointments(appointments: ReadonlyArray<Date | null>): string | null {
-  let earliest: string | null = null;
-  for (const appointment of appointments) {
-    if (appointment == null) continue;
-    const localDate = localDateInBusinessZone(appointment);
-    if (localDate == null) continue;
-    if (earliest == null || localDate < earliest) earliest = localDate;
-  }
-  return earliest;
-}
-
-function buildOperationalSummary(
-  row: ShipmentListRow,
-  support: WorkspaceSupport,
-  bucket: ShipmentCusBucket,
-  actor: AuthUser,
-): ShipmentCusWorkspaceListItem['operational'] {
-  const containers = support.containersByShipment.get(row.shipment.id) ?? [];
-  let assignedContainers = 0;
-  let externalContainers = 0;
-  let plateAssignedContainers = 0;
-  let missingCarrierContainers = 0;
-  let missingPlateContainers = 0;
-  let orderIssuedContainers = 0;
-
-  for (const container of containers) {
-    const assignment = support.assignmentsByContainer.get(container.id) ?? null;
-    const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
-    // "Issued" mirrors the driver-notification gate exactly: a live (not
-    // canceled) trips row is the only thing the driver's task list and
-    // tap-through match against — planned plates alone never count.
-    if (assignment?.tripId != null && assignment.tripStatus !== 'CANCELED') {
-      orderIssuedContainers += 1;
-    }
-    // Own-fleet plates: the dispatch plan already snapshots the truck plate
-    // into plannedVehiclePlateNumber at allocation time, so mirror the
-    // EXTERNAL fallback chain instead of waiting for the executed trip.
-    const plateNumber = carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
-      : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null;
-    if (carrierType == null) {
-      missingCarrierContainers += 1;
-      continue;
-    }
-    const hasAssignedVehicle = carrierType === 'EXTERNAL'
-      ? assignment?.plannedExternalCarrierId != null || assignment?.tripExternalCarrierId != null
-      : assignment?.tripTruckId != null;
-    if (hasAssignedVehicle) assignedContainers += 1;
-    if (carrierType === 'EXTERNAL') {
-      externalContainers += 1;
-    }
-    if (!trimOrNull(plateNumber)) missingPlateContainers += 1;
-    else plateAssignedContainers += 1;
-  }
-
-  const totalContainers = containers.length;
-  const vehicleReadiness = totalContainers === 0
-    ? 'NO_CONTAINERS' as const
-    : missingCarrierContainers > 0
-      ? 'WAITING_CARRIER' as const
-      : missingPlateContainers > 0
-        ? 'WAITING_PLATE' as const
-        : 'READY' as const;
-  const scheduleReadiness = row.shipment.expectedDeliveryDate == null
-    ? 'WAITING_DATE' as const
-    : bucket === ShipmentCusBucket.NEW && row.shipment.expectedDeliveryDate < businessDateNow()
-      ? 'OVERDUE' as const
-      : 'SCHEDULED' as const;
-  const transportDateEditable = actor.role === Role.CUS
-    && support.locksByShipment.get(row.shipment.id) == null;
-
-  return {
-    scheduleReadiness,
-    vehicleReadiness,
-    totalContainers,
-    assignedContainers,
-    externalContainers,
-    plateAssignedContainers,
-    missingCarrierContainers,
-    missingPlateContainers,
-    orderIssuedContainers,
-    transportDateEditable,
-  };
-}
-
-function effectiveBillingLineAmount(line: BillingLineRow): number {
-  if (line.excluded) return 0;
-  if (line.grossAmount != null) return toNumber(line.grossAmount);
-  return toNumber(line.amountOverride ?? line.baseAmount);
-}
-
-/**
- * Display number for the Chứng từ cell: IMPORT shows the Bill, EXPORT shows
- * the Booking. Falls back to the other when the primary is missing so the
- * cell never hides data that exists.
- */
-function billOrBookNumberFor(
-  tradeDirection: 'IMPORT' | 'EXPORT' | null,
-  blNumber: string | null,
-  bookingRef: string | null,
-): string | null {
-  const bill = trimOrNull(blNumber);
-  const booking = trimOrNull(bookingRef);
-  return tradeDirection === 'EXPORT' ? (booking ?? bill) : (bill ?? booking);
-}
-
-export function trimOrNull(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-export function containerTransportDateSql() {
-  // Use the container's appointment date for exact-day filtering. Containers
-  // without an appointment inherit the shipment's expected delivery date so
-  // they still appear when the user filters by that day.
-  return sql<string>`coalesce(
-    date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'),
-    ${s.shipments.expectedDeliveryDate}
-  )`;
-}
-
-// ─── Container workboard column sorting ──────────────────────────────────────
-//
-
-// Derived columns (carrier, dispatch status, legacy site snapshots) come from
-// the first active fulfillment per container — mirroring the support loader's
-// first-row-wins projection (assignmentsByContainer). Each is expressed as a
-// correlated scalar subquery so it can be sorted WITHOUT joining
-// fulfillment/trip rows into the paginated page query, where a join would
-// multiply container rows and break LIMIT/OFFSET pagination.
-
-/** Rank mirrors buildContainerLine's dispatchStatus derivation: trip status
- * COMPLETED > IN_TRANSIT > CREATED, then planned-carrier (PLANNED), else
- * UNASSIGNED. Only relative order matters for sorting. */
-function containerDispatchRankSql(): SQL {
-  return sql`(
-    select case
-      when t.status = 'COMPLETED' then 4
-      when t.status = 'IN_TRANSIT' then 3
-      when t.status = 'CREATED' then 2
-      when sf.planned_carrier_type is not null then 1
-      else 0
-    end
-    from ${s.shipmentFulfillments} sf
-    left join ${s.trips} t
-      on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
-    where sf.shipment_container_id = ${s.shipmentContainers.id}
-      and sf.canceled_at is null
-    order by sf.id, t.id
-    limit 1
-  )`;
-}
-
-/** Rank per record-status filter value — mirrors the case arms above so a
- * dispatchStatus filter selects exactly the rows whose ledger badge shows
- * that status. UNASSIGNED needs no entry: the carrier-presence split already
- * selects it. */
-const CONTAINER_DISPATCH_RANKS = {
-  PLANNED: 1,
-  CREATED: 2,
-  IN_TRANSIT: 3,
-  COMPLETED: 4,
-} as const;
-
-/** Mirrors buildContainerLine's carrierName: own fleet renders as the fixed
- * SilverSea label; otherwise the executed trip's carrier wins over the plan. */
-function containerCarrierNameSql(): SQL {
-  return sql`(
-    select coalesce(
-      case when coalesce(t.carrier_type, sf.planned_carrier_type) = 'OWN' then 'SilverSea' end,
-      coalesce(nullif(trim(ac.short_name), ''), ac.name),
-      coalesce(nullif(trim(pc.short_name), ''), pc.name)
-    )
-    from ${s.shipmentFulfillments} sf
-    left join ${s.trips} t
-      on t.fulfillment_id = sf.id and t.deleted_at is null and t.status <> 'CANCELED'
-    left join ${s.customers} ac on ac.id = t.external_entity_id
-    left join ${s.customers} pc on pc.id = sf.planned_external_carrier_id
-    where sf.shipment_container_id = ${s.shipmentContainers.id}
-      and sf.canceled_at is null
-    order by sf.id, t.id
-    limit 1
-  )`;
-}
-
-/** Legacy rows without port columns fall back to the first fulfillment's
- * site-snapshot label (shortName preferred, then name) for sort parity with
- * the displayed lift site. */
-function containerSnapshotLiftSiteSql(): SQL {
-  return sql`(
-    select coalesce(
-      nullif(btrim(sf.site_snapshot->'pickupWarehouse'->>'shortName'), ''),
-      nullif(btrim(sf.site_snapshot->'pickupWarehouse'->>'name'), '')
-    )
-    from ${s.shipmentFulfillments} sf
-    where sf.shipment_container_id = ${s.shipmentContainers.id}
-      and sf.canceled_at is null
-    order by sf.id
-    limit 1
-  )`;
-}
-
-// Whitelist mapping each sortable column's URL key to its sort expression.
-// Expressions must yield exactly one value per container row; NULLs sort last
-// in both directions via the `nulls last` wrapper at the call site.
-function billOrBookNumberSortSql(): SQL {
-  return sql`case
-    when ${s.shipments.tradeDirection} = 'EXPORT'
-      then coalesce(nullif(btrim(${s.shipments.bookingRef}), ''), nullif(btrim(${s.shipments.blNumber}), ''))
-    else coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), ''))
-  end`;
-}
-
-const CONTAINER_SORT_SQL: Record<ShipmentCusContainerSortKey, SQL> = {
-  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
-  billOrBookNumber: billOrBookNumberSortSql(),
-  containerNumber: sql`${s.shipmentContainers.containerNumber}`,
-  liftSite: sql`coalesce(${liftPort.name}, ${containerSnapshotLiftSiteSql()})`,
-  transportDate: sql`case
-    when ${s.shipments.cargoMode} = 'FCL'
-      then (${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')::date
-    else ${s.shipments.expectedDeliveryDate}
-  end`,
-  carrierName: containerCarrierNameSql(),
-  customerNotes: sql`${s.shipments.customerNotes}`,
-  dispatchStatus: containerDispatchRankSql(),
-};
-
-/** Overview-workboard status rank mirrors deriveCusBucket: an active
- * accounting lock — or a driver full-closed (COMPLETED) shipment — is
- * LOCKED, then PENDING_LOCK (approval), RUNNING (dispatched/in-transit),
- * else NEW. Only relative order matters. */
-function workspaceBucketRankSql(): SQL {
-  return sql`case
-    when exists (
-      select 1 from ${s.shipmentAccountingLocks} sal
-      where sal.shipment_id = ${s.shipments.id} and sal.released_at is null
-    ) or ${s.shipments.status} = 'COMPLETED' then 3
-    when ${s.shipments.status} in ('DISPATCHED', 'IN_TRANSIT') then 2
-    when ${s.shipments.status} = 'PENDING_EXPENSE_APPROVAL' then 1
-    else 0
-  end`;
-}
-
-// Same whitelist contract for the overview workboard's grouped columns.
-const WORKSPACE_SORT_SQL: Record<ShipmentCusWorkspaceSortKey, SQL> = {
-  customerName: sql`${CUSTOMER_OPERATIONAL_NAME}`,
-  billOrBookNumber: billOrBookNumberSortSql(),
-  shippingLineName: sql`${s.shipments.shippingLineName}`,
-  cargoWeightKg: sql`${s.shipments.cargoWeightKg}`,
-  transportDate: sql`${s.shipments.expectedDeliveryDate}`,
-  customerNotes: sql`${s.shipments.customerNotes}`,
-  status: workspaceBucketRankSql(),
-};
-
-// ─── "Chưa cập nhật" completeness (real FCL container rows only) ─────────────
-//
-// Mirrors the JS projection exactly so the SQL filter, the item query, and the
-// count query always agree on which rows are incomplete. Vehicle fields are
-// staged: carrier counts only after a transport date exists, and BKS only for
-// an external carrier (own-fleet plates come from the dispatch trip and are
-// never a CUS-entered completeness gap).
-//
-// Fulfillment/trip lookups are correlated scalar subqueries rather than joins:
-// the container page queries only join shipments/customers/routes, and a join
-// could fan out container rows and corrupt pagination counts. Precedence is
-// trip value ?? planned value with canceled fulfillments ignored — identical
-// to the in-memory assignmentsByContainer projection.
-
-function activeTripCarrierTypeSql(): SQL {
-  return sql`(select ${s.trips.carrierType}
-    from ${s.shipmentFulfillments}
-    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.trips.deletedAt} is null
-      and ${s.trips.status} <> 'CANCELED'
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
-}
-
-function activePlannedCarrierTypeSql(): SQL {
-  return sql`(select ${s.shipmentFulfillments.plannedCarrierType}
-    from ${s.shipmentFulfillments}
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
-}
-
-function activeCarrierTypeSql(): SQL {
-  return sql`coalesce(${activeTripCarrierTypeSql()}, ${activePlannedCarrierTypeSql()})`;
-}
-
-function activeTripPlateSql(): SQL {
-  return sql`(select ${s.trips.externalPlateNumber}
-    from ${s.shipmentFulfillments}
-    join ${s.trips} on ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id}
-      and ${s.trips.deletedAt} is null
-      and ${s.trips.status} <> 'CANCELED'
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
-}
-
-function activePlannedPlateSql(): SQL {
-  return sql`(select ${s.shipmentFulfillments.plannedVehiclePlateNumber}
-    from ${s.shipmentFulfillments}
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
-}
-
-// Lift/drop presence in SQL mirrors resolveLiftSite/resolveDropoffSite: the
-// per-container port column is the authority (port row must exist, matching
-// the JS portsById lookup); the snapshot half only counts when it is a JSON
-// object (readSiteSnapshotSite's presence rule). `is not distinct from`
-// keeps a missing fulfillment row (NULL subquery) falsy. The port columns
-// carry no DB FK by repo convention, but the write path validates ids
-// against s.ports, so a dangling id is unreachable through the API.
-function portRowExistsSql(column: SQL | Column): SQL {
-  return sql`exists (select 1 from ${s.ports} where ${s.ports.id} = ${column})`;
-}
-
-function siteSnapshotHalfIsObjectSql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
-  return sql`(select jsonb_typeof(${s.shipmentFulfillments.siteSnapshot} -> ${key})
-    from ${s.shipmentFulfillments}
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1) is not distinct from 'object'`;
-}
-
-// nullif(btrim(x), '') mirrors the JS trimOrNull: null-or-whitespace is absent.
-function trimmedPresentSql(value: SQL | Column): SQL {
-  return sql`nullif(btrim(${value}), '') is not null`;
-}
-
-function containerMissingBitsSql(): SQL[] {
-  const transportDate = sql<string>`case when ${s.shipments.cargoMode} = 'FCL'
-    then date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')
-    else ${s.shipments.expectedDeliveryDate} end`;
-  const carrierType = activeCarrierTypeSql();
-  return [
-    // Shipment context (direction gates Bill/Booking via the DB CHECK).
-    sql`${s.shipments.tradeDirection} is null`,
-    sql`not (${trimmedPresentSql(s.shipments.blNumber)} or ${trimmedPresentSql(s.shipments.bookingRef)})`,
-    sql`not exists (
-      select 1 from ${s.shipmentDeclarations}
-      where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-        and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
-    )`,
-    sql`case when ${s.shipments.cargoMode} = 'FCL'
-      then ${s.shipmentContainers.routeId} is null
-      else ${s.shipments.routeId} is null end`,
-    sql`not (${trimmedPresentSql(s.shipments.shippingLineName)} or ${trimmedPresentSql(s.shipmentContainers.shippingLineName)})`,
-    sql`${transportDate} is null`,
-    // Container row identity.
-    sql`${s.shipmentContainers.containerNumber} is null`,
-    sql`${s.shipmentContainers.containerTypeId} is null`,
-    sql`not (${portRowExistsSql(s.shipmentContainers.pickupPortId)} or ${siteSnapshotHalfIsObjectSql('pickupWarehouse')})`,
-    sql`not (${portRowExistsSql(s.shipmentContainers.dropoffPortId)} or ${siteSnapshotHalfIsObjectSql('deliverySite')})`,
-    sql`${s.shipmentContainers.customerAppointmentAt} is null`,
-    // Vehicle stage (date-gated carrier; external-only BKS).
-    sql`${transportDate} is not null and ${carrierType} is null`,
-    sql`${transportDate} is not null and ${carrierType} = 'EXTERNAL'
-      and coalesce(${activeTripPlateSql()}, ${activePlannedPlateSql()}) is null`,
-  ];
-}
-
-function containerIncompleteSql(): SQL {
-  const presentBits = containerMissingBitsSql().map((bit) => sql`case when ${bit} then 1 else 0 end`);
-  return sql`(${sql.join(presentBits, sql` + `)}) > 0`;
-}
-
-// Overview priority rank: Cont 20 → Cont 40 → other Cont → Lẻ → unknown.
-// Determined from ACTIVE containers' canonical type code/name (any active 20-foot
-// container wins before any active 40-foot one per the accepted mixed-lot
-// rule), never from the rendered summary string.
-function cargoRankSql(): SQL {
-  const activeContainer = (size: string) => sql`exists (
-    select 1
-    from ${s.shipmentContainers}
-    left join ${s.containerTypes} on ${s.containerTypes.id} = ${s.shipmentContainers.containerTypeId}
-    where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-      and (
-        ${s.containerTypes.code} ~* ${`(^|[^0-9])${size}([^0-9]|$)`}
-        or ${s.containerTypes.name} ~* ${`(^|[^0-9])${size}([^0-9]|$)`}
-      )
-  )`;
-  return sql`(case
-    when ${activeContainer('20')} then 0
-    when ${activeContainer('40')} then 1
-    when ${s.shipments.cargoMode} = 'FCL' then 2
-    when ${s.shipments.cargoMode} = 'LCL' then 3
-    else 4
-  end)`;
-}
-
-const postDispatchDirectShipmentFields = new Set<keyof ShipmentCusWorkspaceListItem['fieldAccess']>([
-  'bookingRef', 'blNumber', 'closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes',
-]);
-
-const allShipmentFieldKeys = [
-  'customerId', 'factoryName', 'routeId', 'deliveryLocation', 'blNumber', 'bookingRef',
-  'declarationNumber', 'tradeDirection', 'shippingLineName', 'packageCount', 'packageType',
-  'cargoWeightKg', 'cargoVolumeCbm', 'customsCutoffAt', 'closingAt', 'plannedReturnAt',
-  'customerNotes', 'operationalNotes',
-] as const satisfies ReadonlyArray<keyof ShipmentCusWorkspaceListItem['fieldAccess']>;
-
-function readOnly(reason: string): ShipmentCusWorkspaceFieldAccess {
-  return { mode: 'READ_ONLY', reason };
-}
-
-function shipmentFieldAccess(
-  shipment: ShipmentRow,
-  actor: AuthUser,
-  hasActiveLock: boolean,
-  hasContainers: boolean,
-): ShipmentCusWorkspaceListItem['fieldAccess'] {
-  const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
-  const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
-  const preDispatch = canonicalShipmentStatus(shipment.status) === ShipmentStatus.PENDING_DATE
-    || canonicalShipmentStatus(shipment.status) === ShipmentStatus.READY_FOR_DISPATCH;
-  for (const field of allShipmentFieldKeys) {
-    if (field === 'declarationNumber') {
-      access[field] = !canWriteShipment
-        ? readOnly('Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.')
-        : hasActiveLock
-          ? readOnly('Lô hàng đã khóa kế toán; không thể sửa tờ khai.')
-          : { mode: 'DIRECT', reason: 'Cập nhật tờ khai trực tiếp theo lô hàng.' };
-      continue;
-    }
-    if (hasActiveLock) {
-      access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
-    } else if (!canWriteShipment) {
-      access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
-    } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
-      access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');
-    } else if (actor.role === Role.CUS && !preDispatch && !postDispatchDirectShipmentFields.has(field)) {
-      access[field] = { mode: 'REQUEST', reason: 'Thay đổi sau điều xe cần gửi yêu cầu để Điều vận xem xét.' };
-    } else {
-      access[field] = { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' };
-    }
-  }
-  return access;
-}
-
-function containerFieldAccess(
-  actor: AuthUser,
-  hasActiveLock: boolean,
-  hasTrip: boolean,
-  pastRunCutoff: boolean,
-): ShipmentCusWorkspaceContainerLine['fieldAccess'] {
-  const editable = !hasActiveLock && !hasTrip && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
-  const reason = hasActiveLock
-    ? 'Lô hàng đã khóa kế toán; không thể thay đổi container.'
-    : hasTrip
-      ? 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.'
-      : actor.role !== Role.CUS && actor.role !== Role.DISPATCHER
-        ? 'Vai trò hiện tại chỉ được xem dữ liệu container.'
-        : 'Bạn có thể cập nhật trực tiếp trước khi điều xe.';
-  const mode = editable ? 'DIRECT' as const : 'READ_ONLY' as const;
-  // Route/container-number/pickup-drop-off stay CUS-editable through the
-  // container's own run date even once a trip exists — past that date (or
-  // once a trip exists), CUS submits an admin-reviewed request instead of
-  // hitting the flat READ_ONLY every other field gets. Scoped to CUS only;
-  // DISPATCHER keeps the existing trip-based DIRECT/READ_ONLY split.
-  const dateGatedFields = new Set(['containerNumber', 'routeId', 'liftSiteId', 'dropoffSiteId']);
-  const access = (key: keyof ShipmentCusWorkspaceContainerLine['fieldAccess']): ShipmentCusWorkspaceFieldAccess => {
-    // plateNumber intentionally has no OWN special case: since the internal
-    // fleet became plan-able (Cap_nhat_UI_va_logic 1.3) the field follows the
-    // generic editable/READ_ONLY mode, mirroring permissions.plateEditable —
-    // the plate is a plan; the official dispatch trip confirms it.
-    if (dateGatedFields.has(key) && actor.role === Role.CUS && !hasActiveLock) {
-      if (hasTrip || pastRunCutoff) {
-        return {
-          mode: 'REQUEST',
-          reason: hasTrip
-            ? 'Container đã có chuyến thực tế; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.'
-            : 'Đã qua ngày chạy container; thay đổi cần gửi yêu cầu để quản trị/quản lý phê duyệt.',
-        };
-      }
-      return { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trước khi điều xe.' };
-    }
-    return { mode, reason };
-  };
-  return {
-    containerNumber: access('containerNumber'), containerTypeId: access('containerTypeId'),
-    cargoWeightKg: access('cargoWeightKg'), cargoVolumeCbm: access('cargoVolumeCbm'),
-    routeId: access('routeId'),
-    carrierType: access('carrierType'), externalCarrierId: access('externalCarrierId'),
-    externalCarrierVehicleId: access('externalCarrierVehicleId'), plateNumber: access('plateNumber'),
-    liftSiteId: access('liftSiteId'), dropoffSiteId: access('dropoffSiteId'),
-    customerAppointmentAt: access('customerAppointmentAt'),
-  };
-}
-
-function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
-  return [...new Set(values.map(trimOrNull).filter((value): value is string => value != null))];
-}
 
 export function normalizeCarrierName(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -766,89 +247,6 @@ export async function assertCusShipmentScope(actor: AuthUser, shipment: Shipment
   assertClerkCanAccessShipment(scope, shipment);
 }
 
-function deriveCusBucket(status: string | null, hasActiveLock: boolean): ShipmentCusBucket {
-  if (hasActiveLock) return ShipmentCusBucket.LOCKED;
-  const canonical = canonicalShipmentStatus(status);
-  if (canonical === ShipmentStatus.DISPATCHED || canonical === ShipmentStatus.IN_TRANSIT) {
-    return ShipmentCusBucket.RUNNING;
-  }
-  if (canonical === ShipmentStatus.PENDING_EXPENSE_APPROVAL) {
-    return ShipmentCusBucket.PENDING_LOCK;
-  }
-  if (canonical === ShipmentStatus.COMPLETED) {
-    return ShipmentCusBucket.LOCKED;
-  }
-  return ShipmentCusBucket.NEW;
-}
-
-function countContainerTypes(rows: ContainerRow[]): string {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const label = row.containerTypeCode ?? row.containerTypeName ?? 'Cont';
-    counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  return Array.from(counts.entries()).map(([label, qty]) => `${qty}x${label}`).join(' + ');
-}
-
-function buildContainerSummary(rows: ContainerRow[], packageCount: number | null, packageType: string | null): string {
-  if (rows.length === 0) {
-    if (packageCount == null) return '';
-    return `${packageCount} ${trimOrNull(packageType) ?? 'kiện'}`;
-  }
-  return countContainerTypes(rows);
-}
-
-/**
- * Group a lot's containers by (appointment instant, effective factory) so the
- * "Lịch trình & điều xe" cell can show every close/return time on its own
- * line ("09:00 25/08/2026 · Sunrise · 1x40HC"). Factory resolves through the
- * SILVER L1 precedence chain (container site → shipment site → shipment
- * factory text). Containers without an appointment are skipped; groups are
- * ordered earliest-first, then factory name. Legacy noon-UTC date-only
- * encodings retain their stored calendar date.
- */
-function buildAppointmentGroups(
-  containers: ContainerRow[],
-  shipment: ShipmentRow,
-  factoryNameBySiteId: Map<number, { shortName: string; fullName: string }>,
-): Array<{ at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; containerSummary: string }> {
-  const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; group: ContainerRow[] }>();
-  for (const container of containers) {
-    if (container.customerAppointmentAt == null) continue;
-    const localDate = localDateInBusinessZone(container.customerAppointmentAt) ?? '0000-00-00';
-    const factorySiteId = container.operationalSiteId ?? shipment.operationalSiteId ?? null;
-    const factorySite = factorySiteId != null
-      ? factoryNameBySiteId.get(factorySiteId)
-      : null;
-    const legacyFactoryName = trimOrNull(shipment.factoryName);
-    const factoryShortName = factorySite?.shortName ?? legacyFactoryName ?? null;
-    const factoryFullName = factorySite?.fullName ?? legacyFactoryName ?? null;
-    const factoryName = factoryShortName;
-    const factoryKey = factorySite != null && factorySiteId != null
-      ? `site:${factorySiteId}`
-      : `legacy:${factoryFullName ?? ''}`;
-    const at = container.customerAppointmentAt.toISOString();
-    const key = `${at}|${factoryKey}`;
-    const entry = byKey.get(key);
-    if (entry) {
-      entry.group.push(container);
-    } else {
-      byKey.set(key, { at, localDate, factoryName, factoryShortName, factoryFullName, group: [container] });
-    }
-  }
-  return Array.from(byKey.values())
-    .sort((a, b) => a.at.localeCompare(b.at)
-      || (a.factoryName ?? '').localeCompare(b.factoryName ?? ''))
-    .map(({ at, localDate, factoryName, factoryShortName, factoryFullName, group }) => ({
-      at,
-      localDate,
-      factoryName,
-      factoryShortName,
-      factoryFullName,
-      containerSummary: countContainerTypes(group),
-    }));
-}
-
 function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
   if (row.sourceExpenseId == null) return true;
   if (
@@ -858,23 +256,6 @@ function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
     || row.sourceExpenseSellAmount == null
   ) return false;
   return row.sourceVersion === `expense:${row.sourceExpenseUpdatedAt.toISOString()}:${row.sourceExpenseApprovalStatus}:${Number(row.sourceExpenseSellAmount)}`;
-}
-
-function readSiteSnapshotSite(
-  snapshot: Record<string, unknown> | null,
-  key: 'pickupWarehouse' | 'deliverySite',
-) {
-  const value = snapshot?.[key];
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const site = value as Record<string, unknown>;
-  return {
-    id: typeof site.id === 'number' ? site.id : null,
-    code: typeof site.code === 'string' ? site.code : null,
-    name: typeof site.shortName === 'string'
-      ? site.shortName
-      : typeof site.name === 'string' ? site.name : null,
-    siteType: typeof site.siteType === 'string' ? site.siteType : null,
-  };
 }
 
 async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
@@ -1309,405 +690,6 @@ async function loadSelectors(customerId: number, executor: Executor = db) {
       label: row.name,
     })),
   };
-}
-
-function buildListItem(
-  row: ShipmentListRow,
-  support: WorkspaceSupport,
-  actor: AuthUser,
-  confirmation: Awaited<ReturnType<typeof getShipmentFinanceConfirmationSummary>>,
-  dateRange?: { dateFrom?: string; dateTo?: string },
-): ShipmentCusWorkspaceListItem {
-  const allContainers = support.containersByShipment.get(row.shipment.id) ?? [];
-  const containers = dateRange
-    ? filterContainersByDateRange(
-      allContainers,
-      dateRange.dateFrom,
-      dateRange.dateTo,
-      // Undated containers plan by the shipment's delivery date — the same
-      // fallback containerTransportDateSql() uses for the row filter, so the
-      // scoped summary never zero-counts a row the filter still shows.
-      () => row.shipment.expectedDeliveryDate,
-    )
-    : allContainers;
-  const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
-  const debitNote = support.debitNotesByShipment.get(row.shipment.id) ?? null;
-  const custody = support.custodyByShipment.get(row.shipment.id) ?? null;
-  const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
-  const recoveryFacts = support.recoveryFactsByShipment.get(row.shipment.id) ?? [];
-  const declaration = support.declarationByShipment.get(row.shipment.id) ?? null;
-  const totalCost = sumMoney(trips.map((trip) => trip.totalCost));
-  const bucket = deriveCusBucket(row.shipment.status, activeLock != null);
-  const hasPendingRecovery = recoveryFacts.some((fact) => toNumber(fact.outstandingAmount) > 0);
-  const operational = buildOperationalSummary(row, support, bucket, actor);
-  const billingLines = debitNote == null
-    ? []
-    : (support.billingLinesByShipment.get(row.shipment.id) ?? [])
-      .filter((line) => line.documentId === debitNote.billingDocumentId);
-  const hasUnattributableAdhoc = billingLines.some((line) => (
-    line.sourceType === 'ADHOC' && effectiveBillingLineAmount(line) !== 0
-  ));
-  const attributedBillingLines = billingLines.filter((line) => (
-    (line.sourceType === 'TRIP' && line.sourceTripShipmentId === row.shipment.id)
-    || (line.sourceType === 'EXPENSE' && line.sourceExpenseShipmentId === row.shipment.id)
-  ));
-  const customerTotalsAvailable = debitNote != null
-    && billingLines.length > 0
-    && attributedBillingLines.length > 0
-    && !hasUnattributableAdhoc;
-  const customerInvoiceTotal = customerTotalsAvailable
-    ? sumMoney(attributedBillingLines
-      .filter((line) => line.vatTreatment === 'STANDARD' || line.vatTreatment === 'ZERO_RATED')
-      .map(effectiveBillingLineAmount))
-    : null;
-  const customerNoInvoiceTotal = customerTotalsAvailable
-    ? sumMoney(attributedBillingLines
-      .filter((line) => line.vatTreatment === 'EXEMPT')
-      .map(effectiveBillingLineAmount))
-    : null;
-  const authoritativeCustomerTotal = customerTotalsAvailable
-    ? toNumber(customerInvoiceTotal) + toNumber(customerNoInvoiceTotal)
-    : null;
-  const assignments = containers.map((container) => support.assignmentsByContainer.get(container.id) ?? null);
-  const liftSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
-    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse')?.name
-  )));
-  const dropoffSiteNames = uniqueNonEmpty(assignments.map((assignment) => (
-    readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite')?.name
-  )));
-  const customerAppointmentAts = uniqueNonEmpty(containers.map((container) => (
-    container.customerAppointmentAt?.toISOString() ?? null
-  )));
-  const appointmentGroups = buildAppointmentGroups(
-    containers,
-    row.shipment,
-    support.factoryNameBySiteId,
-  );
-  // Multi-factory display (SILVER L1 P3): distinct effective factory labels
-  // across containers — never a false single factory. Falls back to the
-  // shipment-level factory text when no container names a site.
-  const containerFactoryNames = uniqueNonEmpty(containers.map((container) => (
-    container.operationalSiteId != null
-      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-      : null
-  )));
-  const effectiveFactoryNames = containerFactoryNames.length > 0
-    ? containerFactoryNames
-    : uniqueNonEmpty([
-        row.shipment.operationalSiteId != null
-          ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-          : null,
-        trimOrNull(row.shipment.factoryName),
-      ]);
-  const effectiveRouteNames = row.shipment.cargoMode === CARGO_MODE.FCL
-    ? uniqueNonEmpty(containers.map((container) => container.routeName ?? row.routeName))
-    : uniqueNonEmpty([row.routeName]);
-  const carrierAssignments = assignments.reduce<Array<{ carrierName: string | null; plateNumber: string | null }>>((result, assignment) => {
-    if (assignment == null) return result;
-    const carrierType = assignment.tripCarrierType ?? assignment.plannedCarrierType ?? null;
-    const carrierName = carrierType === 'OWN'
-      ? 'SilverSea'
-      : (assignment.tripExternalCarrierShortName?.trim() || assignment.tripExternalCarrierName)
-        ?? (assignment.plannedCarrierShortName?.trim() || assignment.plannedCarrierName)
-        ?? null;
-    const plateNumber = trimOrNull(carrierType === 'OWN'
-      ? assignment.tripTruckPlate ?? assignment.plannedVehiclePlateNumber
-      : assignment.tripExternalPlateNumber ?? assignment.plannedVehiclePlateNumber);
-    if (carrierName == null && plateNumber == null) return result;
-    if (!result.some((item) => item.carrierName === carrierName && item.plateNumber === plateNumber)) {
-      result.push({ carrierName, plateNumber });
-    }
-    return result;
-  }, []);
-
-  const accountantAction = confirmation.status === 'CONFIRMED'
-    ? {
-        kind: 'NONE' as const,
-        label: 'Đã xác nhận',
-        enabled: false,
-        disabledReason: null,
-      }
-    : {
-        kind: 'CONFIRM_FINANCE' as const,
-        label: 'Xác nhận tài chính',
-        enabled: debitNote != null,
-        disabledReason: debitNote == null ? 'Chưa có Debit Note hiện hành đủ điều kiện.' : null,
-      };
-
-  return {
-    id: row.shipment.id,
-    version: row.shipment.version,
-    status: canonicalShipmentStatus(row.shipment.status) ?? ShipmentStatus.PENDING_DATE,
-    cargoMode: row.shipment.cargoMode,
-    bucket,
-    bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
-    customerName: row.customerName,
-    factoryName: trimOrNull(row.shipment.factoryName),
-    effectiveFactoryNames,
-    billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
-    declarationNumber: declaration?.declarationNumber ?? null,
-    shippingLineName: trimOrNull(row.shipment.shippingLineName),
-    // A lot overview may summarize multiple FCL routes, but individual
-    // container rows retain the exact route that drives dispatch.
-    routeName: effectiveRouteNames.join(' · ') || null,
-    isCombined: row.shipment.isCombined,
-    direction: row.shipment.tradeDirection,
-    containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
-    packageCount: row.shipment.packageCount,
-    packageType: trimOrNull(row.shipment.packageType),
-    weightKg: sumDecimal(containers.map((container) => container.cargoWeightKg), 2)
-      ?? (row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg)),
-    volumeCbm: sumDecimal(containers.map((container) => container.cargoVolumeCbm), 3)
-      ?? (row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm)),
-    transportDate: row.shipment.cargoMode === CARGO_MODE.FCL
-      ? (() => {
-          const earliest = containers
-            .map((container) => container.customerAppointmentAt)
-            .filter((value): value is Date => value != null)
-            .sort((left, right) => left.getTime() - right.getTime())[0];
-          return earliest ? localDateInBusinessZone(earliest) : null;
-        })()
-      : row.shipment.expectedDeliveryDate,
-    customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
-    closingAt: row.shipment.closingAt?.toISOString() ?? null,
-    plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
-    deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
-    liftSiteNames,
-    dropoffSiteNames,
-    customerAppointmentAts,
-    appointmentGroups,
-    carrierAssignments,
-    customerNotes: trimOrNull(row.shipment.customerNotes),
-    operationalNotes: trimOrNull(row.shipment.operationalNotes),
-    raw: {
-      customerId: row.shipment.customerId,
-      factoryName: trimOrNull(row.shipment.factoryName),
-      routeId: row.shipment.routeId,
-      deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
-      blNumber: trimOrNull(row.shipment.blNumber),
-      bookingRef: trimOrNull(row.shipment.bookingRef),
-      declarationNumber: declaration?.declarationNumber ?? null,
-      tradeDirection: row.shipment.tradeDirection,
-      shippingLineName: trimOrNull(row.shipment.shippingLineName),
-      packageCount: row.shipment.packageCount,
-      packageType: trimOrNull(row.shipment.packageType),
-      cargoWeightKg: row.shipment.cargoWeightKg == null ? null : String(row.shipment.cargoWeightKg),
-      cargoVolumeCbm: row.shipment.cargoVolumeCbm == null ? null : String(row.shipment.cargoVolumeCbm),
-      customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
-      closingAt: row.shipment.closingAt?.toISOString() ?? null,
-      plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
-      customerNotes: trimOrNull(row.shipment.customerNotes),
-      operationalNotes: trimOrNull(row.shipment.operationalNotes),
-      declarationId: declaration?.id ?? null,
-      declarationIssuedAt: declaration?.issuedAt?.toISOString() ?? null,
-      declarationScope: declaration?.scope ?? null,
-      declarationNote: trimOrNull(declaration?.note),
-    },
-    fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
-    operational,
-    finance: {
-      customerInvoiceTotal,
-      customerNoInvoiceTotal,
-      totalCost,
-      isLoss: authoritativeCustomerTotal == null ? null : authoritativeCustomerTotal < toNumber(totalCost),
-      hasPendingRecovery,
-      customerChargeTotalsAvailable: customerTotalsAvailable,
-      totalCostAvailable: true,
-      customerTotalsAuthority: customerTotalsAvailable ? 'BILLING_DOCUMENT' : 'UNAVAILABLE',
-    },
-    debitNote: {
-      available: debitNote != null,
-      billingDocumentId: debitNote?.billingDocumentId ?? null,
-      documentNumber: debitNote == null ? null : `Debit Note #${debitNote.billingDocumentId}`,
-      issuedAt: debitNote?.issuedAt?.toISOString() ?? null,
-      debitNoteStatus: debitNote?.debitNoteStatus ?? null,
-      disabledReason: debitNote == null ? 'Chưa có Debit Note hiện hành đủ điều kiện.' : null,
-    },
-    documentCustody: {
-      status: custody?.status == null ? null : custody.status as ShipmentDocumentCustody,
-      label: custody == null
-        ? null
-        : SHIPMENT_DOCUMENT_CUSTODY_LABELS[custody.status as ShipmentDocumentCustody] ?? custody.status,
-      available: custody != null,
-      editable: activeLock == null && actor.role === Role.CUS,
-    },
-    accountingConfirmation: confirmation,
-    activeLock: activeLock == null
-      ? null
-      : {
-          id: activeLock.id,
-          billingDocumentId: activeLock.billingDocumentId,
-          activatedAt: activeLock.activatedAt.toISOString(),
-          activatedByName: activeLock.activatedByName,
-          reason: activeLock.reason,
-        },
-    action: activeLock != null
-      ? {
-          kind: 'REQUEST_REOPEN',
-          label: 'Đề nghị điều chỉnh',
-          enabled: actor.role === Role.CUS,
-          disabledReason: actor.role === Role.CUS ? null : 'Chỉ CUS được gửi đề nghị điều chỉnh.',
-        }
-      : actor.role === Role.ACCOUNTANT
-        ? accountantAction
-        : {
-            kind: 'LOCK',
-            label: 'Khóa lô',
-            enabled: actor.role === Role.CUS && confirmation.status === 'CONFIRMED',
-            disabledReason: actor.role !== Role.CUS
-              ? 'Chỉ CUS được khóa lô.'
-              : confirmation.status === 'CONFIRMED'
-                ? null
-                : 'Cần Kế toán xác nhận lại số liệu trước khi khóa lô.',
-          },
-  };
-}
-
-// Lift/drop authority is the per-container port columns (same columns the
-// create form writes). The fulfillment site-snapshot remains the fallback
-// for legacy rows decomposed before ports existed. The missing-status bits
-// in containerMissingFields/containerMissingBitsSql resolve through the
-// same helpers so a row can never display a site name while its status
-// still says "Chưa cập nhật" (or the reverse).
-function resolveLiftSite(
-  support: WorkspaceSupport,
-  container: ContainerRow,
-  assignment: AssignmentRow | null,
-) {
-  return container.pickupPortId != null
-    ? support.portsById.get(container.pickupPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
-}
-
-function resolveDropoffSite(
-  support: WorkspaceSupport,
-  container: ContainerRow,
-  assignment: AssignmentRow | null,
-) {
-  return container.dropoffPortId != null
-    ? support.portsById.get(container.dropoffPortId) ?? null
-    : readSiteSnapshotSite(assignment?.siteSnapshot ?? null, 'deliverySite');
-}
-
-function buildContainerLine(
-  row: ShipmentListRow,
-  actor: AuthUser,
-  support: WorkspaceSupport,
-  container: ContainerRow,
-  ordinal: number,
-): ShipmentCusWorkspaceContainerLine {
-  const assignment = support.assignmentsByContainer.get(container.id) ?? null;
-  const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
-  const editableBase = activeLock == null && (actor.role === Role.CUS || actor.role === Role.DISPATCHER);
-  const canEditOperational = editableBase && assignment?.tripId == null;
-  const liftSite = resolveLiftSite(support, container, assignment);
-  const dropoffSite = resolveDropoffSite(support, container, assignment);
-  const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
-  const externalCarrierId = assignment?.tripExternalCarrierId ?? assignment?.plannedExternalCarrierId ?? null;
-  const carrierName = carrierType === 'OWN'
-    ? 'SilverSea'
-    : (assignment?.tripExternalCarrierShortName?.trim() || assignment?.tripExternalCarrierName)
-      ?? (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName)
-      ?? null;
-  // CUS may plan the plate for BOTH external carriers and the internal fleet
-  // (customer ask, Cap_nhat_UI_va_logic 1.3): the value is a plan; the
-  // official dispatch trip remains the confirming source once assigned.
-  const plateEditable = canEditOperational;
-  const dispatchStatus = assignment?.tripStatus === 'COMPLETED'
-    ? 'COMPLETED'
-    : assignment?.tripStatus === 'IN_TRANSIT'
-      ? 'IN_TRANSIT'
-      : assignment?.tripStatus === 'CREATED'
-        ? 'CREATED'
-        : assignment?.plannedCarrierType
-          ? 'PLANNED'
-          : 'UNASSIGNED';
-
-  return {
-    id: container.id,
-    ordinal,
-    containerNumber: container.containerNumber,
-    containerTypeId: container.containerTypeId,
-    containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
-    routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
-    routeName: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeName : row.routeName,
-    dispatchStatus,
-    carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
-    externalCarrierId,
-    externalCarrierVehicleId: assignment?.tripExternalCarrierVehicleId ?? assignment?.plannedExternalCarrierVehicleId ?? null,
-    carrierName,
-    plateNumber: carrierType === 'OWN'
-      ? assignment?.tripTruckPlate ?? assignment?.plannedVehiclePlateNumber ?? null
-      : assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber ?? null,
-    liftSiteId: container.pickupPortId ?? liftSite?.id ?? null,
-    liftSite: liftSite?.name ?? null,
-    dropoffSiteId: container.dropoffPortId ?? dropoffSite?.id ?? null,
-    dropoffSite: dropoffSite?.name ?? null,
-    customerAppointmentAt: container.customerAppointmentAt?.toISOString() ?? null,
-    raw: {
-      containerNumber: container.containerNumber,
-      containerTypeId: container.containerTypeId,
-      cargoWeightKg: container.cargoWeightKg,
-      cargoVolumeCbm: container.cargoVolumeCbm,
-      routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
-    },
-    fieldAccess: containerFieldAccess(
-      actor,
-      activeLock != null,
-      assignment?.tripId != null,
-      isPastRunCutoff(container.customerAppointmentAt),
-    ),
-    permissions: {
-      carrierEditable: canEditOperational,
-      plateEditable,
-      containerTypeEditable: canEditOperational,
-      liftSiteEditable: canEditOperational,
-      dropoffSiteEditable: canEditOperational,
-      customerAppointmentEditable: canEditOperational,
-      routeEditable: canEditOperational,
-    },
-    shipmentVersion: row.shipment.version,
-    relatedTripVersion: assignment?.tripVersion ?? null,
-  };
-}
-
-// JS twin of containerMissingBitsSql(): identical field set, applicability
-// gating, and precedence so the projected missingFields list can never
-// disagree with the SQL informationStatus=MISSING filter.
-function containerMissingFields(
-  row: ShipmentListRow,
-  support: WorkspaceSupport,
-  container: ContainerRow,
-  assignment: AssignmentRow | null,
-): ShipmentCusMissingField[] {
-  const missing: ShipmentCusMissingFieldCode[] = [];
-  const transportDate = row.shipment.cargoMode === CARGO_MODE.FCL
-    ? (container.customerAppointmentAt ? localDateInBusinessZone(container.customerAppointmentAt) : null)
-    : row.shipment.expectedDeliveryDate;
-  const carrierType = assignment?.tripCarrierType ?? assignment?.plannedCarrierType ?? null;
-  const push = (code: ShipmentCusMissingFieldCode, absent: boolean) => {
-    if (absent) missing.push(code);
-  };
-  // Shipment context.
-  push('DIRECTION', row.shipment.tradeDirection == null);
-  push('BILL_BOOKING', !(trimOrNull(row.shipment.blNumber) || trimOrNull(row.shipment.bookingRef)));
-  push('DECLARATION', !support.declarationByShipment.has(row.shipment.id));
-  push('ROUTE', (row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId) == null);
-  push('SHIPPING_LINE', !(trimOrNull(row.shipment.shippingLineName) || trimOrNull(container.shippingLineName)));
-  push('TRANSPORT_DATE', transportDate == null);
-  // Container row.
-  push('CONTAINER_NUMBER', container.containerNumber == null);
-  push('CONTAINER_TYPE', container.containerTypeId == null);
-  push('LIFT_SITE', resolveLiftSite(support, container, assignment) == null);
-  push('DROPOFF_SITE', resolveDropoffSite(support, container, assignment) == null);
-  push('APPOINTMENT', container.customerAppointmentAt == null);
-  // Vehicle stage: carrier only after a transport date exists; BKS only for
-  // an external carrier (own-fleet plates come from the dispatch trip).
-  push('CARRIER', transportDate != null && carrierType == null);
-  push('BKS', transportDate != null
-    && carrierType === 'EXTERNAL'
-    && (assignment?.tripExternalPlateNumber ?? assignment?.plannedVehiclePlateNumber) == null);
-  return missing.map((code) => ({ code, label: SHIPMENT_CUS_MISSING_FIELD_LABELS[code] }));
 }
 
 export async function loadShipmentRow(

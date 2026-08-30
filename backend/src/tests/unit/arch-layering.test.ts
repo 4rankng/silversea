@@ -29,9 +29,7 @@ const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.
 const SIZE_BUDGET = 1500;
 
 /** repo-relative path (from backend/) -> owning phase or deferral reason */
-const SIZE_BASELINE: Record<string, string> = {
-  'src/services/cus-shipment-workspace-reads.service.ts': 'deferred (cold)',
-};
+const SIZE_BASELINE: Record<string, string> = {};
 
 /**
  * Route files still importing the db client. Legacy long tail (config/catalog/
