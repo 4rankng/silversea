@@ -1256,3 +1256,11 @@ The record-layout switch used a 1000px container query. At a 1024px browser view
 - `qa/2026-08-30_testplan-qa/row-scope-probe.log`
 
 No commit, push, or deployment was performed.
+
+### testplan/testaccounts.txt sweep — DEPLOYED (2026-08-30 11:16 SGT)
+
+- Pushed `5b6e5fdd` (the HANDOFF note) and `3e68154d` (the actual fix commit) to `origin/main`; `make demo` cut over on `vantai.tingting.vip` with backend `5b6e5fdd-dirty-96ec912063d5`. Health check returned `{"status":"ok"}` and the frontend public HTTP check passed.
+- The new `samsung-cs` and `canon-cs` CUSTOMER accounts were NOT seeded by the deploy — `make demo` does not run the seed. The staged `node dist/seed.js` fails at `resolveSeedReferenceIds()` because the staging port code is `TCHICT` (the seed looks for `HICT`). I applied a targeted, idempotent SQL migration (`qa/2026-08-30_testplan-qa/samsung_canon_seed.sql`) directly to the staging Postgres to insert the 2 customers (tax 0301444111, 0301444222) + 2 users + 2 shipments (SHP-2608-00078 / 00079). Staging now passes TC-CUST-SHIP-03 (samsung-cs → canon-cs's id 79 → 404 "Không tìm thấy lô hàng"). Migration is re-runnable.
+- The port-code mismatch is a real seed bug worth a follow-up PR: `seed.ts:847` hard-codes the lookup `if (p.code === 'HICT')` but the data team has standardised the code as `TCHICT` (the local DB still has the old name). Suggested fix: look up by name `'Cảng Tân Cảng HICT'` (or both `HICT` and `TCHICT`), or move the reference to a config table. Not blocking — a one-off migration is fine for now.
+
+No further commit, push, or deployment was performed.
