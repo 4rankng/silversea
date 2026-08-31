@@ -92,6 +92,13 @@
 
 /* Row-level "phát lệnh" shortcut — layered above the full-cell trigger so a
    dispatcher can issue an already-plated row without opening the editor. */
+/* Reserves room at the top-right of the trigger so the circular button never
+   sits on top of the carrier name — narrow desktop columns (13% share) run
+   that text the full cell width, and an opaque button there hides the tail. */
+.dispatch-assignment-cell__trigger--has-quick-issue {
+  padding-right: 38px;
+}
+
 .dispatch-assignment-cell__quick-issue {
   position: absolute;
   top: 6px;
@@ -340,6 +347,10 @@
     inset: auto;
     height: auto;
     min-height: 0;
+  }
+
+  .dispatch-assignment-cell__trigger--has-quick-issue {
+    padding-right: 12px;
   }
 
   .dispatch-assignment-cell__quick-issue {

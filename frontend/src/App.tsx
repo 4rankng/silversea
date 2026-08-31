@@ -248,7 +248,7 @@ export function AppRoutes() {
           <Route path="/fleet" element={officeStaffOnly(page(<FleetPage />))} />
 <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
-          <Route path="/trips" element={officeStaffOnly(page(<TripListPage />))} />
+          <Route path="/trips" element={tripDetailOnly(page(<TripListPage />))} />
           <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />
           <Route path="/trips/:id" element={tripDetailOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />

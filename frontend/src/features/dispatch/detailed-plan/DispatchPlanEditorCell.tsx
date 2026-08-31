@@ -505,7 +505,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       <button
         ref={triggerRef}
         type="button"
-        className="dispatch-assignment-cell__trigger"
+        className={`dispatch-assignment-cell__trigger${issueStatus === 'PLATED_NOT_ISSUED' ? ' dispatch-assignment-cell__trigger--has-quick-issue' : ''}`}
         data-cell-label="Điều phối"
         onClick={openEditor}
         disabled={disabled}
