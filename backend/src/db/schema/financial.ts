@@ -5,6 +5,7 @@ import {
   boolean, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import type { BillingDocumentOfficialIdentitySnapshot, DebitNoteTemplateSnapshot } from '@tingting/shared';
 import { advanceRequestStatusEnum, advanceSettlementStatusEnum, creditOverrideScopeEnum, creditOverrideStatusEnum, creditOverrideTierEnum, debitNoteStatusEnum, salaryConfirmationStatusEnum, txnTypeEnum } from './_enums';
 // Canonical financial posting version for one trip. Operational trip.version
 // is deliberately not used as financial provenance because unrelated dossier
@@ -127,13 +128,12 @@ export const billingDocuments = pgTable('billing_documents', {
   note: text('note'),
   debitNoteTemplateId: integer('debit_note_template_id'),
   // Frozen render-only copy so historical debit notes re-export identically
-  // after the template (or its logo) is edited/deleted. Untyped jsonb; the
-  // service casts to DebitNoteTemplateSnapshot.
-  debitNoteTemplateSnapshot: jsonb('debit_note_template_snapshot'),
+  // after the template (or its logo) is edited/deleted.
+  debitNoteTemplateSnapshot: jsonb('debit_note_template_snapshot').$type<DebitNoteTemplateSnapshot>(),
   // Immutable legal/bank/signature identity used by issued-document renders.
   // Separate from the template so legacy documents without a template can be
   // backfilled without inventing a partial template object.
-  officialIdentitySnapshot: jsonb('official_identity_snapshot'),
+  officialIdentitySnapshot: jsonb('official_identity_snapshot').$type<BillingDocumentOfficialIdentitySnapshot>(),
   // Reference-only legal invoice handoff state. This metadata never posts AR
   // and never replaces the Debit Note as the debt instrument authority.
   legalInvoiceRef: jsonb('legal_invoice_ref').$type<{
