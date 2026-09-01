@@ -123,6 +123,23 @@ export const qk = {
 
   /* ── Trips ──────────────────────────────────────────────────────────── */
 
+  /* ── CUS shipments workboard (/shipments) ─────────────────────────── */
+  shipmentsCus: {
+    /** Broad prefix — invalidates every workboard list query. */
+    all: ['shipments-cus'],
+    /** One workboard page per filter/sort combination. */
+    list: (filters: {
+      page: number;
+      searchSuffix?: string;
+      transportDateFrom?: string;
+      transportDateTo?: string;
+      direction?: string;
+      bucket?: string;
+      sortBy?: string;
+      sortDir?: string;
+    }) => ['shipments-cus', 'list', filters] as const,
+  },
+
   trips: {
     all: ['trips'],
     // Normalize id to a string: callers pass either the string id from the URL

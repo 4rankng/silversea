@@ -39,6 +39,15 @@ describe('qk.* factory — key identity', () => {
     expect(qk.trips.detail(1)).not.toEqual(qk.trips.detail(2));
   });
 
+  it('shipmentsCus keys separate workboard pages (all-prefix invalidation)', () => {
+    expect(qk.shipmentsCus.all[0]).toBe('shipments-cus');
+    expect(qk.shipmentsCus.list({ page: 1 })[0]).toBe('shipments-cus');
+    expect(qk.shipmentsCus.list({ page: 1, searchSuffix: 'AB12' }))
+      .not.toEqual(qk.shipmentsCus.list({ page: 2, searchSuffix: 'AB12' }));
+    expect(qk.shipmentsCus.list({ page: 1, bucket: 'RUNNING' as never }))
+      .not.toEqual(qk.shipmentsCus.list({ page: 1, bucket: 'LOCKED' as never }));
+  });
+
   it('keeps credit-override cursors and page sizes in separate cache entries', () => {
     const base = { status: 'PENDING', customerId: 7 };
     expect(qk.creditOverrides.list({ ...base, cursor: 'cursor-a', limit: 25 }))

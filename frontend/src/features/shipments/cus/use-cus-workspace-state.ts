@@ -1,13 +1,23 @@
 // Server-state hook for the CUS shipments workboard.
 //
-// Extracted verbatim from pages/ShipmentsPage.tsx in the 2026-09-01 structural
-// split: list + per-shipment detail fetching with manual race guards, the
-// container-line optimistic patch, dirty/saving tracking for the mobile
-// drawer, and the signature-keyed idempotency store shared by every mutation.
-// (The race guards retire in the react-query migration — until then they are
-// the behavior contract.)
+// List reads run on TanStack Query with an EQUIVALENCE config — the cache
+// settings reproduce the hand-rolled behavior exactly (see each inline
+// comment), because that behavior was tuned against live-trial regressions:
+//
+//   - 30s polling + visibility refetch (27.8 trial 2026-08-29: driver
+//     "Hoàn thành chuyến" flipped a shipment server-side but the board kept
+//     reading "Đang chạy" until manual reload).
+//   - The previous list stays rendered while a filter/sort/page change is
+//     in flight (no blank flash).
+//   - `loading` toggles on every fetch, including background polls.
+//
+// Drawer-scoped per-shipment detail reads stay on the manual guarded path
+// (detailRequestSequence): they are per-id, drawer-gated, patched
+// optimistically by applySavedContainerLine, and pinned by the page's
+// characterization tests — migrating them buys no observable behavior.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type {
   ShipmentCusBucket,
   ShipmentCusWorkspaceContainerLine,
@@ -15,7 +25,7 @@ import type {
   ShipmentCusWorkspaceListResponse,
   ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
-import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
+import { qk } from '../../../api/keys';
 import {
   getCusShipmentWorkspaceDetail,
   listCusShipmentWorkspace,
@@ -23,6 +33,7 @@ import {
 import { safeError } from './cusUtils';
 
 export const CUS_PAGE_SIZE = 20;
+const CUS_LIST_POLL_MS = 30_000;
 
 export interface CusWorkspaceListParams {
   page: number;
@@ -37,18 +48,80 @@ export interface CusWorkspaceListParams {
 
 export function useCusWorkspaceState(params: CusWorkspaceListParams) {
   const { page, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, sortKey, sortDir } = params;
-  const [data, setData] = useState<ShipmentCusWorkspaceListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Non-list errors (mutations, guards) still write imperatively; list-load
+  // errors come from the query. Old code cleared the shared error state at
+  // fetch START, so hide the list error while a fetch is in flight.
+  const [actionError, setActionError] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<number, ShipmentCusWorkspaceDetail>>({});
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<number>>(() => new Set());
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
   const [dirtyDetailIds, setDirtyDetailIds] = useState<Set<number>>(() => new Set());
   const [savingDetailIds, setSavingDetailIds] = useState<Set<number>>(() => new Set());
-  const requestSequence = useRef(0);
   const detailRequestSequence = useRef<Record<number, number>>({});
   const idempotencyKeysRef = useRef<Record<string, string>>({});
+
+  const listQuery = useQuery({
+    queryKey: qk.shipmentsCus.list({
+      page,
+      searchSuffix,
+      transportDateFrom,
+      transportDateTo,
+      direction,
+      bucket,
+      sortBy: sortKey ?? undefined,
+      sortDir: sortKey ? sortDir : undefined,
+    }),
+    queryFn: () => listCusShipmentWorkspace({
+      page,
+      limit: CUS_PAGE_SIZE,
+      searchSuffix: searchSuffix || undefined,
+      transportDateFrom: transportDateFrom || undefined,
+      transportDateTo: transportDateTo || undefined,
+      direction: direction || undefined,
+      bucket: bucket || undefined,
+      sortBy: sortKey ?? undefined,
+      sortDir: sortKey ? sortDir : undefined,
+    }),
+    // Equivalence config — see file header. These override the app-wide
+    // defaults in main.tsx (refetchOnWindowFocus: false, staleTime: 5min);
+    // the refresh-cadence test locks the override in.
+    placeholderData: keepPreviousData,
+    refetchInterval: CUS_LIST_POLL_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: 'always',
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const data: ShipmentCusWorkspaceListResponse | null = listQuery.data ?? null;
+  // Old code set loading=true on every loadList call — including each 30s
+  // poll — so isFetching (not isLoading) is the faithful mapping.
+  const loading = listQuery.isFetching;
+  const error = actionError
+    ?? (listQuery.isError && !listQuery.isFetching
+      ? safeError(listQuery.error, 'Không thể tải danh sách lô hàng.')
+      : null);
+
+  const loadList = useCallback(async () => {
+    // Old loadList cleared the error notice synchronously at call time —
+    // polls, post-save refetches, and the retry button all relied on it.
+    setActionError(null);
+    await listQuery.refetch();
+  }, [listQuery]);
+
+  // Old loadList cleared the shared error notice at every fetch start —
+  // polls included — so a "Đang lưu…" block retires on the post-save
+  // refetch (and on the next poll) exactly as before. Reproduce that on the
+  // rising edge of isFetching, which covers refetch(), invalidations, and
+  // the interval alike.
+  // Query-internal fetches (interval, focus) cleared the notice in the old
+  // useAutoRefresh path too — catch their rising edge for parity.
+  const wasFetching = useRef(false);
+  useEffect(() => {
+    if (listQuery.isFetching && !wasFetching.current) setActionError(null);
+    wasFetching.current = listQuery.isFetching;
+  }, [listQuery.isFetching]);
 
   const getIdempotencyKey = useCallback((signature: string) => {
     const existing = idempotencyKeysRef.current[signature];
@@ -61,41 +134,6 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
   const clearIdempotencyKey = useCallback((signature: string) => {
     delete idempotencyKeysRef.current[signature];
   }, []);
-
-  const loadList = useCallback(async () => {
-    const requestId = ++requestSequence.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await listCusShipmentWorkspace({
-        page,
-        limit: CUS_PAGE_SIZE,
-        searchSuffix: searchSuffix || undefined,
-        transportDateFrom: transportDateFrom || undefined,
-        transportDateTo: transportDateTo || undefined,
-        direction: direction || undefined,
-        bucket: bucket || undefined,
-        sortBy: sortKey ?? undefined,
-        sortDir: sortKey ? sortDir : undefined,
-      });
-      if (requestId === requestSequence.current) setData(response);
-    } catch (loadError) {
-      if (requestId === requestSequence.current) {
-        setError(safeError(loadError, 'Không thể tải danh sách lô hàng.'));
-      }
-    } finally {
-      if (requestId === requestSequence.current) setLoading(false);
-    }
-  }, [bucket, direction, page, sortDir, sortKey, transportDateFrom, transportDateTo, searchSuffix]);
-
-  // 27.8 trial regression 2026-08-29: driver "Hoàn thành chuyến" flipped the
-  // shipment server-side but this list kept reading "Đang chạy" until manual
-  // reload. Polling + visibility-refetch keeps the CUS workboard honest when
-  // a remote role (driver, OPS, accountant) mutates the underlying state
-  // while the user is parked here. Pause when the tab is hidden so we don't
-  // burn the office workspace on a backgrounded tab.
-  useAutoRefresh(loadList, 30_000);
-  useEffect(() => { void loadList(); }, [loadList]);
 
   const loadDetail = useCallback(async (shipmentId: number, force = false) => {
     if (!force && details[shipmentId]) return;
@@ -182,7 +220,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
   }, []);
 
   return {
-    data, loading, error, notice, setError, setNotice, loadList,
+    data, loading, error, notice, setError: setActionError as Dispatch<SetStateAction<string | null>>, setNotice, loadList,
     details, detailLoadingIds, detailErrors, loadDetail,
     applySavedContainerLine, dirtyDetailIds, savingDetailIds, setDetailDirty, setDetailSaving,
     invalidateDetail, getIdempotencyKey, clearIdempotencyKey,
