@@ -2,8 +2,9 @@
 
 ## Current task — frontend maintainability & extensibility wave — DONE (2026-09-01)
 
+- **PUSHED + DEPLOYED 21:05 SGT (`9834d60b`):** wording unified per user decisions (`4a5a432e`), DISPATCHER Sổ-chuyến-đi nav removed (`ec1d7a5a`), staleness smoke PASS (parked board + quick-create within one poll), artifact-vs-commit verified (digest f4e909eb + served ShipmentContainersPage chunk + unified wording). .ua/: 1,966 files behind → diff-overlay written, full rebuild open.
 - Scope: user ask "improve frontend for ease of maintenance and easy to extend" → audit (`plans/reports/architecture-260901-1611-frontend-maintainability.md`) → red-teamed plan (`plans/260901-1622-frontend-extensibility-change-wave/`) → cooked same day, all 7 phases.
-- Shipped on `main` (NOT pushed; no deploy — user's call), commits after the backend wave's `ff762c93`:
+- Shipped on `main`, commits after the backend wave's `ff762c93` (all pushed in `9834d60b`):
   1. `84786fee` — CUS split: ShipmentsPage 1281→609L + ShipmentsDetailPage 605→259L → `features/shipments/cus/` (state hook incl. verbatim 30s-poll, quick-edit hook, actions hook, detail hook+model, row leaf). 8 source-guard test assertions repointed.
   2. `1f33cf05` — CUS list read → react-query equivalence config (`qk.shipmentsCus`, 30s poll, focus 'always', keepPreviousData, staleTime ∞) + 5 regression tests locking the config (27.8 staleness guard). List race-guard deleted.
   3. `2156a14d` — FE status-vocab parity test: 22 shared enum↔label pairs. Divergent wordings (TripPod, dispatch status) documented as open product decisions — NOT unified under the behavior-identical contract.
@@ -29,9 +30,9 @@
 - Known debts surfaced, not actioned (open questions in plan.md): FK policy (keep app-enforced — recommended); 336 plain-timestamp vs 129 timestamptz (new columns timestamptz; unification deferred); Casbin route↔policy drift has no guard (docs-line only); **`.ua/` knowledge graph is a month stale (`04dc2b1`, 07-29)** — too far behind for incremental; needs a full `/understand` rebuild in a dedicated session.
 - testplan: TC-LX-TIENDO-010 extended with the cache postcondition (updated BEFORE the fix).
 
-**Updated:** 2026-09-01 17:05 Asia/Singapore
+**Updated:** 2026-09-01 20:41 Asia/Singapore
 **Controller:** Mavis (extensibility wave, session silversea-d1)
-**Status:** DONE — 5 commits on local `main`; push + deploy deferred to user. Full backend suite confirmation below if green.
+**Status:** DONE, PUSHED `ff311d49..93729a09`, DEPLOYED + VERIFIED (evening 2026-09-01, user: "do all recommendation"). Open questions resolved: FK policy = app-level (user decision, flexibility); timestamptz = new-columns-only; casbin guard deferred; no invalidation-dedup sweep. Deploy evidence: server DB backup before migrate (`/opt/vantai/.db-backups/db-20260901T123722Z.dump`, 2.8MB, vantai/vantai — **live cluster creds ≠ repo compose**; `demo-db-backup` now discovers user/db from the container env, fix `93729a09`; its first run failed closed and correctly aborted the deploy before any migrate/restart), migration 0045 applied (`penalties_driver_id_idx` live on staging), health `{"status":"ok"}`, rollback snapshot retained, artifact-vs-commit: GHCR `:latest` digest `sha256:36855dee…` == server container RepoDigest (image built from clean `9a145712` tree; sibling carry `9a145712` = 2-line FinancePage tooltip polish). Remaining known debt: `.ua/` month-stale → full `/understand` rebuild session needed.
 
 ## Previous task — driver full-close flow multi-fulfillment follow-up (HOÀN THÀNH CHUYẾN partial close → PENDING_EXPENSE_APPROVAL) — DONE
 
