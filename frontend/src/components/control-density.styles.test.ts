@@ -41,7 +41,7 @@ describe('shared control density', () => {
 
   it('leaves dimensions to shared primitives instead of shipment page overrides', () => {
     const overview = read('src/pages/ShipmentsPage.css');
-    const detail = read('src/pages/ShipmentsDetailPage.css');
+    const detail = read('src/pages/ShipmentContainersPage.css');
     const detailControlBlocks = [...detail.matchAll(/\.shipments-detail-filter input\s*\{([^}]*)\}/g)]
       .map((match) => match[1]);
 
@@ -58,7 +58,7 @@ describe('shared control density', () => {
     const textarea = read('src/components/untitled-ui/base/textarea/textarea.tsx');
     const bufferedDate = read('src/design-system/forms/BufferedUuiDateInput.tsx');
     const overview = read('src/pages/ShipmentsPage.css');
-    const detail = read('src/pages/ShipmentsDetailPage.css');
+    const detail = read('src/pages/ShipmentContainersPage.css');
     const shipmentCreate = read('src/pages/clerk/ClerkShipmentCreatePage.css');
 
     for (const source of [input, nativeSelect, select, textarea]) {

@@ -1,6 +1,6 @@
 // Server-state + inline-edit hook for the CUS container-detail workboard.
 //
-// Extracted verbatim from pages/ShipmentsDetailPage.tsx in the 2026-09-01
+// Extracted verbatim from pages/ShipmentContainersPage.tsx in the 2026-09-01
 // structural split: paginated row fetching, the per-mode edit sessions
 // (fetch workspace detail, gate on canEditMode), signature-keyed idempotency,
 // and optimistic-conflict recovery that swaps in fresh data instead of

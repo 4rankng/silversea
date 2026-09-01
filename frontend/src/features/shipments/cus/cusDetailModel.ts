@@ -1,6 +1,6 @@
 // Pure helpers for the CUS container-detail workboard.
 //
-// Extracted verbatim from pages/ShipmentsDetailPage.tsx in the 2026-09-01
+// Extracted verbatim from pages/ShipmentContainersPage.tsx in the 2026-09-01
 // structural split: URL-param readers, edit-mode permission rules, and the
 // optimistic-conlict sniff every save uses to self-heal instead of failing.
 

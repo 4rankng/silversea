@@ -8,7 +8,7 @@ const responsive = readFileSync(resolve(root, 'src/styles/responsive.css'), 'utf
 const shell = readFileSync(resolve(root, 'src/components/layout/app-shell.css'), 'utf8');
 const dispatch = readFileSync(resolve(root, 'src/pages/DispatchPlanPage.css'), 'utf8');
 const shipmentCreate = readFileSync(resolve(root, 'src/pages/clerk/ClerkShipmentCreatePage.css'), 'utf8');
-const shipmentDetail = readFileSync(resolve(root, 'src/pages/ShipmentsDetailPage.css'), 'utf8');
+const shipmentDetail = readFileSync(resolve(root, 'src/pages/ShipmentContainersPage.css'), 'utf8');
 
 describe('mobile gutter contract', () => {
   it('gives every authenticated screen one safe outer gutter token', () => {

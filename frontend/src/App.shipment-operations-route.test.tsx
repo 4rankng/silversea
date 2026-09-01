@@ -39,7 +39,7 @@ vi.mock('./pages/clerk/ClerkShipmentCreatePage', () => ({
   default: () => <div>Shipment create test page</div>,
 }));
 
-vi.mock('./pages/ShipmentsDetailPage', () => ({
+vi.mock('./pages/ShipmentContainersPage', () => ({
   default: () => <div>Shipment containers test page</div>,
 }));
 

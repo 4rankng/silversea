@@ -14,8 +14,8 @@ import {
   SalaryConfirmationGovernanceList,
   SalaryPeriodGovernanceList,
   SalarySummaryCard,
-} from './salary-attendance-components';
-import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
+} from '../features/salary-attendance/salary-attendance-components';
+import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-attendance-constants';
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
 

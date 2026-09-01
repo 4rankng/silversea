@@ -173,7 +173,7 @@ for (const file of sharedColorFiles) {
 // Paths are relative to frontend/ (see sourceRoot), hence the src/ prefix.
 const FROZEN_CSS_PREFIXES = [
   'src/pages/ShipmentsPage.css',
-  'src/pages/ShipmentsDetailPage.css',
+  'src/pages/ShipmentContainersPage.css',
   'src/pages/ShipmentDetailPage.css',
   'src/pages/clerk/',
   'src/features/dispatch/',

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
-import { DOW_LABELS } from './salary-attendance-constants';
+import { DOW_LABELS } from '../features/salary-attendance/salary-attendance-constants';
 import './ForwarderTripDateRangePicker.css';
 
 type DateRange = { dateFrom: string; dateTo: string };

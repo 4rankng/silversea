@@ -1,0 +1,464 @@
+.shipments-detail-page {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding-bottom: 36px;
+  container-name: shipments-detail;
+  container-type: inline-size;
+}
+
+/* Match the overview's broad-but-bounded operational measure. This protects
+   scanability on ultrawide screens without introducing a card shell. */
+.app-main:not(.driver-mode) .app-body > .shipments-detail-page { width: min(100%, 1800px); max-width: 1800px; margin-inline: auto; }
+
+.shipments-detail-workspace {
+  min-width: 0;
+  background: transparent;
+}
+
+/* Borderless workband, matching the golden toolbar (`.cus-worksheet-toolbar`
+   sets border-bottom: 0): the summary rail carries the only ruled lines, so no
+   horizontal divider runs under the filters. */
+.shipments-detail-workspace__header {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px 0;
+  border-block: 0;
+  background: transparent;
+}
+.shipments-detail-filters {
+  display: grid;
+  /* Three visual groups — search, one date-range unit, the select trio — so
+     related filters read as a cluster: 6px inside a group, 14px between
+     groups, with the date-actions footer on the second row. */
+  grid-template-columns: minmax(220px, 1.1fr) minmax(280px, 1.5fr) minmax(430px, 2.1fr);
+  gap: 14px;
+  align-items: start;
+  min-width: 0;
+}
+.shipments-detail-filters__group { display: grid; min-width: 0; gap: 6px; }
+.shipments-detail-filters__group--dates { grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr); }
+.shipments-detail-filters__group--selects { grid-template-columns: minmax(170px, 1.25fr) minmax(110px, .65fr) minmax(140px, .85fr); }
+.shipments-detail-filter { width: 100%; min-width: 0; gap: 4px; }
+.shipments-detail-filter > *,
+.shipments-detail-filter input { width: 100%; min-width: 0; }
+.shipments-detail-filter [data-label] { margin-bottom: 0; color: var(--ink-2); font-weight: var(--fw-semibold); }
+.shipments-detail-filter [data-input-wrapper] { gap: 4px; box-shadow: none; }
+.shipments-detail-filter input { box-shadow: none; background: transparent; }
+/* Conformance skin (design-guidelines.md, Dense dialogs & forms): the
+   vendored Select trigger owns its own Tailwind sizing (min-h-[34px]) since
+   UuiSelectField.css's boundary selectors don't reach it, so its 36px
+   border-box sits 2px taller than the text-input wrapper's 34px. Trim the
+   inner value span to 32px so both control families share one row line. */
+.shipments-detail-filters .ds-uui-select__control button > span { min-height: 32px; }
+.shipments-detail-filter--search input { padding-left: 30px; }
+.shipments-detail-filter--search input { text-transform: uppercase; }
+.shipments-detail-filters__footer { display: flex; grid-column: 2 / -1; min-width: 0; align-items: end; justify-content: flex-end; }
+.shipments-detail-filters__date-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; }
+.shipments-detail-filters__date-actions button,
+.shipments-detail-filters__reset { border: 1px solid var(--line-2); border-radius: 6px; background: var(--surface); color: var(--ink); box-shadow: none; font-weight: var(--fw-semibold); }
+.shipments-detail-filters__date-actions button:hover,
+.shipments-detail-filters__date-actions button[data-hovered],
+.shipments-detail-filters__reset:hover,
+.shipments-detail-filters__reset[data-hovered] { border-color: var(--ink-4); background: var(--surface-2); color: var(--ink); }
+.shipments-detail-filters__reset { flex: 0 0 auto; }
+
+.shipments-detail-error { margin: 12px 14px 0; border-radius: 8px; }
+
+/* Summary = the shared workboard summary rail (design-system/SummaryRail.css),
+   the app-wide standard for operational list summaries. The page owns the
+   gutter: 18px aligns the rail with the workspace header's padding (the
+   component ships the workboard's own 16px default for other adopters). */
+.shipments-detail-workspace .summary-rail { margin-inline: 18px; }
+
+.shipment-container-ledger { position: relative; min-width: 0; background: var(--surface); }
+.shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.shipment-container-ledger > .ds-pagination { position: static; z-index: var(--z-sticky, 100); margin: 0; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }
+.shipments-detail-workspace > .ds-empty-state .ds-empty-state__illustration { width: min(220px, 80vw); height: 150px; opacity: 1; }
+
+/* A bottom-sticky footer can cover the only row when the app scrollport is
+   short. Keep single-row and touch layouts in normal flow; pin pagination only
+   for longer desktop ledgers where it materially improves navigation. */
+@media (min-width: 1101px) {
+  .shipment-container-ledger:has(tbody > tr:nth-child(2)) > .ds-pagination { position: sticky; bottom: 0; }
+}
+.shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.shipment-container-ledger__col--customer { width: 14%; }
+.shipment-container-ledger__col--documents { width: auto; }
+.shipment-container-ledger__col--container { width: auto; }
+/* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
+   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
+   table-layout: fixed and width: auto, the column shrinks below the
+   longest unbreakable token and the cell's overflow:hidden clips the
+   trailing characters. Pin the column to a share that fits the
+   long-NÂNG/HẠ pair; the remaining auto columns absorb the leftover. */
+.shipment-container-ledger__col--route { width: 18%; }
+.shipment-container-ledger__col--schedule { width: 14%; }
+.shipment-container-ledger__col--vehicle { width: auto; }
+.shipment-container-ledger__col--status { width: 9%; }
+.shipment-container-ledger__col--notes { width: 16%; }
+
+/* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
+   keeps the header flush with the app-body edge so scrolled rows never peek
+   through the gap between the topbar and this pinned header. */
+/* Workboard-standard thead (docs/design-guidelines.md §"Workboard table &
+   summary rail"): --ink-2 header text on surface-2 with a 1px --line-strong
+   underline, 10×12 padding — computed-identical to the /shipments table
+   (header case/tracking come from the shared table base, as on /shipments). */
+.shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; overflow-wrap: anywhere; white-space: normal; }
+.shipment-container-ledger tbody > tr > th,
+.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
+.shipment-container-ledger tbody > tr:last-child > * { border-bottom: 0; }
+.shipment-container-ledger tbody > tr:hover > * { background: var(--surface-2); }
+/* A full-row amber fill stops reading as "needs attention" once missing-date
+   rows dominate an unfiltered view — it reads as striping. Scope the tint to
+   the schedule cell, where the "Thiếu ngày vận chuyển" chip explains it. */
+.shipment-container-ledger tbody > tr.shipment-container-ledger__row--missing-date > td[data-label='Lịch trình'] { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)); }
+.shipment-container-ledger tbody > tr.shipment-container-ledger__row--missing-date:hover > td[data-label='Lịch trình'] { background: color-mix(in srgb, var(--warning-soft) 88%, var(--surface)); }
+
+.shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
+.shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.shipment-container-ledger__multiline > strong,
+.shipment-container-ledger__multiline > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__vehicle-state):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
+.shipment-container-ledger__multiline > em,
+.shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
+.shipment-container-ledger__multiline > strong { font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
+.shipment-container-ledger__multiline > span { color: var(--ink-2); }
+.shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
+.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning-text); font-size: 10px; font-weight: var(--fw-bold); line-height: 1.5; white-space: nowrap; }
+.shipment-container-ledger__row-warning svg { width: 12px; height: 12px; flex: 0 0 12px; }
+
+/* Server-derived missing-field triage. One amber chip whose labels flow
+   inline with "·" separators (generated in CSS so the DOM text stays a clean
+   comma-free list) instead of a stacked line per field — same information,
+   a fraction of the row height. */
+.shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { white-space: normal; }
+.shipment-container-ledger__missing-fields-text { display: inline; min-width: 0; overflow-wrap: anywhere; }
+.shipment-container-ledger__missing-fields-label { margin-right: 4px; color: var(--warning-text); }
+.shipment-container-ledger__missing-fields-list { display: inline; min-width: 0; color: var(--ink-2); font-weight: var(--fw-medium); }
+.shipment-container-ledger__missing-fields-list > span { display: inline; min-width: 0; overflow-wrap: anywhere; }
+.shipment-container-ledger__missing-fields-list > span + span::before { content: '·'; margin: 0 4px; color: var(--ink-3); }
+.shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
+/* Direction is structural classification, not a status: neutral token chip
+   (surface-3/ink-2) matching the frozen overview's treatment — accent fills
+   stay reserved for state signals. */
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 999px; background: var(--surface-3); color: var(--ink-2); font-size: 10px; font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; }
+.shipment-container-ledger__direction--unknown { color: var(--ink-3); }
+.shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: 10px; font-weight: var(--fw-medium); }
+.shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: 10px; font-weight: var(--fw-bold); }
+.shipment-container-ledger__dispatch-badge { max-width: 100%; font-size: 11px; line-height: 1.4; white-space: normal; }
+
+/* Last-column status cell: read-only badge surface; keep the badge left-aligned
+   so it sits at the natural reading start and doesn't visually drift when rows
+   differ in length. */
+.shipment-container-ledger__cell--status { display: table-cell; vertical-align: middle; }
+.shipment-container-ledger__cell--status .shipment-container-ledger__dispatch-badge { justify-content: flex-start; }
+.shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
+
+.shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }
+.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; font-weight: var(--fw-medium); word-break: break-word; }
+.shipment-container-ledger__route small { color: var(--ink-3); font-size: 10px; font-weight: var(--fw-semibold); text-transform: uppercase; }
+.shipment-container-ledger__route i { justify-self: start; color: var(--ink-4); font-style: normal; transform: rotate(90deg); }
+.shipment-container-ledger__schedule { font-family: var(--font-data); }
+/* "Thiếu ngày vận chuyển" chip: the schedule column owns the date-gap signal
+   (paired with the cell-scoped amber tint above), so the actionable state is
+   where the eye already reads schedule information. */
+.shipment-container-ledger__schedule-gap { width: fit-content; max-width: 100%; margin-bottom: 1px; color: var(--warning-text); font-family: var(--font-body); font-size: 11px; line-height: 1.4; white-space: normal; }
+.shipment-container-ledger__schedule-gap svg { width: 12px; height: 12px; margin-right: 4px; }
+.shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-data); font-weight: var(--fw-bold); letter-spacing: .03em; }
+.shipment-container-ledger__vehicle { gap: 4px; }
+.shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 52%, var(--surface)) !important; }
+.shipment-container-ledger tbody > tr:hover > .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)) !important; }
+/* Status chips below are UUI badges (Badge/BadgeWithDot warning): the badge
+   component owns fill, ring, radius, and height; page CSS tunes type and
+   containment only — never border, padding, or control geometry — so a chip
+   can never read as a button. The explicit color is required: Tailwind's
+   layered text utilities lose to the unlayered `__multiline > span` ink-2
+   rule above (CSS Cascade 5), which would leave amber fills with gray text. */
+.shipment-container-ledger__vehicle-state { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: 11px; line-height: 1.4; white-space: normal; }
+.shipment-container-ledger__vehicle-state svg { width: 12px; height: 12px; margin-right: 4px; }
+.shipment-container-ledger__plate--missing { width: fit-content; max-width: 100%; color: var(--warning-text); font-size: 11px; line-height: 1.4; white-space: normal; }
+.shipment-container-ledger__vehicle-guidance { color: var(--ink-2); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.35; }
+.shipment-container-ledger__read-only-reason { color: var(--ink-3); font-size: 10px; font-weight: var(--fw-medium); line-height: 1.4; }
+
+.shipment-container-ledger__cell-stack { display: grid; min-width: 0; gap: 3px; }
+.shipment-container-ledger__cell-stack > .shipment-container-ledger__cell-trigger + .shipment-container-ledger__cell-trigger { padding-top: 5px; border-top: 1px solid var(--line); }
+.shipment-container-ledger__editable-cell { position: relative; height: 1px; padding: 0 !important; }
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor { position: relative; height: 100%; }
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 10px;
+}
+.shipment-container-ledger__cell-trigger {
+  display: block;
+  width: calc(100% + 8px);
+  min-width: 0;
+  margin: -3px -4px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: text;
+  font: inherit;
+  line-height: inherit;
+  scroll-margin-top: 96px;
+  text-align: left;
+  touch-action: manipulation;
+}
+.shipment-container-ledger__cell-trigger:not(.shipment-container-ledger__cell-trigger--read-only):not([disabled]):hover,
+.shipment-container-ledger__cell-trigger--expanded { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.shipment-container-ledger__cell-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.shipment-container-ledger__cell-trigger[disabled] { opacity: 1; cursor: default; }
+.shipment-container-ledger__cell-trigger--read-only { cursor: default; }
+.shipment-container-ledger__edit-purpose { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.shipment-container-ledger__classification { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px; color: var(--ink-2); }
+.shipment-container-ledger__classification > span { min-width: 0; overflow-wrap: anywhere; }
+.shipment-container-ledger__editing-cell { position: relative; z-index: var(--z-overlay, 200); overflow: visible !important; background: var(--surface-2) !important; }
+.shipment-container-ledger__cell-editor { position: relative; min-width: 0; }
+.shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 6px);
+  left: -4px;
+  display: flex;
+  width: min(420px, calc(100vw - 28px));
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: none;
+}
+.shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
+.shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
+.shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
+.shipment-container-ledger__editor-heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.shipment-container-ledger__editor-heading strong { color: var(--ink); font-size: 13px; }
+.shipment-container-ledger__editor-heading span { color: var(--ink-3); font-family: var(--font-data); font-size: 11px; }
+.shipment-container-ledger__editor-grid { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 9px; }
+.shipment-container-ledger__editor-grid--schedule { grid-template-columns: minmax(0, 1fr); }
+.shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
+.shipment-container-ledger__editor-grid > label > span,
+.shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: 11px; font-weight: var(--fw-bold); line-height: 1.3; }
+.shipment-container-ledger__editor-grid input,
+.shipment-container-ledger__editor-grid select,
+.shipment-container-ledger__editor-grid textarea,
+.shipment-container-ledger__editor-grid .searchable-select__trigger { box-sizing: border-box; width: 100%; min-width: 0; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); box-shadow: none; color: var(--ink); font-size: 13px; line-height: 1.35; }
+.shipment-container-ledger__editor-grid input,
+.shipment-container-ledger__editor-grid select,
+.shipment-container-ledger__editor-grid .searchable-select__trigger { padding: 5px 9px; }
+.shipment-container-ledger__editor-grid textarea { height: auto; min-height: 72px; padding: 7px 9px; resize: vertical; }
+.shipment-container-ledger__editor-grid input:focus-visible,
+.shipment-container-ledger__editor-grid select:focus-visible,
+.shipment-container-ledger__editor-grid textarea:focus-visible,
+.shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
+.shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: 11px; line-height: 1.4; }
+.shipment-container-ledger__field--request > input,
+.shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning, #f59e0b); }
+.shipment-container-ledger__field--request > input:focus-visible,
+.shipment-container-ledger__field--request > .searchable-select__trigger:focus-visible { border-color: var(--warning, #f59e0b); outline-color: color-mix(in srgb, var(--warning, #f59e0b) 22%, transparent); }
+.shipment-container-ledger__request-notice { color: var(--warning-text, #92400e); font-size: 11px; font-weight: var(--fw-semibold); line-height: 1.4; }
+.shipment-container-ledger__request-reason { grid-column: 1 / -1; }
+.shipment-container-ledger__request-reason textarea { min-height: 60px; }
+.shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
+.shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+.shipment-container-ledger__edit-action { display: inline-flex; width: auto; min-width: 36px; height: 36px; min-height: 36px; padding-inline: 12px; font-size: 13px; }
+/* Disabled must read as a gray pill, not brand-green at half opacity: the
+   base button's only disabled styling is disabled:opacity-50, which washes
+   the green instead of neutralizing it against the white editor tray. Only
+   the primary Save sits disabled at rest (dirty-gated); the secondary cancel
+   disables mid-save only. Unlayered declarations override Tailwind's layered
+   disabled/hover utilities, so reset opacity and flatten the shadow. */
+.shipment-container-ledger__edit-action:disabled { background: var(--surface-2); color: var(--ink-4); box-shadow: none; opacity: 1; }
+.shipment-container-ledger__keyboard-hint { min-width: 0; color: var(--ink-3); font-size: 11px; line-height: 1.35; white-space: nowrap; }
+.shipment-container-ledger__edit-error { display: block; max-width: 100%; margin-top: 5px; color: var(--danger); font-size: 10px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__request-success { display: block; max-width: 100%; margin-top: 5px; color: var(--success-text, #166534); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+.shipment-container-ledger__recovery { display: block; max-width: 100%; margin-top: 5px; color: var(--warning-text); font-size: 10px; font-weight: var(--fw-semibold); line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
+
+.shipments-detail-skeleton { padding: 0 12px; }
+.shipments-detail-skeleton__row { display: flex; gap: 12px; align-items: center; min-height: 72px; border-bottom: 1px solid var(--line); }
+.shipments-detail-workspace > .empty-state { margin: 18px; }
+.shipments-detail-workspace > .ds-pagination { padding: 12px 14px; border-top: 1px solid var(--line); }
+.shipments-detail-workspace .ds-pagination__btn { background: var(--surface); box-shadow: none; }
+.shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
+
+/* Operational filters use the same shell-owned edge as the other full-width
+   workflows through tablet and compact desktop widths. */
+@media (max-width: 1100px) {
+  .shipments-detail-workspace__header { padding-inline: 0; }
+}
+
+/* Between ~900px and ~1300px of container width the three-group row no
+   longer fits: the select trio moves to its own full-width row (keeping its
+   internal three-column rhythm) and the date/reset actions close the block,
+   right-aligned, instead of stranding on a clipped fourth column. */
+@container shipments-detail (max-width: 1300px) {
+  .shipments-detail-filters {
+    grid-template-columns: minmax(220px, 1.1fr) minmax(260px, 1.3fr);
+    align-items: start;
+    max-width: 1120px;
+  }
+  .shipments-detail-filters__group--selects { grid-column: 1 / -1; }
+  .shipments-detail-filters__footer { grid-column: 1 / -1; justify-content: flex-end; align-self: end; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
+}
+
+@container shipments-detail (max-width: 900px) {
+  .shipments-detail-filters { grid-template-columns: 1fr 1fr; max-width: none; }
+  .shipments-detail-filter--search { grid-column: 1 / -1; }
+  .shipments-detail-filters__group--dates { grid-column: 1 / -1; }
+  .shipments-detail-filters__group--selects { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; }
+  .shipments-detail-filters__group--selects > .shipments-detail-filter:last-child { grid-column: 1 / -1; }
+  .shipments-detail-filters__footer { grid-column: 1 / -1; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; }
+  .shipment-container-ledger table,
+  .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
+  .shipment-container-ledger colgroup { display: none; }
+  .shipment-container-ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .shipment-container-ledger thead tr,
+  .shipment-container-ledger thead th { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; }
+  .shipment-container-ledger tbody > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; border-bottom: 1px solid var(--line-2); }
+  .shipment-container-ledger tbody > tr:last-child { border-bottom: 0; }
+  .shipment-container-ledger tbody > tr > th,
+  .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
+  .shipment-container-ledger tbody > tr > th::before,
+  .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: 9px; font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell,
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell { height: auto; }
+  .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell::before,
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell::before { display: none; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor {
+    position: static;
+    inset: auto;
+    display: block;
+    grid-column: 1 / -1;
+    height: auto;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 68px;
+    padding: 8px 10px;
+    position: relative;
+  }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    width: 88px;
+    color: var(--ink-3);
+    content: attr(data-cell-label);
+    font-size: 9px;
+    font-weight: var(--fw-bold);
+    letter-spacing: .035em;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    text-transform: uppercase;
+  }
+  .shipment-container-ledger__cell-trigger > :not(.shipment-container-ledger__edit-purpose) { grid-column: 2; }
+  .shipment-container-ledger__cell-editor > .shipment-container-ledger__inline-editor { position: static; width: 100%; max-width: none; margin-top: 6px; }
+  .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
+  .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor,
+  .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: auto; left: auto; }
+  .shipment-container-ledger__editor-grid input,
+  .shipment-container-ledger__editor-grid select,
+  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 40px; min-height: 40px; }
+  .shipment-container-ledger__cell-trigger,
+  .shipment-container-ledger__edit-action { min-height: 40px; }
+  .shipment-container-ledger__edit-action { min-width: 40px; height: 40px; }
+}
+
+/* The page chrome is comfortable at tablet width, but a three-column ledger
+   is not: document identifiers and route values need a two-column reading
+   measure before the viewport reaches phone size. */
+@container shipments-detail (max-width: 780px) {
+  .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "CHỨNG TỪ"; }
+}
+
+@media (max-width: 760px) {
+  .shipments-detail-page { gap: 10px; }
+  .shipments-detail-workspace { border: 0; border-radius: 0; }
+  /* The shell already owns the phone gutter. Keep filters aligned with the
+     workspace edge so this operational screen does not lose another 24px. */
+  .shipments-detail-workspace__header { padding: 14px 0; }
+  .shipments-detail-workspace .summary-rail { margin: 10px 10px 0; }
+  .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 6px solid var(--surface-2); }
+  .shipment-container-ledger tbody > tr > th,
+  .shipment-container-ledger tbody > tr > td { grid-column: auto !important; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow: hidden; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
+  .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }
+  .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
+  .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
+  .shipment-container-ledger__editor-grid input,
+  .shipment-container-ledger__editor-grid select,
+  .shipment-container-ledger__editor-grid .searchable-select__trigger { height: 44px; min-height: 44px; }
+  .shipment-container-ledger__cell-trigger { min-height: 44px; }
+  .shipment-container-ledger__edit-action { min-width: 44px; height: 44px; min-height: 44px; }
+  .shipment-container-ledger__keyboard-hint { display: none; }
+  .shipment-container-ledger__editor-footer { justify-content: flex-end; }
+  .shipments-detail-error { margin-inline: 10px; }
+  .shipments-detail-workspace > .ds-pagination { padding-inline: 12px; }
+}
+
+@media (max-width: 520px) {
+  /* Every group owns a full row on the phone sheet; the date pair stays
+     side-by-side and the date/reset actions close the toolbar right-aligned. */
+  .shipments-detail-filters { grid-template-columns: minmax(0, 1fr); }
+  .shipments-detail-filter--search,
+  .shipments-detail-filters__group--dates,
+  .shipments-detail-filters__group--selects { grid-column: 1 / -1; }
+  .shipments-detail-filters__group--selects { grid-template-columns: minmax(0, 1fr); }
+  .shipments-detail-filters__footer { grid-column: 1 / -1; }
+  .shipments-detail-filters__date-actions { flex-wrap: nowrap; justify-content: flex-end; }
+  .shipment-container-ledger tbody > tr { grid-template-columns: 1fr; }
+  .shipment-container-ledger tbody > tr > th,
+  .shipment-container-ledger tbody > tr > td { grid-template-columns: 88px minmax(0, 1fr); column-gap: 8px; padding: 6px 10px; }
+  .shipment-container-ledger tbody > tr > th,
+  .shipment-container-ledger tbody > tr > td,
+  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: auto !important; border-right: 0; }
+  /* An active editor owns its complete record on a phone. Its trigger already
+     supplies the internal spacing, so parent-cell padding must not truncate
+     the normal-flow editor below it. */
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { display: block; padding: 0 0 32px; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell.shipment-container-ledger__editable-cell { padding: 0 0 32px !important; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell::before { display: none; }
+  .shipment-container-ledger__editing-cell > .shipment-container-ledger__cell-editor { display: flex; flex-direction: column; }
+  .shipment-container-ledger__editing-cell .shipment-container-ledger__cell-trigger { margin: 0; }
+  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-trigger,
+  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-trigger,
+  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor,
+  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-editor,
+  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-stack,
+  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__edit-error { grid-column: 2; }
+  .shipment-container-ledger tbody > tr > th > .shipment-container-ledger__cell-editor--expanded,
+  .shipment-container-ledger tbody > tr > td > .shipment-container-ledger__cell-editor--expanded { grid-column: 1 / -1; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor { grid-column: 1 / -1; }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger { grid-template-columns: 88px minmax(0, 1fr); }
+  .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger::before { width: 80px; }
+  .shipment-container-ledger__cell-trigger { grid-column: 2; }
+  .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .shipment-container-ledger__route i { justify-self: center; transform: none; }
+  .shipments-detail-workspace .ds-pagination__controls > :not(:first-child):not(:last-child):not(.ds-pagination__btn--active) { display: none; }
+  .shipments-detail-workspace .ds-pagination__controls { justify-content: flex-end; }
+}

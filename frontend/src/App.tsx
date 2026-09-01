@@ -46,7 +46,7 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 // ships in Wave 2.
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
-const ShipmentsDetailPage = lazy(() => import('./pages/ShipmentsDetailPage'));
+const ShipmentContainersPage = lazy(() => import('./pages/ShipmentContainersPage'));
 // Wave 2: Customer portal pages.
 const PortalShipmentsPage = lazy(() => import('./pages/portal/PortalShipmentsPage'));
 const PortalShipmentDetailPage = lazy(() => import('./pages/portal/PortalShipmentDetailPage'));
@@ -276,7 +276,7 @@ export function AppRoutes() {
               Dispatcher read access. Mutation routes remain separately gated. */}
           <Route path="/shipments" element={shipmentReaderOnly(page(<ShipmentsPage />))} />
           <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
-          <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentsDetailPage />))} />
+          <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />

@@ -37,7 +37,7 @@ describe('selection-state contract', () => {
     expect(read('src/components/layout/bottom-nav.css')).toContain('    background: var(--ink);');
     expect(read('src/pages/trip-list/table.css')).toContain('.trip-list-page .quick-edit-row.selected {\n  background: var(--surface);\n  box-shadow: inset 3px 0 0 var(--ink);');
     expect(read('src/pages/clerk/ClerkShipmentCreatePage.css')).toContain('.csc-mode input:checked + span { border-color: var(--ink); background: var(--surface); color: var(--fg-1); box-shadow: inset 3px 0 0 var(--ink); }');
-    expect(read('src/pages/ShipmentsDetailPage.css')).toContain('.shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }');
+    expect(read('src/pages/ShipmentContainersPage.css')).toContain('.shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }');
     expect(read('src/design-system/Pagination.css')).toContain('.ds-pagination__btn--active {\n  background: var(--ink);\n  border-color: var(--ink);');
     expect(read('src/design-system/forms/SearchableSelect.css')).toContain('.searchable-select__option--active {\n  color: var(--ink);\n  background: var(--surface-2);');
     expect(read('src/components/trip/CheckboxCard.css')).toContain('.tc-checkbox-card--checked {\n  background: var(--surface);\n  border-color: var(--ink);\n  box-shadow: inset 3px 0 0 var(--ink);');
