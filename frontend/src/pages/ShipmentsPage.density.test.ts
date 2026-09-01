@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+// Row markup moved into the feature leaf in the 2026-09-01 structural split.
+const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
 
 describe('shipment container editor density', () => {
@@ -28,9 +30,9 @@ describe('shipment container editor density', () => {
 
   it('binds touch-friendly cell triggers to an explicit edit dialog', () => {
     expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*44px;[^}]*touch-action:\s*manipulation;/);
-    expect(pageSource).toContain('aria-haspopup="dialog"');
-    expect(pageSource).toContain("startQuickEdit(item, 'schedule')");
-    expect(pageSource).toContain("startQuickEdit(item, 'notes')");
+    expect(rowSource).toContain('aria-haspopup="dialog"');
+    expect(rowSource).toContain("onStartQuickEdit(item, 'schedule')");
+    expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");
   });
 
   it('uses the create-form spreadsheet pattern instead of two tall operational bands', () => {

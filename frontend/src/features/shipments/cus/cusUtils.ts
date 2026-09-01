@@ -6,6 +6,7 @@ import {
   Truck,
 } from 'lucide-react';
 import {
+  ShipmentCusBucket,
   ShipmentDocumentCustody,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceListItem,
@@ -168,6 +169,14 @@ export function accountingConfirmationLabel(
 export function safeError(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback;
 }
+
+/** StatusStrip color per CUS bucket (workboard rows + drawer swatch). */
+export const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
+  [ShipmentCusBucket.NEW]: 'var(--ink-3)',
+  [ShipmentCusBucket.RUNNING]: 'var(--accent)',
+  [ShipmentCusBucket.PENDING_LOCK]: 'var(--warning)',
+  [ShipmentCusBucket.LOCKED]: 'var(--slate-4)',
+};
 
 /**
  * Split a joined container summary ("1x40HC + 1x20DC") into one line per

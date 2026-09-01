@@ -1,9 +1,6 @@
-import { DispatchIssueStatusSummaryChip } from '../features/dispatch/components/DispatchIssueStatus';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import {
-  ChevronRight,
   Download,
   FileLock2,
   Loader2,
@@ -11,95 +8,43 @@ import {
   RotateCcw,
   Save,
   Search,
-  Trash2,
   X,
 } from 'lucide-react';
 import {
   SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_CUS_WORKSPACE_SORT_KEYS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS,
-  SHIPMENT_STATUS_LABELS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   Role,
-  type ShipmentCusWorkspaceContainerLine,
-  type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
-  type ShipmentCusWorkspaceListResponse,
   type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
-import { ApiError } from '../lib/api';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { StatusStrip, StatusSwatch } from '../components/shared/StatusStrip';
+import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal, PageHeader } from '../components/UI';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { Input as UUIInput } from '../components/untitled-ui/base/input/input';
 import { EmptyState, Pagination, BufferedUuiDateInput, UuiSelectField } from '../design-system';
-import {
-  createShipmentDeclaration,
-  getCusShipmentWorkspaceDetail,
-  confirmCusShipmentFinance,
-  listCusShipmentWorkspace,
-  lockCusShipment,
-  requestCusShipmentReopen,
-  requestShipmentDelete,
-  updateCusShipmentDocumentCustody,
-  updateShipment,
-  updateShipmentDeclaration,
-} from '../api/shipmentClient';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
-import { FinanceEvidence, WorkflowBadge, ShipmentSignals } from '../features/shipments/cus/CusBadges';
+import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
-import {
-  derivePrimaryShipmentSignal,
-  directionLabel,
-  cargoModeLabel,
-  formatAppointmentGroupLine,
-  appointmentGroupFactorySegment,
-  formatQuantity,
-  idempotencySignature,
-  noteLines,
-  quickEditTitle,
-  safeError,
-  splitContainerSummaryLines,
-  vehicleReadinessLabel,
-  worksheetQuantity,
-  type ShipmentQuickEditDraft,
-} from '../features/shipments/cus/cusUtils';
-import {
-  buildQuickEditDeclarationBody,
-  buildQuickEditDraft,
-  buildQuickEditPayload,
-  isQuickEditUnchanged,
-  quickEditAccessKeys,
-  quickEditDeclarationChanged,
-  quickEditSaveIdentity,
-} from '../features/shipments/cus/cusQuickEditModel';
+import { CusShipmentRow } from '../features/shipments/cus/CusShipmentRow';
+import { CUS_PAGE_SIZE, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
+import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
+import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
+import { appointmentGroupFactorySegment, formatAppointmentGroupLine, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
 
-const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
-
-// Customer feedback L2 (24/08/2026) — per-day cont aggregation when a date
-// filter is active. The helpers are extracted into a small module so the
-// dispatch master-plan grid can share them, and the aggregation rules are
-// unit-tested.
-import { filterAppointmentGroupsByDate, aggregateContainerSummary } from '../features/shipments/cus/cargoDayFilter';
-
-const SHIPMENT_BUCKET_COLORS: Record<ShipmentCusBucket, string> = {
-  [ShipmentCusBucket.NEW]: 'var(--ink-3)',
-  [ShipmentCusBucket.RUNNING]: 'var(--accent)',
-  [ShipmentCusBucket.PENDING_LOCK]: 'var(--warning)',
-  [ShipmentCusBucket.LOCKED]: 'var(--slate-4)',
-};
 
 export default function ShipmentsPage() {
   const navigate = useNavigate();
@@ -127,43 +72,26 @@ export default function ShipmentsPage() {
 
   const [searchInput, setSearchInput] = useState(suffixParam);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [data, setData] = useState<ShipmentCusWorkspaceListResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
-  const [dirtyDetailIds, setDirtyDetailIds] = useState<Set<number>>(() => new Set());
-  const [savingDetailIds, setSavingDetailIds] = useState<Set<number>>(() => new Set());
-  const [details, setDetails] = useState<Record<number, ShipmentCusWorkspaceDetail>>({});
-  const [detailLoadingIds, setDetailLoadingIds] = useState<Set<number>>(() => new Set());
-  const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
-  const [actionItem, setActionItem] = useState<ShipmentCusWorkspaceListItem | null>(null);
-  const [actionMode, setActionMode] = useState<'confirm' | 'lock' | 'reopen' | 'delete' | null>(null);
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
-  const [savingQuickEdit, setSavingQuickEdit] = useState(false);
-  const [quickEditError, setQuickEditError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const requestSequence = useRef(0);
-  const detailRequestSequence = useRef<Record<number, number>>({});
-  const idempotencyKeysRef = useRef<Record<string, string>>({});
-  const quickEditSaveRef = useRef<string | null>(null);
-  const quickEditFocusTargetRef = useRef<string | null>(null);
 
-  const getIdempotencyKey = useCallback((signature: string) => {
-    const existing = idempotencyKeysRef.current[signature];
-    if (existing) return existing;
-    const next = crypto.randomUUID();
-    idempotencyKeysRef.current[signature] = next;
-    return next;
-  }, []);
+  const ws = useCusWorkspaceState({
+    page, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
+    direction, bucket, sortKey, sortDir,
+  });
+  const qe = useCusQuickEdit({
+    setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
+  });
+  const actions = useCusActions({
+    dirtyDetailIds: ws.dirtyDetailIds, drawerId, setDrawerId,
+    setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList,
+    loadDetail: ws.loadDetail, invalidateDetail: ws.invalidateDetail,
+    getIdempotencyKey: ws.getIdempotencyKey, clearIdempotencyKey: ws.clearIdempotencyKey,
+  });
 
-  const clearIdempotencyKey = useCallback((signature: string) => {
-    delete idempotencyKeysRef.current[signature];
-  }, []);
+  const { loadList, loadDetail, applySavedContainerLine, dirtyDetailIds, savingDetailIds, setDetailDirty, setDetailSaving } = ws;
+  const { quickEditDraft, setQuickEditDraft, savingQuickEdit, quickEditError, startQuickEdit, closeQuickEdit, saveQuickEdit } = qe;
 
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -190,125 +118,6 @@ export default function ShipmentsPage() {
     }, { replace: true });
   }, [sort, setSearchParams]);
 
-  useEffect(() => {
-    if (quickEditDraft || !quickEditFocusTargetRef.current) return;
-    const targetId = quickEditFocusTargetRef.current;
-    const target = document.getElementById(targetId);
-    if (!(target instanceof HTMLButtonElement) || target.disabled) return;
-    quickEditFocusTargetRef.current = null;
-    target.focus();
-  }, [quickEditDraft, savingQuickEdit]);
-
-  const loadList = useCallback(async () => {
-    const requestId = ++requestSequence.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await listCusShipmentWorkspace({
-        page,
-        limit: PAGE_SIZE,
-        searchSuffix: suffixParam || undefined,
-        transportDateFrom: dateFrom || undefined,
-        transportDateTo: dateTo || undefined,
-        direction: direction || undefined,
-        bucket: bucket || undefined,
-        sortBy: sortKey ?? undefined,
-        sortDir: sortKey ? sortDir : undefined,
-      });
-      if (requestId === requestSequence.current) setData(response);
-    } catch (loadError) {
-      if (requestId === requestSequence.current) {
-        setError(safeError(loadError, 'Không thể tải danh sách lô hàng.'));
-      }
-    } finally {
-      if (requestId === requestSequence.current) setLoading(false);
-    }
-  }, [bucket, dateFrom, dateTo, direction, page, sortDir, sortKey, suffixParam]);
-
-  useEffect(() => { void loadList(); }, [loadList]);
-  // 27.8 trial regression 2026-08-29: driver "Hoàn thành chuyến" flipped the
-  // shipment server-side but this list kept reading "Đang chạy" until manual
-  // reload. Polling + visibility-refetch keeps the CUS workboard honest when
-  // a remote role (driver, OPS, accountant) mutates the underlying state
-  // while the user is parked here. Pause when the tab is hidden so we don't
-  // burn the office workspace on a backgrounded tab.
-  useAutoRefresh(loadList, 30_000);
-
-  const loadDetail = useCallback(async (shipmentId: number, force = false) => {
-    if (!force && details[shipmentId]) return;
-    const requestId = (detailRequestSequence.current[shipmentId] ?? 0) + 1;
-    detailRequestSequence.current[shipmentId] = requestId;
-    setDetailLoadingIds((current) => new Set(current).add(shipmentId));
-    setDetailErrors((current) => ({ ...current, [shipmentId]: '' }));
-    try {
-      const detail = await getCusShipmentWorkspaceDetail(shipmentId);
-      if (detailRequestSequence.current[shipmentId] === requestId) {
-        setDetails((current) => ({ ...current, [shipmentId]: detail }));
-      }
-    } catch (detailError) {
-      if (detailRequestSequence.current[shipmentId] === requestId) {
-        setDetailErrors((current) => ({
-          ...current,
-          [shipmentId]: safeError(detailError, 'Không thể tải chi tiết container.'),
-        }));
-      }
-    } finally {
-      if (detailRequestSequence.current[shipmentId] === requestId) {
-        setDetailLoadingIds((current) => {
-          const next = new Set(current);
-          next.delete(shipmentId);
-          return next;
-        });
-      }
-    }
-  }, [details]);
-
-  const applySavedContainerLine = useCallback(async (shipmentId: number, line: ShipmentCusWorkspaceContainerLine) => {
-    setDetails((current) => {
-      const detail = current[shipmentId];
-      if (!detail) return current;
-      const externalCarriers = line.externalCarrierId && line.carrierName && !detail.selectors.externalCarriers.some((carrier) => carrier.id === line.externalCarrierId)
-        ? [...detail.selectors.externalCarriers, { id: line.externalCarrierId, name: line.carrierName, shortName: null, label: line.carrierName }]
-        : detail.selectors.externalCarriers;
-      const carrierVehicles = line.externalCarrierId && line.externalCarrierVehicleId && line.plateNumber && !detail.selectors.carrierVehicles.some((vehicle) => vehicle.id === line.externalCarrierVehicleId)
-        ? [...detail.selectors.carrierVehicles, { id: line.externalCarrierVehicleId, carrierId: line.externalCarrierId, licensePlate: line.plateNumber, label: line.plateNumber }]
-        : detail.selectors.carrierVehicles;
-      return {
-        ...current,
-        [shipmentId]: {
-          ...detail,
-          summary: { ...detail.summary, version: line.shipmentVersion },
-          selectors: { ...detail.selectors, externalCarriers, carrierVehicles },
-          containers: detail.containers.map((currentLine) => (
-            currentLine.id === line.id
-              ? line
-              : { ...currentLine, shipmentVersion: line.shipmentVersion }
-          )),
-        },
-      };
-    });
-    setNotice('Đã lưu dữ liệu container. Xác nhận Kế toán cũ (nếu có) sẽ được kiểm tra lại theo nguồn mới.');
-    await loadList();
-  }, [loadList]);
-
-  const setDetailDirty = useCallback((shipmentId: number, dirty: boolean) => {
-    setDirtyDetailIds((current) => {
-      const next = new Set(current);
-      if (dirty) next.add(shipmentId);
-      else next.delete(shipmentId);
-      return next;
-    });
-  }, []);
-
-  const setDetailSaving = useCallback((shipmentId: number, saving: boolean) => {
-    setSavingDetailIds((current) => {
-      const next = new Set(current);
-      if (saving) next.add(shipmentId);
-      else next.delete(shipmentId);
-      return next;
-    });
-  }, []);
-
   const openShipmentDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
     void loadDetail(shipmentId);
@@ -316,7 +125,7 @@ export default function ShipmentsPage() {
 
   const requestCloseMobileDetail = useCallback(() => {
     if (drawerId != null && savingDetailIds.has(drawerId)) {
-      setError('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.');
+      ws.setError('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.');
       return;
     }
     if (drawerId != null && dirtyDetailIds.has(drawerId)) {
@@ -324,7 +133,7 @@ export default function ShipmentsPage() {
       return;
     }
     setDrawerId(null);
-  }, [dirtyDetailIds, drawerId, savingDetailIds]);
+  }, [dirtyDetailIds, drawerId, savingDetailIds, ws]);
 
   const discardMobileDetailChanges = useCallback(() => {
     if (drawerCloseConfirmId != null) setDetailDirty(drawerCloseConfirmId, false);
@@ -353,145 +162,32 @@ export default function ShipmentsPage() {
     }, { replace: true });
   };
 
-  const updateCustody = async (item: ShipmentCusWorkspaceListItem, status: ShipmentDocumentCustody) => {
-    if (dirtyDetailIds.has(item.id)) {
-      setError('Hãy lưu hoặc bỏ thay đổi container trước khi cập nhật phơi phiếu.');
-      return;
-    }
-    setNotice(null);
+  const items = ws.data?.items ?? [];
+  const total = ws.data?.total ?? 0;
+  const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / CUS_PAGE_SIZE));
+  const drawerItem = items.find((item) => item.id === drawerId) ?? null;
+  const quickEditItem = quickEditDraft
+    ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
+    : null;
+  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
+  const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
+
+  const exportWorksheet = async () => {
+    setExporting(true);
+    ws.setError(null);
     try {
-      const signature = idempotencySignature('custody', item.id, item.version, status);
-      await updateCusShipmentDocumentCustody(
-        item.id,
-        { expectedShipmentVersion: item.version, status },
-        getIdempotencyKey(signature),
-      );
-      clearIdempotencyKey(signature);
-      setNotice('Đã cập nhật trạng thái phơi phiếu.');
-      await Promise.all([loadList(), loadDetail(item.id, true)]);
-    } catch (custodyError) {
-      setError(safeError(custodyError, 'Không thể cập nhật trạng thái phơi phiếu.'));
-    }
-  };
-
-  const startQuickEdit = (item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditDraft['field']) => {
-    if (field === 'schedule' && item.cargoMode === 'FCL') {
-      setError('Lịch FCL được cập nhật theo từng container.');
-      return;
-    }
-    if (quickEditSaveRef.current || quickEditDraft) return;
-    const accessKeys = quickEditAccessKeys(field);
-    if (!accessKeys.some((key) => item.fieldAccess[key].mode !== 'READ_ONLY')) {
-      setError(item.fieldAccess[accessKeys[0]].reason);
-      return;
-    }
-    setError(null);
-    setQuickEditError(null);
-    setQuickEditDraft(buildQuickEditDraft(item, field));
-  };
-
-  const closeQuickEdit = () => {
-    if (!quickEditDraft || quickEditSaveRef.current) return;
-    quickEditFocusTargetRef.current = `cus-inline-${quickEditDraft.field}-${quickEditDraft.shipmentId}`;
-    setQuickEditError(null);
-    setQuickEditDraft(null);
-  };
-
-  const saveQuickEdit = async (
-    item: ShipmentCusWorkspaceListItem,
-    { restoreFocus = true }: { restoreFocus?: boolean } = {},
-  ) => {
-    const draft = quickEditDraft;
-    if (!draft || draft.shipmentId !== item.id || quickEditSaveRef.current) return;
-    if (draft.field === 'schedule' && draft.time && !draft.date) {
-      setQuickEditError('Chọn ngày đóng/trả trước khi nhập giờ.');
-      return;
-    }
-    const unchanged = isQuickEditUnchanged(draft, item);
-    if (unchanged) {
-      if (restoreFocus) {
-        quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
-      }
-      setQuickEditError(null);
-      setQuickEditDraft(null);
-      return;
-    }
-    const saveIdentity = quickEditSaveIdentity(draft, item);
-    quickEditSaveRef.current = saveIdentity;
-    setSavingQuickEdit(true);
-    setError(null);
-    setQuickEditError(null);
-    try {
-      const payload = buildQuickEditPayload(draft, item);
-      const declarationChanged = quickEditDeclarationChanged(draft, item);
-      // When only the declaration changed (bill/booking read-only), skip the
-      // shipment PATCH entirely — an empty body would still bump the version
-      // and fire change-request bookkeeping for nothing.
-      const shipmentKeys = Object.keys(payload).filter((key) => key !== 'expectedVersion');
-      const response = shipmentKeys.length > 0
-        ? await updateShipment(item.id, payload)
-        : { changeMode: 'DIRECT', message: null };
-      if (declarationChanged) {
-        const declarationBody = buildQuickEditDeclarationBody(draft);
-        if (draft.declarationId != null) {
-          await updateShipmentDeclaration(item.id, draft.declarationId, declarationBody);
-        } else {
-          await createShipmentDeclaration(item.id, declarationBody);
-        }
-      }
-      if (restoreFocus) {
-        quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
-      }
-      setQuickEditDraft((current) => current?.shipmentId === draft.shipmentId && current.field === draft.field ? null : current);
-      setNotice(response.changeMode === 'REQUESTED'
-        ? response.message ?? 'Đã gửi yêu cầu thay đổi để phê duyệt.'
-        : draft.field === 'schedule' ? 'Đã cập nhật lịch đóng/trả.'
-          : draft.field === 'notes' ? 'Đã cập nhật ghi chú lô hàng.'
-            : draft.field === 'documents' && declarationChanged ? 'Đã cập nhật chứng từ lô hàng.'
-              : 'Đã lưu ô dữ liệu lô hàng.');
-      setDetails((current) => {
-        const next = { ...current };
-        delete next[item.id];
-        return next;
+      await exportCusWorksheet({
+        searchSuffix: suffixParam,
+        transportDateFrom: dateFrom,
+        transportDateTo: dateTo,
+        direction: direction || undefined,
+        bucket: bucket || undefined,
       });
-      await loadList();
-    } catch (quickEditError) {
-      if (quickEditSaveRef.current === saveIdentity) {
-        if (quickEditError instanceof ApiError && quickEditError.status === 409) {
-          quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
-          setQuickEditDraft(null);
-          setQuickEditError(null);
-          setNotice('Dữ liệu hoặc quyền chỉnh sửa vừa thay đổi. Đã tải bản mới nhất và bỏ bản nháp cũ để tránh ghi đè.');
-          await loadList();
-        } else {
-          setQuickEditError(safeError(quickEditError, 'Không thể lưu ô đang chỉnh sửa.'));
-        }
-      }
+    } catch (exportError) {
+      ws.setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
     } finally {
-      if (quickEditSaveRef.current === saveIdentity) {
-        quickEditSaveRef.current = null;
-        setSavingQuickEdit(false);
-      }
+      setExporting(false);
     }
-  };
-
-  const openAction = (item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => {
-    if (dirtyDetailIds.has(item.id)) {
-      setError('Hãy lưu hoặc bỏ thay đổi container trước khi thực hiện thao tác này.');
-      return;
-    }
-    setActionItem(item);
-    setActionMode(mode);
-    setDrawerId(null);
-    setReason(
-      mode === 'confirm'
-        ? 'Kế toán xác nhận nguồn chi phí hiện hành của lô.'
-        : mode === 'lock'
-          ? 'CUS xác nhận khóa lô sau khi Kế toán duyệt.'
-          : mode === 'delete'
-            ? ''
-            : '',
-    );
   };
 
   const shipmentActionButton = (item: ShipmentCusWorkspaceListItem) => {
@@ -509,114 +205,12 @@ export default function ShipmentsPage() {
         isDisabled={!item.action.enabled}
         aria-label={item.action.label}
         aria-describedby={!item.action.enabled && item.action.disabledReason ? `cus-drawer-action-reason-${item.id}` : undefined}
-        onPress={() => openAction(item, mode)}
+        onPress={() => actions.openAction(item, mode)}
         iconLeading={item.action.kind === 'LOCK' ? <FileLock2 size={16} aria-hidden="true" /> : undefined}
       >
         {item.action.label}
       </UUIButton>
     );
-  };
-
-  const closeAction = () => {
-    if (submitting) return;
-    setActionItem(null);
-    setActionMode(null);
-    setReason('');
-  };
-
-  const submitAction = async () => {
-    if (!actionItem || !actionMode || !reason.trim()) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const signature = idempotencySignature('action', actionItem.id, actionMode, actionItem.version);
-      const idempotencyKey = getIdempotencyKey(signature);
-      if (actionMode === 'confirm') {
-        if (!actionItem.debitNote.billingDocumentId) {
-          throw new Error(actionItem.debitNote.disabledReason || 'Chưa có Debit Note đủ điều kiện để xác nhận.');
-        }
-        await confirmCusShipmentFinance(actionItem.id, {
-          expectedVersion: actionItem.version,
-          billingDocumentId: actionItem.debitNote.billingDocumentId,
-          reason: reason.trim(),
-        }, idempotencyKey);
-        setNotice('Đã xác nhận nguồn chi phí của lô hàng.');
-      } else if (actionMode === 'lock') {
-        const confirmation = actionItem.accountingConfirmation;
-        if (!confirmation.confirmationId || !confirmation.checksum) {
-          throw new Error('Xác nhận Kế toán không còn hợp lệ. Vui lòng tải lại dữ liệu.');
-        }
-        await lockCusShipment(actionItem.id, {
-          expectedVersion: actionItem.version,
-          confirmationId: confirmation.confirmationId,
-          confirmationChecksum: confirmation.checksum,
-          reason: reason.trim(),
-          acknowledged: true,
-        }, idempotencyKey);
-        setNotice('Đã khóa lô hàng. Mọi trường nhập và tệp tải lên hiện ở chế độ chỉ đọc.');
-      } else if (actionMode === 'delete') {
-        const result = await requestShipmentDelete(actionItem.id, actionItem.version, reason.trim());
-        if (result.pendingApproval) {
-          setPendingDeleteIds((prev) => new Set(prev).add(actionItem.id));
-          setNotice('Yêu cầu xóa đã gửi ADMIN phê duyệt.');
-        } else {
-          setNotice('Đã xóa lô hàng.');
-        }
-      } else {
-        if (!actionItem.activeLock?.id) {
-          throw new Error('Không tìm thấy khóa lô hiện hành. Vui lòng tải lại dữ liệu.');
-        }
-        await requestCusShipmentReopen(actionItem.id, {
-          expectedShipmentVersion: actionItem.version,
-          activeLockId: actionItem.activeLock.id,
-          reason: reason.trim(),
-        }, idempotencyKey);
-        setNotice('Đã gửi đề nghị điều chỉnh tới Quản trị viên.');
-      }
-      clearIdempotencyKey(signature);
-      setActionItem(null);
-      setActionMode(null);
-      setReason('');
-      setDetails((current) => {
-        const next = { ...current };
-        delete next[actionItem.id];
-        return next;
-      });
-      if (drawerId === actionItem.id) void loadDetail(actionItem.id, true);
-      await loadList();
-    } catch (actionError) {
-      setError(safeError(actionError, 'Không thể hoàn tất thao tác.'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, data?.totalPages ?? Math.ceil(total / PAGE_SIZE));
-  const drawerItem = items.find((item) => item.id === drawerId) ?? null;
-  const quickEditItem = quickEditDraft
-    ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
-    : null;
-  const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || bucket);
-  const activeFilterCount = [dateFrom, dateTo, direction, bucket].filter(Boolean).length;
-
-  const exportWorksheet = async () => {
-    setExporting(true);
-    setError(null);
-    try {
-      await exportCusWorksheet({
-        searchSuffix: suffixParam,
-        transportDateFrom: dateFrom,
-        transportDateTo: dateTo,
-        direction: direction || undefined,
-        bucket: bucket || undefined,
-      });
-    } catch (exportError) {
-      setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
-    } finally {
-      setExporting(false);
-    }
   };
 
   return (
@@ -627,7 +221,7 @@ export default function ShipmentsPage() {
       <section
         className="cus-workspace cus-workspace--worksheet"
         aria-labelledby="cus-workspace-title"
-        aria-busy={loading}
+        aria-busy={ws.loading}
         aria-hidden={drawerId != null ? true : false}
         inert={drawerId != null ? true : false}
       >
@@ -757,7 +351,7 @@ export default function ShipmentsPage() {
               <UUIButton
                 size="sm"
                 color="secondary"
-                isDisabled={exporting || loading}
+                isDisabled={exporting || ws.loading}
                 isLoading={exporting}
                 className="shipment-uui-button shipment-uui-button--secondary"
                 onPress={() => void exportWorksheet()}
@@ -770,7 +364,7 @@ export default function ShipmentsPage() {
           </div>
         </form>
 
-        {data && (
+        {ws.data && (
           <section className="cus-workspace-summary" aria-label="Tóm tắt ưu tiên xử lý">
             <dl>
               <div className="cus-workspace-summary__item">
@@ -779,29 +373,29 @@ export default function ShipmentsPage() {
               </div>
               <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
                 <dt>Chưa chốt lịch</dt>
-                <dd>{data.pageSummary.needsSchedule.toLocaleString('vi-VN')}</dd>
+                <dd>{ws.data.pageSummary.needsSchedule.toLocaleString('vi-VN')}</dd>
               </div>
               <div className="cus-workspace-summary__item cus-workspace-summary__item--warning">
                 <dt>Chờ điều xe</dt>
-                <dd>{data.pageSummary.needsVehicle.toLocaleString('vi-VN')}</dd>
+                <dd>{ws.data.pageSummary.needsVehicle.toLocaleString('vi-VN')}</dd>
               </div>
               <div className="cus-workspace-summary__item cus-workspace-summary__item--info">
                 <dt>Chờ Kế toán</dt>
-                <dd>{data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
+                <dd>{ws.data.pageSummary.waitingAccounting.toLocaleString('vi-VN')}</dd>
               </div>
             </dl>
           </section>
         )}
 
-        {notice && <div className="cus-notice cus-notice--success" role="status">{notice}</div>}
-        {error && (
+        {ws.notice && <div className="cus-notice cus-notice--success" role="status">{ws.notice}</div>}
+        {ws.error && (
           <div className="cus-notice cus-notice--error" role="alert">
-            <span>{error}</span>
+            <span>{ws.error}</span>
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => void loadList()}>Thử lại</button>
           </div>
         )}
 
-        {loading && !data ? (
+        {ws.loading && !ws.data ? (
           <div className="cus-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải lô hàng…</div>
         ) : items.length === 0 ? (
           <EmptyState
@@ -837,167 +431,25 @@ export default function ShipmentsPage() {
                   <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr></thead>
                 <tbody>
-                  {items.map((item) => {
-                    const identity = item.billOrBookNumber || item.declarationNumber || item.customerName || 'lô hàng';
-                    const primarySignal = derivePrimaryShipmentSignal(item);
-                    const PrimarySignalIcon = primarySignal?.icon;
-                    const waitingSchedule = item.operational.scheduleReadiness === 'WAITING_DATE';
-                    const editing = quickEditDraft?.shipmentId === item.id;
-                    const customerNoteLines = noteLines(item.customerNotes);
-                    const operationalNoteLines = noteLines(item.operationalNotes);
-                    // Customer feedback L2 — when a date filter is active,
-                    // narrow the schedule + cargo cells to that day only.
-                    const filteredGroups = filterAppointmentGroupsByDate(
-                      item.appointmentGroups,
-                      dateFrom,
-                      dateTo,
-                    );
-                    const dayFilteredSummary = filteredGroups.length > 0
-                      ? aggregateContainerSummary(filteredGroups)
-                      : '';
-                    const hasDateFilter = Boolean(dateFrom || dateTo);
-                    const scheduleContent = <>
-                      {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-                      {(hasDateFilter ? filteredGroups : item.appointmentGroups).map((group) => (
-                        <span key={group.at}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
-                      ))}
-                      <span>{vehicleReadinessLabel(item)}</span>
-                      <DispatchIssueStatusSummaryChip
-                        plated={item.operational.plateAssignedContainers}
-                        issued={item.operational.orderIssuedContainers}
-                        total={item.operational.totalContainers}
-                      />
-                    </>;
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
-                      >
-                        <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
-                          <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-                          <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" disabled={item.fieldAccess.factoryName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.factoryName.reason} onClick={() => startQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
-                            <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}</strong>
-                            <span className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
-                              ? item.effectiveFactoryNames.join(' + ')
-                              : item.factoryName || 'Chưa có nhà máy'}</span>
-                            <span className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
-                          </span></button>
-                        </th>
-                        <td data-label="Chứng từ" className="cus-dashboard-cell--editable">
-                          <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => startQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
-                            <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-                            <span className={item.declarationNumber ? undefined : 'cus-empty'}>{item.declarationNumber || 'Chưa có tờ khai'}</span>
-                          </span></button>
-                        </td>
-                        <td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
-                          <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => startQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
-                            <span className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
-                            {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
-                            <span className={`cus-direction-badge cus-direction-badge--${item.direction?.toLowerCase() || 'unknown'}`}>{directionLabel(item.direction)}</span>
-                          </span></button>
-                        </td>
-                        <td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
-                          <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || Boolean(quickEditDraft) || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => startQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
-                            {(() => {
-                              // Customer feedback L2 — when a date filter is
-                              // active, show the per-day cont count instead of
-                              // the master lô totals.
-                              const summary = hasDateFilter ? dayFilteredSummary : item.containerSummary;
-                              const lines = splitContainerSummaryLines(summary);
-                              if (lines.length > 0) {
-                                return lines.map((summaryLine) => (
-                                  <strong key={summaryLine} className="cus-cargo-summary__containers">{summaryLine}</strong>
-                                ));
-                              }
-                              if (hasDateFilter && !summary) {
-                                return <span className="cus-cargo-summary__containers cus-empty">Không có cont chạy ngày đã chọn</span>;
-                              }
-                              return <strong className="cus-cargo-summary__containers">{worksheetQuantity(item)}</strong>;
-                            })()}
-                            <span className={item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm) ? 'cus-cargo-summary__metrics cus-empty' : 'cus-cargo-summary__metrics'}>
-                              <span className="cus-cargo-summary__weight">
-                                {item.cargoMode === 'LCL'
-                                  ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
-                                  : `${formatQuantity(item.weightKg)} kg`}
-                              </span>
-                              <span className={`cus-direction-badge cus-direction-badge--${item.cargoMode?.toLowerCase() || 'unknown'} cus-cargo-mode-tag`}>{cargoModeLabel(item.cargoMode)}</span>
-                            </span>
-                          </span></button>
-                        </td>
-                        <td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>
-                          {item.cargoMode === 'LCL' ? (
-                            <button
-                              id={`cus-inline-schedule-${item.id}`}
-                              type="button"
-                              className="cus-inline-trigger"
-                              data-cell-label="Lịch trình & điều xe"
-                              disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
-                              aria-haspopup="dialog"
-                              aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
-                              onClick={() => startQuickEdit(item, 'schedule')}
-                            >{scheduleContent}</button>
-                          ) : <div className="cus-inline-trigger cus-inline-trigger--readonly">{scheduleContent}</div>}
-                        </td>
-                        <td data-label="Ghi chú" className="cus-dashboard-cell--editable">
-                          <button
-                            id={`cus-inline-notes-${item.id}`}
-                            type="button"
-                            className="cus-inline-trigger cus-note-preview"
-                            data-cell-label="Ghi chú"
-                            title={[item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined}
-                            disabled={!item.operational.transportDateEditable || Boolean(quickEditDraft) || savingQuickEdit}
-                            aria-haspopup="dialog"
-                            aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
-                            onClick={() => startQuickEdit(item, 'notes')}
-                          >
-                            {customerNoteLines.length > 0 && <span className="cus-note-preview__customer">{customerNoteLines.join(' ')}</span>}
-                            {operationalNoteLines.length > 0 && <span className="cus-note-internal">{operationalNoteLines.join(' ')}</span>}
-                            {customerNoteLines.length === 0 && operationalNoteLines.length === 0 && <span className="cus-note-preview__customer cus-note-preview__customer--empty">—</span>}
-                          </button>
-                        </td>
-                        <td data-label="Trạng thái">
-                          <div className="cus-row-actions">
-                            <div className="cus-row-actions__summary">
-                              <WorkflowBadge item={item} />
-                              {pendingDeleteIds.has(item.id) && <span className="cus-workflow-badge cus-workflow-badge--pending-delete">Chờ phê duyệt xóa</span>}
-                              {primarySignal && PrimarySignalIcon && <span className={`cus-attention-label cus-attention-label--${primarySignal.tone}`}><PrimarySignalIcon size={13} aria-hidden="true" /> {primarySignal.label}</span>}
-                            </div>
-                            <div className="cus-row-actions__buttons">
-                              <UUIButton
-                                size="sm"
-                                color="secondary"
-                                className="cus-dashboard-delete"
-                                aria-label={`Yêu cầu xóa lô hàng ${identity}`}
-                                onPress={() => openAction(item, 'delete')}
-                                isDisabled={editing || pendingDeleteIds.has(item.id)}
-                                iconLeading={<Trash2 size={16} aria-hidden="true" />}
-                              >
-                                Xóa
-                              </UUIButton>
-                              <UUIButton
-                                id={'cus-dashboard-detail-' + item.id}
-                                size="sm"
-                                color="tertiary"
-                                className="cus-dashboard-detail"
-                                aria-haspopup="dialog"
-                                aria-controls={'cus-detail-drawer-' + item.id}
-                                aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
-                                onPress={() => openShipmentDetail(item.id)}
-                                isDisabled={editing}
-                                iconTrailing={ChevronRight}
-                              >
-                                Xem chi tiết
-                              </UUIButton>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {items.map((item) => (
+                    <CusShipmentRow
+                      key={item.id}
+                      item={item}
+                      dateFrom={dateFrom}
+                      dateTo={dateTo}
+                      editing={quickEditDraft?.shipmentId === item.id}
+                      quickEditOpen={Boolean(quickEditDraft)}
+                      savingQuickEdit={savingQuickEdit}
+                      pendingDelete={actions.pendingDeleteIds.has(item.id)}
+                      onStartQuickEdit={startQuickEdit}
+                      onOpenAction={actions.openAction}
+                      onOpenDetail={openShipmentDetail}
+                    />
+                  ))}
                 </tbody>
               </table>
               {totalPages > 1 && (
-                <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={PAGE_SIZE} onChange={(nextPage) => updateParam('page', String(nextPage))} />
+                <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={CUS_PAGE_SIZE} onChange={(nextPage) => updateParam('page', String(nextPage))} />
               )}
             </div>
           </>
@@ -1081,7 +533,7 @@ export default function ShipmentsPage() {
                       label="Phơi phiếu"
                       value={drawerItem.documentCustody.status ?? ''}
                       disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
-                      onChange={(event) => void updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
+                      onChange={(event) => void actions.updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
                       options={[
                         { value: '', label: 'Chưa xác định', disabled: true },
                         ...Object.values(ShipmentDocumentCustody).map((status) => ({ value: status, label: SHIPMENT_DOCUMENT_CUSTODY_LABELS[status] })),
@@ -1102,7 +554,7 @@ export default function ShipmentsPage() {
                 </div>
               </section>
 
-              <ShipmentDetailContent detail={details[drawerItem.id]} loading={detailLoadingIds.has(drawerItem.id)} error={detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={getIdempotencyKey} clearIdempotencyKey={clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} />
+              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} />
             </>
           )}
         </div>
@@ -1123,33 +575,33 @@ export default function ShipmentsPage() {
       </Modal>
 
       <Modal
-        isOpen={Boolean(actionItem && actionMode)}
-        title={actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actionMode === 'lock' ? 'Xác nhận khóa lô' : actionMode === 'delete' ? 'Yêu cầu xóa lô hàng' : 'Đề nghị điều chỉnh'}
-        onClose={closeAction}
-        onConfirm={() => void submitAction()}
+        isOpen={Boolean(actions.actionItem && actions.actionMode)}
+        title={actions.actionMode === 'confirm' ? 'Xác nhận nguồn chi phí' : actions.actionMode === 'lock' ? 'Xác nhận khóa lô' : actions.actionMode === 'delete' ? 'Yêu cầu xóa lô hàng' : 'Đề nghị điều chỉnh'}
+        onClose={actions.closeAction}
+        onConfirm={() => void actions.submitAction()}
         footer={(
           <>
-            <button type="button" className="btn btn--ghost" onClick={closeAction} disabled={submitting}>Hủy</button>
-            <button type="button" className="btn btn--primary" onClick={() => void submitAction()} disabled={submitting || !reason.trim()}>
-              {submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-              {actionMode === 'confirm' ? 'Xác nhận chi phí' : actionMode === 'lock' ? 'Khóa lô' : actionMode === 'delete' ? 'Gửi yêu cầu xóa' : 'Gửi đề nghị'}
+            <button type="button" className="btn btn--ghost" onClick={actions.closeAction} disabled={actions.submitting}>Hủy</button>
+            <button type="button" className="btn btn--primary" onClick={() => void actions.submitAction()} disabled={actions.submitting || !actions.reason.trim()}>
+              {actions.submitting ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
+              {actions.actionMode === 'confirm' ? 'Xác nhận chi phí' : actions.actionMode === 'lock' ? 'Khóa lô' : actions.actionMode === 'delete' ? 'Gửi yêu cầu xóa' : 'Gửi đề nghị'}
             </button>
           </>
         )}
       >
-        {actionMode === 'confirm' ? (
+        {actions.actionMode === 'confirm' ? (
           <p>Xác nhận này chụp lại phiên bản Debit Note, chuyến xe và chi phí hiện hành. Nếu nguồn thay đổi, xác nhận sẽ hết hiệu lực.</p>
-        ) : actionMode === 'lock' ? (
+        ) : actions.actionMode === 'lock' ? (
           <p>Khóa lô sẽ chuyển toàn bộ trường nhập và tệp tải lên sang chế độ chỉ đọc. Dữ liệu chỉ được mở lại qua yêu cầu được Quản trị viên duyệt.</p>
-        ) : actionMode === 'delete' ? (
+        ) : actions.actionMode === 'delete' ? (
           <p>Yêu cầu xóa lô hàng sẽ gửi đến Quản trị viên để phê duyệt. Nếu lô hàng chưa phát sinh nghiệp vụ, có thể xóa ngay lập tức.</p>
         ) : (
           <p>Ghi rõ nội dung cần sửa để Quản trị viên có đủ căn cứ xem xét mở lại lô hàng.</p>
         )}
         <label className="cus-action-reason">
-          <span>{actionMode === 'confirm' ? 'Lý do xác nhận' : actionMode === 'lock' ? 'Lý do khóa' : actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>
-          <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} maxLength={500} required autoFocus />
-          <small>{reason.length}/500 ký tự</small>
+          <span>{actions.actionMode === 'confirm' ? 'Lý do xác nhận' : actions.actionMode === 'lock' ? 'Lý do khóa' : actions.actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>
+          <textarea value={actions.reason} onChange={(event) => actions.setReason(event.target.value)} rows={4} maxLength={500} required autoFocus />
+          <small>{actions.reason.length}/500 ký tự</small>
         </label>
       </Modal>
     </div>

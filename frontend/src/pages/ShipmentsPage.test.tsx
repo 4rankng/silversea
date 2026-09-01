@@ -31,6 +31,10 @@ import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+// Row markup + bucket colors moved into the feature leaves in the 2026-09-01
+// structural split; these guard assertions follow the markup, not the page file.
+const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
+const cusUtilsSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/cusUtils.ts'), 'utf8');
 const defaultResizeObserver = window.ResizeObserver;
 const directAccess = { mode: 'DIRECT' as const, reason: 'Có thể sửa.' };
 
@@ -788,7 +792,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     }
     expect(source).not.toContain('openQuickEditFromCell');
     expect(source).not.toContain('ReactMouseEvent');
-    expect(source).toContain('data-cell-label="Chứng từ"');
+    expect(rowSource).toContain('data-cell-label="Chứng từ"');
     expect(css).toMatch(/\.cus-dashboard-cell--editable\s*\{[^}]*padding:\s*0 !important;/);
     expect(css).toMatch(/\.cus-dashboard-cell--readonly\s*\{[^}]*padding:\s*0 !important;/);
     expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger,\s*\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
@@ -1398,7 +1402,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/@media \(max-width: 620px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{\s*grid-template-columns:\s*1fr;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?min-height:\s*44px;/);
     expect(source).toContain('tabIndex={0}');
-    expect(source).toContain('aria-haspopup="dialog"');
+    expect(rowSource).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
     expect(source).not.toContain('MASTER_COLUMN_PREFERENCES_KEY');
   });
@@ -1429,8 +1433,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/@media \(min-width: 1000px\) and \(max-width: 1279px\)[\s\S]*?\.cus-worksheet-toolbar__filters \.cus-search-field\s*\{\s*grid-column:\s*span 2;/);
     expect(css).toMatch(/\.cus-worksheet-toolbar__action-group > :only-child\s*\{\s*grid-column:\s*1 \/ -1;/);
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
-    expect(source).toContain('cus-cargo-summary__containers');
-    expect(source).toContain('kg ·');
+    expect(rowSource).toContain('cus-cargo-summary__containers');
+    expect(rowSource).toContain('kg ·');
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input,[\s\S]*?\{[^}]*min-width:\s*0;/);
@@ -1454,8 +1458,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('uses distinct semantic colors for running and locked shipments', () => {
-    expect(source).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
-    expect(source).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
+    expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
+    expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
     expect(css).toMatch(/\.cus-workflow-badge--locked\s*\{[^}]*background:\s*var\(--slate-5\);[^}]*color:\s*var\(--slate-4\);/);
     // Base rule must precede the bucket modifiers or its border shorthand
     // overrides their border-color by source order.
@@ -1534,8 +1538,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('keeps classification tags compact and wraps the shipping-line label', () => {
-    expect(source).toContain('className="cus-multiline-cell cus-classification"');
-    expect(source).toContain("className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}");
+    expect(rowSource).toContain('className="cus-multiline-cell cus-classification"');
+    expect(rowSource).toContain("className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}");
     expect(css).toMatch(/\.cus-multiline-cell \.cus-classification__shipping-line\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell\.cus-classification\s*\{[^}]*grid-template-areas:[\s\S]*?"shipping-line shipping-line"[\s\S]*?"combined direction";[^}]*min-height:\s*44px;/);
     expect(css).toMatch(/\.cus-classification \.cus-direction-badge\s*\{[^}]*grid-area:\s*direction;[^}]*align-self:\s*end;[^}]*justify-self:\s*end;/);
