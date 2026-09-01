@@ -1,0 +1,1 @@
+CREATE INDEX "penalties_driver_id_idx" ON "penalties" USING btree ("driver_id");

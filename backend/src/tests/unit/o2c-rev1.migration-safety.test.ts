@@ -10,9 +10,9 @@ const legacyCargoModeUrl = new URL('../../../drizzle/0033_backfill-legacy-shipme
 describe('O2C clean-baseline safety', () => {
   test('preserves the consolidated baseline before ordered additive migrations', async () => {
     // Structural journal invariants (contiguity, append-only ordering, tag↔file
-    // existence, genesis tag, count floor). Floor = 45 (journal head is 0044);
+    // existence, genesis tag, count floor). Floor = 46 (journal head is 0045);
     // bump it in the SAME commit that adds a migration — it is the deletion tripwire.
-    await assertJournalInvariants(await readJournal(), 45);
+    await assertJournalInvariants(await readJournal(), 46);
   });
 
   test('renames only active Lạch Huyện terminal labels without moving port rows', async () => {

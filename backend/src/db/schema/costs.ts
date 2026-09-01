@@ -20,6 +20,7 @@ export const penalties = pgTable('penalties', {
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
   index('penalties_date_idx').on(table.date),
+  index('penalties_driver_id_idx').on(table.driverId),
 ]);
 
 // ─── Vendor & Expense ────────────────────────────────────────────────────────────

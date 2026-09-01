@@ -47,7 +47,7 @@ function buildAdvanceRequestConditions(filters?: {
 }) {
   const conditions = [];
   if (filters?.requesterId) conditions.push(eq(s.advanceRequests.requesterId, filters.requesterId));
-  if (filters?.status) conditions.push(eq(s.advanceRequests.status, filters.status as ('PENDING' | 'APPROVED' | 'REJECTED')));
+  if (filters?.status) conditions.push(eq(s.advanceRequests.status, filters.status as typeof s.advanceRequests.$inferSelect.status));
   if (filters?.search) {
     // Requester names are attached post-query by enrichWithNames, so search runs
     // in SQL as an IN subquery over users.fullName — it composes with the
