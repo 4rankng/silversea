@@ -1,6 +1,39 @@
 # Current Development Handoff
 
-## Current task — driver full-close flow multi-fulfillment follow-up (HOÀN THÀNH CHUYẾN partial close → PENDING_EXPENSE_APPROVAL) — DONE
+## Current task — frontend maintainability & extensibility wave — DONE (2026-09-01)
+
+- Scope: user ask "improve frontend for ease of maintenance and easy to extend" → audit (`plans/reports/architecture-260901-1611-frontend-maintainability.md`) → red-teamed plan (`plans/260901-1622-frontend-extensibility-change-wave/`) → cooked same day, all 7 phases.
+- Shipped on `main` (NOT pushed; no deploy — user's call), commits after the backend wave's `ff762c93`:
+  1. `84786fee` — CUS split: ShipmentsPage 1281→609L + ShipmentsDetailPage 605→259L → `features/shipments/cus/` (state hook incl. verbatim 30s-poll, quick-edit hook, actions hook, detail hook+model, row leaf). 8 source-guard test assertions repointed.
+  2. `1f33cf05` — CUS list read → react-query equivalence config (`qk.shipmentsCus`, 30s poll, focus 'always', keepPreviousData, staleTime ∞) + 5 regression tests locking the config (27.8 staleness guard). List race-guard deleted.
+  3. `2156a14d` — FE status-vocab parity test: 22 shared enum↔label pairs. Divergent wordings (TripPod, dispatch status) documented as open product decisions — NOT unified under the behavior-identical contract.
+  4. `48ae7b20` — 2 swappable date-formatter clones delegate to `lib/formatISODate`; 5 intentional variants documented.
+  5. `fcc58759` — ShipmentsDetailPage → ShipmentContainersPage (kills the near-collision with `/shipments/:id`); salary-attendance grab-bag → features/. check-ui frozen-prefix updated.
+  6. `39c76e6a`/`a213901a`/`047f88e6`/`da39e99d` — phase-6 splits: UserForm, PayableDetail (shared ledger rows → accounting), DebtDetail (3 accounting modules), DriverTripDetail (pure helpers → driver).
+  7. Phase 7 — `docs/frontend-architecture.md` + `src/tests/structure.guard.test.ts` (frozen LOC ratchet + formatter-clone ban; bite-proven, `qa/2026-09-01_guard_proof.log`).
+- Gates: 1424+ tests / lint 0 / tsc 0 / `make build` ✓ per phase (`qa/2026-09-01_{cus-split,cus-rq,vocab-parity,naming,splits6}_*`).
+- ⚠️ `ff762c93` (backend wave's commit) carries this wave's 6 CUS-export/quick-edit files from the 16:58 amend race — content-correct, both sessions aware; their HANDOFF section documents it too.
+- **Reviewer round (verdict FAIL → fixed, `d8f78993` + `b00e977e`):** BLOCKER — fcc58759 had committed only the rename's ADD half (2.4k lines of dead duplicates at HEAD; guard red on clean checkout) → deletion half committed + guard re-proven against committed tree (464 files, 0 violations, `qa/2026-09-01_guard_proof.log`). MAJOR — `staleTime: Infinity` dropped the old fetch-on-every-mount → `refetchOnMount: 'always'` + remount test; behavioral fake-timer poll test added. Final: **1426/1426 tests, tsc/lint/build green.**
+- Remainders (recorded in phase files): ForwarderTripDetailPage + SalaryAttendancePage + FinancePage (sibling-WIP-blocked) splits; divergent status wordings; staleness smoke on staging needs a second live session (poll/remount/config are behaviorally tested).
+
+## Previous task — backend+DB extensibility change-rail wave — DONE (2026-09-01)
+
+- Scope: user ask "ensure backend and database table is extensible and easy to maintain, lots of change upcoming days" → `/ak-plan --auto` → audited (3 scouts + red-team) → cooked same day. Plan `plans/260901-1144-backend-db-extensibility-change-wave/`, report `plans/reports/architecture-260901-1144-backend-db-extensibility.md`. Verdict: schema layer already extensible (text enums, cheap add paths) — the wave hardened the **rails around change**.
+- Shipped on `main`, 5 commits (NOT pushed; no deploy — user's call):
+  1. `a74ca0bb` — migration rails: `make generate` mkdir-lock (no flock on local macOS), `db-backup` wired into migrate/migrate-sql/dev (fixed `|| true` swallow) + server-side deploy backup, `db-drift-check` probe-safe guard, journal floor 37→45. Demonstrated: lock contention, drift catch + zero-residue cleanup, backup restore rehearsal (134 tables).
+  2. `5ed04a6b` — **live staleness bug fixed**: driver full-close (`HOÀN THÀNH CHUYẾN`) posted revenue/AP/AR then busted ZERO report caches. New single registry `lib/report-cache.ts` (keys/builders/groups tripWrite|tripStart); 4 hand-copied key lists removed; setter sites use builders; unit drift gate bans hand-spelled `reports:` keys outside the registry (caught 3 more template-literal setters during dev). Widening-only; sentinel integration test proves all 7 keys bust on close (create + replay).
+  3. `93794a70` — `docs/backend-architecture.md` post-split reality: migration-rails section, 3-layer add-a-status checklist, report-cache registry section, enforcement map.
+  4. `ece19544` — `0045_gifted_puma` penalties_driver_id index; **status-vocabulary-parity test** (12 backend↔shared pairs — backend-only status additions used to silently break shared-zod writes); advance-request inline union → `$inferSelect`; journal floor 46. E2E 379/0/31.
+  5. `ff762c93` — driver.service split (1,497→1,007 LOC): fulfillment write path → `driver-fulfillment.service.ts` (467L); dual-use helpers promoted to `trip-pod.service` (1,061L); named-re-export barrel; suites unmodified. **⚠️ mixed commit**: sibling's 6 frontend CUS-export/quick-edit files were staged mid-race and rode along (content-correct, nothing lost) — see Notes.
+- Gates per phase (evidence in `qa/2026-09-01_{migration-rails,cache-registry,schema-hygiene,driver-split}/`): tsc 0 · unit 189/189 (was 172; +17 registry/parity) · focused integration green per phase · full backend suite running at write time · lint 0 errors · `make build` green · E2E 379 pass/0 fail/31 skip.
+- Known debts surfaced, not actioned (open questions in plan.md): FK policy (keep app-enforced — recommended); 336 plain-timestamp vs 129 timestamptz (new columns timestamptz; unification deferred); Casbin route↔policy drift has no guard (docs-line only); **`.ua/` knowledge graph is a month stale (`04dc2b1`, 07-29)** — too far behind for incremental; needs a full `/understand` rebuild in a dedicated session.
+- testplan: TC-LX-TIENDO-010 extended with the cache postcondition (updated BEFORE the fix).
+
+**Updated:** 2026-09-01 17:05 Asia/Singapore
+**Controller:** Mavis (extensibility wave, session silversea-d1)
+**Status:** DONE — 5 commits on local `main`; push + deploy deferred to user. Full backend suite confirmation below if green.
+
+## Previous task — driver full-close flow multi-fulfillment follow-up (HOÀN THÀNH CHUYẾN partial close → PENDING_EXPENSE_APPROVAL) — DONE
 
 - Scope: re-test on staging (2026-08-29 evening) — the engineer deployed `71217810` (the original full-close flow) but a field-reported regression surfaced on multi-fulfillment shipments. Concretely: trip 21 (TRP-202608-0012) on `fulfillment 96` correctly flipped to `COMPLETED` after `completeOwnedFulfillmentTrip`, but `shipment 77` stayed at `DISPATCHED` because the recompute's `allCompletedViaDriverClose` branch required **every** `requiredFulfillments` row to have a COMPLETED trip. Shipment 77 has 3 required fulfillments (96, 97, 98) and only 96 had a trip — so the shipment was stuck. CUS/Dispatcher then kept seeing the stale "Đang chạy" badge exactly as before the fix.
 - Fix in 1 file (`backend/src/services/shipment-status-transitions.service.ts`, +30 / -3):
