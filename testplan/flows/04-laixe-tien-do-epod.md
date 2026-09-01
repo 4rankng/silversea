@@ -230,12 +230,14 @@
   - CUS container ledger: `dispatchStatus: COMPLETED` → "Hoàn thành".
   - Dispatcher trips list: trip `status: COMPLETED` → "Hoàn thành" (TRIP_STATUS_LABELS).
   - Driver app footer: nút "Đã hoàn thành chuyến" (disabled).
+  - **Cache báo cáo (fix 2026-09-01):** ngay khi chốt chuyến, các cache báo cáo chịu ảnh hưởng bị invalidate (dashboard, dashboard:executive, P&L, total-AR, entity-results, fuel-variance, dashboard-widgets) — không đợi TTL. Trước 2026-09-01 full-close không bust cache nào (dashboard/P&L stale đến hết TTL). Kiểm chứng tự động: test `driver-fulfillment-progress` đặt sentinel key rồiassert đã bị xóa.
   - **Lưu ý:** Kế toán review (đối soát phí, POD giấy) sẽ build sau — hiện tại lái xe chốt trực tiếp, cost edit sau đó sẽ surface qua AR snapshot + dirty flag (O2C dev-rev1 §Bước 4).
 - **Kỳ vọng sai (Fail nếu):**
   - Trip vẫn `IN_TRANSIT` sau khi bấm "HOÀN THÀNH CHUYẾN" (regression).
   - Shipment vẫn `IN_TRANSIT` / `PENDING_EXPENSE_APPROVAL` (recompute không theo driver close).
   - CUS/Dispatcher vẫn hiển thị "Đang chạy" / "Chờ duyệt phí" sau completion.
   - Láy xe khác trip_id có thể đóng trip của người khác (ownership leak).
+  - Dashboard/P&L vẫn serve dữ liệu cũ (stale cache) sau khi lái xe chốt chuyến.
 - **Bằng chứng:** ảnh trip COMPLETED trên `/my-trips/:id` + ảnh CUS workspace "Hoàn thành" + ảnh Dispatcher trips list "Hoàn thành" + ảnh DB status_history (IN_TRANSIT → COMPLETED).
 
 ---

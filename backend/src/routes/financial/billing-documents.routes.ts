@@ -20,7 +20,7 @@ import {
 } from '../../services/billing-document-governance.service';
 import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit-note-pdf.service';
 import { attachmentDisposition } from '../../services/statement.service';
-import { invalidateReportCaches } from '../../lib/redis';
+import { invalidateReportCaches } from '../../lib/report-cache';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';

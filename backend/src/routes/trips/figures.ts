@@ -16,8 +16,9 @@ import * as tripService from '../../services/trip.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import {
-  getExpectedVersion, invalidateReportCaches,
+  getExpectedVersion,
 } from './trips-shared';
+import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();
 

@@ -22,8 +22,9 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parsePagination } from '../utils/pagination';
 import {
-  getExpectedVersion, tripListSortQuerySchema, invalidateReportCaches,
+  getExpectedVersion, tripListSortQuerySchema,
 } from './trips-shared';
+import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();
 

@@ -5,6 +5,7 @@ import * as s from '../db/schema';
 import { cacheGet } from '../lib/redis';
 import { eq, and, or, sql, inArray, like, isNull, lt } from 'drizzle-orm';
 import { computeFifoAging, TxnType } from '@tingting/shared';
+import { ENTITY_RESULTS_KEY_PREFIX } from '../lib/report-cache';
 import type { PayableSummary, PayablesCategory, Supplier } from '@tingting/shared';
 import {
   getCustomerReceivableSnapshots,
@@ -387,7 +388,7 @@ async function getEntityResultsCached(
   const entityKey = opts.entityTypes?.join(',') ?? config.entityType;
   const projectionKey = opts.excludeCarrierPayables ? 'no-carrier-ap' : 'all-projections';
   return cacheGet<EntityAgingResult[]>(
-    `reports:entity-results:${entityKey}:${config.invertSigns ? 'inv' : 'std'}:${asOfKey}:${txnKey}:${projectionKey}`,
+    `${ENTITY_RESULTS_KEY_PREFIX}${entityKey}:${config.invertSigns ? 'inv' : 'std'}:${asOfKey}:${txnKey}:${projectionKey}`,
     300,
     async () => {
       const grouped = await fetchLedgerGrouped(config, {

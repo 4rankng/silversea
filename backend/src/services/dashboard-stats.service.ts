@@ -10,6 +10,7 @@ import { eq, and, isNull, sql, gte, desc } from 'drizzle-orm';
 import { TripStatus, parseThreshold, type DashboardDecisionItem } from '@tingting/shared';
 import { getCustomerAgingList, getReceivablesSummary, getTopOverdueCustomer, CURRENT_AGING_RANGE } from './aging.service';
 import { cacheGet } from '../lib/redis';
+import { dashboardCacheKey } from '../lib/report-cache';
 import { salaryPeriodDateRange, localDateStr, resolveCapTableSnapshot, tripCompletionBusinessDateSql } from './reporting-shared';
 import { getPnlReport } from './pnl.service';
 import { getRenewalReminders } from './expense.service';
@@ -89,7 +90,7 @@ export async function getCongestionAlertCounts(): Promise<{
 
 export async function getDashboardStats(options: { includeExecutive?: boolean } = {}) {
   const includeExecutive = options.includeExecutive === true;
-  return cacheGet(includeExecutive ? 'reports:dashboard:executive' : 'reports:dashboard', 30, async () => {
+  return cacheGet(dashboardCacheKey(includeExecutive), 30, async () => {
     const now = new Date();
     const businessDateParts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Ho_Chi_Minh',

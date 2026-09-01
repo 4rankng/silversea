@@ -5,7 +5,6 @@
  */
 import { z } from 'zod';
 import { TRIP_LIST_SORT_KEYS } from '../../services/trip-queries.service';
-import { cacheInvalidate, cacheInvalidatePattern } from '../../lib/redis';
 import { ApiError } from '../../errors';
 
 export function getExpectedVersion(body: unknown): number | undefined {
@@ -46,13 +45,5 @@ export const tripListSortQuerySchema = z.object({
   sortDir: z.enum(['asc', 'desc']).optional(),
 });
 
-export async function invalidateReportCaches(invalidatePnl?: boolean) {
-  await Promise.all([
-    cacheInvalidate('reports:dashboard'),
-    cacheInvalidate('reports:dashboard:executive'),
-    cacheInvalidatePattern('reports:entity-results:*'),   // trip writes change AR/AP aging
-    cacheInvalidatePattern('reports:total-ar:*'),         // trip revenue posts CUSTOMER ledger rows
-    cacheInvalidatePattern('reports:fuel-variance:*'),    // trip writes change fuel variance
-    invalidatePnl ? cacheInvalidatePattern('reports:pnl:*') : Promise.resolve(),
-  ]).catch(() => {});
-}
+// Report-cache invalidation lives in lib/report-cache.ts (single key registry);
+// route leaves import it directly from there.

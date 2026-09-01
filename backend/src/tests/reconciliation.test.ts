@@ -25,7 +25,8 @@ import { TxnType } from '@tingting/shared';
 import { getCustomerArSummary } from '../services/ar-status.service';
 import { getPayablesSummary } from '../services/aging.service';
 import { closeSalaryPeriod } from '../services/salary-period-close.service';
-import { disconnectRedis, invalidateReportCaches } from '../lib/redis';
+import { disconnectRedis } from '../lib/redis';
+import { invalidateReportCaches } from '../lib/report-cache';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];

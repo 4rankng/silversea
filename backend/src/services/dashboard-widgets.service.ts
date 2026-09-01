@@ -15,6 +15,7 @@ import { and, sql, isNull, gte } from 'drizzle-orm';
 import { computeVehicleAlerts, type DashboardWidgets } from '@tingting/shared';
 import { getPnlReport } from './pnl.service';
 import { cacheGet } from '../lib/redis';
+import { dashboardWidgetsMonthKey } from '../lib/report-cache';
 import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 
 export async function getDashboardWidgets(month?: number, year?: number, skipCache = false): Promise<DashboardWidgets> {
@@ -129,7 +130,7 @@ export async function getDashboardWidgets(month?: number, year?: number, skipCac
   };
 
   if (skipCache) return compute();
-  return cacheGet(`reports:dashboard-widgets:${month ?? 'current'}:${year ?? ''}`, 60, compute);
+  return cacheGet(dashboardWidgetsMonthKey(month ?? 'current', year ?? ''), 60, compute);
 }
 
 /** Helper: billable trip statuses as a SQL IN clause. */

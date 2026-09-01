@@ -12,6 +12,12 @@ import {
 import { ApiError } from '../errors';
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
+import {
+  REPORT_CACHE_KEYS,
+  dashboardWidgetsMonthKey,
+  fuelVarianceMonthKey,
+  pnlMonthKey,
+} from '../lib/report-cache';
 import * as s from '../db/schema';
 import { DURABLE_EFFECT_KIND, type DurableEffectInput } from './durable-effect.service';
 import {
@@ -141,19 +147,19 @@ export function reportingCacheKeysFrom(
   now: Date = new Date(),
 ): string[] {
   const keys = new Set<string>([
-    'reports:dashboard',
-    'reports:dashboard:executive',
+    REPORT_CACHE_KEYS.dashboard,
+    REPORT_CACHE_KEYS.dashboardExecutive,
   ]);
   const totalMonths = Math.max(1, horizonMonths);
   for (let offset = 0; offset < totalMonths; offset += 1) {
     const targetMonthStart = addMonths(effectiveFrom, offset);
     const { month, year } = monthKey(targetMonthStart);
-    keys.add(`reports:pnl:${month}:${year}`);
-    keys.add(`reports:fuel-variance:${month}:${year}`);
-    keys.add(`reports:dashboard-widgets:${month}:${year}`);
+    keys.add(pnlMonthKey(month, year));
+    keys.add(fuelVarianceMonthKey(month, year));
+    keys.add(dashboardWidgetsMonthKey(month, year));
   }
   if (effectiveFrom === currentVietnamMonthStart(now)) {
-    keys.add('reports:dashboard-widgets:current:');
+    keys.add(dashboardWidgetsMonthKey('current', ''));
   }
   return [...keys];
 }

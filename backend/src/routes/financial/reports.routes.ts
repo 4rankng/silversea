@@ -10,6 +10,7 @@ import { getPaymentTermEvalReport } from '../../services/payment-term.service';
 import { getTotalArReport } from '../../services/total-ar-report.service';
 import { cacheGet } from '../../lib/redis';
 import { getDashboardWidgets } from '../../services/dashboard-widgets.service';
+import { totalArRangeKey } from '../../lib/report-cache';
 import { getCustomerAgingList, customerAgingSortQuerySchema } from '../../services/aging.service';
 import { getApprovalQueue } from '../../services/approval-queue.service';
 import { parsePagination } from '../utils/pagination';
@@ -133,9 +134,9 @@ router.get('/reports/receivables-aging/export', requireRoles(Role.ADMIN, Role.MA
 
 // ─── Total AR report (M5.5) ──────────────────────────────────────────────────
 // Per-customer AR aging over a date range, cached briefly like the other
-// ledger-derived reports. Every ledger-writing path must bust
-// `reports:total-ar:*` — the canonical invalidateReportCaches plus the two
-// trip-path copies (routes/trips.ts, services/trip-command.service.ts).
+// ledger-derived reports. Every ledger-writing path busts the total-AR
+// pattern via the single report-cache registry (lib/report-cache.ts) —
+// invalidation sites derive their keys from there; do not hand-spell them.
 router.get('/reports/total-ar', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const rangeFrom = typeof req.query.rangeFrom === 'string' ? req.query.rangeFrom : '';
@@ -144,7 +145,7 @@ router.get('/reports/total-ar', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCO
     return res.status(400).json({ error: 'Khoảng ngày báo cáo không hợp lệ (cần rangeFrom ≤ rangeTo, định dạng YYYY-MM-DD)' });
   }
   res.json(await cacheGet(
-    `reports:total-ar:${rangeFrom}:${rangeTo}`,
+    totalArRangeKey(rangeFrom, rangeTo),
     120,
     () => getTotalArReport(rangeFrom, rangeTo),
   ));

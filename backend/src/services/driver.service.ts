@@ -29,7 +29,7 @@ import { assertTripShipmentAccountingUnlocked, getShipmentAccountingLockSummary 
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
-import { cacheInvalidate, cacheInvalidatePattern } from '../lib/redis';
+import { invalidateReportCaches } from '../lib/report-cache';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import {
   getDriverCompletionEvidenceStatus,
@@ -1241,14 +1241,7 @@ export async function syncDriverFulfillmentStartSideEffects(
     driverId: number;
     recordedBy: number;
   },
-  invalidateReports: () => Promise<void> = async () => {
-    await Promise.all([
-      cacheInvalidate('reports:dashboard'),
-      cacheInvalidate('reports:dashboard:executive'),
-      cacheInvalidatePattern('reports:entity-results:*'),
-      cacheInvalidatePattern('reports:fuel-variance:*'),
-    ]).catch(() => {});
-  },
+  invalidateReports: () => Promise<void> = () => invalidateReportCaches('tripStart'),
 ): Promise<void> {
     const [startedTrip] = await db.select({
       id: s.trips.id,
@@ -1408,6 +1401,8 @@ export async function completeOwnedFulfillmentTrip(args: {
   actorUserId: number;
   expectedVersion: number;
   idempotencyKey: string | undefined;
+  /** Post-commit report-cache bust; injectable for tests. Defaults to the full trip-write group. */
+  invalidateReports?: () => Promise<void>;
 }): Promise<{ trip: DriverFulfillmentCompletionResult; replayed: boolean }> {
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE,
@@ -1484,6 +1479,9 @@ export async function completeOwnedFulfillmentTrip(args: {
     getEntityId: (value) => value.tripId,
   });
 
+  // Post-commit on BOTH the create and the replay path: the close posts
+  // revenue/AP/AR/profitability, so every trip-write report cache must bust.
+  await (args.invalidateReports ?? (() => invalidateReportCaches()))();
   return { trip: result, replayed };
 }
 

@@ -20,7 +20,8 @@ import {
 } from '../services/adjustment-governance.service';
 import { LedgerService } from '../services/ledger.service';
 import { ApiError } from '../errors';
-import { disconnectRedis, invalidateReportCaches } from '../lib/redis';
+import { disconnectRedis } from '../lib/redis';
+import { invalidateReportCaches } from '../lib/report-cache';
 
 /**
  * US-007 — final-gate chi hộ reconciliation & regression tests.

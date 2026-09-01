@@ -12,6 +12,7 @@ import { createCrudRouter } from '../utils/crud-factory';
 import { operationalName } from '../../db/master-data-name';
 import { runIdempotent, resolveIdempotencyKey } from '../../services/idempotency.service';
 import { cacheInvalidate, cacheInvalidatePattern } from '../../lib/redis';
+import { REPORT_CACHE_KEYS } from '../../lib/report-cache';
 import * as H from './config-helpers';
 import type { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, SupplierPayload, ForwarderExpenseTypePayload, ExpenseCategoryPayload } from './config-helpers';
 import {
@@ -622,9 +623,9 @@ router.use('/management-fees', createCrudRouter(s.managementFees, managementFeeS
   governance: {
     reasonLabel: 'phí quản lý',
   },
-  afterCreate: async () => { cacheInvalidatePattern('reports:pnl:*'); },
-  afterUpdate: async () => { cacheInvalidatePattern('reports:pnl:*'); },
-  afterDelete: async () => { cacheInvalidatePattern('reports:pnl:*'); },
+  afterCreate: async () => { cacheInvalidatePattern(REPORT_CACHE_KEYS.pnlPattern); },
+  afterUpdate: async () => { cacheInvalidatePattern(REPORT_CACHE_KEYS.pnlPattern); },
+  afterDelete: async () => { cacheInvalidatePattern(REPORT_CACHE_KEYS.pnlPattern); },
 }));
 // Cap-table is amount-based: percentages are derived as
 // contribution_amount / sum(contribution_amount) per snapshot, so totals are

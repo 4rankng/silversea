@@ -11,6 +11,7 @@ import * as s from '../db/schema';
 import { eq, and, isNull, sql, gte, inArray, ne, getTableColumns, desc } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
+import { fuelVarianceMonthKey, pnlMonthKey } from '../lib/report-cache';
 import { calendarMonthDateRange, tripCompletionBusinessDateSql } from './reporting-shared';
 import {
   resolveFinancialReportingPolicyForMonth,
@@ -823,7 +824,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
   };
 
   if (q !== db) return compute();
-  return cacheGet(`reports:pnl:${month}:${year}`, 120, compute);
+  return cacheGet(pnlMonthKey(month, year), 120, compute);
 }
 
 /**
@@ -831,7 +832,7 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
  * Compares actual fuel dispensed (fuelLiters) against norm (sum of leg calculatedLiters).
  */
 export async function getFuelVarianceReport(month: number, year: number) {
-  return cacheGet(`reports:fuel-variance:${month}:${year}`, 120, async () => {
+  return cacheGet(fuelVarianceMonthKey(month, year), 120, async () => {
     const { start: tripStart, end: tripEnd } = calendarMonthDateRange(year, month);
     const completionBusinessDate = tripCompletionBusinessDateSql();
 

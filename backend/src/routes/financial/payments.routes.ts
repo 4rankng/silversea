@@ -29,7 +29,8 @@ import {
   normalizeDateParam,
 } from '../../services/statement.service';
 import { formatLocalDate } from '../../lib/format';
-import { cacheInvalidatePattern, invalidateReportCaches } from '../../lib/redis';
+import { cacheInvalidatePattern } from '../../lib/redis';
+import { invalidateReportCaches, REPORT_CACHE_KEYS } from '../../lib/report-cache';
 import { getPayablesSummary, paginatePayablesSummary, payablesSummarySortQuerySchema } from '../../services/aging.service';
 import { parsePagination } from '../utils/pagination';
 import { throwValidation } from '../../lib/validation';
@@ -325,7 +326,7 @@ router.post(
 
     if (!replayed) {
       if (result.actionKind === 'PENALTY_CREATE' || result.actionKind === 'PENALTY_CANCEL') {
-        await cacheInvalidatePattern('reports:pnl:*');
+        await cacheInvalidatePattern(REPORT_CACHE_KEYS.pnlPattern);
       } else {
         await invalidateReportCaches();
       }

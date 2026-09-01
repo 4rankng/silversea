@@ -15,8 +15,9 @@ import * as tripService from '../../services/trip.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import {
-  getExpectedVersion, getRequiredGovernanceReason, invalidateReportCaches,
+  getExpectedVersion, getRequiredGovernanceReason,
 } from './trips-shared';
+import { invalidateReportCaches } from '../../lib/report-cache';
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.patch('/:id/departure-date', asyncHandler(async (req: Request, res: Respo
     ),
     getEntityId: (result) => result.id,
   });
-  if (!replayed) await invalidateReportCaches(true);
+  if (!replayed) await invalidateReportCaches();
   res.json(idempotencyKey ? { ...trip, replayed } : trip);
 }));
 

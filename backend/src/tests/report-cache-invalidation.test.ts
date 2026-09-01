@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { after, describe, test } from 'node:test';
 
-import { disconnectRedis, getRedis, invalidateReportCaches } from '../lib/redis';
+import { disconnectRedis, getRedis } from '../lib/redis';
+import { invalidateReportCaches } from '../lib/report-cache';
 
 const dashboardKeys = ['reports:dashboard', 'reports:dashboard:executive'] as const;
 

@@ -17,6 +17,7 @@ import {
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { config } from '../config';
 import { client, db } from '../db';
+import { getRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
@@ -1611,6 +1612,21 @@ describe('Phase 4 driver fulfillment execution', () => {
       .from(s.trips).where(eq(s.trips.id, trip.id)).limit(1);
     const completeKey = `full-close-e2e-complete-${suffix}`;
     usedIdempotencyKeys.push(completeKey);
+    // Cache staleness regression (2026-09-01): full-close posts revenue/AP/AR/
+    // profitability, so every trip-write report cache must bust. Seed sentinels
+    // (short TTL so a failed run cannot leak them), then assert the close
+    // removed them — before the fix this path busted nothing.
+    const redis = getRedis();
+    const sentinelKeys = [
+      'reports:dashboard',
+      'reports:dashboard:executive',
+      `reports:pnl:12:2099-${suffix}`,
+      `reports:fuel-variance:12:2099-${suffix}`,
+      `reports:total-ar:12:2099-${suffix}`,
+      `reports:entity-results:12:2099-${suffix}`,
+      `reports:dashboard-widgets:12:2099-${suffix}`,
+    ];
+    await Promise.all(sentinelKeys.map((key) => redis.set(key, 'sentinel', 'EX', 60)));
     const completed = await completeOwnedFulfillmentTrip({
       fulfillmentId: fulfillment.id,
       driverId: actor.driver.id,
@@ -1623,6 +1639,14 @@ describe('Phase 4 driver fulfillment execution', () => {
     const [shipment] = await db.select({ status: s.shipments.status })
       .from(s.shipments).where(eq(s.shipments.id, fulfillment.shipmentId)).limit(1);
     assert.equal(shipment?.status, 'COMPLETED');
+
+    const survivors = (await Promise.all(sentinelKeys.map((key) => redis.exists(key))))
+      .filter((exists) => exists === 1);
+    assert.deepEqual(
+      survivors.length === 0 ? [] : sentinelKeys.filter((_, i) => i >= 0),
+      survivors.length === 0 ? [] : sentinelKeys,
+      'driver full-close must bust every trip-write report cache (staleness fix 2026-09-01)',
+    );
   });
 
   test('driver full-close path: multi-fulfillment partial close advances shipment to PENDING_EXPENSE_APPROVAL (not stuck at DISPATCHED)', async () => {
