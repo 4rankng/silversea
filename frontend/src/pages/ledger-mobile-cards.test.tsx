@@ -9,7 +9,7 @@ import {
   FuelLedgerCard,
   FuelLedgerRow,
   PayableLedgerCard,
-} from './PayableDetailPage';
+} from '../features/accounting/ledger-rows';
 
 function ledgerRow(overrides: Partial<LedgerEntry>): LedgerEntry {
   return {
