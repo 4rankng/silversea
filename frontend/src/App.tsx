@@ -180,7 +180,9 @@ export function AppRoutes() {
   // therefore reachable — for ACCOUNTANT, and backend Casbin already grants
   // accountant trips read; only edit/create routes stay adminOnly.
   const tripDetailOnly = (el: ReactElement) => (
-    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT
+    // DISPATCHER deliberately excluded (user 2026-09-01: the role was never
+    // meant to have Sổ chuyến đi) — nav, search, and route all omit it.
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
       ? el
       : <Navigate to={homeRedirect} replace />
   );
