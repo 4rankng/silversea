@@ -18,6 +18,7 @@ import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
+import { formatISODate } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 
 export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
@@ -112,9 +113,10 @@ function directionLabel(direction: ShipmentCusContainerFlatRow['direction']): st
 }
 
 function formatDate(value: string | null): string {
+  // Delegates to the shared ISO-date formatter; only the empty-state text is
+  // this surface's own.
   if (!value) return 'Chưa có ngày';
-  const [year, month, day] = value.split('-');
-  return year && month && day ? `${day}/${month}/${year}` : value;
+  return formatISODate(value);
 }
 
 function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {

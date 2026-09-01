@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { Modal } from '../../components/UI';
 import { EmptyState, Pagination } from '../../design-system';
 import { useCustomerPortalScope, withCustomerScope } from './CustomerPortalScope';
+import { formatISODate } from '../../lib/format';
 import './PortalPages.css';
 import '../WorkflowFinance.css';
 
@@ -27,9 +28,10 @@ function statusClass(status: BillingDocument['debitNoteStatus']) {
 }
 
 function formatDate(value: string | null | undefined) {
+  // Delegates to the shared ISO-date formatter; only the empty-state text is
+  // this surface's own.
   if (!value) return 'Chưa có dữ liệu lịch sử';
-  const [year, month, day] = value.split('-');
-  return `${day}/${month}/${year}`;
+  return formatISODate(value);
 }
 
 function triggerDownload(blob: Blob, filename: string) {
