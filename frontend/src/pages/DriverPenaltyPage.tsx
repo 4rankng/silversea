@@ -119,7 +119,7 @@ export default function DriverPenaltyPage() {
       )}
 
       {/* ── Zone 2: KPI grid ──────────────────────────────────────────────── */}
-      <div className="kpi-grid penalty-kpi-grid">
+      <div className="kpi-grid cols-3 penalty-kpi-grid">
         <div className={`kpi ${incidentCount > 0 ? 'kpi--danger' : 'kpi--success'}`}>
           <div className="kpi__top"><span className="kpi__label">Vi phạm {monthLabel}</span></div>
           <div className="kpi__value">
