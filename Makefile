@@ -1,5 +1,6 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
-        logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback
+        logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback \
+        db-backup db-drift-check demo-db-backup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
@@ -15,8 +16,13 @@ dev: ## Start everything (db, redis, backend, frontend)
 	@until pg_isready -h localhost -p 5441 -U postgres >/dev/null 2>&1 || \
 		nc -z localhost 5441 >/dev/null 2>&1; do sleep 1; done
 	@sleep 1
-	@echo "Running migrations..."
-	@cd backend && npx drizzle-kit migrate 2>&1 | grep -v "already exists, skipping" || true
+	@echo "Running migrations (backup first)..."
+	@$(MAKE) --no-print-directory db-backup || echo "⚠️  db-backup failed — continuing dev startup WITHOUT a pre-migrate backup" >&2
+	@out=$$(cd backend && npx drizzle-kit migrate 2>&1); migrate_status=$$?; \
+		printf '%s\n' "$$out" | grep -v "already exists, skipping" || true; \
+		if [ $$migrate_status -ne 0 ]; then \
+			echo "⚠️  drizzle-kit migrate FAILED (exit $$migrate_status) — dev stack continues, but the DB may be behind. Run 'make migrate' for the full error." >&2; \
+		fi
 	@echo ""
 	@echo "Starting backend (port 3001) and frontend (port 7174)..."
 	@echo "  Frontend: http://localhost:7174"
@@ -46,13 +52,13 @@ DB_CONTAINER := silversea-db
 DB_NAME      := silversea
 DB_USER      := postgres
 
-migrate: ## Run database migrations (drizzle-kit)
+migrate: db-backup ## Run database migrations (drizzle-kit) — backs up first, fails closed
 	cd backend && npx drizzle-kit migrate
 
 # Apply the single baseline through Drizzle so the migration journal remains
 # authoritative. The baseline creates its required extensions and has no
 # foreign-key ordering dependency.
-migrate-sql:
+migrate-sql: db-backup
 	@cd backend && DATABASE_URL=postgres://$(DB_USER):postgres@localhost:5441/$(DB_NAME) npx drizzle-kit migrate
 	@echo "✅ Single baseline migration applied"
 
@@ -64,8 +70,50 @@ db-recreate:
 	@docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d postgres -c "CREATE DATABASE $(DB_NAME);" >/dev/null 2>&1
 	@echo "✅ Database recreated"
 
-generate: ## Generate migration from schema changes
+# Generate must be serialized: two concurrent drizzle-kit generates double-claim the
+# next journal idx (2026-08-29 journal-branching incident). Portable mkdir lock —
+# flock does not exist on macOS (the deploy flock runs server-side on Linux only).
+GENERATE_LOCK := backend/.drizzle-generate.lock.d
+
+generate: ## Generate migration from schema changes (serialized via lock)
+	@mkdir $(GENERATE_LOCK) 2>/dev/null || { echo "❌ another 'make generate' appears to be running ($(GENERATE_LOCK) exists). Generate MUST be serialized — remove the lock only if you are certain none is running." >&2; exit 1; }; \
+	trap 'rmdir $(GENERATE_LOCK) 2>/dev/null' EXIT; \
 	cd backend && npx drizzle-kit generate
+
+db-backup: ## Timestamped pg_dump to backups/ (required before any migration apply)
+	@mkdir -p backups
+	@backup="backups/db-$$(date +%Y%m%d-%H%M%S).dump"; \
+	docker exec $(DB_CONTAINER) pg_dump -U $(DB_USER) -Fc $(DB_NAME) > "$$backup"; \
+	status=$$?; size=$$(wc -c < "$$backup" | tr -d ' '); \
+	if [ $$status -ne 0 ] || [ "$$size" -lt 1024 ]; then \
+		echo "❌ db-backup failed (pg_dump exit $$status, $$size bytes) — aborting. File kept for inspection: $$backup" >&2; \
+		exit 1; \
+	fi; \
+	echo "✅ DB backup: $$backup ($$size bytes)"
+
+# Schema-drift guard: asserts generate is a no-op on a committed-clean drizzle/ tree.
+# Refuses to run on a dirty tree (would conflate real pending work with drift, and the
+# cleanup must never destroy uncommitted work). If drift is found: restores tracked
+# files and removes ONLY the untracked files the probe just created under
+# backend/drizzle — the pre-check guarantees the tree was clean, so every ?? entry
+# there is a probe artifact.
+db-drift-check: ## Assert drizzle-kit generate is a no-op on a clean tree
+	@if [ -n "$$(git status --porcelain backend/drizzle)" ]; then \
+		echo "❌ backend/drizzle has uncommitted/untracked changes — commit or stash first; refusing to probe." >&2; \
+		exit 1; \
+	fi
+	@cd backend && npx drizzle-kit generate --name drift-probe >/dev/null 2>&1 || true
+	@if [ -n "$$(git status --porcelain backend/drizzle)" ]; then \
+		echo "❌ SCHEMA DRIFT: generate produced changes on a clean tree — a schema edit has no migration." >&2; \
+		echo "   Restoring tracked files; removing probe artifacts under backend/drizzle..."; \
+		git checkout -- backend/drizzle; \
+		git status --porcelain backend/drizzle | awk '$$1 == "??" {print $$2}' | xargs rm -f; \
+		if [ -n "$$(git status --porcelain backend/drizzle)" ]; then \
+			echo "   ⚠️  probe cleanup left residue — inspect backend/drizzle manually." >&2; \
+		fi; \
+		exit 1; \
+	fi
+	@echo "✅ No drift: drizzle-kit generate is a no-op on the clean tree"
 
 seed: ## Seed database with sample data
 	cd backend && pnpm seed
@@ -135,6 +183,9 @@ DEMO_COMPOSE := docker compose -f deploy/docker-compose.prod.yml
 demo-capture-rollback: ## Record running demo backend/frontend images before a cutover
 	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); rollback_dir=.deploy-rollbacks; mkdir -p \"\$$rollback_dir\"; backend_container=\$$($(DEMO_COMPOSE) ps -q backend); frontend_container=\$$($(DEMO_COMPOSE) ps -q frontend); test -n \"\$$backend_container\" || { echo 'No running backend container; refusing cutover without rollback image.' >&2; exit 1; }; test -n \"\$$frontend_container\" || { echo 'No running frontend container; refusing cutover without rollback image.' >&2; exit 1; }; backend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$backend_container\"); frontend_image_id=\$$(docker inspect --format='{{.Image}}' \"\$$frontend_container\"); backend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$backend_image_id\"); frontend_digest=\$$(docker image inspect --format='{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}' \"\$$frontend_image_id\"); snapshot=\"\$$rollback_dir/pre-cutover-\$$(date -u +%Y%m%dT%H%M%SZ).env\"; { printf 'BACKEND_IMAGE_ID=%s\\n' \"\$$backend_image_id\"; printf 'BACKEND_REPO_DIGEST=%s\\n' \"\$$backend_digest\"; printf 'FRONTEND_IMAGE_ID=%s\\n' \"\$$frontend_image_id\"; printf 'FRONTEND_REPO_DIGEST=%s\\n' \"\$$frontend_digest\"; } > \"\$$snapshot\"; ln -sfn \"\$$(basename \"\$$snapshot\")\" \"\$$rollback_dir/latest\"; echo \"Rollback snapshot retained: $(DEMO_PATH)/\$$snapshot\"; cat \"\$$snapshot\""
 
+demo-db-backup: ## Server-side pg_dump of the demo DB before a deploy migrate (fails the deploy on failure)
+	@ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container running' >&2; exit 1; }; backup=\".db-backups/db-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec -i \"\$$pg_container\" pg_dump -U nepocorp -Fc nepocorp > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo \"Backup suspiciously small (\$$size bytes) — aborting deploy\" >&2; exit 1; fi; echo \"✅ Server DB backup: $(DEMO_PATH)/\$$backup (\$$size bytes)\""
+
 demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@echo "=== Deploying silversea to $(DEMO_SERVER) ==="
 	@echo ""
@@ -145,6 +196,8 @@ demo: ## Deploy silversea to demo (vantai.tingting.vip) — keeps existing DB
 	@echo "2/3  Recording rollback images, then pulling, migrating, and restarting services on $(DEMO_SERVER) (DB volume untouched)..."
 	@$(MAKE) --no-print-directory demo-capture-rollback
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@echo "Backing up the server DB before migrate..."
+	@$(MAKE) --no-print-directory demo-db-backup
 	@echo "Running pending migrations with the pulled backend image before cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
@@ -172,6 +225,7 @@ demo-local: ## Build images locally only (fast, native platform, no push)
 demo-deploy: ## Pull + restart + migrate on the demo server (no rebuild)
 	@$(MAKE) --no-print-directory demo-capture-rollback
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) pull backend frontend"
+	@$(MAKE) --no-print-directory demo-db-backup
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) up -d --no-deps backend frontend"

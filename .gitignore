@@ -96,3 +96,7 @@ kilo.json
 !.ua/fingerprints.json
 !.ua/.understandignore
 .agentkit/
+
+# Migration backups + generate lock
+backups/
+backend/.drizzle-generate.lock.d/

@@ -142,8 +142,9 @@ describe('customer workflow migration safety', () => {
     const prevSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0003_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     const nextSnapshot = JSON.parse(await readFile(new URL('../../drizzle/meta/0004_snapshot.json', import.meta.url), 'utf8')) as Record<string, unknown>;
     // Structural journal invariants (contiguity, append-only ordering, tag↔file
-    // existence, genesis tag, count floor) — new migrations need no test edits.
-    await assertJournalInvariants(await readJournal(), 37);
+    // existence, genesis tag, count floor). Floor = 45 (journal head is 0044);
+    // bump it in the SAME commit that adds a migration — it is the deletion tripwire.
+    await assertJournalInvariants(await readJournal(), 45);
     assert.match(migrationSql, /CREATE UNIQUE INDEX "lift_pricing_port_type_state_dir_date_uniq"/);
     assert.doesNotMatch(migrationSql, /FOREIGN KEY|\bCHECK\s*\(/i);
     assert.match(orderExchangeSql, /ADD COLUMN "order_exchange_started_at" timestamp with time zone/);
