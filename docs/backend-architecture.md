@@ -32,8 +32,12 @@ routes/          thin: zod parse -> authz -> service call -> response envelope
   `routes/utils/` holds route machinery (crud-factory) — the only place allowed to touch db
   from the routes layer.
 - When a file outgrows ~800 LOC, plan a split before it hits the 1,500 hard budget.
-- `db/schema.ts` is the single schema module (domain-folder split is a known deferred item —
-  do not start it piecemeal).
+- **Schema lives in `db/schema/`** — 12 domain files split from the old monolith:
+  `_shared.ts` (the `applicationEnum` helper + pgvector column), `_enums.ts` (every status
+  vocabulary — the single place enum values are defined), `core`/`master-data`/`pricing`/
+  `trips`/`costs`/`financial`/`treasury`/`shipments`/`agent`, and `index.ts` (the barrel —
+  the drizzle-kit target). New tables go in their domain file (or a new domain file + barrel
+  export); move each enum into `_enums.ts` next to its siblings.
 
 ## 3. Split recipe (proven cycles 1–2, three applications)
 
@@ -54,13 +58,14 @@ routes/          thin: zod parse -> authz -> service call -> response envelope
 
 Catalog-style CRUD (config tables, no transactional invariants):
 
-1. Define the table in `db/schema.ts`; `pnpm db:generate` → migration lands in `drizzle/`.
-   Journal invariants are checked structurally — there is no list to extend.
-2. Mount `createCrudRouter` in `routes/config/catalog-crud.routes.ts` (26 existing mounts).
+1. Define the table in `db/schema/<domain>.ts` (enum values in `_enums.ts`); `make generate`
+   (serialized — see Migration rails) → migration lands in `drizzle/`.
+2. Mount `createCrudRouter` in `routes/config/catalog-crud.routes.ts`.
 3. Transactional needs (multi-statement invariants) get a dedicated router instead — see the
    header comment in `routes/config/debit-note-templates.routes.ts` for why crud-factory's
    non-transactional beforeCreate+insert is insufficient.
-4. Casbin policy for the new route path; governed materials register in the material-write
+4. Casbin policy row for the new route path in `src/casbin/policy.csv` (hand-edited — no
+   registry; double-check role coverage); governed materials register in the material-write
    registry (`middleware/material-write.ts` + its exhaustive test).
 
 Full workflow entities (shipments, advances, billing…):
@@ -74,29 +79,74 @@ Full workflow entities (shipments, advances, billing…):
    counts ride the envelope as full-set aggregates (`statusCounts`,
    `statusAmounts`, `summary` — computed over the same where-clause minus the
    page window); they must never be derived client-side from one page.
-5. Frontend wiring is out of this doc's scope; see the frontend conventions in
+5. If it feeds a report/dashboard, register its cache in `lib/report-cache.ts` (below).
+6. Frontend wiring is out of this doc's scope; see the frontend conventions in
    `docs/design-guidelines.md` for UI work.
 
-## 5. Standing rules
+**Adding a status value (3 layers — the parity test guards 1↔2):**
+
+1. Backend: append the value to the enum in `db/schema/_enums.ts`, then `make generate`
+   (text-based enums — no `ALTER TYPE`; the migration is a constraint/default change).
+2. Shared: update the matching TS enum in `shared/src/constants/index.ts` and any shared zod
+   schema that enumerates the values — **shared-derived zod rejects unknown values on writes**,
+   so skipping this layer breaks the new status end-to-end.
+3. Frontend: status label/option maps (`*_STATUS_LABELS`) + any status-gated UI.
+   `src/tests/unit/status-vocabulary-parity.test.ts` fails if layers 1 and 2 diverge.
+
+**Report caches (`lib/report-cache.ts`):** every `reports:` key is spelled exactly there —
+key prefixes, setter-side builders (`pnlMonthKey`, `dashboardWidgetsMonthKey`, …), and
+semantic groups (`tripWrite`, `tripStart`). A new report: add its key + builder, assign group
+membership (which mutations feed it), then bust via `invalidateReportCaches(group)`.
+A unit drift gate fails any file that hand-spells a quoted `reports:` key outside the registry.
+
+## 5. Migration rails (enforced by the root `Makefile`)
+
+- **`make generate` is lock-serialized** (mkdir lock — `flock` does not exist on local macOS;
+  the deploy flock runs server-side on Linux). Two concurrent generates double-claim the next
+  journal idx — the 2026-08-29 journal-branching incident. Never bypass the lock.
+- **`make db-backup`** runs a timestamped `pg_dump -Fc` before every local migration apply
+  (`make migrate`, `make migrate-sql`, `make dev` startup) and fails closed; deploys take the
+  same backup server-side before the flocked migrate. There are **no down-migrations** — image
+  rollback does not rewind the DB, so the dump is the only recovery path. Rehearse a restore
+  into a scratch DB before trusting a backup.
+- **`make db-drift-check`** asserts `drizzle-kit generate` is a no-op on a committed-clean
+  `backend/drizzle/` tree — run it before committing schema work. It refuses dirty trees and
+  its probe cleanup never touches real pending work.
+- **Journal floor moves with every migration**: both migration-safety tests
+  (`o2c-rev1…`, `customer-workflow…`) assert the current entry count — bump the number in the
+  same commit that adds a migration. The helper (`tests/helpers/journal-invariants.ts`) checks
+  contiguity, monotonic timestamps, and tag↔file existence structurally.
+- Conventions: append-only additive migrations; guard backfills with `EXISTS`; no
+  `CREATE TYPE`/`ALTER TYPE` (text enums by design); see
+  `docs/journals/260820-fulfillment-classification-migration.md` for the snapshot-defect
+  post-mortem — never hand-edit generated metadata, and verify snapshots before generating.
+
+## 6. Standing rules
 
 - **Drizzle only — no raw SQL** in services or routes. Financial precision via `round2dp()` /
   `computeTripTotals()` (`shared/src/calculations/`); VND displays without decimals.
 - **Tests:** `src/tests/unit/*.test.ts` (flat glob, no DB, sub-second) vs `src/tests/*.test.ts`
   (integration, `--test-concurrency=1`, real DB). Arch and invariant tests belong in unit.
   Helpers shared by both globs live in `src/tests/helpers/`.
-- **Migrations:** append-only. `src/tests/helpers/journal-invariants.ts` asserts contiguity,
-  monotonic timestamps, tag↔file existence — new migrations need zero test edits.
 - **Shell hygiene:** never pipe test/build output through `tail` — it masks exit codes
   (recurring incident source). Check `$?` or use `echo "EXIT=$?"`.
+- **Schema conventions:** no database-level FK constraints — referential integrity is
+  application-enforced by design (guard deletes in services; partial unique indexes use
+  `WHERE deleted_at IS NULL`). New timestamp columns use `timestamptz` (`withTimezone: true`).
+  VND money is `numeric(15, 0)`; rates may use finer scales. jsonb columns get `.$type<>()`
+  unless deliberately opaque (governance snapshots).
 
-## 6. Enforcement map
+## 7. Enforcement map
 
 | Invariant | Enforced by |
 |-----------|-------------|
 | No db-client imports in routes | `arch-layering.test.ts` rule 1 (+ frozen baseline) |
 | No services→routes imports | `arch-layering.test.ts` rule 2 |
 | LOC budget 1,500 | `arch-layering.test.ts` rules 3–4 (+ baseline) |
-| Migration journal integrity | `tests/helpers/journal-invariants.ts` via both safety tests |
+| Migration journal integrity + count floor | `tests/helpers/journal-invariants.ts` via both safety tests |
+| Report-cache keys spelled only in the registry | `tests/unit/report-cache-registry.test.ts` (source-scan drift gate) |
+| Backend↔shared status vocabulary parity | `tests/unit/status-vocabulary-parity.test.ts` |
+| Generate serialization / pre-migrate backup / drift probe | root `Makefile` targets (`generate`, `db-backup`, `db-drift-check`) |
 | Governed-write registry coverage | `material-write-registry-exhaustive.test.ts` |
 | Locked-entity write boundary | `q18-locked-write-boundary-exhaustive.test.ts` |
 | Native `<select>` ban (frontend) | ESLint rule `@tingting/no-native-select` |
