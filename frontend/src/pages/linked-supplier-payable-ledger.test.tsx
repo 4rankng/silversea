@@ -3,7 +3,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { TxnType } from '@tingting/shared';
 import type { LedgerEntry } from '@tingting/shared';
-import { DualEntityLookupError, LinkedSupplierPayableLedger } from './DebtDetailPage';
+import { LinkedSupplierPayableLedger } from '../features/accounting/linked-supplier-payable';
+import { DualEntityLookupError } from '../features/accounting/receivable-ledger';
 import { matchLinkedSupplierStatement } from './linked-supplier-statement';
 
 function ledgerRow(overrides: Partial<LedgerEntry> = {}): LedgerEntry {

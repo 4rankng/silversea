@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TxnType } from '@tingting/shared';
 import type { LedgerEntry } from '@tingting/shared';
-import { ReceivableLedgerCard } from './DebtDetailPage';
+import { ReceivableLedgerCard } from '../features/accounting/receivable-ledger';
 import {
   ExpenseLedgerCard,
   ExpenseLedgerRow,
