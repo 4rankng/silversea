@@ -71,7 +71,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
   }],
   ['driver.ts|POST|/fulfillments/:fulfillmentId/progress', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver-fulfillment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
   }],
   ['driver.ts|POST|/fulfillments/:fulfillmentId/pod', {
@@ -87,11 +87,11 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_SUBMIT',
   }],
   ['driver.ts|POST|/fulfillments/:fulfillmentId/complete', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver-fulfillment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE',
   }],
   ['driver.ts|POST|/trips/:tripId/incidental-costs', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver-fulfillment.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST',
   }],
   ['driver.ts|POST|/trips/:tripId/fuel-evidence', {
