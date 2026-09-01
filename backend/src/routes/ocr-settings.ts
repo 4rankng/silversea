@@ -5,7 +5,7 @@ import {
   ocrSettingsUpdateSchema,
   type OcrSettingsResponse,
 } from '@tingting/shared';
-import { db } from '../db';
+import { getAppSettingsUpdatedAt } from '../services/config.service';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { ApiError } from '../errors';
@@ -22,24 +22,7 @@ import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.se
 
 const router = Router();
 const OCR_SETTINGS_COMMAND = 'admin.ocr-settings.update';
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-async function getOcrSettingsUpdatedAt(
-  q: typeof db | Tx = db,
-): Promise<string | null> {
-  const rows = await q.select({ updatedAt: s.appSettings.updatedAt })
-    .from(s.appSettings)
-    .where(sql`${s.appSettings.key} in (
-      ${OCR_SETTING_KEYS.enabled},
-      ${OCR_SETTING_KEYS.openrouterApiKey}
-    )`);
-  const latest = rows.reduce<Date | null>(
-    (current, row) => (!current || row.updatedAt > current ? row.updatedAt : current),
-    null,
-  );
-  return latest?.toISOString() ?? null;
-}
+const OCR_UPDATED_AT_KEYS = [OCR_SETTING_KEYS.enabled, OCR_SETTING_KEYS.openrouterApiKey] as const;
 
 function requireIdempotencyKey(req: Request): string {
   const key = resolveIdempotencyKey({
@@ -85,7 +68,7 @@ function toResponseBody(
 router.get(
   '/',
   asyncHandler(async (_req: Request, res: Response) => {
-    res.json(toResponseBody(await getOcrSettings(), await getOcrSettingsUpdatedAt()));
+    res.json(toResponseBody(await getOcrSettings(), await getAppSettingsUpdatedAt(OCR_UPDATED_AT_KEYS)));
   }),
 );
 
@@ -110,7 +93,7 @@ router.put(
         await tx.execute(
           sql`select pg_advisory_xact_lock(hashtextextended(${OCR_SETTINGS_COMMAND}, 0))`,
         );
-        const currentUpdatedAt = await getOcrSettingsUpdatedAt(tx);
+        const currentUpdatedAt = await getAppSettingsUpdatedAt(OCR_UPDATED_AT_KEYS, tx);
         assertOptionalVersion(
           currentUpdatedAt,
           expectedUpdatedAt,

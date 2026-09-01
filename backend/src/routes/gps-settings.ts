@@ -5,10 +5,10 @@ import {
   gpsSettingsUpdateSchema,
   type GpsSettingsResponse,
 } from '@tingting/shared';
-import { db } from '../db';
 import * as schema from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { encryptSecret, maskKey } from '../services/crypto';
+import { getAppSettingsUpdatedAt } from '../services/config.service';
 import {
   GPS_SETTING_KEYS,
   getGpsSettings,
@@ -23,18 +23,7 @@ import { resolveIdempotencyKey, runIdempotent } from '../services/idempotency.se
 const router = Router();
 const GPS_SETTINGS_COMMAND = 'admin.gps-settings.update';
 
-async function getGpsSettingsUpdatedAt(
-  q: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0] = db,
-): Promise<string | null> {
-  const rows = await q.select({ updatedAt: schema.appSettings.updatedAt })
-    .from(schema.appSettings)
-    .where(sql`${schema.appSettings.key} in (${GPS_SETTING_KEYS.username}, ${GPS_SETTING_KEYS.password})`);
-  const latest = rows.reduce<Date | null>(
-    (current, row) => !current || row.updatedAt > current ? row.updatedAt : current,
-    null,
-  );
-  return latest?.toISOString() ?? null;
-}
+const GPS_UPDATED_AT_KEYS = [GPS_SETTING_KEYS.username, GPS_SETTING_KEYS.password] as const;
 
 function requireIdempotencyKey(req: Request): string {
   const key = resolveIdempotencyKey({
@@ -67,7 +56,7 @@ function response(settings: Awaited<ReturnType<typeof getGpsSettings>>): GpsSett
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   res.json({
     ...response(await getGpsSettings()),
-    updatedAt: await getGpsSettingsUpdatedAt(),
+    updatedAt: await getAppSettingsUpdatedAt(GPS_UPDATED_AT_KEYS),
   });
 }));
 
@@ -89,7 +78,7 @@ router.put('/', asyncHandler(async (req: Request, res: Response) => {
     createdBy: req.user?.userId ?? null,
     entityType: 'app-settings',
     create: async (tx) => {
-      const currentUpdatedAt = await getGpsSettingsUpdatedAt(tx);
+      const currentUpdatedAt = await getAppSettingsUpdatedAt(GPS_UPDATED_AT_KEYS, tx);
       if (currentUpdatedAt) {
         if (!expectedUpdatedAt) {
           throw new ApiError(428, 'Thiếu phiên bản tài khoản định vị. Vui lòng tải lại trước khi cập nhật.');

@@ -17,6 +17,11 @@
 import { db } from '../db';
 import type { Tx } from '../services/trip-shared';
 
+// Canonical re-export so routes can take the executor type without importing
+// the db client (the arch-layering db-client baseline exists to prevent routes
+// from opening their own connections; type-only access is not that).
+export type { Tx };
+
 export function runInTx<T>(
   transaction: Tx | undefined,
   execute: (tx: Tx) => Promise<T>,

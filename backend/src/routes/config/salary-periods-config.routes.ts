@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { db } from '../../db';
 import * as s from '../../db/schema';
 import { and, eq, isNull } from 'drizzle-orm';
 import { ApiError } from '../../errors';

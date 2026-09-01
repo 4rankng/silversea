@@ -20,7 +20,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sql } from 'drizzle-orm';
-import { db } from '../db';
+import { getAppSettingsUpdatedAt } from '../services/config.service';
 import * as s from '../db/schema';
 import { asyncHandler } from '../middleware/asyncHandler';
 import {
@@ -44,21 +44,7 @@ const LLM_SETTINGS_COMMAND = 'admin.llm-settings.update';
 const KEY_PROVIDER = 'llm.provider';
 const KEY_MINIMAX = 'llm.minimax_api_key';
 const KEY_OPENROUTER = 'llm.openrouter_api_key';
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-async function getLlmSettingsUpdatedAt(
-  q: typeof db | Tx = db,
-): Promise<string | null> {
-  const rows = await q.select({ updatedAt: s.appSettings.updatedAt })
-    .from(s.appSettings)
-    .where(sql`${s.appSettings.key} in (${KEY_PROVIDER}, ${KEY_MINIMAX}, ${KEY_OPENROUTER})`);
-  const latest = rows.reduce<Date | null>(
-    (current, row) => !current || row.updatedAt > current ? row.updatedAt : current,
-    null,
-  );
-  return latest?.toISOString() ?? null;
-}
+const LLM_SETTING_KEYS = [KEY_PROVIDER, KEY_MINIMAX, KEY_OPENROUTER] as const;
 
 function requireIdempotencyKey(req: Request): string {
   const key = resolveIdempotencyKey({
@@ -107,7 +93,7 @@ function toResponseBody(
 /** GET /api/admin/llm-settings — never returns plaintext keys. */
 router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   const settings = await getLlmSettings();
-  res.json(toResponseBody(settings, await getLlmSettingsUpdatedAt()));
+  res.json(toResponseBody(settings, await getAppSettingsUpdatedAt(LLM_SETTING_KEYS)));
 }));
 
 /** PUT /api/admin/llm-settings
@@ -160,7 +146,7 @@ router.put('/', asyncHandler(async (req: Request, res: Response) => {
     createdBy: req.user?.userId ?? null,
     entityType: 'app-settings',
     create: async (tx) => {
-      const currentUpdatedAt = await getLlmSettingsUpdatedAt(tx);
+      const currentUpdatedAt = await getAppSettingsUpdatedAt(LLM_SETTING_KEYS, tx);
       assertOptionalVersion(
         currentUpdatedAt,
         expectedUpdatedAt,

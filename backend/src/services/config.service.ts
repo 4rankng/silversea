@@ -4,7 +4,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, isNull, desc, and, lte, ne } from 'drizzle-orm';
+import { eq, isNull, desc, and, lte, ne, inArray } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
 import { normalizeTaxCode } from './legal-partner.service';
@@ -13,6 +13,25 @@ import { resolveTableFreightPrice } from './pricing.service';
 import { getActiveTruckIdByDriverIds } from './truck-driver-assignment.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Latest updatedAt across a fixed set of app_settings keys — the ETag/If-Match
+ * source for the settings screens (llm/ocr/gps). Executor-aware so in-tx
+ * callers (optimistic-lock checks) can pass their own runner.
+ */
+export async function getAppSettingsUpdatedAt(
+  keys: readonly string[],
+  q: typeof db | Tx = db,
+): Promise<string | null> {
+  const rows = await q.select({ updatedAt: s.appSettings.updatedAt })
+    .from(s.appSettings)
+    .where(inArray(s.appSettings.key, [...keys]));
+  const latest = rows.reduce<Date | null>(
+    (current, row) => (!current || row.updatedAt > current ? row.updatedAt : current),
+    null,
+  );
+  return latest?.toISOString() ?? null;
+}
 
 // ─── Bootstrap ──────────────────────────────────────────────────────────────────
 

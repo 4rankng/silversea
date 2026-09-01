@@ -36,18 +36,28 @@ const SIZE_BASELINE: Record<string, string> = {};
  * settings routes); shrinks as queries migrate to services. Never add entries.
  */
 const DB_CLIENT_IMPORT_BASELINE = new Set([
+  // upload.ts — route+service hybrid (photo-record executor fns predate the
+  //   split waves); extraction is its own mini-wave, not a drive-by.
   'src/routes/upload.ts',
-  'src/routes/llm-settings.ts',
-  'src/routes/gps-settings.ts',
+  // admin-gps.ts — GPS backfill/setup transactions with advisory-lock +
+  //   idempotency interplay; needs the gps service extraction wave.
   'src/routes/admin-gps.ts',
+  // expense.ts — passes db as executor into expense services (listExpenses etc.
+  //   take q: typeof db); fix by making those services default q themselves.
   'src/routes/expense.ts',
-  'src/routes/ocr-settings.ts',
+  // financial/payments.routes.ts — governance-action select + treasury position
+  //   fan-out; belongs in the payment/treasury command services.
   'src/routes/financial/payments.routes.ts',
-  'src/routes/config/salary-periods-config.routes.ts',
+  // config/config-helpers.ts — shared config-route machinery (governed singleton
+  //   registrations + read helpers) used by every config leaf; machinery, like
+  //   routes/utils, not a resource route.
   'src/routes/config/config-helpers.ts',
+  // config/catalog-crud.routes.ts — crud-factory mount surface (the factory
+  //   itself is db-allowed by design); only the dispatch-zones public reader
+  //   queries directly.
   'src/routes/config/catalog-crud.routes.ts',
-  'src/routes/config/audit-logs.routes.ts',
-  'src/routes/config/tire-lifecycle.routes.ts',
+  // config/operational-config.routes.ts — roadConfig/appSettings reads that
+  //   should move to config.service together with config-helpers's readers.
   'src/routes/config/operational-config.routes.ts',
 ]);
 
