@@ -121,8 +121,6 @@ export const qk = {
     'tires',
   ] as const,
 
-  /* ── Trips ──────────────────────────────────────────────────────────── */
-
   /* ── CUS shipments workboard (/shipments) ─────────────────────────── */
   shipmentsCus: {
     /** Broad prefix — invalidates every workboard list query. */
@@ -139,6 +137,8 @@ export const qk = {
       sortDir?: string;
     }) => ['shipments-cus', 'list', filters] as const,
   },
+
+  /* ── Trips ──────────────────────────────────────────────────────────── */
 
   trips: {
     all: ['trips'],

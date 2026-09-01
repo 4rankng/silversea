@@ -23,6 +23,7 @@ import { join, relative } from 'node:path';
 const NEW_FILE_MAX_LOC = 400;
 
 const FROZEN_MAX_LOC: Record<string, number> = {
+  'src/design-system/forms/SearchableSelect.tsx': 481,
   'src/api/driverClient.ts': 650,
   'src/api/keys.ts': 562,
   'src/api/shipmentClient.ts': 1091,
@@ -95,7 +96,7 @@ const FROZEN_MAX_LOC: Record<string, number> = {
 };
 
 /** Source roots the size ratchet covers. */
-const SIZE_ROOTS = ['src/pages', 'src/features', 'src/components', 'src/hooks', 'src/api'];
+const SIZE_ROOTS = ['src/pages', 'src/features', 'src/components', 'src/hooks', 'src/api', 'src/lib', 'src/design-system', 'src/context'];
 
 function listSourceFiles(root: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(root)) {
@@ -161,7 +162,9 @@ describe('frontend structure guard', () => {
         const rel = relative(process.cwd(), file);
         if (allowed.has(rel)) continue;
         const source = readFileSync(file, 'utf8');
-        if (/^function format(?:Date|DateTime)/m.test(source)) {
+        // Matches implementations (function decls, arrow/function consts) but
+        // NOT alias consts like `const formatDateTime = formatDateTimeShort`.
+        if (/^(?:export )?function\s+format(?:Date|DateTime)\w*\s*\(|^(?:export )?(?:const|let)\s+format(?:Date|DateTime)\w*\s*(?::[^=]+)?=\s*(?:\(|async\s|function\b)/m.test(source)) {
           offenders.push(rel);
         }
       }

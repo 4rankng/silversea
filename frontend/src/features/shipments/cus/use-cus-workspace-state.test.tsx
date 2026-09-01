@@ -97,9 +97,41 @@ describe('useCusWorkspaceState — list query equivalence', () => {
     const options = workboardQuery()!.options as unknown as Record<string, unknown>;
     expect(options.refetchInterval).toBe(30_000);
     expect(options.refetchIntervalInBackground).toBe(false);
+    expect(options.refetchOnMount).toBe('always');
     expect(options.refetchOnWindowFocus).toBe('always');
     expect(options.placeholderData).toBeTruthy();
     expect(options.staleTime).toBe(Infinity);
+  });
+
+  it('polls every 30s of wall clock (behavioral, fake timers)', async () => {
+    vi.useFakeTimers();
+    try {
+      listCusShipmentWorkspace.mockResolvedValue(listResponse(1));
+      render(probeUi(client));
+      // Flush the mount fetch under fake timers.
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(1);
+
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(2);
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refetches on remount even with warm cached data (route-return parity)', async () => {
+    listCusShipmentWorkspace.mockResolvedValue(listResponse(3));
+    const view = render(probeUi(client));
+    expect(await screen.findByText('3')).toBeTruthy();
+    expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(1);
+
+    // Route-away/route-back: same client, warm cache, staleTime Infinity —
+    // the old hand-rolled hook still fetched on every mount.
+    view.unmount();
+    render(probeUi(client));
+    await waitFor(() => expect(listCusShipmentWorkspace).toHaveBeenCalledTimes(2));
   });
 
   it('keeps the previous page rendered while the next filter is in flight (no blank flash)', async () => {

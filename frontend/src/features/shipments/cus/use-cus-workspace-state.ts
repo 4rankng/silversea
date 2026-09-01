@@ -89,6 +89,11 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
     placeholderData: keepPreviousData,
     refetchInterval: CUS_LIST_POLL_MS,
     refetchIntervalInBackground: false,
+    // The old hand-rolled hook fetched on EVERY mount (uncached useState +
+    // effect). staleTime: Infinity would suppress that on route-return, so
+    // force it — the dispatcher's /shipments ↔ /shipments-detail round-trip
+    // must never render a cached snapshot without refetching.
+    refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
     staleTime: Infinity,
     retry: false,
@@ -103,12 +108,13 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams) {
       ? safeError(listQuery.error, 'Không thể tải danh sách lô hàng.')
       : null);
 
+  const { refetch } = listQuery;
   const loadList = useCallback(async () => {
     // Old loadList cleared the error notice synchronously at call time —
     // polls, post-save refetches, and the retry button all relied on it.
     setActionError(null);
-    await listQuery.refetch();
-  }, [listQuery]);
+    await refetch();
+  }, [refetch]);
 
   // Old loadList cleared the shared error notice at every fetch start —
   // polls included — so a "Đang lưu…" block retires on the post-save
