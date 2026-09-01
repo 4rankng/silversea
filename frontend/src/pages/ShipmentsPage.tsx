@@ -47,7 +47,6 @@ import {
   updateShipment,
   updateShipmentDeclaration,
 } from '../api/shipmentClient';
-import { downloadCSV } from '../lib/csv';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
@@ -61,17 +60,26 @@ import {
   cargoModeLabel,
   formatAppointmentGroupLine,
   appointmentGroupFactorySegment,
-  formatDate,
   formatQuantity,
   idempotencySignature,
   noteLines,
   quickEditTitle,
   safeError,
-  scheduleTime,
+  splitContainerSummaryLines,
   vehicleReadinessLabel,
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from '../features/shipments/cus/cusUtils';
+import {
+  buildQuickEditDeclarationBody,
+  buildQuickEditDraft,
+  buildQuickEditPayload,
+  isQuickEditUnchanged,
+  quickEditAccessKeys,
+  quickEditDeclarationChanged,
+  quickEditSaveIdentity,
+} from '../features/shipments/cus/cusQuickEditModel';
+import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -79,20 +87,6 @@ import './ShipmentsPage.css';
 const PAGE_SIZE = 20;
 const SEARCH_PATTERN = /^[A-Za-z0-9]{4,5}$/;
 const BUCKETS = Object.values(ShipmentCusBucket);
-
-/**
- * Split a joined container summary ("1x40HC + 1x20DC") into one line per
- * container type — the customer-requested layout for the "Tổng quan hàng hóa"
- * column when one book/bill carries mixed container types. Mirrors the
- * dispatch master-plan's formatContainerSummaryLines splitter.
- */
-function splitContainerSummaryLines(summary: string | null | undefined): string[] {
-  if (!summary) return [];
-  return summary
-    .split(/\s*\+\s*/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
 
 // Customer feedback L2 (24/08/2026) — per-day cont aggregation when a date
 // filter is active. The helpers are extracted into a small module so the
@@ -386,40 +380,14 @@ export default function ShipmentsPage() {
       return;
     }
     if (quickEditSaveRef.current || quickEditDraft) return;
-    const accessKeys = field === 'identity' ? ['factoryName'] as const
-      : field === 'documents' ? ['blNumber', 'bookingRef', 'declarationNumber'] as const
-        : field === 'classification' ? ['tradeDirection', 'shippingLineName'] as const
-          : field === 'cargo' ? ['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'] as const
-            : field === 'schedule' ? ['closingAt', 'plannedReturnAt'] as const
-              : ['customerNotes', 'operationalNotes'] as const;
+    const accessKeys = quickEditAccessKeys(field);
     if (!accessKeys.some((key) => item.fieldAccess[key].mode !== 'READ_ONLY')) {
       setError(item.fieldAccess[accessKeys[0]].reason);
       return;
     }
     setError(null);
     setQuickEditError(null);
-    setQuickEditDraft({
-      shipmentId: item.id,
-      field,
-      date: item.transportDate ?? '',
-      time: scheduleTime(item),
-      customerNote: item.customerNotes ?? '',
-      operationalNote: item.operationalNotes ?? '',
-      factoryName: item.raw.factoryName ?? '',
-      blNumber: item.raw.blNumber ?? '',
-      bookingRef: item.raw.bookingRef ?? '',
-      declarationNumber: item.raw.declarationNumber ?? '',
-      declarationId: item.raw.declarationId,
-      declarationIssuedAt: item.raw.declarationIssuedAt,
-      declarationScope: item.raw.declarationScope,
-      declarationNote: item.raw.declarationNote,
-      tradeDirection: item.raw.tradeDirection ?? '',
-      shippingLineName: item.raw.shippingLineName ?? '',
-      packageCount: item.raw.packageCount == null ? '' : String(item.raw.packageCount),
-      packageType: item.raw.packageType ?? '',
-      cargoWeightKg: item.raw.cargoWeightKg ?? '',
-      cargoVolumeCbm: item.raw.cargoVolumeCbm ?? '',
-    });
+    setQuickEditDraft(buildQuickEditDraft(item, field));
   };
 
   const closeQuickEdit = () => {
@@ -439,23 +407,7 @@ export default function ShipmentsPage() {
       setQuickEditError('Chọn ngày đóng/trả trước khi nhập giờ.');
       return;
     }
-    const unchanged = draft.field === 'identity'
-      ? draft.factoryName.trim() === (item.raw.factoryName ?? '')
-      : draft.field === 'documents'
-        ? draft.blNumber.trim() === (item.raw.blNumber ?? '') && draft.bookingRef.trim() === (item.raw.bookingRef ?? '')
-          && (item.fieldAccess.declarationNumber.mode === 'READ_ONLY'
-            || draft.declarationNumber.trim() === (item.raw.declarationNumber ?? ''))
-        : draft.field === 'classification'
-          ? draft.tradeDirection === (item.raw.tradeDirection ?? '') && draft.shippingLineName.trim() === (item.raw.shippingLineName ?? '')
-          : draft.field === 'cargo'
-            ? draft.packageCount === (item.raw.packageCount == null ? '' : String(item.raw.packageCount))
-              && draft.packageType.trim() === (item.raw.packageType ?? '')
-              && draft.cargoWeightKg === (item.raw.cargoWeightKg ?? '')
-              && draft.cargoVolumeCbm === (item.raw.cargoVolumeCbm ?? '')
-            : draft.field === 'schedule'
-              ? draft.date === (item.transportDate ?? '') && draft.time === scheduleTime(item)
-              : draft.customerNote.trim() === (item.customerNotes ?? '').trim()
-                && draft.operationalNote.trim() === (item.operationalNotes ?? '').trim();
+    const unchanged = isQuickEditUnchanged(draft, item);
     if (unchanged) {
       if (restoreFocus) {
         quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
@@ -464,55 +416,14 @@ export default function ShipmentsPage() {
       setQuickEditDraft(null);
       return;
     }
-    const saveIdentity = `${draft.field}:${draft.shipmentId}:${item.version}`;
+    const saveIdentity = quickEditSaveIdentity(draft, item);
     quickEditSaveRef.current = saveIdentity;
     setSavingQuickEdit(true);
     setError(null);
     setQuickEditError(null);
     try {
-      const scheduleValue = draft.date && draft.time
-        ? new Date(`${draft.date}T${draft.time}:00`).toISOString()
-        : null;
-      const payload = draft.field === 'identity' ? {
-        expectedVersion: item.version,
-        factoryName: draft.factoryName.trim() || null,
-      } : draft.field === 'documents' ? {
-        expectedVersion: item.version,
-        ...(draft.tradeDirection === 'IMPORT' && item.fieldAccess.blNumber.mode !== 'READ_ONLY' ? {
-          blNumber: draft.blNumber.trim() || null,
-          bookingRef: null,
-        } : draft.tradeDirection === 'EXPORT' && item.fieldAccess.bookingRef.mode !== 'READ_ONLY' ? {
-          bookingRef: draft.bookingRef.trim() || null,
-          blNumber: null,
-        } : {}),
-      } : draft.field === 'classification' ? {
-        expectedVersion: item.version,
-        tradeDirection: draft.tradeDirection || null,
-        shippingLineName: draft.shippingLineName.trim() || null,
-      } : draft.field === 'cargo' ? {
-        expectedVersion: item.version,
-        packageCount: draft.packageCount ? Number(draft.packageCount) : null,
-        packageType: draft.packageType.trim() || null,
-        ...(item.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' ? { cargoWeightKg: draft.cargoWeightKg || null } : {}),
-        ...(item.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY' ? { cargoVolumeCbm: draft.cargoVolumeCbm || null } : {}),
-      } : draft.field === 'schedule' ? {
-            expectedVersion: item.version,
-            expectedDeliveryDate: draft.date || null,
-            ...(item.direction === 'IMPORT'
-              ? { plannedReturnAt: scheduleValue }
-              : { closingAt: scheduleValue }),
-          } : {
-            expectedVersion: item.version,
-            driverNotes: draft.operationalNote.trim() || null,
-            customerNotes: draft.customerNote.trim() || null,
-          };
-      // Declaration lives in its own table behind its own endpoints; when the
-      // number changed and the actor may write it, upsert alongside the
-      // shipment save. PUT replaces the whole row, so resend issuedAt/scope/
-      // note verbatim to keep the existing metadata.
-      const declarationChanged = draft.field === 'documents'
-        && item.fieldAccess.declarationNumber.mode !== 'READ_ONLY'
-        && draft.declarationNumber.trim() !== (item.raw.declarationNumber ?? '');
+      const payload = buildQuickEditPayload(draft, item);
+      const declarationChanged = quickEditDeclarationChanged(draft, item);
       // When only the declaration changed (bill/booking read-only), skip the
       // shipment PATCH entirely — an empty body would still bump the version
       // and fire change-request bookkeeping for nothing.
@@ -521,12 +432,7 @@ export default function ShipmentsPage() {
         ? await updateShipment(item.id, payload)
         : { changeMode: 'DIRECT', message: null };
       if (declarationChanged) {
-        const declarationBody = {
-          declarationNumber: draft.declarationNumber.trim() || null,
-          issuedAt: draft.declarationIssuedAt,
-          scope: draft.declarationScope ?? undefined,
-          note: draft.declarationNote,
-        };
+        const declarationBody = buildQuickEditDeclarationBody(draft);
         if (draft.declarationId != null) {
           await updateShipmentDeclaration(item.id, draft.declarationId, declarationBody);
         } else {
@@ -699,43 +605,13 @@ export default function ShipmentsPage() {
     setExporting(true);
     setError(null);
     try {
-      const exportItems: ShipmentCusWorkspaceListItem[] = [];
-      let exportPage = 1;
-      let exportTotalPages = 1;
-      do {
-        const response = await listCusShipmentWorkspace({
-          page: exportPage,
-          limit: 100,
-          searchSuffix: suffixParam || undefined,
-          transportDateFrom: dateFrom || undefined,
-          transportDateTo: dateTo || undefined,
-          direction: direction || undefined,
-          bucket: bucket || undefined,
-        });
-        exportItems.push(...response.items);
-        exportTotalPages = response.totalPages;
-        exportPage += 1;
-      } while (exportPage <= exportTotalPages);
-
-      await downloadCSV(
-        `ke-hoach-lo-hang-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú', 'Trạng thái'],
-        exportItems.map((item) => [
-          [item.customerName ?? '—', item.effectiveFactoryNames.length > 0 ? item.effectiveFactoryNames.join(' + ') : item.factoryName ?? '', item.routeName ?? item.deliveryLocation ?? ''].filter(Boolean).join('\n'),
-          [item.billOrBookNumber ?? '', item.declarationNumber ?? ''].filter(Boolean).join('\n'),
-          [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
-          [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
-          [item.transportDate ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
-          [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
-          [item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
-        ]),
-        {
-          title: 'Tổng quan lô hàng',
-          subtitle: `${exportItems.length.toLocaleString('vi-VN')} lô hàng`,
-          columnTypes: ['text', 'text', 'text', 'text', 'text', 'text', 'text'],
-          hideTotals: true,
-        },
-      );
+      await exportCusWorksheet({
+        searchSuffix: suffixParam,
+        transportDateFrom: dateFrom,
+        transportDateTo: dateTo,
+        direction: direction || undefined,
+        bucket: bucket || undefined,
+      });
     } catch (exportError) {
       setError(safeError(exportError, 'Không thể tải bảng XLSX.'));
     } finally {

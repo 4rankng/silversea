@@ -1,0 +1,467 @@
+/**
+ * Driver fulfillment write path (split from driver.service, 2026-09-01 — LOC
+ * budget): milestone recording on owned fulfillments, start side-effects,
+ * incidental costs, and the "HOÀN THÀNH CHUYẾN" full-close. Shared
+ * progress-event/milestone helpers live in trip-pod.service; the read models
+ * and trip-level progress stay in driver.service, which re-exports this
+ * module's public surface for import compatibility.
+ */
+import { config } from '../config';
+import { db } from '../db';
+import * as s from '../db/schema';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import {
+  DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
+  DriverProgressEventType,
+  Role,
+  TripStatus,
+  type DriverIncidentalCostType,
+} from '@tingting/shared';
+import { ApiError } from '../errors';
+import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
+import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import type { Tx } from './trip-shared';
+import { transitionTripStatus } from './trip-status-machine.service';
+import { syncAttendanceAfterStatusChange } from './trip-attendance-sync.service';
+import { invalidateReportCaches } from '../lib/report-cache';
+import { createCustomerVisibleEvent } from './shipment-coordination.service';
+import {
+  assertTripOwnedByDriver,
+  buildDriverFulfillmentSequenceError,
+  getDriverCompletionEvidenceStatus,
+  insertDriverProgressEventTx,
+  isDriverFulfillmentMilestone,
+  listOrderedMilestoneTypesTx,
+  loadDriverProgressEventTx,
+  loadOwnedFulfillmentTrip,
+  nextDriverFulfillmentMilestone,
+  type DriverCompletionEvidenceStatus,
+  type DriverProgressEvent,
+} from './trip-pod.service';
+
+/**
+ * Shared milestone-event recorder (tx-scoped): inserts the progress event,
+ * publishes the customer-visible milestone event, and — for DELIVERED —
+ * writes the deliveryAttempts audit row. Used by both the driver's explicit
+ * progress route and the completion auto-record loop below.
+ */
+async function recordMilestoneEventTx(
+  tx: Tx,
+  ownedTrip: Awaited<ReturnType<typeof loadOwnedFulfillmentTrip>>,
+  driverId: number,
+  eventType: DriverProgressEventType,
+  occurredAtIso: string,
+  actorUserId: number,
+): Promise<DriverProgressEvent> {
+  const event = await insertDriverProgressEventTx(tx, ownedTrip.tripId, driverId, { eventType, occurredAt: occurredAtIso }, actorUserId);
+  const publication = customerPublicationForDriverEvent(eventType, event.occurredAt);
+  if (publication) {
+    const customerEvent = await createCustomerVisibleEvent({
+      shipmentId: ownedTrip.shipmentId,
+      eventKey: `driver-progress:${event.id}:${eventType}`,
+      eventType: 'MILESTONE',
+      title: publication.title,
+      message: publication.message,
+      occurredAt: event.occurredAt,
+      createdBy: actorUserId,
+    }, undefined, tx);
+    if (eventType === DriverProgressEventType.DELIVERED) {
+      const [scope] = await tx.select({
+        shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+      }).from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, ownedTrip.fulfillmentId)).limit(1);
+      await tx.insert(s.deliveryAttempts).values({
+        shipmentId: ownedTrip.shipmentId,
+        fulfillmentId: ownedTrip.fulfillmentId,
+        tripId: ownedTrip.tripId,
+        shipmentContainerId: scope?.shipmentContainerId ?? null,
+        driverProgressEventId: event.id,
+        customerVisibleEventId: customerEvent.id,
+        result: 'DELIVERED',
+        occurredAt: event.occurredAt,
+        recordedBy: actorUserId,
+      });
+    }
+  }
+  return event;
+}
+
+export async function recordDriverFulfillmentProgress(args: {
+  fulfillmentId: number;
+  driverId: number;
+  input: {
+    eventType: DriverProgressEventType;
+    occurredAt: string;
+    note?: string;
+    expectedVersion?: number;
+  };
+  recordedBy: number;
+  idempotencyKey: string | undefined;
+}): Promise<{ event: DriverProgressEvent; replayed: boolean }> {
+  const eventType = args.input.eventType;
+  if (!isDriverFulfillmentMilestone(eventType)) {
+    throw new ApiError(400, 'Mốc thực hiện không hợp lệ.');
+  }
+
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      fulfillmentId: args.fulfillmentId,
+      driverId: args.driverId,
+      eventType: args.input.eventType,
+      occurredAt: args.input.occurredAt,
+      note: args.input.note ?? null,
+      expectedVersion: args.input.expectedVersion ?? null,
+    },
+    createdBy: args.recordedBy,
+    entityType: 'driver_progress_event',
+    create: async (tx) => {
+      // Shipment is the aggregate lock root. Acquire it before the trip so
+      // driver acknowledgement follows the same lock order as dispatch/POD
+      // review and cannot deadlock against those workflows.
+      await tx.select({ id: s.shipments.id })
+        .from(s.shipmentFulfillments)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
+        .for('update');
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
+      }
+      const recorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
+      const next = nextDriverFulfillmentMilestone(recorded);
+      if (next == null || eventType !== next) {
+        throw new ApiError(409, buildDriverFulfillmentSequenceError(recorded, eventType));
+      }
+      if (
+        config.driverOpsPaperOrderGateEnabled
+        && eventType === DriverProgressEventType.ORDER_RECEIVED
+        && (!ownedTrip.paperOrderCollectedAt || !ownedTrip.paperOrderCollectedBy)
+      ) {
+        throw new ApiError(409, 'Ops chưa xác nhận giao lệnh gốc cho chuyến này.');
+      }
+      const event = await recordMilestoneEventTx(tx, ownedTrip, args.driverId, eventType, args.input.occurredAt, args.recordedBy);
+      if (eventType === DriverProgressEventType.ORDER_RECEIVED && ownedTrip.tripStatus === TripStatus.CREATED) {
+        await transitionTripStatus(
+          ownedTrip.tripId,
+          TripStatus.IN_TRANSIT,
+          args.recordedBy,
+          Role.DRIVER,
+          false,
+          false,
+          {
+            expectedVersion: ownedTrip.tripVersion,
+            transaction: tx,
+            // Ownership was verified and locked above. Receiving the assigned
+            // order is the driver's explicit start action for this fulfillment.
+            driverOwnedFulfillmentStart: {
+              driverId: args.driverId,
+              fulfillmentId: args.fulfillmentId,
+            },
+          },
+        );
+        const { recomputeShipmentCompletion } = await import('./shipment.service.js');
+        await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.recordedBy }, tx);
+      }
+      return event;
+    },
+    load: async (id, tx) => loadDriverProgressEventTx(tx, id),
+  });
+  return { event: result, replayed };
+}
+
+function customerPublicationForDriverEvent(eventType: DriverProgressEventType, occurredAt: Date): { title: string; message: string } | null {
+  // This is a deliberately closed allowlist. It must never interpolate notes,
+  // evidence references, expense details, incident text, or internal IDs.
+  const occurred = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(occurredAt);
+  if (eventType === DriverProgressEventType.PICKED_UP) return { title: 'Đã nhận hàng để vận chuyển', message: `Tài xế đã báo nhận hàng lúc ${occurred}.` };
+  if (eventType === DriverProgressEventType.LOADING_OR_RETURNING) return { title: 'Đang thực hiện chặng vận chuyển', message: `Tài xế đã báo đang thực hiện chặng vận chuyển lúc ${occurred}.` };
+  if (eventType === DriverProgressEventType.DELIVERED) return { title: 'Tài xế báo đã giao hàng', message: `Tài xế đã báo giao hàng lúc ${occurred}. Đây chưa phải xác nhận chấp nhận giao hàng cuối cùng.` };
+  return null;
+}
+
+export async function syncDriverFulfillmentStartSideEffects(
+  args: {
+    fulfillmentId: number;
+    driverId: number;
+    recordedBy: number;
+  },
+  invalidateReports: () => Promise<void> = () => invalidateReportCaches('tripStart'),
+): Promise<void> {
+    const [startedTrip] = await db.select({
+      id: s.trips.id,
+      driverId: s.trips.driverId,
+      departureDate: s.trips.departureDate,
+      status: s.trips.status,
+    }).from(s.trips)
+      .where(and(
+        eq(s.trips.fulfillmentId, args.fulfillmentId),
+        eq(s.trips.driverId, args.driverId),
+        isNull(s.trips.deletedAt),
+      ))
+      .limit(1);
+    if (!startedTrip || startedTrip.status !== TripStatus.IN_TRANSIT) return;
+    await syncAttendanceAfterStatusChange(
+      startedTrip.id,
+      TripStatus.IN_TRANSIT,
+      startedTrip.driverId,
+      startedTrip.departureDate,
+      null,
+      args.recordedBy,
+    );
+    await invalidateReports();
+}
+
+export async function listDriverFulfillmentProgress(
+  fulfillmentId: number,
+  driverId: number,
+): Promise<DriverProgressEvent[]> {
+  const ownedTrip = await loadOwnedFulfillmentTrip(db, fulfillmentId, driverId);
+  const rows = await db.select().from(s.driverProgressEvents)
+    .where(and(
+      eq(s.driverProgressEvents.tripId, ownedTrip.tripId),
+      inArray(s.driverProgressEvents.eventType, [...DRIVER_FULFILLMENT_PROGRESS_SEQUENCE]),
+    ))
+    .orderBy(asc(s.driverProgressEvents.occurredAt), asc(s.driverProgressEvents.id));
+  return rows as DriverProgressEvent[];
+}
+
+// ─── M8.4 slice 3: driver incidental costs ───────────────────────────────────
+//
+// Driver-reported out-of-pocket expenses (per-diem, lift fee, parking, toll,
+// fuel, other) against a trip. Distinct from `tripExpenses` (forwarder-scoped,
+// buy/sell, supplier, approval workflow) — this is a lightweight driver-only
+// record that feeds salary/settlement reconciliation. Idempotent create
+// (reuses `runIdempotent` + `idempotency_keys` from M10.1) so the offline-
+// queue replay doesn't duplicate (PRD M08-04-03).
+//
+// COMPLETED trips reject new incidental costs — unlike progress events (append-
+// only audit logs), costs affect financials, so completion = immutable.
+
+export interface DriverIncidentalCost {
+  id: number;
+  tripId: number;
+  driverId: number;
+  costType: DriverIncidentalCostType;
+  amount: string;
+  occurredAt: string;
+  note: string | null;
+  receiptStorageKey: string | null;
+  recordedBy: number | null;
+  createdAt: Date;
+}
+
+async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
+  await assertTripShipmentAccountingUnlocked(tx, tripId);
+  const [trip] = await tx.select({ status: s.trips.status })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  // O2C: costs stay editable after COMPLETED (no hard-freeze). Only CANCELED
+  // trips reject new incidental costs. A cost on a completed trip flips
+  // ar_snapshot_dirty via the caller.
+  if (trip?.status === 'CANCELED') {
+    throw new ApiError(409, 'Không thể thêm chi phí cho chuyến đã hủy');
+  }
+}
+
+async function insertDriverIncidentalCostTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+  recordedBy: number,
+): Promise<DriverIncidentalCost> {
+  const [row] = await tx.insert(s.driverIncidentalCosts).values({
+    tripId,
+    driverId,
+    costType: input.costType,
+    amount: String(input.amount),
+    occurredAt: input.occurredAt,
+    note: input.note ?? null,
+    receiptStorageKey: input.receiptStorageKey ?? null,
+    recordedBy,
+  }).returning();
+  return row as DriverIncidentalCost;
+}
+
+async function loadDriverIncidentalCostTx(tx: Tx, id: number): Promise<DriverIncidentalCost> {
+  const [row] = await tx.select().from(s.driverIncidentalCosts)
+    .where(eq(s.driverIncidentalCosts.id, id)).limit(1);
+  if (!row) throw new ApiError(404, 'Chi phí không tồn tại');
+  return row as DriverIncidentalCost;
+}
+
+/**
+ * Record a driver incidental cost. Server-side idempotent: same key + same
+ * body → 201 first / 200 replay (no duplicate); same key + different body →
+ * 409 (Q23). COMPLETED trips reject (409) — costs affect financials.
+ */
+export async function recordIncidentalCost(
+  tripId: number,
+  driverId: number,
+  input: { costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string },
+  recordedBy: number,
+  idempotencyKey: string | undefined,
+): Promise<{ cost: DriverIncidentalCost; replayed: boolean }> {
+  // Ownership check (reuses the progress-event helper).
+  await assertTripOwnedByDriver(tripId, driverId);
+
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST,
+    idempotencyKey,
+    payload: { tripId, driverId, ...input },
+    createdBy: recordedBy,
+    entityType: 'driver_incidental_cost',
+    create: async (tx) => {
+      await assertTripAcceptsIncidentalCostTx(tx, tripId);
+      return insertDriverIncidentalCostTx(tx, tripId, driverId, input, recordedBy);
+    },
+    load: async (id, tx) => loadDriverIncidentalCostTx(tx, id),
+  });
+  return { cost: result, replayed };
+}
+
+/** List a trip's incidental costs, newest-first. */
+export async function listIncidentalCosts(tripId: number, driverId: number): Promise<DriverIncidentalCost[]> {
+  await assertTripOwnedByDriver(tripId, driverId);
+  const rows = await db.select().from(s.driverIncidentalCosts)
+    .where(eq(s.driverIncidentalCosts.tripId, tripId))
+    .orderBy(desc(s.driverIncidentalCosts.createdAt));
+  return rows as DriverIncidentalCost[];
+}
+
+export interface DriverFulfillmentCompletionResult {
+  tripId: number;
+  fulfillmentId: number;
+  status: typeof s.trips.$inferSelect.status;
+  version: number;
+  completedAt: string | null;
+  evidenceStatus: DriverCompletionEvidenceStatus;
+}
+
+async function buildDriverFulfillmentCompletionResultTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+): Promise<DriverFulfillmentCompletionResult> {
+  const [trip] = await tx.select({
+    id: s.trips.id,
+    fulfillmentId: s.trips.fulfillmentId,
+    status: s.trips.status,
+    version: s.trips.version,
+    completedAt: s.trips.completedAt,
+  }).from(s.trips)
+    .where(and(
+      eq(s.trips.id, tripId),
+      eq(s.trips.driverId, driverId),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  if (!trip || trip.fulfillmentId == null) {
+    throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
+  }
+  const evidenceStatus = await getDriverCompletionEvidenceStatus(trip.id, tx);
+  return {
+    tripId: trip.id,
+    fulfillmentId: trip.fulfillmentId,
+    status: trip.status,
+    version: trip.version,
+    completedAt: trip.completedAt?.toISOString() ?? null,
+    evidenceStatus,
+  };
+}
+
+export async function completeOwnedFulfillmentTrip(args: {
+  fulfillmentId: number;
+  driverId: number;
+  actorUserId: number;
+  expectedVersion: number;
+  idempotencyKey: string | undefined;
+  /** Post-commit report-cache bust; injectable for tests. Defaults to the full trip-write group. */
+  invalidateReports?: () => Promise<void>;
+}): Promise<{ trip: DriverFulfillmentCompletionResult; replayed: boolean }> {
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_FULFILLMENT_COMPLETE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      fulfillmentId: args.fulfillmentId,
+      driverId: args.driverId,
+      actorUserId: args.actorUserId,
+      expectedVersion: args.expectedVersion,
+    },
+    createdBy: args.actorUserId,
+    entityType: 'trip',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      await tx.select({ id: s.shipments.id })
+        .from(s.shipmentFulfillments)
+        .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
+        .for('update');
+      const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      if (ownedTrip.tripVersion !== args.expectedVersion) {
+        throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
+      }
+      // Spec (Man_hình Phần 3 Bước 2 + 27.8 A5 "BỐN MỐC THỰC HIỆN: BỎ"): the
+      // driver UI no longer has intermediate milestone controls — "Hoàn thành
+      // chuyến" is the single trip-progress action left. Completing the trip
+      // means the cargo reached the drop point, so any missing post-accept
+      // milestones are recorded here, in order, on the driver's behalf.
+      // ORDER_RECEIVED is never auto-recorded: accepting the order stays an
+      // explicit driver action (sticky bar), and a never-accepted trip fails
+      // the evidence check below with a clear message.
+      let autoRecorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
+      let nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
+      while (nextMilestone != null && nextMilestone !== DriverProgressEventType.ORDER_RECEIVED) {
+        await recordMilestoneEventTx(
+          tx,
+          ownedTrip,
+          args.driverId,
+          nextMilestone,
+          new Date().toISOString(),
+          args.actorUserId,
+        );
+        autoRecorded = [...autoRecorded, nextMilestone];
+        nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
+      }
+      const evidenceStatus = await getDriverCompletionEvidenceStatus(ownedTrip.tripId, tx);
+      if (!evidenceStatus.ready) {
+        throw new ApiError(409, `Chưa thể hoàn thành chuyến. Còn thiếu: ${evidenceStatus.missing.join(', ')}.`);
+      }
+      // Driver full-close: e-POD already proves delivery. Skip accountant
+      // gates per user instruction ("skip kế toán for now").
+      await transitionTripStatus(
+        ownedTrip.tripId,
+        TripStatus.COMPLETED,
+        args.actorUserId,
+        Role.DRIVER,
+        true,
+        true,
+        {
+          expectedVersion: ownedTrip.tripVersion,
+          transaction: tx,
+          driverOwnedFulfillmentClose: {
+            driverId: args.driverId,
+            fulfillmentId: args.fulfillmentId,
+          },
+        },
+      );
+      const { recomputeShipmentCompletion } = await import('./shipment.service.js');
+      await recomputeShipmentCompletion(ownedTrip.shipmentId, { changedBy: args.actorUserId }, tx);
+      return buildDriverFulfillmentCompletionResultTx(tx, ownedTrip.tripId, args.driverId);
+    },
+    load: async (entityId, tx) => buildDriverFulfillmentCompletionResultTx(tx, entityId, args.driverId),
+    getEntityId: (value) => value.tripId,
+  });
+
+  // Post-commit on BOTH the create and the replay path: the close posts
+  // revenue/AP/AR/profitability, so every trip-write report cache must bust.
+  await (args.invalidateReports ?? (() => invalidateReportCaches()))();
+  return { trip: result, replayed };
+}
+
+// Advisory evidence-readiness before completion (M8.4 slice 4).
+export type CompletionEvidenceStatus = DriverCompletionEvidenceStatus;
+export async function getCompletionEvidenceStatus(tripId: number): Promise<CompletionEvidenceStatus> {
+  return getDriverCompletionEvidenceStatus(tripId);
+}

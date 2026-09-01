@@ -169,6 +169,20 @@ export function safeError(error: unknown, fallback: string): string {
   return error instanceof ApiError || error instanceof Error ? error.message : fallback;
 }
 
+/**
+ * Split a joined container summary ("1x40HC + 1x20DC") into one line per
+ * container type — the customer-requested layout for the "Tổng quan hàng hóa"
+ * column when one book/bill carries mixed container types. Mirrors the
+ * dispatch master-plan's formatContainerSummaryLines splitter.
+ */
+export function splitContainerSummaryLines(summary: string | null | undefined): string[] {
+  if (!summary) return [];
+  return summary
+    .split(/\s*\+\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export interface ContainerLineDraft {
   carrierKey: string;
   newCarrierName: string;

@@ -962,6 +962,98 @@ export async function getShipmentPodFileForDownload(args: {
   });
 }
 
+// ─── Driver progress-event + fulfillment-milestone shared helpers ─────────────
+// Promoted from driver.service (LOC budget, 2026-09-01): used by BOTH the
+// trip-level progress path (driver.service) and the fulfillment write path
+// (driver-fulfillment.service). Keep this their shared home — do not re-inline.
+
+export type DriverFulfillmentMilestoneType = typeof DRIVER_FULFILLMENT_PROGRESS_SEQUENCE[number];
+
+export interface DriverProgressEvent {
+  id: number;
+  tripId: number;
+  driverId: number;
+  eventType: DriverProgressEventType;
+  occurredAt: Date;
+  note: string | null;
+  recordedBy: number | null;
+  createdAt: Date;
+}
+
+/**
+ * Verify the trip belongs to `driverId` and return its row. Throws 404 if the
+ * trip is missing, 403 if it belongs to a different driver. Used by both the
+ * create and list paths so ownership is enforced consistently.
+ */
+export async function assertTripOwnedByDriver(tripId: number, driverId: number) {
+  const [trip] = await db.select({ id: s.trips.id, driverId: s.trips.driverId, deletedAt: s.trips.deletedAt })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip || trip.deletedAt) {
+    throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  }
+  if (trip.driverId !== driverId) {
+    throw new ApiError(403, 'Bạn không được phân công chuyến đi này');
+  }
+  return trip;
+}
+
+export async function insertDriverProgressEventTx(
+  tx: Tx,
+  tripId: number,
+  driverId: number,
+  input: { eventType: DriverProgressEventType; occurredAt: string; note?: string },
+  recordedBy: number,
+): Promise<DriverProgressEvent> {
+  await assertTripShipmentAccountingUnlocked(tx, tripId);
+  const [row] = await tx.insert(s.driverProgressEvents).values({
+    tripId,
+    driverId,
+    eventType: input.eventType,
+    occurredAt: new Date(input.occurredAt),
+    note: input.note ?? null,
+    recordedBy,
+  }).returning();
+  return row as DriverProgressEvent;
+}
+
+export async function loadDriverProgressEventTx(tx: Tx, id: number): Promise<DriverProgressEvent> {
+  const [row] = await tx.select().from(s.driverProgressEvents)
+    .where(eq(s.driverProgressEvents.id, id)).limit(1);
+  if (!row) throw new ApiError(404, 'Sự kiện tiến độ không tồn tại');
+  return row as DriverProgressEvent;
+}
+
+export function isDriverFulfillmentMilestone(
+  eventType: DriverProgressEventType,
+): eventType is DriverFulfillmentMilestoneType {
+  return DRIVER_FULFILLMENT_PROGRESS_SEQUENCE.includes(eventType as DriverFulfillmentMilestoneType);
+}
+
+export function nextDriverFulfillmentMilestone(
+  recorded: readonly DriverProgressEventType[],
+): DriverFulfillmentMilestoneType | null {
+  for (const eventType of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) {
+    if (!recorded.includes(eventType)) {
+      return eventType;
+    }
+  }
+  return null;
+}
+
+export function buildDriverFulfillmentSequenceError(
+  recorded: readonly DriverProgressEventType[],
+  attempted: DriverFulfillmentMilestoneType,
+): string {
+  const next = nextDriverFulfillmentMilestone(recorded);
+  if (!next) {
+    return 'Đã ghi nhận đủ 3 mốc thực hiện cho tác vụ này.';
+  }
+  if (recorded.includes(attempted)) {
+    return `Mốc ${DRIVER_PROGRESS_EVENT_LABELS[attempted]} đã được ghi nhận. Mốc tiếp theo phải là ${DRIVER_PROGRESS_EVENT_LABELS[next]}.`;
+  }
+  return `Không thể ghi nhận ${DRIVER_PROGRESS_EVENT_LABELS[attempted]}. Mốc tiếp theo phải là ${DRIVER_PROGRESS_EVENT_LABELS[next]}.`;
+}
+
 export {
   fileTypeLabel as tripPodFileTypeLabel,
   projectSiteSnapshot,
