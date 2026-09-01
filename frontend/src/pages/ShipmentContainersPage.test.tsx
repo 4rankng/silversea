@@ -305,7 +305,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const ledger = row?.closest('.shipment-container-ledger');
     const pagination = ledger?.querySelector('.ds-pagination');
     expect(row).toBeTruthy();
-    expect(row?.textContent).toContain('Chờ phân xe');
+    expect(row?.textContent).toContain('Chưa điều xe');
     expect(pagination).toBeTruthy();
     if (!row || !pagination) throw new Error('Expected the pending row and pagination to render');
     expect(row.compareDocumentPosition(pagination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -339,7 +339,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
-    const pendingVehicleCell = (await screen.findByText('Chờ phân xe')).closest('td');
+    // Post-unify the UNASSIGNED status pill and this vehicle badge share the text
+    // 'Chưa điều xe' — disambiguate by the vehicle badge's own class.
+    const pendingVehicleCell = (await screen.findByText('Chưa điều xe', { selector: '.shipment-container-ledger__vehicle-state' })).closest('td');
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
     expect(pendingVehicleCell?.textContent).toContain('Chưa phân nhà xe');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
@@ -547,7 +549,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await screen.findByText('CONT-001');
     const filtersGroup = document.querySelector('.shipments-detail-filters__group--selects') as HTMLElement;
     fireEvent.click(within(filtersGroup).getByRole('button', { name: /Trạng thái/i }));
-    for (const label of ['Chưa điều xe', 'Đã phân xe', 'Đã tạo chuyến', 'Đang vận chuyển', 'Hoàn thành']) {
+    for (const label of ['Chưa điều xe', 'Đã phân xe', 'Đã tạo chuyến', 'Đang chạy', 'Hoàn thành']) {
       expect(screen.getByRole('option', { name: label })).toBeTruthy();
     }
 

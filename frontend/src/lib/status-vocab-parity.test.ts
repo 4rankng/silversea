@@ -22,6 +22,7 @@ import {
   TRAILER_STATUS_LABELS,
   TRAILER_TYPE_LABELS,
   TRIP_STATUS_LABELS,
+  TRIP_POD_STATUS_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   AdvanceRequestStatus,
   AdvanceSettlementStatus,
@@ -43,6 +44,7 @@ import {
   TrailerStatus,
   TrailerType,
   TripStatus,
+  TripPodStatus,
   TruckCapRole,
 } from '@tingting/shared';
 
@@ -55,19 +57,18 @@ import {
  * future loosening (casts, `Record<string, string>` refactors, enum members
  * added behind a suppress) and living documentation of the contract.
  *
- * Known DIVERGENT wording pairs (surfaced 2026-09-01, awaiting a product
- * decision — do NOT unify silently under a behavior-identical wave):
- *   - TripPodStatus.SUBMITTED: review panel "Chờ duyệt" vs submission
- *     "Đã gửi duyệt"; ACCEPTED: "Đã duyệt" vs "Đã chấp nhận"
- *     (TripPodReviewPanel.tsx / TripPodSubmission.tsx)
- *   - container dispatchStatus: CUS workboard "Đang chạy"/"Hoàn thành"/
- *     "Chưa điều xe" vs master-plan drawer "Đang vận chuyển"/"Hoàn tất"/
- *     "Chờ phân xe" (cusUtils.dispatchStatusLabel /
- *     DispatchContainerDetailDrawer.DISPATCH_STATUS_LABELS)
+ * Divergent wording pairs RESOLVED 2026-09-01 by user decision:
+ *   - TripPod: unified to "Chờ duyệt" / "Đã duyệt" — canonical map moved to
+ *     shared as TRIP_POD_STATUS_LABELS (both e-POD surfaces + work inboxes).
+ *   - container dispatchStatus: unified to the compact workboard wording
+ *     ("Đang chạy"/"Hoàn thành"/"Chưa điều xe"); the master-plan drawer now
+ *     delegates to cusUtils.dispatchStatusLabel. RoleWorkInbox keeps its own
+ *     delivery-TRUTH axis ("Tài xế báo đã giao" etc.) — a different concept.
  */
 describe('shared status vocabulary — label maps cover their enums exactly', () => {
   const pairs: [label: string, enumObject: object, labels: Record<string, string>][] = [
     ['TRIP_STATUS_LABELS', TripStatus, TRIP_STATUS_LABELS],
+    ['TRIP_POD_STATUS_LABELS', TripPodStatus, TRIP_POD_STATUS_LABELS],
     ['SHIPMENT_STATUS_LABELS', ShipmentStatus, SHIPMENT_STATUS_LABELS],
     ['SHIPMENT_CUS_BUCKET_LABELS', ShipmentCusBucket, SHIPMENT_CUS_BUCKET_LABELS],
     ['SHIPMENT_DOCUMENT_CUSTODY_LABELS', ShipmentDocumentCustody, SHIPMENT_DOCUMENT_CUSTODY_LABELS],

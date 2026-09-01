@@ -133,7 +133,7 @@ function factsFor(item: RoleItem, role: Role): Array<{ label: string; value: str
       { label: 'Điểm đi', value: value.origin || 'Chưa cập nhật' },
       { label: 'Điểm đến', value: value.destination || 'Chưa cập nhật' },
       { label: 'Liên hệ', value: [value.contactName, value.contactPhone].filter(Boolean).join(' · ') || 'Chưa cập nhật' },
-      { label: 'POD', value: value.podState === 'ACCEPTED' ? 'Đã chấp nhận' : value.podState === 'SUBMITTED' ? 'Đang duyệt' : value.podState === 'REJECTED' ? 'Cần bổ sung' : value.podState === 'DRAFT' ? 'Bản nháp' : 'Chưa nộp' },
+      { label: 'POD', value: value.podState === 'ACCEPTED' ? 'Đã duyệt' : value.podState === 'SUBMITTED' ? 'Chờ duyệt' : value.podState === 'REJECTED' ? 'Cần bổ sung' : value.podState === 'DRAFT' ? 'Bản nháp' : 'Chưa nộp' },
     ];
   }
   const value = item as CustomerWorkInboxItem;

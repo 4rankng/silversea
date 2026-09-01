@@ -163,7 +163,7 @@
   3. Tải slot 2: "Biên bản giao nhận có ký nhận" (`signed-delivery-test.pdf`).
   4. Bấm "Gửi e-POD".
 - **Kết quả mong đợi (Pass):**
-  - Trạng thái e-POD chuyển sang "Đã gửi duyệt" (SUBMITTED).
+  - Trạng thái e-POD chuyển sang "Chờ duyệt" (SUBMITTED). — wording unified 2026-09-01 per user decision
   - Submission ID, version, status được ghi nhận.
   - e-POD neo đúng trip/fulfillment và phiên bản hiện tại.
   - Mở `/shipments/:id` xác nhận đúng trip/fulfillment.
@@ -291,7 +291,7 @@
 - **Vai trò:** `laixe`
 - **Mức độ:** P0
 - **Thiết bị:** Mobile
-- **Tiền điều kiện:** Đã nộp e-POD thành công (TC-LX-TIENDO-007), trạng thái "Đã gửi duyệt" hoặc "Đã chấp nhận"
+- **Tiền điều kiện:** Đã nộp e-POD thành công (TC-LX-TIENDO-007), trạng thái "Chờ duyệt" hoặc "Đã duyệt" (wording unified 2026-09-01)
 - **Các bước:**
   1. Mở `/my-trips/:id/pod` của chuyến đã có e-POD SUBMITTED/ACCEPTED.
   2. Quan sát khu vực 2 slot bắt buộc.
@@ -376,7 +376,7 @@
   3. Mở tab khác, đăng nhập `dieuvan`, mở `/dispatch` (Kế hoạch tổng quát/chi tiết) hoặc `/trips`. Quan sát.
   4. Quay lại tab lái xe, bấm "HOÀN THÀNH CHUYẾN". Refresh CUS + điều vận, quan sát lại.
 - **Kết quả mong đợi (Pass):**
-  - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy" / "Đang vận chuyển"** (IN_TRANSIT) — KHÔNG nhảy sang "Chờ duyệt phí".
+  - Sau bước 1 (submit e-POD): CUS + điều vận vẫn thấy lô ở **"Đang chạy"** (IN_TRANSIT; wording unified 2026-09-01) — KHÔNG nhảy sang "Chờ duyệt phí".
   - Sau bước 4 ("HOÀN THÀNH CHUYẾN"): CUS + điều vận thấy lô chuyển sang **"Hoàn thành"** (COMPLETED).
   - Lịch sử trạng thái có dòng IN_TRANSIT → COMPLETED, kèm `changedBy` = tài xế và timestamp.
   - Khi kế toán flow build lại, test case này sẽ cần thêm 1 nhánh: sau bước 1 lô → "Chờ duyệt phí" (PENDING_EXPENSE_APPROVAL); sau bước 4 lô → "Hoàn thành" (COMPLETED). Comment trong `shipment-status-transitions.service.ts` chỉ chỗ re-enable.

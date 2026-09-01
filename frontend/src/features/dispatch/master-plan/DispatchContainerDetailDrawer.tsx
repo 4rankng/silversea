@@ -1,20 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import type {
-  ShipmentCusWorkspaceContainerLine,
-  ShipmentCusWorkspaceDetail,
-} from '@tingting/shared';
+import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import { getCusShipmentWorkspaceDetail, type ShipmentListItem } from '../../../api/shipmentClient';
+import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { Drawer } from '../../../components/UI';
 import './DispatchContainerDetailDrawer.css';
-
-const DISPATCH_STATUS_LABELS: Record<ShipmentCusWorkspaceContainerLine['dispatchStatus'], string> = {
-  UNASSIGNED: 'Chờ phân xe',
-  PLANNED: 'Đã phân xe',
-  CREATED: 'Đã tạo chuyến',
-  IN_TRANSIT: 'Đang vận chuyển',
-  COMPLETED: 'Hoàn tất',
-};
 
 function formatContainerAppointment(value: string | null): string {
   if (!value) return '—';
@@ -60,7 +50,7 @@ function ContainerDetailTable({ detail }: { detail: ShipmentCusWorkspaceDetail }
               <td data-label="Loại cont">{line.containerTypeLabel || '—'}</td>
               <td data-label="Điều vận">
                 <span className={`dispatch-container-detail__status dispatch-container-detail__status--${line.dispatchStatus.toLowerCase()}`}>
-                  {DISPATCH_STATUS_LABELS[line.dispatchStatus]}
+                  {dispatchStatusLabel(line.dispatchStatus)}
                 </span>
               </td>
               <td data-label="Nhà xe">{line.carrierName || '—'}</td>

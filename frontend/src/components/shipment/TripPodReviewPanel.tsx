@@ -8,7 +8,7 @@ import {
   RotateCcw,
   XCircle,
 } from 'lucide-react';
-import { ShipmentStatus, TripPodStatus } from '@tingting/shared';
+import { ShipmentStatus, TripPodStatus, TRIP_POD_STATUS_LABELS } from '@tingting/shared';
 import {
   downloadShipmentPodFile,
   cancelShipmentFulfillment,
@@ -32,12 +32,8 @@ export interface TripPodReviewPanelProps {
   onChanged: () => Promise<void> | void;
 }
 
-const STATUS_LABELS: Record<TripPodStatus, string> = {
-  [TripPodStatus.DRAFT]: 'Đang chuẩn bị',
-  [TripPodStatus.SUBMITTED]: 'Chờ duyệt',
-  [TripPodStatus.ACCEPTED]: 'Đã duyệt',
-  [TripPodStatus.REJECTED]: 'Bị từ chối',
-};
+// Canonical labels live in shared (unified 2026-09-01).
+const STATUS_LABELS = TRIP_POD_STATUS_LABELS;
 
 const formatDateTime = formatDateTimeShort;
 

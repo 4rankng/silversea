@@ -9,7 +9,7 @@ import {
   Lock,
   Upload,
 } from 'lucide-react';
-import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { TRIP_POD_REQUIRED_FILE_TYPES, TRIP_POD_STATUS_LABELS, TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { OfflineCommand } from '../../features/driver/useOfflineCommandQueue';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTimeShort } from '../../lib/format';
@@ -43,12 +43,8 @@ const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
 };
 
-const STATUS_LABELS: Record<TripPodStatus, string> = {
-  [TripPodStatus.DRAFT]: 'Đang chuẩn bị',
-  [TripPodStatus.SUBMITTED]: 'Đã gửi duyệt',
-  [TripPodStatus.ACCEPTED]: 'Đã chấp nhận',
-  [TripPodStatus.REJECTED]: 'Bị từ chối',
-};
+// Canonical labels live in shared (unified 2026-09-01): 'Chờ duyệt' / 'Đã duyệt'.
+const STATUS_LABELS = TRIP_POD_STATUS_LABELS;
 
 function statusClass(status: TripPodStatus): string {
   switch (status) {
