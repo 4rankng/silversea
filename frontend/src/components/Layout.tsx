@@ -246,9 +246,6 @@ export function getNavItems(
         { key: 'fleet-vehicles', label: 'Danh mục Xe nội bộ', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },
         { key: 'fleet-drivers', label: 'Danh mục Tài xế', path: routes.fleetDrivers, icon: Users, section: 'resources' as SectionName },
         { key: 'suppliers', label: 'Nhà thầu phụ', path: routes.suppliers, icon: Store, section: 'resources' as SectionName },
-
-        // Sổ chuyến đi (Trips) — dispatcher needs to view trips for dispatch planning
-        { key: 'trips', label: 'Sổ chuyến đi', path: routes.trips, icon: Truck, section: 'resources' as SectionName },
       ];
     }
 
