@@ -110,6 +110,22 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/routes/forwarder/order-exchange.ts'),
     marker: 'FORWARDER_IDEMPOTENCY_ENDPOINTS.ORDER_EXCHANGE_COMPLETE',
   }],
+  ['forwarder/expenses.ts|POST|/expenses', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/forwarder-expense-commands.service.ts'),
+    marker: 'endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_CREATE',
+  }],
+  ['forwarder/expenses.ts|PATCH|/expenses/:id', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/forwarder-expense-commands.service.ts'),
+    marker: 'endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_UPDATE',
+  }],
+  ['forwarder/expenses.ts|PUT|/trips/:tripId/expense-completion', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/forwarder-expense-commands.service.ts'),
+    marker: 'endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_COMPLETION',
+  }],
+  ['forwarder/expenses.ts|DELETE|/expenses/:id', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/forwarder-expense-commands.service.ts'),
+    marker: 'endpoint: FORWARDER_IDEMPOTENCY_ENDPOINTS.EXPENSE_DELETE',
+  }],
   ['financial/payments.routes.ts|POST|/finance/treasury/accounts/setup', {
     serviceFile: path.resolve(process.cwd(), 'src/services/treasury.service.ts'),
     marker: 'export async function requestTreasuryAccountSetup(',
