@@ -1275,3 +1275,11 @@ No further commit, push, or deployment was performed.
 - Gates after the fix: lint 0/269, tsc 0/0, backend 2285/2285, frontend 1370/1370, build green.
 
 No further commit, push, or deployment was performed.
+
+### Visual QA pass — Sep 1, 2026 — DONE
+
+- 27 routes × 7 roles, all rendered correctly. Caught one cosmetic regression: `/my-penalties` Zone 2 KPI grid was letting the 3rd card wrap onto a 2nd row at 1440px because the shared `.kpi-grid` had no explicit column count.
+- Fix: `6e569caf style(driver-penalty): pin KPI grid to 3 columns on desktop` — added `cols-3` modifier so all 3 cards (Vi phạm / Khấu trừ / Tổng biên bản) stay on one row.
+- Gates: lint 0/269, tsc 0/0, backend 2285/2285, frontend 1370/1370, build 5.28s. Pushed + `make demo` deployed to vantai.tingting.vip.
+- Re-verified the new features shipped yesterday (`3f688fad`): `/trips` route works for the dispatcher, `Sổ chuyến đi` shows in the sidebar, ADMIN can open `/finance/treasury` (the casbin policy addition).
+- QA artifact: `qa/2026-09-01_visual-qa/REPORT.md` + 25 PNGs.
