@@ -1,22 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Truck, Calendar, MapPin, Package, Plus, CheckCircle2, RotateCcw } from 'lucide-react';
-import { businessDateISO, formatDate } from '../lib/format';
+import { formatDate } from '../lib/format';
 import { api, fileCommandFingerprint } from '../lib/api';
-import {
-  DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
-  ExpenseEntryStatus,
-  OPS_EXPENSE_TYPE_DEFAULTS,
-  NO_INVOICE_EVIDENCE_TYPE_LABELS,
-} from '@tingting/shared';
+import { ExpenseEntryStatus } from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
-import { StatusPill, FormGroup, useConfirm } from '../components/UI';
+import { StatusPill, useConfirm } from '../components/UI';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { qk } from '../api/keys';
-import { DateInput } from '../design-system/forms/DateInput';
-import { UuiSelectField } from '../design-system';
-import { useForwarderTripDetail, useCreateForwarderContainer, useCreateForwarderExpense, useDeleteForwarderExpense } from '../hooks/useQueries';
-import { useUpdateForwarderExpense, useSetForwarderExpenseCompletion } from '../hooks/useForwarderQueries';
+import { useForwarderTripDetail, useDeleteForwarderExpense } from '../hooks/useQueries';
+import { useSetForwarderExpenseCompletion } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { forwarderClient } from '../api/forwarderClient';
@@ -33,61 +26,20 @@ import {
   useOfflineCommandQueue,
 } from '../features/driver/useOfflineCommandQueue';
 import { sendRoleOfflineCommand } from '../features/offline/roleCommandSender';
-import { getLocationPermissionIssue, isGeolocationError } from '../lib/gps/geolocation';
+import { expensePhotoUploadErrorMessage } from '../features/forwarder/forwarder-expense-model';
+import { ForwarderExpenseForm } from '../features/forwarder/ForwarderExpenseForm';
+import { useForwarderContainerForm } from '../features/forwarder/use-forwarder-container-form';
+import { useForwarderExpenseForm } from '../features/forwarder/use-forwarder-expense-form';
 import {
   ForwarderContainersSection,
   ForwarderExpenseRow,
   ForwarderTripError,
   ForwarderTripLoading,
-  FORWARDER_LCL_SCOPE_LABEL,
-  getForwarderContainerDisplayLabel,
   getForwarderContainerScopeLabel,
-  isSyntheticLclContainer,
   type ForwarderContainer,
-} from './forwarder-trip-detail-sections';
+} from '../features/forwarder/forwarder-trip-detail-sections';
 import { tripStatusVariant } from '../lib/tripStatus';
 import './ForwarderTripDetailPage.css';
-
-const newExpenseForm = () => ({
-  expenseType: 'LIFTING' as string,
-  buyAmount: '',
-  sellAmount: '',
-  settlementMethod: 'OPS_ADVANCE' as 'OPS_ADVANCE' | 'COMPANY_DIRECT',
-  supplierId: '',
-  tripContainerId: '',
-  portId: '',
-  containerTypeId: '',
-  loadState: 'LOADED' as 'LOADED' | 'EMPTY',
-  expenseDate: businessDateISO(),
-  payeeName: '',
-  invoiceNumber: '',
-  invoiceDate: '',
-  declarationNumber: '',
-  note: '',
-  noInvoiceEvidenceTypes: [] as string[],
-});
-type ExpenseFormState = ReturnType<typeof newExpenseForm>;
-
-function expensePhotoUploadErrorMessage(error: unknown): string {
-  if (isGeolocationError(error)) {
-    const issue = getLocationPermissionIssue(error);
-    switch (issue.type) {
-      case 'denied':
-        return 'Không thể tải ảnh chứng từ vì ứng dụng chưa được cấp quyền vị trí. Hãy cho phép truy cập vị trí rồi thử lại.';
-      case 'timeout':
-        return 'Không thể tải ảnh chứng từ vì GPS phản hồi chậm. Vui lòng thử lại khi thiết bị bắt được vị trí tốt hơn.';
-      case 'unavailable':
-        return 'Không thể tải ảnh chứng từ vì thiết bị chưa bắt được GPS. Vui lòng thử lại khi có tín hiệu tốt hơn.';
-      case 'inaccurate':
-        return 'Không thể tải ảnh chứng từ vì tín hiệu GPS chưa đủ chính xác. Vui lòng thử lại.';
-      default:
-        return 'Không thể tải ảnh chứng từ vì thiết bị không hỗ trợ GPS.';
-    }
-  }
-  return error instanceof Error && error.message
-    ? error.message
-    : 'Không thể tải ảnh chứng từ. Vui lòng thử lại.';
-}
 
 interface ForwarderTripWorkspaceProps {
   tripId: number;
@@ -105,9 +57,6 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: !loading });
 
-  const createContainerMut = useCreateForwarderContainer();
-  const createExpenseMut = useCreateForwarderExpense();
-  const updateExpenseMut = useUpdateForwarderExpense();
   const completionMut = useSetForwarderExpenseCompletion();
   const deleteExpenseMut = useDeleteForwarderExpense();
   const geolocation = useGeolocation();
@@ -126,24 +75,8 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   });
   const supplierOptions = suppliersResp?.items ?? [];
 
-  const [showContainerForm, setShowContainerForm] = useState(false);
-  const [containerForm, setContainerForm] = useState({ containerNumber: '', sealNumber: '', notes: '' });
-
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
-  const [expenseForm, setExpenseForm] = useState(newExpenseForm);
-  const [expenseFormBaseline, setExpenseFormBaseline] = useState(newExpenseForm);
-  const lastAppliedLiftSuggestionKey = useRef<string | null>(null);
-  const [expenseErrors, setExpenseErrors] = useState<{
-    buyAmount?: string;
-    declarationNumber?: string;
-    supplierId?: string;
-    expenseDate?: string;
-    payeeName?: string;
-    note?: string;
-    evidence?: string;
-  }>({});
-  const [expenseSubmitError, setExpenseSubmitError] = useState<string | null>(null);
+  const containerFormCtrl = useForwarderContainerForm(tripId);
+  const expenseFormCtrl = useForwarderExpenseForm({ tripId, trip, forwarderExpenseTypeOptions });
 
   // Expense photo state: maps expenseId → photo URLs
   const [expensePhotos, setExpensePhotos] = useState<Record<number, string[]>>({});
@@ -152,22 +85,20 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const { confirm, dialog } = useConfirm();
   const { toast } = useToast();
 
-  const drainPaperHandoffs = useCallback(async () => {
+  const drainPaperHandoffs = async () => {
     const result = await drain(sendRoleOfflineCommand);
     if (result.done > 0) {
       await queryClient.invalidateQueries({ queryKey: qk.forwarder.tripDetail(tripId) });
     }
     return result;
-  }, [drain, queryClient, tripId]);
+  };
 
   useEffect(() => {
     if (!online || !commands.some((command) => command.fulfillmentScopeKey === `trip:${tripId}` && command.status !== 'CONFLICT')) return;
     void drainPaperHandoffs();
   }, [commands.length, drainPaperHandoffs, online, tripId]);
   const handleBack = () => embedded ? onClose?.() : navigate('/my-forwarder-trips');
-  const isDirty = () =>
-    (showContainerForm && Boolean(containerForm.containerNumber || containerForm.sealNumber || containerForm.notes)) ||
-    (showExpenseForm && JSON.stringify(expenseForm) !== JSON.stringify(expenseFormBaseline));
+  const isDirty = () => containerFormCtrl.isDirty || expenseFormCtrl.isDirty;
   useBackShortcut(handleBack, {
     enabled: !embedded,
     isDirty,
@@ -232,181 +163,12 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
     }
   }
 
-  const isLiftExpense = expenseForm.expenseType === 'LIFTING' || expenseForm.expenseType === 'LOWERING';
-  const liftDirection = expenseForm.expenseType === 'LOWERING' ? 'LIFT_DOWN' as const : 'LIFT_UP' as const;
-  const liftPriceQuery = useQuery({
-    queryKey: qk.forwarder.liftPrice({
-      portId: expenseForm.portId,
-      containerTypeId: expenseForm.containerTypeId,
-      direction: liftDirection,
-      loadState: expenseForm.loadState,
-      expenseDate: expenseForm.expenseDate,
-    }),
-    queryFn: () => forwarderClient.resolveLiftPrice({
-      portId: Number(expenseForm.portId),
-      containerTypeId: Number(expenseForm.containerTypeId),
-      direction: liftDirection,
-      loadState: expenseForm.loadState,
-      date: expenseForm.expenseDate,
-    }),
-    enabled: isLiftExpense
-      && Number(expenseForm.portId) > 0
-      && Number(expenseForm.containerTypeId) > 0
-      && Boolean(expenseForm.expenseDate),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    const suggestedPrice = liftPriceQuery.data?.suggestedPrice ?? 0;
-    const suggestionKey = [
-      expenseForm.portId,
-      expenseForm.containerTypeId,
-      liftDirection,
-      expenseForm.loadState,
-      expenseForm.expenseDate,
-    ].join('|');
-    if (
-      !isLiftExpense
-      || liftPriceQuery.data?.source !== 'MATRIX'
-      || suggestedPrice <= 0
-      || lastAppliedLiftSuggestionKey.current === suggestionKey
-    ) return;
-    const value = String(suggestedPrice);
-    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
-    setExpenseForm((current) => ({
-      ...current,
-      buyAmount: value,
-      sellAmount: hasMarkup ? current.sellAmount : value,
-    }));
-    lastAppliedLiftSuggestionKey.current = suggestionKey;
-  }, [expenseForm.containerTypeId, expenseForm.expenseDate, expenseForm.expenseType, expenseForm.loadState, expenseForm.portId, isLiftExpense, liftDirection, liftPriceQuery.data]);
-
   if (loading) return <ForwarderTripLoading />;
 
   if (queryError || !trip) return <ForwarderTripError queryError={Boolean(queryError)} onBack={handleBack} />;
 
-  const handleAddContainer = () => {
-    if (!containerForm.containerNumber.trim()) return;
-    createContainerMut.mutate(
-      {
-        tripId,
-        data: {
-          containerNumber: containerForm.containerNumber,
-          sealNumber: containerForm.sealNumber || undefined,
-          notes: containerForm.notes || undefined,
-        },
-      },
-      { onSuccess: () => { setContainerForm({ containerNumber: '', sealNumber: '', notes: '' }); setShowContainerForm(false); } },
-    );
-  };
-
-  const handleExpenseTypeChange = (newType: string) => {
-    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[newType]?.defaultMarkup ?? false;
-    setExpenseForm(f => ({
-      ...f,
-      expenseType: newType,
-      // For at-cost types, keep sell in sync; for markup types, clear it for manual entry
-      sellAmount: hasMarkup ? '' : f.buyAmount,
-    }));
-    setExpenseErrors({});
-  };
-
-  const handleBuyAmountChange = (val: string) => {
-    const hasMarkup = OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ?? false;
-    setExpenseForm(f => ({
-      ...f,
-      buyAmount: val,
-      // Auto-sync sell for at-cost types
-      sellAmount: hasMarkup ? f.sellAmount : val,
-    }));
-    if (expenseErrors.buyAmount) setExpenseErrors(e => ({ ...e, buyAmount: undefined }));
-  };
-
-  const handleAddExpense = () => {
-    setExpenseSubmitError(null);
-    const buyAmount = parseFloat(expenseForm.buyAmount);
-    const errors: typeof expenseErrors = {};
-    if (isLiftExpense && (liftPriceQuery.data?.source !== 'MATRIX' || suggestedLiftPrice <= 0)) {
-      errors.buyAmount = 'Chưa có biểu giá nâng/hạ hợp lệ cho Cảng + Loại cont + Hàng/Rỗng đã chọn';
-    }
-    if ((!buyAmount || buyAmount <= 0) && !errors.buyAmount) errors.buyAmount = 'Giá mua vào phải lớn hơn 0';
-    if (expenseForm.expenseType === 'CUSTOMS' && !expenseForm.declarationNumber.trim()) {
-      errors.declarationNumber = 'Số tờ khai hải quan là bắt buộc cho phí hải quan';
-    }
-    if (expenseForm.settlementMethod === 'COMPANY_DIRECT' && !expenseForm.supplierId) {
-      errors.supplierId = 'Cần chọn NCC khi công ty trả trực tiếp';
-    }
-    if (!expenseForm.invoiceNumber.trim()) {
-      if (!expenseForm.expenseDate) errors.expenseDate = 'Ngày chi là bắt buộc';
-      if (!expenseForm.payeeName.trim()) errors.payeeName = 'Người nhận là bắt buộc';
-      if (!expenseForm.note.trim()) errors.note = 'Lý do chi là bắt buộc';
-      if (expenseForm.noInvoiceEvidenceTypes.length === 0) {
-        errors.evidence = 'Cần chọn ít nhất một loại chứng cứ thay thế';
-      }
-    }
-    if (Object.keys(errors).length > 0) { setExpenseErrors(errors); return; }
-
-    const sellAmount = parseFloat(expenseForm.sellAmount) || 0;
-    const supplierIdNum = expenseForm.supplierId ? parseInt(expenseForm.supplierId, 10) : undefined;
-    const payload = {
-      tripId,
-      expenseType: expenseForm.expenseType,
-      buyAmount,
-      sellAmount: sellAmount >= 0 ? sellAmount : 0,
-      settlementMethod: expenseForm.settlementMethod,
-      supplierId: supplierIdNum,
-      expenseDate: expenseForm.expenseDate || undefined,
-      payeeName: expenseForm.payeeName.trim() || undefined,
-      invoiceNumber: expenseForm.invoiceNumber.trim() || undefined,
-      invoiceDate: expenseForm.invoiceDate || undefined,
-      declarationNumber: expenseForm.declarationNumber.trim() || undefined,
-      tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : undefined,
-      portId: isLiftExpense && expenseForm.portId ? parseInt(expenseForm.portId, 10) : undefined,
-      containerTypeId: isLiftExpense && expenseForm.containerTypeId ? parseInt(expenseForm.containerTypeId, 10) : undefined,
-      loadState: isLiftExpense ? expenseForm.loadState : undefined,
-      note: expenseForm.note.trim() || undefined,
-      noInvoiceEvidenceTypes: expenseForm.noInvoiceEvidenceTypes,
-    };
-    if (!expenseForm.invoiceNumber.trim() && !noInvoiceAllowed) {
-      setExpenseSubmitError('Hạng mục này không cho phép chi không hóa đơn. Vui lòng bổ sung hóa đơn hoặc đổi hạng mục.');
-      return;
-    }
-    const mutation = editingExpenseId
-      ? updateExpenseMut.mutate.bind(updateExpenseMut, {
-          ...payload,
-          id: editingExpenseId,
-          expectedUpdatedAt: expenses.find(expense => expense.id === editingExpenseId)!.updatedAt,
-          supplierId: supplierIdNum ?? null,
-          expenseDate: expenseForm.expenseDate || null,
-          payeeName: expenseForm.payeeName.trim() || null,
-          invoiceNumber: expenseForm.invoiceNumber.trim() || null,
-          invoiceDate: expenseForm.invoiceDate || null,
-          declarationNumber: expenseForm.declarationNumber.trim() || null,
-          tripContainerId: expenseForm.tripContainerId ? parseInt(expenseForm.tripContainerId, 10) : null,
-          note: expenseForm.note.trim() || null,
-          noInvoiceEvidenceTypes: expenseForm.noInvoiceEvidenceTypes,
-        })
-      : createExpenseMut.mutate.bind(createExpenseMut, payload);
-    mutation(
-      {
-        onSuccess: () => {
-          const resetForm = newExpenseForm();
-          lastAppliedLiftSuggestionKey.current = null;
-          setExpenseForm(resetForm);
-          setExpenseFormBaseline(resetForm);
-          setExpenseErrors({});
-          setEditingExpenseId(null);
-          setShowExpenseForm(false);
-        },
-        onError: (error) => {
-          setExpenseSubmitError(error instanceof Error ? error.message : 'Không thể lưu điều chỉnh chi phí');
-        },
-      },
-    );
-  };
-
   const handleDeleteExpense = async (expenseId: number) => {
-    const expense = expenses.find(item => item.id === expenseId);
+    const expense = trip.expenses.find(item => item.id === expenseId);
     if (!expense) return;
     const accepted = await confirm('Xóa khoản chi này? Dữ liệu và ảnh chứng từ liên quan sẽ không còn trong danh sách Ops.', {
       variant: 'danger',
@@ -424,60 +186,6 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
   const legs = (trip.legs || []) as Array<{ id: number; sequence: number; origin: string; destination: string; km: number; loadingType: string; polylinePath?: string | null }>;
   const portOptions = catalogs?.ports ?? [];
   const containerTypeOptions = catalogs?.containerTypes ?? [];
-  const suggestedLiftPrice = liftPriceQuery.data?.source === 'MATRIX' ? liftPriceQuery.data.suggestedPrice : 0;
-  const liftPriceDelta = suggestedLiftPrice > 0 && Number.isFinite(Number(expenseForm.buyAmount))
-    ? Number(expenseForm.buyAmount) - suggestedLiftPrice
-    : 0;
-  const selectedExpenseContainer = containers.find(c => String(c.id) === expenseForm.tripContainerId);
-  const selectedExpenseContainerIsSyntheticLcl = selectedExpenseContainer ? isSyntheticLclContainer(selectedExpenseContainer) : false;
-  const selectedExpenseTypeConfig = forwarderExpenseTypeOptions.find(type => type.code === expenseForm.expenseType);
-  const noInvoiceAllowed = !selectedExpenseTypeConfig?.requiresInvoice && selectedExpenseTypeConfig?.substituteEvidenceAllowed !== false;
-  const allowedEvidenceTypes = selectedExpenseTypeConfig?.noInvoiceEvidenceTypes?.length
-    ? selectedExpenseTypeConfig.noInvoiceEvidenceTypes
-    : [...DEFAULT_NO_INVOICE_EVIDENCE_TYPES];
-  const openExpenseForm = () => {
-    setShowExpenseForm(prev => {
-      const willOpen = !prev;
-      if (willOpen && !expenseForm.tripContainerId && containers.length === 1) {
-        const selectedContainerId = String(containers[0].id);
-        const containerTypeId = containers[0].containerTypeId ? String(containers[0].containerTypeId) : '';
-        const loadState = legs[0]?.loadingType === 'VO' ? 'EMPTY' as const : 'LOADED' as const;
-        setExpenseForm(f => ({ ...f, tripContainerId: selectedContainerId, containerTypeId, loadState }));
-        setExpenseFormBaseline(f => ({ ...f, tripContainerId: selectedContainerId, containerTypeId, loadState }));
-      }
-      if (willOpen) lastAppliedLiftSuggestionKey.current = null;
-      return willOpen;
-    });
-  };
-  const openExpenseEditor = (exp: typeof expenses[number]) => {
-    if (exp.activeSettlementId || !exp.canEdit) return;
-    setEditingExpenseId(exp.id);
-    const editForm: ExpenseFormState = {
-      expenseType: exp.expenseType,
-      buyAmount: String(exp.buyAmount),
-      sellAmount: String(exp.sellAmount ?? ''),
-      settlementMethod: exp.settlementMethod === 'COMPANY_DIRECT' ? 'COMPANY_DIRECT' : 'OPS_ADVANCE',
-      supplierId: exp.supplierId ? String(exp.supplierId) : '',
-      tripContainerId: exp.tripContainerId ? String(exp.tripContainerId) : '',
-      portId: '',
-      containerTypeId: containers.find(container => container.id === exp.tripContainerId)?.containerTypeId
-        ? String(containers.find(container => container.id === exp.tripContainerId)!.containerTypeId)
-        : '',
-      loadState: legs[0]?.loadingType === 'VO' ? 'EMPTY' : 'LOADED',
-      expenseDate: exp.expenseDate ? String(exp.expenseDate).slice(0, 10) : businessDateISO(),
-      payeeName: exp.payeeName ?? '',
-      invoiceNumber: exp.invoiceNumber ?? '',
-      invoiceDate: exp.invoiceDate ? String(exp.invoiceDate).slice(0, 10) : '',
-      declarationNumber: exp.declarationNumber ?? '',
-      note: exp.note ?? '',
-      noInvoiceEvidenceTypes: exp.noInvoiceEvidenceTypes ?? [],
-    };
-    setExpenseForm(editForm);
-    setExpenseFormBaseline(editForm);
-    setExpenseErrors({});
-    setExpenseSubmitError(null);
-    setShowExpenseForm(true);
-  };
   const generalExpenses = expenses.filter(exp => !exp.tripContainerId);
   const expenseGroups = [
     ...containers.map(container => ({
@@ -612,7 +320,17 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
       </div>
 
       {/* Containers Section */}
-      <ForwarderContainersSection containers={(trip.containers ?? []) as ForwarderContainer[]} show={showContainerForm} setShow={setShowContainerForm} form={containerForm} setForm={setContainerForm} onAdd={handleAddContainer} pending={createContainerMut.isPending} selectedContainerId={expenseForm.tripContainerId} onSelectContainer={(tripContainerId) => setExpenseForm(prev => ({ ...prev, tripContainerId }))} />
+      <ForwarderContainersSection
+        containers={(trip.containers ?? []) as ForwarderContainer[]}
+        show={containerFormCtrl.show}
+        setShow={containerFormCtrl.setShow}
+        form={containerFormCtrl.form}
+        setForm={containerFormCtrl.setForm}
+        onAdd={containerFormCtrl.add}
+        pending={containerFormCtrl.pending}
+        selectedContainerId={expenseFormCtrl.form.tripContainerId}
+        onSelectContainer={(tripContainerId) => expenseFormCtrl.patch({ tripContainerId })}
+      />
 
       <div className="panel fwd-detail__panel--mb16">
         <div className="fwd-paper-order">
@@ -651,371 +369,20 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
           </span>
           <button
             className="btn btn--secondary btn--sm fwd-expenses-header__btn"
-            onClick={openExpenseForm}
+            onClick={expenseFormCtrl.open}
           >
             <Plus size={12} /> Thêm
           </button>
         </div>
 
-        {showExpenseForm && (
-          <div className="fwd-expense-form">
-            {/* Row 1: type + amounts + settlement */}
-            <div className="fwd-expense-grid fwd-expense-grid--primary">
-              <FormGroup label="Loại chi phí">
-                <UuiSelectField
-                  id="fwd-expense-type"
-                  label="Loại chi phí"
-                  hideLabel
-                  value={expenseForm.expenseType}
-                  onChange={e => handleExpenseTypeChange(e.target.value)}
-                  options={(forwarderExpenseTypeOptions.length > 0
-                    ? forwarderExpenseTypeOptions.map((type) => [type.code, { name: type.name }] as const)
-                    : Object.entries(OPS_EXPENSE_TYPE_DEFAULTS)
-                  ).map(([code, cfg]) => ({
-                    value: code,
-                    label: cfg.name,
-                  }))}
-                />
-              </FormGroup>
-
-              <FormGroup
-                label="Giá mua vào (VNĐ) *"
-              >
-                <input
-                  className={`input${expenseErrors.buyAmount ? ' input--error' : ''}${isLiftExpense ? ' fwd-input--readonly' : ''}`}
-                  type="number"
-                  value={expenseForm.buyAmount}
-                  onChange={e => handleBuyAmountChange(e.target.value)}
-                  placeholder="0"
-                  min="1"
-                  readOnly={isLiftExpense}
-                  aria-readonly={isLiftExpense}
-                />
-                {expenseErrors.buyAmount && (
-                  <span className="fwd-field-error-inline">
-                    {expenseErrors.buyAmount}
-                  </span>
-                )}
-                {isLiftExpense && liftPriceQuery.isFetching && (
-                  <span className="fwd-price-hint" role="status">Đang tra biểu giá nâng/hạ…</span>
-                )}
-                {isLiftExpense && liftPriceQuery.isError && (
-                  <span className="fwd-price-hint fwd-price-hint--error">Không tra được biểu giá. Vui lòng kiểm tra lại cảng, loại cont hoặc ngày chi.</span>
-                )}
-                {isLiftExpense && !liftPriceQuery.isFetching && suggestedLiftPrice > 0 && (
-                  <span className="fwd-price-hint">
-                    Áp tự động {suggestedLiftPrice.toLocaleString('vi-VN')} VNĐ
-                    {liftPriceDelta !== 0 ? ` · chênh ${liftPriceDelta > 0 ? '+' : ''}${liftPriceDelta.toLocaleString('vi-VN')} VNĐ` : ''}
-                  </span>
-                )}
-                {isLiftExpense && liftPriceQuery.data?.source === 'MANUAL' && (
-                  <span className="fwd-price-hint fwd-price-hint--error">Chưa có biểu giá phù hợp. Không được nhập tay phí nâng/hạ; cần bổ sung bảng giá trước khi lưu.</span>
-                )}
-              </FormGroup>
-
-              <FormGroup
-                label="Giá bán ra (VNĐ)"
-              >
-                <input
-                  className={`input${!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ? ' fwd-input--readonly' : ''}`}
-                  type="number"
-                  value={expenseForm.sellAmount}
-                  onChange={e => setExpenseForm(f => ({ ...f, sellAmount: e.target.value }))}
-                  placeholder="0"
-                  min="0"
-                  readOnly={!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup}
-                />
-              </FormGroup>
-
-              <FormGroup label="Hình thức chi">
-                <UuiSelectField
-                  id="fwd-settlement-method"
-                  label="Hình thức chi"
-                  hideLabel
-                  value={expenseForm.settlementMethod}
-                  onChange={e => {
-                    const v = e.target.value as 'OPS_ADVANCE' | 'COMPANY_DIRECT';
-                    setExpenseForm(f => ({ ...f, settlementMethod: v, supplierId: v === 'OPS_ADVANCE' ? '' : f.supplierId }));
-                    if (expenseErrors.supplierId) setExpenseErrors(e => ({ ...e, supplierId: undefined }));
-                  }}
-                  options={[
-                    { value: 'FORWARDER_ADVANCE', label: 'Chi hộ tạm ứng' },
-                    { value: 'COMPANY_DIRECT', label: 'Công ty trả trực tiếp' },
-                  ]}
-                />
-              </FormGroup>
-            </div>
-
-            {/* Row 2: supplier (when company-direct) + container number */}
-            <div className="fwd-expense-grid fwd-expense-grid--context">
-              {isLiftExpense && (
-                <>
-                  <FormGroup label="Cảng / bãi *">
-                    <UuiSelectField
-                      id="fwd-port"
-                      label="Cảng / bãi"
-                      hideLabel
-                      value={expenseForm.portId}
-                      onChange={e => { setExpenseForm(f => ({ ...f, portId: e.target.value })); }}
-                      options={[
-                        { value: '', label: '— Chọn cảng —' },
-                        ...portOptions.map(port => ({ value: String(port.id), label: port.name })),
-                      ]}
-                    />
-                  </FormGroup>
-                  <FormGroup label="Loại container *">
-                    <UuiSelectField
-                      id="fwd-container-type"
-                      label="Loại container"
-                      hideLabel
-                      value={expenseForm.containerTypeId}
-                      onChange={e => { setExpenseForm(f => ({ ...f, containerTypeId: e.target.value })); }}
-                      options={[
-                        { value: '', label: '— Chọn loại —' },
-                        ...containerTypeOptions.map(type => ({ value: String(type.id), label: `${type.code} — ${type.name}` })),
-                      ]}
-                    />
-                  </FormGroup>
-                  <FormGroup label="Hàng / Rỗng">
-                    <UuiSelectField
-                      id="fwd-load-state"
-                      label="Hàng / Rỗng"
-                      hideLabel
-                      value={expenseForm.loadState}
-                      onChange={e => { setExpenseForm(f => ({ ...f, loadState: e.target.value as 'LOADED' | 'EMPTY' })); }}
-                      options={[
-                        { value: 'LOADED', label: 'Hàng' },
-                        { value: 'EMPTY', label: 'Rỗng' },
-                      ]}
-                    />
-                  </FormGroup>
-                </>
-              )}
-              {expenseForm.settlementMethod === 'COMPANY_DIRECT' && (
-                <FormGroup label="Nhà cung cấp *">
-                  <UuiSelectField
-                    id="fwd-supplier"
-                    label="Nhà cung cấp"
-                    hideLabel
-                    value={expenseForm.supplierId}
-                    error={expenseErrors.supplierId}
-                    onChange={e => {
-                      const selectedSupplier = supplierOptions.find(item => String(item.id) === e.target.value);
-                      setExpenseForm(f => ({
-                        ...f,
-                        supplierId: e.target.value,
-                        payeeName: f.payeeName || selectedSupplier?.name || '',
-                      }));
-                      if (expenseErrors.supplierId) setExpenseErrors(err => ({ ...err, supplierId: undefined }));
-                    }}
-                    options={[
-                      { value: '', label: '-- Chọn NCC --' },
-                      ...supplierOptions.map(s => ({ value: String(s.id), label: s.name })),
-                    ]}
-                  />
-                </FormGroup>
-              )}
-
-              {containers.length === 0 && (
-                <div className="fwd-expense-empty-container">
-                  Chưa có container; chi phí này sẽ lưu như chi phí chung của chuyến.
-                </div>
-              )}
-
-              {containers.length === 1 && selectedExpenseContainer && !selectedExpenseContainerIsSyntheticLcl && (
-                <FormGroup label="Container áp dụng">
-                  <div
-                    className="input fwd-container-display"
-                  >
-                    <span className="fwd-container-display__label">{getForwarderContainerDisplayLabel(selectedExpenseContainer)}</span>
-                    {selectedExpenseContainer.sealNumber && (
-                      <span className="fwd-container-display__seal">Seal {selectedExpenseContainer.sealNumber}</span>
-                    )}
-                  </div>
-                </FormGroup>
-              )}
-
-              {containers.length > 1 && (
-                <FormGroup label="Container áp dụng">
-                  <UuiSelectField
-                    id="fwd-container"
-                    label="Container áp dụng"
-                    hideLabel
-                    value={expenseForm.tripContainerId}
-                    onChange={e => {
-                      const selected = containers.find(container => String(container.id) === e.target.value);
-                      setExpenseForm(f => ({
-                        ...f,
-                        tripContainerId: e.target.value,
-                        containerTypeId: selected?.containerTypeId ? String(selected.containerTypeId) : f.containerTypeId,
-                      }));
-                    }}
-                    options={[
-                      { value: '', label: 'Chi phí chung của chuyến' },
-                      ...containers.map(c => ({
-                        value: String(c.id),
-                        label: `${getForwarderContainerDisplayLabel(c)}${!isSyntheticLclContainer(c) && c.sealNumber ? ` · Seal ${c.sealNumber}` : ''}`,
-                      })),
-                    ]}
-                  />
-                  <span className="fwd-field-hint">
-                    {containers.some((container) => isSyntheticLclContainer(container))
-                      ? `Chọn ${FORWARDER_LCL_SCOPE_LABEL.toLowerCase()} hoặc container từ danh sách đã nhập, không cần gõ lại.`
-                      : 'Chọn container từ danh sách đã nhập, không cần gõ lại số container.'}
-                  </span>
-                </FormGroup>
-              )}
-            </div>
-
-            {/* Row 3: invoice + declaration + note */}
-            <div className="fwd-expense-grid fwd-expense-grid--invoice">
-              {expenseForm.expenseType !== 'INFRASTRUCTURE' && (
-                <>
-                  <FormGroup label="Số hóa đơn">
-                    <input
-                      className="input fwd-input--data"
-                      value={expenseForm.invoiceNumber}
-                      onChange={e => setExpenseForm(f => ({ ...f, invoiceNumber: e.target.value }))}
-                      placeholder="Số hóa đơn"
-                    />
-                  </FormGroup>
-                  <FormGroup label="Ngày hóa đơn">
-                    <DateInput
-                      className="input"
-                      value={expenseForm.invoiceDate}
-                      onChange={(value) => setExpenseForm(f => ({ ...f, invoiceDate: value }))}
-                    />
-                  </FormGroup>
-                </>
-              )}
-
-              {expenseForm.expenseType === 'CUSTOMS' && (
-                <FormGroup label="Số tờ khai hải quan *">
-                  <input
-                    className={`input fwd-input--data${expenseErrors.declarationNumber ? ' input--error' : ''}`}
-                    value={expenseForm.declarationNumber}
-                    onChange={e => {
-                      setExpenseForm(f => ({ ...f, declarationNumber: e.target.value }));
-                      if (expenseErrors.declarationNumber) setExpenseErrors(err => ({ ...err, declarationNumber: undefined }));
-                    }}
-                    placeholder="Số tờ khai"
-                  />
-                  {expenseErrors.declarationNumber && (
-                    <span className="fwd-field-error-inline">
-                      {expenseErrors.declarationNumber}
-                    </span>
-                  )}
-                </FormGroup>
-              )}
-
-              <FormGroup label={expenseForm.invoiceNumber.trim() ? 'Ghi chú' : 'Lý do chi *'}>
-                <input
-                  className={`input${expenseErrors.note ? ' input--error' : ''}`}
-                  value={expenseForm.note}
-                  onChange={e => {
-                    setExpenseForm(f => ({ ...f, note: e.target.value }));
-                    if (expenseErrors.note) setExpenseErrors(current => ({ ...current, note: undefined }));
-                  }}
-                  placeholder={expenseForm.invoiceNumber.trim() ? 'Ghi chú (tuỳ chọn)' : 'Mô tả lý do chi và chứng từ bổ sung'}
-                />
-                {expenseErrors.note && <span className="field-error">{expenseErrors.note}</span>}
-              </FormGroup>
-            </div>
-
-            {!expenseForm.invoiceNumber.trim() && (
-              <div className="fwd-expense-grid fwd-expense-grid--invoice fwd-expense-no-invoice-divider">
-                <FormGroup label="Ngày chi *">
-                  <DateInput
-                    className={`input${expenseErrors.expenseDate ? ' input--error' : ''}`}
-                    value={expenseForm.expenseDate}
-                    onChange={(value) => {
-                      setExpenseForm(f => ({ ...f, expenseDate: value }));
-                      if (expenseErrors.expenseDate) setExpenseErrors(current => ({ ...current, expenseDate: undefined }));
-                    }}
-                  />
-                  {expenseErrors.expenseDate && <span className="field-error">{expenseErrors.expenseDate}</span>}
-                </FormGroup>
-
-                <FormGroup label="Người nhận *">
-                  <input
-                    className={`input${expenseErrors.payeeName ? ' input--error' : ''}`}
-                    value={expenseForm.payeeName}
-                    onChange={e => {
-                      setExpenseForm(f => ({ ...f, payeeName: e.target.value }));
-                      if (expenseErrors.payeeName) setExpenseErrors(current => ({ ...current, payeeName: undefined }));
-                    }}
-                    placeholder="Tên người nhận / đơn vị nhận"
-                  />
-                  {expenseErrors.payeeName && <span className="field-error">{expenseErrors.payeeName}</span>}
-                </FormGroup>
-
-                <div className="fwd-expense-grid__full-width">
-                  <div className="fwd-evidence-label">Chứng cứ thay thế *</div>
-                  {!noInvoiceAllowed ? (
-                    <div className="fwd-evidence-error">
-                      Hạng mục này không cho phép chi không hóa đơn.
-                    </div>
-                  ) : (
-                    <>
-                      <div className="fwd-evidence-grid">
-                        {allowedEvidenceTypes.map((value) => (
-                          <label key={value} className="fwd-evidence-option">
-                            <input
-                              type="checkbox"
-                              checked={expenseForm.noInvoiceEvidenceTypes.includes(value)}
-                              onChange={(event) => {
-                                setExpenseForm((current) => ({
-                                  ...current,
-                                  noInvoiceEvidenceTypes: event.target.checked
-                                    ? [...current.noInvoiceEvidenceTypes, value]
-                                    : current.noInvoiceEvidenceTypes.filter((item) => item !== value),
-                                }));
-                                if (expenseErrors.evidence) setExpenseErrors(current => ({ ...current, evidence: undefined }));
-                              }}
-                            />
-                            <span>{NO_INVOICE_EVIDENCE_TYPE_LABELS[value as keyof typeof NO_INVOICE_EVIDENCE_TYPE_LABELS] ?? value}</span>
-                          </label>
-                        ))}
-                      </div>
-                      {expenseErrors.evidence && <div className="field-error">{expenseErrors.evidence}</div>}
-                      <div className="fwd-evidence-hint">
-                        Ngưỡng hiện tại: {Number(selectedExpenseTypeConfig?.noInvoicePerItemLimit ?? 1_000_000).toLocaleString('vi-VN')} đ/khoản,
-                        {' '}{Number(selectedExpenseTypeConfig?.noInvoicePerDayLimit ?? 5_000_000).toLocaleString('vi-VN')} đ/người/ngày.
-                        Nếu chọn ảnh hiện trường, hãy lưu xong rồi tải ảnh lên ngay dưới dòng chi phí.
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {expenseSubmitError && (
-              <div
-                className="animate-shake fwd-expense-submit-error"
-                role="alert"
-              >
-                {expenseSubmitError}
-              </div>
-            )}
-
-            <div className="fwd-expense-form-actions">
-              <button
-                className="btn btn--ghost btn--sm"
-                onClick={() => { lastAppliedLiftSuggestionKey.current = null; setShowExpenseForm(false); setEditingExpenseId(null); setExpenseErrors({}); setExpenseSubmitError(null); }}
-                disabled={createExpenseMut.isPending || updateExpenseMut.isPending}
-              >
-                Hủy
-              </button>
-              <button
-                className="btn btn--primary btn--sm"
-                onClick={handleAddExpense}
-                disabled={createExpenseMut.isPending || updateExpenseMut.isPending}
-              >
-                {createExpenseMut.isPending || updateExpenseMut.isPending ? 'Đang lưu…' : editingExpenseId ? 'Lưu điều chỉnh' : 'Lưu chi phí'}
-              </button>
-            </div>
-          </div>
-        )}
+        <ForwarderExpenseForm
+          controller={expenseFormCtrl}
+          containers={containers}
+          supplierOptions={supplierOptions}
+          portOptions={portOptions}
+          containerTypeOptions={containerTypeOptions}
+          forwarderExpenseTypeOptions={forwarderExpenseTypeOptions}
+        />
 
         {expenses.length === 0 ? (
           <div className="fwd-expenses-empty">
@@ -1045,7 +412,7 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
                 {group.expenses.map((exp) => {
                   return (
                     <div key={exp.id}>
-                      <ForwarderExpenseRow exp={exp} expenseTypeOptions={forwarderExpenseTypeOptions} uploadingExpenseId={uploadingExpenseId} photos={expensePhotos[exp.id]} onUpload={handleUploadPhoto} onEdit={openExpenseEditor} onDelete={handleDeleteExpense} deletePending={deleteExpenseMut.isPending} onLoadPhotos={loadExpensePhotos} />
+                      <ForwarderExpenseRow exp={exp} expenseTypeOptions={forwarderExpenseTypeOptions} uploadingExpenseId={uploadingExpenseId} photos={expensePhotos[exp.id]} onUpload={handleUploadPhoto} onEdit={expenseFormCtrl.openEditor} onDelete={handleDeleteExpense} deletePending={deleteExpenseMut.isPending} onLoadPhotos={loadExpensePhotos} />
                     </div>
                   );
                 })}

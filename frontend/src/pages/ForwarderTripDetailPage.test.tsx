@@ -133,8 +133,8 @@ vi.mock('../components/trip/TripLegsPanel', () => ({
   default: () => null,
 }));
 
-vi.mock('./forwarder-trip-detail-sections', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./forwarder-trip-detail-sections')>();
+vi.mock('../features/forwarder/forwarder-trip-detail-sections', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../features/forwarder/forwarder-trip-detail-sections')>();
   return {
     ...actual,
     ForwarderTripLoading: () => <div>loading</div>,

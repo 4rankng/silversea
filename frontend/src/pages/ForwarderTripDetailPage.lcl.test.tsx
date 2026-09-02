@@ -136,7 +136,7 @@ vi.mock('../components/trip/TripLegsPanel', () => ({
 }));
 
 import ForwarderTripDetailPage from './ForwarderTripDetailPage';
-import { ForwarderContainersSection } from './forwarder-trip-detail-sections';
+import { ForwarderContainersSection } from '../features/forwarder/forwarder-trip-detail-sections';
 
 function renderPage() {
   const queryClient = new QueryClient({
