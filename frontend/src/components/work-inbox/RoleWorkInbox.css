@@ -264,6 +264,11 @@
 .role-work-inbox__advisory,
 .role-work-inbox__muted {
   display: block;
+  /* Override the global `tbody td { white-space: nowrap }` base (Table.css):
+     obstacle/advisory text is free-form sentences, not the short single-line
+     values that default covers, so it must wrap instead of spilling into the
+     next column. */
+  white-space: normal;
   line-height: 1.35;
 }
 

@@ -212,22 +212,22 @@ export default function FactoriesConfigPage() {
                   }}
                 >
                   <td className="num">{index + 1}</td>
-                  <td>{site.customerName}</td>
-                  <td style={{ color: 'var(--fg-2)' }}>{site.code}</td>
-                  <td style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{site.name}</td>
-                  <td>
+                  <td data-label="Khách hàng">{site.customerName}</td>
+                  <td data-label="Mã" style={{ color: 'var(--fg-2)' }}>{site.code}</td>
+                  <td data-label="Tên" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{site.name}</td>
+                  <td data-label="Loại">
                     {site.siteType === 'FACTORY'
                       ? <span className="badge badge--info"><Factory size={12} style={{ verticalAlign: -2 }} /> Nhà máy</span>
                       : <span className="badge"><Warehouse size={12} style={{ verticalAlign: -2 }} /> Kho</span>}
                   </td>
-                  <td style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
-                  <td style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address}</td>
-                  <td style={{ color: 'var(--fg-2)', fontSize: 13 }}>
+                  <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
+                  <td data-label="Địa chỉ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>{site.address}</td>
+                  <td data-label="Liên hệ" style={{ color: 'var(--fg-2)', fontSize: 13 }}>
                     {site.contactName || site.contactPhone
                       ? [site.contactName, site.contactPhone].filter(Boolean).join(' · ')
                       : '—'}
                   </td>
-                  <td>
+                  <td data-label="Trạng thái">
                     {site.isActive
                       ? <span className="cfg-pill cfg-pill--success">Đang dùng</span>
                       : <span className="cfg-pill cfg-pill--neutral">Đã ngưng</span>}

@@ -6,6 +6,15 @@
  * empty state, and inline meta pill treatment across CrudTable-based pages.
  * ========================================================================== */
 
+/* Two-word numeric headers ("Chuyến 09/26", "Doanh thu 09/26") are narrower
+   than their sort-button label, so record-table's shared `overflow-wrap:
+   anywhere` (record-table.css) chops them mid-word ("CH/UY/ẾN"). Force the
+   header to stay on one line so the table's auto layout gives the column
+   enough width instead — scoped to this page's table only. */
+.cfg-page .cfg-customer-table thead th.num {
+  white-space: nowrap;
+}
+
 /* ── Table density: sparse config rows don't need 24px vertical td padding ── */
 .cfg-page .tt-table thead th {
   padding: 13px 18px;
