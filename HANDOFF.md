@@ -1,6 +1,15 @@
 # Current Development Handoff
 
-## Current task — frontend maintainability & extensibility wave — DONE (2026-09-01)
+## Current task — Vercel-rules perf pass + ForwarderTrip split — DONE (2026-09-02, NOT pushed/deployed)
+
+- Scope: user `/vercel improve frontend` + "improve and enhance them, the goal is to have easy to maintain and easy to extend frontend, prepare for future changes" → Vercel React-best-practices audit (optimize/ N/A — Docker deploy) + the queued ForwarderTrip split from the 09-01 wave's phase-06 addendum.
+- `6216a16e` — bundle + re-render wins: **exceljs 924KB chunk → lazy at export click** (dynamic import inside `downloadCSV`; build proof: chunk renamed `csv-*.js` → `exceljs.min-*.js`, pure on-demand — 8 export pages stop downloading it at page-load); Toast context value referentially stable (toasts-ref mirror + useMemo — `useToast` consumers no longer re-render on toast churn); useAuth value memoized.
+- `91413461` — **ForwarderTripDetailPage 1107→474L** into `features/forwarder/` home: sections module relocated (+test), pure `forwarder-expense-model.ts` 296L (+206L tests: validation order, update-null-unset semantics, edit-builder, prefill, no-invoice policy), `use-forwarder-expense-form.ts` 321L controller (lift query + rising-edge suggestion effect, memoized trip arrays), `ForwarderExpenseForm.tsx` 399L layout, `use-forwarder-container-form.ts` 57L. All 6 pre-existing DOM characterization tests pass unchanged.
+- Gates: 1446/1446 vitest / tsc 0 / lint 0 errors / build ✓ (`qa/2026-09-02_*`).
+- Trap found: `useUpdateForwarderExpense` lives in `useForwarderQueries`, NOT `useQueries` — the page-test mock factory caught the wrong-module import immediately.
+- Remainders: FinancePage split **designed + sketched** in phase-06 file (section-shaped: charts/P&L table/truck breakdown/category table + allocation model; deferred per golden rule — kế toán = "từ từ"); SalaryAttendance = JSX bulk, lowest value; divergent status wordings still open product decisions.
+
+## Previous task — frontend maintainability & extensibility wave — DONE (2026-09-01)
 
 - **PUSHED + DEPLOYED 21:05 SGT (`9834d60b`):** wording unified per user decisions (`4a5a432e`), DISPATCHER Sổ-chuyến-đi nav removed (`ec1d7a5a`), staleness smoke PASS (parked board + quick-create within one poll), artifact-vs-commit verified (digest f4e909eb + served ShipmentContainersPage chunk + unified wording). .ua/: 1,966 files behind → diff-overlay written, full rebuild open.
 - Scope: user ask "improve frontend for ease of maintenance and easy to extend" → audit (`plans/reports/architecture-260901-1611-frontend-maintainability.md`) → red-teamed plan (`plans/260901-1622-frontend-extensibility-change-wave/`) → cooked same day, all 7 phases.
