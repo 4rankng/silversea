@@ -1,4 +1,6 @@
-import ExcelJS from 'exceljs';
+// Type-only: the library itself is loaded on demand inside downloadCSV so its
+// ~1MB payload never ships with page bundles that merely link an export button.
+import type ExcelJSTypes from 'exceljs';
 import { BRAND as APP_BRAND } from '../brand';
 
 export type ColumnType = 'text' | 'number' | 'km' | 'liters' | 'currency' | 'date' | 'decimal';
@@ -132,6 +134,10 @@ export async function downloadCSV(
         });
 
   /* ─── Workbook + sheet ──────────────────────────────────────────────── */
+  // Deferred until the user actually exports — this is the only moment the
+  // spreadsheet engine is needed, so the import stays off every page's
+  // critical path and loads once (then from cache) on first export.
+  const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
   workbook.creator = APP_BRAND.productName;
   workbook.created = today;
@@ -198,7 +204,7 @@ export async function downloadCSV(
       const cell = excelRow.getCell(i + 1);
       const type = columnTypes[i] ?? 'text';
       const value = coerceCellValue(raw, type);
-      cell.value = value as ExcelJS.CellValue;
+      cell.value = value as ExcelJSTypes.CellValue;
       cell.font = { name: FONT_FAMILY, size: 10, color: { argb: 'FF1F2937' } };
       cell.alignment = { vertical: 'middle', horizontal: centerAlignFor(i, type), wrapText: false };
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: zebra } };

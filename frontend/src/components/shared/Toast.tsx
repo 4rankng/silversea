@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { animate, createScope, utils, spring } from 'animejs';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
@@ -53,6 +53,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const animatedIds = useRef<Set<string>>(new Set());
   const animationsRef = useRef<ReturnType<typeof animate>[]>([]);
   const counter = useRef(0);
+
+  // Latest-value mirror: lets `addToast` keep stable identity (no `toasts` in
+  // deps) so the context value below stays referentially stable while toasts
+  // are added and removed — consumers don't re-render for toast churn.
+  const toastsRef = useRef(toasts);
+  toastsRef.current = toasts;
 
   // Create scope for the toast container (re-create when it mounts/unmounts)
   const hasToasts = toasts.length > 0;
@@ -141,7 +147,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     // double-mounting effects, or a caller firing the same notification
     // twice in a row.
     const existingId = (() => {
-      for (const t of toasts) {
+      for (const t of toastsRef.current) {
         if (!t.exiting && t.kind === options.kind && t.message === options.message) {
           return t.id;
         }
@@ -155,7 +161,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts(prev => [...prev, { id, kind: options.kind, message: options.message }]);
     timers.current.set(id, setTimeout(() => dismiss(id), duration));
     return id;
-  }, [toasts, dismiss]);
+  }, [dismiss]);
 
   // Clean up all timers and animations on unmount
   useEffect(() => {
@@ -172,8 +178,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const contextValue = useMemo(
+    () => ({ toast: addToast, dismiss }),
+    [addToast, dismiss],
+  );
+
   return (
-    <ToastContext.Provider value={{ toast: addToast, dismiss }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       {toasts.length > 0 && (
         <div ref={containerRef} className="toast-container">

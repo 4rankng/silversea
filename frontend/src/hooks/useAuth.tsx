@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { hashKey, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
@@ -239,18 +239,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [queryClient],
   );
 
+  // Memoized so consumers only re-render when an auth-visible field actually
+  // changes, not on unrelated provider re-renders.
+  const value = useMemo(
+    () => ({
+      user,
+      login,
+      logout,
+      updateUser,
+      isAuthenticated: !!user,
+      loading: isLoading,
+      sessionExpired,
+    }),
+    [user, login, logout, updateUser, isLoading, sessionExpired],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        updateUser,
-        isAuthenticated: !!user,
-        loading: isLoading,
-        sessionExpired,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
