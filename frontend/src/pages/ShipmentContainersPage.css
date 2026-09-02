@@ -84,20 +84,28 @@
 }
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-.shipment-container-ledger__col--customer { width: 14%; }
-.shipment-container-ledger__col--documents { width: auto; }
-.shipment-container-ledger__col--container { width: auto; }
+/* All eight columns pin an explicit share (sums to 100%) instead of mixing
+   in `width: auto`: table-layout: fixed only measures auto columns from the
+   first row, so a later row's longer content (e.g. a full container number)
+   silently wraps mid-token instead of claiming its fair share. Shares below
+   are sized to each column's real content, not split evenly — documents and
+   container each carry two stacked code lines, route needs room for long
+   place names (see note below), and status only ever holds a short one/two
+   -word badge so it gets the smallest share instead of matching its wide
+   sr-only-adjacent siblings. */
+.shipment-container-ledger__col--customer { width: 15%; }
+.shipment-container-ledger__col--documents { width: 13%; }
+.shipment-container-ledger__col--container { width: 13%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
-   table-layout: fixed and width: auto, the column shrinks below the
-   longest unbreakable token and the cell's overflow:hidden clips the
-   trailing characters. Pin the column to a share that fits the
-   long-NÂNG/HẠ pair; the remaining auto columns absorb the leftover. */
-.shipment-container-ledger__col--route { width: 18%; }
-.shipment-container-ledger__col--schedule { width: 14%; }
-.shipment-container-ledger__col--vehicle { width: auto; }
-.shipment-container-ledger__col--status { width: 9%; }
-.shipment-container-ledger__col--notes { width: 16%; }
+   table-layout: fixed, the column shrinks below the longest unbreakable
+   token and the cell's overflow:hidden clips the trailing characters — keep
+   this share generous even though sample data rarely fills it. */
+.shipment-container-ledger__col--route { width: 16%; }
+.shipment-container-ledger__col--schedule { width: 13%; }
+.shipment-container-ledger__col--vehicle { width: 9%; }
+.shipment-container-ledger__col--notes { width: 14%; }
+.shipment-container-ledger__col--status { width: 7%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -108,7 +116,7 @@
    (header case/tracking come from the shared table base, as on /shipments). */
 .shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; overflow-wrap: anywhere; white-space: normal; }
 .shipment-container-ledger tbody > tr > th,
-.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; overflow: hidden; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
 .shipment-container-ledger tbody > tr:last-child > * { border-bottom: 0; }
 .shipment-container-ledger tbody > tr:hover > * { background: var(--surface-2); }

@@ -71,6 +71,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*white-space:\s*normal;/);
     expect(css).not.toMatch(/\.shipment-container-ledger table\s*\{[^}]*min-width:\s*980px;/);
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow:\s*hidden;/);
+    // The shared Table.css base sets an unscoped `tbody td { white-space: nowrap }`
+    // that beats inheritance from wrappers — stacked body cells must re-declare
+    // wrapping on themselves or long text ("· Hãng tàu …") spills past fixed columns.
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/\.shipment-container-ledger__multiline > small\s*\{[^}]*word-break:\s*break-word;/);
     expect(css).toMatch(/tbody > tr > td::before\s*\{[^}]*overflow-wrap:\s*anywhere;[^}]*white-space:\s*normal;/);
@@ -79,8 +83,8 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*16%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*9%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*14%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*11px;[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
