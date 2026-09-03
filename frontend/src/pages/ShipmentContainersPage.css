@@ -93,7 +93,7 @@
    place names (see note below), and status only ever holds a short one/two
    -word badge so it gets the smallest share instead of matching its wide
    sr-only-adjacent siblings. */
-.shipment-container-ledger__col--customer { width: 15%; }
+.shipment-container-ledger__col--customer { width: 12%; }
 .shipment-container-ledger__col--documents { width: 13%; }
 .shipment-container-ledger__col--container { width: 13%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
@@ -104,8 +104,11 @@
 .shipment-container-ledger__col--route { width: 16%; }
 .shipment-container-ledger__col--schedule { width: 13%; }
 .shipment-container-ledger__col--vehicle { width: 9%; }
-.shipment-container-ledger__col--notes { width: 14%; }
-.shipment-container-ledger__col--status { width: 7%; }
+.shipment-container-ledger__col--notes { width: 12%; }
+/* Carries the dispatch label plus the missing-fields warning (moved here
+   from the customer cell so "needs attention" reads next to the status it
+   blocks) — wider than a bare label needs. */
+.shipment-container-ledger__col--status { width: 12%; }
 
 /* Negating the scrollport's top padding (see --sticky-thead-top in tokens.css)
    keeps the header flush with the app-body edge so scrolled rows never peek
@@ -168,9 +171,10 @@
 .shipment-container-ledger__dispatch-badge--in_transit { color: oklch(0.496 0.265 301.924); }
 .shipment-container-ledger__dispatch-badge--completed { color: oklch(0.527 0.154 150.069); }
 
-/* Last-column status cell: read-only text; vertical-align keeps it aligned
-   with the multi-line cells beside it. */
-.shipment-container-ledger__cell--status { display: table-cell; vertical-align: middle; }
+/* Last-column status cell now stacks the dispatch label with the
+   missing-fields warning, so it aligns top like the other multi-line
+   cells instead of centering a single line. */
+.shipment-container-ledger__cell--status { display: table-cell; vertical-align: top; }
 .shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
 
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }

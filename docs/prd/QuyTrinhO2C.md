@@ -1,73 +1,221 @@
-# TÀI LIỆU ĐẶC TẢ QUY TRÌNH VẬN HÀNH & QUYẾT TOÁN (ORDER-TO-CASH)
-**Dự án:** Phần mềm Quản lý Vận tải TTransport 
-**Đơn vị sử dụng:** Công ty Silver Sea
+# Quy Trình O2C: Chứng Từ → Điều Vận → Lái Xe
+
+**Dự án:** TTransport — Silver Sea
 
 ---
 
-## I. MỤC ĐÍCH & PHẠM VI
-*   **Mục đích:** Quy chuẩn hóa toàn bộ luồng luân chuyển thông tin, chứng từ và trách nhiệm của các bộ phận từ khi tiếp nhận yêu cầu vận tải đến khi chốt dữ liệu công nợ.
-*   **Phạm vi hệ thống:** Quy trình này được áp dụng nghiêm ngặt trên phần mềm TTransport. Bất kỳ sự thay đổi nào về luồng thao tác đều phải được phê duyệt.
-*   **Vòng đời tiêu chuẩn của Lô hàng:** (1) `Mới tạo` ➔ (2) `Đã phân xe` ➔ (3) `Đang chạy` ➔ (4) `Chờ duyệt phí` ➔ (5) `Hoàn thành`.
+## Sơ Đồ Tương Tác Tổng Quát
 
-> **Ghi chú quyết định (01/08/2026):** Tạm thời **bỏ trạng thái `Đã khóa`**. Trạng thái kết thúc là `Hoàn thành` — chuyến đi sau khi hoàn thành **vẫn cho phép chỉnh sửa chi phí** (thực tế khách: chuyến xong vẫn phải điều chỉnh chi phí). Tính năng khóa cứng (Read-only) **hoãn lại**, chỉ build khi khách hàng chính thức yêu cầu. Quy tắc xóa: người Create-only được xóa khi tạo sai **trong phiên làm việc hiện tại**; xóa dữ liệu ở phiên cũ phải được Admin/Giám đốc phê duyệt; chi phí/chứng từ đã được duyệt thì cấm xóa. Push notification trong MVP chỉ cơ bản cho **Lái xe** và **Điều vận**; các role khác chỉ làm khi khách đề xuất.
+Toàn bộ thao tác giữa 3 vai trò, theo 4 giai đoạn:
+
+```mermaid
+sequenceDiagram
+    participant CT as 📋 Chứng Từ
+    participant DV as 🚛 Điều Vận
+    participant LX as 🚗 Lái Xe
+
+    CT->>CT: Tạo lô hàng<br/>Hệ thống tự tính cước
+    CT->>CT: Nhập container / hàng lẻ
+    CT->>DV: Gửi lô cho điều vận (bàn giao)
+    DV->>DV: Nhận bàn giao
+
+    DV->>DV: Kế hoạch tổng quát:<br/>phân bổ nhà vận tải (xe nhà / thuê ngoài)
+    DV->>DV: Kế hoạch chi tiết:<br/>gán biển số xe + tài xế từng dòng
+    DV->>DV: Phát lệnh<br/>(kiểm tra xe, rơ-moóc, lịch)
+    DV-->>LX: Thông báo đẩy: có lệnh mới
+
+    LX->>LX: Nhận lệnh
+    LX->>LX: Lấy vỏ/hàng
+    LX->>LX: Đóng/trả hàng
+    LX->>LX: Hạ bãi/giao hàng
+    LX->>LX: Ghi chi phí phát sinh + đổ dầu
+
+    LX->>LX: Nộp e-POD (2 ảnh bắt buộc)
+    LX->>LX: Nhấn "Hoàn thành chuyến"<br/>Tự gửi e-POD + tự ghi mốc còn thiếu
+    LX->>LX: Chuyến hoàn thành
+    LX-->>CT: Lô hoàn thành khi mọi chuyến xong<br/>(hồ sơ chờ chốt — không cần Kế toán)
+    alt Chứng Từ duyệt e-POD
+        CT->>CT: Duyệt + xác nhận thu hồi chứng từ gốc<br/>Hồ sơ khóa
+    else Chứng Từ từ chối
+        CT-->>LX: e-POD bị từ chối
+        LX->>LX: Nộp lại bản mới<br/>(chuyến vẫn hoàn thành)
+    end
+```
 
 ---
 
-## II. ĐẶC TẢ CHI TIẾT QUY TRÌNH
+## Vòng Đời Lô Hàng
 
-### BƯỚC 0: THIẾT LẬP NỀN TẢNG & MA TRẬN PHÂN QUYỀN
-**1. Bộ phận chịu trách nhiệm:** Ban Giám đốc / Quản trị viên (Admin).
-**2. Thao tác nghiệp vụ:** 
-*   Khai báo danh mục chuẩn: Khách hàng, Nhà cung cấp, Bảng giá cước, Định mức nhiên liệu, Danh sách Nhà máy, và Danh sách Xe (phân loại rõ `Xe nhà` và `Xe thuê ngoài`).
-**3. Điểm kiểm soát hệ thống (System Rulers):**
-*   **Kiểm soát bảo mật:** Dữ liệu nhạy cảm (Lợi nhuận, Giá vốn, Lương tài xế, Định mức) chỉ được cấp quyền hiển thị cho Ban Giám đốc và Kế toán. Các bộ phận Điều vận, Hiện trường (Ops) tuyệt đối không được tiếp cận.
-*   **Kiểm soát thao tác:** Áp dụng nguyên tắc "Bảo vệ Dữ liệu". Chỉ tài khoản cấp Giám đốc/Admin mới có quyền Sửa/Xóa dữ liệu gốc. Các vai trò vận hành khác chỉ có quyền Thêm mới (Create-only).
-*   **Quy tắc xóa cho Create-only (quyết định 01/08/2026):** Người Create-only nếu thêm mới sai **vẫn được xóa**, nhưng:
-    *   Chỉ trong **phiên làm việc hiện tại** (session) — tránh việc nhân viên cố tình xóa để phá dữ liệu.
-    *   Xóa dữ liệu của **phiên cũ** → phải được Admin/Giám đốc **phê duyệt**.
-    *   **Ngoại lệ cấm xóa:** Chi phí và chứng từ **đã được Kế toán duyệt** thì không được xóa (bất kỳ ai, bất kỳ phiên nào, dưới quyền duyệt). Chỉ Admin/Giám đốc xử lý.
-*   **Thông báo đẩy (Push Notification) — MVP (quyết định 01/08/2026):** Tạm thời chỉ cài đặt push **cơ bản** cho 2 vai trò: **Lái xe** và **Điều vận**. Các vai trò khác (Kế toán, Giám đốc, Khách hàng) và kênh mail/nhắc nợ **chưa làm** — chỉ build khi khách đề xuất.
+```mermaid
+stateDiagram-v2
+    state "Chờ chốt lịch" as choLich
+    state "Sẵn sàng điều xe" as sanSang
+    state "Đã phân xe" as phanXe
+    state "Đang chạy" as dangChay
+    state "Chờ duyệt phí" as choPhi
+    state "Hoàn thành" as xong
+    state "Đã hủy" as huy
 
-### BƯỚC 1: KHỞI TẠO & KIỂM DUYỆT LÔ HÀNG
-**1. Bộ phận chịu trách nhiệm:** Nhân viên Chứng từ (CUS).
-**2. Thao tác nghiệp vụ:**
-*   Tiếp nhận Booking từ khách hàng và khởi tạo dữ liệu Lô hàng.
-*   Khai báo chi tiết đặc tính hàng hóa: Đối với hàng FCL (Nhập số Cont); Đối với hàng lẻ LCL (Nhập quy cách bao bì, số lượng, khối lượng, CBM).
-*   Thực hiện đối chiếu chéo (Cross-check) dữ liệu trên hệ thống với chứng từ gốc để đảm bảo thông tin truyền tải sang bộ phận Điều vận là chính xác 100%.
-**3. Điểm kiểm soát hệ thống:**
-*   Hệ thống tự động áp mã tính cước dựa trên biểu giá đã ký kết với khách hàng, loại bỏ việc tự gõ giá thủ công.
+    [*] --> choLich : Chứng Từ tạo (thiếu ngày)
+    [*] --> sanSang : Chứng Từ tạo (đủ ngày)
+    choLich --> sanSang : Bổ sung ngày giao
+    sanSang --> phanXe : Điều vận phát lệnh
+    phanXe --> dangChay : Lái xe nhận lệnh
+    dangChay --> xong : Lái xe đóng chuyến cuối
+    dangChay --> choPhi : Còn chuyến chưa xong
+    choPhi --> xong : Chuyến cuối hoàn thành
+    sanSang --> huy
+    phanXe --> huy
+    dangChay --> huy
+    xong --> [*]
+    huy --> [*]
+```
 
-### BƯỚC 2: PHÂN BỔ & ĐIỀU CHUYẾN 
-**1. Bộ phận chịu trách nhiệm:** Điều vận viên.
-**2. Thao tác nghiệp vụ:**
-*   Lập kế hoạch tổng thể: Đánh giá tổng khối lượng hàng trong ngày và thực hiện gán xe dự kiến (gán nháp).
-*   Lập kế hoạch chi tiết: Điều hướng chính xác từng xe cho từng Container/Lô hàng lẻ dựa trên gợi ý nháp.
-*   Xử lý nghiệp vụ kẹp/ghép: Tích chọn các chuyến đi kết hợp 2 chiều để tối ưu hóa năng lực vận tải.
-**3. Điểm kiểm soát hệ thống:**
-*   **Tự động hóa lệnh:** Lệnh điều động được chuyển thẳng tới thiết bị di động (App) của Lái xe.
-*   **Tối ưu hóa giá vốn:** Khi Điều vận khai báo xe chạy "Kẹp hàng" (2 chiều), thuật toán hệ thống sẽ tự động hiệu chỉnh chỉ ghi nhận 1 lần phí cầu đường khép kín, tránh nhân đôi chi phí ảo.
+| Trạng thái | Chịu trách nhiệm |
+|------------|-------------------|
+| Chờ chốt lịch | Chứng Từ |
+| Sẵn sàng điều xe | Chứng Từ |
+| Đã phân xe | Điều vận |
+| Đang chạy | Lái xe |
+| Chờ duyệt phí | Tự động — chờ các chuyến còn lại |
+| Hoàn thành | Lái xe (tự đóng) |
+| Đã hủy | Admin/GĐ |
 
-### BƯỚC 3: THỰC THI & GHI NHẬN CHI PHÍ HIỆN TRƯỜNG
-**1. Bộ phận chịu trách nhiệm:** Nhân viên Hiện trường (Ops) & Lái xe.
-**2. Thao tác nghiệp vụ:**
-*   **Nhân viên Ops:** Thực hiện chi trả hộ các phí bãi/cảng, nhập dữ liệu thực chi lên App kèm ảnh chụp biên lai. Xác nhận và bàn giao chứng từ/lệnh vật lý cho Lái xe.
-*   **Lái xe:** 
-    *   Tiếp nhận lệnh đầy đủ (Giờ cut-off, đóng/trả hàng) và bấm "Xác nhận Lệnh" để tính thời gian bắt đầu.
-    *   Cập nhật thực tế chi phí đi đường, chi phí nâng hạ cho từng container. Chụp ảnh cột bơm/hóa đơn khi đổ nhiên liệu.
-    *   Chụp ảnh số Container/Seal chì báo cáo hoàn thành chuyến đi.
-    *   **Bắt buộc nộp lại Chứng từ gốc về văn phòng sau khi giao hàng.**
-**3. Điểm kiểm soát hệ thống:**
-*   **Kiểm soát gian lận nhiên liệu:** Hệ thống tự động nhận diện dữ liệu từ ảnh chụp hóa đơn đổ dầu và đối chiếu lịch sử định vị lộ trình, làm căn cứ tính toán lợi nhuận gộp tức thời.
-*   **Tự động gom chi phí:** Mọi khoản chi lẻ từ nhiều Ops/Lái xe phát sinh trên cùng 1 lô hàng sẽ được hệ thống tự động gom cụm và đặt ở trạng thái chờ duyệt.
+> Lô 1 chuyến đi thẳng đến hoàn thành. Lô nhiều chuyến tạm dừng ở "Chờ duyệt phí" (tự động) đến khi chuyến cuối hoàn thành. Mỗi bước chuyển đều ghi nhận vào lịch sử.
 
-### BƯỚC 4: ĐỐI CHIẾU, QUYẾT TOÁN & HOÀN THÀNH
-**1. Bộ phận chịu trách nhiệm:** Kế toán / CUS.
-**2. Thao tác nghiệp vụ:**
-*   Rà soát toàn bộ các khoản phí phát sinh do Ops/Lái xe đẩy về. Phân loại rõ nhóm chi hộ CÓ hóa đơn (Nâng hạ, lưu kho) và KHÔNG hóa đơn.
-*   Lọc dữ liệu các chuyến hàng theo Chu kỳ đối soát thực tế của Khách hàng (Ví dụ: T1, T2, T3). Áp dụng mức thuế VAT chuẩn.
-*   Bấm "Hoàn thành" để xuất số liệu sang bảng kê / Debit Note.
-**3. Điểm kiểm soát hệ thống:**
-*   **Không đóng băng dữ liệu (quyết định 01/08/2026):** Chuyến đi sau khi Kế toán xác nhận sẽ chuyển sang trạng thái `Hoàn thành`. **Tạm thời bỏ tính năng "Khóa cứng / Read-only"** — chi phí **vẫn được phép chỉnh sửa tiếp** sau khi hoàn thành (thực tế khách: chuyến xong vẫn phải sửa đổi chi phí). Khóa cứng sẽ bổ sung sau nếu khách yêu cầu.
-*   **Ranh giới POD:** Hệ thống KHÔNG CHO PHÉP chuyển trạng thái sang `Hoàn thành` nếu Kế toán chưa tích xác nhận "Đã thu hồi Chứng từ gốc (POD)".
-*   **Ranh giới Tạm ứng:** Ngay khi phí chi hộ được Kế toán duyệt, hệ thống tự động sinh bút toán cấn trừ vào dư nợ tạm ứng của cá nhân Ops/Lái xe.
-*   **Bàn giao Dữ liệu:** Thao tác "Hoàn thành" là điểm kết thúc nghiệp vụ O2C. Hệ thống tính tổng tiền sau VAT và đẩy một **bản chụp thời điểm (snapshot)** sang Phân hệ Kế toán Công nợ để ghi nhận sổ sách và xuất Debit Note. Vì chưa khóa cứng, nếu chi phí tiếp tục được chỉnh sửa sau đó, hệ thống đánh dấu bản ghi đã thay đổi để Kế toán đối soát lại.
+---
+
+## Bước 1 — Chứng Từ: Khởi Tạo Lô Hàng
+
+1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến**.
+2. Nhập hàng:
+   - **Hàng nguyên container:** nhập danh sách container; hệ thống kiểm tra số container đúng chuẩn, đủ chữ số kiểm tra.
+   - **Hàng lẻ:** nhập quy cách, số lượng, khối lượng, CBM.
+3. Gửi lô cho điều vận — hệ thống tạo **phiếu bàn giao**, lô chuyển **sẵn sàng điều xe**.
+
+**Kiểm soát hệ thống:**
+- **Tính cước tự động** — 3 tầng: theo kg → theo container → điều chỉnh thủ công (dự phòng). Không gõ tay giá.
+- **Số container chuẩn quốc tế (ISO 6346)** — Có chữ số kiểm tra; OCR tự sửa khi nhập gần đúng.
+- **Bàn giao** — Điều vận phải chấp nhận phiếu bàn giao trước khi phân bổ.
+- **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
+
+---
+
+## Bước 2 — Điều Vận: Phân Bổ & Phát Lệnh
+
+Điều vận xử lý qua 2 bước: Kế hoạch tổng quát (phân bổ nhà vận tải) → Kế hoạch chi tiết (gán xe cụ thể) → Phát lệnh.
+
+### 2a. Kế Hoạch Tổng Quát — Phân Bổ Nhà Vận Tải
+
+Điều vận xem các lô sẵn sàng điều xe, phân bổ nhà vận tải (xe nhà / thuê ngoài) theo từng loại container. Hệ thống tự tách mỗi container thành 1 dòng vận chuyển riêng.
+
+Gợi ý theo vùng: ưu tiên xe nhà có điểm hạ bãi hôm trước (D-1) hoặc điểm lấy hàng hôm sau (D+1) cùng vùng.
+
+### 2b. Kế Hoạch Chi Tiết — Gán Xe Cụ Thể
+
+Mỗi dòng vận chuyển được gán biển số xe + tài xế cụ thể. Có thể chọn phân loại chuyến:
+
+| Phân loại | Ghi chú |
+|-----------|---------|
+| Đơn | 1 chiều |
+| Kẹp | 2 chiều |
+| Kết hợp | Ghép chuyến |
+| Lẻ | Hàng lẻ |
+
+> Phân loại là nhãn thao tác theo từng dòng vận chuyển. Riêng đánh dấu "ghép chuyến" áp ở cấp lô hàng — hai thông tin độc lập.
+
+Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
+
+### 2c. Phát Lệnh
+
+Khi Điều vận nhấn **"Phát lệnh"**, hệ thống kiểm tra:
+
+- Xe đang hoạt động, tài xế có tài khoản đăng nhập
+- Rơ-moóc khớp container, trọng lượng ≤ tải trọng
+- Không trùng lịch xe
+
+Hệ thống tạo chuyến, lô chuyển **sẵn sàng → đã phân xe**, và gửi thông báo "Chuyến được điều phối" tới lái xe.
+
+Sau khi phát lệnh, Điều vận vẫn được đổi xe/tài xế tự do — chỉ chặn với lô đã hoàn thành hoặc đã hủy.
+
+---
+
+## Bước 3 — Lái Xe: Thực Thi & Hoàn Thành Chuyến
+
+### Bảng Chuyến Trên App
+
+App lái xe có 3 tab: **Lệnh mới** → **Đã nhận** → **Lịch sử**. Thẻ nhóm theo phân loại (Đơn/Kẹp/Kết hợp/Lẻ).
+
+### Chuỗi Thao Tác Trên Chuyến
+
+Mốc bắt buộc theo thứ tự: **Nhận lệnh → Lấy vỏ/hàng → Đóng/trả hàng → Hạ bãi/giao hàng**.
+
+Sự kiện bổ sung (không bắt buộc): xuất phát, đến nơi, đổ dầu, sự cố, ghi chú.
+
+### Hoàn Thành Chuyến — Lái Xe Tự Đóng
+
+Lái xe nộp e-POD rồi nhấn **"Hoàn thành chuyến"**. Điều kiện:
+
+- Lái xe đã bấm nhận lệnh (thao tác thủ công)
+- Đủ 2 file e-POD bắt buộc đã tải lên (nút bấm tự gửi e-POD)
+- Các mốc còn thiếu (lấy vỏ, đóng/trả, hạ bãi) được tự ghi nhận
+
+Đủ điều kiện → **chuyến hoàn thành ngay**. Lô 1 chuyến hoàn thành luôn; lô nhiều chuyến chờ chuyến cuối (trạng thái "Chờ duyệt phí").
+
+**Tự động bỏ qua:** phê duyệt đặc biệt, thu hồi chứng từ gốc (chưa cần trước khi đóng), xác nhận doanh thu bằng 0, ảnh hiện trường (cont/seal), phạm vi chi phí.
+
+### e-POD (Chứng Từ Điện Tử)
+
+Quy trình theo hướng: **Nháp** (tải ảnh lên) → **Đã gửi** → **Đã duyệt** hoặc **Bị từ chối** (lái xe sửa lại rồi nộp bản mới).
+
+**2 file bắt buộc:** phiếu hạ bãi/trả hàng + biên bản giao nhận đã ký.
+
+**File tùy chọn:** vé cầu đường.
+
+> e-POD chỉ cần đã gửi là chuyến hoàn thành. Chứng Từ duyệt/từ chối SAU khi hoàn thành — không chặn luồng.
+
+### Chi Phí Phát Sinh
+
+Lái xe nhập chi phí trực tiếp trên app:
+
+- **Nhập tay:** Phí nâng/hạ, cầu đường, đỗ xe, rửa/hàn cont, cân lốp
+- **Tự tính (không sửa được):** Tiền đường (từ chuyến), phí nâng/hạ Lạch Huyên (50k)
+- **Đổ dầu (riêng):** Chụp ảnh cột bơm → hệ thống đọc số lít, đơn giá, tổng tiền + GPS → đối chiếu lộ trình, phát hiện bất thường
+
+> Chi phí chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi.
+
+---
+
+## Bước 4 — Chứng Từ: Chốt Hồ Sơ Sau Chuyến
+
+Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ đã hoàn thành:
+
+- **Duyệt e-POD** — chỉ vai trò Chứng Từ mới được duyệt. Chấp nhận phải kèm xác nhận đã thu hồi chứng từ gốc.
+- **Từ chối e-POD** — lái xe nộp lại bản mới; chuyến vẫn hoàn thành, không mở lại.
+- **Chốt hồ sơ** — lô hoàn thành → hồ sơ khóa, không sửa trực tiếp được; mở lại phải qua phê duyệt Admin.
+
+**Nhóm hồ sơ Chứng Từ** (tự suy ra từ trạng thái lô, theo hướng **Mới → Đang chạy → Chờ khóa → Đã khóa**):
+
+| Nhóm hồ sơ | Khi nào | Ý nghĩa |
+|------------|---------|---------|
+| Mới | Lô vừa tạo, chưa phát lệnh | Chưa có chuyến |
+| Đang chạy | Đã phát lệnh / đang chạy | Chờ các chuyến hoàn thành |
+| Chờ khóa | Hoàn thành một phần (còn chuyến chưa xong) | Sắp chốt hồ sơ |
+| Đã khóa | Lô hoàn thành | Hồ sơ cuối — không sửa trực tiếp được |
+
+> Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này.
+
+---
+
+## Quy Tắc Hệ Thống
+
+| Quy tắc | Chi tiết |
+|---------|----------|
+| **Xóa dữ liệu** | Bản tạo mới được xóa trong phiên hiện tại. Phiên cũ → Admin/GĐ phê duyệt |
+| **Chi phí đã duyệt** | Cấm xóa (bất kỳ ai) |
+| **Thông báo đẩy** | Lái xe nhận thông báo: lệnh mới, hủy lệnh, phạt. Điều vận nhận sự kiện lô hàng |
+| **Lái xe tự đóng chuyến** | Không cần Kế toán duyệt — e-POD đã gửi là đủ |
+| **Duyệt e-POD** | Chỉ Chứng Từ duyệt — sau hoàn thành, không chặn. Chấp nhận cần xác nhận đã thu hồi chứng từ gốc |
+| **Chốt hồ sơ** | Lô hoàn thành → hồ sơ khóa — không sửa trực tiếp được, mở lại phải qua phê duyệt Admin |
+| **Yêu cầu thay đổi** | Chứng Từ sửa lô sau phát lệnh → tạo yêu cầu thay đổi (không sửa trực tiếp) |
+| **Phân loại chuyến** | Nhãn thao tác (Đơn/Kẹp/Kết hợp/Lẻ). Đánh dấu ghép chuyến độc lập theo lô |

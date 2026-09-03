@@ -674,19 +674,6 @@ export function ShipmentContainerLedger({
                       <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
                       <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
-                      {row.informationStatus === 'MISSING' && (
-                        <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
-                          <AlertTriangle aria-hidden="true" />
-                          <span className="shipment-container-ledger__missing-fields-text">
-                            <span className="shipment-container-ledger__missing-fields-label">Chưa cập nhật:</span>
-                            <span className="shipment-container-ledger__missing-fields-list" role="list" aria-label="Thông tin còn thiếu">
-                              {row.missingFields.map((field) => (
-                                <span key={field.code} role="listitem">{field.label}</span>
-                              ))}
-                            </span>
-                          </span>
-                        </span>
-                      )}
                     </div>)}
                   </th>
                   <td data-label="Chứng từ & hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
@@ -736,7 +723,22 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
                   <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
-                    <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
+                    <div className="shipment-container-ledger__multiline">
+                      <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
+                      {row.informationStatus === 'MISSING' && (
+                        <span className="shipment-container-ledger__row-warning shipment-container-ledger__missing-fields">
+                          <AlertTriangle aria-hidden="true" />
+                          <span className="shipment-container-ledger__missing-fields-text">
+                            <span className="shipment-container-ledger__missing-fields-label">Chưa cập nhật:</span>
+                            <span className="shipment-container-ledger__missing-fields-list" role="list" aria-label="Thông tin còn thiếu">
+                              {row.missingFields.map((field) => (
+                                <span key={field.code} role="listitem">{field.label}</span>
+                              ))}
+                            </span>
+                          </span>
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
