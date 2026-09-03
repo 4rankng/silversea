@@ -10,34 +10,26 @@ Toàn bộ thao tác giữa 3 vai trò, theo 4 giai đoạn:
 
 ```mermaid
 sequenceDiagram
-    autonumber
     participant CT as 📋 Chứng Từ
     participant DV as 🚛 Điều Vận
     participant LX as 🚗 Lái Xe
 
-    Note over CT,DV: GIAI ĐOẠN 1 — KHỞI TẠO & BÀN GIAO LÔ HÀNG
     CT->>CT: Tạo lô hàng<br/>Hệ thống tự tính cước
     CT->>CT: Nhập container / hàng lẻ
     CT->>DV: Gửi lô cho điều vận (bàn giao)
-    Note over CT: Lô sẵn sàng điều xe
     DV->>DV: Nhận bàn giao
 
-    Note over DV,LX: GIAI ĐOẠN 2 — KẾ HOẠCH & PHÁT LỆNH
     DV->>DV: Kế hoạch tổng quát:<br/>phân bổ nhà vận tải (xe nhà / thuê ngoài)
     DV->>DV: Kế hoạch chi tiết:<br/>gán biển số xe + tài xế từng dòng
     DV->>DV: Phát lệnh<br/>(kiểm tra xe, rơ-moóc, lịch)
     DV-->>LX: Thông báo đẩy: có lệnh mới
-    Note over DV: Lô đã phân xe<br/>Đổi xe/tài xế sau phát lệnh: tự do
 
-    Note over LX: GIAI ĐOẠN 3 — THỰC THI CHUYẾN
     LX->>LX: Nhận lệnh
-    Note over LX: Lô đang chạy
     LX->>LX: Lấy vỏ/hàng
     LX->>LX: Đóng/trả hàng
     LX->>LX: Hạ bãi/giao hàng
     LX->>LX: Ghi chi phí phát sinh + đổ dầu
 
-    Note over LX,CT: GIAI ĐOẠN 4 — HOÀN THÀNH & CHỐT HỒ SƠ
     LX->>LX: Nộp e-POD (2 ảnh bắt buộc)
     LX->>LX: Nhấn "Hoàn thành chuyến"<br/>Tự gửi e-POD + tự ghi mốc còn thiếu
     LX->>LX: Chuyến hoàn thành
