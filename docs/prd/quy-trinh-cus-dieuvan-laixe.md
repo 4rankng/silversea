@@ -4,45 +4,55 @@
 
 ---
 
-## Tổng Quan Luồng Xử Lý
+## Sơ Đồ Tương Tác Tổng Quát
+
+Toàn bộ thao tác giữa 3 vai trò, theo 4 giai đoạn:
 
 ```mermaid
 sequenceDiagram
+    autonumber
     participant CT as 📋 Chứng Từ (CUS)
     participant DV as 🚛 Điều Vận
     participant LX as 🚗 Lái Xe
-    participant KT as 💰 Kế Toán
 
-    CT->>CT: Tiếp nhận booking, tạo lô hàng
-    CT->>CT: Nhập container (ISO 6346) / LCL
-    CT->>CT: Hệ thống tự động tính cước
-    CT->>DV: Submit lô hàng + Handoff
+    Note over CT,DV: GIAI ĐOẠN 1 — KHỞI TẠO & BÀN GIAO LÔ HÀNG
+    CT->>CT: Tạo lô hàng (SHP-YYMM-XXXXX)<br/>Hệ thống tự tính cước
+    CT->>CT: Nhập container (ISO 6346) / hàng lẻ
+    CT->>DV: Gửi lô — tạo bàn giao (UNSEEN)
+    Note over CT: Lô → READY_FOR_DISPATCH
+    DV->>DV: Xem và chấp nhận bàn giao (ACCEPTED)
 
-    DV->>DV: Master Plan: Phân bổ nhà vận tải
-    DV->>DV: Detail Plan: Gán xe + tài xế
-    DV->>LX: Phát lệnh điều xe (Push notification)
+    Note over DV,LX: GIAI ĐOẠN 2 — KẾ HOẠCH & PHÁT LỆNH
+    DV->>DV: Kế hoạch tổng quát:<br/>phân bổ nhà vận tải (OWN/EXTERNAL)
+    DV->>DV: Kế hoạch chi tiết:<br/>gán biển số xe + tài xế từng dòng
+    DV->>DV: Phát lệnh<br/>(kiểm tra xe, rơ-moóc, lịch)
+    DV-->>LX: Thông báo đẩy: có lệnh mới
+    Note over DV: Lô → DISPATCHED<br/>Đổi xe/tài xế sau phát lệnh: tự do
 
+    Note over LX: GIAI ĐOẠN 3 — THỰC THI CHUYẾN
     LX->>LX: Nhận lệnh (ORDER_RECEIVED)
-    LX->>LX: Lấy hàng (PICKED_UP)
+    Note over LX: Lô → IN_TRANSIT
+    LX->>LX: Lấy vỏ/hàng (PICKED_UP)
     LX->>LX: Đóng/trả hàng (LOADING_OR_RETURNING)
-    LX->>LX: Giao hàng (DELIVERED)
-    LX->>LX: Chụp ảnh Cont/Seal + Đổ dầu (OCR)
-    LX->>CT: Nộp e-POD (SUBMITTED)
+    LX->>LX: Hạ bãi/giao hàng (DELIVERED)
+    LX->>LX: Ghi chi phí phát sinh + đổ dầu (OCR + GPS)
 
-    CT->>CT: Duyệt e-POD + Xác nhận thu hồi POD gốc
-    CT->>KT: Khóa sổ (Accounting Lock)
-
-    KT->>KT: Rà soát chi phí (FinanceSnapshot)
-    KT->>KT: Xác nhận chi phí (SHIPMENT_COST_CONFIRMATION)
-    KT->>KT: Đóng lô hàng → COMPLETED
-    KT->>KT: Snapshot → Debit Note
+    Note over LX,CT: GIAI ĐOẠN 4 — HOÀN THÀNH & CHỐT HỒ SƠ
+    LX->>LX: Nộp e-POD (2 ảnh bắt buộc)
+    LX->>LX: Nhấn "Hoàn thành chuyến"<br/>Tự gửi e-POD + tự ghi mốc còn thiếu
+    LX->>LX: Chuyến → COMPLETED
+    LX-->>CT: Lô COMPLETED khi mọi chuyến xong<br/>(hồ sơ chờ chốt — không cần Kế toán)
+    alt CUS duyệt e-POD
+        CT->>CT: Duyệt + xác nhận thu hồi POD gốc<br/>Hồ sơ → LOCKED
+    else CUS từ chối
+        CT-->>LX: e-POD REJECTED
+        LX->>LX: Nộp lại bản mới<br/>(chuyến vẫn COMPLETED)
+    end
 ```
 
 ---
 
 ## Vòng Đời Lô Hàng
-
-Lô hàng có 8 trạng thái, chuyển đổi tự động hoặc do thao tác người dùng:
 
 ```mermaid
 stateDiagram-v2
@@ -52,17 +62,13 @@ stateDiagram-v2
     PENDING_DATE --> READY_FOR_DISPATCH : Bổ sung ngày giao
     READY_FOR_DISPATCH --> DISPATCHED : Điều vận phát lệnh
     DISPATCHED --> IN_TRANSIT : Lái xe nhận lệnh
-    IN_TRANSIT --> PENDING_EXPENSE_APPROVAL : Lái xe hoàn thành chuyến
-    PENDING_EXPENSE_APPROVAL --> COMPLETED : Kế toán đóng lô
-
-    IN_TRANSIT --> DISPATCHED : Điều chỉnh
-    PENDING_EXPENSE_APPROVAL --> IN_TRANSIT : Mở lại
-    PENDING_EXPENSE_APPROVAL --> DISPATCHED : Điều chỉnh
+    IN_TRANSIT --> COMPLETED : Lái xe hoàn thành (chuyến cuối)
+    IN_TRANSIT --> PENDING_EXPENSE_APPROVAL : Còn chuyến chưa xong
+    PENDING_EXPENSE_APPROVAL --> COMPLETED : Chuyến cuối hoàn thành
 
     READY_FOR_DISPATCH --> CANCELED
     DISPATCHED --> CANCELED
     IN_TRANSIT --> CANCELED
-    PENDING_EXPENSE_APPROVAL --> CANCELED
 
     COMPLETED --> [*]
     CANCELED --> [*]
@@ -74,17 +80,15 @@ stateDiagram-v2
 | `READY_FOR_DISPATCH` | Sẵn sàng điều xe | CUS |
 | `DISPATCHED` | Đã phân xe | Điều vận |
 | `IN_TRANSIT` | Đang chạy | Lái xe |
-| `PENDING_EXPENSE_APPROVAL` | Chờ duyệt phí | Kế toán |
-| `COMPLETED` | Hoàn thành | Kế toán |
+| `PENDING_EXPENSE_APPROVAL` | Chờ duyệt phí | Tự động — chờ các chuyến còn lại |
+| `COMPLETED` | Hoàn thành | Lái xe (tự đóng) |
 | `CANCELED` | Đã hủy | Admin/GĐ |
 
-> `TripStatus.LOCKED` đã bị xóa — chi phí vẫn chỉnh sửa sau `COMPLETED`, hệ thống dùng `arSnapshotDirty` flag theo dõi thay đổi.
+> Lô 1 chuyến đi thẳng `IN_TRANSIT → COMPLETED`. Lô nhiều chuyến tạm dừng ở `PENDING_EXPENSE_APPROVAL` (tự động) đến khi chuyến cuối hoàn thành. Mỗi bước chuyển đều ghi vào lịch sử trạng thái.
 
 ---
 
 ## Bước 1 — Chứng Từ (CUS): Khởi Tạo Lô Hàng
-
-CUS tiếp nhận booking từ khách hàng, tạo lô hàng trên hệ thống, nhập container, và submit cho Điều vận.
 
 ```mermaid
 sequenceDiagram
@@ -94,13 +98,13 @@ sequenceDiagram
 
     KH->>CUS: Gửi booking
     CUS->>SYS: POST /shipments/quick
-    SYS-->>CUS: Mã lô (SHP-YYMM-XXXXX) + Giá cước dự kiến
+    SYS-->>CUS: Mã lô (SHP-YYMM-XXXXX) + giá cước dự kiến
 
-    alt Hàng FCL
+    alt Hàng nguyên container (FCL)
         CUS->>SYS: PUT /shipments/:id/containers
-        SYS->>SYS: Validate ISO 6346 (format + check digit)
-    else Hàng LCL
-        CUS->>SYS: Nhập quy cách, SL, khối lượng, CBM
+        SYS->>SYS: Kiểm tra ISO 6346 (định dạng + chữ số kiểm tra)
+    else Hàng lẻ (LCL)
+        CUS->>SYS: Nhập quy cách, số lượng, khối lượng, CBM
     end
 
     CUS->>SYS: POST /submit-for-dispatch
@@ -109,26 +113,26 @@ sequenceDiagram
 ```
 
 **Kiểm soát hệ thống:**
-- **Auto-pricing** — 3 tier: TIER (bulk/KG) → TABLE (fixed/cont) → MANUAL (fallback). Không gõ tay giá.
-- **ISO 6346** — Format `XXXXNNNNNNN` + check digit. Có OCR auto-correction cho nhập liệu gần đúng.
-- **Handoff** — CUS submit tạo `dispatch_handoff` (UNSEEN → SEEN → ACCEPTED/REJECTED), Điều vận phải chấp nhận trước khi phân bổ.
-- **Idempotent** — Dùng `Idempotency-Key` header, trả 201 lần đầu, 200 khi replay.
+- **Tính cước tự động** — 3 tầng: TIER (theo KG) → TABLE (theo cont) → MANUAL (dự phòng). Không gõ tay giá.
+- **ISO 6346** — Định dạng `XXXXNNNNNNN` + chữ số kiểm tra. Có OCR tự sửa khi nhập gần đúng.
+- **Bàn giao** — Khi CUS gửi lô, hệ thống tạo `dispatch_handoff` (UNSEEN → SEEN → ACCEPTED/REJECTED), Điều vận phải chấp nhận trước khi phân bổ.
+- **Gọi lặp an toàn** — Dùng `Idempotency-Key`: trả 201 lần đầu, 200 khi gọi lại.
 
 ---
 
 ## Bước 2 — Điều Vận: Phân Bổ & Phát Lệnh
 
-Điều vận xử lý qua 2 bước: Master Plan (phân bổ nhà vận tải) → Detail Plan (gán xe cụ thể) → Phát lệnh.
+Điều vận xử lý qua 2 bước: Kế hoạch tổng quát (phân bổ nhà vận tải) → Kế hoạch chi tiết (gán xe cụ thể) → Phát lệnh.
 
-### 2a. Master Plan — Phân Bổ Nhà Vận Tải
+### 2a. Kế Hoạch Tổng Quát — Phân Bổ Nhà Vận Tải
 
-Điều vận xem các lô `READY_FOR_DISPATCH`, phân bổ nhà vận tải (OWN / EXTERNAL) theo từng loại container. Hệ thống tự động split mỗi container thành 1 fulfillment row.
+Điều vận xem các lô `READY_FOR_DISPATCH`, phân bổ nhà vận tải (OWN / EXTERNAL) theo từng loại container. Hệ thống tự tách mỗi container thành 1 dòng thực chuyển (fulfillment).
 
-Zone-based suggestions: gợi ý xe nhà có dropoff D-1 hoặc pickup D+1 cùng zone.
+Gợi ý theo vùng: ưu tiên xe nhà có điểm hạ bãi hôm trước (D-1) hoặc điểm lấy hàng hôm sau (D+1) cùng vùng.
 
-### 2b. Detail Plan — Gán Xe Cụ Thể
+### 2b. Kế Hoạch Chi Tiết — Gán Xe Cụ Thể
 
-Mỗi fulfillment row được gán biển số xe + tài xế cụ thể. Có thể chọn phân loại chuyến:
+Mỗi dòng thực chuyển được gán biển số xe + tài xế cụ thể. Có thể chọn phân loại chuyến:
 
 | Phân loại | Nhãn | Ghi chú |
 |-----------|------|---------|
@@ -137,7 +141,7 @@ Mỗi fulfillment row được gán biển số xe + tài xế cụ thể. Có t
 | `COMBINED` | Kết hợp | Ghép chuyến |
 | `LCL` | Lẻ | Hàng lẻ |
 
-> `classification` là label thao tác (fulfillment-level). `isCombined` là flag shipment-level. Hai field độc lập.
+> `classification` là nhãn thao tác (theo từng dòng thực chuyển). `isCombined` là cờ ở cấp lô hàng. Hai trường độc lập.
 
 ### 2c. Phát Lệnh
 
@@ -148,162 +152,107 @@ sequenceDiagram
     participant LX as Lái Xe
 
     DV->>SYS: Nhấn "Phát lệnh"
-    SYS->>SYS: Validate truck ACTIVE, driver có login account
-    SYS->>SYS: Check trailer khớp container, trọng lượng ≤ capacity
-    SYS->>SYS: Check không trùng lịch (resource availability)
-    SYS->>SYS: Tạo trip + READY_FOR_DISPATCH → DISPATCHED
-    SYS->>LX: Push: "Chuyến được điều phối"
+    SYS->>SYS: Kiểm tra xe đang hoạt động (ACTIVE), tài xế có tài khoản đăng nhập
+    SYS->>SYS: Kiểm tra rơ-moóc khớp container, trọng lượng ≤ tải trọng
+    SYS->>SYS: Kiểm tra không trùng lịch xe
+    SYS->>SYS: Tạo chuyến + lô READY_FOR_DISPATCH → DISPATCHED
+    SYS->>LX: Thông báo: "Chuyến được điều phối"
 ```
 
-**Dispatch Issue Status** (fulfillment-level):
+Trạng thái phát lệnh theo từng dòng thực chuyển: **Chưa xếp xe** (`UNASSIGNED`) → **Đã gán biển số** (`PLATED_NOT_ISSUED`) → **Đã phát lệnh** (`ISSUED`).
 
-```mermaid
-stateDiagram-v2
-    [*] --> UNASSIGNED : Chưa xếp xe
-    UNASSIGNED --> PLATED_NOT_ISSUED : Gán biển số
-    PLATED_NOT_ISSUED --> ISSUED : Phát lệnh
-```
+Sau khi phát lệnh, Điều vận vẫn được đổi xe/tài xế tự do — chỉ chặn với lô đã hoàn thành hoặc đã hủy.
 
 ---
 
-## Bước 3 — Lái Xe: Thực Thi Chuyến Đi
+## Bước 3 — Lái Xe: Thực Thi & Hoàn Thành Chuyến
 
-Lái xe nhận lệnh trên App, thực hiện chuyến theo chuỗi milestone, ghi nhận chi phí, và nộp e-POD.
+### Bảng Chuyến Trên App
 
-### Journey Board
+App lái xe có 3 tab: **Lệnh mới** → **Đã nhận** → **Lịch sử**. Thẻ nhóm theo phân loại (Đơn/Kẹp/Kết hợp/Lẻ).
 
-App lái xe có 3 tab: **Lệnh mới** → **Đã nhận** → **Lịch sử**. Cards nhóm theo phân loại (Đơn/Kẹp/Kết hợp/Lẻ).
+### Chuỗi Thao Tác Trên Chuyến
 
-### Chuỗi Milestone
-
-```mermaid
-flowchart LR
-    A["ORDER_RECEIVED\nNhận lệnh"] --> B["PICKED_UP\nLấy vỏ/hàng"]
-    B --> C["LOADING_OR_RETURNING\nĐóng/trả hàng"]
-    C --> D["DELIVERED\nHạ bãi/giao hàng"]
-    D --> E["Nộp e-POD"]
-    E --> F["Hoàn thành trip"]
-```
+Mốc bắt buộc theo thứ tự: `ORDER_RECEIVED` (nhận lệnh) → `PICKED_UP` (lấy vỏ/hàng) → `LOADING_OR_RETURNING` (đóng/trả hàng) → `DELIVERED` (hạ bãi/giao hàng).
 
 Sự kiện bổ sung (không bắt buộc): `DEPARTED`, `ARRIVED`, `FUELED`, `INCIDENT`, `NOTE`.
 
-### Chi Phí Phát Sinh
+### Hoàn Thành Chuyến
 
-Lái xe nhập chi phí trực tiếp trên App:
+```mermaid
+flowchart TD
+    A["Lái xe nộp e-POD\n(phiếu hạ bãi + biên bản ký)"] --> B["Nhấn 'Hoàn thành chuyến'"]
+    B --> C["Tự ghi mốc còn thiếu\n(trừ ORDER_RECEIVED)"]
+    C --> D{"Đủ 2 file e-POD\nbắt buộc?"}
+    D -->|Không| E["❌ Chặn hoàn thành"]
+    D -->|Có| F["Chuyến → COMPLETED"]
+    F --> G["Lô 1 chuyến → COMPLETED\nCòn chuyến → PENDING_EXPENSE_APPROVAL\n(chờ chuyến cuối)"]
+```
 
-- **Nhập tay:** Phí nâng/hạ, cầu đường, đỗ xe, rửa/hàn cont, cân lọp
-- **Tự động (read-only):** Tiền đường (từ trip), Phí nâng/ha Lạch Huyên (50k)
-- **Đổ dầu (riêng):** Chụp ảnh cột bơm → OCR (lít, đơn giá, tổng) + GPS → đối chiếu lộ trình phát hiện bất thường
+**Điều kiện (lái xe tự đóng chuyến):**
+- Lái xe đã nhận lệnh (ORDER_RECEIVED — bấm thủ công, không tự động)
+- Đủ 2 file e-POD bắt buộc đã tải lên (nút bấm tự chuyển e-POD DRAFT → SUBMITTED)
+- Các mốc còn thiếu (PICKED_UP, LOADING_OR_RETURNING, DELIVERED) được tự ghi nhận
 
-Mọi chi phí gom cụm theo lô hàng, chuyển trạng thái chờ duyệt.
+**Tự động bỏ qua:**
+- Phê duyệt đặc biệt (governance) — không cần duyệt trước
+- Thu hồi chứng từ gốc (`podRecoveredAt`) — không cần trước khi đóng
+- Xác nhận doanh thu bằng 0 — tự xác nhận
+- Ảnh hiện trường (cont/seal) — tự bỏ qua
+- Phạm vi chi phí — không yêu cầu
 
 ### e-POD (Chứng Từ Điện Tử)
 
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT : Tạo e-POD
-    DRAFT --> DRAFT : Upload ảnh
+    DRAFT --> DRAFT : Tải ảnh lên
     DRAFT --> SUBMITTED : Gửi duyệt
-    SUBMITTED --> ACCEPTED : CUS duyệt
+    SUBMITTED --> ACCEPTED : CUS duyệt (sau hoàn thành)
     SUBMITTED --> REJECTED : CUS từ chối
     REJECTED --> DRAFT : Sửa lại
     ACCEPTED --> [*]
 ```
 
-**2 file bắt buộc:** Phiếu hạ bãi/trả hàng (`YARD_OR_DROP_RECEIPT`) + Biên bản giao nhận đã ký (`SIGNED_DELIVERY_NOTE`).
+**2 file bắt buộc:** Phiếu hạ bãi/trả hàng (`YARD_OR_DROP_RECEIPT`) + biên bản giao nhận đã ký (`SIGNED_DELIVERY_NOTE`).
 
-**Tùy chọn:** Vé cầu đường (`TOLL_TICKET`).
+**File tùy chọn:** Vé cầu đường (`TOLL_TICKET`).
 
-### Hoàn Thành Trip
+> e-POD chỉ cần SUBMITTED để hoàn thành chuyến. CUS duyệt/từ chối SAU khi hoàn thành — không chặn luồng.
 
-Khi lái xe nhấn "Hoàn thành", hệ thống kiểm tra:
+### Chi Phí Phát Sinh
 
-1. Tất cả 4 milestone đã ghi nhận (ORDER_RECEIVED → DELIVERED)
-2. Cả 2 file e-POD đã upload
-3. e-POD status = SUBMITTED hoặc ACCEPTED
+Lái xe nhập chi phí trực tiếp trên app:
 
-Đủ điều kiện → trip chuyển `COMPLETED`. Nếu tất cả trip trong lô đều COMPLETED + e-POD SUBMITTED → shipment chuyển `PENDING_EXPENSE_APPROVAL`.
+- **Nhập tay:** Phí nâng/hạ, cầu đường, đỗ xe, rửa/hàn cont, cân lốp
+- **Tự tính (không sửa được):** Tiền đường (từ chuyến), phí nâng/hạ Lạch Huyên (50k)
+- **Đổ dầu (riêng):** Chụp ảnh cột bơm → OCR (lít, đơn giá, tổng) + GPS → đối chiếu lộ trình, phát hiện bất thường
 
-> Driver-close path bỏ qua gate Kế toán — lái xe có thể tự đóng trip mà không cần Kế toán duyệt trước.
-
----
-
-## Bước 4 — Đối Soát & Quyết Toán
-
-### CUS: Duyệt e-POD
-
-```mermaid
-sequenceDiagram
-    participant LX as Lái Xe
-    participant CUS as Chứng Từ
-    participant SYS as Hệ thống
-
-    LX->>SYS: Submit e-POD (SUBMITTED)
-    SYS->>CUS: Thông báo chờ duyệt
-    CUS->>SYS: Xem e-POD + Xác nhận thu hồi POD gốc
-    SYS->>SYS: Set podRecoveredAt
-    SYS->>SYS: Recompute shipment completion
-```
-
-Chỉ CUS mới duyệt e-POD. Bắt buộc xác nhận đã thu hồi chứng từ gốc (POD) trước khi duyệt.
-
-### Kế Toán: Xác Nhận & Đóng Lô
-
-```mermaid
-flowchart TD
-    A["Shipment: PENDING_EXPENSE_APPROVAL"] --> B["Kế toán rà soát chi phí"]
-    B --> C["confirmShipmentFinance\nFinanceSnapshot + checksum"]
-    C --> D["Governance: SHIPMENT_COST_CONFIRMATION"]
-    D --> E["CUS khóa sổ (Accounting Lock)"]
-    E --> F["Kế toán completeShipmentDirect"]
-    F --> G["Shipment → COMPLETED"]
-    G --> H["Snapshot → Debit Note + AR dirty-flag"]
-```
-
-**Điều kiện đóng lô:** Shipment ở `PENDING_EXPENSE_APPROVAL` + Snapshot checksum khớp + VAT 0/5/8/10% + Maker-checker (CUS duyệt POD ≠ Kế toán đóng lô).
-
-### Accounting Lock
-
-CUS khóa sổ sau khi Kế toán xác nhận → mọi mutation trực tiếp bị chặn (status change, soft delete, POD review, change request). Muốn mở lại: CUS đề nghị → Admin phê duyệt → Debit Note chuyển `ADJUSTMENT_REQUIRED`.
-
-### Tạm Ứng & Cấn Trừ
-
-Phiếu tạm ứng qua lifecycle: `PENDING` → `CHECKED_BY_ACCOUNTANT` → `APPROVED`. Khi approve: chi phí tự động APPROVED, post SERVICE_FEE vào sổ CUSTOMER, post OPS_SETTLEMENT vào sổ FORWARDER (cấn trừ tạm ứng).
+> Chi phí chưa cần duyệt trong luồng chính — xử lý sau, ngoài phạm vi.
 
 ---
 
-## Toàn Cảnh Flow
+## Bước 4 — Chứng Từ (CUS): Chốt Hồ Sơ Sau Chuyến
+
+Sau khi lái xe hoàn thành, CUS xử lý chứng từ trên hồ sơ đã COMPLETED:
+
+- **Duyệt e-POD** — chỉ vai trò CUS mới được duyệt. Chấp nhận phải kèm xác nhận đã thu hồi chứng từ gốc (ghi `podRecoveredAt`).
+- **Từ chối e-POD** — lái xe nộp lại bản mới; chuyến vẫn COMPLETED, không mở lại.
+- **Chốt hồ sơ** — lô COMPLETED → hồ sơ LOCKED, CUS không sửa trực tiếp được; mở lại phải qua phê duyệt Admin.
+
+**Nhóm hồ sơ CUS** (tự suy ra từ trạng thái lô):
 
 ```mermaid
-flowchart TB
-    subgraph CUS["👤 Chứng Từ (CUS)"]
-        C1["Tạo lô hàng"] --> C2["Nhập Cont / LCL"]
-        C2 --> C3["Submit + Handoff"]
-        C4["Duyệt e-POD"] --> C5["Khóa sổ"]
-    end
-
-    subgraph DV["🚛 Điều Vận"]
-        D1["Master Plan\nPhân bổ NVTC"] --> D2["Detail Plan\nGán xe + tài xế"]
-        D2 --> D3["Phát lệnh"]
-    end
-
-    subgraph LX["🚗 Lái Xe"]
-        L1["Nhận lệnh"] --> L2["Lấy hàng"]
-        L2 --> L3["Đóng/trả hàng"]
-        L3 --> L4["Giao hàng"]
-        L4 --> L5["Nộp e-POD"]
-    end
-
-    subgraph KT["💰 Kế Toán"]
-        K1["Rà soát chi phí"] --> K2["Xác nhận"]
-        K2 --> K3["Đóng lô"]
-    end
-
-    C3 -->|"Handoff"| D1
-    D3 -->|"Push"| L1
-    L5 -->|"e-POD"| C4
-    C5 --> K1
+stateDiagram-v2
+    [*] --> NEW : Lô mới
+    NEW --> RUNNING : Phát lệnh / đang chạy
+    RUNNING --> PENDING_LOCK : Hoàn thành một phần
+    RUNNING --> LOCKED : Lô COMPLETED
+    PENDING_LOCK --> LOCKED : Chuyến cuối hoàn thành
+    LOCKED --> [*]
 ```
+
+> Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này.
 
 ---
 
@@ -311,11 +260,11 @@ flowchart TB
 
 | Quy tắc | Chi tiết |
 |---------|----------|
-| **Xóa dữ liệu** | Create-only được xóa trong phiên hiện tại. Phiên cũ → Admin/GĐ phê duyệt |
+| **Xóa dữ liệu** | Bản tạo mới được xóa trong phiên hiện tại. Phiên cũ → Admin/GĐ phê duyệt |
 | **Chi phí đã duyệt** | Cấm xóa (bất kỳ ai) |
-| **Push Notification** | Lái xe: TRIP_DISPATCHED, TRIP_CANCELED, PENALTY. Điều vận: shipment events |
-| **POD Gate** | CUS duyệt e-POD + xác nhận thu hồi POD gốc → mới chuyển Hoàn thành |
-| **Driver-close bypass** | Lái xe tự đóng trip → bỏ qua gate Kế toán (chỉ cần e-POD SUBMITTED) |
-| **Accounting Lock** | CUS khóa sổ → mọi mutation phải qua governance (Admin phê duyệt mở lại) |
-| **Change Request** | CUS sửa lô sau dispatch → tạo change request (không sửa trực tiếp) |
-| **Tạm ứng** | PENDING → CHECKED → APPROVED. Auto-cấn trừ khi approve |
+| **Thông báo đẩy** | Lái xe: TRIP_DISPATCHED, TRIP_CANCELED, PENALTY. Điều vận: sự kiện lô hàng |
+| **Lái xe tự đóng chuyến** | Không cần Kế toán duyệt — e-POD SUBMITTED là đủ |
+| **Duyệt e-POD** | Chỉ CUS duyệt — sau hoàn thành, không chặn. Chấp nhận cần xác nhận đã thu hồi POD gốc |
+| **Chốt hồ sơ** | Lô COMPLETED → nhóm hồ sơ LOCKED — không sửa trực tiếp được, mở lại phải qua phê duyệt Admin |
+| **Yêu cầu thay đổi** | CUS sửa lô sau phát lệnh → tạo yêu cầu thay đổi (không sửa trực tiếp) |
+| **Phân loại chuyến** | Nhãn thao tác (SINGLE/DOUBLE/COMBINED/LCL). Cờ `isCombined` độc lập |
