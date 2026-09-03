@@ -341,7 +341,7 @@ deploy-health: ## Check public prod backend and frontend endpoints
 	done
 	@echo "  Frontend: https://$(PROD_SERVER)/"
 	@attempt=1; \
-	while [ "$$attempt" -le 12; do \
+	while [ "$$attempt" -le 12 ]; do \
 		if curl -fsS --max-time 10 -o /dev/null https://$(PROD_SERVER)/; then \
 			echo "    public HTTP check passed"; \
 			exit 0; \
