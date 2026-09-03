@@ -34,7 +34,12 @@ const norm = (v: string | null | undefined): string => (v ?? '').trim().toLowerC
 
 export async function seedProdUsers(passwordHash: string): Promise<void> {
   console.log('Seeding prod staff + driver logins...');
-  for (const u of prodStaff) {
+  // The sheet lists only NV001..NV022; the shared admin login is a bootstrap
+  // entry prepended here so a fresh provision gets it from the seed itself.
+  const staffWithAdmin = [{
+    username: 'admin', employeeCode: 'ADMIN', fullName: 'Quản trị viên', roleGroup: 'Ban Giám Đốc',
+  }, ...prodStaff];
+  for (const u of staffWithAdmin) {
     const role = u.username === 'admin' ? Role.ADMIN : ROLE_BY_GROUP[u.roleGroup];
     if (!role) {
       console.log(`  ! unknown role group ${u.roleGroup} for ${u.username}`);
@@ -59,7 +64,7 @@ export async function seedProdUsers(passwordHash: string): Promise<void> {
       await db.insert(s.users).values(values);
     }
   }
-  console.log(`  staff: ${prodStaff.length} (admin + nv001..nvXXX)`);
+  console.log(`  staff: ${staffWithAdmin.length} (admin + nv001..nv022)`);
 }
 
 export async function seedProdDrivers(passwordHash: string): Promise<void> {
