@@ -27,8 +27,8 @@ pg_db=${pg_db:-$pg_user}
 backup=".db-backups/db-$(date -u +%Y%m%dT%H%M%SZ).dump"
 docker exec "$pg_container" pg_dump -U "$pg_user" -Fc "$pg_db" > "$backup"
 size=$(wc -c < "$backup" | tr -d ' ')
-if [ "$size" -lt 1024 ]; then
-  echo "pg_dump suspiciously small ($size bytes) - aborting deploy; file kept: $backup" >&2
+if [ "$size" -lt 1024 ] && [ "$(docker exec "$pg_container" psql -U "$pg_user" -d "$pg_db" -tAc "SELECT count(*) FROM pg_tables WHERE schemaname='public'")" -gt 0 ]; then
+  echo "pg_dump suspiciously small ($size bytes) on a populated DB - aborting deploy; file kept: $backup" >&2
   exit 1
 fi
 echo "✅ Prod DB backup: /opt/silversea/$backup ($size bytes) [user=$pg_user db=$pg_db]"
