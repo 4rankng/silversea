@@ -63,9 +63,6 @@ export function AddPanel({
   const phoneError = phone.trim().length > 0 && !/^[\d\s+()-]{8,}$/.test(phone);
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
-  const clerkScopeInvalid = role === Role.CUS && (
-    businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
-  );
   const forwarderScopeInvalid = role === Role.OPS && shipmentIds.length === 0;
   const customerScopeInvalid = role === Role.CUSTOMER && (
     customerIds.length === 0
@@ -89,7 +86,6 @@ export function AddPanel({
 
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
-    if (clerkScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     const payload: CreateData = { fullName, username, email, phone, role, password };
     if (role === Role.DRIVER) {
@@ -101,12 +97,6 @@ export function AddPanel({
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       payload.customerAccountType = customerAccountType;
-    }
-    if (role === Role.CUS) {
-      payload.customerIds = customerIds;
-      payload.customerId = customerIds[0] ?? null;
-      payload.businessUnitIds = businessUnitIds;
-      payload.shipmentIds = shipmentIds;
     }
     if (role === Role.OPS && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
@@ -134,7 +124,7 @@ export function AddPanel({
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Plus size={13} />}
-            disabled={saving || customerScopeInvalid || clerkScopeInvalid}
+            disabled={saving || customerScopeInvalid}
             onClick={handleSubmit}
           >
             {role === Role.DRIVER ? 'Thêm lái xe' : 'Tạo tài khoản'}
@@ -323,53 +313,6 @@ export function AddPanel({
         <div className="users-error-banner">Chỉ quản trị viên mới có thể gán lô hàng cho nhân viên giao nhận.</div>
       )}
 
-      {role === Role.CUS && canManageClerkScope && (
-        <>
-          <SelectionScopeFields
-            title="Đơn vị phụ trách"
-            icon={<Building2 size={12} />}
-            helpText="Chọn ít nhất một đơn vị phụ trách cho nhân viên chứng từ."
-            searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
-            ariaLabel="Đơn vị phụ trách của nhân viên chứng từ"
-            options={businessUnitOptions}
-            selectedIds={businessUnitIds}
-            setSelectedIds={setBusinessUnitIds}
-            required
-            requiredMessage="Cần chọn ít nhất một đơn vị phụ trách."
-            emptyText="Không tìm thấy đơn vị phù hợp."
-            summaryLabel="Đã chọn"
-          />
-          <CustomerScopeFields
-            customerIds={customerIds}
-            setCustomerIds={setCustomerIds}
-            customerList={customerList}
-            required={false}
-            title="Khách hàng được giao"
-            helpText="Chọn các khách hàng được giao cho nhân viên chứng từ. Có thể để trống nếu chỉ giao theo lô cụ thể."
-            emptyInactiveText="Có thể chỉ giao theo lô hàng cụ thể."
-          />
-          <SelectionScopeFields
-            title="Lô hàng chỉ định"
-            icon={<Package size={12} />}
-            helpText="Giao thêm các lô cụ thể khi cần mở quyền hẹp theo hồ sơ."
-            searchPlaceholder="Tìm theo mã lô hoặc khách hàng"
-            ariaLabel="Lô hàng chỉ định cho nhân viên chứng từ"
-            options={shipmentSelectionOptions}
-            selectedIds={shipmentIds}
-            setSelectedIds={setShipmentIds}
-            required={false}
-            requiredMessage="Cần chọn ít nhất một lô hàng."
-            emptyText="Không tìm thấy lô hàng phù hợp."
-            summaryLabel="Đã chọn"
-          />
-          {customerIds.length === 0 && shipmentIds.length === 0 && (
-            <div className="users-error-banner">Cần chọn ít nhất một khách hàng hoặc một lô hàng cho nhân viên chứng từ.</div>
-          )}
-        </>
-      )}
-      {role === Role.CUS && !canManageClerkScope && (
-        <div className="users-error-banner">Chỉ quản trị viên mới có thể tạo hoặc gán phạm vi cho nhân viên chứng từ.</div>
-      )}
     </Drawer>
   );
 }

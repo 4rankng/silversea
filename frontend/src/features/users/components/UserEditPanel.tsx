@@ -79,11 +79,7 @@ export function EditPanel({
   const pwValid = password.length >= 6;
   const pwError = password.length > 0 && !pwValid;
   const customerScopeRequired = role === Role.CUSTOMER && status !== 'INACTIVE';
-  const clerkScopeRequired = role === Role.CUS && status !== 'INACTIVE';
   const forwarderScopeRequired = role === Role.OPS && status !== 'INACTIVE';
-  const clerkScopeInvalid = clerkScopeRequired && (
-    businessUnitIds.length === 0 || (customerIds.length === 0 && shipmentIds.length === 0)
-  );
   const forwarderScopeInvalid = forwarderScopeRequired && shipmentIds.length === 0;
   const customerScopeInvalid = customerScopeRequired && (
     customerIds.length === 0
@@ -108,7 +104,6 @@ export function EditPanel({
 
   const handleSubmit = async () => {
     if (customerScopeInvalid) return;
-    if (clerkScopeInvalid) return;
     if (forwarderScopeInvalid) return;
     const payload: EditData = { fullName, username, email, phone, role, status, password };
     if (role === Role.DRIVER) {
@@ -120,12 +115,6 @@ export function EditPanel({
       payload.customerIds = customerIds;
       payload.customerId = customerIds[0] ?? null;
       if (canManageClerkScope) payload.customerAccountType = customerAccountType;
-    }
-    if (role === Role.CUS) {
-      payload.customerIds = customerIds;
-      payload.customerId = customerIds[0] ?? null;
-      payload.businessUnitIds = businessUnitIds;
-      payload.shipmentIds = shipmentIds;
     }
     if (role === Role.OPS && canManageClerkScope) {
       payload.shipmentIds = shipmentIds;
@@ -155,7 +144,7 @@ export function EditPanel({
           <Btn
             variant="primary"
             icon={saving ? <Loader2 size={13} className="spin" /> : <Save size={13} />}
-            disabled={saving || customerScopeInvalid || clerkScopeInvalid}
+            disabled={saving || customerScopeInvalid}
             onClick={handleSubmit}
           >
             Lưu thay đổi
@@ -334,54 +323,6 @@ export function EditPanel({
       )}
       {role === Role.OPS && !canEditDriversOnly && !canManageClerkScope && (
         <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh lô hàng của nhân viên giao nhận.</div>
-      )}
-
-      {role === Role.CUS && !canEditDriversOnly && canManageClerkScope && (
-        <>
-          <SelectionScopeFields
-            title="Đơn vị phụ trách"
-            icon={<Building2 size={12} />}
-            helpText="Chọn ít nhất một đơn vị phụ trách. Nhân viên chứng từ chỉ được thao tác trên lô thuộc các đơn vị này."
-            searchPlaceholder="Tìm đơn vị theo tên hoặc mã"
-            ariaLabel="Đơn vị phụ trách của nhân viên chứng từ"
-            options={businessUnitOptions}
-            selectedIds={businessUnitIds}
-            setSelectedIds={setBusinessUnitIds}
-            required={clerkScopeRequired}
-            requiredMessage="Cần chọn ít nhất một đơn vị phụ trách."
-            emptyText="Không tìm thấy đơn vị phù hợp."
-            summaryLabel="Đã chọn"
-          />
-          <CustomerScopeFields
-            customerIds={customerIds}
-            setCustomerIds={setCustomerIds}
-            customerList={customerList}
-            required={false}
-            title="Khách hàng được giao"
-            helpText="Chọn các khách hàng mà nhân viên chứng từ được xử lý. Có thể để trống nếu chỉ giao theo từng lô cụ thể."
-            emptyInactiveText="Có thể chỉ giao theo lô hàng cụ thể."
-          />
-          <SelectionScopeFields
-            title="Lô hàng chỉ định"
-            icon={<Package size={12} />}
-            helpText="Giao thêm các lô cụ thể khi cần mở quyền hẹp hơn theo từng hồ sơ. Backend sẽ kiểm tra lô có thuộc đúng đơn vị phụ trách."
-            searchPlaceholder="Tìm theo mã lô hoặc khách hàng"
-            ariaLabel="Lô hàng chỉ định cho nhân viên chứng từ"
-            options={shipmentSelectionOptions}
-            selectedIds={shipmentIds}
-            setSelectedIds={setShipmentIds}
-            required={false}
-            requiredMessage="Cần chọn ít nhất một lô hàng."
-            emptyText="Không tìm thấy lô hàng phù hợp."
-            summaryLabel="Đã chọn"
-          />
-          {clerkScopeRequired && customerIds.length === 0 && shipmentIds.length === 0 && (
-            <div className="users-error-banner">Cần chọn ít nhất một khách hàng hoặc một lô hàng cho nhân viên chứng từ.</div>
-          )}
-        </>
-      )}
-      {role === Role.CUS && !canEditDriversOnly && !canManageClerkScope && (
-        <div className="users-error-banner">Chỉ quản trị viên mới có thể chỉnh phạm vi nhân viên chứng từ.</div>
       )}
 
       {/* Password — hidden for accountants (they cannot reset credentials) */}

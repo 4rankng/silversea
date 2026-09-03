@@ -13,7 +13,7 @@ function driverPayload(data: CreateData | EditData) {
 }
 
 function customerScopePayload(data: CreateData | EditData) {
-  if (data.role !== Role.CUSTOMER && data.role !== Role.CUS) return {};
+  if (data.role !== Role.CUSTOMER) return {};
   const customerIds = [...new Set(data.customerIds ?? [])].filter((id) => id > 0);
   return {
     customerIds,
@@ -21,15 +21,8 @@ function customerScopePayload(data: CreateData | EditData) {
   };
 }
 
-function clerkScopePayload(data: CreateData | EditData) {
-  if (data.role !== Role.CUS) return {};
-  return {
-    businessUnitIds: [...new Set(data.businessUnitIds ?? [])].filter((id) => id > 0),
-  };
-}
-
 function shipmentScopePayload(data: CreateData | EditData) {
-  if (data.role !== Role.CUS && data.role !== Role.OPS) return {};
+  if (data.role !== Role.OPS) return {};
   return {
     shipmentIds: [...new Set(data.shipmentIds ?? [])].filter((id) => id > 0),
   };
@@ -59,7 +52,6 @@ export function useUserMutations(refetch: () => void) {
         role:     data.role,
         ...driverPayload(data),
         ...customerScopePayload(data),
-        ...clerkScopePayload(data),
         ...shipmentScopePayload(data),
       });
       refetch();
@@ -86,7 +78,6 @@ export function useUserMutations(refetch: () => void) {
         phone:    data.phone,
         ...driverPayload(data),
         ...customerScopePayload(data),
-        ...clerkScopePayload(data),
         ...shipmentScopePayload(data),
       };
       if (data.password) body.password = data.password;

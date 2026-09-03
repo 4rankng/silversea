@@ -249,7 +249,7 @@ describe('customer account scope', () => {
     });
   });
 
-  it('requires a CUS to have at least one business unit and one customer or shipment', async () => {
+  it('creates a CUS account without any assignment requirement', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
 
     render(
@@ -269,27 +269,24 @@ describe('customer account scope', () => {
     fireEvent.click(roleTrigger);
     fireEvent.click(screen.getByRole('option', { name: /Nhân viên Chứng từ/i }));
 
+    // No assignment pickers are rendered for CUS anymore — the form only
+    // needs identity fields, and submit is enabled immediately.
+    expect(screen.queryByText('Đơn vị phụ trách')).toBeNull();
+    expect(screen.queryByText('Khách hàng được giao')).toBeNull();
+    expect(screen.queryByText('Lô hàng chỉ định')).toBeNull();
+
     const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
-    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Cần chọn ít nhất một đơn vị phụ trách.')).toBeTruthy();
-    expect(screen.getByText('Cần chọn ít nhất một khách hàng hoặc một lô hàng cho nhân viên chứng từ.')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /Điều hành miền Nam/ }));
-    expect((submitButton as HTMLButtonElement).disabled).toBe(true);
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /SHP-2607-00101/ }));
     expect((submitButton as HTMLButtonElement).disabled).toBe(false);
-
     fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
         role: Role.CUS,
-        businessUnitIds: [11],
-        shipmentIds: [101],
-        customerIds: [],
-        customerId: null,
       }));
+      const payload = onSave.mock.calls[0]![0] as Record<string, unknown>;
+      expect(payload.businessUnitIds).toBeUndefined();
+      expect(payload.customerIds).toBeUndefined();
+      expect(payload.shipmentIds).toBeUndefined();
     });
   });
 
@@ -321,7 +318,7 @@ describe('customer account scope', () => {
     });
   });
 
-  it('loads and updates an existing CUS assignment set', async () => {
+  it('shows no CUS assignment pickers and submits no scope fields', async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     const user: UserRow = {
       id: 52,
@@ -357,19 +354,21 @@ describe('customer account scope', () => {
       />,
     );
 
-    expect(screen.getAllByText(/Đã chọn 1:/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole('checkbox', { name: /SilverSea Miền Nam/ })[0]!);
-    fireEvent.click(screen.getByRole('checkbox', { name: /Điều hành miền Bắc/ }));
+    // Legacy assignment data on the row is ignored: CUS gets no pickers and
+    // the edit payload carries no scope fields at all.
+    expect(screen.queryByText('Đơn vị phụ trách')).toBeNull();
+    expect(screen.queryByText('Khách hàng được giao')).toBeNull();
+    expect(screen.queryByText('Lô hàng chỉ định')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(52, expect.objectContaining({
         role: Role.CUS,
-        businessUnitIds: [11, 12],
-        shipmentIds: [101],
-        customerIds: [],
-        customerId: null,
       }));
+      const payload = onSave.mock.calls[0]![1] as Record<string, unknown>;
+      expect(payload.businessUnitIds).toBeUndefined();
+      expect(payload.customerIds).toBeUndefined();
+      expect(payload.shipmentIds).toBeUndefined();
     });
   });
 

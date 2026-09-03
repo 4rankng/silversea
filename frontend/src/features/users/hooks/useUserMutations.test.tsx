@@ -112,7 +112,7 @@ describe('useUserMutations shipment scope payloads', () => {
     });
   });
 
-  it('preserves CLERK shipment scope behavior', async () => {
+  it('sends no scope fields for CLERK — staff are not customer/shipment-scoped', async () => {
     const { result } = renderHook(() => useUserMutations(vi.fn()));
 
     await act(async () => {
@@ -126,11 +126,11 @@ describe('useUserMutations shipment scope payloads', () => {
 
     expect(updateUserMock).toHaveBeenCalledWith(7, expect.objectContaining({
       role: Role.CUS,
-      businessUnitIds: [5, 8],
-      customerIds: [31],
-      customerId: 31,
-      shipmentIds: [101, 103],
     }));
+    const payload = updateUserMock.mock.calls[0]![1] as Record<string, unknown>;
+    expect(payload.customerIds).toBeUndefined();
+    expect(payload.customerId).toBeUndefined();
+    expect(payload.shipmentIds).toBeUndefined();
   });
 
   it('omits shipmentIds for roles outside FORWARDER and CLERK', async () => {

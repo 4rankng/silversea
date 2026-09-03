@@ -135,31 +135,6 @@ async function mkCustomer() {
   return c;
 }
 
-async function createScopedCusSession(scopedCustomerId?: number) {
-  const user = await mkUser(`sr-cus-scope-${suffix}-${createdUserIds.length}`, Role.CUS);
-  if (scopedCustomerId != null) {
-    await db.insert(s.userCustomerLinks).values({
-      userId: user.id,
-      customerId: scopedCustomerId,
-    });
-    // CUS scope needs BOTH a business-unit link and a customer/shipment link
-    // (hasAnyClerkShipmentAssignment); the bulk fixtures assign
-    // responsibleUnitId = clerkBusinessUnitId.
-    await db.insert(s.userBusinessUnitLinks).values({
-      userId: user.id,
-      businessUnitId: clerkBusinessUnitId,
-    });
-  }
-  return {
-    user,
-    token: sign({
-      ...user,
-      customerId: scopedCustomerId ?? null,
-      customerIds: scopedCustomerId == null ? [] : [scopedCustomerId],
-    }),
-  };
-}
-
 async function mkCatalogs() {
   const [route] = await db.insert(s.routes)
     .values({ name: `ShipmentRoute route ${suffix}` }).returning();
@@ -501,9 +476,8 @@ after(async () => {
 // downstream tests (transition / dispatch / etc.). Records the id for cleanup.
 async function mkShipmentViaService(overrides: Record<string, unknown> = {}) {
   const { createShipment } = await import('../services/shipment.service');
-  // Default responsibleUnitId to the clerk's business unit so the shipment is
-  // inside the clerk scope (buildShipmentScopeWhere requires unit + customer
-  // assignment); tests may still override it explicitly.
+  // Default responsibleUnitId to the demo business unit; tests may still
+  // override it explicitly.
   const shipment = await createShipment({ customerId, responsibleUnitId: clerkBusinessUnitId, ...overrides });
   createdShipmentIds.push(shipment.id);
   return shipment;
@@ -1073,122 +1047,50 @@ describe('GET /', () => {
     assert.match(result.data.error, /100 ký tự/);
   });
 
-  test('enforces unit AND customer-or-explicit-shipment scope for list totals and every child write', async () => {
+  test('enforces no customer/shipment scope for CUS — list, detail, and child writes cover every row', async () => {
     const baseline = await testFetch('/?page=1&limit=200', { token: clerkToken });
     assert.equal(baseline.status, 200);
 
     const unassignedCustomer = await mkCustomer();
     const wrongUnit = await mkBusinessUnit();
-    const customerScoped = await mkShipmentViaService({
+    const inUnitShipment = await mkShipmentViaService({
       customerId,
       responsibleUnitId: clerkBusinessUnitId,
     });
-    const explicitlyScoped = await mkShipmentViaService({
+    const otherUnitShipment = await mkShipmentViaService({
       customerId: unassignedCustomer.id,
-      responsibleUnitId: clerkBusinessUnitId,
-    });
-    const sameUnitUnassignedCustomer = await mkShipmentViaService({
-      customerId: unassignedCustomer.id,
-      responsibleUnitId: clerkBusinessUnitId,
-    });
-    const assignedCustomerWrongUnit = await mkShipmentViaService({
-      customerId,
       responsibleUnitId: wrongUnit.id,
     });
-    await db.insert(s.userShipmentLinks).values({
-      userId: clerkUserId,
-      shipmentId: explicitlyScoped.id,
-    });
 
-    const scopedList = await testFetch('/?page=1&limit=200', { token: clerkToken });
-    assert.equal(scopedList.status, 200);
-    assert.equal(scopedList.data.total, baseline.data.total + 2);
-    assert.equal(scopedList.data.items.length, scopedList.data.total);
-    const visibleIds = new Set(scopedList.data.items.map((row: { id: number }) => row.id));
-    assert.ok(visibleIds.has(customerScoped.id), 'same unit + assigned customer is visible');
-    assert.ok(visibleIds.has(explicitlyScoped.id), 'same unit + explicit shipment is visible');
-    assert.ok(!visibleIds.has(sameUnitUnassignedCustomer.id), 'same unit without customer/shipment assignment is hidden');
-    assert.ok(!visibleIds.has(assignedCustomerWrongUnit.id), 'assigned customer in a wrong unit is hidden');
+    const listAfter = await testFetch('/?page=1&limit=200', { token: clerkToken });
+    assert.equal(listAfter.status, 200);
+    assert.equal(listAfter.data.total, baseline.data.total + 2);
+    const visibleIds = new Set(listAfter.data.items.map((row: { id: number }) => row.id));
+    assert.ok(visibleIds.has(inUnitShipment.id), 'shipment in the demo unit is visible');
+    assert.ok(visibleIds.has(otherUnitShipment.id), 'shipment in any other unit is visible');
 
-    const wrongUnitDetail = await testFetch(`/${assignedCustomerWrongUnit.id}`, { token: clerkToken });
-    assert.equal(wrongUnitDetail.status, 404);
-    const unassignedDetail = await testFetch(`/${sameUnitUnassignedCustomer.id}`, { token: clerkToken });
-    assert.equal(unassignedDetail.status, 404);
+    const otherUnitDetail = await testFetch(`/${otherUnitShipment.id}`, { token: clerkToken });
+    assert.equal(otherUnitDetail.status, 200);
 
-    const deniedUpdate = await testFetch(`/${sameUnitUnassignedCustomer.id}`, {
+    const crossUnitUpdate = await testFetch(`/${otherUnitShipment.id}`, {
       method: 'PUT',
       token: clerkToken,
       body: {
-        expectedVersion: sameUnitUnassignedCustomer.version,
-        contactName: 'Không được phép',
+        expectedVersion: otherUnitShipment.version,
+        contactName: 'Cập nhật chéo phạm vi',
       },
     });
-    assert.equal(deniedUpdate.status, 404);
+    assert.equal(crossUnitUpdate.status, 200);
 
-    const deniedContainers = await testFetch(`/${sameUnitUnassignedCustomer.id}/containers`, {
-      method: 'PUT',
-      token: clerkToken,
-      body: {
-        expectedVersion: sameUnitUnassignedCustomer.version,
-        containers: [],
-      },
-    });
-    assert.equal(deniedContainers.status, 404);
-
-    const deniedDocument = await testFetch(`/${sameUnitUnassignedCustomer.id}/documents`, {
+    const crossUnitDocument = await testFetch(`/${otherUnitShipment.id}/documents`, {
       method: 'POST',
       token: clerkToken,
       body: {
         type: ShipmentDocumentType.BL,
-        storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/denied.pdf`,
+        storageKey: `uploads/shipment-${otherUnitShipment.id}/clerk.pdf`,
       },
     });
-    assert.equal(deniedDocument.status, 404);
-
-    const adminDocument = await testFetch(`/${sameUnitUnassignedCustomer.id}/documents`, {
-      method: 'POST',
-      token: adminToken,
-      body: {
-        type: ShipmentDocumentType.BL,
-        storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/admin.pdf`,
-      },
-    });
-    assert.equal(adminDocument.status, 201);
-    const deniedReplacement = await testFetch(
-      `/${sameUnitUnassignedCustomer.id}/documents/${adminDocument.data.id}/replace`,
-      {
-        method: 'POST',
-        token: clerkToken,
-        body: {
-          expectedVersion: sameUnitUnassignedCustomer.version,
-          storageKey: `uploads/shipment-${sameUnitUnassignedCustomer.id}/denied-v2.pdf`,
-        },
-      },
-    );
-    assert.equal(deniedReplacement.status, 404);
-
-    const deniedDeclarationCreate = await testFetch(`/${sameUnitUnassignedCustomer.id}/declarations`, {
-      method: 'POST',
-      token: clerkToken,
-      body: { declarationNumber: 'DENIED-Q17' },
-    });
-    assert.equal(deniedDeclarationCreate.status, 404);
-
-    const adminDeclaration = await testFetch(`/${sameUnitUnassignedCustomer.id}/declarations`, {
-      method: 'POST',
-      token: adminToken,
-      body: { declarationNumber: 'ADMIN-Q17' },
-    });
-    assert.equal(adminDeclaration.status, 201);
-    const deniedDeclarationUpdate = await testFetch(
-      `/${sameUnitUnassignedCustomer.id}/declarations/${adminDeclaration.data.id}`,
-      {
-        method: 'PUT',
-        token: clerkToken,
-        body: { declarationNumber: 'DENIED-Q17-UPDATE' },
-      },
-    );
-    assert.equal(deniedDeclarationUpdate.status, 404);
+    assert.equal(crossUnitDocument.status, 201);
   });
 
   test('rejects an invalid status with 400', async () => {
@@ -1730,15 +1632,8 @@ describe('GET /cus-workspace', () => {
     assert.equal(detail.data.summary.id, shipment.id);
   });
 
-  test('fails closed for an unlinked CUS and keeps pagination accurate over 500+ scoped rows', async (t) => {
-    const unlinked = await createScopedCusSession();
-    const empty = await testFetch('/cus-workspace?page=1&limit=20', { token: unlinked.token });
-    assert.equal(empty.status, 200);
-    assert.equal(empty.data.total, 0);
-    assert.equal(empty.data.items.length, 0);
-
+  test('CUS list is unscoped and keeps pagination accurate over 505 rows', async (t) => {
     const scopedCustomer = await mkCustomer();
-    const scoped = await createScopedCusSession(scopedCustomer.id);
     const values = Array.from({ length: 505 }, (_, index) => ({
       customerId: scopedCustomer.id,
       responsibleUnitId: clerkBusinessUnitId,
@@ -1754,14 +1649,13 @@ describe('GET /cus-workspace', () => {
       createdShipmentIds.push(...inserted.map((row) => row.id));
     }
 
-    const pageOne = await testFetch('/cus-workspace?page=1&limit=20&bucket=NEW', { token: scoped.token });
-    const pageTwentySix = await testFetch('/cus-workspace?page=26&limit=20&bucket=NEW', { token: scoped.token });
+    const pageOne = await testFetch('/cus-workspace?page=1&limit=20&bucket=NEW', { token: clerkToken });
     assert.equal(pageOne.status, 200);
-    assert.equal(pageTwentySix.status, 200);
-    assert.equal(pageOne.data.total, 505);
-    assert.equal(pageOne.data.totalPages, 26);
+    assert.ok(pageOne.data.total >= 505, `expected total >= 505, got ${pageOne.data.total}`);
     assert.equal(pageOne.data.items.length, 20);
-    assert.equal(pageTwentySix.data.items.length, 5);
+    const lastPage = await testFetch(`/cus-workspace?page=${pageOne.data.totalPages}&limit=20&bucket=NEW`, { token: clerkToken });
+    assert.equal(lastPage.status, 200);
+    assert.ok(lastPage.data.items.length >= 1);
 
     const measurePage = async (limit: number) => {
       const statements: string[] = [];
@@ -1772,7 +1666,7 @@ describe('GET /cus-workspace', () => {
       };
       const startedAt = performance.now();
       try {
-        const response = await testFetch(`/cus-workspace?page=1&limit=${limit}&bucket=NEW`, { token: scoped.token });
+        const response = await testFetch(`/cus-workspace?page=1&limit=${limit}&bucket=NEW`, { token: clerkToken });
         return {
           response,
           durationMs: performance.now() - startedAt,
@@ -1792,22 +1686,21 @@ describe('GET /cus-workspace', () => {
       singleRow.queryCount,
       `expected fixed query count, got one=${singleRow.queryCount} twenty=${twentyRows.queryCount}`,
     );
-    // +1 for the created-by scope query in loadClerkShipmentScope (constant
-    // per request, independent of page size — the fixed-count assertion above
-    // is the anti-N+1 guarantee).
+    // Constant per request, independent of page size — this fixed-count
+    // assertion is the anti-N+1 guarantee.
     assert.ok(twentyRows.queryCount <= 21, `expected <= 21 SQL statements, got ${twentyRows.queryCount}`);
     t.diagnostic(`CUS workspace page: rows=20 total=${twentyRows.response.data.total} sqlStatements=${twentyRows.queryCount} durationMs=${twentyRows.durationMs.toFixed(2)}`);
   });
 
-  test('denies a CUS user from reading another customer shipment by guessed id', async () => {
+  test('allows a CUS user to read shipments of any customer — no per-clerk scope', async () => {
     const otherCustomer = await mkCustomer();
     const foreignShipment = await mkShipmentViaService({
       customerId: otherCustomer.id,
       responsibleUnitId: clerkBusinessUnitId,
       cargoMode: 'FCL',
     });
-    const denied = await testFetch(`/cus-workspace/${foreignShipment.id}`, { token: clerkToken });
-    assert.equal(denied.status, 404);
+    const allowed = await testFetch(`/cus-workspace/${foreignShipment.id}`, { token: clerkToken });
+    assert.equal(allowed.status, 200);
   });
 });
 

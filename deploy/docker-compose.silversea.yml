@@ -1,0 +1,88 @@
+# ─── silversea.tingting.vip (PROD server) stack ──────────────────────────────
+# Server-side home: /opt/silversea/deploy/ (this file + .env with real values).
+# Deployed by `make deploy` (root Makefile) — images pinned to the `:prod`
+# channel so demo (`:latest`, vantai.tingting.vip) can never clobber prod.
+#
+# This stack owns its own postgres/redis data at /opt/silversea/data/. Deploys
+# only recreate backend/frontend; the data volumes are never touched, so prod
+# data survives every deploy. Adminer stays behind a compose profile (off by
+# default) like on the demo server.
+name: silversea
+
+services:
+  postgres:
+    # pgvector/pgvector:pg16 = upstream postgres:16 + the `vector` extension
+    # preinstalled. Required by the backend baseline migration.
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: silversea
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: silversea
+    volumes:
+      - /opt/silversea/data/postgres:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U silversea -d silversea"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - /opt/silversea/data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/4rankng/transting-backend:prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgres://silversea:${DB_PASSWORD}@postgres:5432/silversea
+      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=production
+      - PORT=3090
+      - UPLOAD_DIR=/app/backend/uploads
+      - CORS_ORIGIN=https://silversea.tingting.vip
+    expose:
+      - "3090"
+    ports:
+      - "127.0.0.1:3090:3090"
+    volumes:
+      - /opt/silversea/data/uploads:/app/backend/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/4rankng/transting-frontend:prod
+    restart: unless-stopped
+    expose:
+      - "80"
+    ports:
+      - "127.0.0.1:3000:80"
+
+  adminer:
+    profiles: [adminer]
+    image: adminer:latest
+    restart: unless-stopped
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
