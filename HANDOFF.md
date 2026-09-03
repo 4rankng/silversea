@@ -1,6 +1,21 @@
 # Current Development Handoff
 
-## Current task — Vercel-rules perf pass + ForwarderTrip split — DONE (2026-09-02, NOT pushed/deployed)
+## Current task — /shipments list column redistribution + deploy — DONE, PUSHED + DEPLOYED (2026-09-03)
+
+- Scope: `/shipments` CUS dashboard LIST-page column redistribution by value content (sibling of the 09-02 `/shipments-detail` ledger width wave) + realistic-data directive from user (09-03 20:44: "change data to realistic data instead of fake code generated data" — diagnosis: "fake" rows were QA test-run leftovers, not seeds; seed-bulk-data.ts already carries real shipping lines + VN companies).
+- `a2a45ffb` — style(shipments): all 7 dashboard columns pin explicit shares summing 100% (customer 17 / documents 11 / classification 9 / cargo 12 / schedule 20 / notes 16 / status 15) sized from production-shaped content; `tbody td` re-declares `white-space:normal` against global Table.css nowrap (same trap family as 08-28 drawer fix); cargo weight/mode-tag children override the `.cus-multiline-cell span` nowrap+ellipsis that clipped "38.000 kg" / "Cont"/"Lẻ". Test assertion updated 18%→15%.
+- `c363e708` — docs(prd): quy trình O2C CUS → Điều vận → Lái xe (402-line PRD that was sitting untracked in the tree).
+- `86758594` — qa artifact: deploy verification log.
+- Gates: vitest 1446/1446 · `tsc -b` 0 · lint 0 errors · check:ui + brand ✓ (`qa/2026-09-03_shipments-list_*`).
+- Deploy 21:14 SGT (`make demo`, clean tree at `c363e708`): health `{"status":"ok"}`, migrate no-op (CSS-only). Artifact-vs-commit: GHCR `transting-frontend:latest` `sha256:5b4ca54c…a5038` == server container RepoDigest; served `ShipmentsPage-DurO5sck.css` carries all 7 new width shares + both wrap-override selectors.
+- Tooling trap (cost two failed commands): Bash cwd persists across calls — a `cd frontend` for the tsc gate made later `git add` and `make demo` run from `frontend/` (first deploy attempt hit the frontend Makefile: `No rule to make target 'demo'`; QA artifacts initially landed in `frontend/qa/`, which has 0 tracked files — historical drift from the same mistake). Use `git -C` / `make -C` / absolute paths.
+- Open: `.ua/` stale since `9834d60b` (9 commits behind) — pre-existing before this change, CSS-only diff adds no graph signal; full `/understand` rebuild still needs a dedicated session.
+
+**Updated:** 2026-09-03 21:20 Asia/Singapore
+**Controller:** Mavis (shipments width redistribution, commit+deploy)
+**Status:** DONE — `d1db64f4..86758594` pushed to origin/main, deployed to https://vantai.tingting.vip and verified.
+
+## Previous task — Vercel-rules perf pass + ForwarderTrip split — DONE (2026-09-02; subsequently pushed + deployed 09-02/09-03 via `f48fec03`→`1964ca07`→`d1db64f4`)
 
 - Scope: user `/vercel improve frontend` + "improve and enhance them, the goal is to have easy to maintain and easy to extend frontend, prepare for future changes" → Vercel React-best-practices audit (optimize/ N/A — Docker deploy) + the queued ForwarderTrip split from the 09-01 wave's phase-06 addendum.
 - `6216a16e` — bundle + re-render wins: **exceljs 924KB chunk → lazy at export click** (dynamic import inside `downloadCSV`; build proof: chunk renamed `csv-*.js` → `exceljs.min-*.js`, pure on-demand — 8 export pages stop downloading it at page-load); Toast context value referentially stable (toasts-ref mirror + useMemo — `useToast` consumers no longer re-render on toast churn); useAuth value memoized.
