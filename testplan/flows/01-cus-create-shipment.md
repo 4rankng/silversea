@@ -194,18 +194,18 @@
 
 ---
 
-### TC-CUS-CREATE-009 — CUS chỉ thấy lô trong phạm vi phụ trách
+### TC-CUS-CREATE-009 — CUS thấy toàn bộ lô hàng (không giới hạn phạm vi)
 
 - **Mã PRD:** Q17
 - **Vai trò:** `cus`
 - **Mức độ:** P1
 - **Các bước:**
   1. Đăng nhập `cus`. Mở `/shipments`.
-  2. Kiểm tra: chỉ thấy lô do mình tạo hoặc được giao.
-  3. Thử mở trực tiếp URL `/shipments/:id` của lô không thuộc phạm vi.
+  2. Kiểm tra: thấy **tất cả** lô hàng trong hệ thống (mọi khách hàng, mọi đơn vị phụ trách), không giới hạn theo người dùng.
+  3. Mở trực tiếp URL `/shipments/:id` của bất kỳ lô nào (kể cả lô do người dùng khác tạo).
 - **Kết quả mong đợi (Pass):**
-  - Danh sách chỉ hiển thị lô thuộc phạm vi phụ trách.
-  - URL trực tiếp lô ngoài phạm vi → 404 hoặc redirect.
+  - Danh sách hiển thị toàn bộ lô hàng — hai tài khoản CUS khác nhau thấy cùng một danh sách.
+  - URL trực tiếp của lô bất kỳ mở bình thường (không 404/redirect).
 - **Bằng chứng:** ảnh danh sách + ảnh truy cập URL trực tiếp
 
 ---
@@ -264,7 +264,7 @@
   - Dialog đóng, khách hàng mới tự động chọn trong dropdown.
   - Các trường credit/billing (`creditLimit`, `paymentTermDays`, `status`, `isCarrier`) bị strip — chỉ có identity fields.
   - Không có governance action (không qua phê duyệt) vì CUS intake là identity-only.
-  - Khách hàng mới có trong danh mục khi tạo lô lần sau.
+  - Khách hàng mới có trong danh mục khi tạo lô lần sau, và xuất hiện ngay trong dropdown Khách hàng cho **mọi** vai trò/người dùng (không giới hạn theo người dùng).
 - **Kỳ vọng sai (Fail nếu):**
   - Bị 403 "Không có quyền truy cập" — dead-end, không thể tạo lô.
   - Dialog không đóng sau khi tạo.
@@ -338,7 +338,7 @@
 | __/__/__ | TC-CUS-CREATE-006 | | | Handoff | |
 | __/__/__ | TC-CUS-CREATE-007 | | | Version conflict | |
 | __/__/__ | TC-CUS-CREATE-008 | | | RBAC tạo lô | |
-| __/__/__ | TC-CUS-CREATE-009 | | | Phạm vi lô | |
+| __/__/__ | TC-CUS-CREATE-009 | | | Thấy toàn bộ lô | |
 | __/__/__ | TC-CUS-CREATE-010 | | | Tạo liên tiếp | |
 | __/__/__ | TC-CUS-CREATE-011 | | | Double-submit | |
 | __/__/__ | TC-CUS-CREATE-012 | | | Tạo KH inline thành công | |

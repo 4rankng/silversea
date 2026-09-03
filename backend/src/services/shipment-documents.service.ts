@@ -18,11 +18,6 @@ import {
   normalizeShipmentDeclarationScope,
   normalizeShipmentDocumentType,
 } from './shipment-intake.service';
-import {
-  assertClerkCanAccessShipment,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-} from './clerk-shipment-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type { ShipmentDeclarationMutationInput } from './shipment-types';
 
@@ -65,10 +60,6 @@ export async function attachShipmentDocument(
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, existing);
-    }
 
     const [doc] = await tx.insert(s.shipmentDocuments).values({
       shipmentId,
@@ -98,10 +89,6 @@ export async function upsertShipmentDeclaration(
     if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, existingShipment);
-    }
 
     if (input.id != null) {
       const [updated] = await tx.update(s.shipmentDeclarations).set({
@@ -235,10 +222,6 @@ export async function replaceShipmentDocument(
     await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (shipment.version !== newDocData.expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
-    }
-    if (actor && isClerkScopedUser(actor)) {
-      const scope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(scope, shipment);
     }
 
     const [oldDoc] = await tx.select()

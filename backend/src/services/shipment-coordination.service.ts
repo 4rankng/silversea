@@ -6,11 +6,6 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import {
-  assertClerkCanAccessShipment,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-} from './clerk-shipment-scope.service';
-import {
   lockApplicationOwnedUniqueness,
   lockApplicationOwnedUniquenessSet,
 } from './application-owned-uniqueness.service';
@@ -111,12 +106,6 @@ export async function assertActorCanAccessShipment(
     if (options.write && options.expectedCustomerId == null) {
       throw new ApiError(404, 'Không tìm thấy lô hàng');
     }
-    return shipment;
-  }
-
-  if (isClerkScopedUser(actor)) {
-    const scope = await loadClerkShipmentScope(actor.userId, tx);
-    assertClerkCanAccessShipment(scope, shipment);
     return shipment;
   }
 

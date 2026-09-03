@@ -42,7 +42,6 @@ import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
-import { assertClerkCanAccessShipment, buildShipmentScopeWhere, loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import {
   getShipmentFinanceConfirmationSummaries,
   getShipmentFinanceConfirmationSummary,
@@ -217,11 +216,10 @@ export function normalizePlate(value: string): string {
 /**
  * Row-visibility conditions for the CUS workspace lists.
  *
- * CUS uses the full clerk scope (unit + customer/shipment assignment) — the
- * same rule `assertClerkCanAccessShipment` enforces on detail/update — so a
- * row listed here is always actionable. Customer-link-only filtering would
- * surface shipments whose writes 404 (e.g. responsible_unit_id IS NULL).
- * Async because the clerk scope is loaded from the link tables.
+ * Staff roles are never customer/shipment-scoped — every CUS user sees the
+ * full lot list, so anything listed here is actionable. The customer-link
+ * fallbacks below remain for any actor whose token still carries customer
+ * links (portal-compat paths only).
  */
 async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
   if (
@@ -229,23 +227,15 @@ async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
     || actor.role === Role.MANAGER
     || actor.role === Role.ACCOUNTANT
     || actor.role === Role.DISPATCHER
+    || actor.role === Role.CUS
   ) {
     return [];
-  }
-  if (actor.role === Role.CUS) {
-    const scope = await loadClerkShipmentScope(actor.userId);
-    return [buildShipmentScopeWhere(scope)];
   }
   if (actor.customerIds?.length) return [inArray(s.shipments.customerId, actor.customerIds)];
   if (actor.customerId != null) return [eq(s.shipments.customerId, actor.customerId)];
   return [];
 }
 
-export async function assertCusShipmentScope(actor: AuthUser, shipment: ShipmentRow, tx: Tx) {
-  if (actor.role !== Role.CUS) return;
-  const scope = await loadClerkShipmentScope(actor.userId, tx);
-  assertClerkCanAccessShipment(scope, shipment);
-}
 
 function isCurrentRecoveryFact(row: RecoveryFactRow): boolean {
   if (row.sourceExpenseId == null) return true;

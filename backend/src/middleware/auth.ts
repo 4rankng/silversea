@@ -49,8 +49,11 @@ function sameCustomerScope(currentIds: number[], tokenIds: number[], payload: Au
   return payload.customerIds != null && tokenIds.length === currentIds.length && tokenIds.every((id, idx) => id === currentIds[idx]);
 }
 
+// Only customer-portal accounts carry the customer link set on their token.
+// Staff roles (CUS, ACCOUNTANT, ...) are not customer-scoped — every staff user
+// sees the full customer/shipment catalogs; assignments are not enforced.
 function roleUsesCustomerScope(role: string): boolean {
-  return role === Role.CUSTOMER || role === Role.CUS || role === Role.ACCOUNTANT;
+  return role === Role.CUSTOMER;
 }
 
 export interface AuthUser {
@@ -66,9 +69,9 @@ export interface AuthUser {
    */
   customerId?: number | null;
   /**
-   * Wave 0: full customer link set for CUSTOMER, CUS (formerly CLERK) and scoped ACCOUNTANT
-   * users. Used by scoped routes and token revalidation when assignments
-   * change.
+   * Full customer link set for CUSTOMER (portal) users. Used by scoped portal
+   * routes and token revalidation when assignments change. Staff roles are not
+   * customer-scoped; their tokens carry no customer link set.
    */
   customerIds?: number[];
 }

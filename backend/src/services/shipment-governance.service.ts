@@ -7,7 +7,6 @@ import type { AuthUser } from '../middleware/auth';
 import { runInTx } from '../lib/tx';
 import type { Tx } from './trip-shared';
 import { softDeleteShipment } from './shipment-lifecycle.service';
-import { assertCusShipmentScope } from './cus-shipment-workspace-reads.service';
 import { isPastRunCutoff } from './container-date-filter';
 import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 
@@ -51,7 +50,6 @@ export async function requestShipmentDelete(args: {
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    await assertCusShipmentScope(args.actor, shipment, tx);
     if (shipment.version !== args.version) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
     }
@@ -203,7 +201,6 @@ export async function requestContainerEdit(args: {
       .for('update')
       .limit(1);
     if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-    await assertCusShipmentScope(args.actor, shipment, tx);
 
     const [container] = await tx.select({ id: s.shipmentContainers.id }).from(s.shipmentContainers)
       .where(and(

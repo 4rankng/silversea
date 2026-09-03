@@ -127,32 +127,11 @@ function normalizeCustomerAccountTypeForScope(
   return normalizedCustomerAccountType;
 }
 
-function hasActiveClerkScope(
-  businessUnitIds: number[],
-  customerIds: number[],
-  shipmentIds: number[],
-): boolean {
-  return businessUnitIds.length > 0 && (customerIds.length > 0 || shipmentIds.length > 0);
-}
-
-function assertActiveClerkScope(
-  businessUnitIds: number[],
-  customerIds: number[],
-  shipmentIds: number[],
-): void {
-  if (!hasActiveClerkScope(businessUnitIds, customerIds, shipmentIds)) {
-    throw new ApiError(
-      400,
-      'Nhân viên chứng từ ACTIVE phải có ít nhất một đơn vị phụ trách và ít nhất một khách hàng hoặc lô hàng được giao',
-    );
-  }
-}
-
 function driverBusinessUnitIds(
   role: string,
   businessUnitIds: number[],
 ): number[] {
-  return role === Role.CUS || role === Role.DRIVER ? businessUnitIds : [];
+  return role === Role.DRIVER ? businessUnitIds : [];
 }
 
 function canonicalIdentity(value: string | null | undefined): string | null {
@@ -626,8 +605,8 @@ export async function createUserWithTx(tx: Tx, data: {
   const businessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
   const shipmentIds = [...new Set((data.shipmentIds ?? []).filter((id): id is number => Number.isInteger(id) && id > 0))].sort((a, b) => a - b);
   if (data.role !== Role.CUSTOMER && customerIds.length > 0) {
-    if (data.role !== Role.CUS && data.role !== Role.ACCOUNTANT) {
-      throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
+    if (data.role !== Role.ACCOUNTANT) {
+      throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc kế toán mới được liên kết khách hàng');
     }
   }
   if (data.role === Role.CUSTOMER) {
@@ -643,16 +622,6 @@ export async function createUserWithTx(tx: Tx, data: {
       throw new ApiError(400, 'Tài khoản khách hàng ACTIVE phải có ít nhất một khách hàng liên kết');
     }
     await validateCustomerIds(tx, customerIds);
-  } else if (data.role === Role.CUS) {
-    if (data.assignmentAdminOnly && (customerIds.length > 0 || businessUnitIds.length > 0 || shipmentIds.length > 0)) {
-      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
-    }
-    await validateCustomerIds(tx, customerIds);
-    await validateBusinessUnitIds(tx, businessUnitIds);
-    await validateShipmentIds(tx, shipmentIds, { businessUnitIds });
-    if ((data.status ?? 'ACTIVE') !== 'INACTIVE') {
-      assertActiveClerkScope(businessUnitIds, customerIds, shipmentIds);
-    }
   } else if (data.role === Role.ACCOUNTANT) {
     if (data.assignmentAdminOnly && customerIds.length > 0) {
       throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi khách hàng của kế toán');
@@ -695,7 +664,7 @@ export async function createUserWithTx(tx: Tx, data: {
     passwordHash,
     role: data.role as (typeof users.role.enumValues)[number],
     status: data.status ?? 'ACTIVE',
-    customerId: data.role === Role.CUSTOMER || data.role === Role.CUS ? customerIds[0] ?? null : null,
+    customerId: data.role === Role.CUSTOMER ? customerIds[0] ?? null : null,
     customerAccountType: data.role === Role.CUSTOMER
       ? data.customerAccountType ?? CustomerAccountType.SINGLE_ENTITY
       : CustomerAccountType.SINGLE_ENTITY,
@@ -704,7 +673,7 @@ export async function createUserWithTx(tx: Tx, data: {
   await syncCustomerLinks(
     tx,
     created.id,
-    data.role === Role.CUSTOMER || data.role === Role.CUS || data.role === Role.ACCOUNTANT
+    data.role === Role.CUSTOMER || data.role === Role.ACCOUNTANT
       ? customerIds
       : [],
   );
@@ -712,7 +681,7 @@ export async function createUserWithTx(tx: Tx, data: {
   await syncShipmentLinks(
     tx,
     created.id,
-    data.role === Role.CUS || data.role === Role.OPS ? shipmentIds : [],
+    data.role === Role.OPS ? shipmentIds : [],
   );
 
   const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
@@ -819,19 +788,18 @@ export async function updateUserWithTx(id: number, data: {
 
   if (
     effectiveRole !== Role.CUSTOMER
-    && effectiveRole !== Role.CUS
     && effectiveRole !== Role.ACCOUNTANT
     && effectiveRole !== Role.DRIVER
     && effectiveRole !== Role.OPS
   ) {
     if (explicitCustomerLinkUpdate && normalizeCustomerIds(data).length > 0) {
-      throw new ApiError(400, 'Chỉ tài khoản khách hàng, nhân viên chứng từ hoặc kế toán mới được liên kết khách hàng');
+      throw new ApiError(400, 'Chỉ tài khoản khách hàng hoặc kế toán mới được liên kết khách hàng');
     }
     if (explicitBusinessUnitUpdate && (data.businessUnitIds ?? []).length > 0) {
-      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết đơn vị phụ trách');
+      throw new ApiError(400, 'Vai trò này không được liên kết đơn vị phụ trách');
     }
     if (explicitShipmentUpdate && (data.shipmentIds ?? []).length > 0) {
-      throw new ApiError(400, 'Chỉ nhân viên chứng từ mới được liên kết lô hàng');
+      throw new ApiError(400, 'Vai trò này không được liên kết lô hàng');
     }
     nextCustomerIds = [];
     nextBusinessUnitIds = [];
@@ -917,37 +885,6 @@ export async function updateUserWithTx(id: number, data: {
       if (effectiveStatus !== 'INACTIVE' && nextShipmentIds.length === 0) {
         throw new ApiError(400, 'Tài khoản giao nhận ACTIVE phải có ít nhất một lô hàng được giao');
       }
-  } else {
-    if (data.assignmentAdminOnly && (explicitCustomerLinkUpdate || explicitBusinessUnitUpdate || explicitShipmentUpdate)) {
-      throw new ApiError(403, 'Chỉ quản trị viên mới có thể quản lý phạm vi nhân viên chứng từ');
-    }
-    if (explicitCustomerLinkUpdate) {
-      nextCustomerIds = normalizeCustomerIds(data);
-      await validateCustomerIds(tx, nextCustomerIds);
-    }
-    if (explicitBusinessUnitUpdate) {
-      nextBusinessUnitIds = [...new Set((data.businessUnitIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
-      await validateBusinessUnitIds(tx, nextBusinessUnitIds);
-    }
-    if (explicitShipmentUpdate) {
-      nextShipmentIds = [...new Set((data.shipmentIds ?? []).filter((value): value is number => Number.isInteger(value) && value > 0))].sort((a, b) => a - b);
-    }
-    await validateShipmentIds(tx, nextShipmentIds, { businessUnitIds: nextBusinessUnitIds });
-    const existingActiveLegacyClerk = existing.role === Role.CUS
-      && existing.status !== 'INACTIVE'
-      && !hasActiveClerkScope(existingBusinessUnitIds, existingCustomerIds, existingShipmentIds);
-    const scopeOrRoleTouched = explicitCustomerLinkUpdate
-      || explicitBusinessUnitUpdate
-      || explicitShipmentUpdate
-      || data.role !== undefined
-      || data.status !== undefined;
-    if (effectiveStatus !== 'INACTIVE' && (!existingActiveLegacyClerk || scopeOrRoleTouched)) {
-      // Share-lock the active units before committing an ACTIVE clerk state.
-      // Business-unit deactivation takes a row update lock, so concurrent
-      // assignment/activation cannot validate against a unit being retired.
-      await validateBusinessUnitIds(tx, nextBusinessUnitIds);
-      assertActiveClerkScope(nextBusinessUnitIds, nextCustomerIds, nextShipmentIds);
-    }
   }
 
   const updates: Record<string, unknown> = { updatedAt: sql`now()` };
@@ -958,7 +895,7 @@ export async function updateUserWithTx(id: number, data: {
   if (data.fullName !== undefined) updates.fullName = data.fullName || null;
   if (data.email !== undefined) updates.email = data.email || null;
   if (data.phone !== undefined) updates.phone = data.phone || null;
-  updates.customerId = effectiveRole === Role.CUSTOMER || effectiveRole === Role.CUS ? nextCustomerIds[0] ?? null : null;
+  updates.customerId = effectiveRole === Role.CUSTOMER ? nextCustomerIds[0] ?? null : null;
   updates.customerAccountType = effectiveCustomerAccountType;
 
   await assertUserIdentityAvailable(tx, {
@@ -977,7 +914,7 @@ export async function updateUserWithTx(id: number, data: {
   await syncShipmentLinks(
     tx,
     id,
-    effectiveRole === Role.CUS || effectiveRole === Role.OPS ? nextShipmentIds : [],
+    effectiveRole === Role.OPS ? nextShipmentIds : [],
   );
 
   if (effectiveRole === Role.DRIVER) {
@@ -1216,39 +1153,6 @@ export async function updateBusinessUnitWithTx(
     .for('update')
     .limit(1);
   if (!existing) throw new ApiError(404, 'Không tìm thấy đơn vị phụ trách');
-
-  if (data.status === 'INACTIVE' && existing.status !== 'INACTIVE') {
-      const affectedClerks = await tx.select({ userId: users.id })
-        .from(userBusinessUnitLinks)
-        .innerJoin(users, eq(userBusinessUnitLinks.userId, users.id))
-        .where(and(
-          eq(userBusinessUnitLinks.businessUnitId, id),
-          eq(users.role, Role.CUS),
-          eq(users.status, 'ACTIVE'),
-          isNull(users.deletedAt),
-        ));
-      const affectedUserIds = [...new Set(affectedClerks.map((row) => row.userId))];
-      if (affectedUserIds.length > 0) {
-        for (const userId of affectedUserIds.sort((left, right) => left - right)) {
-          await tx.execute(sql`SELECT pg_advisory_xact_lock(6120, ${userId})`);
-        }
-        const alternativeRows = await tx.select({ userId: userBusinessUnitLinks.userId })
-          .from(userBusinessUnitLinks)
-          .innerJoin(businessUnits, eq(userBusinessUnitLinks.businessUnitId, businessUnits.id))
-          .where(and(
-            inArray(userBusinessUnitLinks.userId, affectedUserIds),
-            ne(userBusinessUnitLinks.businessUnitId, id),
-            eq(businessUnits.status, 'ACTIVE'),
-          ));
-        const usersWithAlternative = new Set(alternativeRows.map((row) => row.userId));
-        if (affectedUserIds.some((userId) => !usersWithAlternative.has(userId))) {
-          throw new ApiError(
-            409,
-            'Không thể ngưng đơn vị đang là đơn vị hoạt động duy nhất của nhân viên chứng từ ACTIVE',
-          );
-        }
-      }
-  }
 
   const nextIdentity = {
     code: data.code !== undefined ? data.code?.trim() || null : existing.code,

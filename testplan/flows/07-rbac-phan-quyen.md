@@ -86,9 +86,9 @@
 
 ---
 
-## 7.3 — Customer chỉ thấy dữ liệu của mình
+## 7.3 — Phạm vi dữ liệu theo vai trò
 
-### TC-RBAC-005 — Customer row-scope
+### TC-RBAC-005 — Customer chỉ thấy dữ liệu của mình (portal row-scope)
 
 - **Mã PRD:** Q16
 - **Mức độ:** P0
@@ -104,6 +104,21 @@
 - **Bằng chứng:** ảnh danh sách + ảnh URL bị chặn + Network 403
 
 ---
+
+### TC-RBAC-013 — Nhân viên vận hành thấy toàn bộ khách hàng và lô hàng (không giới hạn theo người dùng)
+
+- **Mức độ:** P0
+- **Các bước:**
+  1. Đăng nhập `cus`. Mở `/shipments/new` → mở dropdown Khách hàng → thấy **tất cả** khách hàng active.
+  2. Tạo mới một khách hàng (inline hoặc từ danh mục). Đăng nhập một vai trò khác (`dieuvan`, `giamdoc`, hoặc một tài khoản CUS khác) → mở dropdown Khách hàng → KH vừa tạo phải xuất hiện.
+  3. Mở `/shipments` bằng hai tài khoản CUS khác nhau → cả hai thấy **cùng một** danh sách lô hàng đầy đủ.
+  4. Với tư cách `cus`, mở trực tiếp URL `/shipments/:id` của lô bất kỳ do người khác tạo → mở bình thường.
+- **Kết quả mong đợi (Pass):**
+  - Không còn giới hạn "mỗi CUS thấy một tập khách hàng/lô riêng" — dropdown và danh sách như nhau với mọi nhân viên vận hành.
+  - KH mới tạo xuất hiện trong dropdown của mọi vai trò có dropdown KH.
+  - GET danh sách khách hàng trả về toàn bộ (không lọc theo người dùng).
+- **Bằng chứng:** ảnh dropdown KH ở 2 tài khoản + ảnh 2 danh sách lô giống nhau + Network GET /api/customers
+
 
 ## 7.4 — Create-only: xóa trong phiên hiện tại
 
@@ -231,3 +246,4 @@
 | __/__/__ | TC-RBAC-010 | | | Conflict 409 | |
 | __/__/__ | TC-RBAC-011 | | | First-approve-wins | |
 | __/__/__ | TC-RBAC-012 | | | Sidebar theo vai trò | |
+| __/__/__ | TC-RBAC-013 | | | Staff thấy toàn bộ KH/lô | |

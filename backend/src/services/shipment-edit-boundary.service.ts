@@ -5,9 +5,19 @@ import * as s from '../db/schema';
 import { persistNotificationInTx } from './notification.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import type { AuthUser } from '../middleware/auth';
 
 type ShipmentRow = typeof s.shipments.$inferSelect;
 type ShipmentContainerRow = typeof s.shipmentContainers.$inferSelect;
+
+/**
+ * True when the actor is a CUS (chứng từ) clerk. Drives the post-dispatch
+ * edit-boundary workflow: clerk edits outside the directly-editable intake
+ * statuses become governed change requests instead of direct writes.
+ */
+export function isClerkScopedUser(actor: Pick<AuthUser, 'role'> | null | undefined): boolean {
+  return actor?.role === Role.CUS;
+}
 
 export type ShipmentPlanPatch = {
   customerId?: number;

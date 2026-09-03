@@ -28,13 +28,9 @@ import {
   isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
 import {
-  assertClerkCanAccessShipment,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-} from './clerk-shipment-scope.service';
-import {
   classifyClerkContainerChange,
   createShipmentChangeRequest,
+  isClerkScopedUser,
 } from './shipment-edit-boundary.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import type {
@@ -531,12 +527,6 @@ export async function batchUpsertShipmentContainers(
     await assertShipmentAccountingUnlocked(tx, shipmentId);
     if (expectedVersion != null && existing.version !== expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
-    }
-
-    let clerkScope = null;
-    if (actor && isClerkScopedUser(actor)) {
-      clerkScope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(clerkScope, existing);
     }
 
     // M10.2 slice 1: validate the desired container set BEFORE any write so a

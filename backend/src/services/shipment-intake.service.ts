@@ -10,7 +10,6 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
-import { loadClerkShipmentScope } from './clerk-shipment-scope.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import type {
   ShipmentDeclarationScopeValue,
@@ -187,12 +186,6 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
   if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
   }
-  if (actor.role === Role.CUS) {
-    const scope = await loadClerkShipmentScope(actor.userId);
-    if (scope.businessUnitIds.length === 0 || !scope.customerIds.includes(customerId)) {
-      throw new ApiError(404, 'Không tìm thấy khách hàng.');
-    }
-  }
   const [customer] = await db.select({ id: s.customers.id }).from(s.customers)
     .where(and(eq(s.customers.id, customerId), isNull(s.customers.deletedAt))).limit(1);
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng.');
@@ -255,12 +248,6 @@ export async function createOperationalSiteForIntake(
 ) {
   if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền thêm điểm vận hành.');
-  }
-  if (actor.role === Role.CUS) {
-    const scope = await loadClerkShipmentScope(actor.userId);
-    if (scope.businessUnitIds.length === 0 || !scope.customerIds.includes(input.customerId)) {
-      throw new ApiError(404, 'Không tìm thấy khách hàng.');
-    }
   }
   const [customer] = await db.select({ id: s.customers.id }).from(s.customers)
     .where(and(eq(s.customers.id, input.customerId), isNull(s.customers.deletedAt))).limit(1);

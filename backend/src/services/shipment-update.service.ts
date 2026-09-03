@@ -11,16 +11,11 @@ import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { UpdateShipmentInput } from './shipment-types';
 import {
-  assertClerkCanAccessShipment,
-  assertClerkCanCreateForCustomer,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-  resolveClerkResponsibleUnitId,
-} from './clerk-shipment-scope.service';
-import {
   classifyClerkShipmentPatch,
   createShipmentChangeRequest,
+  isClerkScopedUser,
 } from './shipment-edit-boundary.service';
+
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -59,18 +54,6 @@ export async function updateShipment(
     // resolved customer respects an in-flight customerId change.
     if (input.operationalSiteId != null) {
       await assertShipmentFactorySiteValid(tx, input.customerId ?? existing.customerId, input.operationalSiteId);
-    }
-
-    let clerkScope = null;
-    if (actor && isClerkScopedUser(actor)) {
-      clerkScope = await loadClerkShipmentScope(actor.userId, tx);
-      assertClerkCanAccessShipment(clerkScope, existing);
-      if (input.customerId !== undefined) {
-        assertClerkCanCreateForCustomer(clerkScope, input.customerId);
-      }
-      if (input.responsibleUnitId != null) {
-        resolveClerkResponsibleUnitId(clerkScope, input.responsibleUnitId);
-      }
     }
 
     const expectedVersion = input.expectedVersion ?? input.version;

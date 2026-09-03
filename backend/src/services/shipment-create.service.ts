@@ -8,12 +8,6 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
-import {
-  assertClerkCanCreateForCustomer,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-  resolveClerkResponsibleUnitId,
-} from './clerk-shipment-scope.service';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import {
@@ -53,12 +47,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   if (input.operationalSiteId != null) {
     await assertShipmentFactorySiteValid(tx, input.customerId, input.operationalSiteId);
   }
-  let responsibleUnitId = input.responsibleUnitId ?? null;
-  if (actor && isClerkScopedUser(actor)) {
-    const scope = await loadClerkShipmentScope(actor.userId, tx);
-    assertClerkCanCreateForCustomer(scope, input.customerId);
-    responsibleUnitId = resolveClerkResponsibleUnitId(scope, input.responsibleUnitId);
-  }
+  const responsibleUnitId = input.responsibleUnitId ?? null;
 
   const closingAt = toNullableTimestamp(input.closingAt, 'Giờ closing');
   const plannedReturnAt = toNullableTimestamp(input.plannedReturnAt, 'Ngày trả rỗng kế hoạch');

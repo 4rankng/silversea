@@ -252,19 +252,6 @@ export function billingLineEffectiveAmount(line: ChargeProposalLineRow): string 
   }));
 }
 
-export function assertCusShipmentScope(actor: AuthUser, shipmentCustomerId: number | null) {
-  if (actor.role !== Role.CUS) return;
-  if (shipmentCustomerId == null) {
-    throw new ApiError(404, 'Không tìm thấy lô hàng');
-  }
-  if (actor.customerIds?.length) {
-    if (actor.customerIds.includes(shipmentCustomerId)) return;
-    throw new ApiError(404, 'Không tìm thấy lô hàng');
-  }
-  if (actor.customerId != null && actor.customerId === shipmentCustomerId) return;
-  throw new ApiError(404, 'Không tìm thấy lô hàng');
-}
-
 export async function lockShipment(
   tx: Tx,
   shipmentId: number,

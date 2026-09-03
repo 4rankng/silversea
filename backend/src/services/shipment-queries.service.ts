@@ -12,7 +12,6 @@ import type { AuthUser } from '../middleware/auth';
 import { count, gte } from 'drizzle-orm';
 import { canonicalShipmentStatus } from '@tingting/shared';
 import type { ShipmentStatus } from './shipment-types';
-import { isClerkScopedUser, loadClerkShipmentScope, buildShipmentScopeWhere } from './clerk-shipment-scope.service';
 import { containerTransportDateSql } from './cus-shipment-workspace-reads.service';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
@@ -1037,10 +1036,6 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   const offset = (page - 1) * limit;
 
   const conditions = [isNull(s.shipments.deletedAt)];
-  if (options.actor && isClerkScopedUser(options.actor)) {
-    const scope = await loadClerkShipmentScope(options.actor.userId);
-    conditions.push(buildShipmentScopeWhere(scope));
-  }
   if (options.customerIds?.length) {
     conditions.push(inArray(s.shipments.customerId, options.customerIds));
   } else if (options.customerId != null) {

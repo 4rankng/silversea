@@ -21,7 +21,6 @@ import {
   ACTIVE_GOVERNANCE_STATUSES,
   SHIPMENT_ACCOUNTING_LOCKED_MESSAGE,
   readNumber,
-  assertCusShipmentScope,
   lockShipment,
   loadActiveLockForUpdate,
   mapConfirmationSummary,
@@ -47,7 +46,6 @@ export async function updateShipmentDocumentCustody(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await assertShipmentAccountingUnlocked(tx, args.shipmentId);
-    assertCusShipmentScope(args.actor, shipment.customerId);
     if (shipment.version !== args.input.expectedShipmentVersion) {
       throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi cập nhật chứng từ.');
     }
@@ -86,7 +84,6 @@ export async function activateShipmentAccountingLock(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await lockShipment(tx, args.shipmentId);
-    assertCusShipmentScope(args.actor, shipment.customerId);
     const existing = await loadActiveLockForUpdate(tx, args.shipmentId);
     if (existing) {
       if (existing.confirmationActionId === args.input.confirmationId) {
@@ -172,7 +169,6 @@ export async function requestShipmentReopen(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await lockShipment(tx, args.shipmentId);
-    assertCusShipmentScope(args.actor, shipment.customerId);
     if (shipment.version !== args.input.expectedShipmentVersion) {
       throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi gửi đề nghị.');
     }

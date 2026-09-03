@@ -206,10 +206,8 @@ export const customers = pgTable('customers', {
   debitNoteTemplateId: integer('debit_note_template_id'),
   linkedSupplierId: integer('linked_supplier_id'),
   // Intake provenance: CUS/Dispatcher inline creates stamp the creating actor
-  // so loadClerkShipmentScope can admit the creator's own intake customers
-  // into their shipment scope. NULL = admin/seed/legacy rows (admin-managed
-  // user_customer_links remain the authoritative grant; never written by
-  // intake so the creator's token never invalidates).
+  // (`created_by`) for audit. NULL = admin/seed/legacy rows. Staff roles are
+  // not customer-scoped, so this stamp has no visibility effect.
   createdBy: integer('created_by'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -6,12 +6,6 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import { requestTripExpenseDecision, type ApprovalTransition, type TripExpenseDecisionEvidence } from './approval.service';
-import {
-  assertClerkCanAccessShipment,
-  buildShipmentScopeWhere,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-} from './clerk-shipment-scope.service';
 import type { Tx } from './trip-shared';
 
 /** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
@@ -364,9 +358,6 @@ async function recoverableConditions(
   ];
   if (filters.approvalStatus) conditions.push(eq(s.tripExpenses.approvalStatus, filters.approvalStatus));
   if (filters.customerId) conditions.push(eq(s.trips.customerId, filters.customerId));
-  if (isClerkScopedUser(actor)) {
-    conditions.push(buildShipmentScopeWhere(await loadClerkShipmentScope(actor.userId)));
-  }
   return conditions;
 }
 
@@ -438,25 +429,7 @@ export async function getRecoverableCost(
     .limit(1);
   if (!row) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
   if (row.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
-  if (isClerkScopedUser(actor)) {
-    const scope = await loadClerkShipmentScope(actor.userId, transaction);
-    assertClerkCanAccessShipment(scope, {
-      id: row.shipmentId,
-      customerId: row.customerId,
-      responsibleUnitId: await loadShipmentResponsibleUnit(row.shipmentId, transaction),
-    });
-  }
   return toRecoverableCost(row);
-}
-
-async function loadShipmentResponsibleUnit(shipmentId: number, transaction?: Tx) {
-  const client = transaction ?? db;
-  const [shipment] = await client.select({ responsibleUnitId: s.shipments.responsibleUnitId })
-    .from(s.shipments)
-    .where(eq(s.shipments.id, shipmentId))
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-  return shipment.responsibleUnitId;
 }
 
 export async function requestRecoverableCostDecision(input: {
@@ -486,14 +459,6 @@ export async function requestRecoverableCostDecision(input: {
     .limit(1)
     .for('update');
   if (!source || source.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
-  if (input.actor.role === Role.CUS) {
-    const scope = await loadClerkShipmentScope(input.actor.userId, input.transaction);
-    assertClerkCanAccessShipment(scope, {
-      id: source.shipmentId,
-      customerId: source.customerId,
-      responsibleUnitId: source.responsibleUnitId,
-    });
-  }
   return requestTripExpenseDecision({
     tripId: source.tripId,
     expenseId: source.expenseId,

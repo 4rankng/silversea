@@ -20,11 +20,6 @@ import {
   type ListShipmentsOptions,
 } from './shipment-queries.service';
 import { resolveShipmentPricingProjection } from './pricing.service';
-import {
-  assertClerkCanAccessShipment,
-  isClerkScopedUser,
-  loadClerkShipmentScope,
-} from './clerk-shipment-scope.service';
 import { listShipmentPodReviewItems, type ShipmentPodReviewItemView } from './trip-pod.service';
 import { getShipmentAccountingLock } from './shipment-accounting-lock.service';
 import { listShipmentContainers } from './shipment-containers.service';
@@ -223,10 +218,6 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
   // Fetch the shipment first so a missing row 404s cleanly rather than
   // returning an empty payload.
   const shipment = await getShipment(id);
-  if (actor && isClerkScopedUser(actor)) {
-    const scope = await loadClerkShipmentScope(actor.userId);
-    assertClerkCanAccessShipment(scope, shipment);
-  }
   // Join the customer name so the detail page can show a readable label.
   // leftJoin keeps the row even if the
   // customer was hard-deleted (customerName = null in that case).

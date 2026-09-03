@@ -20,7 +20,6 @@ import {
   lockApplicationOwnedUniquenessSet,
 } from '../../services/application-owned-uniqueness.service';
 import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
-import { loadClerkShipmentScope } from '../../services/clerk-shipment-scope.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake } from '../../services/route-intake.service';
 import { restrictCustomerCreateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
@@ -66,25 +65,6 @@ function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
   };
 }
 
-async function clerkBootstrap(
-  data: Awaited<ReturnType<typeof getBootstrapData>>,
-  userId: number,
-) {
-  const scope = await loadClerkShipmentScope(userId);
-  if (scope.businessUnitIds.length === 0 || scope.customerIds.length === 0) {
-    return {
-      ...data,
-      customers: [],
-      businessUnits: [],
-    };
-  }
-  return {
-    ...data,
-    customers: data.customers.filter((customer) => scope.customerIds.includes(customer.id)),
-    businessUnits: (data.businessUnits ?? []).filter((unit) => scope.businessUnitIds.includes(unit.id)),
-  };
-}
-
 export const catalogBootstrapRouter = Router();
 
 router.use('/config/master-data-imports', masterDataImportRouter);
@@ -96,9 +76,6 @@ catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Reque
   const role = actor.role;
   if (role === Role.DRIVER || role === Role.OPS) {
     return res.json(portalBootstrap(data));
-  }
-  if (role === Role.CUS) {
-    return res.json(await clerkBootstrap(data, actor.userId));
   }
   res.json(data);
 }));

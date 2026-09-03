@@ -32,7 +32,6 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import {
   CUSTOMER_OPERATIONAL_NAME,
   SITE_OPERATIONAL_NAME,
-  assertCusShipmentScope,
   buildWorkspaceDetail,
   deriveTransportDateFromContainerAppointments,
   formatPlate,
@@ -282,7 +281,6 @@ export async function updateCusShipmentContainerLine(args: {
 
   const execute = async (tx: Tx) => {
     const shipment = await assertShipmentAccountingUnlocked(tx, args.shipmentId);
-    await assertCusShipmentScope(args.actor, shipment, tx);
     if (shipment.version !== args.input.expectedShipmentVersion) {
       throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi cập nhật dòng container.');
     }
