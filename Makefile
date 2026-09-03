@@ -1,6 +1,8 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
         logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback \
-        db-backup db-drift-check demo-db-backup
+        db-backup db-drift-check demo-db-backup \
+        deploy deploy-prepare deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
+        deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3001  |  Frontend: 7174  |  Adminer: 8083
@@ -348,6 +350,9 @@ deploy-health: ## Check public prod backend and frontend endpoints
 		attempt=$$((attempt + 1)); \
 	done
 
+deploy-server-setup: ## One-time prod server provisioning (docker, TLS+certbot, hardening, stack files)
+	bash deploy/setup-silversea-server.sh
+
 deploy: ## Deploy prod (silversea.tingting.vip) — ships prod branch AS-IS, keeps DB
 	@echo "=== Deploying prod to $(PROD_SERVER) ==="
 	@echo ""
@@ -378,5 +383,6 @@ help: ## Show this help
 	@echo "  Frontend 7174  ·  Backend 3001  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
 	@echo ""
 	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
+	@echo "prod:  make deploy  →  https://silversea.tingting.vip  (ships the prod branch AS-IS, DB preserved)"
 
 .DEFAULT_GOAL := help

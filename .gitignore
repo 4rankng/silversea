@@ -101,3 +101,4 @@ kilo.json
 # Migration backups + generate lock
 backups/
 backend/.drizzle-generate.lock.d/
+.deploy-worktrees/
