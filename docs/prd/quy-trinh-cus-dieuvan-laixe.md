@@ -250,22 +250,14 @@ Sau khi lái xe hoàn thành, Chứng Từ xử lý chứng từ trên hồ sơ 
 - **Từ chối e-POD** — lái xe nộp lại bản mới; chuyến vẫn hoàn thành, không mở lại.
 - **Chốt hồ sơ** — lô hoàn thành → hồ sơ khóa, không sửa trực tiếp được; mở lại phải qua phê duyệt Admin.
 
-**Nhóm hồ sơ Chứng Từ** (tự suy ra từ trạng thái lô):
+**Nhóm hồ sơ Chứng Từ** (tự suy ra từ trạng thái lô, theo hướng **Mới → Đang chạy → Chờ khóa → Đã khóa**):
 
-```mermaid
-stateDiagram-v2
-    state "Mới" as moi
-    state "Đang chạy" as chay
-    state "Chờ khóa" as choKhoa
-    state "Đã khóa" as khoa
-
-    [*] --> moi : Lô mới
-    moi --> chay : Phát lệnh / đang chạy
-    chay --> choKhoa : Hoàn thành một phần
-    chay --> khoa : Lô hoàn thành
-    choKhoa --> khoa : Chuyến cuối hoàn thành
-    khoa --> [*]
-```
+| Nhóm hồ sơ | Khi nào | Ý nghĩa |
+|------------|---------|---------|
+| Mới | Lô vừa tạo, chưa phát lệnh | Chưa có chuyến |
+| Đang chạy | Đã phát lệnh / đang chạy | Chờ các chuyến hoàn thành |
+| Chờ khóa | Hoàn thành một phần (còn chuyến chưa xong) | Sắp chốt hồ sơ |
+| Đã khóa | Lô hoàn thành | Hồ sơ cuối — không sửa trực tiếp được |
 
 > Đối soát tài chính / khóa sổ kế toán xử lý sau, ngoài phạm vi tài liệu này.
 
