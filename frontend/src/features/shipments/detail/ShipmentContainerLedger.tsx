@@ -736,7 +736,7 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
                   <td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
-                    <BadgeWithDot className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`} size="sm" color={DISPATCH_STATUS[row.dispatchStatus].color}>{DISPATCH_STATUS[row.dispatchStatus].label}</BadgeWithDot>
+                    <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
                   </td>
                 </tr>
               );

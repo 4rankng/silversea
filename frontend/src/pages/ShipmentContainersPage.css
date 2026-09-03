@@ -156,17 +156,29 @@
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: 10px; font-weight: var(--fw-medium); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: 10px; font-weight: var(--fw-bold); }
-.shipment-container-ledger__dispatch-badge { max-width: 100%; font-size: 11px; line-height: 1.4; white-space: normal; }
+/* Trạng thái is plain colored text, not a pill: the five dispatch states
+   already read as a status signal via hue alone (matched to the exact tones
+   the retired Badge/BadgeWithDot component used, so the palette didn't
+   change — only the fill/ring/dot chrome was dropped) and a flat label
+   costs far less column width than a chip. */
+.shipment-container-ledger__dispatch-badge { display: inline-block; max-width: 100%; font-weight: var(--fw-semibold); font-size: 11px; line-height: 1.4; white-space: normal; }
+.shipment-container-ledger__dispatch-badge--unassigned { color: oklch(0.554 0.135 66.442); }
+.shipment-container-ledger__dispatch-badge--planned { color: oklch(0.488 0.243 264.376); }
+.shipment-container-ledger__dispatch-badge--created { color: oklch(0.457 0.24 277.023); }
+.shipment-container-ledger__dispatch-badge--in_transit { color: oklch(0.496 0.265 301.924); }
+.shipment-container-ledger__dispatch-badge--completed { color: oklch(0.527 0.154 150.069); }
 
-/* Last-column status cell: read-only badge surface; keep the badge left-aligned
-   so it sits at the natural reading start and doesn't visually drift when rows
-   differ in length. */
+/* Last-column status cell: read-only text; vertical-align keeps it aligned
+   with the multi-line cells beside it. */
 .shipment-container-ledger__cell--status { display: table-cell; vertical-align: middle; }
-.shipment-container-ledger__cell--status .shipment-container-ledger__dispatch-badge { justify-content: flex-start; }
 .shipment-container-ledger__missing { color: var(--ink-3); font-weight: var(--fw-regular); }
 
 .shipment-container-ledger__route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-items: center; }
-.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; font-weight: var(--fw-medium); word-break: break-word; }
+/* The place name is this cell's headline value (same role as the customer
+   name / doc number / container number in their columns), so it takes the
+   shared primary tier instead of the smaller note-weight text it had drifted
+   to — every column's headline now reads at one consistent size/weight. */
+.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: break-word; }
 .shipment-container-ledger__route small { color: var(--ink-3); font-size: 10px; font-weight: var(--fw-semibold); text-transform: uppercase; }
 .shipment-container-ledger__route i { justify-self: start; color: var(--ink-4); font-style: normal; transform: rotate(90deg); }
 .shipment-container-ledger__schedule { font-family: var(--font-data); }
