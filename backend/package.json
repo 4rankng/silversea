@@ -16,7 +16,8 @@
     "pretest": "pnpm --dir ../shared build",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "npx tsx --test 'src/tests/unit/*.test.ts'",
-    "test:integration": "npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'"
+    "test:integration": "npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'",
+    "seed:prod": "tsx src/seed/seed-prod.ts"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
