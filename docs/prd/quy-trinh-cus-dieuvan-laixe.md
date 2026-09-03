@@ -95,32 +95,16 @@ stateDiagram-v2
 
 ## Bước 1 — Chứng Từ: Khởi Tạo Lô Hàng
 
-```mermaid
-sequenceDiagram
-    participant KH as Khách hàng
-    participant CT as Chứng Từ
-    participant SYS as Hệ thống
-
-    KH->>CT: Gửi booking
-    CT->>SYS: Tạo lô nhanh
-    SYS-->>CT: Mã lô + giá cước dự kiến
-
-    alt Hàng nguyên container
-        CT->>SYS: Nhập danh sách container
-        SYS->>SYS: Kiểm tra số container<br/>(đúng chuẩn + chữ số kiểm tra)
-    else Hàng lẻ
-        CT->>SYS: Nhập quy cách, số lượng, khối lượng, CBM
-    end
-
-    CT->>SYS: Gửi lô cho điều vận
-    SYS->>SYS: Tạo phiếu bàn giao
-    SYS-->>CT: Lô sẵn sàng điều xe
-```
+1. Khách hàng gửi booking. Chứng Từ tạo lô nhanh — hệ thống trả **mã lô + giá cước dự kiến**.
+2. Nhập hàng:
+   - **Hàng nguyên container:** nhập danh sách container; hệ thống kiểm tra số container đúng chuẩn, đủ chữ số kiểm tra.
+   - **Hàng lẻ:** nhập quy cách, số lượng, khối lượng, CBM.
+3. Gửi lô cho điều vận — hệ thống tạo **phiếu bàn giao**, lô chuyển **sẵn sàng điều xe**.
 
 **Kiểm soát hệ thống:**
 - **Tính cước tự động** — 3 tầng: theo kg → theo container → điều chỉnh thủ công (dự phòng). Không gõ tay giá.
 - **Số container chuẩn quốc tế (ISO 6346)** — Có chữ số kiểm tra; OCR tự sửa khi nhập gần đúng.
-- **Bàn giao** — Khi Chứng Từ gửi lô, hệ thống tạo phiếu bàn giao; Điều vận phải chấp nhận trước khi phân bổ.
+- **Bàn giao** — Điều vận phải chấp nhận phiếu bàn giao trước khi phân bổ.
 - **Gửi lặp an toàn** — Thao tác trùng không tạo lô mới.
 
 ---
@@ -148,23 +132,17 @@ Mỗi dòng vận chuyển được gán biển số xe + tài xế cụ thể. 
 
 > Phân loại là nhãn thao tác theo từng dòng vận chuyển. Riêng đánh dấu "ghép chuyến" áp ở cấp lô hàng — hai thông tin độc lập.
 
+Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
+
 ### 2c. Phát Lệnh
 
-```mermaid
-sequenceDiagram
-    participant DV as Điều Vận
-    participant SYS as Hệ thống
-    participant LX as Lái Xe
+Khi Điều vận nhấn **"Phát lệnh"**, hệ thống kiểm tra:
 
-    DV->>SYS: Nhấn "Phát lệnh"
-    SYS->>SYS: Kiểm tra xe đang hoạt động, tài xế có tài khoản
-    SYS->>SYS: Kiểm tra rơ-moóc khớp container, trọng lượng ≤ tải trọng
-    SYS->>SYS: Kiểm tra không trùng lịch xe
-    SYS->>SYS: Tạo chuyến + lô sẵn sàng → đã phân xe
-    SYS->>LX: Thông báo: "Chuyến được điều phối"
-```
+- Xe đang hoạt động, tài xế có tài khoản đăng nhập
+- Rơ-moóc khớp container, trọng lượng ≤ tải trọng
+- Không trùng lịch xe
 
-Trạng thái phát lệnh theo từng dòng vận chuyển: **Chưa xếp xe → Đã gán biển số → Đã phát lệnh**.
+Hệ thống tạo chuyến, lô chuyển **sẵn sàng → đã phân xe**, và gửi thông báo "Chuyến được điều phối" tới lái xe.
 
 Sau khi phát lệnh, Điều vận vẫn được đổi xe/tài xế tự do — chỉ chặn với lô đã hoàn thành hoặc đã hủy.
 
@@ -182,47 +160,21 @@ Mốc bắt buộc theo thứ tự: **Nhận lệnh → Lấy vỏ/hàng → Đ�
 
 Sự kiện bổ sung (không bắt buộc): xuất phát, đến nơi, đổ dầu, sự cố, ghi chú.
 
-### Hoàn Thành Chuyến
+### Hoàn Thành Chuyến — Lái Xe Tự Đóng
 
-```mermaid
-flowchart TD
-    A["Lái xe nộp e-POD\n(phiếu hạ bãi + biên bản ký)"] --> B["Nhấn 'Hoàn thành chuyến'"]
-    B --> C["Tự ghi mốc còn thiếu\n(trừ bước nhận lệnh)"]
-    C --> D{"Đủ 2 file e-POD\nbắt buộc?"}
-    D -->|Không| E["❌ Chặn hoàn thành"]
-    D -->|Có| F["Chuyến hoàn thành"]
-    F --> G["Lô 1 chuyến → hoàn thành\nCòn chuyến → chờ duyệt phí\n(chờ chuyến cuối)"]
-```
+Lái xe nộp e-POD rồi nhấn **"Hoàn thành chuyến"**. Điều kiện:
 
-**Điều kiện (lái xe tự đóng chuyến):**
 - Lái xe đã bấm nhận lệnh (thao tác thủ công)
 - Đủ 2 file e-POD bắt buộc đã tải lên (nút bấm tự gửi e-POD)
 - Các mốc còn thiếu (lấy vỏ, đóng/trả, hạ bãi) được tự ghi nhận
 
-**Tự động bỏ qua:**
-- Phê duyệt đặc biệt — không cần duyệt trước
-- Thu hồi chứng từ gốc — không cần trước khi đóng chuyến
-- Xác nhận doanh thu bằng 0 — tự xác nhận
-- Ảnh hiện trường (cont/seal) — tự bỏ qua
-- Phạm vi chi phí — không yêu cầu
+Đủ điều kiện → **chuyến hoàn thành ngay**. Lô 1 chuyến hoàn thành luôn; lô nhiều chuyến chờ chuyến cuối (trạng thái "Chờ duyệt phí").
+
+**Tự động bỏ qua:** phê duyệt đặc biệt, thu hồi chứng từ gốc (chưa cần trước khi đóng), xác nhận doanh thu bằng 0, ảnh hiện trường (cont/seal), phạm vi chi phí.
 
 ### e-POD (Chứng Từ Điện Tử)
 
-```mermaid
-stateDiagram-v2
-    state "Nháp" as nhap
-    state "Đã gửi" as daGui
-    state "Đã duyệt" as duyet
-    state "Bị từ chối" as tuChoi
-
-    [*] --> nhap : Tạo e-POD
-    nhap --> nhap : Tải ảnh lên
-    nhap --> daGui : Gửi duyệt
-    daGui --> duyet : Chứng Từ duyệt (sau hoàn thành)
-    daGui --> tuChoi : Chứng Từ từ chối
-    tuChoi --> nhap : Sửa lại
-    duyet --> [*]
-```
+Quy trình theo hướng: **Nháp** (tải ảnh lên) → **Đã gửi** → **Đã duyệt** hoặc **Bị từ chối** (lái xe sửa lại rồi nộp bản mới).
 
 **2 file bắt buộc:** phiếu hạ bãi/trả hàng + biên bản giao nhận đã ký.
 
