@@ -1,7 +1,7 @@
 .PHONY: dev stop down setup seed migrate generate build studio help \
         logs-db logs-redis infra demo demo-push demo-deploy demo-health demo-capture-rollback \
         db-backup db-drift-check demo-db-backup \
-        deploy deploy-prepare deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
+        deploy deploy-prepare deploy-advance deploy-push deploy-capture-rollback deploy-db-backup deploy-health \
         deploy-server-setup
 
 # ─── Ports (silversea — de-conflicted from nepocorp) ─────────────────────────
@@ -304,6 +304,11 @@ deploy-prepare: ## Ensure prod branch + clean build worktree exist
 		echo "❌ $(PROD_WORKTREE) is dirty — refusing to build prod images from an unclean tree." >&2; \
 		exit 1; \
 	fi
+
+deploy-advance: deploy-prepare ## Advance prod branch to origin/main (fast-forward; operator verb before `make deploy`)
+	@git -C $(PROD_WORKTREE) fetch origin
+	@git -C $(PROD_WORKTREE) merge --ff-only origin/main
+	@echo "$(PROD_BRANCH) advanced to $$(git -C $(PROD_WORKTREE) rev-parse --short HEAD)"
 
 deploy-push: deploy-prepare ## Build + push :prod images from the prod worktree
 	@echo "Building from $(PROD_BRANCH) @ $$(git -C $(PROD_WORKTREE) rev-parse --short HEAD)"
